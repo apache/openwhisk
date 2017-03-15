@@ -18,6 +18,8 @@ package whisk.core.controller
 
 import java.util.Base64
 
+import java.nio.charset.StandardCharsets
+
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
@@ -30,6 +32,7 @@ import spray.http.HttpEntity.NonEmpty
 import spray.http.HttpHeaders._
 import spray.http.MediaTypes._
 import spray.http.StatusCodes._
+import spray.http.Uri.Query
 import spray.http.parser.HttpParser
 import spray.httpx.SprayJsonSupport._
 import spray.json._
@@ -85,13 +88,15 @@ private case class Context(
     method: HttpMethod,
     headers: List[HttpHeader],
     path: String,
-    query: Map[String, String],
+    query: Query,
     body: Option[JsValue] = None) {
+
+    val queryAsMap = query.toMap
 
     // returns true iff the attached query and body parameters contain a property
     // that conflicts with the given reserved parameters
     def overrides(reservedParams: Set[String]): Set[String] = {
-        val queryParams = query.keySet
+        val queryParams = queryAsMap.keySet
         val bodyParams = body.map {
             case JsObject(fields) => fields.keySet
             case _                => Set.empty
@@ -112,9 +117,9 @@ private case class Context(
 
     def toActionArgument(user: Option[Identity], boxQueryAndBody: Boolean): Map[String, JsValue] = {
         val queryParams = if (boxQueryAndBody) {
-            Map(propertyMap.query -> query.toJson)
+            Map(propertyMap.query -> JsString(query.render(new StringRendering, StandardCharsets.UTF_8).get))
         } else {
-            query.toJson.asJsObject.fields
+            queryAsMap.map(kv => kv._1 -> JsString(kv._2))
         }
 
         // if the body is a json object, merge with query parameters
@@ -314,10 +319,10 @@ trait WhiskMetaApi
     private val requestMethodParamsAndPath = {
         extract { ctx =>
             val method = ctx.request.method
-            val params = ctx.request.message.uri.query.toMap
+            val query = ctx.request.message.uri.query
             val path = ctx.unmatchedPath.toString
             val headers = ctx.request.headers
-            Context(webApiDirectives, method, headers, path, params)
+            Context(webApiDirectives, method, headers, path, query)
         }
     }
 

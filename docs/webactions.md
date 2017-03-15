@@ -100,11 +100,11 @@ All web actions, when invoked, receives additional HTTP request details as param
 3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
 4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
 5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary, or plain string otherwise
-6. `__ow_query` (type: map string to string): the query parameters from the request as a map
+6. `__ow_query` (type: string): the query parameters from the request as an unparsed string
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
 
-The `__ow_user` is only present when the web action is [annotated to require authentication](annotations.md#annotations-specific-to-web-actions) and allows a web action to implement its own authorization policy. The `__ow_query` is available only when a web action elects to handle the ["raw" HTTP request](#raw-http-handling). It is a dictionary from query parameter names (strings) to values (strings). The `__ow_body` property is present either when handling "raw" HTTP requests, or when the HTTP request entity is not a JSON object or form data. Web actions otherwise receive query and body parameters as first class properties in the action arguments with body parameters taking precedence over query parameters, which in turn take precedence over action and package parameters.
+The `__ow_user` is only present when the web action is [annotated to require authentication](annotations.md#annotations-specific-to-web-actions) and allows a web action to implement its own authorization policy. The `__ow_query` is available only when a web action elects to handle the ["raw" HTTP request](#raw-http-handling). It is a string containing the query parameters parsed from the URI (separated by `&`). The `__ow_body` property is present either when handling "raw" HTTP requests, or when the HTTP request entity is not a JSON object or form data. Web actions otherwise receive query and body parameters as first class properties in the action arguments with body parameters taking precedence over query parameters, which in turn take precedence over action and package parameters.
 
 ## Additional features
 
@@ -260,15 +260,13 @@ $ wsk action update /guest/demo/hello hello.js \
 
 ## Raw HTTP handling
 
-A web action may elect to interpret and process an incoming HTTP body directly, without the promotion of a JSON object to first class properties available to the action input (e.g., `args.name` vs `args.__ow_query.name`). This is done via a `raw-http` [annotation](annotations.md). Using the same example show earlier, but now as a "raw" HTTP web action receiving `name` both as a query parameters and as JSON value in the HTTP request body:
+A web action may elect to interpret and process an incoming HTTP body directly, without the promotion of a JSON object to first class properties available to the action input (e.g., `args.name` vs parsing `args.__ow_query`). This is done via a `raw-http` [annotation](annotations.md). Using the same example show earlier, but now as a "raw" HTTP web action receiving `name` both as a query parameters and as JSON value in the HTTP request body:
 ```bash
 $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H "Content-Type: application/json" -d '{"name":"Jane"}' 
 {
   "response": {
     "__ow_method": "post",
-    "__ow_query": {
-      "name": "Jane"
-    },
+    "__ow_query": "name=Jane",
     "__ow_body": "eyJuYW1lIjoiSmFuZSJ9",
     "__ow_headers": {
       "accept": "*/*",

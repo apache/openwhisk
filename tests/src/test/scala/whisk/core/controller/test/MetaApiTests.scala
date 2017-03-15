@@ -36,6 +36,7 @@ import spray.http.HttpCharsets
 import spray.http.HttpHeader
 import spray.http.HttpHeaders
 import spray.http.HttpResponse
+import spray.http.Uri.Query
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
@@ -310,7 +311,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                 JsObject(
                     params.fields ++
                         body.map(_.fields).getOrElse(Map()) ++
-                        Context(webApiDirectives, HttpMethods.getForKey(method.toUpperCase).get, headers, path, Map()).metadata(identity))
+                        Context(webApiDirectives, HttpMethods.getForKey(method.toUpperCase).get, headers, path, Query.Empty).metadata(identity))
             }
         }.get
     }
@@ -1108,7 +1109,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             implicit val tid = transid()
             invocationsAllowed = 2
 
-            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?x=overriden&key2=value2") ~> sealRoute(routes(creds)) ~> check {
+            val queryString = "x=overriden&key2=value2"
+            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString") ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response shouldBe JsObject(
@@ -1117,7 +1119,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     "content" -> metaPayload(
                         Post.method.name.toLowerCase,
                         Map(webApiDirectives.body -> JsObject(),
-                            webApiDirectives.query -> JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2"))).toJson.asJsObject,
+                            webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
                         creds,
                         pkgName = "proxy"))
             }
@@ -1130,7 +1132,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     "action" -> "raw_export_c".toJson,
                     "content" -> metaPayload(
                         Post.method.name.toLowerCase,
-                        Map(webApiDirectives.query -> JsObject(),
+                        Map(webApiDirectives.query -> "".toJson,
                             webApiDirectives.body -> Base64.getEncoder.encodeToString {
                                 JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2")).prettyPrint.getBytes
                             }.toJson).toJson.asJsObject,
@@ -1145,7 +1147,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             val str = "1,2,3"
             invocationsAllowed = 1
 
-            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?key1=value1&key2=value2", str) ~> addHeader("Content-type", MediaTypes.`application/json`.value) ~> sealRoute(routes(creds)) ~> check {
+            val queryString = "key1=value1&key2=value2"
+            Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString", str) ~> addHeader("Content-type", MediaTypes.`application/json`.value) ~> sealRoute(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response shouldBe JsObject(
@@ -1153,9 +1156,8 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
                     "action" -> "raw_export_c".toJson,
                     "content" -> metaPayload(
                         Post.method.name.toLowerCase,
-                        Map(
-                            webApiDirectives.body -> str.toJson,
-                            webApiDirectives.query -> JsObject("key1" -> JsString("value1"), "key2" -> JsString("value2"))).toJson.asJsObject,
+                        Map(webApiDirectives.body -> str.toJson,
+                            webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
                         creds,
                         pkgName = "proxy",
                         headers = List(HttpHeaders.`Content-Type`(MediaTypes.`application/json`))))
