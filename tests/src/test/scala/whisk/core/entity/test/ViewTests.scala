@@ -233,8 +233,8 @@ class ViewTests extends FlatSpec
         val actionName = aname
         val now = Instant.now(Clock.systemUTC())
         val others = Seq(
-            WhiskAction(namespace1, aname, js("??")),
-            WhiskAction(namespace1, aname, js("??")))
+            WhiskAction(namespace1, aname, jsDefault("??")),
+            WhiskAction(namespace1, aname, jsDefault("??")))
         implicit val entities = Seq(
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now, end = now),
             WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now.plusSeconds(20), end = now.plusSeconds(20)),
@@ -264,8 +264,8 @@ class ViewTests extends FlatSpec
         val actionName = aname
         val now = Instant.now(Clock.systemUTC())
         implicit val entities = Seq(
-            WhiskAction(namespace1, aname, js("??")),
-            WhiskAction(namespace1, aname, js("??")))
+            WhiskAction(namespace1, aname, jsDefault("??")),
+            WhiskAction(namespace1, aname, jsDefault("??")))
 
         entities foreach { put(datastore, _) }
         waitOnView(datastore, namespace1, entities.length)

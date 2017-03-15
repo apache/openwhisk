@@ -40,8 +40,11 @@ trait ExecHelpers
     protected val SWIFT = "swift"
     protected val SWIFT3 = "swift:3"
 
-    protected def js(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(NODEJS), trim(code), main.map(_.trim))
-    protected def js6(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(NODEJS6), trim(code), main.map(_.trim))
+    protected def js(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(NODEJS, deprecated = Some(true)), trim(code), main.map(_.trim))
+    protected def js6(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(NODEJS6, default = Some(true)), trim(code), main.map(_.trim))
+    protected def jsDefault(code: String, main: Option[String] = None) = {
+        js6(code, main)
+    }
     protected def swift(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(SWIFT, deprecated = Some(true)), trim(code), main.map(_.trim))
     protected def swift3(code: String, main: Option[String] = None): Exec = CodeExecAsString(RuntimeManifest(SWIFT3, default = Some(true)), trim(code), main.map(_.trim))
     protected def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
