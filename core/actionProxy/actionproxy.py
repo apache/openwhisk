@@ -148,7 +148,7 @@ class ActionRunner:
             for line in process_output_lines[:-1]:
                 sys.stdout.write('%s\n' % line)
         else:
-            last_line = '{}'
+            last_line = ''  # will trigger an exception on json.load()
 
         if e:
             sys.stderr.write(e)
