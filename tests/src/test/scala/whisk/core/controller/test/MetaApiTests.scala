@@ -102,13 +102,13 @@ class MetaApiTestsV2 extends FlatSpec with Matchers with MetaApiTests {
         webApiDirectives.method shouldBe "__ow_method"
         webApiDirectives.headers shouldBe "__ow_headers"
         webApiDirectives.path shouldBe "__ow_path"
-        webApiDirectives.namespace shouldBe "__ow_namespace"
+        webApiDirectives.namespace shouldBe "__ow_user"
         webApiDirectives.query shouldBe "__ow_query"
         webApiDirectives.body shouldBe "__ow_body"
         webApiDirectives.statusCode shouldBe "statusCode"
         webApiDirectives.enforceExtension shouldBe false
         webApiDirectives.reservedProperties shouldBe {
-            Set("__ow_method", "__ow_headers", "__ow_path", "__ow_namespace",
+            Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user",
                 "__ow_query", "__ow_body")
         }
     }

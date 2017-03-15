@@ -116,7 +116,7 @@ abstract class WskWebActionsTests
             val url = if (testRoutePath == "/api/v1/experimental/web") {
                 s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_namespace"
             } else {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_namespace"
+                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_user"
             }
 
             val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)

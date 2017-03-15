@@ -58,7 +58,7 @@ protected[controller] sealed class WebApiDirectives private (prefix: String) {
     val method: String = fields("method")
     val headers: String = fields("headers")
     val path: String = fields("path")
-    val namespace: String = fields("namespace")
+    val namespace: String = fields("user")
     val query: String = fields("query")
     val body: String = fields("body")
 
@@ -75,6 +75,7 @@ protected[controller] object WebApiDirectives {
     val exp = new WebApiDirectives("__ow_meta_") {
         override val enforceExtension = true
         override val method = fields("verb")
+        override val namespace = fields("namespace")
         override val statusCode = "code"
     }
 }
