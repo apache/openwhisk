@@ -1366,5 +1366,17 @@
   {
     "id": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n",
     "translation": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n"
+  },
+  {
+    "id": "treat ACTION as a web action",
+    "translation": "treat ACTION as a web action"
+  },
+  {
+    "id": "treat ACTION as a raw HTTP web action",
+    "translation": "treat ACTION as a raw HTTP web action"
+  },
+  {
+    "id": "treat ACTION as a non-web action",
+    "translation": "treat ACTION as a non-web action"
   }
 ]

@@ -201,122 +201,58 @@ abstract class WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            var updateAction = false
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some(true))
+            try {
+                Seq(true, false, true).foreach { value =>
+                    wsk.action.create(name, file, web = Some(value), update = updateAction)
+                    updateAction = true
+                    val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                    assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                    removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                        JsObject(
+                            "key" -> JsString("web-export"),
+                            "value" -> JsBoolean(value)),
+                        JsObject(
+                            "key" -> JsString("final"),
+                            "value" -> JsBoolean(value)),
+                        JsObject(
+                            "key" -> JsString("exec"),
+                            "value" -> JsString("nodejs:6")))
+                }
+            } finally {
+                wsk.action.delete(name)
             }
-
-            val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout) shouldBe JsArray(
-                JsObject(
-                    "key" -> JsString("web-export"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("final"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("exec"),
-                    "value" -> JsString("nodejs:6")))
-
-            wsk.action.create(name, file, web = Some(false), update = true)
-
-            val stdout2 = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout2.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout2) shouldBe JsArray(
-                JsObject(
-                    "key" -> JsString("web-export"),
-                    "value" -> JsBoolean(false)),
-                JsObject(
-                    "key" -> JsString("final"),
-                    "value" -> JsBoolean(false)),
-                JsObject(
-                    "key" -> JsString("exec"),
-                "value" -> JsString("nodejs:6")))
-
-            wsk.action.create(name, file, web = Some(true), update = true)
-
-            val stdout3 = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout3.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout3) shouldBe JsArray(
-                JsObject(
-                    "key" -> JsString("web-export"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("final"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("exec"),
-                    "value" -> JsString("nodejs:6")))
     }
 
     it should "ensure --raw and --no-raw set the proper annotations" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            var updateAction = false
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, raw = Some(true))
+            try {
+                Seq(true, false, true).foreach { value =>
+                    wsk.action.create(name, file, raw = Some(value), update = updateAction)
+                    updateAction = true
+                    val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                    assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                    removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                        JsObject(
+                            "key" -> JsString("raw-http"),
+                            "value" -> JsBoolean(value)),
+                        JsObject(
+                            "key" -> JsString("web-export"),
+                            "value" -> JsBoolean(value)),
+                        JsObject(
+                            "key" -> JsString("final"),
+                            "value" -> JsBoolean(value)),
+                        JsObject(
+                            "key" -> JsString("exec"),
+                            "value" -> JsString("nodejs:6")))
+                }
+            } finally {
+                wsk.action.delete(name)
             }
-
-            val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout) shouldBe JsArray(
-                    JsObject(
-                        "key" -> JsString("raw-http"),
-                        "value" -> JsBoolean(true)),
-                    JsObject(
-                        "key" -> JsString("web-export"),
-                        "value" -> JsBoolean(true)),
-                    JsObject(
-                        "key" -> JsString("final"),
-                        "value" -> JsBoolean(true)),
-                    JsObject(
-                        "key" -> JsString("exec"),
-                        "value" -> JsString("nodejs:6")))
-
-            wsk.action.create(name, file, raw = Some(false), update = true)
-
-            val stdout2 = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout2.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout2) shouldBe JsArray(
-                JsObject(
-                    "key" -> JsString("raw-http"),
-                    "value" -> JsBoolean(false)),
-                JsObject(
-                    "key" -> JsString("web-export"),
-                    "value" -> JsBoolean(false)),
-                JsObject(
-                    "key" -> JsString("final"),
-                    "value" -> JsBoolean(false)),
-                JsObject(
-                    "key" -> JsString("exec"),
-                    "value" -> JsString("nodejs:6")))
-
-            wsk.action.create(name, file, raw = Some(true), update = true)
-
-            val stdout3 = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-            assert(stdout3.startsWith(s"ok: got action $name, displaying field annotations\n"))
-
-            wsk.parseJsonValueString(stdout3) shouldBe JsArray(
-                JsObject(
-                    "key" -> JsString("raw-http"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("web-export"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("final"),
-                    "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString("exec"),
-                    "value" -> JsString("nodejs:6")))
     }
 }

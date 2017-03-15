@@ -470,18 +470,31 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if flags.action.raw {
-        action.Annotations, err = webActionAnnotations(update, action.Annotations, qualifiedName, addRawAnnotations)
+        action.Annotations, err = webActionAnnotations(
+            update,
+            action.Annotations,
+            qualifiedName.entityName,
+            addRawAnnotations)
     } else if flags.action.web {
-        action.Annotations, err = webActionAnnotations(update, action.Annotations, qualifiedName, addWebAnnotations)
+        action.Annotations, err = webActionAnnotations(update,
+            action.Annotations,
+            qualifiedName.entityName,
+            addWebAnnotations)
     } else if flags.action.noRaw {
-        action.Annotations, err = webActionAnnotations(update, action.Annotations, qualifiedName, deleteRawAnnotations)
+        action.Annotations, err = webActionAnnotations(update,
+            action.Annotations,
+            qualifiedName.entityName,
+            deleteRawAnnotations)
     } else if flags.action.noWeb {
-        action.Annotations, err = webActionAnnotations(update, action.Annotations, qualifiedName, deleteWebAnnotations)
+        action.Annotations, err = webActionAnnotations(update,
+            action.Annotations,
+            qualifiedName.entityName,
+            deleteWebAnnotations)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
 
-    return action, nil
+    return action, err
 }
 
 type WebActionAnnotationMethod func(annotations whisk.KeyValueArr) (whisk.KeyValueArr)
@@ -489,7 +502,7 @@ type WebActionAnnotationMethod func(annotations whisk.KeyValueArr) (whisk.KeyVal
 func webActionAnnotations(
     fetchAnnotations bool,
     annotations whisk.KeyValueArr,
-    qualifiedName QualifiedName,
+    entityName string,
     webActionAnnotationMethod WebActionAnnotationMethod) (whisk.KeyValueArr, error) {
         var action *whisk.Action
         var err error
@@ -497,8 +510,8 @@ func webActionAnnotations(
         if annotations != nil || !fetchAnnotations {
             annotations = webActionAnnotationMethod(annotations)
         } else {
-            if action, _, err = client.Actions.Get(qualifiedName.entityName); err != nil {
-                return nil, actionGetError(qualifiedName.entityName, err)
+            if action, _, err = client.Actions.Get(entityName); err != nil {
+                return nil, actionGetError(entityName, err)
             } else {
                 annotations = webActionAnnotationMethod(action.Annotations)
             }
@@ -841,10 +854,10 @@ func init() {
     actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
     actionCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as the name of an existing action"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as a web action"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as a non-web action"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as a raw HTTP web action"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as a non-web action"))
 
     actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
@@ -859,10 +872,10 @@ func init() {
     actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as the name of an existing action"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.web, "web", false, wski18n.T("treat ACTION as a web action"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.noWeb, "no-web", false, wski18n.T("treat ACTION as a non-web action"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.raw, "raw", false, wski18n.T("treat ACTION as a raw HTTP web action"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.noRaw, "no-raw", false, wski18n.T("treat ACTION as a non-web action"))
 
     actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionInvokeCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))

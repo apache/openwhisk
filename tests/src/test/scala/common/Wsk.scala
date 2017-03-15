@@ -928,10 +928,6 @@ sealed trait RunWskCmd extends Matchers {
         jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
     }
 
-    def parseJsonValueString(jsonStr: String): JsValue = {
-        jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson // Skip optional status line before parsing
-    }
-
     private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
         val s = new StringBuilder()
         s.append(args.mkString(" ") + "\n")
