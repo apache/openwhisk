@@ -258,48 +258,6 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - xmlhttprequest v1.8.0
 - yauzl v2.7.0
 
-The Node.js version 0.12.17 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs' when creating/updating the action.
-The following packages are available to be used in the Node.js 0.12.17 environment:
-
-**Note**: The Node.js version 0.12.x is deprecated, migrate all your Node.js action to use Node.js version 6.x.
-
-- apn v1.7.4
-- async v1.5.2
-- btoa v1.1.2
-- cheerio v0.20.0
-- cloudant v1.4.1
-- commander v2.7.0
-- consul v0.18.1
-- cookie-parser v1.3.4
-- cradle v0.6.7
-- errorhandler v1.3.5
-- gm v1.20.0
-- jade v1.9.2
-- log4js v0.6.38
-- merge v1.2.0
-- moment v2.8.1
-- mustache v2.1.3
-- nano v5.10.0
-- node-uuid v1.4.2
-- oauth2-server v2.4.0
-- openwhisk v3.0.0
-- process v0.11.0
-- request v2.79.0
-- rimraf v2.5.1
-- semver v4.3.6
-- serve-favicon v2.2.0
-- socket.io v1.3.5
-- socket.io-client v1.3.5
-- superagent v1.3.0
-- swagger-tools v0.8.7
-- tmp v0.0.28
-- watson-developer-cloud v1.4.1
-- when v3.7.3
-- ws v1.1.0
-- xml2js v0.4.15
-- xmlhttprequest v1.7.0
-- yauzl v2.3.1
-
 ## Python actions
 
 Python actions are executed by default using Python 2.7.12.

@@ -208,7 +208,7 @@ trait MetaApiTests extends ControllerTestCommon with BeforeAndAfterEach with Whi
             def theAction = {
                 val annotations = Parameters(WhiskAction.finalParamsAnnotationName, JsBoolean(true))
 
-                WhiskAction(actionName.path, actionName.name, js("??"), defaultActionParameters, annotations = {
+                WhiskAction(actionName.path, actionName.name, jsDefault("??"), defaultActionParameters, annotations = {
                     if (actionName.name.asString.startsWith("export_")) {
                         annotations ++
                             Parameters("web-export", JsBoolean(true)) ++ {

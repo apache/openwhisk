@@ -11,6 +11,7 @@ whisk:
 runtimesManifest:
   nodejs:
   - kind: "nodejs"
+    deprecated: true
   - kind: "nodejs:6"
     default: true
   python:

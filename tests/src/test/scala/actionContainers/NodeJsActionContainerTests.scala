@@ -27,7 +27,7 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    lazy val nodejsContainerImageName = "nodejsaction"
+    lazy val nodejsContainerImageName = "nodejs6action"
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(nodejsContainerImageName, env)(code)
@@ -529,6 +529,31 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         checkStreams(out, err, {
             case (o, _) =>
                 o.toLowerCase should include("❄ ☃ ❄")
+        })
+    }
+
+    it should "support default function parameters" in {
+        val (out, err) = withNodeJsContainer { c =>
+            val code = """
+                         | function main(args) {
+                         |     let foo = 3;
+                         |     return {isValid: (function (a, b = 2) {return a === 3 && b === 2;}(foo))};
+                         | }
+                       """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+            runCode should be(200)
+            runRes should be(Some(JsObject("isValid" -> JsBoolean(true))))
+
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
         })
     }
 }
