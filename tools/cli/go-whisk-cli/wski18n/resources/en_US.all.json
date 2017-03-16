@@ -1366,5 +1366,13 @@
   {
     "id": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n",
     "translation": "{{.ok}} invoked /{{.namespace}}/{{.name}}, but the request has not yet finished, with id {{.id}}\n"
+  },
+  {
+    "id": "treat ACTION as a web action, a raw HTTP web action, or as a standard action; default = web action, raw = raw HTTP web action, none = standard action",
+    "translation": "treat ACTION as a web action, a raw HTTP web action, or as a standard action; default = web action, raw = raw HTTP web action, none = standard action"
+  },
+  {
+    "id": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'default', 'raw', or 'none'.",
+    "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'default', 'raw', or 'none'."
   }
 ]

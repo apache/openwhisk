@@ -25,6 +25,7 @@ import com.jayway.restassured.RestAssured
 
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.ERROR_EXIT
 import common.Wsk
 import common.WskAdmin
 import common.WskProps
@@ -195,5 +196,89 @@ abstract class WskWebActionsTests
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 406
             response.body().asString() should include("Resource representation is only available with these Content-Types:\\ntext/html")
+    }
+
+    it should "ensure --web and --no-web flags set the proper annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            var updateAction = false
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("defAult"))
+            }
+
+            Seq("defAult", "None", "default").foreach { webAction =>
+                val optionEnabled = webAction.toLowerCase != "none"
+
+                if (updateAction)
+                    wsk.action.create(name, file, web = Some(webAction), update = true)
+                else
+                    updateAction = true
+
+                val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                    JsObject(
+                        "key" -> JsString("web-export"),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("raw-http"),
+                        "value" -> JsBoolean(false)),
+                    JsObject(
+                        "key" -> JsString("final"),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("exec"),
+                        "value" -> JsString("nodejs:6")))
+            }
+    }
+
+    it should "ensure --raw and --no-raw set the proper annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            var updateAction = false
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("rAw"))
+            }
+
+            Seq("rAw", "noNE", "raw").foreach { rawAction =>
+                val optionEnabled = rawAction.toLowerCase != "none"
+
+                if (updateAction)
+                    wsk.action.create(name, file, web = Some(rawAction), update = true)
+                else
+                    updateAction = true
+
+                val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                    JsObject(
+                        "key" -> JsString("web-export"),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("raw-http"),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("final"),
+                        "value" -> JsBoolean(optionEnabled)),
+                    JsObject(
+                        "key" -> JsString("exec"),
+                        "value" -> JsString("nodejs:6")))
+            }
+    }
+
+    it should "reject action create and update with invalid web flag input" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val invalidInput = "bogus"
+            val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'default', 'raw', or 'none'."
+            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
     }
 }
