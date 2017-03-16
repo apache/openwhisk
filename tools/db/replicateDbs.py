@@ -42,14 +42,20 @@ def replicateDatabases(args):
     print("----- Create backups -----")
     for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
         backupDb = backupPrefix + db if not args.continuous else 'continuous_' + db
-        print("create backup: %s" % backupDb)
-        sourceDb["_replicator"].save({
+        replicateDesignDocument = {
             "_id": backupDb,
             "source": args.sourceDbUrl + "/" + db,
             "target": args.targetDbUrl + "/" + backupDb,
             "create_target": True,
-            "continuous": args.continuous
-        })
+            "continuous": args.continuous,
+        }
+        print("create backup: %s" % backupDb)
+
+        filterName = "snapshotFilters"
+        filterDesignDocument = sourceDb[db].get("_design/%s" % filterName)
+        if not args.continuous and filterDesignDocument:
+            replicateDesignDocument["filter"] = "%s/withoutDeletedAndDesignDocuments" % filterName
+        sourceDb["_replicator"].save(replicateDesignDocument)
 
     def isBackupDb(dbName):
         return re.match("^backup_\d+_" + args.dbPrefix, dbName)
