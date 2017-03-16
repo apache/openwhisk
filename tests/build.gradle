@@ -24,7 +24,6 @@ task testLean(type: Test) {
 
 // Add all images needed for local testing here
 test.dependsOn([
-    ':core:nodejsAction:distDocker',
     ':core:nodejs6Action:distDocker',
     ':core:actionProxy:distDocker',
     ':core:pythonAction:distDocker',

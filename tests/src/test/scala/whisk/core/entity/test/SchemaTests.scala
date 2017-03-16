@@ -327,19 +327,19 @@ class SchemaTests
         val b64Body = """ZnVuY3Rpb24gbWFpbihhcmdzKSB7IHJldHVybiBhcmdzOyB9Cg=="""
 
         val json = Seq[JsObject](
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
+            JsObject("kind" -> "nodejs:6".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
+            JsObject("kind" -> "nodejs:6".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
             JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
             JsObject("kind" -> "swift:3".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
+            JsObject("kind" -> "nodejs:6".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
         val execs = json.map { e => Exec.serdes.read(e) }
 
-        assert(execs(0) == js("js1") && json(0).compactPrint == js("js1").toString)
-        assert(execs(1) == js("js2") && json(1).compactPrint != js("js2").toString) // ignores unknown properties
+        assert(execs(0) == jsDefault("js1") && json(0).compactPrint == jsDefault("js1").toString)
+        assert(execs(1) == jsDefault("js2") && json(1).compactPrint != jsDefault("js2").toString) // ignores unknown properties
         assert(execs(2) == swift("swift1") && json(2).compactPrint == swift("swift1").toString)
         assert(execs(3) == swift3(b64Body) && json(3).compactPrint == swift3(b64Body).toString)
-        assert(execs(4) == js(b64Body) && json(4).compactPrint == js(b64Body).toString)
+        assert(execs(4) == jsDefault(b64Body) && json(4).compactPrint == jsDefault(b64Body).toString)
     }
 
     it should "properly deserialize and reserialize JSON blackbox" in {
@@ -385,8 +385,8 @@ class SchemaTests
             JsObject(),
             JsNull,
             JsObject("init" -> "zipfile".toJson),
-            JsObject("kind" -> "nodejs".toJson, "code" -> JsNumber(42)),
-            JsObject("kind" -> "nodejs".toJson, "init" -> "zipfile".toJson),
+            JsObject("kind" -> "nodejs:6".toJson, "code" -> JsNumber(42)),
+            JsObject("kind" -> "nodejs:6".toJson, "init" -> "zipfile".toJson),
             JsObject("kind" -> "turbopascal".toJson, "code" -> "BEGIN1".toJson),
             JsObject("kind" -> "blackbox".toJson, "code" -> "js".toJson),
             JsObject("kind" -> "swift".toJson, "swiftcode" -> "swift".toJson))
@@ -412,10 +412,10 @@ class SchemaTests
     }
 
     it should "serialize to json" in {
-        val execs = Seq(bb("container"), js("js"), js("js"), swift("swift")).map { _.toString }
+        val execs = Seq(bb("container"), jsDefault("js"), jsDefault("js"), swift("swift")).map { _.toString }
         assert(execs(0) == JsObject("kind" -> "blackbox".toJson, "image" -> "container".toJson, "binary" -> false.toJson).compactPrint)
-        assert(execs(1) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
-        assert(execs(2) == JsObject("kind" -> "nodejs".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(1) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
+        assert(execs(2) == JsObject("kind" -> "nodejs:6".toJson, "code" -> "js".toJson, "binary" -> false.toJson).compactPrint)
         assert(execs(3) == JsObject("kind" -> "swift".toJson, "code" -> "swift".toJson, "binary" -> false.toJson).compactPrint)
     }
 

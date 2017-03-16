@@ -50,7 +50,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
         def withParameters(p: Parameters) = WhiskAction(
             namespace,
             name,
-            js("js1"), parameters = p).revision[WhiskAction](revision)
+            jsDefault("js1"), parameters = p).revision[WhiskAction](revision)
 
         val toInherit = Parameters("testParam", "testValue")
         Seq(Parameters(),

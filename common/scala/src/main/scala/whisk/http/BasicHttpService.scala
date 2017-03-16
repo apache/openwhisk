@@ -37,6 +37,7 @@ import spray.http.MediaTypes.`text/plain`
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.httpx.marshalling
 import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import spray.routing.AuthenticationFailedRejection
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.HttpService
@@ -100,10 +101,16 @@ trait BasicHttpService extends HttpService with TransactionCounter {
     protected val assignId = extract(_ => transid())
 
     /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
+
     protected def customRejectionHandler(implicit transid: TransactionId) = RejectionHandler {
-        case rejections =>
+        case rejections => {
             logging.info(this, s"[REJECT] $rejections")
-            BasicHttpService.customRejectionHandler.apply(rejections)
+            rejections match {
+                case AuthenticationFailedRejection(cause, challengeHeaders) :: _ =>
+                    BasicHttpService.customRejectionHandler.apply(rejections.takeRight(1))
+                case _ => BasicHttpService.customRejectionHandler.apply(rejections)
+            }
+        }
     }
 
     /** Generates log entry for every request. */

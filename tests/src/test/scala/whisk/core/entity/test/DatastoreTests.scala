@@ -94,7 +94,7 @@ class DatastoreTests extends FlatSpec
     it should "CRD action js" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action js")
-        val exec = js("code")
+        val exec = jsDefault("code")
         val actions = Seq(
             WhiskAction(namespace, aname, exec, Parameters()),
             WhiskAction(namespace, aname, exec, Parameters("x", "y")),
@@ -188,7 +188,7 @@ class DatastoreTests extends FlatSpec
     it should "update action with a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("update action")
-        val exec = js("update")
+        val exec = jsDefault("update")
         val action = WhiskAction(namespace, aname, exec, Parameters(), ActionLimits())
         val docinfo = putGetCheck(datastore, action, WhiskAction, false)._2.docinfo
         val revAction = WhiskAction(namespace, action.name, exec, Parameters(), ActionLimits()).revision[WhiskAction](docinfo.rev)
@@ -234,7 +234,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document conflict when trying to write the same action twice without a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action twice")
-        val exec = js("twice")
+        val exec = jsDefault("twice")
         val action = WhiskAction(namespace, aname, exec)
         putGetCheck(datastore, action, WhiskAction)
         intercept[DocumentConflictException] {
@@ -286,7 +286,7 @@ class DatastoreTests extends FlatSpec
     it should "fail with document does not exist when trying to delete the same action twice" in {
         implicit val tid = transid()
         implicit val basename = EntityName("delete action twice")
-        val exec = js("twice")
+        val exec = jsDefault("twice")
         val action = WhiskAction(namespace, aname, exec)
         val doc = putGetCheck(datastore, action, WhiskAction, false)._1
         assert(Await.result(WhiskAction.del(datastore, doc), dbOpTimeout))

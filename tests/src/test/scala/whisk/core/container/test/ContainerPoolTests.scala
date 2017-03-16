@@ -227,7 +227,7 @@ class ContainerPoolTests extends FlatSpec
      */
     private def makeHelloAction(name: String, index: Integer): WhiskAction = {
         val code = """console.log('ABCXYZ'); function main(msg) { console.log('hello_${index}', msg.payload+'!');} """
-        WhiskAction(defaultNamespace, EntityName(name), js(code))
+        WhiskAction(defaultNamespace, EntityName(name), jsDefault(code))
     }
 
     it should "be able to start a nodejs action with init, do a run, return to pool, do another get testing reuse, another run" in {
@@ -255,7 +255,7 @@ class ContainerPoolTests extends FlatSpec
      */
     private def makeCrashingAction(name: String, timeToLiveMs: Integer): WhiskAction = {
         val code = s"""function main(msg) { console.log('I expect you to die'); setTimeout(function(){ process.exit(1); }, ${timeToLiveMs}); }"""
-        WhiskAction(defaultNamespace, EntityName(name), js(code))
+        WhiskAction(defaultNamespace, EntityName(name), jsDefault(code))
     }
 
     it should "cleanly handle a container that crashes" in {
