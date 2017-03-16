@@ -1,16 +1,16 @@
 # API Gateway (Experimental)
 
-[Web Actions](webactions.md) are now available for General availability.
+[Web Actions](webactions.md) are out from experimental phase.
 
-Start migrating the APIs you created using the `wsk api-experimental` to web actions.
+Web Actions allows you to invoke an action with HTTP methods other than POST and without the action's authorization API key.
 
-Web actions allows you allow you to invoke an action with HTTP methods other than POST and without the action's authorization API key.
+As a result of user feedback, Web Actions are the programming model chosen to build OpenWhisk actions capable of handling HTTP events.
 
-We collected a lot of feedback from users and made Web Actions the programing model to build OpenWhisk actions capable of handling HTTP events.
+Most of the API Gateway functionality was merged into Web Actions, Web Actions allows you to handle any HTTP request and return HTTP responses with full control from your Web Action.
 
-Most of the API Gateway functionality got merged into Web Actions, Web Actions allows you to handle any http requests and return http responses with full control from your Web Action.
+A revised OpenWhisk API Gateway integration will be available soon. It will be configured to proxy your Web Actions providing them with API Gateway features such as rate limiting, oauth token validation, API keys, and more.
 
-A new API Gateway implementation will be available soon to be configured in front your Web Actions as a proxy, providing you in the Gateway features like rate limiting, oauth token validation, API keys, and more.
+**Note:** The APIs you created using the `wsk api-experimental` will continue to work, however you should begin migrating your APIs to web actions.
 
 You can follow progress on v2 of the API Gateway here:
 - [OpenWhisk API Gateway repository](https://github.com/openwhisk/openwhisk-apigateway)
