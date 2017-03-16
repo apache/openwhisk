@@ -142,7 +142,7 @@ class ActionRunner:
         if isinstance(e, bytes):
             e = e.decode('utf-8')
 
-        if o:
+        if True:  # if o:
             process_output_lines = o.strip().split('\n')
             last_line = process_output_lines[-1]
             for line in process_output_lines[:-1]:
