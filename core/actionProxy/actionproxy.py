@@ -158,9 +158,9 @@ class ActionRunner:
             if isinstance(json_output, dict):
                 return (200, json_output)
             else:
-                return error(last_line)
+                return (201, json_output)  # error(last_line)
         except Exception:
-            return error(last_line)
+            return (202, json_output)  # error(last_line)
 
     # initialize code from inlined string
     def initCodeFromString(self, message):
