@@ -206,11 +206,11 @@ abstract class WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                    action.create(name, file, web = Some("defAult"))
             }
 
-            Seq("true", "faLse", "tRue", "nO", "yEs").foreach { webAction =>
-                val optionEnabled = webAction.toLowerCase != "false" && webAction.toLowerCase != "no"
+            Seq("defAult", "None", "default").foreach { webAction =>
+                val optionEnabled = webAction.toLowerCase != "none"
 
                 if (updateAction)
                     wsk.action.create(name, file, web = Some(webAction), update = true)
@@ -243,11 +243,11 @@ abstract class WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, web = Some("raw"))
+                    action.create(name, file, web = Some("rAw"))
             }
 
-            Seq("raw", "falSe", "Raw", "No").foreach { rawAction =>
-                val optionEnabled = rawAction.toLowerCase != "false" && rawAction.toLowerCase != "no"
+            Seq("rAw", "noNE", "raw").foreach { rawAction =>
+                val optionEnabled = rawAction.toLowerCase != "none"
 
                 if (updateAction)
                     wsk.action.create(name, file, web = Some(rawAction), update = true)
@@ -277,7 +277,7 @@ abstract class WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             val invalidInput = "bogus"
-            val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
+            val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'default', 'raw', or 'none'."
             wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
             wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
     }
