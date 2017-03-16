@@ -61,15 +61,19 @@ class Swift3Runner(ActionRunner):
             os.chmod(self.binary, 0o555)
             return
 
-        p = subprocess.Popen(BUILD_PROCESS, cwd=DEST_SCRIPT_DIR)
+        p = subprocess.Popen(BUILD_PROCESS,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
+                             cwd=DEST_SCRIPT_DIR)
         (o, e) = p.communicate()
-
-        if o is not None:
-            sys.stdout.write(o)
+        # stdout/stderr may be either bytes or text, depending on Python
+        # version.   In the former case, decode to text.
+        if o:
+            sys.stdout.write(o.decode('utf-8') if isinstance(o, bytes) else o)
             sys.stdout.flush()
 
-        if e is not None:
-            sys.stderr.write(e)
+        if e:
+            sys.stderr.write(e.decode('utf-8') if isinstance(e, bytes) else e)
             sys.stderr.flush()
 
     def env(self, message):
