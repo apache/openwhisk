@@ -154,7 +154,7 @@ class ActionRunner:
             sys.stderr.write(e)
 
         try:
-            json_output = json.loads(last_line)
+            json_output = json.loads(last_line or '{}')
             if isinstance(json_output, dict):
                 return (200, json_output)
             else:
