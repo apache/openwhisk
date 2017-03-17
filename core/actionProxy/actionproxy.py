@@ -153,14 +153,10 @@ class ActionRunner:
         if e:
             sys.stderr.write(e)
 
-        try:
-            json_output = json.loads(last_line)
-            if isinstance(json_output, dict):
-                return (200, json_output)
-            else:
-                return (201, json_output)  # error(last_line)
-        except Exception:
-            return (202, json_output)  # error(last_line)
+        json_output = json.loads(last_line.replace("'", '"'))
+        if isinstance(json_output, dict):
+            return (200, json_output)
+        return error(last_line)
 
     # initialize code from inlined string
     def initCodeFromString(self, message):
@@ -193,11 +189,11 @@ def setRunner(r):
 
 @proxy.route('/init', methods=['POST'])
 def init():
-    message = flask.request.get_json(force=True, silent=True)
-    if message and not isinstance(message, dict):
+    message = flask.request.get_json(force=True, silent=True) or {}
+    if not isinstance(message, dict):
         flask.abort(404)
     else:
-        value = message.get('value', {}) if message else {}
+        value = message.get('value', {})
 
     if not isinstance(value, dict):
         flask.abort(404)
@@ -207,7 +203,7 @@ def init():
     except Exception as e:
         status = False
 
-    if status is True:
+    if status:
         return ('OK', 200)
     else:
         response = flask.jsonify({'error':
@@ -225,26 +221,25 @@ def run():
         response.status_code = 404
         return complete(response)
 
-    message = flask.request.get_json(force=True, silent=True)
-    if message and not isinstance(message, dict):
+    message = flask.request.get_json(force=True, silent=True) or {}
+    if not isinstance(message, dict):
         return error()
     else:
-        args = message.get('value', {}) if message else {}
+        args = message.get('value', {})
         if not isinstance(args, dict):
             return error()
 
     if runner.verify():
         try:
-            (code, result) = runner.run(args,
-                                        runner.env(message if message else {}))
+            code, result = runner.run(args, runner.env(message or {}))
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
-            response = flask.jsonify({'error': 'Internal error.'})
+            response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
             response.status_code = 500
     else:
         response = flask.jsonify({'error': 'The action failed to locate '
-                                  'a binary. See logs for details.'})
+                                           'a binary. See logs for details.'})
         response.status_code = 502
     return complete(response)
 
