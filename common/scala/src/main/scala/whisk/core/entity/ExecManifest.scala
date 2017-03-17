@@ -116,7 +116,7 @@ protected[core] object ExecManifest {
 
         def resolveDefaultRuntime(kind: String): Option[RuntimeManifest] = {
             kind match {
-                case defaultSplitter(family) => defaultRuntimes.get(family).flatten.flatMap(manifests.get(_))
+                case defaultSplitter(family) => defaultRuntimes.get(family).flatMap(manifests.get(_))
                 case _                       => manifests.get(kind)
             }
         }
@@ -129,12 +129,13 @@ protected[core] object ExecManifest {
             }.toMap
         }
 
-        private val defaultRuntimes: Map[String, Option[String]] = {
+        private val defaultRuntimes: Map[String, String] = {
             runtimes.map { family =>
                 family.versions.filter(_.default.exists(identity)).toList match {
-                    case Nil      => family.name -> None
-                    case d :: Nil => family.name -> Some(d.kind)
-                    case ds       => throw new IllegalArgumentException(s"found more than one default for ${family.name}: ${ds.mkString(",")}")
+                    case Nil if family.versions.size == 1  => family.name -> family.versions.toSeq(0).kind
+                    case Nil                               => throw new IllegalArgumentException(s"${family.name} has multiple versions, but no default")
+                    case d :: Nil                          => family.name -> d.kind
+                    case ds                                => throw new IllegalArgumentException(s"found more than one default for ${family.name}: ${ds.mkString(",")}")
                 }
             }.toMap
         }
