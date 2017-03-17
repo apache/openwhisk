@@ -1,11 +1,14 @@
 """Executable Python script for a proxy service to dockerSkeleton.
+
 Provides a proxy service (using Flask, a Python web microframework)
 that implements the required /init and /run routes to interact with
 the OpenWhisk invoker service.
+
 The implementation of these routes is encapsulated in a class named
 ActionRunner which provides a basic framework for receiving code
 from an invoker, preparing it for execution, and then running the
 code when required.
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -58,13 +61,12 @@ class ActionRunner:
     def init(self, message):
         def prep():
             if 'code' in message and message['code'] is not None:
-                binary = message.get('binary', False)
-                if binary:
-                    return self.initCodeFromZip(message)
-                else:
+                binary = message['binary'] if 'binary' in message else False
+                if not binary:
                     return self.initCodeFromString(message)
+                else:
+                    return self.initCodeFromZip(message)
             else:
-                print('No code found in init()')
                 return False
 
         if prep():
@@ -76,10 +78,10 @@ class ActionRunner:
 
                 # build the source
                 self.build(message)
-            except ImportError:
+            except Exception:
                 # do nothing, verify will signal failure
                 # if binary not executable
-                pass
+                None
         # verify the binary exists and is executable
         return self.verify()
 
@@ -119,23 +121,17 @@ class ActionRunner:
         def error(msg):
             # fall through (exception and else case are handled the same way)
             sys.stdout.write('%s\n' % msg)
-            msg = 'The action did not return a dictionary.  ({})'.format(e)
-            return (502, {'error': msg})
+            return (502, {'error': 'The action did not return a dictionary.'})
 
-        try:
-            input = json.dumps(args)
-        except Exception as e:
-            print('Bad dumps() ({})'.format(e))
-            return error(e)
-
+        args = json.dumps(args)
         try:
             p = subprocess.Popen(
-                [self.binary, input],
+                [self.binary, args],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env)
         except Exception as e:
-            print('Bad Popen() ({})'.format(e))
+            print('subprocess.Popen() -->', type(e), e)
             return error(e)
 
         # run the process and wait until it completes.
@@ -159,11 +155,11 @@ class ActionRunner:
             sys.stderr.write(e)
 
         try:
-            json_output = json.loads(last_line.replace("'", '"'))
-        except Exception as e:
-            print('Bad loads() ({})'.format(e))
-        if isinstance(json_output, dict):
-            return (200, json_output)
+            json_output = json.loads(last_line.replace("'", '"')
+            if isinstance(json_output, dict):
+                return (200, json_output)
+        except Exception:
+            print('subprocess.Popen() -->', type(e), e)
         return error(last_line)
 
     # initialize code from inlined string
@@ -185,7 +181,6 @@ class ActionRunner:
             print('err', str(e))
             return False
 
-
 proxy = flask.Flask(__name__)
 proxy.debug = False
 runner = None
@@ -198,11 +193,11 @@ def setRunner(r):
 
 @proxy.route('/init', methods=['POST'])
 def init():
-    message = flask.request.get_json(force=True, silent=True) or {}
-    if not isinstance(message, dict):
+    message = flask.request.get_json(force=True, silent=True)
+    if message and not isinstance(message, dict):
         flask.abort(404)
     else:
-        value = message.get('value', {})
+        value = message.get('value', {}) if message else {}
 
     if not isinstance(value, dict):
         flask.abort(404)
@@ -212,7 +207,7 @@ def init():
     except Exception as e:
         status = False
 
-    if status:
+    if status is True:
         return ('OK', 200)
     else:
         response = flask.jsonify({'error':
@@ -230,25 +225,26 @@ def run():
         response.status_code = 404
         return complete(response)
 
-    message = flask.request.get_json(force=True, silent=True) or {}
-    if not isinstance(message, dict):
+    message = flask.request.get_json(force=True, silent=True)
+    if message and not isinstance(message, dict):
         return error()
     else:
-        args = message.get('value', {})
+        args = message.get('value', {}) if message else {}
         if not isinstance(args, dict):
             return error()
 
     if runner.verify():
         try:
-            code, result = runner.run(args, runner.env(message or {}))
+            (code, result) = runner.run(args,
+                                        runner.env(message if message else {}))
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
-            response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
+            response = flask.jsonify({'error': 'Internal error.'})
             response.status_code = 500
     else:
         response = flask.jsonify({'error': 'The action failed to locate '
-                                           'a binary. See logs for details.'})
+                                  'a binary. See logs for details.'})
         response.status_code = 502
     return complete(response)
 
@@ -266,7 +262,6 @@ def main():
     port = int(os.getenv('FLASK_PROXY_PORT', 8080))
     server = WSGIServer(('', port), proxy, log=None)
     server.serve_forever()
-
 
 if __name__ == '__main__':
     setRunner(ActionRunner())
