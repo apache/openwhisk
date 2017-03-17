@@ -16,24 +16,26 @@
 
 package whisk.core.loadBalancer
 
-import scala.concurrent.duration._
+import scala.collection.mutable
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.ActorRefFactory
 import akka.actor.FSM
-import akka.actor.Props
-import akka.pattern.ask
-import akka.pattern.pipe
-import akka.util.Timeout
+import akka.actor.FSM.CurrentState
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.FSM.Transition
-import whisk.common.AkkaLogging
-import whisk.common.TransactionId
-import whisk.core.connector.PingMessage
-import whisk.common.KeyValueStore
+import akka.actor.Props
+import akka.util.Timeout
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.common.AkkaLogging
 import whisk.common.ConsulKV.LoadBalancerKeys
+import whisk.common.KeyValueStore
+import whisk.common.TransactionId
+import whisk.core.connector.PingMessage
 
 // Received events
 case object GetStatus
@@ -58,57 +60,60 @@ final case class InvokerInfo()
  * Note: An Invoker that never sends an initial Ping will not be considered
  * by the InvokerPool and thus might not be caught by monitoring.
  */
-class InvokerPool(kv: KeyValueStore, invokerDownCallback: String => Unit) extends Actor {
+class InvokerPool(
+    childFactory: (ActorRefFactory, String) => ActorRef,
+    kv: KeyValueStore,
+    invokerDownCallback: String => Unit) extends Actor {
+
     implicit val transid = TransactionId.invokerHealth
     val logging = new AkkaLogging(context.system.log)
     implicit val timeout = Timeout(5.seconds)
     implicit val ec = context.dispatcher
 
-    /** Collects the status of all invokers */
-    def collectStatus = {
-        val list = context.children.map { invoker =>
-            val name = invoker.path.name
-            invoker.ask(GetStatus).mapTo[InvokerState].map(name -> _)
-        }
-        Future.sequence(list).map(_.toMap)
-    }
+    val invokers = mutable.HashMap.empty[String, ActorRef]
+    val invokerStatus = mutable.HashMap.empty[String, InvokerState]
 
     def receive = {
         case p: PingMessage =>
-            val invoker = context
-                .child(p.name) // get an existing actor
-                .getOrElse { // or create a new one lazily
-                    logging.info(this, s"registered a new invoker: ${p.name}")(TransactionId.invokerHealth)
-                    val ref = context.actorOf(InvokerActor.props, p.name)
-                    ref ! SubscribeTransitionCallBack(self) // register for state change events
-                    self ! StatusChange
-                    ref
-                }
+            val invoker = invokers.getOrElseUpdate(p.name, {
+                logging.info(this, s"registered a new invoker: ${p.name}")(TransactionId.invokerHealth)
+                val ref = childFactory(context, p.name)
+                ref ! SubscribeTransitionCallBack(self) // register for state change events
+                ref
+            })
             invoker.forward(p)
 
-        case GetStatus => pipe(collectStatus) to sender()
+        case GetStatus => sender() ! invokerStatus.toMap
 
-        case StatusChange => collectStatus.foreach { allState =>
-            val json = allState.mapValues(_.asString).toJson
-            kv.put(LoadBalancerKeys.invokerHealth, json.compactPrint)
+        case CurrentState(invoker, currentState: InvokerState) =>
+            invokerStatus.update(invoker.path.name, currentState)
+            publishStatus()
 
-            val pretty = allState.toSeq.sortBy {
-                case (name, _) => name.drop(7).toInt
-            }.map { case (name, state) => s"$name: $state" }
-            logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
-        }
-
-        case Transition(invoker, oldState, newState) =>
-            self ! StatusChange
+        case Transition(invoker, oldState: InvokerState, newState: InvokerState) =>
+            invokerStatus.update(invoker.path.name, newState)
             newState match {
                 case Offline => Future(invokerDownCallback(invoker.path.name))
                 case _       =>
             }
+            publishStatus()
+    }
+
+    def publishStatus() = {
+        val json = invokerStatus.toMap.mapValues(_.asString).toJson
+        kv.put(LoadBalancerKeys.invokerHealth, json.compactPrint)
+
+        val pretty = invokerStatus.toSeq.sortBy {
+            case (name, _) => name.filter(_.isDigit).toInt
+        }.map { case (name, state) => s"$name: $state" }
+        logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
     }
 }
 
 object InvokerPool {
-    def props(kv: KeyValueStore, cb: String => Unit) = Props(new InvokerPool(kv, cb))
+    def props(
+        f: (ActorRefFactory, String) => ActorRef,
+        kv: KeyValueStore,
+        cb: String => Unit) = Props(new InvokerPool(f, kv, cb))
 }
 
 /**
@@ -123,11 +128,6 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
     def name = self.path.name
 
     val healthyTimeout = 10.seconds
-
-    // This is done at this point to not intermingle with the state-machine
-    // especially their timeouts.
-    def customReceive: Receive = { case GetStatus => sender() ! stateName }
-    override def receive = customReceive.orElse(super.receive)
 
     startWith(Healthy, InvokerInfo())
 
