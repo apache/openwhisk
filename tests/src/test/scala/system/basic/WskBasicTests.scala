@@ -396,13 +396,13 @@ class WskBasicTests
         (wp, assetHelper) =>
             val name = "emptyJSONAction"
 
-            val res = assetHelper.withCleaner(wsk.action, name) {
+            assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, Some(TestUtils.getTestActionFilename("emptyJSONResult.js")))
-                    action.invoke(name, blocking = true, result = true)
             }
 
-            res.stdout shouldBe ("{}\n")
+            val stdout = wsk.action.invoke(name, blocking = true, result = true).stdout
+            stdout.parseJson.asJsObject shouldBe JsObject()
     }
 
     it should "create, and invoke an action that times out to ensure the proper response is received" in withAssetCleaner(wskprops) {
