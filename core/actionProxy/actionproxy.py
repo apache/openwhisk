@@ -1,14 +1,11 @@
 """Executable Python script for a proxy service to dockerSkeleton.
-
 Provides a proxy service (using Flask, a Python web microframework)
 that implements the required /init and /run routes to interact with
 the OpenWhisk invoker service.
-
 The implementation of these routes is encapsulated in a class named
 ActionRunner which provides a basic framework for receiving code
 from an invoker, preparing it for execution, and then running the
 code when required.
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -49,8 +46,8 @@ class ActionRunner:
     # same as source code path)
     def __init__(self, source=None, binary=None):
         defaultBinary = '/action/exec'
-        self.source = source if source else defaultBinary
-        self.binary = binary if binary else defaultBinary
+        self.source = source or defaultBinary
+        self.binary = binary or defaultBinary
 
     # extracts from the JSON object message a 'code' property and
     # writes it to the <source> path. The source code may have an
@@ -61,12 +58,13 @@ class ActionRunner:
     def init(self, message):
         def prep():
             if 'code' in message and message['code'] is not None:
-                binary = message['binary'] if 'binary' in message else False
-                if not binary:
-                    return self.initCodeFromString(message)
-                else:
+                binary = message.get('binary', False)
+                if binary:
                     return self.initCodeFromZip(message)
+                else:
+                    return self.initCodeFromString(message)
             else:
+                print('No code found in init()')
                 return False
 
         if prep():
@@ -78,10 +76,10 @@ class ActionRunner:
 
                 # build the source
                 self.build(message)
-            except Exception:
+            except ImportError:
                 # do nothing, verify will signal failure
                 # if binary not executable
-                None
+                pass
         # verify the binary exists and is executable
         return self.verify()
 
@@ -121,16 +119,23 @@ class ActionRunner:
         def error(msg):
             # fall through (exception and else case are handled the same way)
             sys.stdout.write('%s\n' % msg)
-            return (502, {'error': 'The action did not return a dictionary.'})
+            msg = 'The action did not return a dictionary.  ({})'.format(e)
+            return (502, {'error': msg})
 
         try:
             input = json.dumps(args)
+        except Exception as e:
+            print('Bad dumps() ({})'.format(e))
+            return error(e)
+
+        try:
             p = subprocess.Popen(
                 [self.binary, input],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env)
         except Exception as e:
+            print('Bad Popen() ({})'.format(e))
             return error(e)
 
         # run the process and wait until it completes.
@@ -153,7 +158,10 @@ class ActionRunner:
         if e:
             sys.stderr.write(e)
 
-        json_output = json.loads(last_line.replace("'", '"'))
+        try:
+            json_output = json.loads(last_line.replace("'", '"'))
+        except Exception as e:
+            print('Bad loads() ({})'.format(e))
         if isinstance(json_output, dict):
             return (200, json_output)
         return error(last_line)
@@ -176,6 +184,7 @@ class ActionRunner:
         except Exception as e:
             print('err', str(e))
             return False
+
 
 proxy = flask.Flask(__name__)
 proxy.debug = False
@@ -257,6 +266,7 @@ def main():
     port = int(os.getenv('FLASK_PROXY_PORT', 8080))
     server = WSGIServer(('', port), proxy, log=None)
     server.serve_forever()
+
 
 if __name__ == '__main__':
     setRunner(ActionRunner())
