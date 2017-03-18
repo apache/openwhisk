@@ -1,5 +1,8 @@
 #!/bin/bash
 
+pip3 install --user flake8
+flake8 --version
+
 # These files do not have a .py extension so flake8 will not scan them
 PYTHON_FILES=. \
              ./tools/admin/wskadmin \
