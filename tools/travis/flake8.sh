@@ -1,7 +1,17 @@
 #!/bin/bash
 
+echo "pwd"
+pwd
+echo "ls"
+ls
+echo "~"
+echo ~
+echo "ls"
+ls ~
+echo "done"
+
 PYTHON_FILES=~ \
-             ~/tools/admin/wskadmin \
+             ~build/openwhisk/openwhisk/tools/admin/wskadmin \
              ~/tools/build/citool \
              ~/tools/build/redo \
              ~/tools/health/isAlive \
