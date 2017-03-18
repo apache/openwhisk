@@ -1,5 +1,13 @@
 #!/bin/bash
 
+$HOME
+~
+pwd
+ls -Fla
+cd openwhisk
+pwd
+ls -Fla
+
 PYTHON_FILES=~/openwhisk \
              ~/openwhisk/openwhisk/tools/admin/wskadmin \
              ~/openwhisk/openwhisk/tools/build/citool \
