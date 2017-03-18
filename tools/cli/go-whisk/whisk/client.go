@@ -322,37 +322,37 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
 
 func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
     Debug(DbgInfo, "HTTP failure %d + body\n", resp.StatusCode)
+
     errorResponse := &ErrorResponse{Response: resp}
     err := json.Unmarshal(data, errorResponse)
 
-    // If the body matches the error response format, return an error containing the response error information.
-    // If an whisk.error() response was received parse the application error. (#5) Otherwise, the body contents are
-    // unknown (#6).
+    // Determine if an application error was received (#5)
     if err == nil {
-        if errorResponse.Code == 0 && len(errorResponse.ErrMsg) == 0 {
-            Debug(DbgInfo, "Error code, or error message is null\n")
-            return parseWhiskErrorResponse(resp, data, v)
+        if (errorResponse.Code == 0 || len(errorResponse.ErrMsg) == 0) && resp.StatusCode == 502 {
+            return parseApplicationError(resp, data, v)
         } else {
             Debug(DbgInfo, "HTTP failure %d; server error %s\n", resp.StatusCode, errorResponse)
             werr := MakeWskError(errorResponse, resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return resp, werr
         }
-    } else {
-        Debug(DbgInfo, "Detected response status `%s` that an application error was returned\n")
-        errMsg := wski18n.T("The following application error was received: {{.err}}",
-            map[string]interface{}{"err": string(data)})
-        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
-            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
-        return parseSuccessResponse(resp, data, v), whiskErr
     }
+
+    // Body contents are unknown (#6)
+    Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
+    errMsg := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
+        map[string]interface{}{"code": resp.StatusCode})
+    whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+    return resp, whiskErr
 }
 
-func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
+func parseApplicationError(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
+    Debug(DbgInfo, "Parsing application error\n")
+
     whiskErrorResponse := &WhiskErrorResponse{}
     err := json.Unmarshal(data, whiskErrorResponse)
 
-    // Determine if a whisk.error() response was received. Otherwise, the body contents are unknown (#6)
-    if err == nil && whiskErrorResponse.Response.Status != nil {
+    // Handle application errors that occur when result is false (#5)
+    if err == nil && whiskErrorResponse != nil && whiskErrorResponse.Response != nil && whiskErrorResponse.Response.Status != nil {
         Debug(DbgInfo, "Detected response status `%s` that a whisk.error(\"%s\") was returned\n",
             *whiskErrorResponse.Response.Status, *whiskErrorResponse.Response.Result)
         errMsg := wski18n.T("The following application error was received: {{.err}}",
@@ -360,13 +360,31 @@ func parseWhiskErrorResponse(resp *http.Response, data []byte, v interface{}) (*
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
             NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
         return parseSuccessResponse(resp, data, v), whiskErr
-    } else {
-        Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
-        errMsg := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
-            map[string]interface{}{"code": resp.StatusCode})
-        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, whiskErr
     }
+
+    appErrResult := &AppErrorResult{}
+    err = json.Unmarshal(data, appErrResult)
+
+    // Handle application errors that occur with blocking invocations when result is true (#5)
+    if err == nil && appErrResult.ErrMsg != nil {
+        Debug(DbgInfo, "Error code is null, blocking with result invocation error has occured\n")
+        errMsg := wski18n.T(
+            "The following application error was received: {{.err}}",
+            map[string]interface{}{
+                "err": *appErrResult.ErrMsg,
+            })
+
+        whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+            NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)
+        return parseSuccessResponse(resp, data, v), whiskErr
+    }
+
+    // Body contents are unknown (#6)
+    Debug(DbgError, "HTTP response with unexpected body failed due to contents parsing error: '%v'\n", err)
+    errMsg := wski18n.T("The connection failed, or timed out. (HTTP status code {{.code}})",
+        map[string]interface{}{"code": resp.StatusCode})
+    whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, DISPLAY_MSG, NO_DISPLAY_USAGE)
+    return resp, whiskErr
 }
 
 func parseSuccessResponse(resp *http.Response, data []byte, v interface{}) (*http.Response) {
@@ -402,6 +420,10 @@ type ErrorResponse struct {
     Response *http.Response                     // HTTP response that caused this error
     ErrMsg   string             `json:"error"`  // error message string
     Code     int64              `json:"code"`   // validation error code
+}
+
+type AppErrorResult struct {
+    ErrMsg  *string              `json:"error"`
 }
 
 type WhiskErrorResponse struct {
