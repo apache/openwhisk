@@ -227,11 +227,11 @@ def run():
 
     message = flask.request.get_json(force=True, silent=True)
     if message and not isinstance(message, dict):
-        return error(0)
+        return error()
     else:
         args = message.get('value', {}) if message else {}
         if not isinstance(args, dict):
-            return error(1)
+            return error()
 
     if runner.verify():
         try:
