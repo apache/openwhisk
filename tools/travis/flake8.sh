@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pip3 install --user flake8
+pip3 install --user --upgrade flake8
 flake8 --version
 
 # These files do not have a .py extension so flake8 will not scan them
