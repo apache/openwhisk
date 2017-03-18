@@ -597,9 +597,9 @@ func printJsonNoColor(decoded interface{}, stream ...io.Writer) {
     json.Indent(&output, buffer.Bytes(), "", "    ")
 
     if len(stream) > 0 {
-        fmt.Fprintf(stream[0], "%s\n", string(output.Bytes()))
+        fmt.Fprintf(stream[0], "%s", string(output.Bytes()))
     } else {
-        fmt.Fprintf(os.Stdout, "%s\n", string(output.Bytes()))
+        fmt.Fprintf(os.Stdout, "%s", string(output.Bytes()))
     }
 }
 
