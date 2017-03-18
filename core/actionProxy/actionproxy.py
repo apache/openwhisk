@@ -250,7 +250,6 @@ def run():
 
 def complete(response):
     # Add sentinel to stdout/stderr
-    print(response)
     sys.stdout.write('%s\n' % ActionRunner.LOG_SENTINEL)
     sys.stdout.flush()
     sys.stderr.write('%s\n' % ActionRunner.LOG_SENTINEL)
