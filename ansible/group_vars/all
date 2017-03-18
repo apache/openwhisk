@@ -16,6 +16,7 @@ runtimesManifest:
     default: true
   python:
   - kind: "python"
+    default: true
   swift:
   - kind: "swift"
     deprecated: true
@@ -28,6 +29,7 @@ runtimesManifest:
       attachmentType: "application/java-archive"
     sentinelledLogs: false
     requireMain: true
+    default: true
 
 defaultLimits:
   actions:

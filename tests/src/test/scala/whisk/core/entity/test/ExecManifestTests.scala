@@ -51,6 +51,22 @@ class ExecManifestTests
         runtimes.resolveDefaultRuntime("p1") shouldBe Some(p1)
 
         runtimes.resolveDefaultRuntime("ks:default") shouldBe Some(k2)
-        runtimes.resolveDefaultRuntime("p1:default") shouldBe None
+        runtimes.resolveDefaultRuntime("p1:default") shouldBe Some(p1)
+    }
+
+    it should "reject runtimes with multiple defaults" in {
+        val k1 = RuntimeManifest("k1", default = Some(true))
+        val k2 = RuntimeManifest("k2", default = Some(true))
+        val mf = JsObject("ks" -> Set(k1, k2).toJson)
+
+        an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
+    }
+
+    it should "reject finding a default when none is specified for multiple versions" in {
+        val k1 = RuntimeManifest("k1")
+        val k2 = RuntimeManifest("k2")
+        val mf = JsObject("ks" -> Set(k1, k2).toJson)
+
+        an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
     }
 }
