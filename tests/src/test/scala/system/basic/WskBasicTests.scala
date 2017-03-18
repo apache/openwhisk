@@ -326,12 +326,21 @@ class WskBasicTests
     it should "create and invoke a blocking action resulting in an application error response" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "applicationError"
+            val strErrInput = Map("error" -> "Error message".toJson)
+            val numErrInput = Map("error" -> 502.toJson)
+            val boolErrInput = Map("error" -> true.toJson)
+
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("applicationError.js")))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
             }
 
-            wsk.action.invoke(name, blocking = true, expectedExitCode = 246)
-                .stderr should include regex (""""error": "This error thrown on purpose by the action."""")
+            Seq(strErrInput, numErrInput, boolErrInput) foreach { input =>
+                getJSONFromCLIResponse(wsk.action.invoke(name, parameters = input, blocking = true, expectedExitCode = 246).stderr).
+                    fields("response").asJsObject.fields("result").asJsObject shouldBe input.toJson.asJsObject
+
+                wsk.action.invoke(name, parameters = input, blocking = true, result = true, expectedExitCode = 246).
+                    stderr.parseJson.asJsObject shouldBe input.toJson.asJsObject
+            }
     }
 
     it should "create and invoke a blocking action resulting in an failed promise" in withAssetCleaner(wskprops) {
