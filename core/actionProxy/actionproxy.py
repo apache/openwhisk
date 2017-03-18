@@ -49,8 +49,8 @@ class ActionRunner:
     # same as source code path)
     def __init__(self, source=None, binary=None):
         defaultBinary = '/action/exec'
-        self.source = source or defaultBinary
-        self.binary = binary or defaultBinary
+        self.source = source if source else defaultBinary
+        self.binary = binary if binary else defaultBinary
 
     # extracts from the JSON object message a 'code' property and
     # writes it to the <source> path. The source code may have an
@@ -123,15 +123,14 @@ class ActionRunner:
             sys.stdout.write('%s\n' % msg)
             return (502, {'error': 'The action did not return a dictionary.'})
 
-        args = json.dumps(args)
         try:
+            input = json.dumps(args)
             p = subprocess.Popen(
-                [self.binary, args],
+                [self.binary, input],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env)
         except Exception as e:
-            print('subprocess.Popen() -->', type(e), e)
             return error(e)
 
         # run the process and wait until it completes.
@@ -155,12 +154,13 @@ class ActionRunner:
             sys.stderr.write(e)
 
         try:
-            json_output = json.loads(last_line.replace("'", '"')
+            json_output = json.loads(last_line)
             if isinstance(json_output, dict):
                 return (200, json_output)
+            else:
+                return error(last_line)
         except Exception:
-            print('subprocess.Popen() -->', type(e), e)
-        return error(last_line)
+            return error(last_line)
 
     # initialize code from inlined string
     def initCodeFromString(self, message):
@@ -219,28 +219,27 @@ def init():
 
 @proxy.route('/run', methods=['POST'])
 def run():
-    def error():
+    def error(msg=''):
         response = flask.jsonify({'error': 'The action did not receive '
-                                  'a dictionary as an argument.'})
+                                  'a dictionary as an argument. ' + str(msg)})
         response.status_code = 404
         return complete(response)
 
     message = flask.request.get_json(force=True, silent=True)
     if message and not isinstance(message, dict):
-        return error()
+        return error(0)
     else:
         args = message.get('value', {}) if message else {}
         if not isinstance(args, dict):
-            return error()
+            return error(1)
 
     if runner.verify():
         try:
-            (code, result) = runner.run(args,
-                                        runner.env(message if message else {}))
+            code, result = runner.run(args, runner.env(message or {}))
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
-            response = flask.jsonify({'error': 'Internal error.'})
+            response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
             response.status_code = 500
     else:
         response = flask.jsonify({'error': 'The action failed to locate '
@@ -251,6 +250,7 @@ def run():
 
 def complete(response):
     # Add sentinel to stdout/stderr
+    print(response)
     sys.stdout.write('%s\n' % ActionRunner.LOG_SENTINEL)
     sys.stdout.flush()
     sys.stderr.write('%s\n' % ActionRunner.LOG_SENTINEL)
