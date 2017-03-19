@@ -13,9 +13,6 @@ echo "Docker Info:"
 docker info
 
 # Python
-sudo apt-get -y install python-pip
-pip install --upgrade pip setuptools
-pip3 install --upgrade pip setuptools
 pip install --user jsonschema
 pip install --user couchdb
 
