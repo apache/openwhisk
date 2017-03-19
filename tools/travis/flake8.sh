@@ -5,12 +5,12 @@ python3 -m flake8 --version
 
 # These files do not have a .py extension so flake8 will not scan them
 PYTHON_FILES=. \
-             ./tools/admin/wskadmin \
-             ./tools/build/citool \
-             ./tools/build/redo \
-             ./tools/health/isAlive \
-             ./tools/health/killComponent \
-             ./tools/health/kvstore
+             "tools/admin/wskadmin" \
+             "tools/build/citool" \
+             "tools/build/redo" \
+             "tools/health/isAlive" \
+             "tools/health/killComponent" \
+             "tools/health/kvstore"
 
 echo $PYTHON_FILES
 ls -Fla $PYTHON_FILES
