@@ -12,8 +12,11 @@ PYTHON_FILES=. \
              "tools/health/killComponent" \
              "tools/health/kvstore"
 
+echo "==="
 echo $PYTHON_FILES
+echo "==="
 ls -Fla $PYTHON_FILES
+echo "==="
 # First round uses --exit-zero to treat _every_ message as a warning
 python3 -m flake8 $PYTHON_FILES --count --max-line-length=127 --statistics --exit-zero
 # Second round stops the build if there are any syntax errors
@@ -23,3 +26,4 @@ if [ $RETURN_CODE != 0 ]; then
     echo "Flake8 found Python 3 syntax errors above.  See: https://docs.python.org/3/howto/pyporting.html"
     exit $RETURN_CODE
 fi
+9  # stop the build!
