@@ -29,13 +29,16 @@ notifications:
 before_install:
   - pip  install --upgrade pip setuptools
   - pip3 install --upgrade pip setuptools
+  - chmod +x ./tools/travis/flake8.sh  # TODO set file permissions in repo
+  - ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
+
 
 # install:
 #  - ./tools/travis/setup.sh
 
-before_script:
-  - chmod +x ./tools/travis/flake8.sh  # TODO set file permissions in repo
-  - ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
+#before_script:
+#  - chmod +x ./tools/travis/flake8.sh  # TODO set file permissions in repo
+#  - ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
 
 script: false
   # - ./tools/travis/build.sh
