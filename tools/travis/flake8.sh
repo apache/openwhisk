@@ -16,3 +16,8 @@ PYTHON_FILES=. \
 flake8 $PYTHON_FILES --count --max-line-length=127 --statistics --exit-zero
 # Second round stops the build if there are any syntax errors
 flake8 $PYTHON_FILES --count --max-line-length=127 --select=E999 --statistics
+RETURN_CODE=$?
+if [ $RETURN_CODE != 0 ]; then
+    echo "Flake8 found Python 3 syntax errors above.  See: https://docs.python.org/3/howto/pyporting.html"
+    exit $RETURN_CODE
+fi
