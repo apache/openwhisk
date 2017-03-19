@@ -12,6 +12,8 @@ PYTHON_FILES=. \
              ./tools/health/killComponent \
              ./tools/health/kvstore
 
+echo $PYTHON_FILES
+ls -Fla $PYTHON_FILES
 # First round uses --exit-zero to treat _every_ message as a warning
 python3 -m flake8 $PYTHON_FILES --count --max-line-length=127 --statistics --exit-zero
 # Second round stops the build if there are any syntax errors
