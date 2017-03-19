@@ -503,16 +503,13 @@ def getLogsCmd(args, props):
             return output
         if error:
             sys.stderr.write(error)
-            return ''
-        else:
-            return ''
+        return ''
 
     logs = map(getComponentLogs, args.components)
     joined = ''.join(logs)
 
     if joined:
-        output = joined.strip()
-        parts = output.split('\n')
+        parts = joined.strip().split('\n')
         filter = [p for p in parts if p != '']
         date = map(extractDate, filter)
         keyed = zip(date, parts)
