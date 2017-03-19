@@ -30,8 +30,8 @@ before_install:
   - pip  install --upgrade pip setuptools
   - pip3 install --upgrade pip setuptools
 
-install:
-  - ./tools/travis/setup.sh
+# install:
+#  - ./tools/travis/setup.sh
 
 before_script:
   - chmod +x ./tools/travis/flake8.sh  # TODO set file permissions in repo
