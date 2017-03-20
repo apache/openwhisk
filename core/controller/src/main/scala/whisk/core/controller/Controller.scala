@@ -24,6 +24,8 @@ import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
 
+import spray.http.StatusCodes._
+import spray.http.Uri
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -36,7 +38,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
-
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -81,7 +82,17 @@ class Controller(
     override def routes(implicit transid: TransactionId): Route = {
         // handleRejections wraps the inner Route with a logical error-handler for unmatched paths
         handleRejections(customRejectionHandler) {
-            super.routes ~ apiv1.routes ~ internalInvokerHealth
+            super.routes ~ {
+                (pathEndOrSingleSlash & get) {
+                    complete(OK, info)
+                }
+            } ~ {
+                apiv1.routes
+            } ~ {
+                swagger.swaggerRoutes
+            } ~ {
+                internalInvokerHealth
+            }
         }
     }
 
@@ -100,11 +111,12 @@ class Controller(
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 
-    // register collections and set verbosities on datastores and backend services
+    // register collections
     Collection.initialize(entityStore)
 
     /** The REST APIs. */
-    private val apiv1 = new RestAPIVersion_v1()
+    private val apiv1 = new RestAPIVersion("api", "v1")
+    private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
     /**
      * Handles GET /invokers URI.
@@ -118,6 +130,9 @@ class Controller(
             }
         }
     }
+
+    // controller top level info
+    private val info = Controller.info(whiskConfig, runtimes)
 }
 
 /**
@@ -135,6 +150,18 @@ object Controller {
         EntitlementProvider.requiredProperties
 
     def optionalProperties = EntitlementProvider.optionalProperties
+
+    private def info(config: WhiskConfig, runtimes: Runtimes) = JsObject(
+        "description" -> "OpenWhisk".toJson,
+        "support" -> "https://github.com/openwhisk/openwhisk/issues".toJson,
+        "build" -> config(WhiskConfig.whiskVersionDate).toJson,
+        "build_tag" -> config(WhiskConfig.whiskVersionBuildno).toJson,
+        "api_paths" -> List("/api/v1").toJson,
+        "limits" -> JsObject(
+            "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
+            "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
+            "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
+        "runtimes" -> runtimes.toJson)
 
     // akka-style factory to create a Controller object
     private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {

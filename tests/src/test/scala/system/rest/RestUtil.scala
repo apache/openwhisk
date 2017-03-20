@@ -37,7 +37,7 @@ trait RestUtil {
     // force RestAssured to allow all hosts in SSL certificates
     protected val sslconfig = {
         new RestAssuredConfig().
-            sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
+            sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames())
     }
 
     /**
@@ -59,16 +59,16 @@ trait RestUtil {
     /**
      * @return the base URL for the whisk REST API
      */
-    def getBaseURL(): String = {
-        getServiceURL() + "/api/v1"
+    def getBaseURL(path: String = "/api/v1"): String = {
+        getServiceURL() + path
     }
 
     /**
      * construct the Json schema for a particular model type in the swagger model,
      * and return it as a string.
      */
-    def getJsonSchema(model: String): JsValue = {
-        val response = RestAssured.given().config(sslconfig).get(getServiceURL() + "/api/v1/api-docs")
+    def getJsonSchema(model: String, path: String = "/api/v1"): JsValue = {
+        val response = RestAssured.given().config(sslconfig).get(getServiceURL() + s"${if (path.endsWith("/")) path else path + "/"}api-docs")
 
         assert(response.statusCode() == 200)
 

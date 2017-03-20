@@ -62,7 +62,7 @@ protected[core] object ExecManifest {
     @throws[IllegalStateException]
     protected[core] def runtimesManifest: Runtimes = {
         manifest.getOrElse {
-            throw new IllegalStateException("Runtimes manifest is not initialized")
+            throw new IllegalStateException("Runtimes manifest is not initialized.")
         }
     }
 
@@ -97,6 +97,15 @@ protected[core] object ExecManifest {
         requireMain: Option[Boolean] = None,
         sentinelledLogs: Option[Boolean] = None,
         image: Option[String] = None) {
+
+        def toJsonSummary = {
+            JsObject(
+                "kind" -> kind.toJson,
+                "deprecated" -> deprecated.getOrElse(false).toJson,
+                "default" -> default.getOrElse(false).toJson,
+                "attached" -> attached.isDefined.toJson,
+                "requireMain" -> requireMain.getOrElse(false).toJson)
+        }
     }
 
     /**
@@ -113,6 +122,12 @@ protected[core] object ExecManifest {
      */
     protected[core] case class Runtimes(runtimes: Set[RuntimeFamily]) {
         val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
+
+        def toJson: JsObject = {
+            runtimes.map { family =>
+                family.name -> family.versions.map(_.toJsonSummary)
+            }.toMap.toJson.asJsObject
+        }
 
         def resolveDefaultRuntime(kind: String): Option[RuntimeManifest] = {
             kind match {
@@ -132,10 +147,10 @@ protected[core] object ExecManifest {
         private val defaultRuntimes: Map[String, String] = {
             runtimes.map { family =>
                 family.versions.filter(_.default.exists(identity)).toList match {
-                    case Nil if family.versions.size == 1  => family.name -> family.versions.toSeq(0).kind
-                    case Nil                               => throw new IllegalArgumentException(s"${family.name} has multiple versions, but no default")
-                    case d :: Nil                          => family.name -> d.kind
-                    case ds                                => throw new IllegalArgumentException(s"found more than one default for ${family.name}: ${ds.mkString(",")}")
+                    case Nil if family.versions.size == 1 => family.name -> family.versions.head.kind
+                    case Nil                              => throw new IllegalArgumentException(s"${family.name} has multiple versions, but no default.")
+                    case d :: Nil                         => family.name -> d.kind
+                    case ds                               => throw new IllegalArgumentException(s"Found more than one default for ${family.name}: ${ds.mkString(",")}.")
                 }
             }.toMap
         }

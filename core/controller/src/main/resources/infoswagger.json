@@ -1,0 +1,137 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "OpenWhisk",
+    "description": "API for OpenWhisk Configuration",
+    "version": "0.1.0"
+  },
+  "produces": [
+    "application/json"
+  ],
+  "basePath": "/",
+  "tags": [],
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Get configuration parameters for deployment including API paths, runtimes supported, and thorttle limits.",
+        "summary": "Get configuration parameters for deployment.",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "API paths, runtimes, limits.",
+            "schema": {
+              "$ref": "#/definitions/Info"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Info": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "A description of the configuration."
+        },
+        "support": {
+          "type": "string",
+          "description": "Where to file defects, feature requests, etc."
+        },
+        "build": {
+          "type": "string",
+          "description": "The build date for current deployment."
+        },
+        "build_tag": {
+          "type": "string",
+          "description": "The build tag."
+        },
+        "api_paths": {
+          "type": "array",
+          "description": "Available API paths.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limits": {
+          "type": "object",
+          "description": "Throttle limits on action and trigger activations.",
+          "properties": {
+            "actions_per_minute": {
+              "type": "integer",
+              "description": "Number of allowed action activations per minute per namespace."
+            },
+            "triggers_per_minute": {
+              "type": "integer",
+              "description": "Number of allowed trigger activations per minute per namespace."
+            },
+            "concurrent_actions": {
+              "type": "integer",
+              "description": "Number of concurrent activations allowed per namespace at any time."
+            }
+          },
+          "required": [
+            "actions_per_minute",
+            "triggers_per_minute",
+            "concurrent_actions"
+          ]
+        },
+        "runtimes": {
+          "$ref": "#/definitions/RuntimesManifest"
+        }
+      },
+      "required": [
+        "description",
+        "support",
+        "build",
+        "build_tag",
+        "api_paths",
+        "limits",
+        "runtimes"
+      ]
+    },
+    "RuntimesManifest": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "deprecated": {
+                "type": "boolean",
+                "description": "Indicates if runtime is deprecated: may get/delete action but not invoke/create/update."
+              },
+              "requireMain": {
+                "type": "boolean",
+                "description": "Indicates if a 'main' entry point for the action is required."
+              },
+              "attached": {
+                "type": "boolean",
+                "description": "Indicates if the action 'code' is an attachment."
+              },
+              "default": {
+                "type": "boolean",
+                "description": "Indicates if this is the default action 'kind' for a runtime family."
+              },
+              "kind": {
+                "type": "string",
+                "description": "The action kind, implies a particular image for the action runtime."
+              }
+            },
+            "required": [
+              "deprecated",
+              "requireMain",
+              "attached",
+              "default",
+              "kind"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
