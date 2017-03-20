@@ -510,7 +510,7 @@ class WskBasicUsageTests
                 activation =>
                     activation.response.status shouldBe "success"
                     val fields = activation.response.result.get.convertTo[Map[String, String]]
-                    fields("api_host") shouldBe WhiskProperties.getApiHost
+                    fields("api_host") shouldBe WhiskProperties.getApiHostForAction
                     fields("api_key") shouldBe wskprops.authKey
                     fields("namespace") shouldBe namespace
                     fields("action_name") shouldBe s"/$namespace/$name"
