@@ -44,9 +44,28 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 @RunWith(classOf[JUnitRunner])
 class WskWebActionsTestsV2 extends WskWebActionsTests {
     override val testRoutePath = "/api/v1/web"
+
+    it should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some(true.toString))
+            }
+
+            val url = getServiceApiHost(namespace) + "/default/webaction.text/a?a=A"
+            println("url", url)
+
+            val response = RestAssured.given().config(sslconfig).get(url)
+            val responseCode = response.statusCode
+            responseCode shouldBe 200
+            response.body.asString shouldBe "A"
+    }
 }
 
-abstract class WskWebActionsTests
+trait WskWebActionsTests
     extends TestHelpers
     with WskTestHelpers
     with RestUtil {
@@ -91,9 +110,9 @@ abstract class WskWebActionsTests
                         withClue(s"response code: $responseCode, url length: ${url.length}, pad amount: ${pad.length}, url: $url") {
                             responseCode shouldBe code
                             if (code == 200) {
-                                response.body().asString() shouldBe pad
+                                response.body.asString shouldBe pad
                             } else {
-                                response.body().asString() should include("414 Request-URI Too Large") // from nginx
+                                response.body.asString should include("414 Request-URI Too Large") // from nginx
                             }
                         }
                 }
@@ -129,7 +148,7 @@ abstract class WskWebActionsTests
                 .get(url)
 
             authorizedResponse.statusCode shouldBe 200
-            authorizedResponse.body().asString() shouldBe namespace
+            authorizedResponse.body.asString shouldBe namespace
     }
 
     if (testRoutePath == "/api/v1/web") {
@@ -194,6 +213,6 @@ abstract class WskWebActionsTests
             val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 406
-            response.body().asString() should include("Resource representation is only available with these Content-Types:\\ntext/html")
+            response.body.asString should include("Resource representation is only available with these Content-Types:\\ntext/html")
     }
 }

@@ -211,8 +211,18 @@ public class WhiskProperties {
         return whiskProperties.getProperty("router.host");
     }
 
-    public static String getApiHost() {
-        return whiskProperties.getProperty("whisk.api.host");
+    public static String getApiHostForAction() {
+        String proto = whiskProperties.getProperty("whisk.api.host.proto");
+        String port = whiskProperties.getProperty("whisk.api.host.port");
+        String host = whiskProperties.getProperty("whisk.api.host.name");
+        return proto + "://" + host + ":" + port;
+    }
+
+    public static String getApiHostForClient(String subdomain) {
+        String proto = whiskProperties.getProperty("whisk.api.host.proto");
+        String port = whiskProperties.getProperty("whisk.api.host.port");
+        String host = whiskProperties.getProperty("whisk.api.localhost.name");
+        return proto + "://" + subdomain + "." + host + ":" + port;
     }
 
     public static int getEdgeHostApiPort() {
@@ -283,7 +293,8 @@ public class WhiskProperties {
     }
 
     /**
-     * @return the path to a file holding the VCAP_SERVICES used during junit testing
+     * @return the path to a file holding the VCAP_SERVICES used during junit
+     *         testing
      */
     public static File getVCAPServicesFile() {
         String vcapServices = whiskProperties.getProperty("vcap.services.file");

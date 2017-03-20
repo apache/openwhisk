@@ -41,7 +41,12 @@ trait RestUtil {
     }
 
     /**
-     * @return the URL and port for the whisk service
+     * @return the URL for the whisk service as a hostname (this is the edge/router as a hostname)
+     */
+    def getServiceApiHost(subdomain: String): String = WhiskProperties.getApiHostForClient(subdomain)
+
+    /**
+     * @return the URL and port for the whisk service using the main router or the edge router ip address
      */
     def getServiceURL(): String = {
         val apiPort = WhiskProperties.getEdgeHostApiPort()

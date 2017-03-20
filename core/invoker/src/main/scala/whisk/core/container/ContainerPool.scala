@@ -810,9 +810,8 @@ class ContainerPool(
  * always available from other call sites.
  */
 object ContainerPool {
-    def requiredProperties = Map(
+    def requiredProperties = wskApiHost ++ Map(
         selfDockerEndpoint -> "localhost",
-        wskApiHost -> null,
         dockerRegistry -> "",
         dockerImagePrefix -> "",
         dockerImageTag -> "latest",
