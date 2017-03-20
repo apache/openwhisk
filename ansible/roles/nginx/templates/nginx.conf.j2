@@ -19,9 +19,11 @@ http {
     server {
         listen 443 default ssl;
 
-        # match namespace, note while OpenWhisk allows a space and period, they are not permitted here
-        server_name ~^(?<namespace>[\w@-]+)\.*.*$;
- 
+        # match namespace, note while OpenWhisk allows a richer character set for a
+        # namespace, not all those characters are permitted in the (sub)domain name;
+        # if namespace does not match, no vanity URL rewriting takes place.
+        server_name ~^(?<namespace>[0-9a-zA-Z-]+)\.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}$;
+
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  10m;
         ssl_certificate      /etc/nginx/openwhisk-cert.pem;
@@ -34,32 +36,30 @@ http {
 
         # proxy to the web action path
         location / {
-            rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
+            if ($namespace) {
+              rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
+            }
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
 
         # proxy to 'public/html' web action by convention
         location = / {
-            rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
-        }
-
-        location /docs {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
-        }
-        location /api-docs {
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
-        }
-        location /api/v1 {
+            if ($namespace) {
+              rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
+            }
             proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
+
         location /blackbox-0.1.0.tar.gz {
             root /etc/nginx;
         }
+
         location /OpenWhiskIOSStarterApp.zip {
             return 301 https://github.com/openwhisk/openwhisk-client-swift/releases/download/0.2.3/starterapp-0.2.3.zip;
         }
+
         location /cli/go/download {
             autoindex on;
             root /etc/nginx;
