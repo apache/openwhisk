@@ -5,7 +5,6 @@ db_protocol: http
 db_username: couch_user
 db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
-db_auth: "subjects"
 db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 
 whisk_version_name: local

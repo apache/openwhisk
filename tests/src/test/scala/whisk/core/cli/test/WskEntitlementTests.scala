@@ -186,7 +186,7 @@ class WskEntitlementTests
 
             assetHelper.withCleaner(wsk.action, fullSampleActionName) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(fullSampleActionName, file, kind = Some("nodejs"))(wp)
+                (action, _) => action.create(fullSampleActionName, file, kind = Some("nodejs:default"))(wp)
             }
 
             val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
@@ -360,7 +360,7 @@ class WskEntitlementTests
             val sampleFeed = s"$samplePackage/sampleFeed"
             assetHelper.withCleaner(wsk.action, sampleFeed) {
                 val file = Some(TestUtils.getTestActionFilename("empty.js"))
-                (action, _) => action.create(sampleFeed, file, kind = Some("nodejs"))(wp)
+                (action, _) => action.create(sampleFeed, file, kind = Some("nodejs:default"))(wp)
             }
 
             val fullyQualifiedFeedName = s"/$guestNamespace/$sampleFeed"

@@ -9,6 +9,7 @@ MACHINE_NAME=${1:-whisk}
 # Disable TLS.
 docker-machine ssh $MACHINE_NAME "echo DOCKER_TLS=no |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
 docker-machine ssh $MACHINE_NAME "echo DOCKER_HOST=\'-H tcp://0.0.0.0:4243\' |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
+docker-machine ssh $MACHINE_NAME "echo EXTRA_ARGS=\'--userns-remap=default\' |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
 docker-machine ssh $MACHINE_NAME "echo '#!/bin/sh
 /sbin/syslogd
 sudo ping -c 3 repo.tinycorelinux.net > /dev/null

@@ -11,10 +11,12 @@ whisk:
 runtimesManifest:
   nodejs:
   - kind: "nodejs"
+    deprecated: true
   - kind: "nodejs:6"
     default: true
   python:
   - kind: "python"
+    default: true
   swift:
   - kind: "swift"
     deprecated: true
@@ -27,6 +29,7 @@ runtimesManifest:
       attachmentType: "application/java-archive"
     sentinelledLogs: false
     requireMain: true
+    default: true
 
 defaultLimits:
   actions:
@@ -81,10 +84,12 @@ nginx:
     adminportal: 8443
 
 db:
-  immortal: subjects
   authkeys:
   - guest
   - whisk.system
+  whisk:
+    actions: "{{ db_prefix }}whisks"
+    auth: "{{ db_prefix }}subjects"
 
 apigateway:
   port:

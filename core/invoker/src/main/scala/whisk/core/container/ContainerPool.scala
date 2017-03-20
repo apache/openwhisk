@@ -775,7 +775,11 @@ class ContainerPool(
         val candidates = allContainers.filter { _.name.name.startsWith(actionContainerPrefix) }
         logging.info(this, s"killStragglers now removing ${candidates.length} leftover containers")
         candidates foreach { c =>
-            unpauseContainer(c.name)
+            if (useRunc) {
+                RuncUtils.resume(c.id)
+            } else {
+                unpauseContainer(c.name)
+            }
             rmContainer(c.name)
         }
         logging.info(this, s"killStragglers completed")
