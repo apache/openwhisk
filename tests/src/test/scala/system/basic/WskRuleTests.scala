@@ -312,7 +312,7 @@ class WskRuleTests
                         _.head.response.result shouldBe Some(testResult)
                     }
                     withActivationsFromEntity(wsk.activation, actionName2, since = Some(triggerActivation.start)) {
-                        _.head.logs.get.mkString(" ") should include(s"hello $testString")
+                        _.head.logs.get.mkString(" ") should include(s"hello, $testString")
                     }
             }
     }
@@ -350,7 +350,7 @@ class WskRuleTests
                         activations =>
                             // drops the leftmost 39 characters (timestamp + streamname)
                             val logs = activations.map(_.logs.get.map(_.drop(39))).flatten
-                            val expectedLogs = testPayloads.map { payload => s"hello $payload!" }
+                            val expectedLogs = testPayloads.map { payload => s"hello, $payload!" }
 
                             logs should contain theSameElementsAs expectedLogs
                     }
