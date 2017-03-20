@@ -16,13 +16,16 @@ function main({name}) {
 }
 ```
 
-You may create a _web action_ `hello` in the package `demo` for the namespace `guest` using the annotation `web-export`:
+You may create a _web action_ `hello` in the package `demo` for the namespace `guest` using the CLI's `--web` flag with a value of `true` or `yes`:
 ```bash
 $ wsk package create demo
-$ wsk action create /guest/demo/hello hello.js -a web-export true
+$ wsk action create /guest/demo/hello hello.js --web true
 ```
 
-The `web-export` annotation allows the action to be accessible as a web action via a new REST interface. The URL that is structured as follows: `https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three parts: the namespace, the package name, and the action name.
+Using the `--web` flag with a value of `true` or `yes` allows an action to be accessible via REST interface without the
+need for credentials. A web action can be invoked using a URL that is structured as follows:
+`https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three
+parts: the namespace, the package name, and the action name.
 
 *The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.*
 
@@ -238,24 +241,22 @@ A content extension is generally required when invoking a web action; the absenc
 
 ## Protected parameters
 
-Action parameters may also be protected and treated as immutable. To finalize parameters, and to make an action web accessible, two [annotations](annotations.md) must be attached to the action: `final` and `web-export` either of which must be set to `true` to have affect. Revisiting the action deployment earlier, we add the annotations as follows:
+Action parameters are protected and treated as immutable. Parameters are automatically finalized when enabling web actions.
 
 ```bash
 $ wsk action create /guest/demo/hello hello.js \
       --parameter name Jane \
-      --annotation final true \
-      --annotation web-export true
+      --web true
 ```
 
 The result of these changes is that the `name` is bound to `Jane` and may not be overridden by query or body parameters because of the final annotation. This secures the action against query or body parameters that try to change this value whether by accident or intentionally. 
 
 ## Disabling web actions
 
-To disable a web action from being invoked via the new API (`https://APIHOST/api/v1/web/`), it’s enough to remove the annotation or set it to `false`.
+To disable a web action from being invoked via web API (`https://APIHOST/api/v1/web/`), pass a value of `false` or `no` to the `--web` flag while updating an action with the CLI.
 
 ```bash
-$ wsk action update /guest/demo/hello hello.js \
-      --annotation web-export false
+$ wsk action update /guest/demo/hello hello.js --web false
 ```
 
 ## Raw HTTP handling
@@ -286,29 +287,79 @@ Notice in this case the JSON content is base64 encoded because it is treated as 
 
 ### Enabling raw HTTP handling
 
-Raw HTTP web actions are enabled via the annotation `raw-http` [annotation](annotations.md) with a value of `true`.
+Raw HTTP web actions are enabled via the `--web` flag using a value of `raw`.
 
 ```bash
-$ wsk action create /guest/demo/hello hello.js \
-      --annotation web-export true
-      --annotation raw-http true
+$ wsk action create /guest/demo/hello hello.js --web raw
 ```
-
-**Note:** Since `raw-http` implies `web-export`, we plan to improve the CLI to provide a more convenient way to add (and remove) these annotations in the future.
-
 
 ### Disabling raw HTTP handling
 
-Disabling raw HTTP is accomplished by setting the `raw-http` [annotation](annotations.md) value to `false`.
+Disabling raw HTTP can be accomplished by passing a value of `false` or `no` to the `--web` flag.
 
 ```bash
-$ wsk update create /guest/demo/hello hello.js \
-      --annotation web-export true
-      --annotation raw-http false
+$ wsk update create /guest/demo/hello hello.js --web false
 ```
 
-**Note:**  All annotations for a single action must be set at the same time, either when creating or updating the action. This is due to a current limitation on the API and CLI. Failure to do so will result is removal of any previously attached annotations.
+### Decoding binary body content from Base64
 
+When using raw HTTP handling, the `__ow_body` content will be encoded in Base64 when the request content-type is binary.
+Below are functions demonstrating how to decode the body content in Node, Python, and Swift. Simply save a method shown
+below to file, create a raw HTTP web action utilizing the saved artifact, and invoke the web action.
+
+#### Node
+
+```javascript
+function main(args) {
+    decoded = new Buffer(args.__ow_body, 'base64').toString('utf-8')
+    return {body: decoded}
+}
+```
+
+#### Python
+
+```python
+def main(args):
+    try:
+        decoded = args['__ow_body'].decode('base64').strip()
+        return {"body": decoded}
+    except:
+        return {"body": "Could not decode body from Base64."}
+```
+
+#### Swift
+
+```swift
+extension String {
+    func base64Decode() -> String? {
+        guard let data = Data(base64Encoded: self) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+}
+
+func main(args: [String:Any]) -> [String:Any] {
+    if let body = args["__ow_body"] as? String {
+        if let decoded = body.base64Decode() {
+            return [ "body" : decoded ]
+        }
+    }
+
+    return ["body": "Could not decode body from Base64."]
+}
+```
+
+As an example, save the Node function as `decode.js` and execute the following commands:
+```bash
+$ wsk action create decode decode.js --web raw
+ok: created action decode
+$ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${APIHOST}/api/v1/web/guest/default/decodeNode.json
+{
+  "body": "Decoded body"
+}
+```
 
 ## Error Handling
 
