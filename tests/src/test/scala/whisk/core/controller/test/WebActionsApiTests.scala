@@ -150,8 +150,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
     override lazy val entitlementProvider = new TestingEntitlementProvider(whiskConfig, loadBalancer)
     protected val testRoutePath = webInvokePathSegments.mkString("/", "/", "")
 
-    /** Meta API tests */
-    behavior of "Meta API"
+    behavior of "Web actions API"
 
     var failActionLookup = false // toggle to cause action lookup to fail
     var failActivation = 0 // toggle to cause action to fail
@@ -256,7 +255,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         if (failActivation == 0) {
             // construct a result stub that includes:
             // 1. the package name for the action (to confirm that this resolved to systemId)
-            // 2. the action name (to confirm that this resolved to the expected meta action)
+            // 2. the action name (to confirm that this resolved to the expected action)
             // 3. the payload received by the action which consists of the action.params + payload
             val result = actionResult getOrElse JsObject(
                 "pkg" -> action.namespace.toJson,
