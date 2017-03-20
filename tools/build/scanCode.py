@@ -27,7 +27,10 @@
 """
 import argparse
 import collections
-import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 import fnmatch
 import itertools
 import os
@@ -182,13 +185,13 @@ def read_license_files(config):
                         license_filename,
                         DEFAULT_PROGRAM_PATH)
 
-                with open(license_filename, 'rb') as temp_file:
+                with open(license_filename, 'r') as temp_file:
                     vprint(MSG_READING_LICENSE_FILE % license_filename)
                     str1 = str(temp_file.read())
                     valid_licenses.append(str(str1))
                     vprint(MSG_CONFIG_ADDING_LICENSE_FILE % (license_filename,
                                                              str1))
-            except Exception, e:
+            except Exception as e:
                 raise e
     else:
         raise Exception(ERR_REQUIRED_SECTION % SECTION_LICENSE)
@@ -226,7 +229,7 @@ def read_config_file(file):
     try:
         print_highlight(MSG_READING_CONFIGURATION % file.name)
         # Provide for sections that have simply values (not key=value)
-        config = ConfigParser.ConfigParser(allow_no_value=True)
+        config = configparser.ConfigParser(allow_no_value=True)
         # This option prevents options from being normalized to lowercase
         # by allowing the raw string in the config. to be passed through
         config.optionxform = str
@@ -235,7 +238,7 @@ def read_config_file(file):
         read_path_inclusions(config)
         read_path_exclusions(config)
         read_scan_options(config)
-    except Exception, e:
+    except Exception as e:
         print_error(e)
         return -1
     return 0
@@ -306,7 +309,7 @@ def read_path_inclusions(config):
     for key in inclusion_dict:
         all_checks = inclusion_dict[key]
         # strip off all whitespace, regardless of index
-        all_checks = all_checks.translate(None, ' ')
+        all_checks = all_checks.replace(' ', '')
         # retrieve the names of all functions to scan for
         # the respective filename (wildcards allowed)
         function_names = all_checks.split(',')
