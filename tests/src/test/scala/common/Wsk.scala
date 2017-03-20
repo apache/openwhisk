@@ -275,6 +275,7 @@ class WskAction()
         logsize: Option[ByteSize] = None,
         shared: Option[Boolean] = None,
         update: Boolean = false,
+        web: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++
@@ -293,7 +294,8 @@ class WskAction()
             { timeout map { t => Seq("-t", t.toMillis.toString) } getOrElse Seq() } ++
             { memory map { m => Seq("-m", m.toMB.toString) } getOrElse Seq() } ++
             { logsize map { l => Seq("-l", l.toMB.toString) } getOrElse Seq() } ++
-            { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
+            { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() } ++
+            { web map { w => Seq("--web", w) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode)
     }
 

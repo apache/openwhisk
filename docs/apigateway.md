@@ -1,12 +1,20 @@
-# Exposing your Actions via API Gateway (Experimental)
+# API Gateway (Experimental)
 
-In OpenWhisk you can invoke your actions using the [REST API](./reference.md#rest-api) using an HTTP Request only via a __POST__ method.
-This requires the HTTP client to make the request using the OpenWhisk authorization API key which is a master
-key that in addition of allowing to invoke an action, also allows for deleting and creating more actions.
+[Web Actions](webactions.md) are out from experimental phase.
 
-This experimental feature will allow you to invoke an action with HTTP methods other than POST and without the action's authorization API key.
+Web Actions allows you to invoke an action with HTTP methods other than POST and without the action's authorization API key.
 
-Use the CLI to expose your OpenWhisk actions through the OpenWhisk API Gateway. 
+As a result of user feedback, Web Actions are the programming model chosen to build OpenWhisk actions capable of handling HTTP events.
+
+Most of the API Gateway functionality was merged into Web Actions, Web Actions allows you to handle any HTTP request and return HTTP responses with full control from your Web Action.
+
+A revised OpenWhisk API Gateway integration will be available soon. It will be configured to proxy your Web Actions providing them with API Gateway features such as rate limiting, oauth token validation, API keys, and more.
+
+**Note:** The APIs you created using the `wsk api-experimental` will continue to work, however you should begin migrating your APIs to web actions.
+
+You can follow progress on v2 of the API Gateway here:
+- [OpenWhisk API Gateway repository](https://github.com/openwhisk/openwhisk-apigateway)
+- [OpenWhisk API CLI api v2 Pull Request](https://github.com/openwhisk/openwhisk/pull/2031)
 
 ## OpenWhisk CLI configuration
 This experimental feature only works with the new OpenWhisk authentication model in which each namespace now has a unique authentication key associated with it.
