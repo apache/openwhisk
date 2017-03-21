@@ -104,21 +104,17 @@ class WskSequenceTests
             }
 
             println("Run sequence with error in payload")
-            // run sequence with error in the payload; nothing should run
-            val payload = Map("error" -> JsString("irrelevant error string"))
+            // run sequence with error in the payload
+            // sequence should run with no problems, error should be ignored in this test case
+            // result of sequence should be identical to previous invocation above
+            val payload = Map("error" -> JsString("irrelevant error string"), "payload" -> args.mkString("\n").toJson)
             val thirdrun = wsk.action.invoke(name, payload)
-            withActivation(wsk.activation, thirdrun, totalWait = allowedActionDuration) {
+            withActivation(wsk.activation, thirdrun, totalWait = 2 *allowedActionDuration) {
                 activation =>
-                    activation.logs shouldBe defined
-                    // no activations should have run
-                    activation.logs.get.size shouldBe (0)
-                    activation.response.success shouldBe (false)
-                    // the status should be error
-                    activation.response.status shouldBe ("application error")
+                    checkSequenceLogsAndAnnotations(activation, 2) // 2 activations in this sequence
                     val result = activation.response.result.get
-                    // the result of the activation should be the payload
-                    result shouldBe (JsObject(payload))
-
+                    result.fields.get("length") shouldBe Some(2.toJson)
+                    result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
             }
     }
 
