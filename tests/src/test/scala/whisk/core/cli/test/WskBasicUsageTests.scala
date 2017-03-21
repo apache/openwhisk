@@ -446,6 +446,14 @@ class WskBasicUsageTests
             }
     }
 
+    it should "report error when creating an action with unknown kind" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val rr = assetHelper.withCleaner(wsk.action, "invalid kind", confirmDelete = false) {
+                (action, name) => action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), kind = Some("foobar"), expectedExitCode = BAD_REQUEST)
+            }
+            rr.stderr should include regex "kind 'foobar' not in Set"
+    }
+
     it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
         val name = "invalid dockerContainer"
         val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
