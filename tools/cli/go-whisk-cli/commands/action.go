@@ -404,19 +404,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
             }
         }
 
-        if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
-            action.Exec.Kind = "swift:3"
-        } else if flags.action.kind == "nodejs:6" || flags.action.kind == "nodejs:6.0" ||
-                flags.action.kind == "nodejs:6.0.0" {
-            action.Exec.Kind = "nodejs:6"
-        } else if flags.action.kind == "nodejs:default" {
-            action.Exec.Kind = "nodejs:default"
-        } else if flags.action.kind == "swift:default" {
-            action.Exec.Kind = "swift:default"
-        } else if flags.action.kind == "nodejs" {
-            action.Exec.Kind = "nodejs"
-        } else if flags.action.kind == "python" {
-            action.Exec.Kind = "python"
+        if len(flags.action.kind) > 0 {
+            action.Exec.Kind = flags.action.kind
         } else if flags.action.docker {
             action.Exec.Kind = "blackbox"
             if ext != ".zip" {
@@ -424,21 +413,14 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
             } else {
                 action.Exec.Image = "openwhisk/dockerskeleton"
             }
-        } else if len(flags.action.kind) > 0 {
-            whisk.Debug(whisk.DbgError, "--kind argument '%s' is not supported\n", flags.action.kind)
-            errMsg := wski18n.T("'{{.name}}' is not a supported action runtime",
-                map[string]interface{}{"name": flags.action.kind})
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
-                whisk.DISPLAY_USAGE)
-            return nil, whiskErr
         } else if ext == ".swift" {
             action.Exec.Kind = "swift:default"
         } else if ext == ".js" {
-            action.Exec.Kind = "nodejs:6"
+            action.Exec.Kind = "nodejs:default"
         } else if ext == ".py" {
-            action.Exec.Kind = "python"
+            action.Exec.Kind = "python:default"
         } else if ext == ".jar" {
-            action.Exec.Kind = "java"
+            action.Exec.Kind = "java:default"
             action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
             action.Exec.Code = nil
         } else {
@@ -854,7 +836,7 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
-    actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+    actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
@@ -868,7 +850,7 @@ func init() {
     actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
-    actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
