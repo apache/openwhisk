@@ -45,7 +45,8 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 class WskWebActionsTestsV2 extends WskWebActionsTests {
     override val testRoutePath = "/api/v1/web"
 
-    it should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
+    // temporarily ignore this test
+    ignore should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
