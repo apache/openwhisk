@@ -146,7 +146,7 @@ var ruleStatusCmd = &cobra.Command{
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
-            errStr := wski18n.T("Unable to retrieve rule '{{.name}}': {{.err}}",
+            errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
@@ -305,7 +305,7 @@ var ruleGetCmd = &cobra.Command{
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
-            errStr := wski18n.T("Unable to retrieve rule '{{.name}}': {{.err}}",
+            errStr := wski18n.T("Unable to get rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr

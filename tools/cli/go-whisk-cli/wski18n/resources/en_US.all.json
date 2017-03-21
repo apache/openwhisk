@@ -421,8 +421,12 @@
     "translation": "get rule status"
   },
   {
-    "id": "Unable to retrieve rule '{{.name}}': {{.err}}",
-    "translation": "Unable to retrieve rule '{{.name}}': {{.err}}"
+    "id": "Unable to get rule '{{.name}}': {{.err}}",
+    "translation": "Unable to get rule '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "Unable to get status of rule '{{.name}}': {{.err}}",
+    "translation": "Unable to get status of rule '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} rule {{.name}} is {{.status}}\n",
@@ -944,8 +948,8 @@
     "translation": "get activation"
   },
   {
-    "id": "Unable to obtain activation record for '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain activation record for '{{.id}}': {{.err}}"
+    "id": "Unable to get activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
   {
     "id": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n",
@@ -960,12 +964,12 @@
     "translation": "get the logs of an activation"
   },
   {
-    "id": "Unable to obtain logs for activation '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain logs for activation '{{.id}}': {{.err}}"
+    "id": "Unable to get logs for activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get logs for activation '{{.id}}': {{.err}}"
   },
   {
-    "id": "Unable to obtain result information for activation '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain result information for activation '{{.id}}': {{.err}}"
+    "id": "Unable to get result for activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get result for activation '{{.id}}': {{.err}}"
   },
   {
     "id": "poll continuously for log messages from currently running actions",
