@@ -592,8 +592,9 @@ func actionInsertError(action *whisk.Action, err error) (error) {
     whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
 
     errMsg := wski18n.T(
-        "Unable to create action: {{.err}}",
+        "Unable to create action '{{.name}}': {{.err}}",
         map[string]interface{}{
+            "name": action.Name,
             "err": err,
         })
 
@@ -666,7 +667,7 @@ func actionGetError(entityName string, err error) (error) {
     whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", entityName, err)
 
     errMsg := wski18n.T(
-        "Unable to obtain action '{{.name}}' to copy: {{.err}}",
+        "Unable to get action '{{.name}}': {{.err}}",
         map[string]interface{}{
             "name": entityName,
             "err": err,

@@ -192,7 +192,12 @@ var packageCreateCmd = &cobra.Command{
     p, _, err = client.Packages.Insert(p, false)
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, false) failed: %s\n", p, err)
-      errStr := wski18n.T("Package creation failed: {{.err}}", map[string]interface{}{"err":err})
+      errStr := wski18n.T(
+        "Unable to create package '{{.name}}': {{.err}}",
+        map[string]interface{}{
+          "name": qName.entityName,
+          "err": err,
+        })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
@@ -318,7 +323,12 @@ var packageGetCmd = &cobra.Command{
     xPackage, _, err := client.Packages.Get(qName.entityName)
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.Get(%s) failed: %s\n", qName.entityName, err)
-      errStr := wski18n.T("Package get failed: {{.err}}", map[string]interface{}{"err":err})
+      errStr := wski18n.T(
+        "Unable to get package '{{.name}}': {{.err}}",
+        map[string]interface{}{
+          "name": qName.entityName,
+          "err":err,
+        })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }

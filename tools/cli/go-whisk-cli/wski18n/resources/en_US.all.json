@@ -120,8 +120,8 @@
     "translation": "create a new package"
   },
   {
-    "id": "Package creation failed: {{.err}}",
-    "translation": "Package creation failed: {{.err}}"
+    "id": "Unable to create package '{{.name}}': {{.err}}",
+    "translation": "Unable to create package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} created package {{.name}}\n",
@@ -144,8 +144,8 @@
     "translation": "get package"
   },
   {
-    "id": "Package get failed: {{.err}}",
-    "translation": "Package get failed: {{.err}}"
+    "id": "Unable to get package '{{.name}}': {{.err}}",
+    "translation": "Unable to get package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} got package {{.name}}\n",
@@ -772,8 +772,8 @@
     "translation": "Unable to parse action command arguments: {{.err}}"
   },
   {
-    "id": "Unable to create action: {{.err}}",
-    "translation": "Unable to create action: {{.err}}"
+    "id": "Unable to create action '{{.name}}': {{.err}}",
+    "translation": "Unable to create action '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} created action {{.name}}\n",
@@ -844,8 +844,8 @@
     "translation": "Could not find 'main' method in '{{.name}}'"
   },
   {
-    "id": "Unable to obtain action '{{.name}}' to copy: {{.err}}",
-    "translation": "Unable to obtain action '{{.name}}' to copy: {{.err}}"
+    "id": "Unable to get action '{{.name}}': {{.err}}",
+    "translation": "Unable to get action '{{.name}}': {{.err}}"
   },
   {
     "id": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}",

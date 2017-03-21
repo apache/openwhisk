@@ -168,7 +168,7 @@ class WskBasicTests
 
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, name) {
-                (action, _) => action.create(name, parameters = paramInput)
+                (pkg, _) => pkg.create(name, parameters = paramInput)
             }
 
             val expectedParam = JsObject(
@@ -188,6 +188,25 @@ class WskBasicTests
         val name = "deleteFantasy"
         wsk.pkg.sanitize(name).
             stderr should include regex (s"""Unable to delete package '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject creation of duplication packages" in withAssetCleaner(wskprops) {
+        val name = "dupePackage"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) => pkg.create(name)
+            }
+
+        val stderr = wsk.pkg.create(name, expectedExitCode = 153).stderr
+        stderr should include regex (s"""Unable to create package '$name': resource already exists \\(code \\d+\\)""")
+    }
+
+    it should "reject get of package that does not exist" in {
+        val name = "nonexistentPackage"
+
+        val stderr = wsk.pkg.get(name, expectedExitCode = 148).stderr
+        stderr should include regex (s"""Unable to get package '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     behavior of "Wsk Action CLI"
@@ -222,6 +241,31 @@ class WskBasicTests
         val name = "deleteFantasy"
         wsk.action.sanitize(name).
             stderr should include regex (s"""Unable to delete action '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject create of an action that already exists" in withAssetCleaner(wskprops) {
+        val name = "dupeAction"
+        val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            val stderr = wsk.action.create(name, file, expectedExitCode = 153).stderr
+            stderr should include regex (s"""Unable to create action '$name': resource already exists \\(code \\d+\\)""")
+    }
+
+    it should "reject invocation of action that does not exist" in {
+        val name = "nonexistentAction"
+        val stderr = wsk.action.invoke(name, expectedExitCode = 148).stderr
+        stderr should include regex (s"""Unable to invoke action '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject get of an action that does not exist" in {
+        val name = "nonexistentAction"
+        val stderr = wsk.action.get(name, expectedExitCode = 148).stderr
+        stderr should include regex (s"""Unable to get action '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
