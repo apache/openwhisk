@@ -14,7 +14,7 @@ declare -a PYTHON_FILES=("."
 echo 'Flake8: first round (fast fail) stops the build if there are any Python 3 syntax errors...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --count --max-line-length=127 --select=E999 --statistics
+    flake8 "$i" --select=E999 --statistics
     RETURN_CODE=$?
     if [ $RETURN_CODE != 0 ]; then
         echo 'Flake8 found Python 3 syntax errors above.  See: https://docs.python.org/3/howto/pyporting.html'
@@ -25,5 +25,5 @@ done
 echo 'Flake8: second round uses the --exit-zero flag to treat _every_ message as a warning...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --count --max-line-length=127 --statistics --exit-zero
+    flake8 "$i" --count --ignore=E --max-line-length=127 --statistics --exit-zero
 done
