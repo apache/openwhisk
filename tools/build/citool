@@ -112,10 +112,10 @@ def shell(cmd, data = None, verbose = False):
     p.wait()
     # stdout/stderr may be either text or bytes, depending on Python
     # version.   In the latter case, decode to text.
-    if isinstance(o, bytes):
-        o = o.decode('utf-8')
-    if isinstance(e, bytes):
-        e = e.decode('utf-8')
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
 
     end = time.time()
     delta = end - start
