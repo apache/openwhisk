@@ -443,7 +443,7 @@ def getDbCmd(args, props):
         'database': database,
         'design'  : '/_design/' + designdoc +'/_view' if args.view else '',
         'index'   : viewname if args.view else '_all_docs',
-        'docs'    : 'true' if args.docs else 'false' 
+        'docs'    : 'true' if args.docs else 'false'
     }
 
     headers = {
