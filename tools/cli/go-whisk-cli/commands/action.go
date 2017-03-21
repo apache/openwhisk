@@ -653,8 +653,9 @@ func actionDeleteError(entityName string, err error) (error) {
     whisk.Debug(whisk.DbgError, "client.Actions.Delete(%s) error: %s\n", entityName, err)
 
     errMsg := wski18n.T(
-        "Unable to delete action: {{.err}}",
+        "Unable to delete action '{{.name}}': {{.err}}",
         map[string]interface{}{
+            "name": entityName,
             "err": err,
         })
 

@@ -184,6 +184,12 @@ class WskBasicTests
             wsk.pkg.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
     }
 
+    it should "reject delete of package that does not exist" in {
+        val name = "deleteFantasy"
+        wsk.pkg.sanitize(name).
+            stderr should include regex (s"""Unable to delete package '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -213,8 +219,9 @@ class WskBasicTests
     }
 
     it should "reject delete of action that does not exist" in {
-        wsk.action.sanitize("deleteFantasy").
-            stderr should include regex ("""The requested resource does not exist. \(code \d+\)""")
+        val name = "deleteFantasy"
+        wsk.action.sanitize(name).
+            stderr should include regex (s"""Unable to delete action '$name'. The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
@@ -574,6 +581,12 @@ class WskBasicTests
             }
     }
 
+    it should "reject delete of trigger that does not exist" in {
+        val name = "deleteFantasy"
+        wsk.trigger.sanitize(name).
+            stderr should include regex (s"""Unable to delete trigger '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
     behavior of "Wsk Rule CLI"
 
     it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {
@@ -677,6 +690,12 @@ class WskBasicTests
             action should include regex (s"""$successMsg action\n""")
             action should include(actionName)
             action should not include (triggerName)
+    }
+
+    it should "reject delete of rule that does not exist" in {
+        val name = "deleteFantasy"
+        wsk.rule.sanitize(name).
+            stderr should include regex (s"""Unable to delete rule '$name'. The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     behavior of "Wsk Namespace CLI"

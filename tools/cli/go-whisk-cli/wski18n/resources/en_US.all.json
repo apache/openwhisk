@@ -156,8 +156,8 @@
     "translation": "delete package"
   },
   {
-    "id": "Package delete failed: {{.err}}",
-    "translation": "Package delete failed: {{.err}}"
+    "id": "Unable to delete package '{{.name}}': {{.err}}",
+    "translation": "Unable to delete package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} deleted package {{.name}}\n",
@@ -824,8 +824,8 @@
     "translation": "delete action"
   },
   {
-    "id": "Unable to delete action: {{.err}}",
-    "translation": "Unable to delete action: {{.err}}"
+    "id": "Unable to delete action '{{.name}}': {{.err}}",
+    "translation": "Unable to delete action '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} deleted action {{.name}}\n",
