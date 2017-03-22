@@ -44,7 +44,7 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "nginx"
     volumes:
-      - "{{ whisk_logs_dir }}/nginx:/logs"
+      - "{{ whisk_logs_dir }}/edgeproxy:/logs"
       - "{{ nginx_conf_dir }}:/etc/nginx"
     expose:
       - 8443
