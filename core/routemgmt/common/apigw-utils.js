@@ -1,5 +1,5 @@
 /**
- * Copyright 2015-2016 IBM Corporation
+ * Copyright 2015-2017 IBM Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,185 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Route management action common utilities
+ * Route management action common API GW utilities
  *
  **/
 var request = require('request');
-
-/*
- * Register a tenant with the API GW.
- * A new tenant is created for each unique namespace/tenantinstance.  If the
- * tenant already exists, the tenant is left as-is
- * Parameters:
- *  gwInfo         - Required. API GW connection information (gwUrl, gwAuth)
- *  namespace      - Required. Namespace of tenant
- *  tenantInstance - Optional. Tenanant instance used to create >1 tenant per namespace
- *                   Defaults to 'openwhisk'
- * Returns:
- *  tenant object  - JSON object representing the tenant in the following format:
- *                   { id: GUID, namespace: NAMESPACE, instance: 'openwhisk' }
- */
-function createTenant(gwInfo, namespace, tenantInstance) {
-  var instance = tenantInstance || 'openwhisk';  // Default to a fixed instance so all openwhisk tenants have a common instance
-  var options = {
-    url: gwInfo.gwUrl+'/tenants',
-    headers: {
-      'Accept': 'application/json'
-    },
-    json: {                     // Auto set header: 'Content-Type': 'application/json'
-      instance: instance,
-      namespace: namespace
-    }
-  };
-  if (gwInfo.gwAuth) {
-    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
-  }
-  console.log('addTenantToGateway: request: '+JSON.stringify(options));
-
-  return new Promise(function(resolve, reject) {
-    request.put(options, function(error, response, body) {
-      var statusCode = response ? response.statusCode : undefined;
-      console.log('addTenantToGateway: response status: '+ statusCode);
-      if (error) console.error('Warning: addTenantToGateway request failed: '+JSON.stringify(error));
-      if (body) console.log('addTenantToGateway: response body: '+JSON.stringify(body));
-
-      if (error) {
-        console.error('addTenantToGateway: Unable to configure a tenant on the API Gateway: '+JSON.stringify(error));
-        reject('Unable to configure the API Gateway: '+JSON.stringify(error));
-      } else if (statusCode != 200) {
-        console.error('addTenantToGateway: failure: response code: '+statusCode);
-        if (body) {
-          var errMsg = JSON.stringify(body);
-          if (body.error && body.error.message) errMsg = body.error.message;
-          reject('API Gateway failure (status code '+statusCode+'): '+ errMsg);
-        } else {
-          reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
-        }
-
-      } else {
-        if (body && body.id) {  // body has format like:  { id: GUID, namespace: NAMESPACE, instance: 'openwhisk' }
-          console.log('addTenantToGateway: got a single tenant response');
-          resolve(body);
-        } else {
-          console.error('addTenantToGateway: failure: No tenant guid provided');
-          reject('Unable to configure the API Gateway: Invalid response from API Gateway');
-        }
-      }
-    });
-  });
-}
-
-/*
- * Return an array of tenants
- */
-function getTenants(gwInfo, ns, tenantInstance) {
-  var qsNsOnly = { 'filter[where][namespace]' : ns };
-  var qsNsAndInstance = { 'filter[where][namespace]' : ns,
-                          'filter[where][instance]'  : tenantInstance };
-  var qs = qsNsOnly;
-  if (tenantInstance) qs = qsNsAndInstance;
-  var options = {
-    url: gwInfo.gwUrl+'/tenants',
-    qs: qs,
-    headers: {
-      'Accept': 'application/json'
-    },
-  };
-  if (gwInfo.gwAuth) {
-    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
-  }
-  console.log('getTenants: request: '+JSON.stringify(options));
-
-  return new Promise(function(resolve, reject) {
-    request.get(options, function(error, response, body) {
-      var statusCode = response ? response.statusCode : undefined;
-      console.log('getTenants: response status: '+ statusCode);
-      if (error) console.error('Warning: getTenant request failed: '+JSON.stringify(error));
-      if (body) console.log('getTenants: response body: '+body);
-      if (error) {
-        console.error('getTenants: Unable to obtain tenant from the API Gateway: '+JSON.stringify(error));
-        reject('Unable to obtain Tenant from the API Gateway: '+JSON.stringify(error));
-      } else if (statusCode != 200) {
-        console.error('getTenants: failure: response code: '+statusCode);
-        if (body) {
-          var errMsg = JSON.stringify(body);
-          if (body.error && body.error.message) errMsg = body.error.message;
-          reject('API Gateway failure (status code '+statusCode+'): '+ errMsg);
-        } else {
-          reject('Unable to configure the API Gateway: Response failure code: '+statusCode);
-        }
-      } else {
-        if (body) {
-          try {
-            var bodyJson = JSON.parse(body);
-            if (Array.isArray(bodyJson)) {
-              resolve(bodyJson);
-            } else {
-              console.error('getTenants: Invalid API GW response body; a JSON array was not returned');
-              resolve( [] );
-            }
-          } catch(e) {
-            console.error('getTenants: Invalid API GW response body; JSON.parse() failure: '+e);
-            reject('Internal error. Invalid API Gateway response: '+e);
-          }
-        } else {
-          console.log('getTenants: No tenants found');
-          resolve( [] );
-        }
-      }
-    });
-  });
-}
+var _ = require('lodash');
 
 /**
  * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
  * will be invoked by the API Gateway when the API route is accessed.
  *
  * @param gwInfo Required.
- * @param    gwUrl   Required.  The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
- * @param    gwAuth  Required.  The credentials used to access the API Gateway REST endpoints
- * @param tenantId   Required.
- * @param swaggerApi   Required. The gateway API object to send to the API gateway
- * @param   payload.namespace  Required. The OpenWhisk namespace of the user defining this API route
- * @param   payload.gatewayPath  Required.  The relative path for this route
- * @param   payload.gatewayMethod  Required.  The gateway route REST verb
- * @param   payload.backendUrl  Required.  The full REST URL used to invoke the associated action
- * @param   payload.backendMethod  Required.  The REST verb used to invoke the associated action
+ * @param    gwUrl     Required. The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
+ * @param    gwAuth    Required. The user bearer token used to access the API Gateway REST endpoints
+ * @param spaceGuid    Required. User's space guid.  APIs are stored under this context
+ * @param swaggerApi   Required. The API swagger object to send to the API gateway
+ * @param apiId        Required. API id. When specified, the API exists and will be updated; otherwise the API is created anew
  * @return A promise for an object describing the result with fields error and response
  */
-function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
+function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
   var requestFcn = request.post;
 
-  // Init the GW API configuration object; base it off the swagger API
-  var gwApi;
+  console.log('addApiToGateway: ');
   try {
-    gwApi = generateGwApiFromSwaggerApi(swaggerApi);
-  } catch(e) {
-    console.error('generateGwApiFromSwaggerApi exception: '+e);
-    return Promise.reject('Invalid API configuration: '+e);
-  }
-  gwApi.tenantId = tenantId;
-
   var options = {
-    url: gwInfo.gwUrl+'/apis',
-    headers: {
-      'Accept': 'application/json'
-    },
-    json: gwApi,  // Use of json automaticatlly sets header: 'Content-Type': 'application/json'
+    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
+    json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
   };
   if (gwInfo.gwAuth) {
-    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+    _.set(options, "headers.Authorization", 'Bearer ' + gwInfo.gwAuth);
   }
+  console.log('addApiToGateway: ');
 
-  if (gwApiId) {
+  if (apiId) {
     console.log("addApiToGateway: Updating existing API");
-    gwApi.id = gwApiId;
-    options.url = gwInfo.gwUrl+'/apis/'+gwApiId;
+    options.url = gwInfo.gwUrl + '/' + encodeURIComponent(spaceGuid) + '/apis/' + encodeURIComponent(apiId)
     requestFcn = request.put;
   }
 
   console.log('addApiToGateway: request: '+JSON.stringify(options, " ", 2));
-
+  }
+  catch (e) {
+    console.error('addApiToGateway exception: '+e);
+  }
   return new Promise(function(resolve, reject) {
     requestFcn(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
@@ -227,21 +91,22 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
  * @param gwInfo Required.
  * @param    gwUrl   Required. The base URL gateway path (i.e.  'PROTOCOL://gw.host.domain:PORT/CONTEXT')
  * @param    gwAuth  Optional. The credentials used to access the API Gateway REST endpoints
- * @param apiId  Required.  Unique Gateway API Id
+ * @param spaceGuid Required.  GUID representing the user's bluemix space
+ * @param apiId     Required.  API basepath.  Unique per spaceGuid
  * @return A promise for an object describing the result with fields error and response
  */
-function deleteApiFromGateway(gwInfo, gwApiId) {
+function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   var options = {
-    url: gwInfo.gwUrl+'/apis/'+gwApiId,
+    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis/'+encodeURIComponent(apiId),
     agentOptions: {rejectUnauthorized: false},
     headers: {
       'Accept': 'application/json'
     }
   };
   if (gwInfo.gwAuth) {
-    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+    options.headers.Authorization = 'Bearer ' + gwInfo.gwAuth;
   }
-  console.log('deleteApiFromGateway: request: '+JSON.stringify(options, " ", 2));
+  console.log('deleteApiFromGateway: request: '+JSON.stringify(options));
 
   return new Promise(function(resolve, reject) {
     request.delete(options, function(error, response, body) {
@@ -253,7 +118,7 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
       if (error) {
         console.error('deleteApiFromGateway: Unable to delete the API Gateway: '+JSON.stringify(error));
         reject('Unable to delete the API Gateway: '+JSON.stringify(error));
-      } else if (statusCode != 200) {
+      } else if (statusCode != 200  && statusCode != 204) {
         console.error('deleteApiFromGateway: Response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
@@ -272,9 +137,9 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
 /*
  * Return an array of APIs
  */
-function getApis(gwInfo, tenantId, bpOrApiName) {
-  var qsBasepath = { 'filter[where][basePath]' : bpOrApiName };
-  var qsApiName = { 'filter[where][name]' : bpOrApiName };
+function getApis(gwInfo, spaceGuid, bpOrApiName) {
+  var qsBasepath = { 'basePath' : bpOrApiName };
+  var qsApiName = { 'title' : bpOrApiName };
   var qs;
   if (bpOrApiName) {
     if (bpOrApiName.indexOf('/') !== 0) {
@@ -286,7 +151,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
     }
   }
   var options = {
-    url: gwInfo.gwUrl+'/tenants/'+tenantId+'/apis',
+    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis',
     headers: {
       'Accept': 'application/json'
     },
@@ -295,7 +160,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
     options.qs = qs;
   }
   if (gwInfo.gwAuth) {
-    options.headers.Authorization = 'Basic ' + gwInfo.gwAuth;
+    options.headers.Authorization = 'Bearer ' + gwInfo.gwAuth;
   }
   console.log('getApis: request: '+JSON.stringify(options));
 
@@ -431,27 +296,6 @@ function generateSwaggerApiFromGwApi(gwApi) {
 }
 
 /*
- * Create a base swagger API object containing the API basepath, but no endpoints
- * Parameters:
- *   basepath   - Required. API basepath
- *   apiname    - Optional. API friendly name. Defaults to basepath
- * Returns:
- *   swaggerApi - API swagger JSON object
- */
-function generateBaseSwaggerApi(basepath, apiname) {
-  var swaggerApi = {
-    swagger: "2.0",
-    info: {
-      title: apiname || basepath,
-      version: "1.0.0"
-    },
-    basePath: basepath,
-    paths: {}
-  };
-  return swaggerApi;
-}
-
-/*
  * Take an API in JSON swagger format and create an API GW compatible
  * API configuration JSON object
  * Parameters:
@@ -481,6 +325,31 @@ function generateGwApiFromSwaggerApi(swaggerApi) {
 }
 
 /*
+ * Create a base swagger API object containing the API basepath, but no endpoints
+ * Parameters:
+ *   basepath   - Required. API basepath
+ *   apiname    - Optional. API friendly name. Defaults to basepath
+ * Returns:
+ *   swaggerApi - API swagger JSON object
+ */
+function generateBaseSwaggerApi(basepath, apiname) {
+  var swaggerApi = {
+    'swagger': '2.0',
+    'info': {
+      'title': apiname || basepath,
+      'version': '1.0.0'
+    },
+    'basePath': basepath,
+    'paths': {},
+    'x-ibm-configuration': {
+      'assembly': {
+      }
+    }
+  };
+  return swaggerApi;
+}
+
+/*
  * Take an existing API in JSON swagger format, and update it with a single path/operation.
  * The addition can be an entirely new path or a new operation under an existing path.
  * Parameters:
@@ -502,89 +371,94 @@ function generateGwApiFromSwaggerApi(swaggerApi) {
  */
 function addEndpointToSwaggerApi(swaggerApi, endpoint) {
   var operation = endpoint.gatewayMethod.toLowerCase();
-  var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
+  var operationId = operation + '_' + endpoint.gatewayPath;
+  console.log('addEndpointToSwaggerApi: operationid = '+operationId);
+  try {
+    var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
 
-  // If the relative path already exists, append to it; otherwise create it
-  if (!swaggerApi.paths[endpoint.gatewayPath]) {
-    swaggerApi.paths[endpoint.gatewayPath] = {};
-  }
-  swaggerApi.paths[endpoint.gatewayPath][operation] = {
-    'x-ibm-op-ext': {
-      backendMethod: endpoint.action.backendMethod,
-      backendUrl: endpoint.action.backendUrl,
-      actionName: endpoint.action.name,
-      actionNamespace: endpoint.action.namespace,
-      policies: [
-        {
-          type: 'reqMapping',
-          value: [
-            {
-              action: 'transform',
-              from: {
-                name: '*',
-                location: 'query'
-              },
-              to: {
-                name: '*',
-                location: 'body'
-              }
-            },
-            {
-              action: 'insert',
-              from: {
-                value: 'Basic '+auth_base64
-              },
-              to: {
-                name: 'Authorization',
-                location: 'header'
-              }
-            },
-            {
-              action: 'insert',
-              from: {
-                value: 'application/json'
-              },
-              to: {
-                name: 'Content-Type',
-                location: 'header'
-              }
-            },
-            {
-              action: 'insert',
-              from: {
-                value: 'true'
-              },
-              to: {
-                name: 'blocking',
-                location: 'query'
-              }
-            },
-            {
-              action: 'insert',
-              from: {
-                value: 'true'
-              },
-              to: {
-                name: 'result',
-                location: 'query'
-              }
-            }
-          ]
-        }
-      ]
-    },
-    responses: {
-      default: {
-        description: "Default response"
-      }
+    // If the relative path already exists, append to it; otherwise create it
+    if (!swaggerApi.paths[endpoint.gatewayPath]) {
+      swaggerApi.paths[endpoint.gatewayPath] = {};
     }
-  };
+
+    swaggerApi.paths[endpoint.gatewayPath][operation] = {
+      'operationId': operationId,
+      'x-openwhisk': {
+        'url': makeWebActionBackendUrl(endpoint.action ,'http'),
+        'namespace': endpoint.action.namespace,
+        'package': getPackageNameFromFqActionName(endpoint.action.name),
+        'action': getActionNameFromFqActionName(endpoint.action.name),
+      },
+      'responses': {
+        'default': {
+          'description': 'Default response'
+        }
+      }
+    };
+
+    // API GW extensions
+    console.log('addEndpointToSwaggerApi: setting api gw extension values');
+    setActionInvocationHeaders(swaggerApi, 'Basic '+auth_base64);
+    setActionOperationInvocationDetails(swaggerApi, endpoint, operationId);
+  }
+  catch(e) {
+    console.log("addEndpointToSwaggerApi: exception "+e);
+    throw 'API swagger generation error: '+e;
+  }
 
   return swaggerApi;
 }
 
+function setActionInvocationHeaders(swagger, authHeaderValue) {
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].set', 'message.headers.Authorization');
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].value', authHeaderValue);
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].set', 'message.headers.Content-Type');
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].value', 'application/json');
+}
+
+function setActionOperationInvocationDetails(swagger, endpoint, operationId) {
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+  var caseIdx = getCaseOperationIdx(caseArr, operationId);
+  var operations = [operationId];
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].operations', operations);
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, 'http'));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
+}
+
+// Return the numeric index into case[] into which the associated operation will be configured
+// If the array is empty, the returned index is 0
+// If the operation exists, the existing index will be returned
+// Otherwise the index will be the last existing index + 1
+function getCaseOperationIdx(caseArr, operationId) {
+  var i;
+  for (i=0; i<caseArr.length; i++) {
+    if (caseArr[i].operations[0] == operationId) {
+      console.log('getCaseOperationIdx: found existing operation for '+operationId+' at case index '+i);
+      break;
+    }
+  }
+  return i;
+}
+
+// Create the external URL used to invoke a web-action.  Examples:
+// - https://localhost/api/v1/web/whisk.system/default/echo-web.json
+// - https://localhost/api/v1/web/whisk.system/mypkg/echo-web.json
+// NOTE: Use "default" as the package name when a package is not explicitly defined.
+// Parameters
+//   endpointAction       - fully qualified action name (i.e. /ns/pkg/action or /ns/action)
+//   endpointResponseType - determines the action invocation extension without the '.' (i.e. http, json, etc)
+// Returns:
+//   string               - web-action URL
+function makeWebActionBackendUrl(endpointAction, endpointResponseType) {
+  host = getHostFromActionUrl(endpointAction.backendUrl);
+  ns = endpointAction.namespace;
+  pkg = getPackageNameFromFqActionName(endpointAction.name) || 'default';
+  name = getActionNameFromFqActionName(endpointAction.name);
+  return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType;
+}
+
 /*
- * Update an existing DB API document by removing the specified relpath/operation section.
+ * Update an existing Swagger API document by removing the specified relpath/operation section.
  *   swaggerApi - API from which to remove the specified endpoint.  This object will be updated.
  *   endpoint   - JSON object describing new path/operation.  Required fields
  *                {
@@ -600,32 +474,50 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
   console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' operation '+operation);
   if (!relpath) {
       console.log('removeEndpointFromSwaggerApi: No relpath specified; nothing to remove');
-      return 'No relpath provided; nothing to remove';
+      return 'No path provided; nothing to remove';
   }
 
   // If an operation is not specified, delete the entire relpath
   if (!operation) {
       console.log('removeEndpointFromSwaggerApi: No operation; removing entire relpath '+relpath);
       if (swaggerApi.paths[relpath]) {
+          for (var operation in swaggerApi.paths[relpath]) {
+            var operationId = operation + '_' + relpath;
+            deleteActionOperationInvocationDetails(swaggerApi, operationId);
+          }
           delete swaggerApi.paths[relpath];
       } else {
-          console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' does not exist in the API; already deleted');
-          return 'relpath '+relpath+' does not exist in the API';
+          console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' does not exist in the API');
+          return 'path '+relpath+' does not exist in the API';
       }
-  } else {
+  } else { // relpath and operation are specified, just delete the specific operation
+      var operationId = operation + '_' + relpath;
       if (swaggerApi.paths[relpath] && swaggerApi.paths[relpath][operation]) {
           delete swaggerApi.paths[relpath][operation];
           if (Object.keys(swaggerApi.paths[relpath]).length === 0) {
             console.log('removeEndpointFromSwaggerApi: after deleting operation '+operation+', relpath '+relpath+' has no more operations; so deleting entire relpath '+relpath);
             delete swaggerApi.paths[relpath];
           }
+          deleteActionOperationInvocationDetails(swaggerApi, operationId);
       } else {
           console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' with operation '+operation+' does not exist in the API');
-          return 'relpath '+relpath+' with operation '+operation+' does not exist in the API';
+          return 'path '+relpath+' with operation '+operation+' does not exist in the API';
       }
   }
 
   return swaggerApi;
+}
+
+function deleteActionOperationInvocationDetails(swagger, operationId) {
+  console.log('deleteActionOperationInvocationDetails: deleting case entry for ' + operationId);
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+  if (caseArr.length > 0) {
+    var caseIdx = getCaseOperationIdx(caseArr, operationId);
+    _.pullAt(caseArr, caseIdx);
+    _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case', caseArr);
+  } else {
+    console.log('deleteActionOperationInvocationDetails: empty case[] array; case operation '+operationId+' does not exist');
+  }
 }
 
 function confidentialPrint(str) {
@@ -662,6 +554,7 @@ function generateCliResponse(gwApis) {
  *  cliApi     - JSON CLI API object
  */
 function generateCliApiFromGwApi(gwApi) {
+  console.log('generateCliApiFromGwApi: ' + JSON.stringify(gwApi, " ", 2));
   var cliApi = {};
   cliApi.id = 'Not Used';
   cliApi.key = 'Not Used';
@@ -669,25 +562,27 @@ function generateCliApiFromGwApi(gwApi) {
   cliApi.value.namespace = 'Not Used';
   cliApi.value.gwApiActivated = true;
   cliApi.value.tenantId = 'Not Used';
-  cliApi.value.gwApiUrl = gwApi.managedUrl;
-  cliApi.value.apidoc = generateSwaggerApiFromGwApi(gwApi);
+  cliApi.value.gwApiUrl = gwApi.managed_url;
+  cliApi.value.apidoc = gwApi.open_api_doc;
   return cliApi;
 }
 
 /*
  * Parses the openwhisk action URL and returns the various components
  * Parameters
- *  url    - in format PROTOCOL://HOST/api/v1/namespaces/NAMESPACE/actions/ACTIONNAME
+ *  url    - in format PROTOCOL://HOST/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
  * Returns
  *  result - an array of strings.
  *           result[0] : Entire URL
  *           result[1] : protocol (i.e. https)
  *           result[2] : host (i.e. myco.com, 1.2.3.4)
  *           result[3] : namespace
- *           result[4] : action name, including the package if used (i.e. myaction, mypkg/myaction)
+ *           result[4] : package name
+ *           result[5] : action name
  */
 function parseActionUrl(actionUrl) {
-  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/namespaces\/([@\w .\-]+)\/actions\/([@\w .\-\/]+)/;
+  console.log('parseActionUrl: parsing action url: '+actionUrl);
+  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/experimental\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.json/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {
@@ -697,28 +592,107 @@ function parseActionUrl(actionUrl) {
 }
 
 /*
- * https://172.17.0.1/api/v1/namespaces/whisk.system/actions/getaction
- * would return getaction
- * https://my-host.mycompany.com/api/v1/namespaces/myid@gmail.com_dev/actions/getaction
- * would return getaction
- *
- * https://172.17.0.1/api/v1/namespaces/whisk.system/actions/mypkg/getaction
- * would return mypkg/getaction
- * https://my-host.mycompany.com/api/v1/namespaces/myid@gmail.com_dev/actions/mypkg/getaction
- * would return mypkg/getaction
+ * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * would return ACTION
  */
 function getActionNameFromActionUrl(actionUrl) {
+  return parseActionUrl(actionUrl)[5];
+}
+
+/*
+ * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * would return NAMESPACE
+ */
+function getPackageNameFromActionUrl(actionUrl) {
   return parseActionUrl(actionUrl)[4];
 }
 
 /*
- * https://172.17.0.1/api/v1/namespaces/whisk.system/actions/getaction
- * would return whisk.system
- * https://my-host.mycompany.com/api/v1/namespaces/myid@gmail.com_dev/actions/mypkg/getaction
- * would return myid@gmail.com_dev
+ * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * would return NAMESPACE
  */
 function getActionNamespaceFromActionUrl(actionUrl) {
   return parseActionUrl(actionUrl)[3];
+}
+
+/*
+ * https://172.17.0.1/api/v1/namespaces/whisk.system/actions/getaction
+ * would return 172.17.0.1
+ * https://my-host.mycompany.com/api/v1/namespaces/myid@gmail.com_dev/actions/mypkg/getaction
+ * would return my-host.mycompany.com
+ */
+function getHostFromActionUrl(actionUrl) {
+  return parseActionUrl(actionUrl)[2];
+}
+
+/*
+ * Parses an openwhisk action name into its various components
+ * Parameters
+ *  fqname - in one of the following formats:
+ *           (1)   /[namespace]/[package]/[action]
+ *           (2)   [package]/[action]
+ *           (3)   [action]
+ * Returns
+ *  result - an array of strings; depending on input
+ *           Input (1):
+ *             result[0] : fqname (i.e. /ns/pkg/action)
+ *             result[1] : namespace
+ *             result[2] : package
+ *             result[3] : action name
+ *           Input (2):
+ *             result[0] : fqname (i.e.  pkg/action)
+ *             result[1] : package
+ *             result[2] : action name
+ *             result[3] : ''
+ *           Input (3):
+ *             result[0] : fqname   (i.e. action)
+ *             result[1] : action name
+ *             result[2] : ''
+ *             result[3] : ''
+
+ */
+function parseActionName(fqname) {
+  console.log('parseActionName: parsing fq action: '+fqname);
+  var actionNamePattern = /[\/]?([@ .\-\w]*)[\/]?([@ .\-\w]*)[\/]?([@ .\-\w]*)/;
+  try {
+    return fqname.match(actionNamePattern);
+  } catch(e) {
+    console.error('parseActionName: exception: '+e);
+    throw 'parseActionName: exception: '+e;
+  }
+}
+
+function getNamespaceFromFqActionName(fqAction) {
+  var ns = '';
+  var parsedAction = parseActionName(fqAction);
+  if (parsedAction[3].length > 0) {
+    ns = parsedAction[1];
+  }
+  return ns;
+}
+
+function getPackageNameFromFqActionName(fqAction) {
+  var pkg = '';
+  var parsedAction = parseActionName(fqAction);
+  if (parsedAction[3].length > 0) {
+    pkg = parsedAction[2];
+  } else if (parsedAction[2].length > 0) {
+    pkg = parsedAction[1];
+  }
+  return pkg;
+}
+
+function getActionNameFromFqActionName(fqAction) {
+  var action = '';
+  var parsedAction = parseActionName(fqAction);
+  if (parsedAction[3].length > 0) {
+    action = parsedAction[3];
+  } else if (parsedAction[2].length > 0) {
+    action = parsedAction[2];
+  } else {
+    action = parsedAction[1];
+  }
+  return action;
 }
 
 /*
@@ -743,19 +717,106 @@ function updateNamespace(apidoc, namespace) {
  * path parameter value with the provided namespace value
  */
 function replaceNamespaceInUrl(url, namespace) {
-  var namespacesPattern = /\/namespaces\/([\w@.-]+)\//;
+  var namespacesPattern = /\/api\/v1\/experimental\/web\/([\w@.-]+)\//;
   console.log('replaceNamespaceInUrl: url before - '+url);
   matchResult = url.match(namespacesPattern);
   if (matchResult !== null) {
     console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
-    url = url.replace(namespacesPattern, '/namespaces/'+namespace+'/');
+    url = url.replace(namespacesPattern, '/api/v1/experimental/web/'+namespace+'/');
   }
   console.log('replaceNamespaceInUrl: url after - '+url);
   return url;
 }
 
-module.exports.createTenant = createTenant;
-module.exports.getTenants = getTenants;
+/*
+ * Take an error string and create a response object suitable for inclusion in
+ * a Promise.reject() call.
+ *
+ * The response object can take two formats. If the api management action was
+ * invoked as a web-action (i.e. via https://OW-HOST/api/v1/web/NS/PKG/ACTION.http),
+ * then the response is an error object that mimics a non-webaction openwhisk
+ * action's application error response - like so:
+ *     {
+ *        statusCode: 502,    <- signifies an application error
+ *        headers: {'Content-Type': 'application/json'},
+ *        body: Base64 encoded JSON error string
+ *     }
+ * Otherwise, the action was invoked as a regular OpenWhisk action
+ * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
+ * error response is just a string.  OpenWhisk backend logic will ultimately
+ * convert this string into the above error object format.
+ *
+ * Parameters
+ *  err             - Error string
+ *  isWebAction     - Boolean. True -> generate a web-action response
+ *                             False -> Generate an action response
+ */
+function makeErrorResponseObject(err, isWebAction) {
+  console.log('makeErrorResponseObject: isWebAction: '+isWebAction);
+  if (!isWebAction) {
+    console.log('makeErrorResponseObject: not called as a web action');
+    return err;
+  }
+
+  var bodystr;
+  if (typeof err === 'string') {
+    bodystr = JSON.stringify({
+      "error": err,
+    });
+  } else {
+    bodystr = JSON.stringify(err);
+  }
+  return {
+    statusCode: 502,
+    headers: { 'Content-Type': 'application/json' },
+    body: new Buffer(bodystr).toString('base64'),
+  };
+}
+
+/*
+ * Take an response string and create a response object suitable for inclusion in
+ * a Promise.resolve() call.
+ *
+ * The response object can take two formats. If the api management action was
+ * invoked as a web-action (i.e. via https://OW-HOST/api/v1/web/NS/PKG/ACTION.http),
+ * then the response is an object that mimics a non-webaction openwhisk
+ * action's application successful response - like so:
+ *     {
+ *        statusCode: 200,    <- signifies a successful action
+ *        headers: {'Content-Type': 'application/json'},
+ *        body: Base64 encoded JSON error string
+ *     }
+ * Otherwise, the action was invoked as a regular OpenWhisk action
+ * (i.e. https://OW-HOST/api/v1/namesapces/NS/actions/ACTION) and the
+ * response is just a string.  OpenWhisk backend logic will ultimately
+ * convert this string into the above object format.
+ *
+ * Parameters
+ *  err             - Error string
+ *  isWebAction     - Boolean. True -> generate a web-action response
+ *                             False -> generate an action response
+ */
+function makeResponseObject(resp, isWebAction) {
+  console.log('makeResponseObject: isWebAction: '+isWebAction);
+  if (!isWebAction) {
+    console.log('makeErrorResponseObject: not called as a web action');
+    return resp;
+  }
+
+  var bodystr;
+  if (typeof resp === 'string') {
+    bodystr = resp;
+  } else {
+    bodystr = JSON.stringify(resp);
+  }
+  retobj = {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: new Buffer(bodystr).toString('base64'),
+  };
+  return retobj;
+}
+
 module.exports.getApis = getApis;
 module.exports.addApiToGateway = addApiToGateway;
 module.exports.deleteApiFromGateway = deleteApiFromGateway;
@@ -769,3 +830,5 @@ module.exports.confidentialPrint = confidentialPrint;
 module.exports.generateCliResponse = generateCliResponse;
 module.exports.generateCliApiFromGwApi = generateCliApiFromGwApi;
 module.exports.updateNamespace = updateNamespace;
+module.exports.makeErrorResponseObject = makeErrorResponseObject;
+module.exports.makeResponseObject = makeResponseObject;
