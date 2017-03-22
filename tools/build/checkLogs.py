@@ -26,7 +26,6 @@ CI/CD tool to assert that logs and databases are in certain bounds.
 ##
 
 import collections
-import fnmatch
 import itertools
 import os
 import platform
