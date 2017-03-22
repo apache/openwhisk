@@ -26,6 +26,7 @@ import (
     "../wski18n"
 
     "github.com/fatih/color"
+    "github.com/mattn/go-colorable"
     //prettyjson "github.com/hokaccha/go-prettyjson"  // See prettyjson comment below
     "archive/tar"
     "io"
@@ -37,6 +38,7 @@ import (
     "io/ioutil"
     "sort"
     "reflect"
+    "regexp"
 )
 
 type QualifiedName struct {
@@ -1050,4 +1052,37 @@ func isApplicationError(err error) (bool) {
     }
 
     return applicationError
+}
+
+func getMessageParameters(message string) ([][]string) {
+    reg := regexp.MustCompile("\\{\\{.(.*?)\\}\\}")
+    matched := reg.FindAllStringSubmatch(message, -1)
+
+    return matched
+}
+
+func getMessageReplacements(message string, args ...interface{}) (map[interface{}]interface{}) {
+    var msgReplacements map[interface{}]interface{}
+    var msgParams [][]string
+
+    msgReplacements = make(map[interface{}]interface{})
+    msgParams = getMessageParameters(message)
+
+    for i := 0; i < len(args); i++ {
+        msgReplacements[msgParams[i][1]] = args[i]
+    }
+
+    return msgReplacements
+}
+
+func print(message string, args ...interface{}) {
+    fmt.Fprintf(color.Output, wski18n.T(message, getMessageReplacements(message, args...)))
+}
+
+func printError(message string, args ...interface{}) {
+    fmt.Fprintf(colorable.NewColorableStderr(), wski18n.T(message, getMessageReplacements(message, args...)))
+}
+
+func format(message string, args ...interface{}) (string) {
+    return wski18n.T(message, getMessageReplacements(message, args...))
 }
