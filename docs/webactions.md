@@ -330,5 +330,9 @@ For a local deployment, you will need to provide name resolution for the vanity 
 ```bash
 127.0.0.1  guest.openwhisk-host
 ```
+or using a name resolver in combination with `curl` for example, as in:
+```bash
+$ curl -k https://guest.openwhisk-host --resolve guest.openwhisk-host:443:127.0.0.1
+```
 
 You also need to generate an edge router configuration (and SSL certificate) that uses the proper hostname. This may be done by modifying a proper host name (see [global environment variables](../ansible/group_vars/all#L13)) and running the [`setup.yml`](../ansible/setup.yml) and [`edge.yml`](../ansible/edge.yml) playbooks.
