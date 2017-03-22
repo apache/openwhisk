@@ -1,0 +1,117 @@
+{
+    "swagger": "2.0",
+    "basePath": "/test1/v1",
+    "info": {
+        "title": "CLI_APIGWTEST13 API Name",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/whisk_system/utils/echo": {
+            "get": {
+                "operationId": "get_/whisk_system/utils/echo",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "test1a",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http"
+                }
+            },
+            "post": {
+                "operationId": "post_/whisk_system/utils/echo",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "test1a",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http"
+                }
+            }
+        },
+        "/whisk_system/utils/split": {
+            "post": {
+                "operationId": "post_/whisk_system/utils/split",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "test1a",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http"
+                }
+            }
+        }
+    },
+    "x-ibm-configuration": {
+        "assembly": {
+            "execute": [
+                {
+                    "set-variable": {
+                        "actions": [
+                            {
+                                "set": "message.headers.Authorization",
+                                "value": "Basic Nzg5YzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOmFiY3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                            }
+                        ]
+                    }
+                },
+                {
+                    "operation-switch": {
+                        "case": [
+                            {
+                                "operations": [
+                                    "get_/whisk_system/utils/echo"
+                                ],
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http",
+                                            "verb": "get"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "operations": [
+                                    "post_/whisk_system/utils/echo"
+                                ],
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http",
+                                            "verb": "post"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "operations": [
+                                    "post_/whisk_system/utils/split"
+                                ],
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/test1a.http",
+                                            "verb": "post"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
