@@ -21,7 +21,6 @@
 
 import os
 import sys
-import subprocess
 import argparse
 
 scriptDir = sys.path[0]
