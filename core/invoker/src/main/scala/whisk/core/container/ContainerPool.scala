@@ -28,8 +28,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{ Try, Success, Failure }
-
+import scala.util.{Failure, Success, Try}
 import akka.actor.ActorSystem
 import whisk.common.Counter
 import whisk.common.Logging
@@ -182,7 +181,7 @@ class ContainerPool(
                           | activeCount = ${activeCount()}
                           | toBeRemoved = ${toBeRemoved.size}
                           | startingCounter = ${startingCounter.cur}""".stripMargin)
-            val conResult = Try(getContainer(1, myPos, key, () => makeWhiskContainer(action, auth)))
+            val conResult = Try(getContainer(1, myPos, key, action.annotations.asLong("concurrent-max"), () => makeWhiskContainer(action, auth)))
             completedPosition.next()
             conResult match {
                 case Success(Cold(con)) =>
@@ -207,7 +206,7 @@ class ContainerPool(
         logging.info(this, s"Getting container for image $imageName with args " + args.mkString(" "))
         // Not a regular key. Doesn't matter in testing.
         val key = new ActionContainerId(s"instantiated." + imageName + args.mkString("_"))
-        getContainer(1, 0, key, () => makeContainer(key, imageName, args)) match {
+        getContainer(1, 0, key, None, () => makeContainer(key, imageName, args)) match {
             case Cold(con) => Some(con)
             case Warm(con) => Some(con)
             case _         => None
@@ -219,7 +218,7 @@ class ContainerPool(
      * This method will apply retry so that the caller is blocked until retry succeeds.
      */
     @tailrec
-    final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
+    final def getContainer(tryCount: Int, position: Long, key: ActionContainerId, maxConcurrent: Option[Long], conMaker: () => WhiskContainer)(implicit transid: TransactionId): ContainerResult = {
         val positionInLine = position - completedPosition.cur // Indicates queue position.  1 means front of the line
         val available = slack()
         // Warn at 10 seconds and then once a minute after that.
@@ -236,13 +235,13 @@ class ContainerPool(
                           | startingCounter = ${startingCounter.cur}""".stripMargin)
         }
         if (positionInLine <= available) {
-            getOrMake(key, conMaker) match {
+            getOrMake(key, maxConcurrent, conMaker) match {
                 case Some(cr) => cr
-                case None     => getContainer(tryCount + 1, position, key, conMaker)
+                case None     => getContainer(tryCount + 1, position, key, maxConcurrent, conMaker)
             }
         } else { // It's not our turn in line yet.
             Thread.sleep(waitDur.toMillis) // TODO: Replace with wait/notify but tricky because of desire for maximal concurrency
-            getContainer(tryCount + 1, position, key, conMaker)
+            getContainer(tryCount + 1, position, key, maxConcurrent, conMaker)
         }
     }
 
@@ -269,25 +268,30 @@ class ContainerPool(
      *
      * The returned container will be active (not paused).
      */
-    def getOrMake(key: ActionContainerId, conMaker: () => WhiskContainer)(implicit transid: TransactionId): Option[ContainerResult] = {
+    def getOrMake(key: ActionContainerId, maxConcurrent: Option[Long], conMaker: () => WhiskContainer)(implicit transid: TransactionId): Option[ContainerResult] = {
         retrieve(key) match {
             case CacheMiss => {
                 val con = conMaker()
                 this.synchronized {
-                    introduceContainer(key, con).state = State.Active
+                    introduceContainer(key, con, maxConcurrent).state = State.Active
                 }
                 Some(Cold(con))
             }
-            case CacheHit(con) =>
+            case CacheHit(con, currentActivations) =>
                 con.transid = transid
-                runDockerOp {
-                    if (con.unpause()) {
-                        Some(Warm(con))
-                    } else {
-                        // resume failed, gc the container
-                        putBack(con, delete = true)
-                        None
+                logging.info(this, s"using warm container ${con.containerId}  currentActivations: ${currentActivations}")
+                if (con.paused) {
+                    runDockerOp {
+                        if (con.unpause()) {
+                            Some(Warm(con))
+                        } else {
+                            // resume failed, gc the container
+                            putBack(con, delete = true)
+                            None
+                        }
                     }
+                } else {
+                    Some(Warm(con))
                 }
             case CacheBusy => None
         }
@@ -303,17 +307,37 @@ class ContainerPool(
             // first check if there is a matching container and only if there aren't any
             // determine if the pool is full or has capacity to accommodate a new container;
             // this allows any new containers introduced into the pool to be reused if already idle
-            val bucket = keyMap.getOrElseUpdate(key, new ListBuffer())
-            bucket.find({ ci => ci.isIdle }) match {
+            val bucket = keyMap.getOrElseUpdate(key, new ListBuffer[ContainerInfo]())
+            bucket.find({ ci:ContainerInfo => ci.isIdle }) match {
                 case None =>
-                    if (activeCount() + startingCounter.cur >= _maxActive) {
-                        CacheBusy
-                    } else {
+//                    if (activeCount() + startingCounter.cur >= _maxActive) {
+//                        CacheBusy
+//                    } else {
+//                        CacheMiss
+//                    }
+                    if (activeCount() == 0) {
+                        //none idle, none active, cache miss
                         CacheMiss
+                    } else {
+                        bucket.find({ci => (ci.currentActivations < ci.maxConcurrentActivations.getOrElse[Long](1))}) match {
+                            case None =>
+                                //none idle, some active, none available
+                                if (activeCount() + startingCounter.cur >= _maxActive) {
+                                    CacheBusy
+                                } else {
+                                    CacheMiss
+                                }
+                            case Some(ci) =>
+                                //none idle, some active, some available
+                                ci.currentActivations += 1;
+                                CacheHit(ci.container, ci.currentActivations)
+                        }
                     }
                 case Some(ci) => {
+                    //some idle
                     ci.state = State.Active
-                    CacheHit(ci.container)
+                    ci.currentActivations += 1;
+                    CacheHit(ci.container, ci.currentActivations)
                 }
             }
         }
@@ -347,29 +371,40 @@ class ContainerPool(
                       | maxActive = ${_maxActive}
                       | activeCount = ${activeCount()}
                       | startingCounter = ${startingCounter.cur}""".stripMargin)
-        // Docker operation outside sync block. Don't pause if we are deleting.
-        if (!delete) {
-            runDockerOp {
-                // pausing eagerly is pessimal; there could be an action waiting
-                // that will immediately unpause the same container to reuse it;
-                // to skip pausing, will need to inspect the queue of waiting activations
-                // for a matching key
-                container.pause()
-            }
-        }
 
         val toBeDeleted = this.synchronized { // Return container to pool logically and then optionally delete
             // Always put back logically for consistency
             val Some(ci) = containerMap.get(container)
             assert(ci.state == State.Active)
+            ci.currentActivations -= 1
+            if (!delete) {
+                if (ci.currentActivations == 0) {
+                    runDockerOp {
+                        // pausing eagerly is pessimal; there could be an action waiting
+                        // that will immediately unpause the same container to reuse it;
+                        // to skip pausing, will need to inspect the queue of waiting activations
+                        // for a matching key
+                        container.pause()
+                    }
+                } else {
+                    logging.info(this, s"skipping pause of container ${container.id} due to ${ci.currentActivations} in-flight activations")
+                }
+            }
+
             ci.lastUsed = System.currentTimeMillis()
-            ci.state = State.Idle
-            val toBeDeleted = if (delete) {
+            if (ci.currentActivations == 0) {
+                ci.state = State.Idle
+            }
+            val toBeDeleted = if (delete && ci.currentActivations == 0) {
                 removeContainerInfo(ci) // no docker operation here
                 List(ci)
             } else {
+                if (delete && ci.currentActivations > 0) {
+                    logging.info(this, s"skipping delete of container ${container.id} due to ${ci.currentActivations} in-flight activations")
+                }
                 List()
             }
+
             this.notify()
             toBeDeleted
         }
@@ -392,11 +427,13 @@ class ContainerPool(
     /**
      * Wraps a Container to allow a ContainerPool-specific information.
      */
-    class ContainerInfo(k: ActionContainerId, con: WhiskContainer) {
+    class ContainerInfo(k: ActionContainerId, con: WhiskContainer, maxConcurrent:Option[Long] = None) {
         val key = k
         val container = con
         var state = State.Idle
         var lastUsed = System.currentTimeMillis()
+        var currentActivations:Long = 0
+        val maxConcurrentActivations:Option[Long] = maxConcurrent
         def isIdle = state == State.Idle
         def isStemCell = key == stemCellNodejsKey
     }
@@ -541,7 +578,7 @@ class ContainerPool(
         logging.info(this, "Starting warm nodejs container")
         val con = makeGeneralContainer(stemCellNodejsKey, containerName, imageName, limits, false)
         this.synchronized {
-            introduceContainer(stemCellNodejsKey, con)
+            introduceContainer(stemCellNodejsKey, con, None)
         }
         logging.info(this, s"Started warm nodejs container ${con.id}: ${con.containerId}")
     } andThen {
@@ -550,7 +587,7 @@ class ContainerPool(
 
     private def getStemCellNodejsContainer(key: ActionContainerId)(implicit transid: TransactionId): Option[WhiskContainer] =
         retrieve(stemCellNodejsKey) match {
-            case CacheHit(con) =>
+            case CacheHit(con, 0) =>
                 logging.info(this, s"Obtained a pre-warmed container")
                 con.transid = transid
                 val Some(ci) = containerMap.get(con)
@@ -645,10 +682,11 @@ class ContainerPool(
      * Adds the container into the data structure in an Idle state.
      * The caller must have synchronized to maintain data structure atomicity.
      */
-    private def introduceContainer(key: ActionContainerId, container: WhiskContainer)(implicit transid: TransactionId): ContainerInfo = {
-        val ci = new ContainerInfo(key, container)
+    private def introduceContainer(key: ActionContainerId, container: WhiskContainer, maxConcurrent:Option[Long])(implicit transid: TransactionId): ContainerInfo = {
+        val ci = new ContainerInfo(key, container, maxConcurrent)
         keyMap.getOrElseUpdate(key, ListBuffer()) += ci
         containerMap += container -> ci
+        ci.currentActivations += 1
         dumpState("introduceContainer")
         ci
     }

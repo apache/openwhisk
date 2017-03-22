@@ -47,6 +47,7 @@ class Container(
 
     implicit var transid = originalId
 
+    var paused:Boolean = false
     val id = Container.idCounter.next()
     val nameAsString = containerName.map(_.name).getOrElse("anon")
 
@@ -59,19 +60,22 @@ class Container(
         s"container [$name] [$id] [$ip]"
     }
 
-    def pause(): Boolean =
+    def pause(): Boolean = {
+        paused = true
         if (useRunc) {
             RuncUtils.isSuccessful(RuncUtils.pause(containerId))
         } else {
             DockerOutput.isSuccessful(pauseContainer(containerId))
         }
-
-    def unpause(): Boolean =
+    }
+    def unpause(): Boolean = {
+        paused = false
         if (useRunc) {
             RuncUtils.isSuccessful(RuncUtils.resume(containerId))
         } else {
             DockerOutput.isSuccessful(unpauseContainer(containerId))
         }
+    }
 
     /**
      * A prefix of the container id known to be displayed by docker ps.

@@ -72,7 +72,7 @@ package object container {
 
     case object CacheMiss extends CacheResult
     case object CacheBusy extends CacheResult
-    case class CacheHit(con: WhiskContainer) extends CacheResult
+    case class CacheHit(con: WhiskContainer, currentActivations:Long) extends CacheResult
 
     /**
      * The result of trying to obtain a container which is known to exist or to create one.

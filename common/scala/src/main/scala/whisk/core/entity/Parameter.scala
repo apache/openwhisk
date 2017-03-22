@@ -107,6 +107,17 @@ protected[core] class Parameters protected[entity] (
             case _           => None
         }
     }
+
+    /**
+      * Retrieves parameter by name if it exist. If value of parameter
+      * is a number, return its Long value else none.
+      */
+    protected[core] def asLong(p: String): Option[Long] = {
+        get(p) flatMap {
+            case JsNumber(s) => Some(s.toLong)
+            case _           => None
+        }
+    }
 }
 
 /**
