@@ -25,5 +25,5 @@ done
 echo 'Flake8: second round uses the --exit-zero flag to treat _every_ message as a warning...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --count --ignore=E --max-line-length=127 --statistics --exit-zero
+    flake8 "$i" --ignore=E --max-line-length=127 --statistics --exit-zero
 done
