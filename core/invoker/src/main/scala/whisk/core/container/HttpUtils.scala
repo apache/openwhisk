@@ -132,5 +132,6 @@ protected[core] class HttpUtils(
     private val connection = HttpClientBuilder
         .create
         .setDefaultRequestConfig(httpconfig)
+        .useSystemProperties()
         .build
 }
