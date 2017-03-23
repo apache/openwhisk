@@ -29,9 +29,10 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    val imageName = "pythonaction"
+    lazy val imageName = "python3action"
+
     /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
-    val pythonStringAsUnicode = true
+    lazy val pythonStringAsUnicode = true
 
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer(imageName, env)(code)
@@ -154,7 +155,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |def main(args):
                 |    sep = args['delimiter']
                 |    s = sep + " ☃ ".decode('utf-8') + sep
-                |    print(s.encode('utf-8')
+                |    print(s.encode('utf-8'))
                 |    return {"winter" : s }
                 """.stripMargin
             }

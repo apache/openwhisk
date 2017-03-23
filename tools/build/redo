@@ -276,15 +276,15 @@ Components = [
                   yaml = False,
                   gradle = 'core:actionProxy'),
 
-    makeComponent('pythonaction',
-                  'build python action container',
-                  yaml = False,
-                  gradle = 'core:pythonAction'),
-
     makeComponent('python2action',
                   'build python v2.7 action container',
                   yaml = False,
                   gradle = 'core:python2Action'),
+
+    makeComponent('python3action',
+                  'build python action container',
+                  yaml = False,
+                  gradle = 'core:pythonAction'),
 
     makeComponent('swift3action',
                   'build swift v3 action container',

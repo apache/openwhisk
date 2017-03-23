@@ -9,8 +9,8 @@
     - '{{ docker_image_prefix }}/invoker'
     - '{{ docker_image_prefix }}/dockerskeleton'
     - '{{ docker_image_prefix }}/nodejs6action'
-    - '{{ docker_image_prefix }}/pythonaction'
     - '{{ docker_image_prefix }}/python2action'
+    - '{{ docker_image_prefix }}/python3action'
     - '{{ docker_image_prefix }}/swift3action'
     - '{{ docker_image_prefix }}/javaaction'
   when: docker_registry != ""

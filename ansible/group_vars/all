@@ -20,7 +20,7 @@ runtimesManifest:
   - kind: "python:2"
     image: "python2action"
   - kind: "python:3"
-    image: "pythonaction"
+    image: "python3action"
     default: true
   swift:
   - kind: "swift"
