@@ -318,7 +318,7 @@ var actionListCmd = &cobra.Command{
 
 func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action, error) {
     var err error
-    var artifact, code string
+    var artifact string
     var existingAction *whisk.Action
     var paramArgs []string
     var annotArgs []string
@@ -331,12 +331,11 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         return nil, parseQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
-
     if len(args) == 2 {
         artifact = args[1]
     }
 
+    client.Namespace = qualifiedName.namespace
     action := new(whisk.Action)
     action.Name = qualifiedName.entityName
     action.Namespace = qualifiedName.namespace
@@ -390,66 +389,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         action.Exec = new(whisk.Exec)
         action.Exec.Kind = "sequence"
         action.Exec.Components = csvToQualifiedActions(artifact)
-    } else if artifact != "" {
-        ext := filepath.Ext(artifact)
-        action.Exec = new(whisk.Exec)
-
-        if !flags.action.docker || ext == ".zip" {
-            code, err = readFile(artifact)
-            action.Exec.Code = &code
-
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
-                return nil, err
-            }
-        }
-
-        if len(flags.action.kind) > 0 {
-            action.Exec.Kind = flags.action.kind
-        } else if flags.action.docker {
-            action.Exec.Kind = "blackbox"
-            if ext != ".zip" {
-                action.Exec.Image = artifact
-            } else {
-                action.Exec.Image = "openwhisk/dockerskeleton"
-            }
-        } else if ext == ".swift" {
-            action.Exec.Kind = "swift:default"
-        } else if ext == ".js" {
-            action.Exec.Kind = "nodejs:default"
-        } else if ext == ".py" {
-            action.Exec.Kind = "python:default"
-        } else if ext == ".jar" {
-            action.Exec.Kind = "java:default"
-            action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
-            action.Exec.Code = nil
-        } else {
-            if ext == ".zip" {
-                // This point is reached if the extension was .zip and the kind was not specifically set to nodejs:*.
-                return nil, zipKindError()
-            } else {
-                return nil, extensionError(ext)
-            }
-        }
-
-        // Determining the entrypoint.
-        if len(flags.action.main) != 0 {
-            // The --main flag was specified.
-            action.Exec.Main = flags.action.main
-        } else {
-            // The flag was not specified. For now, the only kind where it makes a difference is "java", for which the
-            // flag is expected.
-            if action.Exec.Kind == "java" {
-                return nil, javaEntryError()
-            }
-        }
-
-        // For zip-encoded actions, the code needs to be base64-encoded. We reach this point if the kind has already be
-        // determined. Since the extension is not js, this means the kind was specified explicitly.
-        if ext == ".zip" {
-            code = base64.StdEncoding.EncodeToString([]byte(code))
-            action.Exec.Code = &code
-        }
+    } else if len(artifact) > 0 {
+        action.Exec, err = getExec(args[1])
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
@@ -459,6 +400,69 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
 
     return action, err
+}
+
+func getExec(artifact string) (*whisk.Exec, error) {
+    var err error
+    var code string
+    var exec *whisk.Exec
+
+    ext := filepath.Ext(artifact)
+    exec = new(whisk.Exec)
+
+    if !flags.action.docker || ext == ".zip" {
+        code, err = readFile(artifact)
+        exec.Code = &code
+
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
+            return nil, err
+        }
+    }
+
+    if len(flags.action.kind) > 0 {
+        exec.Kind = flags.action.kind
+    } else if flags.action.docker {
+        exec.Kind = "blackbox"
+        if ext != ".zip" {
+            exec.Image = artifact
+        } else {
+            exec.Image = "openwhisk/dockerskeleton"
+        }
+    } else if ext == ".swift" {
+        exec.Kind = "swift:default"
+    } else if ext == ".js" {
+        exec.Kind = "nodejs:default"
+    } else if ext == ".py" {
+        exec.Kind = "python:default"
+    } else if ext == ".jar" {
+        exec.Kind = "java:default"
+        exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
+        exec.Code = nil
+    } else {
+        if ext == ".zip" {
+            return nil, zipKindError()
+        } else {
+            return nil, extensionError(ext)
+        }
+    }
+
+    // Error if entry point is not specified for Java
+    if len(flags.action.main) != 0 {
+        exec.Main = flags.action.main
+    } else {
+        if exec.Kind == "java" {
+            return nil, javaEntryError()
+        }
+    }
+
+    // Base64 encode the zip file content
+    if ext == ".zip" {
+        code = base64.StdEncoding.EncodeToString([]byte(code))
+        exec.Code = &code
+    }
+
+    return exec, nil
 }
 
 func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, fetch bool) (whisk.KeyValueArr, error){
