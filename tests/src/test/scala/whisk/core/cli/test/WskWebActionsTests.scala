@@ -18,11 +18,14 @@ package whisk.core.cli.test
 
 import java.nio.charset.StandardCharsets
 
+import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
+import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -32,6 +35,10 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
+import whisk.common.SimpleExec
+import whisk.common.TransactionId
+import scala.util.Failure
+import common.WhiskProperties
 
 /**
  * Tests web actions.
@@ -42,11 +49,10 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 }
 
 @RunWith(classOf[JUnitRunner])
-class WskWebActionsTestsV2 extends WskWebActionsTests {
+class WskWebActionsTestsV2 extends WskWebActionsTests with StreamLogging {
     override val testRoutePath = "/api/v1/web"
 
-    // temporarily ignore this test
-    ignore should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
+    it should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
@@ -56,13 +62,29 @@ class WskWebActionsTestsV2 extends WskWebActionsTests {
                     action.create(name, file, web = Some(true.toString))
             }
 
-            val url = getServiceApiHost(namespace) + "/default/webaction.text/a?a=A"
-            println("url", url)
+            val url = getServiceApiHost(namespace, true) + "/default/webaction.text/a?a=A"
+            println(s"url: $url")
 
-            val response = RestAssured.given().config(sslconfig).get(url)
-            val responseCode = response.statusCode
-            responseCode shouldBe 200
-            response.body.asString shouldBe "A"
+            // try the rest assured path first, failing that, try curl with explicit resolve
+            Try {
+                val response = RestAssured.given().config(sslconfig).get(url)
+                val responseCode = response.statusCode
+                responseCode shouldBe 200
+                response.body.asString shouldBe "A"
+            } match {
+                case Failure(t) =>
+                    println(s"RestAssured path failed, trying curl: $t")
+                    implicit val tid = TransactionId.testing
+                    val subdomain = getServiceApiHost(namespace, false)
+                    val ip = WhiskProperties.getEdgeHost
+                    val cmd = Seq("curl", "-k", url, "--resolve", s"$subdomain:$ip")
+                    val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
+                    withClue(s"\n$stderr\n") {
+                        stdout shouldBe "A"
+                        exitCode shouldBe 0
+                    }
+                case _ =>
+            }
     }
 }
 

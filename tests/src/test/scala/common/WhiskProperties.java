@@ -218,11 +218,15 @@ public class WhiskProperties {
         return proto + "://" + host + ":" + port;
     }
 
-    public static String getApiHostForClient(String subdomain) {
+    public static String getApiHostForClient(String subdomain, boolean includeProtocol) {
         String proto = whiskProperties.getProperty("whisk.api.host.proto");
         String port = whiskProperties.getProperty("whisk.api.host.port");
         String host = whiskProperties.getProperty("whisk.api.localhost.name");
-        return proto + "://" + subdomain + "." + host + ":" + port;
+        if (includeProtocol) {
+            return proto + "://" + subdomain + "." + host + ":" + port;
+        } else {
+            return subdomain + "." + host + ":" + port;
+        }
     }
 
     public static int getEdgeHostApiPort() {
