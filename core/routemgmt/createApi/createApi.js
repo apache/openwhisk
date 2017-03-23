@@ -93,6 +93,7 @@ function main(message) {
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW URL V2     : '+message.gwUrlV2);
   console.log('GW Auth       : '+utils.confidentialPrint(message.gwPwd));
+  console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+doc.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('accesstoken   : '+message.accesstoken);

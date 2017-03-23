@@ -64,6 +64,7 @@ function main(message) {
   // Log parameter values
   console.log('gwUrl         : '+message.gwUrl);
   console.log('GW URL V2     : '+message.gwUrlV2);
+  console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+message.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('accesstoken   : '+message.accesstoken);

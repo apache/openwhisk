@@ -570,7 +570,7 @@ function generateCliApiFromGwApi(gwApi) {
 /*
  * Parses the openwhisk action URL and returns the various components
  * Parameters
- *  url    - in format PROTOCOL://HOST/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.http
+ *  url    - in format PROTOCOL://HOST/api/v1/web/NAMESPACE/PACKAGE/ACTION.http
  * Returns
  *  result - an array of strings.
  *           result[0] : Entire URL
@@ -592,7 +592,7 @@ function parseActionUrl(actionUrl) {
 }
 
 /*
- * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * https://172.17.0.1/api/v1/web/NAMESPACE/PACKAGE/ACTION.json
  * would return ACTION
  */
 function getActionNameFromActionUrl(actionUrl) {
@@ -600,7 +600,7 @@ function getActionNameFromActionUrl(actionUrl) {
 }
 
 /*
- * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * https://172.17.0.1/api/v1/web/NAMESPACE/PACKAGE/ACTION.json
  * would return NAMESPACE
  */
 function getPackageNameFromActionUrl(actionUrl) {
@@ -608,7 +608,7 @@ function getPackageNameFromActionUrl(actionUrl) {
 }
 
 /*
- * https://172.17.0.1/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ * https://172.17.0.1/api/v1/web/NAMESPACE/PACKAGE/ACTION.json
  * would return NAMESPACE
  */
 function getActionNamespaceFromActionUrl(actionUrl) {
@@ -652,7 +652,7 @@ function getHostFromActionUrl(actionUrl) {
 
  */
 function parseActionName(fqname) {
-  console.log('parseActionName: parsing fq action: '+fqname);
+  console.log('parseActionName: parsing action: '+fqname);
   var actionNamePattern = /[\/]?([@ .\-\w]*)[\/]?([@ .\-\w]*)[\/]?([@ .\-\w]*)/;
   try {
     return fqname.match(actionNamePattern);
@@ -717,12 +717,12 @@ function updateNamespace(apidoc, namespace) {
  * path parameter value with the provided namespace value
  */
 function replaceNamespaceInUrl(url, namespace) {
-  var namespacesPattern = /\/api\/v1\/experimental\/web\/([\w@.-]+)\//;
+  var namespacesPattern = /\/api\/v1\/web\/([\w@.-]+)\//;
   console.log('replaceNamespaceInUrl: url before - '+url);
   matchResult = url.match(namespacesPattern);
   if (matchResult !== null) {
     console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
-    url = url.replace(namespacesPattern, '/api/v1/experimental/web/'+namespace+'/');
+    url = url.replace(namespacesPattern, '/api/v1/web/'+namespace+'/');
   }
   console.log('replaceNamespaceInUrl: url after - '+url);
   return url;
