@@ -136,7 +136,7 @@ class WskActionTests
 
     it should "copy an action and ensure exec, parameters, and annotations copied" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val origActionName = "orignAction"
+            val origActionName = "origAction"
             val copiedActionName = "copiedAction"
             val params = Map("a" -> "A".toJson)
             val annots = Map("b" -> "B".toJson)
@@ -157,6 +157,71 @@ class WskActionTests
             copiedAction.fields("parameters") shouldBe origAction.fields("parameters")
             copiedAction.fields("exec") shouldBe origAction.fields("exec")
             copiedAction.fields("version") shouldBe JsString("0.0.1")
+    }
+
+    it should "add new parameters and annotations while copying an action" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val origName = "origAction"
+            val copiedName = "copiedAction"
+            val origParams = Map("origParam1" -> "origParamValue1".toJson, "origParam2" -> 999.toJson)
+            val copiedParams = Map("copiedParam1" -> "copiedParamValue1".toJson, "copiedParam2" -> 123.toJson)
+            val origAnnots = Map("origAnnot1" -> "origAnnotValue1".toJson, "origAnnot2" -> true.toJson)
+            val copiedAnnots = Map("copiedAnnot1" -> "copiedAnnotValue1".toJson, "copiedAnnot2" -> false.toJson)
+            val resParams = Seq(
+                JsObject(
+                    "key" -> JsString("copiedParam1"),
+                    "value" -> JsString("copiedParamValue1")
+                ),
+                JsObject(
+                    "key" -> JsString("copiedParam2"),
+                    "value" -> JsNumber(123)
+                ),
+                JsObject(
+                    "key" -> JsString("origParam1"),
+                    "value" -> JsString("origParamValue1")
+                ),
+                JsObject(
+                    "key" -> JsString("origParam2"),
+                    "value" -> JsNumber(999)
+                )
+            )
+            val resAnnots = Seq(
+                JsObject(
+                    "key" -> JsString("origAnnot1"),
+                    "value" -> JsString("origAnnotValue1")
+                ),
+                JsObject(
+                    "key" -> JsString("copiedAnnot2"),
+                    "value" -> JsBoolean(false)
+                ),
+                JsObject(
+                    "key" -> JsString("copiedAnnot1"),
+                    "value" -> JsString("copiedAnnotValue1")
+                ),
+                JsObject(
+                    "key" -> JsString("origAnnot2"),
+                    "value" -> JsBoolean(true)
+                ),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")
+                )
+            )
+
+            assetHelper.withCleaner(wsk.action, origName) {
+                val file = Some(TestUtils.getTestActionFilename("echo.js"))
+                (action, _) => action.create(origName, file, parameters = origParams, annotations = origAnnots)
+            }
+
+            assetHelper.withCleaner(wsk.action, copiedName) {
+                (action, _) => action.create(copiedName, Some(origName), Some("copy"), parameters = copiedParams, annotations = copiedAnnots)
+            }
+
+            val copiedAction = getJSONFromCLIResponse(wsk.action.get(copiedName).stdout)
+
+            // CLI does not guarantee order of annotations and parameters so do a diff to compare the values
+            copiedAction.fields("parameters").convertTo[Seq[JsObject]] diff resParams shouldBe List()
+            copiedAction.fields("annotations").convertTo[Seq[JsObject]] diff resAnnots shouldBe List()
     }
 
     it should "recreate and invoke a new action with different code" in withAssetCleaner(wskprops) {
