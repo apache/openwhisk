@@ -1408,7 +1408,7 @@ func parseApiV2(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, 
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/experimental/web/" + qName.namespace + "/" + urlActionPackage + "/" + qName.actionName + ".json"
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.namespace + "/" + urlActionPackage + "/" + qName.actionName + ".http"
     api.Action.BackendMethod = api.GatewayMethod
     api.Action.Name = qName.entityName
     api.Action.Namespace = qName.namespace

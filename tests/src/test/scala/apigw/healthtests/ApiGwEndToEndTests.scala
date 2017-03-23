@@ -157,7 +157,7 @@ class ApiGwEndToEndTests
             println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
 
             // Create the action for the API.  It must be a "web-action" action.
-            val file = TestUtils.getTestActionFilename(s"echo.js")
+            val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
             // Create the API

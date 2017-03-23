@@ -484,7 +484,7 @@ class ApiGwRoutemgmtActionTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         val actionNamespace = wskprops.namespace
-        val actionUrl = "https://some.whisk.host/api/v1/experimental/web/" + actionNamespace + "/default/" + actionName + ".json"
+        val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".http"
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
@@ -508,7 +508,7 @@ class ApiGwRoutemgmtActionTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         val actionNamespace = wskprops.namespace
-        val actionUrl = "https://some.whisk.host/api/v1/experimental/web/" + actionNamespace + "/default/" + actionName + ".json"
+        val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".http"
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
@@ -537,7 +537,7 @@ class ApiGwRoutemgmtActionTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         val actionNamespace = wskprops.namespace
-        val actionUrl = "https://some.whisk.host/api/v1/experimental/web/" + actionNamespace + "/default/" + actionName + ".json"
+        val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".http"
         val actionAuthKey = testName + "_authkey"
         val testaction = ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 

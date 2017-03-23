@@ -570,7 +570,7 @@ function generateCliApiFromGwApi(gwApi) {
 /*
  * Parses the openwhisk action URL and returns the various components
  * Parameters
- *  url    - in format PROTOCOL://HOST/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.json
+ *  url    - in format PROTOCOL://HOST/api/v1/experimental/web/NAMESPACE/PACKAGE/ACTION.http
  * Returns
  *  result - an array of strings.
  *           result[0] : Entire URL
@@ -582,7 +582,7 @@ function generateCliApiFromGwApi(gwApi) {
  */
 function parseActionUrl(actionUrl) {
   console.log('parseActionUrl: parsing action url: '+actionUrl);
-  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/experimental\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.json/;
+  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.http/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {
@@ -812,7 +812,7 @@ function makeResponseObject(resp, isWebAction) {
   retobj = {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: new Buffer(bodystr).toString('base64'),
+    body: new Buffer(bodystr).toString('base64')
   };
   return retobj;
 }
