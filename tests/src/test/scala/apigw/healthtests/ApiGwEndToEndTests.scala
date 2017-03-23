@@ -74,12 +74,12 @@ class ApiGwEndToEndTests
     behavior of "Wsk api-experimental"
 
     it should s"create an API and successfully invoke that API" in {
-        val testName = "APIGW_HEALTHTEST1"
+        val testName = "APIGWe_HEALTHTEST1"
         val testbasepath = "/" + testName + "_bp"
         val testrelpath = "/path"
         val testurlop = "get"
         val testapiname = testName + " API Name"
-        val actionName = "echo"
+        val actionName = testName + "_echo"
         val urlqueryparam = "name"
         val urlqueryvalue = "test"
 
@@ -149,7 +149,7 @@ class ApiGwEndToEndTests
         val testrelpath = "/path"
         val testurlop = "get"
         val testapiname = testName + " API Name"
-        val actionName = "echo"
+        val actionName = testName + "_echo"
         val urlqueryparam = "name"
         val urlqueryvalue = "test"
 
