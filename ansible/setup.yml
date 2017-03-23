@@ -31,5 +31,5 @@
     when: not db.stat.exists
 
   - name: gen untrusted certificate for host
-    local_action: shell "{{ playbook_dir }}/roles/nginx/files/genssl.sh" "*.{{ whisk_api_host_name | default(whisk_api_localhost_name) | default(whisk_api_localhost_name_default) }}"
+    local_action: shell "{{ playbook_dir }}/roles/nginx/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}"
     

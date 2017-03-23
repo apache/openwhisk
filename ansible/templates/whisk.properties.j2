@@ -25,7 +25,7 @@ whisk.ssl.challenge=openwhisk
 whisk.api.host.proto={{ whisk_api_host_proto | default('https') }}
 whisk.api.host.port={{ whisk_api_host_port | default('443') }}
 whisk.api.host.name={{ whisk_api_host_name | default(groups['edge'] | first) }}
-whisk.api.localhost.name={{ whisk_api_host_name | default(whisk_api_localhost_name) | default(whisk_api_localhost_name_default) }}
+whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}

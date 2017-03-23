@@ -335,4 +335,4 @@ or using a name resolver in combination with `curl` for example, as in:
 $ curl -k https://guest.openwhisk-host --resolve guest.openwhisk-host:443:127.0.0.1
 ```
 
-You also need to generate an edge router configuration (and SSL certificate) that uses the proper hostname. This may be done by modifying a proper host name (see [global environment variables](../ansible/group_vars/all#L13)) and running the [`setup.yml`](../ansible/setup.yml) and [`edge.yml`](../ansible/edge.yml) playbooks.
+You also need to generate an edge router configuration (and SSL certificate) that uses the proper hostname. This may be done by modifying a proper host name (see [global environment variables](../ansible/group_vars/all#L18)) and running the [`setup.yml`](../ansible/setup.yml) and [`edge.yml`](../ansible/edge.yml) playbooks.
