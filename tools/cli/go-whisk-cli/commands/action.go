@@ -390,7 +390,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         action.Exec.Kind = "sequence"
         action.Exec.Components = csvToQualifiedActions(artifact)
     } else if len(artifact) > 0 {
-        action.Exec, err = getExec(args[1])
+        action.Exec, err = getExec(args[1], flags.action.kind, flags.action.docker, flags.action.main)
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
@@ -402,7 +402,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     return action, err
 }
 
-func getExec(artifact string) (*whisk.Exec, error) {
+func getExec(artifact string, kind string, isDocker bool, mainEntry string) (*whisk.Exec, error) {
     var err error
     var code string
     var exec *whisk.Exec
@@ -410,7 +410,7 @@ func getExec(artifact string) (*whisk.Exec, error) {
     ext := filepath.Ext(artifact)
     exec = new(whisk.Exec)
 
-    if !flags.action.docker || ext == ".zip" {
+    if !isDocker || ext == ".zip" {
         code, err = readFile(artifact)
         exec.Code = &code
 
@@ -420,9 +420,9 @@ func getExec(artifact string) (*whisk.Exec, error) {
         }
     }
 
-    if len(flags.action.kind) > 0 {
-        exec.Kind = flags.action.kind
-    } else if flags.action.docker {
+    if len(kind) > 0 {
+        exec.Kind = kind
+    } else if isDocker {
         exec.Kind = "blackbox"
         if ext != ".zip" {
             exec.Image = artifact
@@ -448,8 +448,8 @@ func getExec(artifact string) (*whisk.Exec, error) {
     }
 
     // Error if entry point is not specified for Java
-    if len(flags.action.main) != 0 {
-        exec.Main = flags.action.main
+    if len(mainEntry) != 0 {
+        exec.Main = mainEntry
     } else {
         if exec.Kind == "java" {
             return nil, javaEntryError()
