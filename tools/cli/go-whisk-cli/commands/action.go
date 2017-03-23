@@ -348,25 +348,23 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         flags.action.logsize,
         flags.action.timeout)
 
-    if !flags.action.copy {
-        paramArgs = flags.common.param
-        annotArgs = flags.common.annotation
+    paramArgs = flags.common.param
+    annotArgs = flags.common.annotation
 
-        if len(paramArgs) > 0 {
-            if parameters, err = getJSONFromStrings(paramArgs, true); err != nil {
-                return nil, getJSONFromStringsParamError(paramArgs, true, err)
-            }
-
-            action.Parameters = parameters.(whisk.KeyValueArr)
+    if len(paramArgs) > 0 {
+        if parameters, err = getJSONFromStrings(paramArgs, true); err != nil {
+            return nil, getJSONFromStringsParamError(paramArgs, true, err)
         }
 
-        if len(annotArgs) > 0 {
-            if annotations, err = getJSONFromStrings(annotArgs, true); err != nil {
-                return nil, getJSONFromStringsAnnotError(annotArgs, true, err)
-            }
+        action.Parameters = parameters.(whisk.KeyValueArr)
+    }
 
-            action.Annotations = annotations.(whisk.KeyValueArr)
+    if len(annotArgs) > 0 {
+        if annotations, err = getJSONFromStrings(annotArgs, true); err != nil {
+            return nil, getJSONFromStringsAnnotError(annotArgs, true, err)
         }
+
+        action.Annotations = annotations.(whisk.KeyValueArr)
     }
 
     if flags.action.copy {
@@ -384,8 +382,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
 
         client.Namespace = qualifiedName.namespace
         action.Exec = existingAction.Exec
-        action.Parameters = existingAction.Parameters
-        action.Annotations = existingAction.Annotations
+        action.Parameters = append(action.Parameters, existingAction.Parameters...)
+        action.Annotations = append(action.Annotations, existingAction.Annotations...)
     } else if flags.action.sequence {
         action.Exec = new(whisk.Exec)
         action.Exec.Kind = "sequence"
