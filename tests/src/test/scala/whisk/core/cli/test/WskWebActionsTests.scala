@@ -18,6 +18,7 @@ package whisk.core.cli.test
 
 import java.nio.charset.StandardCharsets
 
+import scala.util.Failure
 import scala.util.Try
 
 import org.junit.runner.RunWith
@@ -25,9 +26,9 @@ import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
-import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
+import common.WhiskProperties
 import common.Wsk
 import common.WskAdmin
 import common.WskProps
@@ -37,8 +38,8 @@ import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
-import scala.util.Failure
-import common.WhiskProperties
+import whisk.http.Messages
+import whisk.common.PrintStreamLogging
 
 /**
  * Tests web actions.
@@ -49,46 +50,69 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 }
 
 @RunWith(classOf[JUnitRunner])
-class WskWebActionsTestsV2 extends WskWebActionsTests with StreamLogging {
+class WskWebActionsTestsV2 extends WskWebActionsTests {
     override val testRoutePath = "/api/v1/web"
 
     it should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            if (namespace.matches("""[a-zA-Z0-9-]+""")) {
+            val actionName = "webaction"
+            val testNamespace = "example-namespace"
+            val subdomain = {
+                // if the namespace conforms, create an action to actually web invoke
+                // otherwise going to only test that the rewrite occurred as expected
+                if (namespace.matches("""[a-zA-Z0-9-]+""")) {
+                    val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
-                val name = "webaction"
-                val file = Some(TestUtils.getTestActionFilename("echo.js"))
+                    assetHelper.withCleaner(wsk.action, actionName) {
+                        (action, _) =>
+                            action.create(actionName, file, web = Some(true.toString))
+                    }
+                    namespace
+                } else testNamespace
+            }
 
-                assetHelper.withCleaner(wsk.action, name) {
-                    (action, _) =>
-                        action.create(name, file, web = Some(true.toString))
+            val url = getServiceApiHost(subdomain, true) + s"/default/$actionName.text/a?a=A"
+            println(s"url: $url")
+
+            def checkFailure(str: String) = {
+                withClue(str) {
+                    val fields = str.parseJson.asJsObject.fields
+                    val JsString(e) = fields("error")
+                    val JsNumber(c) = fields("code")
+
+                    e shouldBe Messages.resourceDoesNotExist
+                    c.toIntExact should be > 0
                 }
+            }
 
-                val url = getServiceApiHost(namespace, true) + "/default/webaction.text/a?a=A"
-                println(s"url: $url")
-
-                // try the rest assured path first, failing that, try curl with explicit resolve
-                Try {
-                    val response = RestAssured.given().config(sslconfig).get(url)
-                    val responseCode = response.statusCode
+            // try the rest assured path first, failing that, try curl with explicit resolve
+            Try {
+                val response = RestAssured.given().config(sslconfig).get(url)
+                val responseCode = response.statusCode
+                if (subdomain != testNamespace) {
                     responseCode shouldBe 200
                     response.body.asString shouldBe "A"
-                } match {
-                    case Failure(t) =>
-                        println(s"RestAssured path failed, trying curl: $t")
-                        implicit val tid = TransactionId.testing
-                        val subdomain = getServiceApiHost(namespace, false)
-                        val ip = WhiskProperties.getEdgeHost
-                        val cmd = Seq("curl", "-k", url, "--resolve", s"$subdomain:$ip")
-                        val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
-                        withClue(s"\n$stderr\n") {
+                } else {
+                    responseCode shouldBe 404
+                    checkFailure(response.body.asString)
+                }
+            } match {
+                case Failure(t) =>
+                    println(s"RestAssured path failed, trying curl: $t")
+                    implicit val tid = TransactionId.testing
+                    implicit val logger = new PrintStreamLogging(Console.out)
+                    val host = getServiceApiHost(subdomain, false)
+                    val ip = WhiskProperties.getEdgeHost
+                    val cmd = Seq("curl", "-k", url, "--resolve", s"$host:$ip")
+                    val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
+                    withClue(s"\n$stderr\n") {
+                        if (subdomain != testNamespace) {
                             stdout shouldBe "A"
                             exitCode shouldBe 0
-                        }
-                    case _ =>
-                }
-            } else {
-                println(s"skipping test because namespace does not match expected regex: $namespace")
+                        } else checkFailure(stdout)
+                    }
+
+                case _ =>
             }
     }
 }
