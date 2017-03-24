@@ -13,6 +13,7 @@ runtimesManifest:
   - kind: "nodejs"
     deprecated: true
   - kind: "nodejs:6"
+    image: "nodejs6action"
     default: true
   python:
   - kind: "python"
@@ -26,6 +27,7 @@ runtimesManifest:
   - kind: "swift"
     deprecated: true
   - kind: "swift:3"
+    image: "swift3action"
     default: true
   java:
   - kind: "java"
@@ -34,6 +36,7 @@ runtimesManifest:
       attachmentType: "application/java-archive"
     sentinelledLogs: false
     requireMain: true
+    image: "java8action"
     default: true
 
 defaultLimits:

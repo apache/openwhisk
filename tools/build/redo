@@ -291,7 +291,7 @@ Components = [
                   yaml = False,
                   gradle = 'core:swift3Action'),
 
-    makeComponent('javaaction',
+    makeComponent('java8action',
                   'build java action container',
                   yaml = False,
                   gradle = 'core:javaAction'),

@@ -12,7 +12,7 @@
     - '{{ docker_image_prefix }}/python2action'
     - '{{ docker_image_prefix }}/python3action'
     - '{{ docker_image_prefix }}/swift3action'
-    - '{{ docker_image_prefix }}/javaaction'
+    - '{{ docker_image_prefix }}/java8action'
   when: docker_registry != ""
 
 - name: determine docker root dir

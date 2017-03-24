@@ -31,8 +31,8 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSystem with ActionProxyContainerTestUtils {
 
-    // Helpers specific to javaaction
-    def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("javaaction", env)(code)
+    // Helpers specific to java actions
+    def withJavaContainer(code: ActionContainer => Unit, env: Map[String, String] = Map.empty) = withContainer("java8action", env)(code)
 
     override def initPayload(mainClass: String, jar64: String) = JsObject(
         "value" -> JsObject(
