@@ -30,6 +30,7 @@ import (
     "github.com/fatih/color"
     "github.com/spf13/cobra"
     "github.com/mattn/go-colorable"
+    "reflect"
 )
 
 const MEMORY_LIMIT = 256
@@ -831,6 +832,39 @@ func printActionDeleted(entityName string) {
                 "ok": color.GreenString("ok:"),
                 "name": boldString(entityName),
             }))
+}
+
+// Check if the specified action is a web-action
+func IsWebAction(client *whisk.Client, qname *QualifiedName) bool {
+    var isWebAction = false;
+
+    savedNs := client.Namespace
+    client.Namespace = qname.namespace
+    fullActionName := "/" + qname.namespace + "/" + qname.entityName
+
+    action, _, err := client.Actions.Get(qname.entityName)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
+        whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for validation\n", fullActionName)
+    } else {
+        weVal := getValue(action.Annotations, "web-export")
+        if (reflect.TypeOf(weVal) == nil) {
+            whisk.Debug(whisk.DbgError, "getValue(annotations, web-export) for action %s found no value\n", fullActionName)
+        } else {
+            var webExport bool
+            var ok bool
+            if webExport, ok = weVal.(bool); !ok {
+                whisk.Debug(whisk.DbgError, "web-export annotation value (%v) is not a boolean\n", weVal)
+            } else if !webExport {
+                whisk.Debug(whisk.DbgError, "web-export annotation value is false\n", weVal)
+            } else {
+                isWebAction = true;
+            }
+        }
+    }
+
+    client.Namespace = savedNs
+    return isWebAction
 }
 
 func init() {
