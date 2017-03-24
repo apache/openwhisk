@@ -318,7 +318,7 @@ var actionListCmd = &cobra.Command{
 
 func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action, error) {
     var err error
-    var artifact, code string
+    var artifact string
     var existingAction *whisk.Action
     var paramArgs []string
     var annotArgs []string
@@ -331,12 +331,11 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         return nil, parseQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
-
     if len(args) == 2 {
         artifact = args[1]
     }
 
+    client.Namespace = qualifiedName.namespace
     action := new(whisk.Action)
     action.Name = qualifiedName.entityName
     action.Namespace = qualifiedName.namespace
@@ -388,84 +387,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         action.Exec = new(whisk.Exec)
         action.Exec.Kind = "sequence"
         action.Exec.Components = csvToQualifiedActions(artifact)
-    } else if artifact != "" {
-        ext := filepath.Ext(artifact)
-        action.Exec = new(whisk.Exec)
-
-        if !flags.action.docker || ext == ".zip" {
-            code, err = readFile(artifact)
-            action.Exec.Code = &code
-
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
-                return nil, err
-            }
-        }
-
-        if flags.action.kind == "swift:3" || flags.action.kind == "swift:3.0" || flags.action.kind == "swift:3.0.0" {
-            action.Exec.Kind = "swift:3"
-        } else if flags.action.kind == "nodejs:6" || flags.action.kind == "nodejs:6.0" ||
-                flags.action.kind == "nodejs:6.0.0" {
-            action.Exec.Kind = "nodejs:6"
-        } else if flags.action.kind == "nodejs:default" {
-            action.Exec.Kind = "nodejs:default"
-        } else if flags.action.kind == "swift:default" {
-            action.Exec.Kind = "swift:default"
-        } else if flags.action.kind == "nodejs" {
-            action.Exec.Kind = "nodejs"
-        } else if flags.action.kind == "python" {
-            action.Exec.Kind = "python"
-        } else if flags.action.docker {
-            action.Exec.Kind = "blackbox"
-            if ext != ".zip" {
-                action.Exec.Image = artifact
-            } else {
-                action.Exec.Image = "openwhisk/dockerskeleton"
-            }
-        } else if len(flags.action.kind) > 0 {
-            whisk.Debug(whisk.DbgError, "--kind argument '%s' is not supported\n", flags.action.kind)
-            errMsg := wski18n.T("'{{.name}}' is not a supported action runtime",
-                map[string]interface{}{"name": flags.action.kind})
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
-                whisk.DISPLAY_USAGE)
-            return nil, whiskErr
-        } else if ext == ".swift" {
-            action.Exec.Kind = "swift:default"
-        } else if ext == ".js" {
-            action.Exec.Kind = "nodejs:6"
-        } else if ext == ".py" {
-            action.Exec.Kind = "python"
-        } else if ext == ".jar" {
-            action.Exec.Kind = "java"
-            action.Exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
-            action.Exec.Code = nil
-        } else {
-            if ext == ".zip" {
-                // This point is reached if the extension was .zip and the kind was not specifically set to nodejs:*.
-                return nil, zipKindError()
-            } else {
-                return nil, extensionError(ext)
-            }
-        }
-
-        // Determining the entrypoint.
-        if len(flags.action.main) != 0 {
-            // The --main flag was specified.
-            action.Exec.Main = flags.action.main
-        } else {
-            // The flag was not specified. For now, the only kind where it makes a difference is "java", for which the
-            // flag is expected.
-            if action.Exec.Kind == "java" {
-                return nil, javaEntryError()
-            }
-        }
-
-        // For zip-encoded actions, the code needs to be base64-encoded. We reach this point if the kind has already be
-        // determined. Since the extension is not js, this means the kind was specified explicitly.
-        if ext == ".zip" {
-            code = base64.StdEncoding.EncodeToString([]byte(code))
-            action.Exec.Code = &code
-        }
+    } else if len(artifact) > 0 {
+        action.Exec, err = getExec(args[1], flags.action.kind, flags.action.docker, flags.action.main)
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
@@ -475,6 +398,69 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
 
     return action, err
+}
+
+func getExec(artifact string, kind string, isDocker bool, mainEntry string) (*whisk.Exec, error) {
+    var err error
+    var code string
+    var exec *whisk.Exec
+
+    ext := filepath.Ext(artifact)
+    exec = new(whisk.Exec)
+
+    if !isDocker || ext == ".zip" {
+        code, err = readFile(artifact)
+        exec.Code = &code
+
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
+            return nil, err
+        }
+    }
+
+    if len(kind) > 0 {
+        exec.Kind = kind
+    } else if isDocker {
+        exec.Kind = "blackbox"
+        if ext != ".zip" {
+            exec.Image = artifact
+        } else {
+            exec.Image = "openwhisk/dockerskeleton"
+        }
+    } else if ext == ".swift" {
+        exec.Kind = "swift:default"
+    } else if ext == ".js" {
+        exec.Kind = "nodejs:default"
+    } else if ext == ".py" {
+        exec.Kind = "python:default"
+    } else if ext == ".jar" {
+        exec.Kind = "java:default"
+        exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
+        exec.Code = nil
+    } else {
+        if ext == ".zip" {
+            return nil, zipKindError()
+        } else {
+            return nil, extensionError(ext)
+        }
+    }
+
+    // Error if entry point is not specified for Java
+    if len(mainEntry) != 0 {
+        exec.Main = mainEntry
+    } else {
+        if exec.Kind == "java" {
+            return nil, javaEntryError()
+        }
+    }
+
+    // Base64 encode the zip file content
+    if ext == ".zip" {
+        code = base64.StdEncoding.EncodeToString([]byte(code))
+        exec.Code = &code
+    }
+
+    return exec, nil
 }
 
 func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, fetch bool) (whisk.KeyValueArr, error){
@@ -852,7 +838,7 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
-    actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+    actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
@@ -866,7 +852,7 @@ func init() {
     actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
-    actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:3, nodejs:6)"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
