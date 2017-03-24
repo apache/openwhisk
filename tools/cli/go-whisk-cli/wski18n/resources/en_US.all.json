@@ -880,8 +880,8 @@
     "translation": "treat ACTION as comma separated sequence of actions to invoke"
   },
   {
-    "id": "the `KIND` of the action runtime (example: swift:3, nodejs:6)",
-    "translation": "the `KIND` of the action runtime (example: swift:3, nodejs:6)"
+    "id": "the `KIND` of the action runtime (example: swift:default, nodejs:default)",
+    "translation": "the `KIND` of the action runtime (example: swift:default, nodejs:default)"
   },
   {
     "id": "the name of the action entry point (function or fully-qualified method name when applicable)",
