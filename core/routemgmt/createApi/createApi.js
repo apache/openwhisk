@@ -18,13 +18,19 @@
  * https://docs.cloudant.com/document.html#documentCreate
  *
  * Parameters (all as fields in the message JSON object)
+ *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
  *   gwUser               Optional. The API Gateway authentication
  *   gwPwd                Optional. The API Gateway authentication
- *   __ow_meta_namespace  Required. Namespace of API author; set by controller
- *                          Use this value to override namespace values in the apidoc
+ *
+ *   __ow_meta_namespace  Required when accesstoken is not specified. Namespace of API author
+ *   __ow_user            Required when accesstoken is specified. Namespace of API author
+ *                          Both namespace values are set by controller
+ *                          The value value overrides namespace values in the apidoc
  *                          Don't override namespace values in the swagger though
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
+ *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
+ *   spaceguid            Optional. Namespace unique id.
  *   apidoc               Required. The API Gateway mapping document
  *      namespace           Required.  Namespace of user/caller
  *      apiName             Optional if swagger not specified.  API descriptive name
@@ -46,22 +52,24 @@
  *       these values
  **/
 var utils = require('./utils.js');
+var utils2 = require('./apigw-utils.js');
 
 function main(message) {
-
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
-    return Promise.reject(badArgMsg);
+    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
   }
+
   var gwInfo = {
     gwUrl: message.gwUrl,
   };
-  if (message.gwUser && message.gwPwd) {
-    gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
-  }
 
   // Replace the CLI provided namespace valuse with the controller provided namespace value
-  updateNamespace(message.apidoc, message.__ow_meta_namespace);
+  if (message.accesstoken) {
+    utils2.updateNamespace(message.apidoc, message.__ow_user);
+  } else {
+    utils.updateNamespace(message.apidoc, message.__ow_meta_namespace);
+  }
 
   // message.apidoc already validated; creating shortcut to it
   var doc;
@@ -86,11 +94,16 @@ function main(message) {
 
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
+  console.log('GW URL V2     : '+message.gwUrlV2);
   console.log('GW Auth       : '+utils.confidentialPrint(message.gwPwd));
+  console.log('__ow_meta_namespace: '+message.__ow_meta_namespace);
+  console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+doc.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
+  console.log('accesstoken   : '+message.accesstoken);
+  console.log('spaceguid     : '+message.spaceguid);
   console.log('API name      : '+doc.apiName);
-  console.log('basepath      : '+doc.gatewayBasePath);
+  console.log('basepath      : '+basepath);
   console.log('relpath       : '+doc.gatewayPath);
   console.log('GW method     : '+doc.gatewayMethod);
   if (doc.action) {
@@ -100,58 +113,105 @@ function main(message) {
     console.log('action backendMethod: '+doc.action.backendMethod);
     console.log('action authkey: '+utils.confidentialPrint(doc.action.authkey));
   }
-  console.log('apidoc        :\n'+JSON.stringify(doc , null, 2));
+  console.log('apidoc        :\n'+JSON.stringify(doc));
 
-  // Create and activate a new API path
-  // 1. Create tenant id this namespace.  If id exists, create is a noop
-  // 2. Obtain any existing configuration for the target API.  If none, this is a new API
-  // 3. Create the API document to send to the API GW.  If API exists, update it
-  // 4. Configure API GW with the new/updated API
-  var tenantId;
-  var gwApiId;
-  return utils.createTenant(gwInfo, doc.namespace, tenantInstance)
-  .then(function(tenant) {
-    console.log('Got the API GW tenant: '+JSON.stringify(tenant));
-    tenantId = tenant.id;
-    return Promise.resolve(utils.getApis(gwInfo, tenant.id, basepath));
-  })
-  .then(function(apis) {
-    console.log('Got '+apis.length+' APIs');
-    if (apis.length === 0) {
-      console.log('No APIs found for namespace '+doc.namespace+' with basepath '+basepath);
-      return Promise.resolve(utils.generateBaseSwaggerApi(basepath, doc.apiName));
-    } else if (apis.length > 1) {
-      console.error('Multiple APIs found for namespace '+doc.namespace+' with basepath '+basepath);
-      return Promise.reject('Internal error. Multiple APIs found for namespace '+doc.namespace+' with basepath '+basepath);
+  // If an API GW access token is provided, use the API GW V2 URL and use this token to auth with the API GW
+  // Otherwise, use the API GW "V1" URL and use the supplied GW auth credentials to auth with the API GW
+  if (message.accesstoken) {
+    var apiDocId;
+    gwInfo.gwUrl = message.gwUrlV2;
+    gwInfo.gwAuth = message.accesstoken;
+    // 1. If an existing API exists for this namespace/basepath combination, retrieve it and update it
+    // 2. If not, create a new API
+    return utils2.getApis(gwInfo, message.spaceguid, basepath)
+    .then(function(endpointDocs) {
+      console.log('Got '+endpointDocs.length+' APIs');
+      if (endpointDocs.length === 0) {
+        console.log('No API found for namespace '+doc.namespace + ' with basePath '+ basepath)
+        return Promise.resolve(utils2.generateBaseSwaggerApi(basepath, doc.apiName));
+      } else {
+        apiDocId = endpointDocs[0].artifact_id;
+        return Promise.resolve(endpointDocs[0].open_api_doc);
+      }
+    })
+    .then(function(endpointDoc) {
+      if (doc.swagger) {
+        console.log('Use provided swagger as the entire API; override any existing API');
+        return Promise.resolve(doc.swagger);
+      } else {
+        console.log('Add the provided API endpoint');
+        return Promise.resolve(utils2.addEndpointToSwaggerApi(endpointDoc, doc));
+      }
+    })
+    .then(function(apiSwagger) {
+      console.log('Final swagger API config: '+ JSON.stringify(apiSwagger));
+      return utils2.addApiToGateway(gwInfo, message.spaceguid, apiSwagger, apiDocId);
+    })
+    .then(function(gwApi) {
+      console.log('API GW configured with API');
+      var cliApi = utils2.generateCliApiFromGwApi(gwApi).value;
+      console.log('createApi success');
+      return Promise.resolve(utils2.makeResponseObject(cliApi, (message.__ow_method != undefined)));
+    })
+    .catch(function(reason) {
+      console.error('API creation failure: '+JSON.stringify(reason));
+      return Promise.reject(utils2.makeErrorResponseObject('API creation failure: '+JSON.stringify(reason), (message.__ow_method != undefined)));
+    });
+  } else {
+    // Create and activate a new API path
+    // 1. Create tenant id this namespace.  If id exists, create is a noop
+    // 2. Obtain any existing configuration for the target API.  If none, this is a new API
+    // 3. Create the API document to send to the API GW.  If API exists, update it
+    // 4. Configure API GW with the new/updated API
+    var tenantId;
+    var gwApiId;
+    if (message.gwUser && message.gwPwd) {
+      gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
     }
-    gwApiId = apis[0].id;
-    return Promise.resolve(utils.generateSwaggerApiFromGwApi(apis[0]));
-  })
-  .then(function(swaggerApi) {
-    if (doc.swagger) {
-      console.log('Use provided swagger as the entire API; override any existing API');
-      return Promise.resolve(doc.swagger);
-    } else {
-      console.log('Add the provided API endpoint');
-      return Promise.resolve(utils.addEndpointToSwaggerApi(swaggerApi, doc));
-    }
-  })
-  .then(function(swaggerApi) {
-    console.log('Final swagger API config: '+ JSON.stringify(swaggerApi));
-    return utils.addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId);
-  })
-  .then(function(gwApi) {
-    console.log('API GW configured with API');
-    var cliApi = utils.generateCliApiFromGwApi(gwApi).value;
-    console.log('createApi success');
-    return Promise.resolve(cliApi);
-  })
-  .catch(function(reason) {
-    console.error('API creation failure: '+JSON.stringify(reason));
-    return Promise.reject('API creation failure: '+JSON.stringify(reason));
-  });
+    return utils.createTenant(gwInfo, doc.namespace, tenantInstance)
+    .then(function(tenant) {
+      console.log('Got the API GW tenant: '+JSON.stringify(tenant));
+      tenantId = tenant.id;
+      return Promise.resolve(utils.getApis(gwInfo, tenant.id, basepath));
+    })
+    .then(function(apis) {
+      console.log('Got '+apis.length+' APIs');
+      if (apis.length === 0) {
+        console.log('No APIs found for namespace '+doc.namespace+' with basepath '+basepath);
+        return Promise.resolve(utils.generateBaseSwaggerApi(basepath, doc.apiName));
+      } else if (apis.length > 1) {
+        console.error('Multiple APIs found for namespace '+doc.namespace+' with basepath '+basepath);
+        return Promise.reject('Internal error. Multiple APIs found for namespace '+doc.namespace+' with basepath '+basepath);
+      }
+      gwApiId = apis[0].id;
+      return Promise.resolve(utils.generateSwaggerApiFromGwApi(apis[0]));
+    })
+    .then(function(swaggerApi) {
+      if (doc.swagger) {
+        console.log('Use provided swagger as the entire API; override any existing API');
+        return Promise.resolve(doc.swagger);
+      } else {
+        console.log('Add the provided API endpoint');
+        return Promise.resolve(utils.addEndpointToSwaggerApi(swaggerApi, doc));
+      }
+    })
+    .then(function(swaggerApi) {
+      console.log('Final swagger API config: '+ JSON.stringify(swaggerApi));
+      return utils.addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId);
+    })
+    .then(function(gwApi) {
+      console.log('API GW configured with API');
+      var cliApi = utils.generateCliApiFromGwApi(gwApi).value;
+      console.log('createApi success');
+      //MWD return Promise.resolve(utils2.makeResponseObject(cliApi, (message.__ow_method != undefined)));
+      return Promise.resolve(cliApi);
+    })
+    .catch(function(reason) {
+      console.error('API creation failure: '+JSON.stringify(reason));
+      return Promise.reject(utils2.makeErrorResponseObject('API creation failure: '+JSON.stringify(reason), (message.__ow_method != undefined)));
+    });
+  }
 }
-
 
 function getBasePath(apidoc) {
   if (apidoc.swagger) {
@@ -160,38 +220,6 @@ function getBasePath(apidoc) {
   return apidoc.gatewayBasePath;
 }
 
-/*
- * Replace the namespace values that are used in the apidoc with the
- * specified namespace
- */
-function updateNamespace(apidoc, namespace) {
-  if (apidoc) {
-    if (apidoc.action) {
-      // The action namespace does not have to match the CLI user's namespace
-      // If it is different, leave it alone; otherwise use the replacement namespace
-      if (apidoc.namespace === apidoc.action.namespace) {
-        apidoc.action.namespace = namespace;
-        apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
-    }
-    apidoc.namespace = namespace;
-  }
-}
-
-/*
- * Take an OpenWhisk URL (i.e. action invocation URL) and replace the namespace
- * path parameter value with the provided namespace value
- */
-function replaceNamespaceInUrl(url, namespace) {
-  var namespacesPattern = /\/namespaces\/([\w@.-]+)\//;
-  console.log('replaceNamespaceInUrl: url before - '+url);
-  matchResult = url.match(namespacesPattern);
-  if (matchResult !== null) {
-    console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
-    url = url.replace(namespacesPattern, '/namespaces/'+namespace+'/');
-  }
-  console.log('replaceNamespaceInUrl: url after - '+url);
-  return url;
-}
 
 function validateArgs(message) {
   var tmpdoc;
@@ -204,7 +232,11 @@ function validateArgs(message) {
     return 'gwUrl is required.';
   }
 
-  if (!message.__ow_meta_namespace) {
+  if (message.accesstoken && !message.__ow_user) {
+    return '__ow_user is required.';
+  }
+
+  if (!message.accesstoken && !message.__ow_meta_namespace) {
     return '__ow_meta_namespace is required.';
   }
 
