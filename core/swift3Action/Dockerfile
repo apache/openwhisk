@@ -24,8 +24,8 @@ RUN cd / &&\
 cp -r /clang+llvm-3.6.2-x86_64-linux-gnu-ubuntu-14.04/* /usr/ &&\
 rm -rf /clang+llvm-3.6.2-x86_64-linux-gnu-ubuntu-14.04
 
-RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++ 20 
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang 20 
+RUN update-alternatives --install /usr/bin/g++ g++ /usr/bin/clang++ 20
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang 20
 
 # Install Swift keys
 RUN wget --no-verbose -O - https://swift.org/keys/all-keys.asc | gpg --import - && \
@@ -65,4 +65,4 @@ RUN python /swift3Action/buildandrecord.py; rm /swift3Action/spm-build/.build/re
 #RUN cd /swift3Action/spm-build; swift build -c release; rm /swift3Action/spm-build/.build/release/Action
 ENV FLASK_PROXY_PORT 8080
 
-CMD ["/bin/bash", "-c", "cd swift3Action && python -u swift3runner.py"]
+CMD ["/bin/bash", "-c", "cd /swift3Action && PYTHONIOENCODING='utf-8' python -u swift3runner.py"]
