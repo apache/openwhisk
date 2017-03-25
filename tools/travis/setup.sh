@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# add host lookup for namespace as url (aka vanity url)
-sudo -E bash -c 'echo "guest.localhost" >> /etc/hosts'
-cat /etc/hosts
-
 sudo gpasswd -a travis docker
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=overlay --userns-remap=default"'\'' > /etc/default/docker'
 
