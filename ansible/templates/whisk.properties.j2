@@ -50,7 +50,6 @@ router.host={{ groups["edge"]|first }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 
-edge.host.uiport=443
 edge.host.apiport=443
 zookeeper.host.port={{ zookeeper.port }}
 kafka.host.port={{ kafka.port }}
