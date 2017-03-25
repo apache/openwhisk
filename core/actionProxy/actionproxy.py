@@ -52,6 +52,9 @@ class ActionRunner:
         self.source = source if source else defaultBinary
         self.binary = binary if binary else defaultBinary
 
+    def preinit(self):
+        return
+
     # extracts from the JSON object message a 'code' property and
     # writes it to the <source> path. The source code may have an
     # an optional <epilogue>. The source code is subsequently built
@@ -60,6 +63,7 @@ class ActionRunner:
     # @return True iff binary exists and is executable
     def init(self, message):
         def prep():
+            self.preinit()
             if 'code' in message and message['code'] is not None:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
@@ -105,8 +109,7 @@ class ActionRunner:
     def env(self, message):
         # make sure to include all the env vars passed in by the invoker
         env = os.environ
-        for p in ['api_key', 'namespace', 'action_name',
-                  'activation_id', 'deadline']:
+        for p in ['api_key', 'namespace', 'action_name', 'activation_id', 'deadline']:
             if p in message:
                 env['__OW_%s' % p.upper()] = message[p]
         return env
@@ -210,9 +213,7 @@ def init():
     if status is True:
         return ('OK', 200)
     else:
-        response = flask.jsonify({'error':
-                                  'The action failed to generate or '
-                                  'locate a binary. See logs for details.'})
+        response = flask.jsonify({'error': 'The action failed to generate or locate a binary. See logs for details.'})
         response.status_code = 502
         return complete(response)
 
@@ -220,8 +221,7 @@ def init():
 @proxy.route('/run', methods=['POST'])
 def run():
     def error():
-        response = flask.jsonify({'error': 'The action did not receive '
-                                  'a dictionary as an argument.'})
+        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
         response.status_code = 404
         return complete(response)
 
@@ -235,16 +235,14 @@ def run():
 
     if runner.verify():
         try:
-            (code, result) = runner.run(args,
-                                        runner.env(message if message else {}))
+            (code, result) = runner.run(args, runner.env(message if message else {}))
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
             response = flask.jsonify({'error': 'Internal error.'})
             response.status_code = 500
     else:
-        response = flask.jsonify({'error': 'The action failed to locate '
-                                  'a binary. See logs for details.'})
+        response = flask.jsonify({'error': 'The action failed to locate a binary. See logs for details.'})
         response.status_code = 502
     return complete(response)
 

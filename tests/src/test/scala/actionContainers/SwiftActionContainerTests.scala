@@ -95,6 +95,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
         |}
         """.stripMargin)
     */
+
     testEcho(Seq {
         ("swift", """
         |import Foundation
@@ -132,6 +133,34 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
             val (_, runRes) = c.run(runPayload(JsObject()))
             runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
         }
+    }
+
+    it should "handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withActionContainer() { c =>
+            val code = """
+                | func main(args: [String: Any]) -> [String: Any] {
+                |    if let str = args["delimiter"] as? String {
+                |        let msg = "\(str) ☃ \(str)"
+                |        print(msg)
+                |        return [ "winter" : msg ]
+                |    } else {
+                |        return [ "error" : "no delimiter" ]
+                |    }
+                | }
+            """.stripMargin
+
+            val (initCode, _) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o.toLowerCase should include("❄ ☃ ❄")
+                e shouldBe empty
+        })
     }
 
     it should "return some error on action error" in {

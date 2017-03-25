@@ -38,6 +38,12 @@ class Swift3Runner(ActionRunner):
     def __init__(self):
         ActionRunner.__init__(self, DEST_SCRIPT_FILE, DEST_BIN_FILE)
 
+    # remove pre-existing binary before receiving a new binary
+    def preinit(self):
+        try:
+            os.remove(self.binary)
+        except: pass
+
     def epilogue(self, init_message):
         # skip if executable already exists (was unzipped)
         if os.path.isfile(self.binary):
