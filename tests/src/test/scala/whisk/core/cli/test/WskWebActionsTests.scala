@@ -22,6 +22,7 @@ import scala.util.Failure
 import scala.util.Try
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
@@ -36,10 +37,10 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import system.rest.RestUtil
+import whisk.common.PrintStreamLogging
 import whisk.common.SimpleExec
 import whisk.common.TransactionId
-import whisk.http.Messages
-import whisk.common.PrintStreamLogging
+import whisk.core.entity.Subject
 
 /**
  * Tests web actions.
@@ -50,58 +51,62 @@ class WskWebActionsTestsV1 extends WskWebActionsTests {
 }
 
 @RunWith(classOf[JUnitRunner])
-class WskWebActionsTestsV2 extends WskWebActionsTests {
+class WskWebActionsTestsV2 extends WskWebActionsTests with BeforeAndAfterAll {
     override val testRoutePath = "/api/v1/web"
 
-    it should "access a web action via namespace subdomain" in withAssetCleaner(wskprops) {
+    private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
+
+    private val (vanitySubdomain, vanityNamespace, makeTestSubject) = {
+        if (namespace.matches(subdomainRegex)) {
+            (namespace, namespace, false)
+        } else {
+            val s = Subject().asString.toLowerCase // this will generate two confirming parts
+            (s, s.replace("-", "_"), true)
+        }
+    }
+
+    private val wskPropsForSubdomainTest = if (makeTestSubject) {
+        getAdditionalTestSubject(vanityNamespace) // create new subject for the test
+    } else {
+        WskProps()
+    }
+
+    override def afterAll() = {
+        if (makeTestSubject) {
+            disposeAdditionalTestSubject(vanityNamespace)
+        }
+    }
+
+    "test subdomain" should "have conforming parts" in {
+        vanitySubdomain should fullyMatch regex subdomainRegex.r
+        vanitySubdomain.length should be <= 63
+    }
+
+    "vanity subdomain" should "access a web action via namespace subdomain" in withAssetCleaner(wskPropsForSubdomainTest) {
         (wp, assetHelper) =>
             val actionName = "webaction"
-            val testNamespace = "example-namespace"
-            val subdomain = {
-                // if the namespace conforms, create an action to actually web invoke
-                // otherwise going to only test that the rewrite occurred as expected
-                if (namespace.matches("""[a-zA-Z0-9-]+""")) {
-                    val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
-                    assetHelper.withCleaner(wsk.action, actionName) {
-                        (action, _) =>
-                            action.create(actionName, file, web = Some(true.toString))
-                    }
-                    namespace
-                } else testNamespace
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) =>
+                    action.create(actionName, file, web = Some(true.toString))(wp)
             }
 
-            val url = getServiceApiHost(subdomain, true) + s"/default/$actionName.text/a?a=A"
+            val url = getServiceApiHost(vanitySubdomain, true) + s"/default/$actionName.text/a?a=A"
             println(s"url: $url")
-
-            def checkFailure(str: String) = {
-                withClue(str) {
-                    val fields = str.parseJson.asJsObject.fields
-                    val JsString(e) = fields("error")
-                    val JsNumber(c) = fields("code")
-
-                    e shouldBe Messages.resourceDoesNotExist
-                    c.toIntExact should be > 0
-                }
-            }
 
             // try the rest assured path first, failing that, try curl with explicit resolve
             Try {
                 val response = RestAssured.given().config(sslconfig).get(url)
                 val responseCode = response.statusCode
-                if (subdomain != testNamespace) {
-                    responseCode shouldBe 200
-                    response.body.asString shouldBe "A"
-                } else {
-                    responseCode shouldBe 404
-                    checkFailure(response.body.asString)
-                }
+                responseCode shouldBe 200
+                response.body.asString shouldBe "A"
             } match {
                 case Failure(t) =>
                     println(s"RestAssured path failed, trying curl: $t")
                     implicit val tid = TransactionId.testing
                     implicit val logger = new PrintStreamLogging(Console.out)
-                    val host = getServiceApiHost(subdomain, false)
+                    val host = getServiceApiHost(vanitySubdomain, false)
                     // if the edge host is a name, try to resolve it, otherwise, it should be an ip address already
                     val edgehost = WhiskProperties.getEdgeHost
                     val ip = Try(java.net.InetAddress.getByName(edgehost).getHostAddress) getOrElse "???"
@@ -109,10 +114,8 @@ class WskWebActionsTestsV2 extends WskWebActionsTests {
                     val cmd = Seq("curl", "-k", url, "--resolve", s"$host:$ip")
                     val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
                     withClue(s"\n$stderr\n") {
-                        if (subdomain != testNamespace) {
-                            stdout shouldBe "A"
-                            exitCode shouldBe 0
-                        } else checkFailure(stdout)
+                        stdout shouldBe "A"
+                        exitCode shouldBe 0
                     }
 
                 case _ =>
@@ -127,9 +130,10 @@ trait WskWebActionsTests
 
     val MAX_URL_LENGTH = 8192 // 8K matching nginx default
 
-    implicit val wskprops = WskProps()
     val wsk = new Wsk
+    private implicit val wskprops = WskProps()
     val namespace = WskAdmin.getUser(wskprops.authKey)._2
+
     protected val testRoutePath: String
 
     behavior of "Wsk Web Actions"

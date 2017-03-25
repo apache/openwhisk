@@ -21,11 +21,16 @@ whisk.ssl.challenge=openwhisk
  # the whisk.api.localhost.name must be a name that resolves from the client; it is either the
  # whisk_api_host_name if it is defined, an environment specific localhost name, or the default
  # localhost name.
+ #
+ # the whisk.api.vanity.subdomain.parts indicates how many conforming parts the router is configured to
+ # match in the subdomain, which it rewrites into a namespace; each part must match ([a-zA-Z0-9]+)
+ # with parts separated by a single dash.
  #}
 whisk.api.host.proto={{ whisk_api_host_proto | default('https') }}
 whisk.api.host.port={{ whisk_api_host_port | default('443') }}
 whisk.api.host.name={{ whisk_api_host_name | default(groups['edge'] | first) }}
 whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}
+whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}

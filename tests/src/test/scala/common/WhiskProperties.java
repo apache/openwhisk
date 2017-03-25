@@ -229,6 +229,10 @@ public class WhiskProperties {
         }
     }
 
+    public static int getPartsInVanitySubdomain() {
+        return Integer.parseInt(whiskProperties.getProperty("whisk.api.vanity.subdomain.parts"));
+    }
+
     public static int getEdgeHostApiPort() {
         return Integer.parseInt(whiskProperties.getProperty("edge.host.apiport"));
     }
