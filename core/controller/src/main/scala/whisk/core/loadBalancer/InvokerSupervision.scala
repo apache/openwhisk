@@ -39,7 +39,6 @@ import whisk.core.connector.PingMessage
 
 // Received events
 case object GetStatus
-case object StatusChange
 
 // States an Invoker can be in
 sealed trait InvokerState { val asString: String }
@@ -66,10 +65,12 @@ class InvokerPool(
     invokerDownCallback: String => Unit) extends Actor {
 
     implicit val transid = TransactionId.invokerHealth
-    val logging = new AkkaLogging(context.system.log)
     implicit val timeout = Timeout(5.seconds)
     implicit val ec = context.dispatcher
+    val logging = new AkkaLogging(context.system.log)
 
+    // State of the actor. It's important not to close over these
+    // references directly, so they don't escape the Actor.
     val invokers = mutable.HashMap.empty[String, ActorRef]
     val invokerStatus = mutable.HashMap.empty[String, InvokerState]
 
