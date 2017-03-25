@@ -55,7 +55,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     testEnv(Seq {
         ("python", """
          |import os
-         |def main(dict):
+         |def main(args):
          |    return {
          |       "api_host": os.environ['__OW_API_HOST'],
          |       "api_key": os.environ['__OW_API_KEY'],
@@ -70,8 +70,8 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     it should "support actions using non-default entry points" in {
         withActionContainer() { c =>
             val code = """
-                |def niam(dict):
-                |  return { "result": "it works" }
+                |def niam(args):
+                |  return {"result": "it works"}
                 |""".stripMargin
 
             val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
@@ -91,7 +91,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             """.stripMargin,
             Seq("echo.py") -> """
                 |def echo(args):
-                |  return { "echo": args }
+                |  return {"echo": args}
             """.stripMargin)
 
         val code = ZipBuilder.mkBase64Zip(srcs)
@@ -118,7 +118,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         val srcs = Seq(
             Seq("echo.py") -> """
                 |def echo(args):
-                |  return { "echo": args }
+                |  return {"echo": args}
             """.stripMargin)
 
         val code = ZipBuilder.mkBase64Zip(srcs)
@@ -138,11 +138,11 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     it should "handle unicode in source, input params, logs, and result" in {
         val (out, err) = withActionContainer() { c =>
             val code = """
-                |def main(dict):
-                |    sep = dict['delimiter']
+                |def main(args):
+                |    sep = args['delimiter']
                 |    str = sep + " ☃ ".decode('utf-8') + sep
                 |    print(str.encode('utf-8'))
-                |    return {"winter" : str }
+                |    return {"winter" : str}
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
@@ -163,10 +163,10 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         val (out, err) = withActionContainer() { c =>
             val code = """
                 |def div(x, y):
-                |    return x/y
+                |    return x / y
                 |
-                |def main(dict):
-                |    return {"divBy0": div(5,0)}
+                |def main(args):
+                |    return {"divBy0": div(5, 0)}
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
@@ -209,7 +209,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         val (out, err) = withActionContainer() { c =>
             val code = """
                 |def main(args):
-                |    return { "error": "sorry" }
+                |    return {"error": "sorry"}
             """.stripMargin
 
             val (initCode, _) = c.init(initPayload(code))
@@ -234,7 +234,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             val code = """
                 |import iamnotsupported
                 |def main(args):
-                |    return { "error": "not reaching here" }
+                |    return {"error": "not reaching here"}
             """.stripMargin
 
             val (initCode, res) = c.init(initPayload(code))
@@ -271,7 +271,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |    h = httplib2.Http().request('https://openwhisk.ng.bluemix.net/api/v1')[0]
                 |    t = parse('2016-02-22 11:59:00 EST')
                 |    r = requests.get('https://openwhisk.ng.bluemix.net/api/v1')
-                |    j = json.dumps({'foo':'bar'}, separators = (',', ':'))
+                |    j = json.dumps({'foo': 'bar'}, separators = (',', ':'))
                 |    kafka = BrokerConnection("it works", 9093, None)
                 |
                 |    return {
