@@ -29,6 +29,9 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
+    /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
+    val pythonStringAsUnicode = true
+
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
         withContainer("pythonaction", env)(code)
     }
@@ -137,13 +140,23 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     it should "handle unicode in source, input params, logs, and result" in {
         val (out, err) = withActionContainer() { c =>
-            val code = """
-                |def main(dict):
-                |    sep = dict['delimiter']
-                |    str = sep + " ☃ ".decode('utf-8') + sep
-                |    print(str.encode('utf-8'))
-                |    return {"winter" : str }
-            """.stripMargin
+            val code = if (pythonStringAsUnicode) {
+                """
+                |def main(args):
+                |    sep = args['delimiter']
+                |    s = sep + " ☃ " + sep
+                |    print(s)
+                |    return {"winter" : s }
+                """.stripMargin
+            } else {
+                """
+                |def main(args):
+                |    sep = args['delimiter']
+                |    s = sep + " ☃ ".decode('utf-8') + sep
+                |    print(s.encode('utf-8')
+                |    return {"winter" : s }
+                """.stripMargin
+            }
 
             val (initCode, _) = c.init(initPayload(code))
             initCode should be(200)
