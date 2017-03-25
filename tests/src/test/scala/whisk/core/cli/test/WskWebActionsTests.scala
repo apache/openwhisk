@@ -102,7 +102,10 @@ class WskWebActionsTestsV2 extends WskWebActionsTests {
                     implicit val tid = TransactionId.testing
                     implicit val logger = new PrintStreamLogging(Console.out)
                     val host = getServiceApiHost(subdomain, false)
-                    val ip = WhiskProperties.getEdgeHost
+                    // if the edge host is a name, try to resolve it, otherwise, it should be an ip address already
+                    val edgehost = WhiskProperties.getEdgeHost
+                    val ip = Try(java.net.InetAddress.getByName(edgehost).getHostAddress) getOrElse "???"
+                    println(s"edge: $edgehost, ip: $ip")
                     val cmd = Seq("curl", "-k", url, "--resolve", s"$host:$ip")
                     val (stdout, stderr, exitCode) = SimpleExec.syncRunCmd(cmd)
                     withClue(s"\n$stderr\n") {
