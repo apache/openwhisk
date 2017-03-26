@@ -98,21 +98,36 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     testEcho(Seq {
         ("swift", """
-        |import Foundation
-        |
-        |extension FileHandle : TextOutputStream {
-        |   public func write(_ string: String) {
-        |       guard let data = string.data(using: .utf8) else { return }
-        |       self.write(data)
-        |   }
-        |}
-        |func main(args: [String: Any]) -> [String: Any] {
-        |     print("hello stdout")
-        |     var standardError = FileHandle.standardError
-        |     print("hello stderr", to: &standardError)
-        |     return args
-        |}
+         | import Foundation
+         |
+         | extension FileHandle : TextOutputStream {
+         |     public func write(_ string: String) {
+         |         guard let data = string.data(using: .utf8) else { return }
+         |         self.write(data)
+         |     }
+         | }
+         |
+         | func main(args: [String: Any]) -> [String: Any] {
+         |     print("hello stdout")
+         |     var standardError = FileHandle.standardError
+         |     print("hello stderr", to: &standardError)
+         |     return args
+         | }
         """.stripMargin)
+    })
+
+    testUnicode(Seq {
+        ("swift", """
+         | func main(args: [String: Any]) -> [String: Any] {
+         |     if let str = args["delimiter"] as? String {
+         |         let msg = "\(str) ☃ \(str)"
+         |         print(msg)
+         |         return [ "winter" : msg ]
+         |     } else {
+         |         return [ "error" : "no delimiter" ]
+         |     }
+         | }
+         """.stripMargin.trim)
     })
 
     testEnv(Seq {
@@ -123,7 +138,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
         withActionContainer() { c =>
             val code = """
                 | func niam(args: [String: Any]) -> [String: Any] {
-                |   return [ "result": "it works" ]
+                |     return [ "result": "it works" ]
                 | }
                 |""".stripMargin
 
@@ -133,34 +148,6 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
             val (_, runRes) = c.run(runPayload(JsObject()))
             runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
         }
-    }
-
-    it should "handle unicode in source, input params, logs, and result" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = """
-                | func main(args: [String: Any]) -> [String: Any] {
-                |    if let str = args["delimiter"] as? String {
-                |        let msg = "\(str) ☃ \(str)"
-                |        print(msg)
-                |        return [ "winter" : msg ]
-                |    } else {
-                |        return [ "error" : "no delimiter" ]
-                |    }
-                | }
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
-            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o.toLowerCase should include("❄ ☃ ❄")
-                e shouldBe empty
-        })
     }
 
     it should "return some error on action error" in {
@@ -327,7 +314,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | import AlchemyVision
                 |
                 | func main(args: [String:Any]) -> [String:Any] {
-                |   return ["message": "I compiled and was able to import Watson SDKs"]
+                |     return ["message": "I compiled and was able to import Watson SDKs"]
                 | }
             """.stripMargin
 
