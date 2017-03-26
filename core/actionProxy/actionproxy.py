@@ -142,9 +142,9 @@ class ActionRunner:
 
         # stdout/stderr may be either text or bytes, depending on Python
         # version.   In the latter case, decode to text.
-        if isinstance(o, bytes):
+        if not isinstance(o, str):
             o = o.decode('utf-8')
-        if isinstance(e, bytes):
+        if not isinstance(e, str):
             e = e.decode('utf-8')
 
         # get the last line of stdout, even if empty
