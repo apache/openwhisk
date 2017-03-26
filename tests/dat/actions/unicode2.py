@@ -1,4 +1,4 @@
-"""Python Unicode test."""
+"""Python 2 Unicode test."""
 
 
 def main(args):

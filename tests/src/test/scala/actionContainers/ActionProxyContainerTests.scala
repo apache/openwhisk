@@ -74,14 +74,14 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
     }
 
     val stdUnicodeSamples = {
+        // python 3 in base image
         val python = """
                 |#!/usr/bin/env python
-                |# -*- coding: utf-8 -*-
                 |import json, sys
                 |j = json.loads(sys.argv[1])
                 |sep = j["delimiter"]
-                |s = sep + " ☃ ".decode('utf-8') + sep
-                |print(s.encode('utf-8'))
+                |s = sep + " ☃ " + sep
+                |print(s)
                 |print(json.dumps({"winter": s}))
             """.stripMargin.trim
 
