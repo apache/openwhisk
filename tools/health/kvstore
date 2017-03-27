@@ -27,7 +27,6 @@
 # Start with standard imports.
 import os
 import sys
-import subprocess
 import argparse
 import time
 import json
@@ -67,7 +66,7 @@ def layerRecords(records):
 def processRecords(records, interactive):
   for rec in records:
     rawVal = rec['Value']
-    if (rawVal != None):
+    if (rawVal is not None):
       rec['Value'] = base64.b64decode(rawVal)
   def getKey(rec):
     rec['Value']
@@ -88,10 +87,10 @@ def dump(interactive,whiskprops):
   # Perform actual display
   if (interactive):
     sys.stderr.write("\x1b[2J\x1b[H")
-  print time.strftime("%Y/%m/%d %H:%M:%S")
-  print '-------------------'
+  print(time.strftime("%Y/%m/%d %H:%M:%S"))
+  print('-------------------')
   for rec in records:
-    print '{0:50} {1}'.format(rec['Key'], rec['Value'])
+    print('{0:50} {1}'.format(rec['Key'], rec['Value']))
 
 # write whiskprops to kvstore
 def importProps(whiskprops):
@@ -110,7 +109,7 @@ def getProp(whiskprops, key, defaultValue = None) :
         return whiskprops[key]
     except KeyError:
         if (defaultValue == None):
-          print 'Could not find %s' % key
+          print('Could not find %s' % key)
         return defaultValue
 
 
@@ -121,7 +120,7 @@ parser.add_argument('-d','--dir', help='directory for whisk.properties')
 args = parser.parse_args()
 
 if (args.dir is None):
-   print 'Must specify directory with -d'
+   print('Must specify directory with -d')
    exit(-1)
 
 # Use wskprop to read in whisk.properties and provide our own lookup
@@ -137,9 +136,8 @@ if (args.repeat):
 else:
   if (args.imp):
 
-     print "importing whisk.properties into consul kv..."
+     print("importing whisk.properties into consul kv...")
      importProps(whiskprops)
-     print "done."
+     print("done.")
   else:
      dump(False,whiskprops)
-

@@ -93,10 +93,10 @@ protected[controller] object RestApiCommons {
             Collection.requiredProperties
 
     /**
-     * The Meta API is available in both v1 and v2.
+     * The web actions API is available in both v1 and v2.
      * It handles web actions.
      */
-    protected[controller] class MetasApi(
+    protected[controller] class WebActionsApi(
         override val webInvokePathSegments: Seq[String],
         override val webApiDirectives: WebApiDirectives)(
             implicit override val authStore: AuthStore,
@@ -110,7 +110,7 @@ protected[controller] object RestApiCommons {
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
-        extends WhiskMetaApi with WhiskServices
+        extends WhiskWebActionsApi with WhiskServices
 }
 
 /**
@@ -192,8 +192,8 @@ protected[controller] class RestAPIVersion_v1()(
     private val rules = new RulesApi(apipath, apiversion)
     private val activations = new ActivationsApi(apipath, apiversion)
     private val packages = new PackagesApi(apipath, apiversion)
-    private val webexp = new MetasApi(Seq("experimental", "web"), WebApiDirectives.exp)
-    private val web = new MetasApi(Seq("web"), WebApiDirectives.web)
+    private val webexp = new WebActionsApi(Seq("experimental", "web"), WebApiDirectives.exp)
+    private val web = new WebActionsApi(Seq("web"), WebApiDirectives.web)
 
     class NamespacesApi(
         val apipath: String,

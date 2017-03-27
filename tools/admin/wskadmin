@@ -66,15 +66,15 @@ def main():
         try:
             args = parseArgs()
             if (args.verbose):
-                print deferredInfo
+                print(deferredInfo)
             exitCode = {
               'user' : userCmd,
               'db'   : dbCmd,
               'syslog' : syslogCmd
             }[args.cmd](args, props)
         except Exception as e:
-            print 'Exception: ', e
-            print 'Informative: ', deferredInfo
+            print('Exception: ', e)
+            print('Informative: ', deferredInfo)
             traceback.print_exc()
             exitCode = 1
     sys.exit(exitCode)
@@ -140,38 +140,31 @@ def userCmd(args, props):
     elif args.subcmd == 'list':
         return listUserCmd(args, props)
     else:
-        print 'unknown command'
+        print('unknown command')
         return 2
 
 def dbCmd(args, props):
     if args.subcmd == 'get':
         return getDbCmd(args, props)
     else:
-        print 'unknown command'
+        print('unknown command')
         return 2
 
 def syslogCmd(args, props):
     if args.subcmd == 'get':
         return getLogsCmd(args, props)
     else:
-        print 'unknown command'
+        print('unknown command')
         return 2
-  
-def createUserCmd(args, props):
-    protocol = props[DB_PROTOCOL]
-    host     = props[DB_HOST]
-    port     = props[DB_PORT]
-    username = props[DB_USERNAME]
-    password = props[DB_PASSWORD]
-    database = props[DB_WHISK_AUTHS]
 
+def createUserCmd(args, props):
     subject = args.subject.strip()
     if len(subject) < 5:
-        print 'Subject name must be at least 5 characters'
+        print('Subject name must be at least 5 characters')
         return 2
 
     if args.namespace and args.namespace.strip() == '':
-        print 'Namespace must not be empty'
+        print('Namespace must not be empty')
         return 2
     else:
         desiredNamespace = subject if not args.namespace else args.namespace.strip()
@@ -182,15 +175,15 @@ def createUserCmd(args, props):
             try:
                 uid = str(uuid.UUID(parts[0], version = 4))
             except ValueError:
-                print 'authorization id is not a valid UUID'
+                print('authorization id is not a valid UUID')
                 return 2
 
             key = parts[1]
             if len(key) < 64:
-                print 'authorization key must be at least 64 characters long'
+                print('authorization key must be at least 64 characters long')
                 return 2
         except Exception as e:
-            print 'failed to determine authorization id and key: %s' % e
+            print('failed to determine authorization id and key: %s' % e)
             return 2
     else:
         uid = str(uuid.uuid4())
@@ -218,14 +211,14 @@ def createUserCmd(args, props):
                 'key': key
             })
         else:
-            print 'Namespace already exists'
+            print('Namespace already exists')
             return 1
 
     res = insertIntoDatabase(props, doc, args.verbose)
     if res.status in [201, 202]:
-        print '%s:%s' % (uid, key)
+        print('%s:%s' % (uid, key))
     else:
-        print 'Failed to create subject (%s)' % res.read().strip()
+        print('Failed to create subject (%s)' % res.read().strip())
         return 1
 
 def getUserCmd(args, props):
@@ -237,32 +230,32 @@ def getUserCmd(args, props):
         namespaces = filter(lambda ns: ns['name'] == namespaceName, doc['namespaces'])
         if len(namespaces) == 1:
             ns = namespaces[0]
-            print '%s:%s' % (ns['uuid'], ns['key'])
+            print('%s:%s' % (ns['uuid'], ns['key']))
             return 0
         else:
-            print 'namespace "%s" not found for "%s"' % (namespaceName, args.subject)
+            print('namespace "%s" not found for "%s"' % (namespaceName, args.subject))
             return 1
     else:
-        print 'Failed to get subject (%s)' % res.read().strip()
+        print('Failed to get subject (%s)' % res.read().strip())
         return 1
 
 def listUserCmd(args, props):
     (nslist, res) = getIdentitiesFromNamespace(args, props)
 
     if args.pick < 1:
-        print 'pick at least 1 identity to show'
+        print('pick at least 1 identity to show')
         return 2
 
     if nslist is not None:
         nslist = nslist[:args.pick]
         if len(nslist) > 0:
             for p in nslist:
-                print '%s:%s%s' % (p['uuid'], p['key'], "\t%s" % p['subject'] if not args.key else "")
+                print('%s:%s%s' % (p['uuid'], p['key'], "\t%s" % p['subject'] if not args.key else ""))
             return 0
         else:
-            print 'no identities found for namespace "%s"' % args.namespace
+            print('no identities found for namespace "%s"' % args.namespace)
     else:
-        print 'Failed to get namespace key (%s)' % res.read().strip()
+        print('Failed to get namespace key (%s)' % res.read().strip())
         return 1
 
 def getSubjectFromDb(args, props):
@@ -333,16 +326,16 @@ def deleteUserCmd(args, props):
     database = props[DB_WHISK_AUTHS]
 
     if args.subject.strip() == '':
-        print 'Subject must not be empty'
+        print('Subject must not be empty')
         return 2
 
     if args.namespace and args.namespace.strip() == '':
-        print 'Namespace must not be empty'
+        print('Namespace must not be empty')
         return 2
 
     (prev, res) = getSubjectFromDb(args, props)
     if prev is None:
-        print 'Failed to delete subject (%s)' % res.read().strip()
+        print('Failed to delete subject (%s)' % res.read().strip())
         return 1
 
     if not args.namespace:
@@ -361,23 +354,23 @@ def deleteUserCmd(args, props):
 
         res = request('DELETE', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
         if res.status in [200, 202]:
-            print 'Subject deleted'
+            print('Subject deleted')
         else:
-            print 'Failed to delete subject (%s)' % res.read().strip()
+            print('Failed to delete subject (%s)' % res.read().strip())
             return 1
     else:
         namespaceToDelete = args.namespace.strip()
         namespaces = filter(lambda ns: ns['name'] != namespaceToDelete, prev['namespaces'])
         if len(prev['namespaces']) == len(namespaces):
-            print 'Namespace "%s" does not exist for "%s"' % (namespaceToDelete, prev['_id'])
+            print('Namespace "%s" does not exist for "%s"' % (namespaceToDelete, prev['_id']))
             return 1
         else:
             prev['namespaces'] = namespaces
             res = insertIntoDatabase(props, prev, args.verbose)
             if res.status in [201, 202]:
-                print 'Namespace deleted'
+                print('Namespace deleted')
             else:
-                print 'Failed to remove namespace (%s)' % res.read().strip()
+                print('Failed to remove namespace (%s)' % res.read().strip())
                 return 1
 
 def whoisUserCmd(args, props):
@@ -412,12 +405,12 @@ def whoisUserCmd(args, props):
         if 'rows' in doc and len(doc['rows']) > 0:
             for row in doc['rows']:
                 if 'id' in row:
-                    print 'subject: %s' % row['id']
-                    print 'namespace: %s' % row['value']['namespace']
+                    print('subject: %s' % row['id'])
+                    print('namespace: %s' % row['value']['namespace'])
         else:
-            print 'Subject id is not recognized'
+            print('Subject id is not recognized')
         return 0
-    print 'Failed to get subject (%s)' % res.read().strip()
+    print('Failed to get subject (%s)' % res.read().strip())
     return 1
 
 def getDbCmd(args, props):
@@ -440,7 +433,7 @@ def getDbCmd(args, props):
             designdoc = parts[0]
             viewname  = parts[1]
         except:
-            print 'view name "%s" is not formatted correctly, should be design/view' % args.view
+            print('view name "%s" is not formatted correctly, should be design/view' % args.view)
             return 2
 
     url = '%(protocol)s://%(host)s:%(port)s/%(database)s%(design)s/%(index)s?include_docs=%(docs)s' % {
@@ -450,20 +443,20 @@ def getDbCmd(args, props):
         'database': database,
         'design'  : '/_design/' + designdoc +'/_view' if args.view else '',
         'index'   : viewname if args.view else '_all_docs',
-        'docs'    : 'true' if args.docs else 'false' 
+        'docs'    : 'true' if args.docs else 'false'
     }
 
     headers = {
         'Content-Type': 'application/json',
     }
 
-    print 'getting contents for %s (%s)' % (database, args.view if args.view else 'primary index')
+    print('getting contents for %s (%s)' % (database, args.view if args.view else 'primary index'))
     res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
     if res.status == 200:
         table = json.loads(res.read())
-        print json.dumps(table, sort_keys=True, indent=4, separators=(',', ': '))
+        print(json.dumps(table, sort_keys=True, indent=4, separators=(',', ': ')))
         return 0
-    print 'Failed to get database (%s)' % res.read().strip()
+    print('Failed to get database (%s)' % res.read().strip())
     return 1
 
 def insertIntoDatabase(props, doc, verbose = False):
@@ -503,9 +496,7 @@ def getLogsCmd(args, props):
             return output
         if error:
             sys.stderr.write(error)
-            return ''
-        else:
-            return ''
+        return ''
 
     logs = map(getComponentLogs, args.components)
     joined = ''.join(logs)
@@ -523,7 +514,7 @@ def getLogsCmd(args, props):
 
 def shell(cmd, data=None, verbose=False):
     if verbose:
-        print cmd
+        print(cmd)
     if input:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE)
         out, err = p.communicate(input=data)
