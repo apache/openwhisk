@@ -22,7 +22,10 @@ $ wsk package create demo
 $ wsk action create /guest/demo/hello hello.js --web true
 ```
 
-The `--web` flag with a value of `true` or `yes` allows the action to be accessible as a web action via a new REST interface. The URL that is structured as follows: `https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three parts: the namespace, the package name, and the action name.
+Using the `--web` flag with a value of `true` or `yes` allows an action to be accessible via REST interface without the
+need for credentials. A web action can be invoked using a URL that is structured as follows:
+`https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three
+parts: the namespace, the package name, and the action name.
 
 *The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.*
 
@@ -250,7 +253,7 @@ The result of these changes is that the `name` is bound to `Jane` and may not be
 
 ## Disabling web actions
 
-To disable a web action from being invoked via the new API (`https://APIHOST/api/v1/web/`), update the action using the CLI, setting the `--web` flag to a value of `false` or `no`.
+To disable a web action from being invoked via web API (`https://APIHOST/api/v1/web/`), pass a value of `false` or `no` to the `--web` flag while updating an action with the CLI.
 
 ```bash
 $ wsk action update /guest/demo/hello hello.js --web false
@@ -292,7 +295,7 @@ $ wsk action create /guest/demo/hello hello.js --web raw
 
 ### Disabling raw HTTP handling
 
-Disabling raw HTTP can be accomplished by passing a value of `false` or `no` to the `--web`.
+Disabling raw HTTP can be accomplished by passing a value of `false` or `no` to the `--web` flag.
 
 ```bash
 $ wsk update create /guest/demo/hello hello.js --web false
@@ -301,53 +304,32 @@ $ wsk update create /guest/demo/hello hello.js --web false
 ### Decoding binary body content from Base64
 
 When using raw HTTP handling, the `__ow_body` content will be encoded in Base64 when the request content-type is binary.
-Below are examples demonstrating how to decode the body content in Node, Python, and Swift.
+Below are functions demonstrating how to decode the body content in Node, Python, and Swift. Simply save a method shown
+below to file, create a raw HTTP web action utilizing the saved artifact, and invoke the web action.
 
 #### Node
 
 ```javascript
-$ cat decode.js
 function main(args) {
     decoded = new Buffer(args.__ow_body, 'base64').toString('utf-8')
     return {body: decoded}
 }
 ```
 
-```bash
-$ wsk action create nodeDecode decode.js --web raw
-ok: created action nodeDecode
-$ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${APIHOST}/api/v1/web/guest/default/nodeDecode.json
-{
-  "body": "Decided body"
-}
-```
-
-
 #### Python
 
 ```python
-$ cat decode.py
-def main(dict):
+def main(args):
     try:
-        decoded = dict['__ow_body'].decode('base64').strip()
+        decoded = args['__ow_body'].decode('base64').strip()
         return {"body": decoded}
     except:
         return {"body": "Could not decode body from Base64."}
 ```
 
-```bash
-$ wsk action create pythonDecode decode.py --web raw
-ok: created action pythonDecode
-$ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${APIHOST}/api/v1/web/guest/default/pythonDecode.json
-{
-  "body": "Decoded body"
-}
-```
-
 #### Swift
 
 ```swift
-$ cat decode.swift
 extension String {
     func base64Decode() -> String? {
         guard let data = Data(base64Encoded: self) else {
@@ -369,10 +351,11 @@ func main(args: [String:Any]) -> [String:Any] {
 }
 ```
 
+As an example, save the NodeJS function as `decode.js` and execute the following commands:
 ```bash
-$ wsk action create decodeSwift decode.swift --web raw
-ok: created action decodeSwift
-$ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${APIHOST}/api/v1/web/guest/default/decodeSwift.json
+$ wsk action create decode decode.js --web raw
+ok: created action decode
+$ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${APIHOST}/api/v1/web/guest/default/decodeNode.json
 {
   "body": "Decoded body"
 }
