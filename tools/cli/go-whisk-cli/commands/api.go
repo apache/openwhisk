@@ -606,19 +606,13 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     }
 
     // Is the specified action name valid?
-    var qName QualifiedName
+    var qualifiedName QualifiedName
     if (len(args) == 3) {
-        qName = QualifiedName{}
-        qName, err = parseQualifiedName(args[2])
-        if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[2], err)
-            errMsg := wski18n.T("'{{.name}}' is not a valid action name: {{.err}}",
-                map[string]interface{}{"name": args[2], "err": err})
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return nil, whiskErr
+        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
+            return nil, parseQualifiedNameError(args[0], err)
         }
-        if (qName.entityName == "") {
+
+        if (qualifiedName.entityName == "") {
             whisk.Debug(whisk.DbgError, "Action name '%s' is invalid\n", args[2])
             errMsg := wski18n.T("'{{.name}}' is not a valid action name.", map[string]interface{}{"name": args[2]})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
@@ -641,10 +635,10 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
 
     api.Namespace = client.Config.Namespace
     api.Action = new(whisk.ApiAction)
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qName.namespace + "/actions/" + qName.entityName
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/namespaces/" + qualifiedName.namespace + "/actions/" + qualifiedName.entityName
     api.Action.BackendMethod = "POST"
-    api.Action.Name = qName.entityName
-    api.Action.Namespace = qName.namespace
+    api.Action.Name = qualifiedName.entityName
+    api.Action.Namespace = qualifiedName.namespace
     api.Action.Auth = client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath

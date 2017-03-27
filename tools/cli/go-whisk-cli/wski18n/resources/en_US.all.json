@@ -1380,6 +1380,7 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
+<<<<<<< HEAD
     "id": "API action '{{.name}}' does not exist",
     "translation": "API action '{{.name}}' does not exist"
   },
@@ -1462,5 +1463,9 @@
   {
     "id": "Invalid format type: {{.type}}",
     "translation": "Invalid format type: {{.type}}"
+  },
+  {
+    "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
+    "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
   }
 ]
