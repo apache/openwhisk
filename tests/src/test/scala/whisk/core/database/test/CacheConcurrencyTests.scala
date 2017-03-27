@@ -37,15 +37,16 @@ class CacheConcurrencyTests extends FlatSpec
     with WskTestHelpers
     with BeforeAndAfter {
 
-    println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
-
     implicit private val transId = TransactionId.testing
     implicit private val wp = WskProps()
     private val wsk = new Wsk
 
+    val nCPU = Runtime.getRuntime.availableProcessors()
     val nExternalIters = 1
     val nInternalIters = 5
-    val nThreads = nInternalIters * 30
+    val nThreads = nInternalIters * 8 * nCPU
+
+    println(s"Running tests on ${nCPU} CPUs with a total of ${nThreads} threads.")
 
     val parallel = (1 to nInternalIters).par
     parallel.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
