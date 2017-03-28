@@ -71,7 +71,7 @@ class ContainerPool(
 
     // Eventually, we will have a more sophisticated warmup strategy that does multiple sizes
     private val defaultMemoryLimit = MemoryLimit(MemoryLimit.STD_MEMORY)
-    private val NODEJS6_IMAGE = Exec.imagename("nodejs:6")
+    private val NODEJS6_IMAGE = ExecManifest.runtimesManifest.manifests("nodejs:6").image
 
     /**
      *  Check whether we should use runc.  To do so,
@@ -535,7 +535,7 @@ class ContainerPool(
      * If container creation fails, the container will not be entered into the pool.
      */
     private def addStemCellNodejsContainer()(implicit transid: TransactionId) = Future {
-        val imageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, NODEJS6_IMAGE, config.dockerImageTag)
+        val imageName = NODEJS6_IMAGE.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
         val limits = ActionLimits(TimeLimit(), defaultMemoryLimit, LogLimit())
         val containerName = makeContainerName("warmJsContainer")
         logging.info(this, "Starting warm nodejs container")
@@ -563,7 +563,7 @@ class ContainerPool(
     private def makeWhiskContainer(action: WhiskAction, auth: AuthKey)(implicit transid: TransactionId): WhiskContainer = {
         val imageName = getDockerImageName(action)
         val limits = action.limits
-        val nodeImageName = ExecImageName.localImageName(config.dockerRegistry, config.dockerImagePrefix, NODEJS6_IMAGE, config.dockerImageTag)
+        val nodeImageName = NODEJS6_IMAGE.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
         val key = ActionContainerId(auth.uuid, action.fullyQualifiedName(true).toString, action.rev)
         val warmedContainer = if (limits.memory == defaultMemoryLimit && imageName == nodeImageName) getStemCellNodejsContainer(key) else None
         val containerName = makeContainerName(action)
@@ -659,7 +659,10 @@ class ContainerPool(
 
     private def getDockerImageName(action: WhiskAction)(implicit transid: TransactionId): String = {
         // only Exec instances that are subtypes of CodeExec reach the invoker
-        val imageName = ExecImageName.containerImageName(config.dockerRegistry, config.dockerImagePrefix, action.exec.asInstanceOf[CodeExec[_]], config.dockerImageTag)
+        val exec = action.exec.asInstanceOf[CodeExec[_]]
+        val imageName = if (!exec.pull) {
+            exec.image.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+        } else exec.image.publicImageName
         logging.debug(this, s"Using image ${imageName}")
         imageName
     }

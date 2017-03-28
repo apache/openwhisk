@@ -333,8 +333,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "put should accept blackbox exec with empty code property" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, bb("??"))
-        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "??")).toJson.asJsObject
+        val action = WhiskAction(namespace, aname, bb("bb"))
+        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "bb")).toJson.asJsObject
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
@@ -349,8 +349,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "put should accept blackbox exec with non-empty code property" in {
         implicit val tid = transid()
-        val action = WhiskAction(namespace, aname, bb("??", "cc"))
-        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "cc", "image" -> "??")).toJson.asJsObject
+        val action = WhiskAction(namespace, aname, bb("bb", "cc"))
+        val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "cc", "image" -> "bb")).toJson.asJsObject
         Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
