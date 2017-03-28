@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eux
 
 # Build script for Travis-CI.
 
@@ -7,7 +7,7 @@ SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
-tools/build/scanCode.py .
+time tools/build/scanCode.py .
 
 cd $ROOTDIR/ansible
 
@@ -21,19 +21,20 @@ $ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker -x :core:swift3Action:distDocker -x :core:pythonAction:distDocker -PdockerImagePrefix=testing
+time ./gradlew distDocker -PdockerImagePrefix=testing
 
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD wipe.yml
+time docker commit couchdb "openwhisk/couchdb"
 $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-./gradlew :tests:testLean
+time ./gradlew :tests:testLean
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
 
 cd $ROOTDIR
-tools/build/checkLogs.py logs
+time tools/build/checkLogs.py logs

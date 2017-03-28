@@ -16,6 +16,8 @@ tasks.withType(Test) {
 }
 
 task testLean(type: Test) {
+    exclude '**/*DockerExampleContainer*'
+    exclude '**/*Java*'
     exclude '**/*Swift*'
     exclude '**/*Python*'
     exclude '**/*ThrottleTests*'
