@@ -1,0 +1,21 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.eclipse.wst.jsdt.core.jsNature'
+        buildCommand 'org.eclipse.wst.jsdt.core.javascriptValidator'
+    }
+}
+
+ext.dockerImageName = 'nodejs8action'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'copyProxy'
+distDocker.finalizedBy('rmProxy')
+
+task copyProxy(type: Copy) {
+    from '../nodejsActionBase'
+    into 'nodejsAction'
+}
+
+task rmProxy(type: Delete) {
+    delete 'nodejsAction'
+}

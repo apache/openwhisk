@@ -29,6 +29,8 @@ runtimesManifest:
   - kind: "nodejs:6"
     image: "nodejs6action"
     default: true
+  - kind: "nodejs:8"
+    image: "nodejs8action"
   python:
   - kind: "python"
     image: "python2action"
