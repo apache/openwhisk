@@ -219,9 +219,9 @@ def init():
 
 @proxy.route('/run', methods=['POST'])
 def run():
-    def error():
+    def error(msg=''):
         response = flask.jsonify({'error': 'The action did not receive '
-                                  'a dictionary as an argument.'})
+                                  'a dictionary as an argument. ' + str(msg)})
         response.status_code = 404
         return complete(response)
 
@@ -235,12 +235,11 @@ def run():
 
     if runner.verify():
         try:
-            (code, result) = runner.run(args,
-                                        runner.env(message if message else {}))
+            code, result = runner.run(args, runner.env(message or {}))
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
-            response = flask.jsonify({'error': 'Internal error.'})
+            response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
             response.status_code = 500
     else:
         response = flask.jsonify({'error': 'The action failed to locate '
