@@ -412,6 +412,11 @@ func getExec(artifact string, kind string, isDocker bool, mainEntry string) (*wh
         code, err = readFile(artifact)
         exec.Code = &code
 
+        if (ext == ".jar") {
+            exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
+            exec.Code = nil
+        }
+
         if err != nil {
             whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
             return nil, err
@@ -435,8 +440,6 @@ func getExec(artifact string, kind string, isDocker bool, mainEntry string) (*wh
         exec.Kind = "python:default"
     } else if ext == ".jar" {
         exec.Kind = "java:default"
-        exec.Jar = base64.StdEncoding.EncodeToString([]byte(code))
-        exec.Code = nil
     } else {
         if ext == ".zip" {
             return nil, zipKindError()
