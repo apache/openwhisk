@@ -129,8 +129,8 @@ var triggerCreateCmd = &cobra.Command{
         if feedArgPassed {
             whisk.Debug(whisk.DbgInfo, "Trigger has a feed\n")
 
-            if feedQualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if feedQualifiedName, err = parseQualifiedName(flags.common.feed); err != nil {
+                return parseQualifiedNameError(flags.common.feed, err)
             }
 
             fullFeedName = fmt.Sprintf("/%s/%s", feedQualifiedName.namespace, feedQualifiedName.entityName)
@@ -394,16 +394,16 @@ var triggerDeleteCmd = &cobra.Command{
                 }
 
                 flags.common.param = origParams
-                client.Namespace = qName.namespace
+                client.Namespace = qualifiedName.namespace
             }
 
         }
 
-        retTrigger, _, err = client.Triggers.Delete(qName.entityName)
+        retTrigger, _, err = client.Triggers.Delete(qualifiedName.entityName)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qName.entityName, err)
+            whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qualifiedName.entityName, err)
             errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
-                map[string]interface{}{"name": qName.entityName, "err": err})
+                map[string]interface{}{"name": qualifiedName.entityName, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

@@ -277,8 +277,8 @@ var actionDeleteCmd = &cobra.Command{
 }
 
 var actionListCmd = &cobra.Command{
-    Use:           "list [NAMESPACE]",
-    Short:         wski18n.T("list all actions"),
+    Use:           "list [ NAMESPACE | PACKAGE_NAME ]",
+    Short:         wski18n.T("list all actions in a namespace or actions contained in a package"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
@@ -299,10 +299,6 @@ var actionListCmd = &cobra.Command{
         if len(args) == 1 {
             if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
                 return parseQualifiedNameError(args[0], err)
-            }
-
-            if len(qualifiedName.entityName) > 0 {
-                return entityNameError(qualifiedName.entityName)
             }
 
             client.Namespace = qualifiedName.namespace

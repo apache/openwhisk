@@ -245,7 +245,7 @@ class WskBasicUsageTests
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
-                ("", NOT_ALLOWED),
+                ("", ERROR_EXIT),
                 (" ", BAD_REQUEST),
                 ("hi+there", BAD_REQUEST),
                 ("$hola", BAD_REQUEST),
@@ -1214,7 +1214,6 @@ class WskBasicUsageTests
             (Seq("action", "get"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "get", "actionName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("action", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
-            (Seq("action", "list", invalidArg), entityNameMsg),
             (Seq("action", "invoke"), s"${tooFewArgsMsg} ${actionNameReqMsg}"),
             (Seq("action", "invoke", "actionName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("activation", "list", "namespace", invalidArg),

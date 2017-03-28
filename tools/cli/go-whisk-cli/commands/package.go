@@ -124,17 +124,17 @@ var packageCreateCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var shared, sharedSet bool
-    var qulaifiedName QualifiedName
+    var qualifiedName QualifiedName
 
     if whiskErr := checkArgs(args, 1, 1, "Package create", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
-    if qulaifiedName, err = parseQualifiedName(args[0]); err != nil {
+    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
       return parseQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qulaifiedName.namespace
+    client.Namespace = qualifiedName.namespace
 
     if shared, sharedSet, err = parseShared(flags.common.shared); err != nil {
       whisk.Debug(whisk.DbgError, "parseShared(%s) failed: %s\n", flags.common.shared, err)
@@ -164,8 +164,8 @@ var packageCreateCmd = &cobra.Command{
     }
 
     p := &whisk.Package{
-      Name:        qulaifiedName.entityName,
-      Namespace:   qulaifiedName.namespace,
+      Name:        qualifiedName.entityName,
+      Namespace:   qualifiedName.namespace,
       Annotations: annotations.(whisk.KeyValueArr),
       Parameters:  parameters.(whisk.KeyValueArr),
     }
@@ -180,7 +180,7 @@ var packageCreateCmd = &cobra.Command{
       errStr := wski18n.T(
         "Unable to create package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qName.entityName,
+          "name": qualifiedName.entityName,
           "err": err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -188,7 +188,7 @@ var packageCreateCmd = &cobra.Command{
     }
 
     fmt.Fprintf(color.Output, wski18n.T("{{.ok}} created package {{.name}}\n",
-      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qulaifiedName.entityName)}))
+      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qualifiedName.entityName)}))
     return nil
   },
 }
@@ -302,7 +302,7 @@ var packageGetCmd = &cobra.Command{
       errStr := wski18n.T(
         "Unable to get package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qName.entityName,
+          "name": qualifiedName.entityName,
           "err":err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -355,7 +355,7 @@ var packageDeleteCmd = &cobra.Command{
       errStr := wski18n.T(
         "Unable to delete package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qName.entityName,
+          "name": qualifiedName.entityName,
           "err": err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)

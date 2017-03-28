@@ -608,8 +608,8 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, error) {
     // Is the specified action name valid?
     var qualifiedName QualifiedName
     if (len(args) == 3) {
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return nil, parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = parseQualifiedName(args[2]); err != nil {
+            return nil, parseQualifiedNameError(args[2], err)
         }
 
         if (qualifiedName.entityName == "") {
