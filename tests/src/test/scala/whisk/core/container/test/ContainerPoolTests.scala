@@ -44,6 +44,7 @@ import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.test.ExecHelpers
+import whisk.utils.retry
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
@@ -89,8 +90,8 @@ class ContainerPoolTests extends FlatSpec
         val conOpt = pool.getByImageName("ubuntu", Array("/bin/echo", word))
         assert(conOpt isDefined) // we must be able to start the container
         val con = conOpt.getOrElse(null)
-        Thread.sleep(1000) // docker run has no guarantee how far along the process is
-        assert(con.getLogs().contains(word)) // the word must be in the docker logs
+        // the word must be in the docker logs
+        retry(con.getLogs() should include(word), 5, Some(500.milliseconds)) // docker run has no guarantee how far along the process is
         con
     }
 
@@ -209,8 +210,7 @@ class ContainerPoolTests extends FlatSpec
                     val str = "QWERTY" + i.toString()
                     con.run(str, (20000 + i).toString()) // payload + activationId
                     if (i == max - 1) {
-                        Thread.sleep(1000)
-                        assert(con.getLogs().contains(str))
+                        retry(con.getLogs() should include(str), 5, Some(500.milliseconds))
                     }
                     pool.putBack(con)
                 }
@@ -235,18 +235,15 @@ class ContainerPoolTests extends FlatSpec
         val action = makeHelloAction("foobar", 0)
         // Make a whisk container and test init and a push
         val (con, initRes) = pool.getAction(action, defaultAuth)
-        Thread.sleep(1000)
-        assert(con.getLogs().contains("ABCXYZ"))
+        retry(con.getLogs() should include("ABCXYZ"), 5, Some(500.milliseconds))
         con.run("QWERTY", "55555") // payload + activationId
-        Thread.sleep(1000)
-        assert(con.getLogs().contains("QWERTY"))
+        retry(con.getLogs() should include("QWERTY"), 5, Some(500.milliseconds))
         pool.putBack(con)
         // Test container reuse
         val (con2, _) = pool.getAction(action, defaultAuth)
         assert(con == con2) // check re-use
         con.run("ASDFGH", "4444") // payload + activationId
-        Thread.sleep(1000)
-        assert(con.getLogs().contains("ASDFGH"))
+        retry(con.getLogs() should include("ASDFGH"), 5, Some(500.milliseconds))
         pool.putBack(con)
     }
 
@@ -266,8 +263,7 @@ class ContainerPoolTests extends FlatSpec
         Thread.sleep(1000)
 
         con.run("NoMrBond", "1007")
-        Thread.sleep(1000)
-        assert(con.getLogs().contains("I expect you to die"))
+        retry(con.getLogs() should include("I expect you to die"), 5, Some(500.milliseconds))
         pool.putBack(con)
 
         // create a new container for this action. However, since the previous
