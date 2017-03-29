@@ -42,9 +42,9 @@ class CacheConcurrencyTests extends FlatSpec
     private val wsk = new Wsk
 
     val nCPU = Runtime.getRuntime.availableProcessors()
-    val nExternalIters = 1
+    val nExternalIters = 50
     val nInternalIters = 5
-    val nThreads = nInternalIters * 8 * nCPU
+    val nThreads = nInternalIters * 4 * nCPU
 
     println(s"Running tests on ${nCPU} CPUs with a total of ${nThreads} threads.")
 
