@@ -1,0 +1,39 @@
+---
+# Recreates the filters in actionsDB.
+
+- name: get rev of existing filter design document in {{ dbName }} with {{ db_provider }}, if it exists
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}/_design/snapshotFilters"
+    method: HEAD
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  register: filterResponse
+
+- set_fact:
+    create: False
+
+- set_fact:
+    filterUrl: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}/_design/snapshotFilters?rev={{ filterResponse.etag | replace('\"', '') }}"
+    create: True
+  when: "filterResponse.status == 200 and {{ recreate }} == True"
+
+- set_fact:
+    filterUrl: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}/_design/snapshotFilters"
+    create: True
+  when: filterResponse.status != 200
+
+- name: create filter design document in {{ dbName }} with {{ db_provider }}
+  vars:
+    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/filter_design_document.json') }}"
+  uri:
+    url: "{{ filterUrl }}"
+    method: PUT
+    status_code: 200,201
+    body_format: json
+    body: "{{ auth_index }}"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: create == True
