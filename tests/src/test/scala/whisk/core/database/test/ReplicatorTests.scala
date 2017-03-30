@@ -40,6 +40,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig._
 import whisk.core.WhiskConfig
 import whisk.utils.retry
+import scala.io.Source
 
 @RunWith(classOf[JUnitRunner])
 class ReplicatorTests extends FlatSpec
@@ -65,12 +66,13 @@ class ReplicatorTests extends FlatSpec
 
     val python = WhiskProperties.python
     val replicator = WhiskProperties.getFileRelativeToWhiskHome("tools/db/replicateDbs.py").getAbsolutePath
+    val designDocPath = WhiskProperties.getFileRelativeToWhiskHome("ansible/files/filter_design_document.json").getAbsolutePath
 
     implicit def toDuration(dur: FiniteDuration) = java.time.Duration.ofMillis(dur.toMillis)
     def toEpochSeconds(i: Instant) = i.toEpochMilli / 1000
 
     /** Creates a new database with the given name */
-    def createDatabase(name: String) = {
+    def createDatabase(name: String, withFilter: Boolean = true) = {
         // Implicitly remove database for sanitization purposes
         removeDatabase(name, true)
 
@@ -82,6 +84,11 @@ class ReplicatorTests extends FlatSpec
             val list = db.dbs().futureValue.right.get
             list should contain(name)
         }, N = 10, waitBeforeRetry = Some(500.milliseconds))
+
+        if (withFilter) {
+            val designDoc = Source.fromFile(designDocPath).mkString.parseJson.asJsObject
+            db.putDoc("_design/snapshotFilters", designDoc).futureValue
+        }
 
         db
     }
@@ -158,20 +165,30 @@ class ReplicatorTests extends FlatSpec
     def waitForDocument(client: ExtendedCouchDbRestClient, id: String) = waitfor(() => client.getDoc(id).futureValue.isRight)
 
     /** Compares to databases to full equality */
-    def compareDatabases(dbNames: Seq[String]) = {
-        val dbDocuments = dbNames.map { dbName =>
-            val client = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, dbName)
-            val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
-            documents shouldBe 'right
-            documents.right.get
-        }
+    def compareDatabases(sourceDb: String, targetDb: String, filterUsed: Boolean) = {
+        val originalDocs = getAllDocs(sourceDb)
+        val replicatedDocs = getAllDocs(targetDb)
 
-        all(dbDocuments.tail) shouldBe dbDocuments.head
+        if (!filterUsed) {
+            replicatedDocs shouldBe originalDocs
+        } else {
+            val filteredReplicatedDocs = replicatedDocs.fields("rows").convertTo[List[JsObject]]
+            val filteredOriginalDocs = originalDocs.fields("rows").convertTo[List[JsObject]].filterNot(_.fields("id").convertTo[String].startsWith("_design/"))
+
+            filteredReplicatedDocs shouldBe filteredOriginalDocs
+        }
+    }
+
+    private def getAllDocs(dbName: String) = {
+        val client = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, dbName)
+        val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
+        documents shouldBe 'right
+        documents.right.get
     }
 
     behavior of "Database replication script"
 
-    it should "replicate a database" in {
+    it should "replicate a database (snapshot)" in {
         // Create a database to backup
         val dbName = testDbPrefix + "database_for_single_replication"
         val client = createDatabase(dbName)
@@ -190,7 +207,93 @@ class ReplicatorTests extends FlatSpec
         waitForReplication(backupDbName)
 
         // Verify the replicated database is equal to the original database
-        compareDatabases(Seq(backupDbName, dbName))
+        compareDatabases(dbName, backupDbName, true)
+
+        // Remove all created databases
+        createdBackupDbs.foreach(removeDatabase(_))
+        removeDatabase(dbName)
+    }
+
+    it should "replicate a database (snapshot) even if the filter is not available" in {
+        // Create a db to backup
+        val dbName = testDbPrefix + "database_for_snapshout_without_filter"
+        val client = createDatabase(dbName, false)
+
+        println("Creating testdocuments")
+        val testDocuments = Seq(
+            JsObject(
+                "testKey" -> "testValue".toJson,
+                "_id" -> "doc1".toJson),
+            JsObject("testKey" -> "testValue".toJson,
+                "_id" -> "_design/doc1".toJson))
+        val documents = testDocuments.map { doc =>
+            val res = client.putDoc(doc.fields("_id").convertTo[String], doc).futureValue
+            res shouldBe 'right
+            res.right.get
+        }
+
+        // Trigger replication and verify the created databases have the correct format
+        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
+        createdBackupDbs should have size 1
+        val backupDbName = createdBackupDbs.head
+        backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
+
+        // Wait for the replication to finish
+        waitForReplication(backupDbName)
+
+        // Verify the replicated database is equal to the original database
+        compareDatabases(dbName, backupDbName, false)
+
+        // Remove all created databases
+        createdBackupDbs.foreach(removeDatabase(_))
+        removeDatabase(dbName)
+    }
+
+    it should "replicate a database (snapshot) and deleted documents and design documents should not be in the snapshot" in {
+        // Create a database to backup
+        val dbName = testDbPrefix + "database_for_single_replication_design_and_deleted_docs"
+        val client = createDatabase(dbName)
+
+        println(s"Creating testdocument")
+        val testDocuments = Seq(
+            JsObject(
+                "testKey" -> "testValue".toJson,
+                "_id" -> "doc1".toJson),
+            JsObject("testKey" -> "testValue".toJson,
+                "_id" -> "doc2".toJson),
+            JsObject("testKey" -> "testValue".toJson,
+                "_id" -> "_design/doc1".toJson))
+        val documents = testDocuments.map { doc =>
+            val res = client.putDoc(doc.fields("_id").convertTo[String], doc).futureValue
+            res shouldBe 'right
+            res.right.get
+        }
+
+        // Delete second document again
+        val indexOfDocumentToDelete = 1
+        val idOfDeletedDocument = documents(indexOfDocumentToDelete).fields("id").convertTo[String]
+        client.deleteDoc(idOfDeletedDocument, documents(indexOfDocumentToDelete).fields("rev").convertTo[String])
+
+        // Trigger replication and verify the created databases have the correct format
+        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
+        createdBackupDbs should have size 1
+        val backupDbName = createdBackupDbs.head
+        backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
+
+        // Wait for the replication to finish
+        waitForReplication(backupDbName)
+
+        // Verify the replicated database is equal to the original database
+        compareDatabases(dbName, backupDbName, true)
+
+        // Check that deleted doc has not been copied to snapshot
+        val snapshotClient = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, backupDbName)
+        val snapshotResponse = snapshotClient.getAllDocs(keys = Some(List(idOfDeletedDocument))).futureValue
+        snapshotResponse shouldBe 'right
+        val results = snapshotResponse.right.get.fields("rows").convertTo[List[JsObject]]
+        results should have size 1
+        // If deleted doc would be in db, the document id and rev would have been returned
+        results(0) shouldBe JsObject("key" -> idOfDeletedDocument.toJson, "error" -> "not_found".toJson)
 
         // Remove all created databases
         createdBackupDbs.foreach(removeDatabase(_))
@@ -221,7 +324,7 @@ class ReplicatorTests extends FlatSpec
         waitForDocument(backupClient, docId)
 
         // Verify the replicated database is equal to the original database
-        compareDatabases(Seq(backupDbName, dbName))
+        compareDatabases(backupDbName, dbName, false)
 
         // Stop the replication
         val replication = replicatorClient.getDoc(backupDbName).futureValue
@@ -309,7 +412,7 @@ class ReplicatorTests extends FlatSpec
         waitForReplication(replicationId)
 
         // Verify the replicated database is equal to the original database
-        compareDatabases(Seq(backupDbName, dbName))
+        compareDatabases(backupDbName, dbName, false)
 
         // Cleanup databases
         removeDatabase(backupDbName)
