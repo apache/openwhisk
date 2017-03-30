@@ -609,6 +609,26 @@ class WskBasicUsageTests
             wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
     }
 
+    it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "nonescape"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            val nonescape = "&<>"
+            val input = Map("payload" -> nonescape.toJson)
+            val output = JsObject("payload" -> JsString(s"hello, $nonescape!"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, parameters = input)) {
+                activation =>
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(output)
+                    activation.logs.toList.flatten.filter(_.contains(nonescape)).length shouldBe 1
+            }
+    }
+
     behavior of "Wsk packages"
 
     it should "create, and delete a package" in {

@@ -37,6 +37,7 @@ import (
     "io/ioutil"
     "sort"
     "reflect"
+    "bytes"
 )
 
 type QualifiedName struct {
@@ -586,18 +587,19 @@ func printJSON(v interface{}, stream ...io.Writer) {
     printJsonNoColor(v, stream...)
 }
 
-// Same as printJSON, but with coloring disabled.
-func printJsonNoColor(v interface{}, stream ...io.Writer) {
-    output, err := json.MarshalIndent(v, "", "    ")
+func printJsonNoColor(decoded interface{}, stream ...io.Writer) {
+    var output bytes.Buffer
 
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "json.MarshalIndent() failure: %s\n", err)
-    }
+    buffer := new(bytes.Buffer)
+    encoder := json.NewEncoder(buffer)
+    encoder.SetEscapeHTML(false)
+    encoder.Encode(&decoded)
+    json.Indent(&output, buffer.Bytes(), "", "    ")
 
     if len(stream) > 0 {
-        fmt.Fprintf(stream[0], "%s\n", string(output))
+        fmt.Fprintf(stream[0], "%s", string(output.Bytes()))
     } else {
-        fmt.Fprintf(os.Stdout, "%s\n", string(output))
+        fmt.Fprintf(os.Stdout, "%s", string(output.Bytes()))
     }
 }
 

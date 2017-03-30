@@ -247,7 +247,7 @@ class WskActionTests
             withActivation(wsk.activation, run2) {
                 activation =>
                     activation.response.status shouldBe "success"
-                    activation.logs.get.mkString(" ") should include(s"hello $testString")
+                    activation.logs.get.mkString(" ") should include(s"hello, $testString")
             }
     }
 

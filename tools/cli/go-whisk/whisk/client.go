@@ -160,7 +160,10 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
     var buf io.ReadWriter
     if body != nil {
         buf = new(bytes.Buffer)
-        err := json.NewEncoder(buf).Encode(body)
+        encoder := json.NewEncoder(buf)
+        encoder.SetEscapeHTML(false)
+        err := encoder.Encode(body)
+
         if err != nil {
             Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
             errStr := wski18n.T("Error encoding request body: {{.err}}", map[string]interface{}{"err": err})
@@ -507,7 +510,10 @@ func (c *Client) NewRequestUrl(
     if body != nil {
         if (encodeBodyAs == EncodeBodyAsJson) {
             buf = new(bytes.Buffer)
-            err := json.NewEncoder(buf).Encode(body)
+            encoder := json.NewEncoder(buf)
+            encoder.SetEscapeHTML(false)
+            err := encoder.Encode(body)
+
             if err != nil {
                 Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
                 errStr := wski18n.T("Error encoding request body: {{.err}}",
