@@ -23,10 +23,8 @@ import sys
 from subprocess import check_output
 
 # Settings
-COMPILE_PREFIX = "/usr/bin/swiftc -module-name Action "
-LINKER_PREFIX = "/usr/bin/swiftc -Xlinker '-rpath=$ORIGIN' " \
-                "'-L/swift3Action/spm-build/.build/release' " \
-                "-o '/swift3Action/spm-build/.build/release/Action'"
+COMPILE_PREFIX = "/root/swift-3.1-RELEASE-ubuntu14.04/usr/bin/swiftc -module-name Action "
+LINKER_PREFIX = "'/root/swift-3.1-RELEASE-ubuntu14.04/usr/bin/swiftc' -Xlinker '-rpath=$ORIGIN' '-L/swift3Action/spm-build/.build/release' -o '/swift3Action/spm-build/.build/release/Action'"
 GENERATED_BUILD_SCRIPT = "/swift3Action/spm-build/swiftbuildandlink.sh"
 SPM_DIRECTORY = "/swift3Action/spm-build"
 BUILD_COMMAND = ["swift", "build", "-v", "-c", "release"]
