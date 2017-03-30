@@ -2,5 +2,7 @@
  * Hello, world.
  */
 function main(params) {
-    console.log('hello', params.payload+'!');
+    greeting = 'hello, ' + params.payload + '!'
+    console.log(greeting);
+    return {payload: greeting}
 }
