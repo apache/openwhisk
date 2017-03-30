@@ -119,7 +119,7 @@ def getArgs():
 
 class Playbook:
     cmd = 'ansible-playbook'
-        
+
     dir = False
     file = False
     modes = False
@@ -134,7 +134,7 @@ class Playbook:
         self.file = file
         self.modes = modes.split(',')
         self.env = env
-    
+
     def path(self, basedir):
         return basedir + '/' + self.dir
 
@@ -276,7 +276,12 @@ Components = [
                   yaml = False,
                   gradle = 'core:actionProxy'),
 
-    makeComponent('pythonaction',
+    makeComponent('python2action',
+                  'build python v2.7 action container',
+                  yaml = False,
+                  gradle = 'core:python2Action'),
+
+    makeComponent('python3action',
                   'build python action container',
                   yaml = False,
                   gradle = 'core:pythonAction'),
@@ -286,7 +291,7 @@ Components = [
                   yaml = False,
                   gradle = 'core:swift3Action'),
 
-    makeComponent('javaaction',
+    makeComponent('java8action',
                   'build java action container',
                   yaml = False,
                   gradle = 'core:javaAction'),
@@ -354,10 +359,10 @@ def runAndGetStdout(cmd):
     out, err = p.communicate()
     # stdout/stderr may be either text or bytes, depending on Python
     # version.   In the latter case, decode to text.
-    if isinstance(o, bytes):
-        o = o.decode('utf-8')
-    if isinstance(e, bytes):
-        e = e.decode('utf-8')
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
     if p.returncode:
         print(hilite(out))
         print(hilite(err, True))

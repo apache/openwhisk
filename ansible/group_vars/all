@@ -3,6 +3,20 @@ prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
 exclude_logs_from: []
 
+# This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
+# for local deployment. For a public deployment, the specific environment group vars should define
+# whisk_api_host_name; this is available to actions and hence must resolve from inside an action container
+# specific to the deployment (i.e., it may be an IP address rather than a hostname in some cases).
+# For a local deployment, use whisk_api_localhost_name. For a deployment which requires
+# different name resolution between the whisk_api_host_name and the whisk_api_local_host_name, both should
+# be defined so that the nginx configuration for the server name reflects the public facing naming (of the
+# edge router) even if it is different from the API host available to the actions. The precedence order for
+# configuring nginx and the SSL certificate generation is:
+#   whisk_api_localhost_name (first)
+#   whisk_api_host_name (second)
+#   whisk_api_localhost_name_default (last)
+whisk_api_localhost_name_default: "localhost"
+
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
@@ -13,14 +27,21 @@ runtimesManifest:
   - kind: "nodejs"
     deprecated: true
   - kind: "nodejs:6"
+    image: "nodejs6action"
     default: true
   python:
   - kind: "python"
+    image: "python2action"
+  - kind: "python:2"
+    image: "python2action"
+  - kind: "python:3"
+    image: "python3action"
     default: true
   swift:
   - kind: "swift"
     deprecated: true
   - kind: "swift:3"
+    image: "swift3action"
     default: true
   java:
   - kind: "java"
@@ -29,6 +50,7 @@ runtimesManifest:
       attachmentType: "application/java-archive"
     sentinelledLogs: false
     requireMain: true
+    image: "java8action"
     default: true
 
 defaultLimits:

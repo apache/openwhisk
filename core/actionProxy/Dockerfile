@@ -1,13 +1,14 @@
-# Dockerfile for docker skeleton (useful for running blackbox binaries, scripts, or python actions).
-FROM python:2.7.12-alpine
+# Dockerfile for docker skeleton (useful for running blackbox binaries, scripts, or Python 3 actions) .
+FROM python:3.6.1-alpine
 
-# Upgrade and install basic Python dependencies
+# Upgrade and install basic Python dependencies.
 RUN apk add --no-cache bash \
  && apk add --no-cache --virtual .build-deps \
         bzip2-dev \
         gcc \
         libc-dev \
-  && pip install --no-cache-dir gevent==1.1.2 flask==0.11.1 \
+  && pip install --upgrade pip setuptools \
+  && pip install --no-cache-dir gevent==1.2.1 flask==0.12 \
   && apk del .build-deps
 
 ENV FLASK_PROXY_PORT 8080

@@ -156,15 +156,8 @@ def syslogCmd(args, props):
     else:
         print('unknown command')
         return 2
-  
-def createUserCmd(args, props):
-    protocol = props[DB_PROTOCOL]
-    host     = props[DB_HOST]
-    port     = props[DB_PORT]
-    username = props[DB_USERNAME]
-    password = props[DB_PASSWORD]
-    database = props[DB_WHISK_AUTHS]
 
+def createUserCmd(args, props):
     subject = args.subject.strip()
     if len(subject) < 5:
         print('Subject name must be at least 5 characters')
@@ -450,7 +443,7 @@ def getDbCmd(args, props):
         'database': database,
         'design'  : '/_design/' + designdoc +'/_view' if args.view else '',
         'index'   : viewname if args.view else '_all_docs',
-        'docs'    : 'true' if args.docs else 'false' 
+        'docs'    : 'true' if args.docs else 'false'
     }
 
     headers = {
@@ -503,9 +496,7 @@ def getLogsCmd(args, props):
             return output
         if error:
             sys.stderr.write(error)
-            return ''
-        else:
-            return ''
+        return ''
 
     logs = map(getComponentLogs, args.components)
     joined = ''.join(logs)

@@ -36,4 +36,5 @@ install:
 
 script:
   - ./tools/travis/build.sh
+  - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
   - ./tools/travis/box-upload.py "/home/travis/build/openwhisk/openwhisk/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"

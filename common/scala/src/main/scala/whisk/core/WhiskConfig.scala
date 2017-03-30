@@ -77,7 +77,7 @@ class WhiskConfig(
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
     val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
 
-    val wskApiHost = this(WhiskConfig.wskApiHost)
+    val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
     val loadbalancerActivationCountBeforeNextInvoker = this.getAsInt(WhiskConfig.loadbalancerActivationCountBeforeNextInvoker, 10)
@@ -233,7 +233,10 @@ object WhiskConfig {
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
     val invokerUseRunc = "invoker.useRunc"
 
-    val wskApiHost = "whisk.api.host"
+    val wskApiProtocol = "whisk.api.host.proto"
+    val wskApiPort = "whisk.api.host.port"
+    val wskApiHostname = "whisk.api.host.name"
+    val wskApiHost = Map(wskApiProtocol -> "https", wskApiPort -> 443.toString, wskApiHostname -> null)
 
     val edgeDockerEndpoint = "edge.docker.endpoint"
     val kafkaDockerEndpoint = "kafka.docker.endpoint"

@@ -20,7 +20,6 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 
-import common.RunWskAdminCmd
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.FORBIDDEN
@@ -43,25 +42,10 @@ class WskEntitlementTests
 
     val wsk = new Wsk
     lazy val defaultWskProps = WskProps()
-    lazy val guestWskProps = getAdditionalTestSubject()
+    lazy val guestWskProps = getAdditionalTestSubject(Subject().asString)
 
     override def afterAll() = {
         disposeAdditionalTestSubject(guestWskProps.namespace)
-    }
-
-    def getAdditionalTestSubject() = {
-        val wskadmin = new RunWskAdminCmd {}
-        val newSubject = Subject().toString
-        WskProps(
-            namespace = newSubject,
-            authKey = wskadmin.cli(Seq("user", "create", newSubject)).stdout.trim)
-    }
-
-    def disposeAdditionalTestSubject(subject: String) = {
-        val wskadmin = new RunWskAdminCmd {}
-        withClue(s"failed to delete temporary subject $subject") {
-            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
-        }
     }
 
     val samplePackage = "samplePackage"

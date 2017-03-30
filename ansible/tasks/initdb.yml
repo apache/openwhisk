@@ -67,6 +67,8 @@
     force_basic_auth: yes
   when: (dbexists is defined and dbexists.status == 404) or (updateView is defined)
 
+- include: db/filterViews.yml dbName="{{ db.whisk.auth }}" recreate=False
+
 - name: recreate necessary "auth" keys
   vars:
     key: "{{ lookup('file', 'files/auth.{{ item }}') }}"

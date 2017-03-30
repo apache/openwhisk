@@ -573,7 +573,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
 
 1. Run an interactive Swift action container.
 
-        $ docker run -it -v "$(pwd):/owexec" openwhisk/swift3action bash
+        $ docker run --rm -it -v "$(pwd):/owexec" openwhisk/swift3action bash
 
     This puts you in a bash shell within the Docker container. Execute the following commands within it:
 

@@ -43,6 +43,7 @@ import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 import whisk.core.connector.PingMessage
 import akka.util.Timeout
+import akka.actor.ActorRefFactory
 
 trait LoadBalancer {
 
@@ -194,7 +195,8 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     })
 
     private val consul = new ConsulClient(config.consulServer)
-    private val invokerPool = actorSystem.actorOf(InvokerPool.props(consul.kv, invoker => {
+    private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
         clearInvokerState(invoker)
         logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
     }))

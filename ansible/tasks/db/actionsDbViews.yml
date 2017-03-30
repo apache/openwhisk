@@ -2,8 +2,6 @@
 # Recreates the views in actionsDB.
 
 - name: get rev of existing whisks-Design document in {{ db.whisk.actions }} with {{ db_provider }}, if it exists
-  vars:
-    auth_index: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/whisks_design_document_for_actions_db.json') }}"
   uri:
     url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ db.whisk.actions }}/_design/whisks"
     method: HEAD
@@ -33,3 +31,6 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
+
+# Recreates the filters in actionsDB.
+- include: filterViews.yml dbName="{{ db.whisk.actions }}" recreate=False

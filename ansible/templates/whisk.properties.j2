@@ -13,7 +13,24 @@ whisk.version.buildno={{ docker_image_tag }}
 whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
 whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
 whisk.ssl.challenge=openwhisk
-whisk.api.host={{ whisk_api_host | default('https://' + (groups['edge'] | first)) }}
+
+{#
+ # the whisk.api.host.name must be a name that can resolve form inside an action container,
+ # or an ip address reachable from inside the action container.
+ #
+ # the whisk.api.localhost.name must be a name that resolves from the client; it is either the
+ # whisk_api_host_name if it is defined, an environment specific localhost name, or the default
+ # localhost name.
+ #
+ # the whisk.api.vanity.subdomain.parts indicates how many conforming parts the router is configured to
+ # match in the subdomain, which it rewrites into a namespace; each part must match ([a-zA-Z0-9]+)
+ # with parts separated by a single dash.
+ #}
+whisk.api.host.proto={{ whisk_api_host_proto | default('https') }}
+whisk.api.host.port={{ whisk_api_host_port | default('443') }}
+whisk.api.host.name={{ whisk_api_host_name | default(groups['edge'] | first) }}
+whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}
+whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
@@ -38,7 +55,6 @@ router.host={{ groups["edge"]|first }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 
-edge.host.uiport=443
 edge.host.apiport=443
 zookeeper.host.port={{ zookeeper.port }}
 kafka.host.port={{ kafka.port }}

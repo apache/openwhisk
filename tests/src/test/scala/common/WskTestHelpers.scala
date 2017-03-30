@@ -80,7 +80,7 @@ trait WskTestHelpers extends Matchers {
                             val rr = cli.delete(n)(wskprops)
                             rr.exitCode match {
                                 case CONFLICT => whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
-                                case _ => rr
+                                case _        => rr
                             }
                         case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
                     }
@@ -242,4 +242,18 @@ trait WskTestHelpers extends Matchers {
     def removeCLIHeader(response: String): String = response.substring(response.indexOf("\n"))
 
     def getJSONFromCLIResponse(response: String): JsObject = removeCLIHeader(response).parseJson.asJsObject
+
+    def getAdditionalTestSubject(newUser: String): WskProps = {
+        val wskadmin = new RunWskAdminCmd {}
+        WskProps(
+            namespace = newUser,
+            authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)
+    }
+
+    def disposeAdditionalTestSubject(subject: String): Unit = {
+        val wskadmin = new RunWskAdminCmd {}
+        withClue(s"failed to delete temporary subject $subject") {
+            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+        }
+    }
 }

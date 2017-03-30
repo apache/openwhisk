@@ -27,7 +27,6 @@
 # Start with standard imports.
 import os
 import sys
-import subprocess
 import argparse
 import time
 import json
