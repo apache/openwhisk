@@ -132,8 +132,23 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
  */
 case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
     override def toString() = {
-        val parts = Seq("marker", token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
+        val parts = Seq(LogMarker.keyword, token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
         "[" + parts.mkString(":") + "]"
+    }
+}
+
+object LogMarker {
+
+    val keyword = "marker"
+
+    /** Convenience method for parsing log markers in unit tests. */
+    def unapply(s: String) = {
+        val logmarker = raw"\[${keyword}:([^\s:]+):(\d+)(?::(\d+))?\]".r.unanchored
+        s match {
+            case logmarker(token, deltaToTransactionStart, deltaToMarkerStart) =>
+                Some(LogMarkerToken.parse(token), deltaToTransactionStart.toLong, Option(deltaToMarkerStart).map(_.toLong))
+            case _ => None
+        }
     }
 }
 
@@ -156,6 +171,16 @@ private object Emitter {
 
 case class LogMarkerToken(component: String, action: String, state: String) {
     override def toString() = component + "_" + action + "_" + state
+
+    def asFinish = copy(state = LoggingMarkers.finish)
+    def asError = copy(state = LoggingMarkers.error)
+}
+
+object LogMarkerToken {
+    def parse(s: String) = {
+        val Array(component, action, state) = s.split("_")
+        LogMarkerToken(component, action, state)
+    }
 }
 
 object LoggingMarkers {

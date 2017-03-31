@@ -21,6 +21,7 @@ import java.io.PrintStream
 
 import whisk.common.Logging
 import whisk.common.PrintStreamLogging
+import java.nio.charset.StandardCharsets
 
 /**
  * Logging facility, that can be used by tests.
@@ -32,4 +33,6 @@ trait StreamLogging {
     val stream = new ByteArrayOutputStream
     val printstream = new PrintStream(stream)
     implicit val logging: Logging = new PrintStreamLogging(printstream)
+
+    def logLines = new String(stream.toByteArray, StandardCharsets.UTF_8).lines.toList
 }
