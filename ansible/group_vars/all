@@ -34,9 +34,9 @@ runtimesManifest:
     image: "python2action"
   - kind: "python:2"
     image: "python2action"
+    default: true
   - kind: "python:3"
     image: "python3action"
-    default: true
   swift:
   - kind: "swift"
     deprecated: true
