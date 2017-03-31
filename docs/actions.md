@@ -500,8 +500,10 @@ $ wsk action create helloPython hello.py
 ```
 
 When you use the command line and a `.py` source file, you do not need to
-specify that you are creating a Python action (as opposed to a JavaScript action);
-the tool determines that from the file extension.
+specify that you are creating a Python action the tool determines that from the file extension.
+Python version 2 will be used to run your action by default, Python 3 it's also supported,
+you would need to specify the version explicity with the parameter `--kind python:3`.
+For more information about Python 2 vs. Python 3 see the Python reference (./reference.md#python-actions)
 
 Action invocation is the same for Python actions as it is for JavaScript actions:
 
