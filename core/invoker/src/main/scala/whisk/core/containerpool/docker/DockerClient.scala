@@ -104,8 +104,6 @@ trait DockerApi {
      *
      * @param image the image to start the container with
      * @param args arguments for the docker run command
-     * @param cmd the command to start the container with
-     * @param name an optional name for the container
      * @return id of the started container
      */
     def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId]
@@ -145,6 +143,7 @@ trait DockerApi {
     /**
      * Returns a list of ContainerIds in the system.
      *
+     * @param filters Filters to apply to the 'ps' command
      * @param all Whether or not to return stopped containers as well
      * @return A list of ContainerIds
      */

@@ -25,7 +25,7 @@ import scala.sys.process._
 trait ProcessRunner {
 
     /**
-     * Run the specified command with arguments asynchronously and
+     * Runs the specified command with arguments asynchronously and
      * capture stdout as well as stderr.
      *
      * Be cautious with the execution context you pass because the command

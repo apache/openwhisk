@@ -178,6 +178,8 @@ case class LogMarkerToken(component: String, action: String, state: String) {
 
 object LogMarkerToken {
     def parse(s: String) = {
+        // Per convention the components are guaranteed to not contain '_'
+        // thus it's safe to split at '_' to get the components
         val Array(component, action, state) = s.split("_")
         LogMarkerToken(component, action, state)
     }
