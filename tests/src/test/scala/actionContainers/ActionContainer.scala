@@ -182,7 +182,7 @@ object ActionContainer {
             responseBody <- Unmarshal(response.entity).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 
-        Await.result(f, 1.minute)
+        Await.result(f, 90.seconds)
     }
 
     private class ActionContainerImpl() extends ActionContainer {

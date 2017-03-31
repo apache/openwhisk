@@ -8,6 +8,7 @@ include 'core:actionProxy'
 include 'core:pythonAction'
 include 'core:python2Action'
 include 'core:swift3Action'
+include 'core:swift3.1.1Action'
 include 'core:javaAction'
 
 include 'tools:cli'

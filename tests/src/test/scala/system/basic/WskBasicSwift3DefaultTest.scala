@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2015-2016 IBM Corporation
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,12 +28,11 @@ import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 import spray.json.pimpString
-import spray.json.JsString
 import common.TestUtils.RunResult
 import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicSwiftTests
+class WskBasicSwift3DefaultTests
     extends TestHelpers
     with WskTestHelpers
     with JsHelpers {
@@ -42,7 +40,7 @@ class WskBasicSwiftTests
     implicit val wskprops = WskProps()
     val wsk = new Wsk
     val defaultAction = Some(TestUtils.getTestActionFilename("hello.swift"))
-    val currentSwiftDefaultKind = "swift:3"
+    lazy val currentSwiftDefaultKind = "swift:3"
 
     behavior of "Swift runtime"
 
@@ -60,24 +58,6 @@ class WskBasicSwiftTests
                 () =>
                     val action = convertRunResultToJsObject(result)
                     action.getFieldPath("exec", "kind") should be(Some(currentSwiftDefaultKind.toJson))
-            }
-    }
-
-    it should "Ensure that Swift actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "niamSwiftAction"
-            val file = Some(TestUtils.getTestActionFilename("niam.swift"))
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, main = Some("niam"))
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name)) {
-                activation =>
-                    val response = activation.response
-                    response.result.get.fields.get("error") shouldBe empty
-                    response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
             }
     }
 

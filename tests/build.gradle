@@ -32,6 +32,7 @@ test.dependsOn([
     ':core:python2Action:distDocker',
     ':core:javaAction:distDocker',
     ':core:swift3Action:distDocker',
+    ':core:swift3.1.1Action:distDocker',
     ':sdk:docker:distDocker',
     ':tests:dat:blackbox:badaction:distDocker',
     ':tests:dat:blackbox:badproxy:distDocker'

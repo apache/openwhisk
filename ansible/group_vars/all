@@ -62,6 +62,9 @@ runtimesManifest:
       default: true
       image:
         name: "swift3action"
+    - kind: "swift:3.1.1"
+      image:
+        name: "action-swift-v3.1.1"
     java:
     - kind: "java"
       attached:
