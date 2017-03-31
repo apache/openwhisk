@@ -260,13 +260,12 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 
 
 ## Python actions
-Python version 2 and 3 are supported in OpenWhisk.
+OpenWhisk supports running Python actions using two different runtime versions.
 
 ### Python 3 actions
 
-Python 3 actions are executed using Python 3.6.1.
-In addition to the Python 3 standard library, the following packages are also available for use by Python actions.
-To specify version 3 of python  at the time of creating and updating an action use  CLI the parameter `--kind python:3`
+Python 3 actions are executed using Python 3.6.1. To use this runtime, specify the `wsk` CLI parameter `--kind python:3` when creating or updating an action.
+The following packages are available for use by Python actions, in addition to the Python 3.6 standard libraries.
 
 - aiohttp v1.3.3
 - appdirs v1.4.3
@@ -313,9 +312,7 @@ To specify version 3 of python  at the time of creating and updating an action u
 
 ### Python 2 actions
 
-In addition to the Python 2.7 standard library, the following packages are also available for use by Python actions.
-To specify version 2 of python  at the time of creating and updating an action use  CLI the parameter `--kind python:2`.
-If you don't specify a specific version of python in the CLI and use a file with extension `.py`, python 2 will be use by default.
+Python 2 actions are executed using Python 2.7.12. This is the default runtime for Python actions, unless you specify the `--kind` flag when creating or updating an action. To explicitly select this runtime, use `--kind python:2`. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
 
 - appdirs v1.4.3
 - asn1crypto v0.21.1

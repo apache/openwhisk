@@ -479,31 +479,24 @@ The process of creating Python actions is similar to that of JavaScript actions.
 
 ### Creating and invoking an action
 
-An action is simply a top-level Python function, which means it is necessary to have a method that is named `main`. For example, create a file called
-`hello.py` with the following content:
+An action is simply a top-level Python function. For example, create a file called `hello.py` with the following source code:
 
 ```
-def main(dict):
-    name = dict.get("name", "stranger")
+def main(args):
+    name = args.get("name", "stranger")
     greeting = "Hello " + name + "!"
     print(greeting)
     return {"greeting": greeting}
 ```
 
-Python actions always consume a dictionary and produce a dictionary.
+Python actions always consume a dictionary and produce a dictionary. The entry method for the action is `main` by default but may be specified explicitly when creating the action with the `wsk` CLI using `--main`, as with any other action type.
 
-You can create an OpenWhisk action called `helloPython` from this function as
-follows:
+You can create an OpenWhisk action called `helloPython` from this function as follows:
 
 ```
 $ wsk action create helloPython hello.py
 ```
-
-When you use the command line and a `.py` source file, you do not need to
-specify that you are creating a Python action the tool determines that from the file extension.
-Python version 2 will be used to run your action by default, Python 3 it's also supported,
-you would need to specify the version explicity with the parameter `--kind python:3`.
-For more information about Python 2 vs. Python 3 see the Python reference (./reference.md#python-actions)
+The CLI automatically infers the type of the action from the source file extension. For `.py` source files, the action runs using a Python 2.7 runtime. You can also create an action that runs with Python 3.6 by explicitly specifying the parameter `--kind python:3`. See the Python [reference](./reference.md#python-actions) for more information about Python 2.7 vs. 3.6.
 
 Action invocation is the same for Python actions as it is for JavaScript actions:
 
@@ -565,7 +558,7 @@ $ wsk action invoke --blocking --result helloSwift --param name World
 ```
 
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
-development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of XCode on MacOS.
+development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of Xcode on MacOS.
 
 ### Packaging an action as a Swift executable
 
