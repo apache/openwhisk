@@ -258,10 +258,14 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - xmlhttprequest v1.8.0
 - yauzl v2.7.0
 
-## Python actions
 
-Python actions are executed by default using Python 3.6.1.
-In addition to the Python 3 standard library, the following packages are also available for use by Python actions.
+## Python actions
+OpenWhisk supports running Python actions using two different runtime versions.
+
+### Python 3 actions
+
+Python 3 actions are executed using Python 3.6.1. To use this runtime, specify the `wsk` CLI parameter `--kind python:3` when creating or updating an action.
+The following packages are available for use by Python actions, in addition to the Python 3.6 standard libraries.
 
 - aiohttp v1.3.3
 - appdirs v1.4.3
@@ -306,12 +310,9 @@ In addition to the Python 3 standard library, the following packages are also av
 - yarl v0.9.8
 - zope.interface v4.3.3
 
-## Python 2 actions
+### Python 2 actions
 
-For a **limited time** support will continue for Python 2 actions executed using Python 2.7.12.
-In addition to the Python 2.7 standard library, the following packages are also available for use by Python actions.
-
-**Note**: Python 2 is deprecated in Open Whisk, please migrate all your Python actions to use Python 3 version 3.6+.
+Python 2 actions are executed using Python 2.7.12. This is the default runtime for Python actions, unless you specify the `--kind` flag when creating or updating an action. To explicitly select this runtime, use `--kind python:2`. The following packages are available for use by Python 2 actions, in addition to the Python 2.7 standard library.
 
 - appdirs v1.4.3
 - asn1crypto v0.21.1
