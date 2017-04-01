@@ -9,7 +9,13 @@ WORKDIR /
 
 # Upgrade and install basic Python dependencies
 RUN apt-get -y update \
- && apt-get -y install --fix-missing python2.7 python-gevent python-flask zip
+ && apt-get -y install --fix-missing python-gevent python-flask
+\
+# Install zip and curl for compiling Swift actions
+ && apt-get -y install curl zip \
+\
+# Clean up
+ && apt-get clean
 
 # Add the action proxy
 RUN mkdir -p /actionProxy
