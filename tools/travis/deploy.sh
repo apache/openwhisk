@@ -12,12 +12,10 @@ time docker tag "${dockerhub_image_prefix}/${container}" \
 #tag image for commit build
 time docker tag "${dockerhub_image_prefix}/${container}" \
 "${dockerhub_image_prefix}/${container}:${TRAVIS_BRANCH}-${TRAVIS_COMMIT::7}"
-#push to dockerhub
+#push couchdb-snapshot to dockerhub
 time docker push "${dockerhub_image_prefix}/${container}"
 
-
-#push latest
-time ./gradlew distDocker \
+PUSH_CMD=time ./gradlew distDocker \
 -PdockerImagePrefix=${dockerhub_image_prefix} \
 -PdockerRegistry=docker.io \
 -x :common:scala:distDocker \
@@ -27,13 +25,9 @@ time ./gradlew distDocker \
 -x tools:cli:distDocker \
 -x core:nodejsActionBase:distDocker
 
+#push latest
+${PUSH_CMD} -PdockerImageTag=latest
 #push travis commit
-time ./gradlew distDocker \
--PdockerImagePrefix=${dockerhub_image_prefix} \
--PdockerRegistry=docker.io \
--PdockerImageTag=${TRAVIS_BRANCH}-${TRAVIS_COMMIT::7} \
--x :common:scala:distDocker -x tests:dat:blackbox:badproxy:distDocker \
--x tests:dat:blackbox:badaction:distDocker \
--x sdk:docker:distDocker \
--x tools:cli:distDocker \
--x core:nodejsActionBase:distDocker
+${PUSH_CMD} -PdockerImageTag=${TRAVIS_BRANCH}-${TRAVIS_COMMIT::7}
+
+
