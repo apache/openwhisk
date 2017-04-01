@@ -15,7 +15,7 @@ time docker tag "${dockerhub_image_prefix}/${container}" \
 #push couchdb-snapshot to dockerhub
 time docker push "${dockerhub_image_prefix}/${container}"
 
-PUSH_CMD=time ./gradlew distDocker \
+PUSH_CMD="time ./gradlew distDocker \
 -PdockerImagePrefix=${dockerhub_image_prefix} \
 -PdockerRegistry=docker.io \
 -x :common:scala:distDocker \
@@ -23,7 +23,7 @@ PUSH_CMD=time ./gradlew distDocker \
 -x tests:dat:blackbox:badaction:distDocker \
 -x sdk:docker:distDocker \
 -x tools:cli:distDocker \
--x core:nodejsActionBase:distDocker
+-x core:nodejsActionBase:distDocker"
 
 #push latest
 ${PUSH_CMD} -PdockerImageTag=latest
