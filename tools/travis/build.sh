@@ -26,7 +26,7 @@ time ./gradlew distDocker -PdockerImagePrefix=testing
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD wipe.yml
-time docker commit couchdb "openwhisk/couchdb"
+time docker commit couchdb "openwhisk/couchdb-snapshot"
 $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
