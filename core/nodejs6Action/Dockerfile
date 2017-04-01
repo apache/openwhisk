@@ -1,11 +1,18 @@
 FROM nodejsactionbase
 
 # based on https://github.com/nodejs/docker-node
-ENV NODE_VERSION 6.10.1
-RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+#ENV NODE_VERSION 6.10.2
+#ENV NODE_URL_DOWNLOAD https://nodejs.org/dist
+#RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
+#  && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
+#  && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
+
+ENV NODE_VERSION 6.10.2-rc.1
+ENV NODE_URL_DOWNLOAD https://nodejs.org/download/rc
+
+RUN curl -SLO "$NODE_URL_DOWNLOAD/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \
   && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
   && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
-
 
 # workaround for this: https://github.com/npm/npm/issues/9863
 RUN cd $(npm root -g)/npm \
