@@ -11,29 +11,12 @@ apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn 'copyFiles'
 distDocker.finalizedBy 'rmFiles'
 
-def runners = files(
-    new File(project(':core:nodejsActionBase').projectDir)
-)
-
 task copyFiles(type: Copy) {
-    from runners
-    into '.'
+    from project(':core:nodejsActionBase').projectDir
+    into './nodejsAction'
 }
 
 task rmFiles(type: Delete) {
-    delete runners.collect { it.getName() }
-}
-
-/*
-distDocker.dependsOn 'copyProxy'
-distDocker.finalizedBy('rmProxy')
-
-task copyProxy(type: Copy) {
-    from '../nodejsActionBase'
-    into 'nodejsAction'
-}
-
-task rmProxy(type: Delete) {
     delete 'nodejsAction'
 }
-*/
+
