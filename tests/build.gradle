@@ -15,8 +15,7 @@ tasks.withType(Test) {
     outputs.upToDateWhen { false } // force tests to run every time
 }
 
-task testLean(type: Test) {
-    exclude '**/*DockerExampleContainer*'
+task testLean(type: Test) { //Integration tests with runtimes are excluded, but all runtimes are tested in this task
     exclude '**/*Java*'
     exclude '**/*Swift*'
     exclude '**/*Python*'
