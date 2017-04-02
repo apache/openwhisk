@@ -85,11 +85,11 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
 
             logLines.head should include((Seq(dockerCommand, cmd) ++ args).mkString(" "))
 
-            val LogMarker(start, _, _) = logLines.head
-            start shouldBe INVOKER_DOCKER_CMD(cmd)
+            val start = LogMarker.parse(logLines.head)
+            start.token shouldBe INVOKER_DOCKER_CMD(cmd)
 
-            val LogMarker(end, _, _) = logLines.last
-            end shouldBe INVOKER_DOCKER_CMD(cmd).asFinish
+            val end = LogMarker.parse(logLines.last)
+            end.token shouldBe INVOKER_DOCKER_CMD(cmd).asFinish
 
             stream.reset()
             result
@@ -116,11 +116,11 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         def runAndVerify(f: Future[_], cmd: String) = {
             a[RuntimeException] should be thrownBy await(f)
 
-            val LogMarker(start, _, _) = logLines.head
-            start shouldBe INVOKER_DOCKER_CMD(cmd)
+            val start = LogMarker.parse(logLines.head)
+            start.token shouldBe INVOKER_DOCKER_CMD(cmd)
 
-            val LogMarker(end, _, _) = logLines.last
-            end shouldBe INVOKER_DOCKER_CMD(cmd).asError
+            val end = LogMarker.parse(logLines.last)
+            end.token shouldBe INVOKER_DOCKER_CMD(cmd).asError
 
             stream.reset()
         }

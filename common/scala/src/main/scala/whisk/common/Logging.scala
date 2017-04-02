@@ -142,13 +142,10 @@ object LogMarker {
     val keyword = "marker"
 
     /** Convenience method for parsing log markers in unit tests. */
-    def unapply(s: String) = {
+    def parse(s: String) = {
         val logmarker = raw"\[${keyword}:([^\s:]+):(\d+)(?::(\d+))?\]".r.unanchored
-        s match {
-            case logmarker(token, deltaToTransactionStart, deltaToMarkerStart) =>
-                Some(LogMarkerToken.parse(token), deltaToTransactionStart.toLong, Option(deltaToMarkerStart).map(_.toLong))
-            case _ => None
-        }
+        val logmarker(token, deltaToTransactionStart, deltaToMarkerStart) = s
+        LogMarker(LogMarkerToken.parse(token), deltaToTransactionStart.toLong, Option(deltaToMarkerStart).map(_.toLong))
     }
 }
 
