@@ -145,7 +145,7 @@ class DockerContainerTests extends FlatSpec
         val init = container.initialize(Some(JsObject()), 1.second)
 
         val error = the[InitializationError] thrownBy await(init)
-        error.interval shouldBe Interval(Instant.EPOCH, Instant.EPOCH)
+        error.interval.duration shouldBe Duration.Zero
         error.response.statusCode shouldBe ActivationResponse.WhiskError
 
         // assert the error log is there

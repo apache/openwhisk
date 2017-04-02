@@ -168,7 +168,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
                 transid.failed(this, start, s"initializiation failed with $t")
         }.recoverWith {
             case t =>
-                Future.failed(InitializationError(ActivationResponse.whiskError("action failed to initialize"), Interval(Instant.EPOCH, Instant.EPOCH)))
+                Future.failed(InitializationError(ActivationResponse.whiskError("action failed to initialize"), Interval.zero))
         }.flatMap { result =>
             if (result.ok) {
                 Future.successful(result.interval)

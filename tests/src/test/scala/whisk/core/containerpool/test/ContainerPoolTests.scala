@@ -50,11 +50,8 @@ class ContainerPoolScheduleTests extends FlatSpec with Matchers with MockFactory
     def warmedData(action: WhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
         WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
 
-    def preWarmedData(kind: String = "anyKind", lastUsed: Instant = Instant.EPOCH) =
-        PreWarmedData(stub[Container], kind, lastUsed)
-
-    def noData(lastUsed: Instant = Instant.EPOCH) =
-        NoData(lastUsed)
+    def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind)
+    def noData() = NoData()
 
     def freeWorker(data: ContainerData) = WorkerData(data, Free)
 

@@ -57,23 +57,13 @@ case object Running extends ContainerState
 case object Ready extends ContainerState
 case object Pausing extends ContainerState
 case object Paused extends ContainerState
-case object Unpausing extends ContainerState
 case object Removing extends ContainerState
 
 // Data
 sealed abstract class ContainerData(val lastUsed: Instant)
-case class NoData(override val lastUsed: Instant) extends ContainerData(lastUsed)
-
-sealed abstract class ContainerDataWithContainer(val container: Container, override val lastUsed: Instant) extends ContainerData(lastUsed)
-case class PreWarmedData(
-    override val container: Container,
-    kind: String,
-    override val lastUsed: Instant) extends ContainerDataWithContainer(container, lastUsed)
-case class WarmedData(
-    override val container: Container,
-    namespace: EntityName,
-    action: WhiskAction,
-    override val lastUsed: Instant) extends ContainerDataWithContainer(container, lastUsed)
+case class NoData() extends ContainerData(Instant.EPOCH)
+case class PreWarmedData(container: Container, kind: String) extends ContainerData(Instant.EPOCH)
+case class WarmedData(container: Container, namespace: EntityName, action: WhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
 
 // Events
 sealed trait Job
@@ -85,9 +75,7 @@ case class NeedWork(data: ContainerData)
 
 // Container events
 case class ContainerCreated(container: Container, kind: Exec)
-case object ActivationCompleted
 case object ContainerPaused
-case object ContainerUnpaused
 case object ContainerRemoved
 
 class WhiskContainer(
@@ -100,7 +88,7 @@ class WhiskContainer(
     val unusedTimeout = 30.seconds
     val pauseGrace = 1.second
 
-    startWith(Uninitialized, NoData(Instant.EPOCH))
+    startWith(Uninitialized, NoData())
 
     when(Uninitialized) {
         case Event(job: Start, _) =>
@@ -108,120 +96,83 @@ class WhiskContainer(
                 TransactionId.invokerWarmup,
                 WhiskContainer.containerName("prewarm", job.exec.kind),
                 job.exec,
-                256.MB).andThen {
-                    case Success(c) =>
-                        self ! ContainerCreated(c, job.exec)
-                        self ! job
-                    case Failure(t) =>
-                        self ! FailureMessage(t)
-                }
+                256.MB)
+                .map(container => PreWarmedData(container, job.exec.kind))
+                .pipeTo(self)
 
             goto(Starting)
 
         case Event(job: Run, _) =>
+            implicit val transid = job.msg.transid
             factory(
                 job.msg.transid,
                 WhiskContainer.containerName(job.msg.user.namespace.name, job.action.name.name),
                 job.action.exec,
-                job.action.limits.memory.megabytes.MB).andThen {
-                    case Success(c) =>
-                        self ! ContainerCreated(c, job.action.exec)
-                        self ! job
+                job.action.limits.memory.megabytes.MB)
+                .andThen {
+                    case Success(container) => self ! PreWarmedData(container, job.action.exec.kind)
                     case Failure(t) =>
                         val response = t match {
                             case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
                             case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
                             case _                               => ActivationResponse.whiskError(t.getMessage)
                         }
-                        val now = Instant.now
-                        val interval = Interval(now, now)
-                        val activation = WhiskContainer.constructWhiskActivation(job, interval, response)
-                        sendActiveAck(activation)(job.msg.transid)
-                        storeActivation(activation)(job.msg.transid)
-
-                        self ! FailureMessage(t)
+                        val activation = WhiskContainer.constructWhiskActivation(job, Interval.zero, response)
+                        sendActiveAck(activation)
+                        storeActivation(activation)
                 }
+                .flatMap {
+                    container =>
+                        run(container, job)
+                            .map(_ => WarmedData(container, job.msg.user.namespace, job.action, Instant.now))
+                }.pipeTo(self)
 
-            goto(Starting)
+            goto(Running)
     }
 
     when(Starting) {
-        case Event(ContainerCreated(c, exec), _) => goto(Started) using PreWarmedData(c, exec.kind, Instant.EPOCH)
-        case Event(FailureMessage(err), _) =>
-            self ! ContainerRemoved
-            goto(Removing)
+        case Event(data: PreWarmedData, _) =>
+            context.parent ! NeedWork(data)
+            goto(Started) using data
+
+        case Event(FailureMessage(_), _) =>
+            context.parent ! ContainerRemoved
+            stop()
+
         case _ => delay
     }
 
     when(Started) {
-        case Event(job: Start, data: ContainerData) =>
-            context.parent ! NeedWork(data)
-            stay
-
-        case Event(job: Run, data: ContainerDataWithContainer) =>
+        case Event(job: Run, data: PreWarmedData) =>
             implicit val transid = job.msg.transid
+            run(data.container, job)
+                .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+                .pipeTo(self)
 
-            val actionTimeout = job.action.limits.timeout.duration
-            val initialize = data match {
-                case p: PreWarmedData => p.container.initialize(job.action.containerInitializer, actionTimeout)
-                case _                => Future.successful(Interval(Instant.EPOCH, Instant.EPOCH))
-            }
+            goto(Running)
 
-            val activation: Future[WhiskActivation] = initialize.flatMap { initInterval =>
-                val passedParameters = job.msg.content getOrElse JsObject()
-                val boundParameters = job.action.parameters.toJsObject
-                val parameters = JsObject(boundParameters.fields ++ passedParameters.fields)
-
-                val environment = JsObject(
-                    "api_key" -> job.msg.user.authkey.compact.toJson,
-                    "namespace" -> job.msg.user.namespace.toJson,
-                    "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
-                    "activation_id" -> job.msg.activationId.toString.toJson,
-                    // compute deadline on invoker side avoids discrepancies inside container
-                    // but potentially under-estimates actual deadline
-                    "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
-
-                data.container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
-                    case (runInterval, response) =>
-                        if (!response.isSuccess) {
-                            self ! Remove
-                        }
-                        val initRunInterval = Interval(runInterval.start.minusMillis(initInterval.duration.toMillis), runInterval.end)
-                        WhiskContainer.constructWhiskActivation(job, initRunInterval, response)
-                }
-            }.recover {
-                case InitializationError(response, interval) =>
-                    self ! Remove
-                    WhiskContainer.constructWhiskActivation(job, interval, response)
-            }
-
-            activation.andThen {
-                case Success(activation) => sendActiveAck(activation)
-            }.flatMap { activation =>
-                val exec = job.action.exec.asInstanceOf[CodeExec[_]]
-                data.container.logs(job.action.limits.logs.asMegaBytes, exec.sentinelledLogs).map { logs =>
-                    activation.withLogs(ActivationLogs(logs.toVector))
-                }
-            }.andThen {
-                case Success(activation) =>
-                    self ! ActivationCompleted
-                    storeActivation(activation)
-            }
-
-            goto(Running) using WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now)
-
-        case Event(Remove, data: ContainerDataWithContainer) => destroyContainer(data.container)
+        case Event(Remove, data: PreWarmedData) => destroyContainer(data.container)
     }
 
     when(Running) {
-        case Event(ActivationCompleted, _) => goto(Ready)
-        case _                             => delay
+        case Event(data: PreWarmedData, _) => stay using data
+        case Event(data: WarmedData, _) =>
+            context.parent ! NeedWork(data)
+            goto(Ready) using data
+
+        case Event(_: FailureMessage, data: PreWarmedData) => destroyContainer(data.container)
+        case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
+        case _ => delay
     }
 
     when(Ready, stateTimeout = pauseGrace) {
-        case Event(run: Run, data: WarmedData) =>
-            self ! run
-            goto(Started)
+        case Event(job: Run, data: WarmedData) =>
+            implicit val transid = job.msg.transid
+            run(data.container, job)
+                .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+                .pipeTo(self)
+
+            goto(Running)
 
         case Event(StateTimeout, data: WarmedData) =>
             data.container.halt()(TransactionId.invokerNanny).map(_ => ContainerPaused).pipeTo(self)
@@ -231,36 +182,33 @@ class WhiskContainer(
     }
 
     when(Pausing) {
-        case Event(ContainerPaused, _) => goto(Paused)
-        case Event(FailureMessage(_), data: WarmedData) => destroyContainer(data.container)
+        case Event(ContainerPaused, data: WarmedData) =>
+            context.parent ! NeedWork(data)
+            goto(Paused)
+
+        case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
         case _ => delay
     }
 
     when(Paused, stateTimeout = unusedTimeout) {
-        case Event(run: Run, data: WarmedData) =>
-            data.container.resume()(run.msg.transid)
-                .map(_ => ContainerUnpaused).pipeTo(self)
-                .map(_ => run).pipeTo(self)
+        case Event(job: Run, data: WarmedData) =>
+            implicit val transid = job.msg.transid
+            data.container.resume()
+                .flatMap(_ => run(data.container, job))
+                .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
+                .pipeTo(self)
 
-            goto(Unpausing)
+            goto(Running)
 
         case Event(StateTimeout | Remove, data: WarmedData) => destroyContainer(data.container)
     }
 
-    when(Unpausing) {
-        case Event(ContainerUnpaused, _) => goto(Started)
-        case Event(FailureMessage(_), data: WarmedData) => destroyContainer(data.container)
-        case _ => delay
-    }
-
     when(Removing) {
-        case Event(job: Run, _)         => stay
+        case Event(job: Run, _) =>
+            // Send the job back to the pool to be rescheduled
+            context.parent ! job
+            stay
         case Event(ContainerRemoved, _) => stop()
-    }
-
-    onTransition {
-        case _ -> Ready  => context.parent ! NeedWork(stateData)
-        case _ -> Paused => context.parent ! NeedWork(stateData)
     }
 
     // Unstash all messages stashed while in intermediate state
@@ -269,10 +217,6 @@ class WhiskContainer(
         case _ -> Ready   => unstashAll()
         case _ -> Paused  => unstashAll()
     }
-
-    /*onTransition {
-        case oldState -> newState => println(s"container went from $oldState to $newState")
-    }*/
 
     initialize()
 
@@ -300,6 +244,63 @@ class WhiskContainer(
             .map(_ => ContainerRemoved).pipeTo(self)
 
         goto(Removing)
+    }
+
+    /**
+     * Runs the job, initialize first if necessary.
+     *
+     * @param container the container to run the job on
+     * @param job the job to run
+     * @return
+     */
+    def run(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
+        val actionTimeout = job.action.limits.timeout.duration
+        val initialize = stateData match {
+            case data: WarmedData => Future.successful(Interval.zero)
+            case _                => container.initialize(job.action.containerInitializer, actionTimeout)
+        }
+
+        val activation: Future[WhiskActivation] = initialize.flatMap { initInterval =>
+            val passedParameters = job.msg.content getOrElse JsObject()
+            val boundParameters = job.action.parameters.toJsObject
+            val parameters = JsObject(boundParameters.fields ++ passedParameters.fields)
+
+            val environment = JsObject(
+                "api_key" -> job.msg.user.authkey.compact.toJson,
+                "namespace" -> job.msg.user.namespace.toJson,
+                "action_name" -> job.msg.action.qualifiedNameWithLeadingSlash.toJson,
+                "activation_id" -> job.msg.activationId.toString.toJson,
+                // compute deadline on invoker side avoids discrepancies inside container
+                // but potentially under-estimates actual deadline
+                "deadline" -> (Instant.now.toEpochMilli + actionTimeout.toMillis).toString.toJson)
+
+            container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
+                case (runInterval, response) =>
+                    val initRunInterval = Interval(runInterval.start.minusMillis(initInterval.duration.toMillis), runInterval.end)
+                    WhiskContainer.constructWhiskActivation(job, initRunInterval, response)
+            }
+        }.recover {
+            case InitializationError(response, interval) =>
+                WhiskContainer.constructWhiskActivation(job, interval, response)
+        }
+
+        // Sending active ack and storing the activation are concurrent side-effects
+        // and do not block the future.
+        activation.andThen {
+            case Success(activation) => sendActiveAck(activation)
+        }.flatMap { activation =>
+            val exec = job.action.exec.asInstanceOf[CodeExec[_]]
+            container.logs(job.action.limits.logs.asMegaBytes, exec.sentinelledLogs).map { logs =>
+                activation.withLogs(ActivationLogs(logs.toVector))
+            }
+        }.andThen {
+            case Success(activation) => storeActivation(activation)
+        }.flatMap { activation =>
+            // Fail the future iff the activation was unsuccessful to facilitate
+            // better cleanup logic.
+            if (activation.response.isSuccess) Future.successful(activation)
+            else Future.failed(new Exception())
+        }
     }
 
     /**

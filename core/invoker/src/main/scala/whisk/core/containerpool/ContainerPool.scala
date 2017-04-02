@@ -20,12 +20,9 @@ import akka.actor.Actor
 import scala.collection.mutable
 import akka.actor.ActorRef
 import akka.actor.Props
-import akka.actor.FSM
-import akka.actor.FSM.Transition
 import whisk.core.dispatcher.ActivationFeed.FreeWilly
 import whisk.common.AkkaLogging
 import akka.actor.ActorRefFactory
-import java.time.Instant
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecManifest
@@ -105,8 +102,8 @@ class ContainerPool(
             prewarmedPool.update(sender(), WorkerData(data, Free))
 
         // Container got removed
-        case Transition(actorRef, _, Removing) =>
-            pool.remove(actorRef)
+        case ContainerRemoved =>
+            pool.remove(sender())
     }
 
     /**
@@ -114,18 +111,13 @@ class ContainerPool(
      */
     def createContainer() = {
         val ref = childFactory(context)
-        pool.update(ref, WorkerData(NoData(Instant.EPOCH), Free))
-        ref ! FSM.SubscribeTransitionCallBack(self)
+        pool.update(ref, WorkerData(NoData(), Free))
         ref
     }
 
     def prewarmContainer() = prewarmExec match {
-        case Some(exec) =>
-            val ref = childFactory(context)
-            ref ! FSM.SubscribeTransitionCallBack(self)
-            ref ! Start(exec)
-        case None =>
-            logging.error(this, "could not pre-warm containers because the manifest is missing")
+        case Some(exec) => childFactory(context) ! Start(exec)
+        case None       => logging.error(this, "could not pre-warm containers because the manifest is missing")
     }
 
     def takePrewarmContainer(kind: String) =
