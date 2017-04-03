@@ -835,7 +835,7 @@ func printActionDeleted(entityName string) {
 }
 
 // Check if the specified action is a web-action
-func IsWebAction(client *whisk.Client, qname *QualifiedName) bool {
+func isWebAction(client *whisk.Client, qname QualifiedName) bool {
     var isWebAction = false;
 
     savedNs := client.Namespace
@@ -845,7 +845,7 @@ func IsWebAction(client *whisk.Client, qname *QualifiedName) bool {
     action, _, err := client.Actions.Get(qname.entityName)
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
-        whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for validation\n", fullActionName)
+        whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
     } else {
         weVal := getValue(action.Annotations, "web-export")
         if (reflect.TypeOf(weVal) == nil) {

@@ -778,7 +778,7 @@ var apiCreateCmdV2 = &cobra.Command{
         var qname *QualifiedName
 
         if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No BMXTOKEN in properties file\n")
+            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
             errMsg := wski18n.T("You must login prior to issuing this command.")
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -816,7 +816,7 @@ var apiCreateCmdV2 = &cobra.Command{
             }
 
             // Confirm that the specified action is a web-action
-            if !IsWebAction(client, qname) {
+            if !isWebAction(client, *qname) {
                 whisk.Debug(whisk.DbgError, "IsWebAction(%v) is false\n", qname)
                 errMsg := wski18n.T("API action either does not exist or is not a web-action")
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
@@ -830,7 +830,7 @@ var apiCreateCmdV2 = &cobra.Command{
 
         apiCreateReqOptions := new(whisk.ApiCreateRequestOptions)
         props, _ := readProps(Properties.PropsFile)
-        apiCreateReqOptions.AccessToken = props["BMXTOKEN"]
+        apiCreateReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiCreateReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
         whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\n", apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid)
 
@@ -898,7 +898,7 @@ var apiGetCmdV2 = &cobra.Command{
         var isBasePathArg bool = true
 
         if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No BMXTOKEN in properties file\n")
+            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
             errMsg := wski18n.T("You must login prior to issuing this command.")
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -914,7 +914,7 @@ var apiGetCmdV2 = &cobra.Command{
         apiGetReqOptions := new(whisk.ApiGetRequestOptions)
         apiGetReqOptions.ApiBasePath = args[0]
         props, _ := readProps(Properties.PropsFile)
-        apiGetReqOptions.AccessToken = props["BMXTOKEN"]
+        apiGetReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiGetReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
 
 
@@ -974,7 +974,7 @@ var apiDeleteCmdV2 = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
 
         if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No BMXTOKEN in properties file\n")
+            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
             errMsg := wski18n.T("You must login prior to issuing this command.")
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -989,7 +989,7 @@ var apiDeleteCmdV2 = &cobra.Command{
         apiDeleteReq := new(whisk.ApiDeleteRequest)
         apiDeleteReqOptions := new(whisk.ApiDeleteRequestOptions)
         props, _ := readProps(Properties.PropsFile)
-        apiDeleteReqOptions.AccessToken = props["BMXTOKEN"]
+        apiDeleteReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiDeleteReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
 
         // Is the argument a basepath (must start with /) or an API name
@@ -1067,7 +1067,7 @@ var apiListCmdV2 = &cobra.Command{
         var retApiArray *whisk.RetApiArrayV2
 
         if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No BMXTOKEN in properties file\n")
+            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
             errMsg := wski18n.T("You must login prior to issuing this command.")
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -1080,7 +1080,7 @@ var apiListCmdV2 = &cobra.Command{
         }
 
         props, _ := readProps(Properties.PropsFile)
-        accesstoken := props["BMXTOKEN"]
+        accesstoken := props["APIGW_ACCESS_TOKEN"]
         spaceguid := strings.Split(props["AUTH"], ":")[0]
 
         // Get API request body
@@ -1315,7 +1315,7 @@ func getLargestApiNameSizeV2(retApiArray *whisk.RetApiArrayV2, api *whisk.ApiOpt
 
 func hasApiGwAccessToken() bool {
     props, _ := readProps(Properties.PropsFile)
-    return (len(props["BMXTOKEN"]) > 0)
+    return (len(props["APIGW_ACCESS_TOKEN"]) > 0)
 }
 
 /*

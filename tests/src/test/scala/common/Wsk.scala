@@ -83,7 +83,7 @@ case class WskPropsV2(
     token: String = "") {
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
     def writeFile(propsfile: File) = {
-        val propsStr = s"NAMESPACE=${namespace}\nAPIVERSION=${apiversion}\nAUTH=${authKey}\nAPIHOST=${apihost}\nBMXTOKEN=${token}\n"
+        val propsStr = s"NAMESPACE=${namespace}\nAPIVERSION=${apiversion}\nAUTH=${authKey}\nAPIHOST=${apihost}\nAPIGW_ACCESS_TOKEN=${token}\n"
         val bw = new BufferedWriter(new FileWriter(propsfile))
         bw.write(propsStr)
         bw.close()
