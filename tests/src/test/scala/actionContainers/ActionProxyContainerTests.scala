@@ -74,6 +74,21 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
         Seq(("bash", bash), ("python", python))
     }
 
+    val stdUnicodeSamples = {
+        // python 3 in base image
+        val python = """
+                |#!/usr/bin/env python
+                |import json, sys
+                |j = json.loads(sys.argv[1])
+                |sep = j["delimiter"]
+                |s = sep + " ☃ " + sep
+                |print(s)
+                |print(json.dumps({"winter": s}))
+            """.stripMargin.trim
+
+        Seq(("python", python))
+    }
+
     /** Standard code samples, should print 'hello' to stdout and echo the input args. */
     val stdEnvSamples = {
         val bash = """
@@ -200,6 +215,7 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     testNotReturningJson(codeNotReturningJson, checkResultInLogs = true)
     testEcho(stdCodeSamples)
+    testUnicode(stdUnicodeSamples)
     testEnv(stdEnvSamples)
 }
 
@@ -238,10 +254,11 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
      * and print hello [stdout, stderr].
      */
     def testEcho(stdCodeSamples: Seq[(String, String)]) = {
-        for (s <- stdCodeSamples) {
+        stdCodeSamples.foreach { s =>
             it should s"run a ${s._1} script" in {
                 val argss = List(
                     JsObject("string" -> JsString("hello")),
+                    JsObject("string" -> JsString("❄ ☃ ❄")),
                     JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
                     // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
                     JsObject("object" -> JsObject("a" -> JsString("A"))))
@@ -266,9 +283,28 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
         }
     }
 
+    def testUnicode(stdUnicodeSamples: Seq[(String, String)]) = {
+        stdUnicodeSamples.foreach { s =>
+            it should s"run a ${s._1} action and handle unicode in source, input params, logs, and result" in {
+                val (out, err) = withActionContainer() { c =>
+                    val (initCode, _) = c.init(initPayload(s._2))
+                    initCode should be(200)
+
+                    val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+                    runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
+                }
+
+                checkStreams(out, err, {
+                    case (o, _) =>
+                        o.toLowerCase should include("❄ ☃ ❄")
+                })
+            }
+        }
+    }
+
     /** Runs tests for code samples which are expected to return the expected standard environment {auth, edge}. */
     def testEnv(stdEnvSamples: Seq[(String, String)], enforceEmptyOutputStream: Boolean = true, enforceEmptyErrorStream: Boolean = true) = {
-        for (s <- stdEnvSamples) {
+        stdEnvSamples.foreach { s =>
             it should s"run a ${s._1} script and confirm expected environment variables" in {
                 val props = Seq(
                     "api_host" -> "xyz",
