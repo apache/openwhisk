@@ -21,7 +21,7 @@ $ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker -x :core:swift3Action:distDocker -x :core:pythonAction:distDocker -PdockerImagePrefix=testing
+./gradlew distDocker -PdockerImagePrefix=testing
 
 cd $ROOTDIR/ansible
 

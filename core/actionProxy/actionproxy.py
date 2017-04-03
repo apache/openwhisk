@@ -52,6 +52,9 @@ class ActionRunner:
         self.source = source if source else defaultBinary
         self.binary = binary if binary else defaultBinary
 
+    def preinit(self):
+        return
+
     # extracts from the JSON object message a 'code' property and
     # writes it to the <source> path. The source code may have an
     # an optional <epilogue>. The source code is subsequently built
@@ -60,6 +63,7 @@ class ActionRunner:
     # @return True iff binary exists and is executable
     def init(self, message):
         def prep():
+            self.preinit()
             if 'code' in message and message['code'] is not None:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
@@ -105,8 +109,7 @@ class ActionRunner:
     def env(self, message):
         # make sure to include all the env vars passed in by the invoker
         env = os.environ
-        for p in ['api_key', 'namespace', 'action_name',
-                  'activation_id', 'deadline']:
+        for p in ['api_key', 'namespace', 'action_name', 'activation_id', 'deadline']:
             if p in message:
                 env['__OW_%s' % p.upper()] = message[p]
         return env
@@ -138,29 +141,35 @@ class ActionRunner:
         (o, e) = p.communicate()
 
         # stdout/stderr may be either text or bytes, depending on Python
-        # version.   In the latter case, decode to text.
-        if isinstance(o, bytes):
+        # version, so if bytes, decode to text. Note that in Python 2
+        # a string will match both types; so also skip decoding in that case
+        if isinstance(o, bytes) and not isinstance(o, str):
             o = o.decode('utf-8')
-        if isinstance(e, bytes):
+        if isinstance(e, bytes) and not isinstance(e, str):
             e = e.decode('utf-8')
 
         # get the last line of stdout, even if empty
-        process_output_lines = o.strip().split('\n')
-        last_line = process_output_lines[-1]
-        for line in process_output_lines[:-1]:
-            sys.stdout.write('%s\n' % line)
+        lastNewLine = o.rfind('\n', 0, len(o)-1)
+        if lastNewLine != -1:
+            # this is the result string to JSON parse
+            lastLine = o[lastNewLine+1:].strip()
+            # emit the rest as logs to stdout (including last new line)
+            sys.stdout.write(o[:lastNewLine+1])
+        else:
+            # either o is empty or it is the result string
+            lastLine = o.strip()
 
         if e:
             sys.stderr.write(e)
 
         try:
-            json_output = json.loads(last_line)
+            json_output = json.loads(lastLine)
             if isinstance(json_output, dict):
                 return (200, json_output)
             else:
-                return error(last_line)
+                return error(lastLine)
         except Exception:
-            return error(last_line)
+            return error(lastLine)
 
     # initialize code from inlined string
     def initCodeFromString(self, message):
@@ -210,9 +219,7 @@ def init():
     if status is True:
         return ('OK', 200)
     else:
-        response = flask.jsonify({'error':
-                                  'The action failed to generate or '
-                                  'locate a binary. See logs for details.'})
+        response = flask.jsonify({'error': 'The action failed to generate or locate a binary. See logs for details.'})
         response.status_code = 502
         return complete(response)
 
@@ -220,8 +227,7 @@ def init():
 @proxy.route('/run', methods=['POST'])
 def run():
     def error():
-        response = flask.jsonify({'error': 'The action did not receive '
-                                  'a dictionary as an argument.'})
+        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
         response.status_code = 404
         return complete(response)
 
@@ -242,8 +248,7 @@ def run():
             response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
             response.status_code = 500
     else:
-        response = flask.jsonify({'error': 'The action failed to locate '
-                                  'a binary. See logs for details.'})
+        response = flask.jsonify({'error': 'The action failed to locate a binary. See logs for details.'})
         response.status_code = 502
     return complete(response)
 
