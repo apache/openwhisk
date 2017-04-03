@@ -38,6 +38,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import whisk.core.containerpool.docker.DockerApi
 import whisk.core.containerpool.docker.RuncApi
+import whisk.core.connector.CompletionMessage
+import scala.util.Success
+import scala.util.Failure
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -86,7 +89,23 @@ class InvokerReactive(
             name = Some(name))
     }
 
-    val childFactory = (f: ActorRefFactory) => f.actorOf(WhiskContainer.props(containerFactory, producer, activationStore))
+    val ack = (tid: TransactionId, activation: WhiskActivation) => {
+        implicit val transid = tid
+        producer.send("completed", CompletionMessage(tid, activation)).andThen {
+            case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
+        }
+    }
+
+    val store = (tid: TransactionId, activation: WhiskActivation) => {
+        implicit val transid = tid
+        logging.info(this, "recording the activation result to the data store")
+        WhiskActivation.put(activationStore, activation).andThen {
+            case Success(id) => logging.info(this, s"recorded activation")
+            case Failure(t)  => logging.error(this, s"failed to record activation")
+        }
+    }
+
+    val childFactory = (f: ActorRefFactory) => f.actorOf(WhiskContainer.props(containerFactory, ack, store))
     val pool = actorSystem.actorOf(whisk.core.containerpool.ContainerPool.props(
         childFactory,
         OldContainerPool.getDefaultMaxActive(config),

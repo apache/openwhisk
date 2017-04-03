@@ -25,15 +25,11 @@ import akka.actor.Stash
 import whisk.core.entity.WhiskAction
 import whisk.core.connector.ActivationMessage
 import whisk.core.entity.WhiskActivation
-import whisk.core.connector.CompletionMessage
-import whisk.core.connector.MessageProducer
 import scala.util.Success
 import whisk.core.entity.ActivationResponse
 import akka.actor.Status.{ Failure => FailureMessage }
 import whisk.core.entity.ActivationLogs
-import whisk.core.entity.types.ActivationStore
 import whisk.common.TransactionId
-import whisk.common.AkkaLogging
 import scala.util.Failure
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
@@ -80,10 +76,9 @@ case object ContainerRemoved
 
 class WhiskContainer(
     factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
-    activeAckProducer: MessageProducer,
-    store: ActivationStore) extends FSM[ContainerState, ContainerData] with Stash {
+    sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
+    storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
-    val logging = new AkkaLogging(context.system.log)
 
     val unusedTimeout = 30.seconds
     val pauseGrace = 1.second
@@ -118,8 +113,8 @@ class WhiskContainer(
                             case _                               => ActivationResponse.whiskError(t.getMessage)
                         }
                         val activation = WhiskContainer.constructWhiskActivation(job, Interval.zero, response)
-                        sendActiveAck(activation)
-                        storeActivation(activation)
+                        sendActiveAck(transid, activation)
+                        storeActivation(transid, activation)
                 }
                 .flatMap {
                     container =>
@@ -287,14 +282,14 @@ class WhiskContainer(
         // Sending active ack and storing the activation are concurrent side-effects
         // and do not block the future.
         activation.andThen {
-            case Success(activation) => sendActiveAck(activation)
+            case Success(activation) => sendActiveAck(tid, activation)
         }.flatMap { activation =>
             val exec = job.action.exec.asInstanceOf[CodeExec[_]]
             container.logs(job.action.limits.logs.asMegaBytes, exec.sentinelledLogs).map { logs =>
                 activation.withLogs(ActivationLogs(logs.toVector))
             }
         }.andThen {
-            case Success(activation) => storeActivation(activation)
+            case Success(activation) => storeActivation(tid, activation)
         }.flatMap { activation =>
             // Fail the future iff the activation was unsuccessful to facilitate
             // better cleanup logic.
@@ -302,35 +297,12 @@ class WhiskContainer(
             else Future.failed(new Exception())
         }
     }
-
-    /**
-     * Sends an active ack to exit a blocking invocation as early as possible.
-     *
-     * @param activation the activation that contains run responses etc. but no logs
-     */
-    def sendActiveAck(activation: WhiskActivation)(implicit transid: TransactionId) = {
-        val completion = CompletionMessage(transid, activation)
-        activeAckProducer.send("completed", completion).andThen {
-            case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
-        }
-    }
-
-    /**
-     * Stores the activation in the datastore for persistence.
-     *
-     * @param activation that contains full information, including logs
-     */
-    def storeActivation(activation: WhiskActivation)(implicit transid: TransactionId) = {
-        logging.info(this, "recording the activation result to the data store")
-        WhiskActivation.put(store, activation) andThen {
-            case Success(id) => logging.info(this, s"recorded activation")
-            case Failure(t)  => logging.error(this, s"failed to record activation")
-        }
-    }
 }
 
 object WhiskContainer {
-    def props(factory: (TransactionId, String, Exec, ByteSize) => Future[Container], prod: MessageProducer, store: ActivationStore) = Props(new WhiskContainer(factory, prod, store))
+    def props(factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
+              ack: (TransactionId, WhiskActivation) => Future[Any],
+              store: (TransactionId, WhiskActivation) => Future[Any]) = Props(new WhiskContainer(factory, ack, store))
 
     private val count = new AtomicInteger(0)
     def containerNumber() = count.incrementAndGet()
