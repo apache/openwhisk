@@ -9,7 +9,7 @@ WORKDIR /
 
 # Upgrade and install basic Python dependencies
 RUN apt-get -y update \
- && apt-get -y install --fix-missing python-gevent python-flask
+ && apt-get -y install --fix-missing python-gevent python-flask \
 \
 # Install zip and curl for compiling Swift actions
  && apt-get -y install curl zip \
