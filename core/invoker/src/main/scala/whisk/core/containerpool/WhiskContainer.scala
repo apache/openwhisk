@@ -86,6 +86,7 @@ class WhiskContainer(
     startWith(Uninitialized, NoData())
 
     when(Uninitialized) {
+        // pre warm a container
         case Event(job: Start, _) =>
             factory(
                 TransactionId.invokerWarmup,
@@ -97,6 +98,7 @@ class WhiskContainer(
 
             goto(Starting)
 
+        // cold start
         case Event(job: Run, _) =>
             implicit val transid = job.msg.transid
             factory(
@@ -126,11 +128,13 @@ class WhiskContainer(
     }
 
     when(Starting) {
+        // container was successfully obtained
         case Event(data: PreWarmedData, _) =>
             context.parent ! NeedWork(data)
             goto(Started) using data
 
-        case Event(FailureMessage(_), _) =>
+        // container creation failed
+        case Event(_: FailureMessage, _) =>
             context.parent ! ContainerRemoved
             stop()
 
@@ -150,13 +154,26 @@ class WhiskContainer(
     }
 
     when(Running) {
+        // Intermediate state, we were able to start a container
+        // and we keep it in case we need to destroy it.
         case Event(data: PreWarmedData, _) => stay using data
+
+        // Run was successful
         case Event(data: WarmedData, _) =>
             context.parent ! NeedWork(data)
             goto(Ready) using data
 
+        // Failed after /init (the first run failed)
         case Event(_: FailureMessage, data: PreWarmedData) => destroyContainer(data.container)
-        case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
+
+        // Failed for a subsequent /run
+        case Event(_: FailureMessage, data: WarmedData)    => destroyContainer(data.container)
+
+        // Failed at getting a container for a cold-start run
+        case Event(_: FailureMessage, _) =>
+            context.parent ! ContainerRemoved
+            stop()
+
         case _ => delay
     }
 
@@ -169,6 +186,7 @@ class WhiskContainer(
 
             goto(Running)
 
+        // pause grace timed out
         case Event(StateTimeout, data: WarmedData) =>
             data.container.halt()(TransactionId.invokerNanny).map(_ => ContainerPaused).pipeTo(self)
             goto(Pausing)
@@ -195,6 +213,7 @@ class WhiskContainer(
 
             goto(Running)
 
+        // timeout or removing
         case Event(StateTimeout | Remove, data: WarmedData) => destroyContainer(data.container)
     }
 
