@@ -50,7 +50,7 @@ list to see if your issue has already been raised.
 A good bug report is one that make it easy for us to understand what you were trying to do and what went wrong. 
 Provide as much context as possible so we can try to recreate the issue.
 
-A good enhancement request comes with an explanation what you are trying to do and how that enhancement would help you.
+A good enhancement request comes with an explanation of what you are trying to do and how that enhancement would help you.
 
 ### Discussion
 
