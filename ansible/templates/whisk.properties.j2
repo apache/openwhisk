@@ -10,8 +10,8 @@ whisk.logs.dir={{ whisk_logs_dir }}
 whisk.version.name={{ whisk_version_name }}
 whisk.version.date={{ whisk.version.date }}
 whisk.version.buildno={{ docker_image_tag }}
-whisk.ssl.cert={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-cert.pem
-whisk.ssl.key={{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-key.pem
+whisk.ssl.cert={{ nginx.ssl.path }}/{{ nginx.ssl.cert }}
+whisk.ssl.key={{ nginx.ssl.path }}/{{ nginx.ssl.key }}
 whisk.ssl.challenge=openwhisk
 
 {#

@@ -16,8 +16,14 @@
     src: "files/{{ item }}"
     dest: "{{ nginx_conf_dir }}"
   with_items:
-    - openwhisk-cert.pem
-    - openwhisk-key.pem
+        - "{{ nginx.ssl.cert }}"
+        - "{{ nginx.ssl.key }}"
+
+- name: copy password files for cert from local to remote in nginx config directory
+  copy:
+    src: "files/{{ nginx.ssl.password_file }}"
+    dest: "{{ nginx_conf_dir }}"
+  when: "{{ nginx.ssl.password_enabled == true }}"
 
 - name: ensure nginx log directory is created with permissions
   file:
