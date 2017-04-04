@@ -21,6 +21,7 @@ import java.io.PrintStream
 
 import whisk.common.Logging
 import whisk.common.PrintStreamLogging
+import java.nio.charset.StandardCharsets
 
 /**
  * Logging facility, that can be used by tests.
@@ -29,7 +30,9 @@ import whisk.common.PrintStreamLogging
  * the logger logs to the stream, that can be accessed from your test, to check if a specific message has been written.
  */
 trait StreamLogging {
-    val stream = new ByteArrayOutputStream
-    val printstream = new PrintStream(stream)
-    implicit val logging: Logging = new PrintStreamLogging(printstream)
+    lazy val stream = new ByteArrayOutputStream
+    lazy val printstream = new PrintStream(stream)
+    implicit lazy val logging: Logging = new PrintStreamLogging(printstream)
+
+    def logLines = new String(stream.toByteArray, StandardCharsets.UTF_8).lines.toList
 }
