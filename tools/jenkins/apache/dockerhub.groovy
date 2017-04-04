@@ -56,6 +56,9 @@ node("ubuntu&&xenial") {
       def shortCommit = gitCommit.take(7)
       sh "${PUSH_CMD} -PdockerImageTag=latest"
       sh "${PUSH_CMD} -PdockerImageTag=${shortCommit}"
+      sh "docker tag openwhisk/couchdb-snapshot openwhisk/couchdb-snapshot:latest"
+      sh "docker tag openwhisk/couchdb-snapshot openwhisk/couchdb-snapshot:${shortCommit}"
+      sh "docker push openwhisk/couchdb-snapshot"
 
     }
   }
