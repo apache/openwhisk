@@ -100,8 +100,7 @@ class WhiskConfig(
     val dbPort = this(WhiskConfig.dbPort)
     val dbWhisk = this(WhiskConfig.dbWhisk)
     val dbAuths = this(WhiskConfig.dbAuths)
-    lazy val dbSplitActionsAndActivations = this(WhiskConfig.dbSplitActionsAndActivations).toBoolean
-    lazy val dbActivations = if (dbSplitActionsAndActivations) this(WhiskConfig.dbActivations) else dbWhisk
+    val dbActivations = this(WhiskConfig.dbActivations)
     val dbPrefix = this(WhiskConfig.dbPrefix)
 
     val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
@@ -213,7 +212,6 @@ object WhiskConfig {
     val dbAuths = "db.whisk.auths"
     val dbPrefix = "db.prefix"
     val dbActivations = "db.whisk.activations"
-    val dbSplitActionsAndActivations = "db.split.actions.and.activations"
 
     // these are not private because they are needed
     // in the invoker (they are part of the environment

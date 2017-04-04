@@ -265,8 +265,12 @@ class ViewTests extends FlatSpec
 
         others foreach { put(entityStore, _) }
         entities foreach { put(activationStore, _) }
-        waitOnView(entityStore, namespace1, others.length)
-        waitOnView(activationStore, namespace1, entities.length)
+        if (config.dbActivations == config.dbWhisk) {
+            waitOnView(entityStore, namespace1, others.length + entities.length)
+        } else {
+            waitOnView(entityStore, namespace1, others.length)
+            waitOnView(activationStore, namespace1, entities.length)
+        }
 
         getKindInNamespaceByNameSortedByDate(activationStore, namespace1, "activations", actionName, 0, 5, None, None, {
             case (e: WhiskActivation) => e.name == actionName

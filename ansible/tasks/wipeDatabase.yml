@@ -10,6 +10,7 @@
   vars:
     dbName: "{{ db.whisk.activations }}"
     forceRecreation: True
+  when: db.whisk.activations != db.whisk.actions
 
 - include: recreateViews.yml
   when: withViews == True

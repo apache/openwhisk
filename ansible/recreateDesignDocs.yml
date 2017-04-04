@@ -1,5 +1,5 @@
 ---
-# This playbook wipes the database. Pls be sure you know what you are doing now!
+# This playbook recreates all design documents in the whisks and the activations DB.
 
 - hosts: ansible
   tasks:
