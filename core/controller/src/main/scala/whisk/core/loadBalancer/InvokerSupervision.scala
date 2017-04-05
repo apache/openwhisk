@@ -19,7 +19,6 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -42,7 +41,6 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.AkkaLogging
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.KeyValueStore
-import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
@@ -51,7 +49,6 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.PingMessage
-import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.AuthKey
@@ -65,7 +62,6 @@ import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.types.EntityStore
 
 // Received events
 case object GetStatus
@@ -200,26 +196,11 @@ object InvokerPool {
         new WhiskAction(
             namespace = EntityPath("whisk.system"),
             name = EntityName("invokerHealthTestAction"),
-            exec = new CodeExecAsString(manifest, """function main(params) { return params || {}; }""", None))
+            exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
     }
 
-    /** Create an test action on startup if it is not there. */
-    def createTestActionForInvokerHealth(db: EntityStore)(implicit logging: Logging, ec: ExecutionContext): Future[WhiskAction] = {
-        implicit val tid = TransactionId.loadbalancer
-        testAction match {
-            case Some(action) =>
-                WhiskAction.get(db, action.docid).recover {
-                    case _: NoDocumentException => WhiskAction.put(db, action)
-                }.map(_ => action).andThen {
-                    case Success(_) => logging.info(this, "Testaction for invokerHealth exists now.")
-                    case Failure(e) => logging.error(this, s"Error on creating testaction for invokerHealth: $e")
-                }
-            case None => {
-                logging.error(this, "Error on creating testaction for invokerHealth: Probably there were problems with the manifest.")
-                Future.failed(new Exception("Error on creating testaction for invokerHealth: Probably there were problems with the manifest."))
-            }
-        }
-    }
+    // Authentication is not needed anymore at this point.
+    val authentication = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]())
 }
 
 /**
@@ -253,13 +234,13 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
     }
 
     /**
-     * An UnHealthy invoker represents an invoker, that was not able to handle actions successfully.
+     * An UnHealthy invoker represents an invoker that was not able to handle actions successfully.
      */
     when(UnHealthy, stateTimeout = healthyTimeout) {
         case Event(_: PingMessage, _) => stay
         case Event(StateTimeout, _)   => goto(Offline)
         case Event(Tick, info) => {
-            invokeTestActions()
+            invokeTestAction()
             stay
         }
     }
@@ -288,7 +269,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
     /** Scheduler to send testActivations, if the invoker is UnHealthy */
     onTransition {
         case _ -> UnHealthy => {
-            invokeTestActions()
+            invokeTestAction()
             setTimer(InvokerActor.timerName, Tick, 1.minute, true)
         }
         case UnHealthy -> _ => cancelTimer(InvokerActor.timerName)
@@ -310,7 +291,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
         // If this is successful it seems like the Invoker is Healthy again. So we execute immediately
         // a new testaction to remove the errors out of the RingBuffer as fast as possible.
         if (wasActivationSuccessful && stateName == UnHealthy) {
-            invokeTestActions()
+            invokeTestAction()
         }
 
         if (stateName == Healthy && wasActivationSuccessful) {
@@ -329,7 +310,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
      * Creates an Activationmessage with the given action and sends it to the InvokerPool.
      * The InvokerPool redirects it to the invoker which is represented by this InvokerActor.
      */
-    private def invokeTestActions() = {
+    private def invokeTestAction() = {
         InvokerPool.testAction.map { action =>
             val activationMessage = ActivationMessage(
                 // Use the sid of the InvokerSupervisor as tid
@@ -337,11 +318,10 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
                 action = action.fullyQualifiedName(true),
                 // Use empty DocRevision to force the invoker to pull the action from db all the time
                 revision = DocRevision(),
-                // Authentication is not needed anymore at this point.
-                user = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]()),
+                user = InvokerPool.authentication,
                 // Create a new Activation ID for this activation
                 activationId = new ActivationIdGenerator {}.make(),
-                activationNamespace = EntityPath("whisk.system"),
+                activationNamespace = action.namespace,
                 content = None)
 
             context.parent ! ActivationRequest(activationMessage, name)

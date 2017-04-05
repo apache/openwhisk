@@ -20,12 +20,15 @@ import java.time.{ Clock, Instant }
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Success
+import scala.util.Failure
 
 import org.apache.kafka.clients.producer.RecordMetadata
 
@@ -44,6 +47,7 @@ import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
+import whisk.core.database.NoDocumentException
 
 trait LoadBalancer {
 
@@ -89,7 +93,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
             val subject = msg.user.subject.asString
             val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
             val msgWithTarget = ActivationRequest(msg, invokerName)
-            invokerPool.flatMap(_.ask(msgWithTarget)(Timeout(5.seconds))).mapTo[RecordMetadata].map { _ =>
+            invokerPool.ask(msgWithTarget)(Timeout(5.seconds)).mapTo[RecordMetadata].map { _ =>
                 entry.promise.future
             }
         }
@@ -171,6 +175,27 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
      * INVOKER MANAGEMENT
      */
 
+    /** Create an test action on startup if it is not there. */
+    def createTestActionForInvokerHealth(db: EntityStore): WhiskAction = {
+        implicit val tid = TransactionId.loadbalancer
+        val errorMsg = "Error on creating testaction for invokerHealth: Probably there were problems with the manifest."
+        require(InvokerPool.testAction.isDefined, errorMsg)
+
+        val actionCreation = InvokerPool.testAction.map { action =>
+            WhiskAction.get(db, action.docid).flatMap { oldAction =>
+                WhiskAction.put(db, action.revision(oldAction.rev))
+            }.recover {
+                case _: NoDocumentException => WhiskAction.put(db, action)
+            }.map(_ => action).andThen {
+                case Success(_) => logging.info(this, "Testaction for invokerHealth exists now.")
+                case Failure(e) => logging.error(this, s"Error on creating testaction for invokerHealth: $e")
+            }
+        }.getOrElse(Future.failed(new Exception(errorMsg)))
+
+        // Await the creation of the test action to abort the startup of the controller, if it is not possible
+        Await.result(actionCreation, 1.minute)
+    }
+
     /** Gets a producer which can publish messages to the kafka bus. */
     private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
     private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
@@ -178,14 +203,13 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     private val consul = new ConsulClient(config.consulServer)
     private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
     // Do not create the invokerpool, if it is not possible to create the test action to recover the invokers.
-    private val invokerPool = InvokerPool.createTestActionForInvokerHealth(entityStore).map { _ =>
-        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-            clearInvokerState(invoker)
-            logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
-        }, messageProducer, ackConsumer, msg => processCompletion(msg), pingConsumer))
-    }
+    createTestActionForInvokerHealth(entityStore)
+    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
+        clearInvokerState(invoker)
+        logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
+    }, messageProducer, ackConsumer, msg => processCompletion(msg), pingConsumer))
 
-    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.flatMap(_.ask(GetStatus)(Timeout(5.seconds))).mapTo[Map[String, InvokerState]]
+    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 
     /** Return a sorted list of available invokers. */
     private def availableInvokers: Future[Seq[String]] = invokerHealth.map {

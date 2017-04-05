@@ -63,7 +63,6 @@ class Invoker(
     with ActionLogDriver {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-    val invokerName = s"invoker$instance"
 
     TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
 
@@ -255,7 +254,7 @@ class Invoker(
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
-        val completeMsg = CompletionMessage(transid, activationResult, invokerName)
+        val completeMsg = CompletionMessage(transid, activationResult, this.name)
 
         producer.send("completed", completeMsg) map { status =>
             logging.info(this, s"posted completion of activation ${msg.activationId}")
