@@ -38,16 +38,16 @@
           "description": "A description of the configuration."
         },
         "support": {
-          "type": "string",
-          "description": "Where to file defects, feature requests, etc."
-        },
-        "build": {
-          "type": "string",
-          "description": "The build date for current deployment."
-        },
-        "build_tag": {
-          "type": "string",
-          "description": "The build tag."
+          "type": "object",
+          "description": "Where to file defects, feature requests, reach the community for support, etc.",
+          "properties": {
+            "github": {
+               "type": "string"
+            },
+            "slack": {
+               "type": "string"
+            }
+          }
         },
         "api_paths": {
           "type": "array",
@@ -86,8 +86,6 @@
       "required": [
         "description",
         "support",
-        "build",
-        "build_tag",
         "api_paths",
         "limits",
         "runtimes"
@@ -101,9 +99,17 @@
           "items": {
             "type": "object",
             "properties": {
-              "deprecated": {
+              "kind": {
+                "type": "string",
+                "description": "The action kind, implies a particular image for the action runtime."
+              },
+              "image": {
+                "type": "string",
+                "description": "The public container image name."
+              },
+              "default": {
                 "type": "boolean",
-                "description": "Indicates if runtime is deprecated: may get/delete action but not invoke/create/update."
+                "description": "Indicates if this is the default action 'kind' for a runtime family."
               },
               "requireMain": {
                 "type": "boolean",
@@ -113,21 +119,18 @@
                 "type": "boolean",
                 "description": "Indicates if the action 'code' is an attachment."
               },
-              "default": {
+              "deprecated": {
                 "type": "boolean",
-                "description": "Indicates if this is the default action 'kind' for a runtime family."
-              },
-              "kind": {
-                "type": "string",
-                "description": "The action kind, implies a particular image for the action runtime."
+                "description": "Indicates if runtime is deprecated: may get/delete action but not invoke/create/update."
               }
             },
             "required": [
-              "deprecated",
+              "kind",
+              "image",
+              "default",
               "requireMain",
               "attached",
-              "default",
-              "kind"
+              "deprecated"
             ]
           }
         }

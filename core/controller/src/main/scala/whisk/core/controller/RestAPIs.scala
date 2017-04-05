@@ -57,6 +57,10 @@ protected[controller] class SwaggerDocs(
     protected val swaggeruipath = "docs"
     protected val swaggerdocpath = "api-docs"
 
+    def basepath(url: Uri.Path = apipath): String = {
+        (if (url.startsWithSlash) url else Uri.Path./(url)).toString
+    }
+
     /**
      * Defines the routes to serve the swagger docs.
      */
@@ -73,14 +77,7 @@ protected[controller] class SwaggerDocs(
     }
 
     /** Forces add leading slash for swagger api-doc url rewrite to work. */
-    private def apiDocsUrl = {
-        val url = (apipath / swaggerdocpath)
-        if (url.startsWithSlash) {
-            url
-        } else {
-            Uri.Path./(url)
-        }
-    }.toString
+    private def apiDocsUrl = basepath(apipath / swaggerdocpath)
 }
 
 /**
@@ -203,8 +200,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
      */
     private val info = JsObject(
         "description" -> "OpenWhisk API".toJson,
-        "min_cli_version" -> whiskConfig(whiskVersionDate).toJson,
-        "min_recommended_cli_version" -> whiskConfig(whiskVersionDate).toJson,
         "api_version" -> SemVer(1, 0, 0).toJson,
         "api_version_path" -> apiversion.toJson,
         "build" -> whiskConfig(whiskVersionDate).toJson,

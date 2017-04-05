@@ -132,7 +132,7 @@ class Controller(
     }
 
     // controller top level info
-    private val info = Controller.info(whiskConfig, runtimes)
+    private val info = Controller.info(whiskConfig, runtimes, List(apiv1.basepath()))
 }
 
 /**
@@ -151,12 +151,12 @@ object Controller {
 
     def optionalProperties = EntitlementProvider.optionalProperties
 
-    private def info(config: WhiskConfig, runtimes: Runtimes) = JsObject(
+    private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) = JsObject(
         "description" -> "OpenWhisk".toJson,
-        "support" -> "https://github.com/openwhisk/openwhisk/issues".toJson,
-        "build" -> config(WhiskConfig.whiskVersionDate).toJson,
-        "build_tag" -> config(WhiskConfig.whiskVersionBuildno).toJson,
-        "api_paths" -> List("/api/v1").toJson,
+        "support" -> JsObject(
+            "github" -> "https://github.com/openwhisk/openwhisk/issues".toJson,
+            "slack" -> "http://slack.openwhisk.org".toJson),
+        "api_paths" -> apis.toJson,
         "limits" -> JsObject(
             "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
             "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
