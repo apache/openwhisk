@@ -33,7 +33,7 @@ import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.containerpool.Run
 import whisk.core.connector.MessageProducer
 import akka.actor.ActorRefFactory
-import whisk.core.containerpool.WhiskContainer
+import whisk.core.containerpool.ContainerProxy
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import whisk.core.containerpool.docker.DockerApi
@@ -105,7 +105,7 @@ class InvokerReactive(
         }
     }
 
-    val childFactory = (f: ActorRefFactory) => f.actorOf(WhiskContainer.props(containerFactory, ack, store))
+    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
     val pool = actorSystem.actorOf(whisk.core.containerpool.ContainerPool.props(
         childFactory,
         OldContainerPool.getDefaultMaxActive(config),

@@ -16,33 +16,34 @@
 
 package whisk.core.containerpool
 
-import akka.actor.FSM
-import akka.actor.Props
-import akka.pattern.pipe
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import akka.actor.Stash
-import whisk.core.entity.WhiskAction
-import whisk.core.connector.ActivationMessage
-import whisk.core.entity.WhiskActivation
-import scala.util.Success
-import whisk.core.entity.ActivationResponse
-import akka.actor.Status.{ Failure => FailureMessage }
-import whisk.core.entity.ActivationLogs
-import whisk.common.TransactionId
-import scala.util.Failure
-import whisk.core.entity.ByteSize
-import whisk.core.entity.size._
-import whisk.core.entity.Exec
-import whisk.core.entity.EntityName
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
-import whisk.core.entity.CodeExec
-import whisk.core.entity.Parameters
 
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.Success
+import scala.util.Failure
+
+import akka.actor.FSM
+import akka.actor.Props
+import akka.actor.Stash
+import akka.actor.Status.{ Failure => FailureMessage }
+import akka.pattern.pipe
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.common.TransactionId
+import whisk.core.connector.ActivationMessage
 import whisk.core.container.Interval
+import whisk.core.entity.ActivationLogs
+import whisk.core.entity.ActivationResponse
+import whisk.core.entity.ByteSize
+import whisk.core.entity.CodeExec
+import whisk.core.entity.EntityName
+import whisk.core.entity.Exec
+import whisk.core.entity.Parameters
+import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskActivation
+import whisk.core.entity.size._
 
 // States
 sealed trait ContainerState
@@ -61,20 +62,36 @@ case class NoData() extends ContainerData(Instant.EPOCH)
 case class PreWarmedData(container: Container, kind: String) extends ContainerData(Instant.EPOCH)
 case class WarmedData(container: Container, namespace: EntityName, action: WhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
 
-// Events
-sealed trait Job
-case class Start(exec: Exec) extends Job
-case class Run(action: WhiskAction, msg: ActivationMessage) extends Job
+// Events received by the actor
+case class Start(exec: Exec)
+case class Run(action: WhiskAction, msg: ActivationMessage)
 case object Remove
 
+// Events sent by the actor
 case class NeedWork(data: ContainerData)
-
-// Container events
-case class ContainerCreated(container: Container, kind: Exec)
 case object ContainerPaused
 case object ContainerRemoved
 
-class WhiskContainer(
+/**
+ * A proxy that wraps a Container. It is used to keep track of the lifecycle
+ * of a container and to guarantee a contract between the client of the container
+ * and the container itself.
+ *
+ * The contract is as follows:
+ * 1. Only one job is to be sent to the ContainerProxy at one time. ContainerProxy
+ *    will delay all further jobs until the first job is finished for defensiveness
+ *    reasons.
+ * 2. The next job can be sent to the ContainerProxy after it indicated capacity by
+ *    sending NeedWork to its parent.
+ * 3. A Remove message can be sent at any point in time. Like multiple jobs though,
+ *    it will be delayed until the currently running job has finished.
+ *
+ * @constructor
+ * @param factory a function generating a Container
+ * @param sendActiveAck a function sending the activation via active ack
+ * @param storeActivation a function storing the activation in a persistent store
+ */
+class ContainerProxy(
     factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
     sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
@@ -90,7 +107,7 @@ class WhiskContainer(
         case Event(job: Start, _) =>
             factory(
                 TransactionId.invokerWarmup,
-                WhiskContainer.containerName("prewarm", job.exec.kind),
+                ContainerProxy.containerName("prewarm", job.exec.kind),
                 job.exec,
                 256.MB)
                 .map(container => PreWarmedData(container, job.exec.kind))
@@ -103,7 +120,7 @@ class WhiskContainer(
             implicit val transid = job.msg.transid
             factory(
                 job.msg.transid,
-                WhiskContainer.containerName(job.msg.user.namespace.name, job.action.name.name),
+                ContainerProxy.containerName(job.msg.user.namespace.name, job.action.name.name),
                 job.action.exec,
                 job.action.limits.memory.megabytes.MB)
                 .andThen {
@@ -114,7 +131,7 @@ class WhiskContainer(
                             case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
                             case _                               => ActivationResponse.whiskError(t.getMessage)
                         }
-                        val activation = WhiskContainer.constructWhiskActivation(job, Interval.zero, response)
+                        val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
                         sendActiveAck(transid, activation)
                         storeActivation(transid, activation)
                 }
@@ -241,7 +258,8 @@ class WhiskContainer(
     }
 
     /**
-     * Destroys the container after unpausing it if needed
+     * Destroys the container after unpausing it if needed. Can be used
+     * as a state progression as it goes to Removing.
      *
      * @param container the container to destroy
      */
@@ -265,10 +283,13 @@ class WhiskContainer(
      *
      * @param container the container to run the job on
      * @param job the job to run
-     * @return
+     * @return a future completing after logs have been collected and
+     *         added to the WhiskActivation
      */
     def run(container: Container, job: Run)(implicit tid: TransactionId): Future[WhiskActivation] = {
         val actionTimeout = job.action.limits.timeout.duration
+
+        // Only initialize iff we haven't yet warmed the container
         val initialize = stateData match {
             case data: WarmedData => Future.successful(Interval.zero)
             case _                => container.initialize(job.action.containerInitializer, actionTimeout)
@@ -291,15 +312,16 @@ class WhiskContainer(
             container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
                 case (runInterval, response) =>
                     val initRunInterval = Interval(runInterval.start.minusMillis(initInterval.duration.toMillis), runInterval.end)
-                    WhiskContainer.constructWhiskActivation(job, initRunInterval, response)
+                    ContainerProxy.constructWhiskActivation(job, initRunInterval, response)
             }
         }.recover {
             case InitializationError(response, interval) =>
-                WhiskContainer.constructWhiskActivation(job, interval, response)
+                ContainerProxy.constructWhiskActivation(job, interval, response)
         }
 
         // Sending active ack and storing the activation are concurrent side-effects
-        // and do not block the future.
+        // and do not block further execution of the future. They are completely
+        // asynchronous.
         activation.andThen {
             case Success(activation) => sendActiveAck(tid, activation)
         }.flatMap { activation =>
@@ -318,17 +340,33 @@ class WhiskContainer(
     }
 }
 
-object WhiskContainer {
+object ContainerProxy {
     def props(factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
               ack: (TransactionId, WhiskActivation) => Future[Any],
-              store: (TransactionId, WhiskActivation) => Future[Any]) = Props(new WhiskContainer(factory, ack, store))
+              store: (TransactionId, WhiskActivation) => Future[Any]) = Props(new ContainerProxy(factory, ack, store))
 
+    // Needs to be threadsafe as it's used by multiple proxys concurrently.
     private val count = new AtomicInteger(0)
-    def containerNumber() = count.incrementAndGet()
+    private def containerNumber() = count.incrementAndGet()
 
-    def containerName(namespace: String, actionName: String) =
-        s"wsk_${containerNumber()}_${namespace}_${actionName}".replaceAll("[^a-zA-Z0-9_]", "")
+    /**
+     * Generates a unique containername
+     *
+     * @param prefix the container name's prefix
+     * @param suffic the container name's suffix
+     * @return a unique container name
+     */
+    def containerName(prefix: String, suffix: String) =
+        s"wsk_${containerNumber()}_${prefix}_${suffix}".replaceAll("[^a-zA-Z0-9_]", "")
 
+    /**
+     * Creates a WhiskActivation ready to be sent via active ack.
+     *
+     * @param job the job that was executed
+     * @param interval the time it took to execute the job
+     * @param response the response to return to the user
+     * @return a WhiskActivation to be sent to the user
+     */
     def constructWhiskActivation(job: Run, interval: Interval, response: ActivationResponse) = {
         val causedBy = if (job.msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
         WhiskActivation(

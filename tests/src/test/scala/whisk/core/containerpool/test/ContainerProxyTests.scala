@@ -51,7 +51,7 @@ import whisk.core.entity.ExecManifest.RuntimeManifest
 import whisk.core.entity.size._
 
 @RunWith(classOf[JUnitRunner])
-class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
+class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     with ImplicitSender
     with FlatSpecLike
     with Matchers
@@ -130,7 +130,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
     val ack = stubFunction[TransactionId, WhiskActivation, Future[Any]]
     val store = stubFunction[TransactionId, WhiskActivation, Future[Any]]
 
-    behavior of "WhiskContainer"
+    behavior of "ContainerProxy"
 
     /*
      * SUCCESSFUL CASES
@@ -145,7 +145,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
             Future.successful(container)
         }
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.preWarm(machine)
@@ -156,7 +156,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         val container = new TestContainer
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
 
@@ -186,7 +186,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         val container = new TestContainer
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.preWarm(machine)
@@ -208,7 +208,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         val container = new TestContainer
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.preWarm(machine)
@@ -232,7 +232,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         val container = new TestContainer
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.run(machine, Uninitialized)
@@ -252,7 +252,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         val container = new TestContainer
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.failed(new Exception())
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.send(machine, Run(action, message))
@@ -277,7 +277,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         }
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.send(machine, Run(action, message))
@@ -303,7 +303,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         }
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.send(machine, Run(action, message))
@@ -335,7 +335,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         }
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
 
@@ -380,7 +380,7 @@ class WhiskContainerTests extends TestKit(ActorSystem("WhiskContainers"))
         }
         def factory(tid: TransactionId, name: String, exec: Exec, memoryLimit: ByteSize) = Future.successful(container)
 
-        val machine = pool.childActorOf(WhiskContainer.props(factory, ack, store))
+        val machine = pool.childActorOf(ContainerProxy.props(factory, ack, store))
         within(timeout.duration) {
             pool.registerCallback(machine)
             pool.run(machine, Uninitialized)
