@@ -92,8 +92,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
         chooseInvoker(action, msg).flatMap { invokerName =>
             val subject = msg.user.subject.asString
             val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
-            val msgWithTarget = ActivationRequest(msg, invokerName)
-            invokerPool.ask(msgWithTarget)(Timeout(5.seconds)).mapTo[RecordMetadata].map { _ =>
+            InvokerPool.sendActivationToInvoker(messageProducer, msg, invokerName).mapTo[RecordMetadata].map { _ =>
                 entry.promise.future
             }
         }

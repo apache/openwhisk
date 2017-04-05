@@ -19,6 +19,7 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -41,6 +42,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.AkkaLogging
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.KeyValueStore
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
@@ -127,16 +129,6 @@ class InvokerPool(
             invokers.get(msg.name).map(_.forward(msg))
         }
 
-        case msg: ActivationRequest => {
-            implicit val transid = msg.msg.transid
-            val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '${msg.invoker}' with activation id '${msg.msg.activationId}'")
-
-            producer.send(msg.invoker, msg.msg).andThen {
-                case Success(status) => transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-                case Failure(e)      => transid.failed(this, start, s"Error on posting to topic ${msg.invoker}")
-            }.pipeTo(sender())
-        }
-
         case CurrentState(invoker, currentState: InvokerState) =>
             invokerStatus.update(invoker.path.name, currentState)
             publishStatus()
@@ -148,6 +140,9 @@ class InvokerPool(
                 case _       =>
             }
             publishStatus()
+
+        /** this is only used for the internal test action to become healthy again */
+        case msg: ActivationRequest => InvokerPool.sendActivationToInvoker(producer, msg.msg, msg.invoker).pipeTo(sender)
     }
 
     def publishStatus() = {
@@ -192,15 +187,27 @@ object InvokerPool {
         acb: CompletionMessage => Unit,
         pc: MessageConsumer) = Props(new InvokerPool(f, kv, cb, p, ackC, acb, pc))
 
+    def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String)(implicit tid: TransactionId, logging: Logging, ec: ExecutionContext): Future[RecordMetadata] = {
+        implicit val transid = msg.transid
+        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
+
+        producer.send(invokerName, msg).andThen {
+            case Success(status) => transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+            case Failure(e)      => transid.failed(this, start, s"Error on posting to topic $invokerName")
+        }
+    }
+
+    val whiskSystem = "whisk.system"
+
     val testAction = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
         new WhiskAction(
-            namespace = EntityPath("whisk.system"),
+            namespace = EntityPath(whiskSystem),
             name = EntityName("invokerHealthTestAction"),
             exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
     }
 
     // Authentication is not needed anymore at this point.
-    val authentication = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]())
+    val authentication = Identity(Subject(whiskSystem), EntityName(whiskSystem), AuthKey(UUID(), Secret()), Set[Privilege]())
 }
 
 /**
@@ -223,6 +230,9 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
     }
     override def receive = customReceive.orElse(super.receive)
 
+    /**
+     *  Always start UnHealthy. Then the invoker receives some test activations and becomes Healthy.
+     */
     startWith(UnHealthy, InvokerInfo(new RingBuffer[Boolean](InvokerActor.bufferSize)))
 
     /**
@@ -255,6 +265,9 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
         case Event(StateTimeout, _)   => goto(Offline)
     }
 
+    /**
+     * Handle the completion of an Activation in every state.
+     */
     whenUnhandled {
         case Event(cm: InvocationFinishedMessage, info) => handleCompletionMessage(cm.successful, info.buffer)
     }
@@ -294,7 +307,9 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
             invokeTestAction()
         }
 
-        if (stateName == Healthy && wasActivationSuccessful) {
+        // Stay in online if the activations was successful.
+        // Stay in offline, if an activeAck reaches the controller.
+        if ((stateName == Healthy && wasActivationSuccessful) || stateName == Offline) {
             stay
         } else {
             // Goto UnHealthy if there are more errors than accepted in buffer, else goto Healthy
