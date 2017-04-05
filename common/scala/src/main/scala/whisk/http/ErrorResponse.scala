@@ -21,17 +21,17 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-import spray.http.MediaType
-import spray.http.StatusCode
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.NotFound
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.NotFound
+import akka.http.scaladsl.model.MediaType
+import akka.http.scaladsl.server.Rejection
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.server.StandardRoute
+
 import spray.json._
-import spray.json.DefaultJsonProtocol._
-import spray.routing.Directives
-import spray.routing.Rejection
-import spray.routing.StandardRoute
+
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
@@ -168,7 +168,7 @@ case class ErrorResponse(error: String, code: TransactionId)
 /** Custom rejection, wraps status code for response and a cause. */
 case class CustomRejection private (status: StatusCode, cause: String) extends Rejection
 
-object ErrorResponse extends Directives {
+object ErrorResponse extends Directives with DefaultJsonProtocol {
 
     def terminate(status: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
         terminate(status, Option(error) filter { _.trim.nonEmpty } map {

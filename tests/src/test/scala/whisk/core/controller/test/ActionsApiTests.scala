@@ -25,11 +25,14 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.server.Route
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -69,7 +72,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[List[JsObject]]
             actions.length should be(response.length)
@@ -85,7 +88,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"$collectionPath?docs=true") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[List[WhiskAction]]
             actions.length should be(response.length)
@@ -100,7 +103,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[List[JsObject]]
             actions.length should be(response.length)
@@ -109,14 +112,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject list action with explicit namespace not owned by subject" in {
         val auser = WhiskAuthHelpers.newIdentity()
-        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(auser)) ~> check {
             status should be(Forbidden)
         }
     }
 
     it should "list should reject request with post" in {
         implicit val tid = transid()
-        Post(s"$collectionPath") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
             status should be(MethodNotAllowed)
         }
     }
@@ -126,7 +129,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         put(entityStore, action)
-        Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -137,7 +140,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         put(entityStore, action)
-        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -145,14 +148,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject get action by name in explicit namespace not owned by subject" in
         val auser = WhiskAuthHelpers.newIdentity()
-        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
             status should be(Forbidden)
         }
     }
 
     it should "report NotFound for get non existent action" in {
         implicit val tid = transid()
-        Get(s"$collectionPath/xyz") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/xyz") ~> Route.seal(routes(creds)) ~> check {
             status should be(NotFound)
         }
     }
@@ -161,7 +164,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val trigger = WhiskTrigger(namespace, aname)
         put(entityStore, trigger)
-        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(Conflict)
         }
     }
@@ -169,7 +172,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     it should "reject long entity names" in {
         implicit val tid = transid()
         val longName = "a" * (EntityName.ENTITY_NAME_MAX_LENGTH + 1)
-        Get(s"/$longName/${collection.path}/$longName") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$longName/${collection.path}/$longName") ~> Route.seal(routes(creds)) ~> check {
             status should be(BadRequest)
             responseAs[String] shouldBe {
                 Messages.entityNameTooLong(
@@ -182,7 +185,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             s"/$namespace/${collection.path}/$longName/a",
             s"/$namespace/${collection.path}/$longName/$longName").
             foreach { p =>
-                Get(p) ~> sealRoute(routes(creds)) ~> check {
+                Get(p) ~> Route.seal(routes(creds)) ~> check {
                     status should be(BadRequest)
                     responseAs[String] shouldBe {
                         Messages.entityNameTooLong(
@@ -200,11 +203,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject delete action by name not owned by subject" in
         val auser = WhiskAuthHelpers.newIdentity()
-        Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
+        Get(s"/$namespace/${collection.path}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
             status should be(Forbidden)
         }
 
-        Delete(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -213,7 +216,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
     it should "report NotFound for delete non existent action" in {
         implicit val tid = transid()
-        Delete(s"$collectionPath/xyz") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/xyz") ~> Route.seal(routes(creds)) ~> check {
             status should be(NotFound)
         }
     }
@@ -221,16 +224,16 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     //// PUT /actions/name
     it should "put should reject request missing json content" in {
         implicit val tid = transid()
-        Put(s"$collectionPath/xxx", "") ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/xxx", "") ~> Route.seal(routes(creds)) ~> check {
             val response = responseAs[String]
-            status should be(BadRequest)
+            status should be(UnsupportedMediaType)
         }
     }
 
     it should "put should reject request missing property exec" in {
         implicit val tid = transid()
         val content = """|{"name":"name","publish":true}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/xxx", content) ~> Route.seal(routes(creds)) ~> check {
             val response = responseAs[String]
             status should be(BadRequest)
         }
@@ -241,7 +244,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = """|{"name":"name",
                          |"publish":true,
                          |"exec":""}""".stripMargin.parseJson.asJsObject
-        Put(s"$collectionPath/xxx", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/xxx", content) ~> Route.seal(routes(creds)) ~> check {
             val response = responseAs[String]
             status should be(BadRequest)
         }
@@ -252,7 +255,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val code = "a" * (actionLimit.toBytes.toInt + 1)
         val exec: Exec = jsDefault(code)
         val content = JsObject("exec" -> exec.toJson)
-        Put(s"$collectionPath/${aname}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${aname}", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
             responseAs[String] should include {
                 Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
@@ -268,7 +271,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val exec: Exec = jsDefault(code)
         val content = JsObject("exec" -> exec.toJson)
         put(entityStore, action)
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
             responseAs[String] should include {
                 Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
@@ -283,7 +286,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
         val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
-        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
             responseAs[String] should include {
                 Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
@@ -298,7 +301,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             Parameters(key.toString, "a" * 10)
         } reduce (_ ++ _)
         val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
-        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
             responseAs[String] should include {
                 Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
@@ -310,10 +313,10 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val code = "a" * (allowedActivationEntitySize.toInt + 1)
         val content = s"""{"a":"$code"}""".stripMargin
-        Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
             status should be(RequestEntityTooLarge)
             responseAs[String] should include {
-                Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length + 5).B, allowedActivationEntitySize.B))
+                Messages.entityTooBig(SizeError(fieldDescriptionForSizeError, (content.length).B, allowedActivationEntitySize.B))
             }
         }
     }
@@ -322,7 +325,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"))
         val content = WhiskActionPut(Some(action.exec))
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -336,7 +339,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, bb("bb"))
         val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "bb")).toJson.asJsObject
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -352,7 +355,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, bb("bb", "cc"))
         val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "cc", "image" -> "bb")).toJson.asJsObject
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -379,7 +382,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action, false)
 
         // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -398,7 +401,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action, false)
 
         // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -414,11 +417,11 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject put action in namespace not owned by subject" in
         val auser = WhiskAuthHelpers.newIdentity()
-        Put(s"/$namespace/${collection.path}/${action.name}", content) ~> sealRoute(routes(auser)) ~> check {
+        Put(s"/$namespace/${collection.path}/${action.name}", content) ~> Route.seal(routes(auser)) ~> check {
             status should be(Forbidden)
         }
 
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -434,7 +437,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters))
         val params = """{ "parameters": { "a": "b" } }""".parseJson.asJsObject
         val json = JsObject(WhiskActionPut.serdes.write(content).asJsObject.fields ++ params.fields)
-        Put(s"$collectionPath/${action.name}", json) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", json) ~> Route.seal(routes(creds)) ~> check {
             status should be(BadRequest)
         }
     }
@@ -443,7 +446,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters), Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -459,7 +462,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val name = action.name
 
         // first request invalidates any previous entries and caches new result
-        Put(s"$collectionPath/$name", content) ~> sealRoute(routes(creds)(transid())) ~> check {
+        Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(WhiskAction(action.namespace, action.name, action.exec,
@@ -470,7 +473,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         stream.reset()
 
         // second request should fetch from cache
-        Get(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+        Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(WhiskAction(action.namespace, action.name, action.exec,
@@ -482,7 +485,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         stream.reset()
 
         // delete should invalidate cache
-        Delete(s"$collectionPath/$name") ~> sealRoute(routes(creds)(transid())) ~> check {
+        Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(WhiskAction(action.namespace, action.name, action.exec,
@@ -498,7 +501,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(action.exec))
         put(entityStore, action)
-        Put(s"$collectionPath/${action.name}", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(Conflict)
         }
     }
@@ -508,7 +511,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         val content = WhiskActionPut(Some(jsDefault("_")), Some(Parameters("x", "X")))
         put(entityStore, action)
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -524,7 +527,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
         val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
         put(entityStore, action)
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -544,18 +547,18 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
         // it should "reject post to action in namespace not owned by subject"
         val auser = WhiskAuthHelpers.newIdentity()
-        Post(s"/$namespace/${collection.path}/${action.name}", args) ~> sealRoute(routes(auser)) ~> check {
+        Post(s"/$namespace/${collection.path}/${action.name}", args) ~> Route.seal(routes(auser)) ~> check {
             status should be(Forbidden)
         }
 
-        Post(s"$collectionPath/${action.name}", args) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}", args) ~> Route.seal(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
         }
 
         // it should "ignore &result when invoking nonblocking action"
-        Post(s"$collectionPath/${action.name}?result=true", args) ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}?result=true", args) ~> Route.seal(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
@@ -566,7 +569,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"))
         put(entityStore, action)
-        Post(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(Accepted)
             val response = responseAs[JsObject]
             response.fields("activationId") should not be None
@@ -577,7 +580,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         implicit val tid = transid()
         val action = WhiskAction(namespace, aname, jsDefault("??"), limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
         put(entityStore, action)
-        Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
             // status should be accepted because there is no active ack response and
             // db polling will fail since there is no record of the activation
             status should be(Accepted)
@@ -599,14 +602,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         // the one generated by the api handler
         put(activationStore, activation)
         try {
-            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response should be(activation.withoutLogs.toExtendedJson)
             }
 
             // repeat invoke, get only result back
-            Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> Route.seal(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response should be(activation.resultAsJson)
@@ -629,14 +632,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             // do not store the activation in the db, instead register it as the response to generate on active ack
             loadBalancer.whiskActivationStub = Some((1.milliseconds, activation))
 
-            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response should be(activation.withoutLogs.toExtendedJson)
             }
 
             // repeat invoke, get only result back
-            Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&result=true") ~> Route.seal(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response should be(activation.resultAsJson)
@@ -659,23 +662,23 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             // do not store the activation in the db, instead register it as the response to generate on active ack
             loadBalancer.whiskActivationStub = Some((300.milliseconds, activation))
 
-            Post(s"$collectionPath/${action.name}?blocking=true&timeout=0") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=0") ~> Route.seal(routes(creds)) ~> check {
                 status shouldBe BadRequest
                 responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
             }
 
-            Post(s"$collectionPath/${action.name}?blocking=true&timeout=65000") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=65000") ~> Route.seal(routes(creds)) ~> check {
                 status shouldBe BadRequest
                 responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
             }
 
             // will not wait long enough should get accepted status
-            Post(s"$collectionPath/${action.name}?blocking=true&timeout=100") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=100") ~> Route.seal(routes(creds)) ~> check {
                 status shouldBe Accepted
             }
 
             // repeat this time wait longer than active ack delay
-            Post(s"$collectionPath/${action.name}?blocking=true&timeout=500") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true&timeout=500") ~> Route.seal(routes(creds)) ~> check {
                 status shouldBe OK
                 val response = responseAs[JsObject]
                 response shouldBe activation.withoutLogs.toExtendedJson
@@ -698,7 +701,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         // the one generated by the api handler
         put(activationStore, activation)
         try {
-            Post(s"$collectionPath/${action.name}?blocking=true") ~> sealRoute(routes(creds)) ~> check {
+            Post(s"$collectionPath/${action.name}?blocking=true") ~> Route.seal(routes(creds)) ~> check {
                 status should be(InternalServerError)
                 val response = responseAs[JsObject]
                 response should be(activation.withoutLogs.toExtendedJson)
@@ -713,7 +716,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val entity = BadEntity(namespace, aname)
         put(entityStore, entity)
 
-        Delete(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(InternalServerError)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
@@ -724,7 +727,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val entity = BadEntity(namespace, aname)
         put(entityStore, entity)
 
-        Get(s"$collectionPath/${entity.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(InternalServerError)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
@@ -738,7 +741,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val components = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
         val content = WhiskActionPut(Some(sequence(components)))
 
-        Put(s"$collectionPath/$aname", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/$aname", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(InternalServerError)
             responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
         }
@@ -751,44 +754,44 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val okUpdate = WhiskActionPut(Some(swift3("_")))
         val badUpdate = WhiskActionPut(Some(swift("_")))
 
-        Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
             status shouldBe BadRequest
             responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
         }
 
-        Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", WhiskActionPut(Some(action.exec))) ~> Route.seal(routes(creds)) ~> check {
             status shouldBe BadRequest
             responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
         }
 
         put(entityStore, action)
 
-        Put(s"$collectionPath/${action.name}?overwrite=true", JsObject()) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", JsObject()) ~> Route.seal(routes(creds)) ~> check {
             status shouldBe BadRequest
             responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
         }
 
-        Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", badUpdate) ~> Route.seal(routes(creds)) ~> check {
             status shouldBe BadRequest
             responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
         }
 
-        Post(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status shouldBe BadRequest
             responseAs[ErrorResponse].error shouldBe Messages.runtimeDeprecated(action.exec)
         }
 
-        Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status shouldBe OK
         }
 
-        Delete(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status shouldBe OK
         }
 
         put(entityStore, action)
 
-        Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", okUpdate) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status shouldBe OK
         }

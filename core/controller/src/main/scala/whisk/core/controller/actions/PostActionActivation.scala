@@ -20,8 +20,10 @@ package whisk.core.controller.actions
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-import spray.http.StatusCodes.BadRequest
+import akka.http.scaladsl.model.StatusCodes.BadRequest
+
 import spray.json._
+
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
 import whisk.core.controller.WhiskServices

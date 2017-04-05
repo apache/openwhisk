@@ -22,11 +22,13 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.server.RouteResult
+
 import spray.json._
-import spray.routing.Directive.pimpApply
-import spray.routing.RequestContext
+
 import whisk.common.TransactionId
 import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
@@ -252,7 +254,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     }
 
     private def rewriteEntitlementFailure(failure: Throwable)(
-        implicit transid: TransactionId): RequestContext => Unit = {
+        implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         logging.info(this, s"rewriting failure $failure")
         failure match {
             case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
@@ -279,7 +281,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
      * If this is a binding, fetch package for binding, merge parameters then emit.
      * Otherwise this is a package, emit it.
      */
-    private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Unit = {
+    private def mergePackageWithBinding(ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         wp.binding map {
             case b: Binding =>
                 val docid = b.fullyQualifiedName.toDocId

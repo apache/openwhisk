@@ -24,14 +24,14 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.unmarshalling.DeserializationError
-import spray.httpx.unmarshalling.FromStringDeserializer
-import spray.httpx.unmarshalling.MalformedContent
-import spray.routing.Directives
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.unmarshalling._
+import akka.http.scaladsl.model.StatusCodes.BadRequest
+
+import spray.json.DeserializationException
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json._
-import spray.http.StatusCodes.BadRequest
 
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
@@ -184,33 +184,30 @@ trait WhiskActivationsApi
             (activation: WhiskActivation) => activation.logs.toJsonObject)
     }
 
-    /** Custom deserializer for query parameters "name" into valid entity name. */
-    private implicit val stringToEntityName = new FromStringDeserializer[EntityName] {
-        def apply(value: String): Either[DeserializationError, EntityName] = {
+    /** Custom unmarshaller for query parameters "name" into valid entity name. */
+    private implicit val stringToEntityName: Unmarshaller[String, EntityName] =
+        Unmarshaller.strict[String, EntityName] { value =>
             Try { EntityName(value) } match {
-                case Success(e) => Right(e)
-                case Failure(t) => Left(MalformedContent(t.getMessage))
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for a entity name: $value")
             }
         }
-    }
 
-    /** Custom deserializer for query parameters "name" into valid namespace. */
-    private implicit val stringToNamespace = new FromStringDeserializer[EntityPath] {
-        def apply(value: String): Either[DeserializationError, EntityPath] = {
+    /** Custom unmarshaller for query parameters "name" into valid namespace. */
+    private implicit val stringToNamespace: Unmarshaller[String, EntityPath] =
+        Unmarshaller.strict[String, EntityPath] { value =>
             Try { EntityPath(value) } match {
-                case Success(e) => Right(e)
-                case Failure(t) => Left(MalformedContent(t.getMessage))
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for a namespace: $value")
             }
         }
-    }
 
-    /** Custom deserializer for query parameters "since" and "upto" into a valid Instant. */
-    private implicit val stringToInstantDeserializer = new FromStringDeserializer[Instant] {
-        def apply(secs: String): Either[DeserializationError, Instant] = {
-            Try { Instant.ofEpochMilli(secs.toLong) } match {
-                case Success(i) => Right(i)
-                case Failure(t) => Left(MalformedContent(s"Parameter is not a valid value for epoch seconds: $secs", Some(t)))
+    /** Custom unmarshaller for query parameters "since" and "upto" into a valid Instant. */
+    private implicit val stringToInstantDeserializer: Unmarshaller[String, Instant] =
+        Unmarshaller.strict[String, Instant] { value =>
+            Try { Instant.ofEpochMilli(value.toLong) } match {
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for epoch seconds: $value")
             }
         }
-    }
 }

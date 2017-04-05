@@ -17,10 +17,10 @@
 
 package whisk.core.invoker
 
-import akka.actor.Actor
+import whisk.http.BasicRasService
+import whisk.core.WhiskConfig
 import whisk.common.Logging
 import whisk.core.entity.InstanceId
-import whisk.http.BasicRasService
 
 /**
  * Implements web server to handle certain REST API calls.
@@ -28,10 +28,9 @@ import whisk.http.BasicRasService
  */
 class InvokerServer(
     override val instance: InstanceId,
-    override val numberOfInstances: Int)(
-        override implicit val logging: Logging)
-    extends BasicRasService
-    with Actor {
-
-    override def actorRefFactory = context
+    override val numberOfInstances: Int,
+    override val port: Int)(
+        override implicit val logging: Logging,
+        implicit val whiskConfig: WhiskConfig)
+    extends BasicRasService {
 }

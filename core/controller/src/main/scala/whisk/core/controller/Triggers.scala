@@ -21,29 +21,34 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-import spray.client.pipelining.Post
+import scala.util.{Failure, Success, Try}
 
 import akka.actor.ActorSystem
-import spray.client.pipelining._
-import spray.http.BasicHttpCredentials
-import spray.http.HttpRequest
-import spray.http.StatusCodes.BadRequest
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.OK
-import spray.http.Uri
-import spray.http.Uri.Path
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
-import spray.json.JsObject
-import spray.json.JsString
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.StatusCodes.BadRequest
+import akka.http.scaladsl.model.StatusCodes.InternalServerError
+import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.Uri.Path
+import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.HttpMethods._
+import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpResponse
+import akka.stream.ActorMaterializer
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.MediaTypes.`application/json`
+import akka.http.scaladsl.unmarshalling.Unmarshaller
+
+import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.routing.Directive.pimpApply
-import spray.routing.directives.OnCompleteFutureMagnet.apply
-import spray.routing.directives.ParamDefMagnet.apply
-import spray.routing.RequestContext
+
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
@@ -58,8 +63,6 @@ import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
-import spray.httpx.UnsuccessfulResponseException
-import spray.http.StatusCodes
 import whisk.core.entity.Identity
 import whisk.core.entity.FullyQualifiedEntityName
 
@@ -80,6 +83,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
     /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
+
+    protected implicit val materializer: ActorMaterializer
 
     /**
      * Creates or updates trigger if it already exists. The PUT content is deserialized into a WhiskTriggerPut
@@ -139,12 +144,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
-
                         val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
-                        val pipeline: HttpRequest => Future[JsObject] = (
-                            addCredentials(BasicHttpCredentials(user.authkey.uuid.toString, user.authkey.key.toString))
-                            ~> sendReceive
-                            ~> unmarshal[JsObject])
 
                         trigger.rules.map {
                             _.filter {
@@ -173,16 +173,21 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                             Path.SingleSlash + rule.action.name.asString
                                         }
                                     }.toString
-
                                     val actionUrl = Path("/api/v1") / "namespaces" / actionNamespace / "actions"
+                                    val request = HttpRequest(
+                                        method = POST,
+                                        uri = url.withPath(actionUrl + actionPath),
+                                        headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
+                                        entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint)
+                                    )
 
-                                    pipeline(Post(url.withPath(actionUrl + actionPath), args)) onComplete {
-                                        case Success(o) =>
-                                            logging.info(this, s"successfully invoked ${rule.action} -> ${o.fields("activationId")}")
-                                        case Failure(usr: UnsuccessfulResponseException) if usr.response.status == StatusCodes.NotFound =>
+                                    Http().singleRequest(request).map {
+                                        case HttpResponse(StatusCodes.OK, headers, entity, _) =>
+                                            logging.info(this, s"successfully invoked ${rule.action} -> ")
+                                        case HttpResponse(StatusCodes.NotFound, _, _, _) =>
                                             logging.info(this, s"action ${rule.action} could not be found")
-                                        case Failure(t) =>
-                                            logging.warn(this, s"action ${rule.action} could not be invoked due to ${t.getMessage}")
+                                        case HttpResponse(code, _, entity, _) =>
+                                            logging.warn(this, s"action ${rule.action} could not be invoked due to ${entity.getDataBytes.toString}")
                                     }
                             }
                         }
@@ -321,7 +326,21 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
      * @param rule the rule to send
      * @param status the status to include in the response
      */
-    private def completeAsTriggerResponse(trigger: WhiskTrigger): RequestContext => Unit = {
+    private def completeAsTriggerResponse(trigger: WhiskTrigger): RequestContext => Future[RouteResult] = {
         complete(OK, trigger.withoutRules)
+    }
+
+    implicit val entityToJsObject: Unmarshaller[HttpEntity, JsObject] = {
+        Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
+            val decoded = data.decodeString(charset.nioCharset.name)
+
+            Try {
+                decoded.parseJson.asJsObject
+            } match {
+                case Success(i) => i
+                case Failure(t) if decoded.length == 0 => JsObject()
+                case Failure(t) => throw new IllegalArgumentException(s"The request content was malformed:\n $t")
+            }
+        }
     }
 }

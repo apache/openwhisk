@@ -34,9 +34,12 @@ import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+
+import akka.http.scaladsl.testkit.ScalatestRouteTest
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.testkit.ScalatestRouteTest
+
 import whisk.core.WhiskConfig
 import whisk.http.Messages.sequenceIsTooLong
 

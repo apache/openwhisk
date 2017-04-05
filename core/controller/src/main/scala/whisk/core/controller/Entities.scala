@@ -19,16 +19,20 @@ package whisk.core.controller
 
 import scala.language.postfixOps
 import scala.util.Try
+import scala.concurrent.Future
 
-import shapeless.HNil
-import spray.http.StatusCodes.RequestEntityTooLarge
-import spray.httpx.SprayJsonSupport._
-import spray.routing.Directive0
-import spray.routing.Directives
-import spray.routing.RequestContext
-import spray.routing.Route
+import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.Directive0
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.server.Route
+
 import whisk.common.TransactionId
 import whisk.core.entitlement.Privilege._
+import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.ActivationEntityLimit
@@ -39,10 +43,10 @@ import whisk.http.Messages
 protected[controller] trait ValidateRequestSize extends Directives {
     protected def validateSize(check: => Option[SizeError])(
         implicit tid: TransactionId) = new Directive0 {
-        def happly(f: HNil => Route) = {
+        def tapply(f: Unit => Route) = {
             check map {
                 case e: SizeError => terminate(RequestEntityTooLarge, Messages.entityTooBig(e))
-            } getOrElse f(HNil)
+            } getOrElse f(None)
         }
     }
 
@@ -72,19 +76,19 @@ trait WhiskCollectionAPI
     services: WhiskServices =>
 
     /** Creates an entity, or updates an existing one, in namespace. Terminates HTTP request. */
-    protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Activates entity. Examples include invoking an action, firing a trigger, enabling/disabling a rule. */
-    protected def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Removes entity from namespace. Terminates HTTP request. */
-    protected def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Unit
+    protected def remove(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Gets entity from namespace. Terminates HTTP request. */
-    protected def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Unit
+    protected def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Gets all entities from namespace. If necessary filter only entities that are shared. Terminates HTTP request. */
-    protected def list(user: Identity, path: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Unit
+    protected def list(user: Identity, path: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Indicates if listing entities in collection requires filtering out private entities. */
     protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
@@ -101,8 +105,8 @@ trait WhiskCollectionAPI
                         }
                     }
                 case ACTIVATE =>
-                    extract(_.request.entity.data.length) { length =>
-                        validateSize(isWhithinRange(length))(transid) {
+                   extract(_.request.entity.contentLengthOption) { length =>
+                        validateSize(isWhithinRange(length.getOrElse(0)))(transid) {
                             activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                         }
                     }

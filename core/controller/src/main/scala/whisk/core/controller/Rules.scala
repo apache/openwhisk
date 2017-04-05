@@ -22,19 +22,22 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.server.StandardRoute
+
 import spray.json.DeserializationException
-import spray.routing.Directive.pimpApply
-import spray.routing.RequestContext
+
 import whisk.common.TransactionId
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
-import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
+import whisk.core.entitlement.Collection
+import whisk.core.entitlement.Privilege
+import whisk.core.entitlement.ReferencedEntities
 
 /** A trait implementing the rules API */
 trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
@@ -338,7 +341,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
      * @param rule the rule to send
      * @param status the status to include in the response
      */
-    private def completeAsRuleResponse(rule: WhiskRule, status: Status = Status.INACTIVE): RequestContext => Unit = {
+    private def completeAsRuleResponse(rule: WhiskRule, status: Status = Status.INACTIVE): StandardRoute = {
         complete(OK, rule.withStatus(status))
     }
 

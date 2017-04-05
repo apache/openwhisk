@@ -24,10 +24,14 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.WskTestHelpers
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport._
+
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
 import spray.json.DefaultJsonProtocol._
 import spray.json._
+
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.test.ControllerTestCommon
 import whisk.core.controller.test.WhiskAuthHelpers
@@ -59,7 +63,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         }.toList
         actions foreach { put(entityStore, _) }
         waitOnView(entityStore, WhiskAction, namespace, 2)
-        Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[List[JsObject]]
 
@@ -73,7 +77,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
         val action = WhiskAction(namespace, aname, sequence(components))
         put(entityStore, action)
-        Get(s"$collectionPath/${action.name}") ~> sealRoute(routes(creds)) ~> check {
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response should be(action)
@@ -90,7 +94,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         put(entityStore, action, false)
 
         // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -109,7 +113,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         put(entityStore, action, false)
 
         // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[WhiskAction]
@@ -127,7 +131,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         put(entityStore, action, false)
 
         // create an action sequence
-        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             deleteAction(action.docid)
             status should be(OK)
             val response = responseAs[String]
@@ -159,7 +163,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
         val content = WhiskActionPut(Some(seqAction.exec), Some(Parameters()))
 
         // update an action sequence
-        Put(s"$collectionPath/${seqName}?overwrite=true", content) ~> sealRoute(routes(creds)) ~> check {
+        Put(s"$collectionPath/${seqName}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[WhiskAction]
             response.exec.kind should be(Exec.SEQUENCE)

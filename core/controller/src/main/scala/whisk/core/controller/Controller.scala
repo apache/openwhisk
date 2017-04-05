@@ -19,39 +19,37 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import akka.actor.Actor
-import akka.actor.ActorContext
+import scala.util.{Failure, Success}
+
+import akka.actor._
 import akka.actor.ActorSystem
 import akka.japi.Creator
-import spray.http.StatusCodes._
-import spray.http.Uri
-import spray.httpx.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
 import spray.json._
-import spray.routing.Directive.pimpApply
-import spray.routing.Route
+import spray.json.DefaultJsonProtocol._
+
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
-import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import scala.util.{Failure, Success}
-
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
  *
  * It extends the BasicRasService so it includes a ping endpoint for monitoring.
  *
- * Spray sends messages to akka Actors -- the Controller is an Actor, ready to receive messages.
+ * Akka sends messages to akka Actors -- the Controller is an Actor, ready to receive messages.
  *
  * It is possible to deploy a hot-standby controller. Each controller needs its own instance. This instance is a
  * consecutive numbering, starting with 0.
@@ -62,8 +60,7 @@ import scala.util.{Failure, Success}
  * back to the base controller, there could be an inconsistency in the cache (e.g. if a user has updated an action). This
  * inconsistency will be resolved by its own after removing the cached item, 5 minutes after it has been generated.
  *
- * @Idioglossia uses the spray-routing DSL
- * http://spray.io/documentation/1.1.3/spray-routing/advanced-topics/understanding-dsl-structure/
+ * Uses the Akka routing DSL: http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/overview.html
  *
  * @param config A set of properties needed to run an instance of the controller service
  * @param instance if running in scale-out, a unique identifier for this instance in the group
@@ -72,46 +69,31 @@ import scala.util.{Failure, Success}
  */
 class Controller(
     override val instance: InstanceId,
+    override val port: Int,
     runtimes: Runtimes,
     implicit val whiskConfig: WhiskConfig,
     implicit val logging: Logging)
-    extends BasicRasService
-    with Actor {
-
-    // each akka Actor has an implicit context
-    override def actorRefFactory: ActorContext = context
+    extends BasicRasService {
 
     override val numberOfInstances = whiskConfig.controllerInstances.toInt
 
-    /**
-     * A Route in spray is technically a function taking a RequestContext as a parameter.
-     *
-     * @Idioglossia The ~ spray DSL operator composes two independent Routes, building a routing
-     * tree structure.
-     * @see http://spray.io/documentation/1.2.3/spray-routing/key-concepts/routes/#composing-routes
-     */
-    override def routes(implicit transid: TransactionId): Route = {
-        // handleRejections wraps the inner Route with a logical error-handler for unmatched paths
-        handleRejections(customRejectionHandler) {
-            super.routes ~ {
-                (pathEndOrSingleSlash & get) {
-                    complete(OK, info)
-                }
-            } ~ {
-                apiv1.routes
-            } ~ {
-                swagger.swaggerRoutes
-            } ~ {
-                internalInvokerHealth
-            }
-        }
-    }
-
     TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
+    /**
+      * A Route in Akka is technically a function taking a RequestContext as a parameter.
+      *
+      * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+      * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
+      */
+    override def routes(implicit transid: TransactionId): Route = {
+        super.routes ~ {
+            (pathEndOrSingleSlash & get) {
+                complete(info)
+            }
+        } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+    }
+
     // initialize datastores
-    private implicit val actorSystem = context.system
-    private implicit val executionContext = actorSystem.dispatcher
     private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
     private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
@@ -126,7 +108,7 @@ class Controller(
 
     /** The REST APIs. */
     implicit val controllerInstance = instance
-    private val apiv1 = new RestAPIVersion("api", "v1")
+    private val apiV1 = new RestAPIVersion(whiskConfig, "api", "v1")
     private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
     /**
@@ -145,7 +127,7 @@ class Controller(
     }
 
     // controller top level info
-    private val info = Controller.info(whiskConfig, runtimes, List(apiv1.basepath()))
+    private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))
 }
 
 /**
@@ -156,8 +138,7 @@ object Controller {
     // requiredProperties is a Map whose keys define properties that must be bound to
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
-    def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
-        Map(WhiskConfig.controllerInstances -> null) ++
+    def requiredProperties = Map(WhiskConfig.controllerInstances -> null) ++
         ExecManifest.requiredProperties ++
         RestApiCommons.requiredProperties ++
         LoadBalancerService.requiredProperties ++
@@ -178,9 +159,9 @@ object Controller {
         "runtimes" -> runtimes.toJson)
 
     // akka-style factory to create a Controller object
-    private class ServiceBuilder(config: WhiskConfig, instance: InstanceId, logging: Logging) extends Creator[Controller] {
+    private class ServiceBuilder(config: WhiskConfig, instance: InstanceId, logging: Logging, port: Int) extends Creator[Controller] {
         // this method is not reached unless ExecManifest was initialized successfully
-        def create = new Controller(instance, ExecManifest.runtimesManifest, config, logging)
+        def create = new Controller(instance, port, ExecManifest.runtimesManifest, config, logging)
     }
 
     def main(args: Array[String]): Unit = {
@@ -189,6 +170,7 @@ object Controller {
 
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
+        val port = config.servicePort.toInt
 
         // if deploying multiple instances (scale out), must pass the instance number as the
         require(args.length >= 1, "controller instance required")
@@ -207,8 +189,7 @@ object Controller {
 
         ExecManifest.initialize(config) match {
             case Success(_) =>
-                val port = config.servicePort.toInt
-                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, InstanceId(instance), logger))
+                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", new ServiceBuilder(config, InstanceId(instance), logger, port))
 
             case Failure(t) =>
                 logger.error(this, s"Invalid runtimes manifest: $t")

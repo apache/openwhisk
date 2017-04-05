@@ -22,12 +22,13 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
-import Privilege.ACTIVATE
-import Privilege.Privilege
-import Privilege.REJECT
 import akka.actor.ActorSystem
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.TooManyRequests
+import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+
+import whisk.core.entitlement.Privilege.ACTIVATE
+import whisk.core.entitlement.Privilege._
+import whisk.core.entitlement.Privilege.REJECT
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig

@@ -24,7 +24,8 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes._
+import akka.http.scaladsl.model.StatusCodes._
+
 import whisk.core.controller.RejectRequest
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege._
