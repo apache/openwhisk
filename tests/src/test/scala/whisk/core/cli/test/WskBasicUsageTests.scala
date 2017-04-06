@@ -273,7 +273,15 @@ class WskBasicUsageTests
             val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
             // Update it with a missing file
-            wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+            wsk.action.create(name, Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+    }
+
+    it should "reject action update for sequence with no components" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "updateMissingComponents"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
+            wsk.action.create(name, None, update = true, kind = Some("sequence"), expectedExitCode = MISUSE_EXIT)
     }
 
     it should "create, and get an action to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
@@ -467,13 +475,13 @@ class WskBasicUsageTests
     }
 
     it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
-        val name = "invalid dockerContainer"
+        val name = "invalidDockerContainer"
         val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
 
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
                 // docker name is a randomly generate string
-                (action, _) => action.create(name, Some(containerName), kind = Some("docker"))
+                (action, _) => action.create(name, None, docker = Some(containerName))
             }
 
             val run = wsk.action.invoke(name)
@@ -608,6 +616,9 @@ class WskBasicUsageTests
                     assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
                     removeCLIHeader(stdout).parseJson shouldBe JsArray(
                         JsObject(
+                            "key" -> JsString("exec"),
+                            "value" -> JsString("nodejs:6")),
+                        JsObject(
                             "key" -> JsString("web-export"),
                             "value" -> JsBoolean(webEnabled || rawEnabled)),
                         JsObject(
@@ -615,10 +626,7 @@ class WskBasicUsageTests
                             "value" -> JsBoolean(rawEnabled)),
                         JsObject(
                             "key" -> JsString("final"),
-                            "value" -> JsBoolean(webEnabled || rawEnabled)),
-                        JsObject(
-                            "key" -> JsString("exec"),
-                            "value" -> JsString("nodejs:6")))
+                            "value" -> JsBoolean(webEnabled || rawEnabled)))
                 }
     }
 
@@ -628,8 +636,8 @@ class WskBasicUsageTests
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             val invalidInput = "bogus"
             val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
-            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
-            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = MISUSE_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = MISUSE_EXIT).stderr should include(errorMsg)
     }
 
     it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) {
@@ -1168,9 +1176,9 @@ class WskBasicUsageTests
         val invalidArgsMsg = "error: Invalid argument(s)"
         val tooFewArgsMsg = invalidArgsMsg + "."
         val tooManyArgsMsg = invalidArgsMsg + ": "
-        val actionNameActionReqMsg = "An action name and action are required."
+        val actionNameActionReqMsg = "An action name and code artifact are required."
         val actionNameReqMsg = "An action name is required."
-        val actionOptMsg = "An action is optional."
+        val actionOptMsg = "A code artifact is optional."
         val packageNameReqMsg = "A package name is required."
         val packageNameBindingReqMsg = "A package name and binding name are required."
         val ruleNameReqMsg = "A rule name is required."
@@ -1273,9 +1281,12 @@ class WskBasicUsageTests
 
         invalidArgs foreach {
             case (cmd, err) =>
-                val stderr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ERROR_EXIT).stderr
-                stderr should include(err)
-                stderr should include("Run 'wsk --help' for usage.")
+                withClue(cmd) {
+                    val rr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+                    rr.exitCode should (be(ERROR_EXIT) or be(MISUSE_EXIT))
+                    rr.stderr should include(err)
+                    rr.stderr should include("Run 'wsk --help' for usage.")
+                }
         }
     }
 
