@@ -45,7 +45,9 @@ class PythonRunner(ActionRunner):
         elif os.path.isfile(self.source):
             with codecs.open(self.source, 'r', 'utf-8') as m:
                 code = m.read()
-            sys.path.insert(0, os.path.dirname(self.source))
+            workdir = os.path.dirname(self.source)
+            sys.path.insert(0, workdir)
+            os.chdir(workdir)
         else:
             sys.stderr.write('Zip file does not include ' + os.path.basename(self.source) + '\n')
             return False

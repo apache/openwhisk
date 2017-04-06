@@ -139,6 +139,35 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "support zip-encoded action which can read from relative paths" in {
+        val srcs = Seq(
+            Seq("__main__.py") -> """
+                |def main(args):
+                |    f = open('workfile', 'r')
+                |    return {'file': f.read()}
+            """.stripMargin,
+            Seq("workfile") -> "this is a test string")
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code))
+            initCode should be(200)
+
+            val args = JsObject()
+            val (runCode, runRes) = c.run(runPayload(args))
+
+            runCode should be(200)
+            runRes.get.fields.get("file") shouldBe Some("this is a test string".toJson)
+        }
+
+        checkStreams(out, err, {
+            case (o, e) =>
+                o shouldBe empty
+                e shouldBe empty
+        })
+    }
+
     it should "report error if zip-encoded action does not include required file" in {
         val srcs = Seq(
             Seq("echo.py") -> """
