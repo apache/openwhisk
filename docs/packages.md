@@ -84,7 +84,7 @@ You can invoke actions in a package, just as with other actions. The next few st
 2. Invoke the action without any parameters.
 
   ```
-  $ wsk action invoke --blocking --result /whisk.system/samples/greeting
+  $ wsk action invoke --result /whisk.system/samples/greeting
   ```
   ```
   {
@@ -97,7 +97,7 @@ You can invoke actions in a package, just as with other actions. The next few st
 3. Invoke the action with parameters.
 
   ```
-  $ wsk action invoke --blocking --result /whisk.system/samples/greeting --param name Mork --param place Ork
+  $ wsk action invoke --result /whisk.system/samples/greeting --param name Mork --param place Ork
   ```
   ```
   {
@@ -143,7 +143,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 3. Invoke an action in the package binding.
 
   ```
-  $ wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin
+  $ wsk action invoke --result valhallaSamples/greeting --param name Odin
   ```
   ```
   {
@@ -156,7 +156,7 @@ In the following simple example, you bind to the `/whisk.system/samples` package
 4. Invoke an action and overwrite the default parameter value.
 
   ```
-  $ wsk action invoke --blocking --result valhallaSamples/greeting --param name Odin --param place Asgard
+  $ wsk action invoke --result valhallaSamples/greeting --param name Odin --param place Asgard
   ```
   ```
   {
@@ -293,7 +293,7 @@ To create a custom package with a simple action in it, try the following example
 6. Invoke the action in the package.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity
+  $ wsk action invoke --result custom/identity
   ```
   ```
   {}
@@ -354,7 +354,7 @@ You can set default parameters for all the entities in a package. You do this by
 3. Invoke the identity action without any parameters to verify that the action indeed inherits the parameters.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity
+  $ wsk action invoke --result custom/identity
   ```
   ```
   {
@@ -366,7 +366,7 @@ You can set default parameters for all the entities in a package. You do this by
 4. Invoke the identity action with some parameters. Invocation parameters are merged with the package parameters; the invocation parameters override the package parameters.
 
   ```
-  $ wsk action invoke --blocking --result custom/identity --param city Dallas --param state Texas
+  $ wsk action invoke --result custom/identity --param city Dallas --param state Texas
   ```
   ```
   {

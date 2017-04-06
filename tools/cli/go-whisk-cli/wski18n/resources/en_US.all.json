@@ -912,8 +912,8 @@
     "translation": "blocking invoke"
   },
   {
-    "id": "show only activation result if a blocking activation (unless there is a failure)",
-    "translation": "show only activation result if a blocking activation (unless there is a failure)"
+    "id": "blocking invoke; show only activation result (unless there is a failure)",
+    "translation": "blocking invoke; show only activation result (unless there is a failure)"
   },
   {
     "id": "exclude the first `SKIP` number of actions from the result",

@@ -342,7 +342,7 @@ class WskBasicTests
 
             wsk.action.get(name, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
             wsk.action.get(name, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
-            wsk.action.get(name, fieldFilter = Some("exec")).stdout should include (s"""$successMsg""")
+            wsk.action.get(name, fieldFilter = Some("exec")).stdout should include(s"""$successMsg""")
             wsk.action.get(name, fieldFilter = Some("exec")).stdout should include regex (s"""$successMsg exec\n\\{\\s+"kind":\\s+"nodejs:6",\\s+"code":\\s+"\\/\\*\\*[\\\\r]*\\\\n \\* Hello, world.[\\\\r]*\\\\n \\*\\/[\\\\r]*\\\\nfunction main\\(params\\) \\{[\\\\r]*\\\\n    greeting \\= 'hello, ' \\+ params.payload \\+ '!'[\\\\r]*\\\\n    console.log\\(greeting\\);[\\\\r]*\\\\n    return \\{payload: greeting\\}[\\\\r]*\\\\n\\}""")
             wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
             wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\s+\\{\\s+"key":\\s+"exec",\\s+"value":\\s+"nodejs:6"\\s+\\}\\s+\\]""")
@@ -413,7 +413,7 @@ class WskBasicTests
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("wc.js")))
             }
-            wsk.action.invoke(name, Map("payload" -> "one two three".toJson), blocking = true, result = true)
+            wsk.action.invoke(name, Map("payload" -> "one two three".toJson), result = true)
                 .stdout should include regex (""""count": 3""")
     }
 
@@ -462,7 +462,7 @@ class WskBasicTests
                     action.create(name, Some(TestUtils.getTestActionFilename("emptyJSONResult.js")))
             }
 
-            val stdout = wsk.action.invoke(name, blocking = true, result = true).stdout
+            val stdout = wsk.action.invoke(name, result = true).stdout
             stdout.parseJson.asJsObject shouldBe JsObject()
     }
 
@@ -475,10 +475,10 @@ class WskBasicTests
                 (action, _) =>
                     action.create(name, Some(TestUtils.getTestActionFilename("timeout.js")),
                         timeout = Some(allowedActionDuration))
-                    action.invoke(name, parameters = params, blocking = true, result = true, expectedExitCode = ACCEPTED)
+                    action.invoke(name, parameters = params, result = true, expectedExitCode = ACCEPTED)
             }
 
-            res.stderr should include ("""but the request has not yet finished""")
+            res.stderr should include("""but the request has not yet finished""")
     }
 
     it should "create, and get docker action get ensure exec code is omitted" in withAssetCleaner(wskprops) {

@@ -110,5 +110,5 @@ Setup your CLI and verify that OpenWhisk is working.
 
 ```
 ../bin/wsk property set --auth $(cat files/auth.whisk.system) --apihost <edge_url>
-../bin/wsk -i -v action invoke /whisk.system/samples/helloWorld --blocking --result
+../bin/wsk -i -v action invoke /whisk.system/samples/helloWorld --result
 ```

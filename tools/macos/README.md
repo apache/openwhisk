@@ -114,7 +114,7 @@ Follow instructions in [Configure CLI](../../docs/README.md#setting-up-the-openw
 
 ### Use the wsk CLI
 ```
-bin/wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+bin/wsk action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"
 }

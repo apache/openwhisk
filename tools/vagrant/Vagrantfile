@@ -157,7 +157,7 @@ $script_end = <<SCRIPT
   chown -R vagrant:vagrant $HOME
   # This allows user to see how to configure the wsk cli outside the VM 
   wsk property set --apihost 192.168.33.13 --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
-  wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+  wsk action invoke /whisk.system/utils/echo -p message hello --result
 SCRIPT
 
   config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end
