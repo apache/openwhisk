@@ -73,7 +73,7 @@ class KafkaConnectorTests
         for (i <- 0 until 5) {
             val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
             val start = java.lang.System.currentTimeMillis
-            val sent = Await.result(producer.send(topic, message), 10 seconds)
+            val sent = Await.result(producer.send(topic, message), 20 seconds)
             val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
             val end = java.lang.System.currentTimeMillis
             val elapsed = end - start
