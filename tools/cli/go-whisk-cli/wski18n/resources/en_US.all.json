@@ -253,8 +253,8 @@
     "translation": "Unable to set the property value: {{.err}}"
   },
   {
-    "id": "{{.ok}} whisk auth set to {{.auth}}\n",
-    "translation": "{{.ok}} whisk auth set to {{.auth}}\n"
+    "id": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
+    "translation": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n"
   },
   {
     "id": "Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
@@ -311,6 +311,10 @@
   {
     "id": "; the default value of {{.default}} will be used.\n",
     "translation": "; the default value of {{.default}} will be used.\n"
+  },
+  {
+    "id": "; the default value will be used. Run 'wsk property get --auth' to see the new value.\n",
+    "translation": "; the default value will be used. Run 'wsk property get --auth' to see the new value.\n"
   },
   {
     "id": "; there is no default value that can be used.\n",

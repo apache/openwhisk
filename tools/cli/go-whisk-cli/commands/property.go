@@ -81,8 +81,8 @@ var propertySetCmd = &cobra.Command{
             props["AUTH"] = auth
             client.Config.AuthToken = auth
             okMsg += fmt.Sprintf(
-                wski18n.T("{{.ok}} whisk auth set to {{.auth}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "auth": boldString(auth)}))
+                wski18n.T("{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
+                    map[string]interface{}{"ok": color.GreenString("ok:")}))
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
@@ -190,8 +190,7 @@ var propertyUnsetCmd = &cobra.Command{
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
             if len(DefaultAuth) > 0 {
                 okMsg += fmt.Sprintf(
-                    wski18n.T("; the default value of {{.default}} will be used.\n",
-                        map[string]interface{}{"default": boldString(DefaultAuth)}))
+                    wski18n.T("; the default value will be used. Run 'wsk property get --auth' to see the new value.\n"))
             } else {
                 okMsg += fmt.Sprint(
                     wski18n.T("; there is no default value that can be used.\n"))
