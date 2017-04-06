@@ -531,6 +531,17 @@ class WskBasicUsageTests
             }
     }
 
+    it should "invoke an action successfully with options --blocking and --result" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "invokeResult"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+            }
+            val args = Map("hello" -> "Robert".toJson)
+            val run = wsk.action.invoke(name, args, blocking = true, result = true)
+            run.stdout.parseJson shouldBe args.toJson
+    }
+
     it should "invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "deadline"
