@@ -47,7 +47,9 @@ class PythonRunner(ActionRunner):
             with codecs.open(self.source, 'r', 'utf-8') as m:
                 code = m.read()
             filename = '__main__.py'
-            sys.path.insert(0, os.path.dirname(self.source))
+            workdir = os.path.dirname(self.source)
+            sys.path.insert(0, workdir)
+            os.chdir(workdir)
         else:
             sys.stderr.write('Zip file does not include "__main__.py".\n')
             return False
