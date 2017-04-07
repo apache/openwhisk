@@ -44,6 +44,7 @@ type QualifiedName struct {
     namespace   string
     packageName string
     entityName  string
+    actionName  string
 }
 
 func (qName QualifiedName) String() string {
@@ -99,6 +100,10 @@ func parseQualifiedName(name string) (QualifiedName, error) {
         }
 
         qualifiedName.entityName = strings.Join(parts[2:], "/")
+        if len(parts) == 4 {
+            qualifiedName.packageName = parts[2]
+        }
+        qualifiedName.actionName = parts[len(parts)-1]
     } else {
         if len(name) == 0 || name == "." {
             whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
@@ -107,12 +112,19 @@ func parseQualifiedName(name string) (QualifiedName, error) {
             return qualifiedName, err
         }
 
+        parts := strings.Split(name, "/")
+        qualifiedName.actionName = parts[len(parts)-1]
+        if len(parts) == 2 {
+            qualifiedName.packageName = parts[0]
+        }
         qualifiedName.entityName = name
         qualifiedName.namespace = getNamespace()
     }
 
     whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qualifiedName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qualifiedName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified action namespace: %s\n", qualifiedName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified action package: %s\n", qualifiedName.packageName)
+    whisk.Debug(whisk.DbgInfo, "Qualified action name: %s\n", qualifiedName.actionName)
 
     return qualifiedName, nil
 }
