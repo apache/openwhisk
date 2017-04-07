@@ -1410,5 +1410,25 @@
   {
     "id": "Missing x-openwhisk.url field in API configuration for operation {{.op}}",
     "translation": "Missing x-openwhisk.url field in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "COMING SOON - work with APIs",
+    "translation": "COMING SOON - work with APIs"
+  },
+  {
+    "id": "COMING SOON - create a new API",
+    "translation": "COMING SOON - create a new API"
+  },
+  {
+    "id": "COMING SOON - get API details",
+    "translation": "COMING SOON - get API details"
+  },
+  {
+    "id": "COMING SOON - delete an API",
+    "translation": "COMING SOON - delete an API"
+  },
+  {
+    "id": "COMING SOON - list APIs",
+    "translation": "COMING SOON - list APIs"
   }
 ]

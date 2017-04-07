@@ -42,7 +42,7 @@ var apiExperimentalCmd = &cobra.Command{
 
 var apiCmd = &cobra.Command{
     Use:   "api",
-    Short: wski18n.T("work with APIs"),
+    Short: wski18n.T("COMING SOON - work with APIs"),
 }
 
 var apiCreateCmd = &cobra.Command{
@@ -767,7 +767,7 @@ func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url str
 /////////////
 var apiCreateCmdV2 = &cobra.Command{
     Use:           "create ([BASE_PATH] API_PATH API_VERB ACTION] | --config-file CFG_FILE) ",
-    Short:         wski18n.T("create a new API"),
+    Short:         wski18n.T("COMING SOON - create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
@@ -889,7 +889,7 @@ var apiCreateCmdV2 = &cobra.Command{
 
 var apiGetCmdV2 = &cobra.Command{
     Use:           "get BASE_PATH | API_NAME",
-    Short:         wski18n.T("get API details"),
+    Short:         wski18n.T("COMING SOON - get API details"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
@@ -967,7 +967,7 @@ var apiGetCmdV2 = &cobra.Command{
 
 var apiDeleteCmdV2 = &cobra.Command{
     Use:           "delete BASE_PATH | API_NAME [API_PATH [API_VERB]]",
-    Short:         wski18n.T("delete an API"),
+    Short:         wski18n.T("COMING SOON - delete an API"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
@@ -1056,7 +1056,7 @@ var apiDeleteCmdV2 = &cobra.Command{
 
 var apiListCmdV2 = &cobra.Command{
     Use:           "list [[BASE_PATH | API_NAME] [API_PATH [API_VERB]]",
-    Short:         wski18n.T("list APIs"),
+    Short:         wski18n.T("COMING SOON - list APIs"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
