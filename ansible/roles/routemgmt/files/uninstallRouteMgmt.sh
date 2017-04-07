@@ -65,3 +65,11 @@ deleteAction $NAMESPACE/routemgmt/deleteApi
 
 echo Deleting routemgmt package - but only if it exists
 deletePackage $NAMESPACE/routemgmt
+
+echo Deleting apimgmt actions
+deleteAction $NAMESPACE/apimgmt/getApi
+deleteAction $NAMESPACE/apimgmt/createApi
+deleteAction $NAMESPACE/apimgmt/deleteApi
+
+echo Deleting apimgmt package - but only if it exists
+deletePackage $NAMESPACE/apimgmt
