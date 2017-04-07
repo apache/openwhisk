@@ -111,10 +111,19 @@ object Messages {
         s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
     }
 
+    def truncateLogs(limit: ByteSize) = {
+        s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."
+    }
+
     /** Error for meta api. */
     val propertyNotFound = "Response does not include requested property."
     def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
-    val contentTypeNotSupported = """Content type must be specified and one of ["json", "html", "http", "text"]."""
+    def contentTypeExtensionNotSupported(extensions: Set[String]) = {
+        s"""Extension must be specified and one of ${extensions.mkString("[", ", ", "]")}."""
+    }
+    val unsupportedContentType = """Content type is not supported."""
+    def unsupportedContentType(m: MediaType) = s"""Content type '${m.value}' is not supported."""
+    val errorExtractingRequestBody = "Failed extracting request body."
 
     val responseNotReady = "Response not yet ready."
     val httpUnknownContentType = "Response did not specify a known content-type."
@@ -162,8 +171,13 @@ object ErrorResponse extends Directives {
         } getOrElse None)
     }
 
-    def terminate(status: StatusCode, error: Option[ErrorResponse] = None)(implicit transid: TransactionId): StandardRoute = {
-        complete(status, error getOrElse response(status))
+     def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(implicit transid: TransactionId): StandardRoute = {
+        val errorResponse = error getOrElse response(status)
+            if (asJson) {
+                complete(status, errorResponse)
+            } else {
+                complete(status, s"${errorResponse.error} (code: ${errorResponse.code})")
+            }
     }
 
     def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {

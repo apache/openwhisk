@@ -1,5 +1,5 @@
 ---
-# This role will build and publish Openwhisk SDKs. Currently covers blackbox container and iOS starter app.
+# This role will build and publish Openwhisk SDKs. Currently covers blackbox starter kit.
 # In deploy mode it will generate downloadable artifacts and copy them to nginx.
 # In clean mode it will remove the artifacts from nginx.
 

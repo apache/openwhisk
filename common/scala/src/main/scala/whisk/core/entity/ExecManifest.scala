@@ -38,24 +38,33 @@ protected[core] object ExecManifest {
 
     /**
      * Reads runtimes manifest from WhiskConfig and initializes the
-     * singleton.
+     * singleton Runtime instance.
      *
      * @param config a valid configuration
-     * @return true iff initialized successfully
+     * @param reinit re-initialize singleton iff true
+     * @return true if initialized successfully, or if previously initialized
      */
-    protected[core] def initialize(config: WhiskConfig): Boolean = {
-        Try(config.runtimesManifest.parseJson.asJsObject)
-            .flatMap(runtimes(_))
-            .map(m => manifest = Some(m))
-            .isSuccess
+    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Boolean = {
+        if (manifest.isEmpty || reinit) {
+            Try(config.runtimesManifest.parseJson.asJsObject)
+                .flatMap(runtimes(_))
+                .map(m => manifest = Some(m))
+                .isSuccess
+        } else true
     }
 
     /**
      * Gets existing runtime manifests.
      *
-     * @return Some(Runtimes) or None if manifest is not yet initialized
+     * @return singleton Runtimes instance previous initialized from WhiskConfig
+     * @throws IllegalStateException if singleton was not previously initialized
      */
-    protected[core] def runtimesManifest: Option[Runtimes] = manifest
+    @throws[IllegalStateException]
+    protected[core] def runtimesManifest: Runtimes = {
+        manifest.getOrElse {
+            throw new IllegalStateException("Runtimes manifest is not initialized")
+        }
+    }
 
     private var manifest: Option[Runtimes] = None
 
@@ -87,7 +96,8 @@ protected[core] object ExecManifest {
         attached: Option[Attached] = None,
         requireMain: Option[Boolean] = None,
         sentinelledLogs: Option[Boolean] = None,
-        image: Option[String] = None)
+        image: Option[String] = None) {
+    }
 
     /**
      * A runtime family manifest is a collection of runtimes grouped by a family (e.g., swift with versions swift:2 and swift:3).
@@ -101,12 +111,12 @@ protected[core] object ExecManifest {
      *
      * @param set of supported runtime families
      */
-    protected[entity] case class Runtimes(runtimes: Set[RuntimeFamily]) {
+    protected[core] case class Runtimes(runtimes: Set[RuntimeFamily]) {
         val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
 
         def resolveDefaultRuntime(kind: String): Option[RuntimeManifest] = {
             kind match {
-                case defaultSplitter(family) => defaultRuntimes.get(family).flatten.flatMap(manifests.get(_))
+                case defaultSplitter(family) => defaultRuntimes.get(family).flatMap(manifests.get(_))
                 case _                       => manifests.get(kind)
             }
         }
@@ -119,17 +129,18 @@ protected[core] object ExecManifest {
             }.toMap
         }
 
-        private val defaultRuntimes: Map[String, Option[String]] = {
+        private val defaultRuntimes: Map[String, String] = {
             runtimes.map { family =>
                 family.versions.filter(_.default.exists(identity)).toList match {
-                    case Nil      => family.name -> None
-                    case d :: Nil => family.name -> Some(d.kind)
-                    case ds       => throw new IllegalArgumentException(s"found more than one default for ${family.name}: ${ds.mkString(",")}")
+                    case Nil if family.versions.size == 1  => family.name -> family.versions.toSeq(0).kind
+                    case Nil                               => throw new IllegalArgumentException(s"${family.name} has multiple versions, but no default")
+                    case d :: Nil                          => family.name -> d.kind
+                    case ds                                => throw new IllegalArgumentException(s"found more than one default for ${family.name}: ${ds.mkString(",")}")
                 }
             }.toMap
         }
 
-        private val defaultSplitter = "([a-z0-9]):default".r
+        private val defaultSplitter = "([a-z0-9]+):default".r
     }
 
     protected[entity] implicit val runtimeManifestSerdes = jsonFormat7(RuntimeManifest)
@@ -138,8 +149,8 @@ protected[core] object ExecManifest {
 protected[core] object ExecImageName {
     /**
      * Gets the container image name for the action.
-     * If the action is a black box action, return the image name. Otherwise
-     * return a standard image name for running Javascript or Swift actions for example.
+     * If the action uses a known exec manifest for which no docker pull operation is required,
+     * rewrite the container name to use the local registry.
      *
      * @return image name for container to run action
      */

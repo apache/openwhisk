@@ -60,7 +60,7 @@ def doComponentSequence(props, args, components):
                 file = c if c.endswith('.gradle') else '%s.gradle' % c
                 component = makeComponent('custom build target', 'building using %s' % file, yaml = False, gradle = True, tasks = c)
             else:
-                print 'unknown component %s' % c
+                print('unknown component %s' % c)
                 exit(1)
 
         if component['steps']:
@@ -94,20 +94,22 @@ def getArgs():
     args = parser.parse_args()
 
     if args.target is None:
-        print 'Use "--target" to specify a deployment target because one could not be determined automatically for your platform (supported platforms are GNU/Linux (Ubuntu) and Mac OS X.'
+        print('Use "--target" to specify a deployment target because one '
+              'could not be determined automatically for your platform '
+              '(supported platforms are GNU/Linux (Ubuntu) and Mac OS X.')
         exit(-1)
 
     if args.dir is None:
         if whiskHome is None:
-            print 'Must specify whisk home directory with "--dir".'
+            print('Must specify whisk home directory with "--dir".')
             exit(-1)
         else:
             args.dir = whiskHome
 
     if args.list:
-        print "{:<27}{:<40}".format(bold('component'), bold('description'))
+        print("{:<27}{:<40}".format(bold('component'), bold('description')))
         for c in Components:
-            print "{:<30}{:<40}".format(hilite(c['name']), c['description'])
+            print("{:<30}{:<40}".format(hilite(c['name']), c['description']))
         exit(0)
     elif not args.components:
         parser.print_usage()
@@ -117,7 +119,7 @@ def getArgs():
 
 class Playbook:
     cmd = 'ansible-playbook'
-        
+
     dir = False
     file = False
     modes = False
@@ -126,13 +128,13 @@ class Playbook:
     # dir: the ansible directory containing the yaml files, roles, etc.
     # file: the yml file for the playbook
     # modes: the modes supported for the playbook as a comma separated string (e.g., 'clean')
-    # env: the environments directory (e.g., 'environment) or None if not environment specific playbook 
+    # env: the environments directory (e.g., 'environment) or None if not environment specific playbook
     def __init__(self, dir, file, modes, env):
         self.dir = dir
         self.file = file
         self.modes = modes.split(',')
         self.env = env
-    
+
     def path(self, basedir):
         return basedir + '/' + self.dir
 
@@ -191,13 +193,14 @@ def makeComponent(name,                   # component name, implies playbook def
     playbook = Playbook(dir, yaml, modes, env) if yaml is not False else None
     gradle = Gradle(tasks, gradle) if gradle is not False else None
     if steps and (playbook is not None or gradle is not None):
-        print 'Cannot create component "%s" with a sequence of steps and also a playbook with gradle build target' % name
+        print('Cannot create component "%s" with a sequence of steps and also '
+              'a playbook with gradle build target' % name)
         exit(-1)
     elif steps:
         steps = map(lambda c: c.strip(), steps.split(','))
     return { 'name': name, 'description': description, 'playbook': playbook, 'gradle': gradle, 'steps': steps }
-    
-Components = [ 
+
+Components = [
     makeComponent('fresh',
                   'setup, build, and deploy a fresh whisk system using couchdb',
                   yaml = False,
@@ -263,11 +266,6 @@ Components = [
 
     # the following (re)build images via gradle
 
-    makeComponent('nodejsaction',
-                  'build node.js action container',
-                  yaml = False,
-                  gradle = 'core:nodejsAction'),
-
     makeComponent('nodejs6action',
                   'build node.js v6 action container',
                   yaml = False,
@@ -278,7 +276,12 @@ Components = [
                   yaml = False,
                   gradle = 'core:actionProxy'),
 
-    makeComponent('pythonaction',
+    makeComponent('python2action',
+                  'build python v2.7 action container',
+                  yaml = False,
+                  gradle = 'core:python2Action'),
+
+    makeComponent('python3action',
                   'build python action container',
                   yaml = False,
                   gradle = 'core:pythonAction'),
@@ -288,7 +291,7 @@ Components = [
                   yaml = False,
                   gradle = 'core:swift3Action'),
 
-    makeComponent('javaaction',
+    makeComponent('java8action',
                   'build java action container',
                   yaml = False,
                   gradle = 'core:javaAction'),
@@ -341,7 +344,7 @@ def hilite(string, isError = False):
 
 def run(cmd, dir, skiprun, allowToFail = False):
     if cmd is not None:
-        print hilite(cmd)
+        print(hilite(cmd))
         if not skiprun:
             args = shlex.split(cmd)
             p = subprocess.Popen(args, cwd = dir)
@@ -350,25 +353,31 @@ def run(cmd, dir, skiprun, allowToFail = False):
                abort('command failed', p.returncode)
 
 def runAndGetStdout(cmd):
-    print hilite(cmd)
+    print(hilite(cmd))
     args = shlex.split(cmd)
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
+    # stdout/stderr may be either text or bytes, depending on Python
+    # version.   In the latter case, decode to text.
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
     if p.returncode:
-        print hilite(out)
-        print hilite(err, True)
+        print(hilite(out))
+        print(hilite(err, True))
         abort('command failed', p.returncode)
     return out
 
 def abort(msg, code = -1):
-    print hilite(msg, True)
+    print(hilite(msg, True))
     exit(code)
 
 def doOne(component, args, props):
     basedir = props['WSK_HOME']
     playbook = component['playbook']
     gradle = component['gradle']
-    print bold(component['description'])
+    print(bold(component['description']))
 
     extraArgs = '' if args.extraArgs is None or [] else ' '.join(map(str, args.extraArgs))
 

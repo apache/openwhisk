@@ -21,7 +21,6 @@
 
 import os
 import sys
-import subprocess
 import argparse
 
 scriptDir = sys.path[0]
@@ -57,7 +56,7 @@ invokerCount = int(component[7:]) if isInvoker else -1 # 0-based
 try:
    docker = componentToDocker['invokers' if isInvoker else component]
 except KeyError:
-   print "Unknown component:", component
+   print("Unknown component:", component)
    exit(-1)
 
 try:
@@ -65,17 +64,17 @@ try:
    if (isInvoker):
        dockerEndpoint = dockerEndpoint.split(',')[invokerCount] + ':4243'
 except KeyError:
-   print 'Could not locate docker endpoint ', docker
+   print('Could not locate docker endpoint ', docker)
    exit(-2)
 
-print "component      = ", component
-print "docker         = ", docker
-print "dockerEndpoint = ", dockerEndpoint
+print("component      = ", component)
+print("docker         = ", docker)
+print("dockerEndpoint = ", dockerEndpoint)
 
-(rc,output) = monitorUtil.run(["docker", "--host", dockerEndpoint, "stop", component]);
+(rc,output) = monitorUtil.run(["docker", "--host", dockerEndpoint, "stop", component])
 if (rc == 0):
-    print "Stopped container for component ", component
+    print("Stopped container for component ", component)
     exit(0)
 else:
-    print output
+    print(output)
     exit(rc)

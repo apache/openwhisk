@@ -1,0 +1,34 @@
+---
+# Delete and recreate the specified database.
+# dbName - name of the database to recreate
+# forceRecreation - deletes the database
+
+- name: check if {{ dbName }} with {{ db_provider }} exists
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    method: HEAD
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  register: response
+
+- name: delete the {{ dbName }} with {{ db_provider }}
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    method: DELETE
+    status_code: 200,404
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: "{{ forceRecreation }} == True and response.status == 200"
+
+- name: create {{ dbName }} with {{ db_provider }}
+  uri:
+    url: "{{ db_protocol }}://{{ db_host }}:{{ db_port }}/{{ dbName }}"
+    method: PUT
+    status_code: 200,201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: "{{ forceRecreation }} == True or {{ response.status }} == 404"

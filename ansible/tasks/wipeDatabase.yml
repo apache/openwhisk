@@ -1,8 +1,16 @@
 ---
 # Wipe transient databases. You should know what you are doing here.
+# withViews: True or False. Says, if the views have to be recreated.
 
-# make sure we have whisk.properties because wipeTransientDBs.sh needs it
-- include: writeWhiskProperties.yml
+- include: db/recreateDb.yml
+  vars:
+    dbName: "{{ db.whisk.actions }}"
+    forceRecreation: True
+- include: db/recreateDb.yml
+  vars:
+    dbName: "{{ db.whisk.activations }}"
+    forceRecreation: True
+  when: db.whisk.activations != db.whisk.actions
 
-- name: deploy database
-  local_action: shell "./wipeTransientDBs.sh" chdir="{{ openwhisk_home }}/tools/db"
+- include: recreateViews.yml
+  when: withViews == True

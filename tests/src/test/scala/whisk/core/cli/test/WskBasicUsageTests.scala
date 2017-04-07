@@ -446,6 +446,14 @@ class WskBasicUsageTests
             }
     }
 
+    it should "report error when creating an action with unknown kind" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val rr = assetHelper.withCleaner(wsk.action, "invalid kind", confirmDelete = false) {
+                (action, name) => action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), kind = Some("foobar"), expectedExitCode = BAD_REQUEST)
+            }
+            rr.stderr should include regex "kind 'foobar' not in Set"
+    }
+
     it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
         val name = "invalid dockerContainer"
         val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
@@ -502,7 +510,7 @@ class WskBasicUsageTests
                 activation =>
                     activation.response.status shouldBe "success"
                     val fields = activation.response.result.get.convertTo[Map[String, String]]
-                    fields("api_host") shouldBe WhiskProperties.getApiHost
+                    fields("api_host") shouldBe WhiskProperties.getApiHostForAction
                     fields("api_key") shouldBe wskprops.authKey
                     fields("namespace") shouldBe namespace
                     fields("action_name") shouldBe s"/$namespace/$name"
@@ -554,6 +562,70 @@ class WskBasicUsageTests
                     // the first action must fail with a timeout error
                     activation.response.status shouldBe "success"
                     activation.response.result shouldBe Some(JsObject("timedout" -> true.toJson))
+            }
+    }
+
+    it should "ensure --web flags set the proper annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            Seq("true", "faLse", "tRue", "nO", "yEs", "no", "raw", "NO", "Raw").
+                foreach { flag =>
+                    val webEnabled = flag.toLowerCase == "true" || flag.toLowerCase == "yes"
+                    val rawEnabled = flag.toLowerCase == "raw"
+
+                    wsk.action.create(name, file, web = Some(flag), update = true)
+
+                    val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+                    assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+                    removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                        JsObject(
+                            "key" -> JsString("web-export"),
+                            "value" -> JsBoolean(webEnabled || rawEnabled)),
+                        JsObject(
+                            "key" -> JsString("raw-http"),
+                            "value" -> JsBoolean(rawEnabled)),
+                        JsObject(
+                            "key" -> JsString("final"),
+                            "value" -> JsBoolean(webEnabled || rawEnabled)),
+                        JsObject(
+                            "key" -> JsString("exec"),
+                            "value" -> JsString("nodejs:6")))
+                }
+    }
+
+    it should "reject action create and update with invalid web flag input" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val invalidInput = "bogus"
+            val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
+            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+    }
+
+    it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "nonescape"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            val nonescape = "&<>"
+            val input = Map("payload" -> nonescape.toJson)
+            val output = JsObject("payload" -> JsString(s"hello, $nonescape!"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            withActivation(wsk.activation, wsk.action.invoke(name, parameters = input)) {
+                activation =>
+                    activation.response.success shouldBe true
+                    activation.response.result shouldBe Some(output)
+                    activation.logs.toList.flatten.filter(_.contains(nonescape)).length shouldBe 1
             }
     }
 

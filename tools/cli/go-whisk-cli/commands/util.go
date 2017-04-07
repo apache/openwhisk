@@ -37,6 +37,7 @@ import (
     "io/ioutil"
     "sort"
     "reflect"
+    "bytes"
 )
 
 type QualifiedName struct {
@@ -163,6 +164,8 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
     var data map[string]interface{}
     var res interface{}
 
+    whisk.Debug(whisk.DbgInfo, "Convert content to JSON: %#v\n", content)
+
     for i := 0; i < len(content); i++ {
         if err := json.Unmarshal([]byte(content[i]), &data); err != nil {
             whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s'\n", content[i])
@@ -184,15 +187,12 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
 func getKeyValueFormattedJSON(data map[string]interface{}) (whisk.KeyValueArr) {
     var keyValueArr whisk.KeyValueArr
 
-    i := 0
-
     for key, value := range data {
         keyValue := whisk.KeyValue{
             Key:  key,
             Value: value,
         }
         keyValueArr = append(keyValueArr, keyValue)
-        i++
     }
 
     whisk.Debug(whisk.DbgInfo, "Created key/value format '%v' from '%v'\n", keyValueArr, data)
@@ -439,6 +439,26 @@ func getFullName(namespace string, packageName string, entityName string) (strin
     return fullName
 }
 
+func deleteKey(key string, keyValueArr whisk.KeyValueArr) (whisk.KeyValueArr) {
+    for i := 0; i < len(keyValueArr); i++ {
+        if keyValueArr[i].Key == key {
+            keyValueArr = append(keyValueArr[:i], keyValueArr[i + 1:]...)
+            break
+        }
+    }
+
+    return keyValueArr
+}
+
+func addKeyValue(key string, value interface{}, keyValueArr whisk.KeyValueArr) (whisk.KeyValueArr) {
+    keyValue := whisk.KeyValue{
+        Key:  key,
+        Value: value,
+    }
+
+    return append(keyValueArr, keyValue)
+}
+
 func getKeys(keyValueArr whisk.KeyValueArr) ([]string) {
     var res []string
 
@@ -567,18 +587,19 @@ func printJSON(v interface{}, stream ...io.Writer) {
     printJsonNoColor(v, stream...)
 }
 
-// Same as printJSON, but with coloring disabled.
-func printJsonNoColor(v interface{}, stream ...io.Writer) {
-    output, err := json.MarshalIndent(v, "", "    ")
+func printJsonNoColor(decoded interface{}, stream ...io.Writer) {
+    var output bytes.Buffer
 
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "json.MarshalIndent() failure: %s\n", err)
-    }
+    buffer := new(bytes.Buffer)
+    encoder := json.NewEncoder(buffer)
+    encoder.SetEscapeHTML(false)
+    encoder.Encode(&decoded)
+    json.Indent(&output, buffer.Bytes(), "", "    ")
 
     if len(stream) > 0 {
-        fmt.Fprintf(stream[0], "%s\n", string(output))
+        fmt.Fprintf(stream[0], "%s", string(output.Bytes()))
     } else {
-        fmt.Fprintf(os.Stdout, "%s\n", string(output))
+        fmt.Fprintf(os.Stdout, "%s", string(output.Bytes()))
     }
 }
 

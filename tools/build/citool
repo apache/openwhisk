@@ -53,7 +53,7 @@ def main():
             'cat': cat
         }[args.cmd](args)
     except Exception as e:
-        print 'Exception: ', e
+        print('Exception: ', e)
         if args.verbose:
             traceback.print_exc()
         exitCode = 1
@@ -91,13 +91,13 @@ def request(method, urlString, body = "", headers = {}, auth = None, verbose = F
         conn = httplib.HTTPSConnection(url.netloc)
 
     if verbose:
-        print "%s %s" % (method, urlString)
+        print("%s %s" % (method, urlString))
 
     conn.request(method.upper(), urlString, body, headers = headers)
     res = conn.getresponse()
 
     if verbose:
-        print 'Got response with code %s' % res.status
+        print('Got response with code %s' % res.status)
     return res
 
 def shell(cmd, data = None, verbose = False):
@@ -110,6 +110,13 @@ def shell(cmd, data = None, verbose = False):
     out, err = p.communicate(input = data)
 
     p.wait()
+    # stdout/stderr may be either text or bytes, depending on Python
+    # version.   In the latter case, decode to text.
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
+
     end = time.time()
     delta = end - start
     return (delta, out, err)
@@ -198,13 +205,13 @@ def grepForFailingTests(args, body):
     # check that tests ran
     (time, output, error) = shell(cmd, body, args.verbose)
     if output == '':
-        print 'no tests detected'
+        print('no tests detected')
     # no tests: either build failure or task not yet reached, skip further check
     else:
         cmd = 'grep -E "^\w+\.*.*[&gt;|>] \w*.* FAILED%s"' % ("|PASSED" if args.all else "")
         (time, output, error) = shell(cmd, body, args.verbose)
         if output == '':
-            print 'all tests passing'
+            print('all tests passing')
         else:
             print(output.replace('&gt;', '>')),
 
@@ -215,12 +222,12 @@ def reportBuildStatus(args, body):
         output = re.sub('<[^<]+?>', '', output).strip()
 
     if output and ('Finished: ' in output or output.startswith('Done.') or ('exceeded' in output and 'terminated' in output)):
-        print output
+        print(output)
         return (0, True)
     else:
-        print 'Build: ONGOING'
+        print('Build: ONGOING')
         if output:
-            print output
+            print(output)
         return (0, False)
 
 def cat(args):

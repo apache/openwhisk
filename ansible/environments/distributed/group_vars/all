@@ -5,7 +5,6 @@ db_protocol: http
 db_username: couch_user
 db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
-db_auth: "subjects"
 db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 
 whisk_version_name: local
@@ -82,3 +81,4 @@ instances:
 apigw_auth_user: ""
 apigw_auth_pwd: ""
 apigw_host: "http://{{ groups['edge']|first }}:{{apigateway.port.api}}/v1"
+apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"

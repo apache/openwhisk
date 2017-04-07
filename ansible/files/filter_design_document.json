@@ -1,0 +1,6 @@
+{
+  "_id": "_design/snapshotFilters",
+  "filters": {
+    "withoutDeletedAndDesignDocuments": "function(doc, req) {\n    return !doc._deleted && !(doc._id.indexOf(\"_design/\") == 0);\n}"
+  }
+}

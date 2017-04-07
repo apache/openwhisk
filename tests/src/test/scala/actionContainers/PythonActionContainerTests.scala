@@ -29,11 +29,16 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
+    lazy val imageName = "python3action"
+
+    /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
+    lazy val pythonStringAsUnicode = true
+
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer("pythonaction", env)(code)
+        withContainer(imageName, env)(code)
     }
 
-    behavior of "pythonaction"
+    behavior of imageName
 
     testNotReturningJson(
         """
@@ -43,12 +48,33 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
 
     testEcho(Seq {
         ("python", """
-          |import sys
-          |def main(dict):
-          |    print 'hello stdout'
-          |    print >> sys.stderr, 'hello stderr'
-          |    return dict
-          """.stripMargin)
+         |from __future__ import print_function
+         |import sys
+         |def main(args):
+         |    print('hello stdout')
+         |    print('hello stderr', file=sys.stderr)
+         |    return args
+         """.stripMargin)
+    })
+
+    testUnicode(Seq {
+        if (pythonStringAsUnicode) {
+            ("python", """
+             |def main(args):
+             |    sep = args['delimiter']
+             |    str = sep + " ☃ " + sep
+             |    print(str)
+             |    return {"winter" : str }
+             """.stripMargin.trim)
+        } else {
+            ("python", """
+             |def main(args):
+             |    sep = args['delimiter']
+             |    str = sep + " ☃ ".decode('utf-8') + sep
+             |    print(str.encode('utf-8'))
+             |    return {"winter" : str }
+             """.stripMargin.trim)
+        }
     })
 
     testEnv(Seq {
@@ -131,30 +157,6 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
             case (o, e) =>
                 o shouldBe empty
                 e should include("Zip file does not include")
-        })
-    }
-
-    it should "handle unicode in source, input params, logs, and result" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = """
-                |def main(dict):
-                |    sep = dict['delimiter']
-                |    str = sep + " ☃ ".decode('utf-8') + sep
-                |    print(str.encode('utf-8'))
-                |    return {"winter" : str }
-            """.stripMargin
-
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
-            runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o.toLowerCase should include("❄ ☃ ❄")
-                e shouldBe empty
         })
     }
 

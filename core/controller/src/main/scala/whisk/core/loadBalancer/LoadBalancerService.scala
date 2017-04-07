@@ -43,6 +43,7 @@ import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 import whisk.core.connector.PingMessage
 import akka.util.Timeout
+import akka.actor.ActorRefFactory
 
 trait LoadBalancer {
 
@@ -114,7 +115,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
         val raw = new String(bytes, "utf-8")
         CompletionMessage.parse(raw) match {
             case Success(m: CompletionMessage) => processCompletion(m)
-            case Failure(t)                    => logging.error(this, s"failed processing message: $raw with $t")
+            case Failure(t)                    => logging.error(this, s"failed processing message: $raw with $t")(TransactionId.loadbalancer)
         }
     })
 
@@ -152,7 +153,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
             actorSystem.scheduler.scheduleOnce(timeout) {
                 activationById.get(activationId).foreach { _ =>
                     if (promise.tryFailure(new ActiveAckTimeout(activationId))) {
-                        logging.info(this, "active response timed out")
+                        logging.info(this, "active response timed out")(transid)
                     }
                 }
             }
@@ -194,7 +195,8 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     })
 
     private val consul = new ConsulClient(config.consulServer)
-    private val invokerPool = actorSystem.actorOf(InvokerPool.props(consul.kv, invoker => {
+    private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
         clearInvokerState(invoker)
         logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
     }))
@@ -240,7 +242,7 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
                 val invokerIndex = hashCount % numInvokers
                 Future.successful(invokers(invokerIndex))
             } else {
-                logging.error(this, s"all invokers down")
+                logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
                 Future.failed(new LoadBalancerException("no invokers available"))
             }
         }

@@ -1,0 +1,22 @@
+---
+# Recreates all views in all databases.
+
+- include: db/recreateDoc.yml
+  vars:
+    dbName: "{{ db.whisk.actions }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/whisks_design_document_for_actions_db.json') }}"
+- include: db/recreateDoc.yml
+  vars:
+    dbName: "{{ db.whisk.actions }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/filter_design_document.json') }}"
+
+- include: db/recreateDoc.yml
+  vars:
+    dbName: "{{ db.whisk.activations }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/whisks_design_document_for_activations_db.json') }}"
+  when: db.whisk.activations != db.whisk.actions
+- include: db/recreateDoc.yml
+  vars:
+    dbName: "{{ db.whisk.activations }}"
+    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/filter_design_document.json') }}"
+  when: db.whisk.activations != db.whisk.actions

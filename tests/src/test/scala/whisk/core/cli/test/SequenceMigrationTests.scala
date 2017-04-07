@@ -24,7 +24,6 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.junit.JUnitRunner
 
-import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -33,25 +32,22 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.testkit.ScalatestRouteTest
+
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
+import whisk.core.entity.test.ExecHelpers
 
 /**
  * Tests that "old-style" sequences can be invoked
  */
-
 @RunWith(classOf[JUnitRunner])
 class SequenceMigrationTests
     extends TestHelpers
     with BeforeAndAfter
     with DbUtils
-    with ScalatestRouteTest
-    with WskTestHelpers
-    with StreamLogging {
-
-    implicit val actorSystem = system
+    with ExecHelpers
+    with WskTestHelpers {
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk

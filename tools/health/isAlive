@@ -21,7 +21,6 @@
 
 import os
 import sys
-import subprocess
 import argparse
 import monitorUtil
 
@@ -37,7 +36,7 @@ def getProp(key) :
     try:
         return whiskprops[key]
     except KeyError:
-        print 'Could not find %s' % key
+        print('Could not find %s' % key)
         return False
 
 def getHostWithPort(hostComp, portComp, failIfNotFound = True):
@@ -47,7 +46,7 @@ def getHostWithPort(hostComp, portComp, failIfNotFound = True):
     if host != False and port != False:
         return (host + ':' + port) if (port != '') else host
     elif failIfNotFound:
-        print "Unknown component {0}".format(hostComp)
+        print("Unknown component {0}".format(hostComp))
         exit(-1)
     else:
         return False
@@ -60,7 +59,7 @@ def getInvokerHostAndPort(component, host = None, failIfNotFound = True):
         hosts = getProp('INVOKER_HOSTS').split(',')
         host = hosts[instance]
     port = str(int(getProp('INVOKER_HOSTS_BASEPORT'))+instance)
-    print host + ':' + port
+    print(host + ':' + port)
     return host + ':' + port
 
 def getHostAndPort(component, host = None, failIfNotFound = True):
@@ -103,12 +102,14 @@ def isZookeeperAlive() :
     okString = 'imok'
     (rc, output) = monitorUtil.run(cmd, 'ruok')
     if (rc != 0):
-        print 'isZooKeeperAlive: still waiting for zookeeper (nc failed with %d: %s)' % (rc, output)
+        print('isZooKeeperAlive: still waiting for zookeeper (nc failed with '
+              '%d: %s)' % (rc, output))
         return rc
     if (output == okString):
         return 0
     else:
-        print 'isZooKeeperAlive: Unexpected output string to imok query %s' % output
+        print('isZooKeeperAlive: Unexpected output string to imok query %s'
+              % output)
         return -2
 
 parser = argparse.ArgumentParser(description='Check if a whisk component is alive or wait until it is.')
@@ -119,7 +120,7 @@ parser.add_argument('-d','--dir', help='directory for whisk.properties')
 args = parser.parse_args()
 
 if (args.dir is None):
-    print 'Must specify directory with -d'
+    print('Must specify directory with -d')
     exit(-1)
 
 whiskprops = wskprop.importPropsIfAvailable(wskprop.propfile(args.dir))

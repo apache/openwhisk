@@ -37,7 +37,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
-import whisk.core.controller.RestAPIVersion_v1
+import whisk.core.controller.RestApiCommons
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
@@ -61,11 +61,14 @@ protected trait ControllerTestCommon
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
-    implicit val actorSystem = system // defined in ScalatestRouteTest
-    val executionContext = actorSystem.dispatcher
+    override implicit val actorSystem = system // defined in ScalatestRouteTest
+    override val executionContext = actorSystem.dispatcher
 
-    override val whiskConfig = new WhiskConfig(RestAPIVersion_v1.requiredProperties)
+    override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
     assert(whiskConfig.isValid)
+
+    // initialize runtimes manifest
+    ExecManifest.initialize(whiskConfig)
 
     override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
@@ -101,9 +104,9 @@ protected trait ControllerTestCommon
     }
 
     def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskActivation.get(entityStore, doc) flatMap { doc =>
+        Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
             logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskActivation.del(entityStore, doc.docinfo)
+            WhiskActivation.del(activationStore, doc.docinfo)
         }, dbOpTimeout)
     }
 

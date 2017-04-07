@@ -128,9 +128,7 @@ function getTenants(gwInfo, ns, tenantInstance) {
               resolve(bodyJson);
             } else {
               console.error('getTenants: Invalid API GW response body; a JSON array was not returned');
-              //FIXME MWD may happen when no tenants are found and {} is returned:  https://github.com/openwhisk/apigateway/issues/59
-              //FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
-              resolve( [] );  // FIXME MWD Hack until https://github.com/openwhisk/apigateway/issues/59 is fixed
+              resolve( [] );
             }
           } catch(e) {
             console.error('getTenants: Invalid API GW response body; JSON.parse() failure: '+e);
@@ -327,9 +325,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
               resolve(bodyJson);
             } else {
               console.error('getApis: Invalid API GW response body; a JSON array was not returned');
-              //FIXME MWD may happen when no apis are found and {} is returned:  https://github.com/openwhisk/apigateway/issues/59
-              //FIXME MWD reject('Internal error. Invalid API Gateway response: Not an array');
-              resolve( [] );  // FIXME MWD Hack until https://github.com/openwhisk/apigateway/issues/59 is fixed
+              resolve( [] );
             }
           } catch(e) {
             console.error('getApis: Invalid API GW response body; JSON.parse() failure: '+e);
@@ -717,12 +713,45 @@ function getActionNameFromActionUrl(actionUrl) {
 
 /*
  * https://172.17.0.1/api/v1/namespaces/whisk.system/actions/getaction
- * would return /whisk.system
+ * would return whisk.system
  * https://my-host.mycompany.com/api/v1/namespaces/myid@gmail.com_dev/actions/mypkg/getaction
- * would return /myid@gmail.com_dev
+ * would return myid@gmail.com_dev
  */
 function getActionNamespaceFromActionUrl(actionUrl) {
   return parseActionUrl(actionUrl)[3];
+}
+
+/*
+ * Replace the namespace values that are used in the apidoc with the
+ * specified namespace
+ */
+function updateNamespace(apidoc, namespace) {
+  if (apidoc && namespace) {
+    if (apidoc.action) {
+      // The action namespace does not have to match the CLI user's namespace
+      // If it is different, leave it alone; otherwise use the replacement namespace
+      if (apidoc.namespace === apidoc.action.namespace) {
+        apidoc.action.namespace = namespace;
+        apidoc.action.backendUrl = replaceNamespaceInUrl(apidoc.action.backendUrl, namespace);      }
+    }
+    apidoc.namespace = namespace;
+  }
+}
+
+/*
+ * Take an OpenWhisk URL (i.e. action invocation URL) and replace the namespace
+ * path parameter value with the provided namespace value
+ */
+function replaceNamespaceInUrl(url, namespace) {
+  var namespacesPattern = /\/namespaces\/([\w@.-]+)\//;
+  console.log('replaceNamespaceInUrl: url before - '+url);
+  matchResult = url.match(namespacesPattern);
+  if (matchResult !== null) {
+    console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
+    url = url.replace(namespacesPattern, '/namespaces/'+namespace+'/');
+  }
+  console.log('replaceNamespaceInUrl: url after - '+url);
+  return url;
 }
 
 module.exports.createTenant = createTenant;
@@ -739,3 +768,4 @@ module.exports.removeEndpointFromSwaggerApi = removeEndpointFromSwaggerApi;
 module.exports.confidentialPrint = confidentialPrint;
 module.exports.generateCliResponse = generateCliResponse;
 module.exports.generateCliApiFromGwApi = generateCliApiFromGwApi;
+module.exports.updateNamespace = updateNamespace;
