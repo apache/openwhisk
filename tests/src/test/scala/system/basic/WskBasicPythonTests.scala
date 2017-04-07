@@ -123,8 +123,8 @@ class WskBasicPythonTests
 
     behavior of "Python virtualenv"
 
-    Seq(("action_python2_virtualenv.zip", "python:2"),
-        ("action_python3_virtualenv.zip", "python:3")).foreach {
+    Seq(("python2_virtualenv.zip", "python:2"),
+        ("python3_virtualenv.zip", "python:3")).foreach {
             case (filename, kind) =>
                 it should s"invoke a zipped $kind action with virtualenv package" in withAssetCleaner(wskprops) {
                     (wp, assetHelper) =>

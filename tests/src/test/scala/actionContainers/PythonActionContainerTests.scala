@@ -190,7 +190,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     }
 
     it should "run zipped Python action containing a virtual environment" in {
-        val zippedPythonAction = if (imageName == "python2action") "action_python2_virtualenv.zip" else "action_python3_virtualenv.zip"
+        val zippedPythonAction = if (imageName == "python2action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
         val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
         val code = readAsBase64(Paths.get(zippedPythonActionName))
 
@@ -209,8 +209,28 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
         })
     }
 
+    it should "run zipped Python action containing a virtual environment with non-standard entry point" in {
+        val zippedPythonAction = if (imageName == "python2action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
+        val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
+        val code = readAsBase64(Paths.get(zippedPythonActionName))
+
+        val (out, err) = withActionContainer() { c =>
+            val (initCode, initRes) = c.init(initPayload(code, main = "naim"))
+            initCode should be(200)
+            val args = JsObject("msg" -> JsString("any"))
+            val (runCode, runRes) = c.run(runPayload(args))
+            runCode should be(200)
+            runRes.get.toString() should include("netmask")
+        }
+        checkStreams(out, err, {
+            case (o, e) =>
+                o should include("netmask")
+                e shouldBe empty
+        })
+    }
+
     it should "report error if zipped Python action containing a virtual environment for wrong python version" in {
-        val zippedPythonAction = if (imageName == "python3action") "action_python2_virtualenv.zip" else "action_python3_virtualenv.zip"
+        val zippedPythonAction = if (imageName == "python3action") "python2_virtualenv.zip" else "python3_virtualenv.zip"
         val zippedPythonActionName = TestUtils.getTestActionFilename(zippedPythonAction)
         val code = readAsBase64(Paths.get(zippedPythonActionName))
 
@@ -230,7 +250,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     }
 
     it should "report error if zipped Python action has wrong main module name" in {
-        val zippedPythonActionWrongName = TestUtils.getTestActionFilename("action_python_virtualenv_name.zip")
+        val zippedPythonActionWrongName = TestUtils.getTestActionFilename("python_virtualenv_name.zip")
 
         val code = readAsBase64(Paths.get(zippedPythonActionWrongName))
 
@@ -246,7 +266,7 @@ class PythonActionContainerTests extends BasicActionRunnerTests with WskActorSys
     }
 
     it should "report error if zipped Python action has invalid virtualenv directory" in {
-        val zippedPythonActionWrongDir = TestUtils.getTestActionFilename("action_python_virtualenv_dir.zip")
+        val zippedPythonActionWrongDir = TestUtils.getTestActionFilename("python_virtualenv_dir.zip")
 
         val code = readAsBase64(Paths.get(zippedPythonActionWrongDir))
         val (out, err) = withActionContainer() { c =>
