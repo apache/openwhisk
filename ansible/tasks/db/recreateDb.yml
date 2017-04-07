@@ -1,5 +1,5 @@
 ---
-# Delete the specified database
+# Delete and recreate the specified database.
 # dbName - name of the database to recreate
 # forceRecreation - deletes the database
 
