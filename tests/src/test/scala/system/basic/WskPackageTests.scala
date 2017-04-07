@@ -33,7 +33,7 @@ import common.TestHelpers
 import common.WskProps
 
 @RunWith(classOf[JUnitRunner])
-class PackageTests
+class WskPackageTests
     extends TestHelpers
     with WskTestHelpers {
 

@@ -24,7 +24,6 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.ANY_ERROR_EXIT
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -122,41 +121,27 @@ class WskBasicPythonTests
             }
     }
 
-    behavior of "Python runtime"
+    behavior of "Python virtualenv"
 
-    it should "invoke a zipped Python2 action with virtualenv package" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "zippedPython2Action"
-            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python2_virtualenv.zip"))
+    Seq(("action_python2_virtualenv.zip", "python:2"),
+        ("action_python3_virtualenv.zip", "python:3")).foreach {
+            case (filename, kind) =>
+                it should s"invoke a zipped $kind action with virtualenv package" in withAssetCleaner(wskprops) {
+                    (wp, assetHelper) =>
+                        val name = filename
+                        val zippedPythonAction = Some(TestUtils.getTestActionFilename(filename))
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, zippedPythonAction, kind = Some("python:2"))
-            }
+                        assetHelper.withCleaner(wsk.action, name) {
+                            (action, _) =>
+                                action.create(name, zippedPythonAction, kind = Some(kind))
+                        }
 
-            withActivation(wsk.activation, wsk.action.invoke(name)) {
-                activation =>
-                    val response = activation.response
-                    response.result.get.fields.get("error") shouldBe empty
-                    response.result.get.fields.get("Networkinfo: ") shouldBe defined
-            }
-    }
-
-    it should "invoke a zipped Python3 action with virtualenv package" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "zippedPython3Action"
-            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python3_virtualenv.zip"))
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, zippedPythonAction, kind = Some("python:3"))
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name)) {
-                activation =>
-                    val response = activation.response
-                    response.result.get.fields.get("error") shouldBe empty
-                    response.result.get.fields.get("Networkinfo: ") shouldBe defined
-            }
-    }
+                        withActivation(wsk.activation, wsk.action.invoke(name)) {
+                            activation =>
+                                val response = activation.response
+                                response.result.get.fields.get("error") shouldBe empty
+                                response.result.get.fields.get("Networkinfo: ") shouldBe defined
+                        }
+                }
+        }
 }
