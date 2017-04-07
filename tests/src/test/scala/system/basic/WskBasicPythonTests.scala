@@ -159,18 +159,4 @@ class WskBasicPythonTests
                     response.result.get.fields.get("Networkinfo: ") shouldBe defined
             }
     }
-    it should "Ensure that zipped Python actions cannot be created without a kind specified" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "zippedPythonActionWithNoKindSpecified"
-            val zippedPythonAction = Some(TestUtils.getTestActionFilename("action_python2_virtualenv.zip"))
-
-            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
-                (action, _) =>
-                    action.create(name, zippedPythonAction, expectedExitCode = ANY_ERROR_EXIT)
-            }
-
-            val output = s"${createResult.stdout}\n${createResult.stderr}"
-
-            output should include("kind")
-    }
 }
