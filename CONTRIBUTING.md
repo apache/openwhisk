@@ -44,11 +44,13 @@ We look forward to your contributions!
 
 ## Raising issues
 
-Please raise any bug reports on the respective project repository's GitHub issue tracker. Be sure to search the 
+Please raise any bug reports or enhancement requests on the respective project repository's GitHub issue tracker. Be sure to search the 
 list to see if your issue has already been raised.
 
 A good bug report is one that make it easy for us to understand what you were trying to do and what went wrong. 
 Provide as much context as possible so we can try to recreate the issue.
+
+A good enhancement request comes with an explanation of what you are trying to do and how that enhancement would help you.
 
 ### Discussion
 
