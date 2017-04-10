@@ -20,5 +20,4 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "whisk.core.invoker.Invoker"
-applicationDefaultJvmArgs = ["-Xmx2g"]
-
+applicationDefaultJvmArgs = ["-Xmx2g", "-XX:+CrashOnOutOfMemoryError", "-XX:+PrintGCDetails"]

@@ -20,4 +20,4 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "whisk.core.controller.Controller"
-applicationDefaultJvmArgs = ["-Xmx2g"]
+applicationDefaultJvmArgs = ["-Xmx2g", "-XX:+CrashOnOutOfMemoryError", "-XX:+PrintGCDetails"]
