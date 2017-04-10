@@ -7,6 +7,11 @@ db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
 db_prefix: "{{ ansible_user_id }}_{{ ansible_hostname|lower }}_"
 
+# The following flag will put all activations into an seperated activations-db, instead of the whisks-db. (if true)
+# If it is false, all activations will be written into the whisks-db.
+# This flag will be removed in the future and the default will be, that all activations are written into an activations-db.
+db_split_actions_and_activations: false
+
 whisk_version_name: local
 nginx_conf_dir: /tmp/nginx
 consul_conf_dir: /tmp/consul
