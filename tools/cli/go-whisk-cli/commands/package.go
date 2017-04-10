@@ -370,7 +370,7 @@ var packageDeleteCmd = &cobra.Command{
     _, err = client.Packages.Delete(qName.entityName)
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.Delete(%s) failed: %s\n", qName.entityName, err)
-      errStr := wski18n.T("Package delete failed: {{.err}}", map[string]interface{}{"err":err})
+      errStr := wski18n.T("Unable to delete package '{{.name}}': {{.err}}", map[string]interface{}{"name": qName.entityName,"err":err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
