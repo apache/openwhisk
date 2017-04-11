@@ -179,3 +179,11 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "no"
+
+cli_repos:
+  openwhisk_cli:
+    url: https://github.com/openwhisk/openwhisk-cli.git
+    # Set the local location as the same level as openwhisk home, but it can be changed.
+    location: "{{ openwhisk_home }}/../openwhisk-cli"
+    version: "HEAD"
+    repo_update: "no"

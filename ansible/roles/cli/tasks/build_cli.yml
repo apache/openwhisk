@@ -1,0 +1,32 @@
+---
+# This task will install the wsk cli from openwhisk/openwhisk-cli repo.
+
+- set_fact:
+    cli_location={{ item.value.location }}
+    cli_repo_url={{ item.value.url }}
+    api_host={{ groups['edge'] | first }}
+    version="HEAD"
+    repo_update="yes"
+
+- set_fact:
+    version={{ item.value.version }}
+  when: item.value.version is defined
+
+- set_fact:
+    repo_update={{ item.value.repo_update }}
+  when: item.value.repo_update is defined
+
+- name: "ensure cli_location directory exists"
+  file:
+    path: "{{ cli_location }}"
+    state: directory
+
+- name: download the cli repository to the openwhisk-cli location if necessary
+  git:
+    repo: "{{ cli_repo_url }}"
+    dest: "{{ cli_location }}"
+    update: "{{ repo_update }}"
+    version: "{{ version }}"
+
+- name: build cli
+  shell: cd {{ cli_location }} & ./gradlew distDocker -p {{ cli_location }}
