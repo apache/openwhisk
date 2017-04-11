@@ -1208,8 +1208,8 @@
     "translation": "get API"
   },
   {
-    "id": "Unable to get API: {{.err}}",
-    "translation": "Unable to get API: {{.err}}"
+    "id": "Unable to get API '{{.name}}': {{.err}}",
+    "translation": "Unable to get API '{{.name}}': {{.err}}"
   },
   {
     "id": "delete an API",
@@ -1376,8 +1376,12 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "API action either does not exist or is not a web-action",
-    "translation": "API action either does not exist or is not a web-action"
+    "id": "API action does not exist",
+    "translation": "API action does not exist"
+  },
+  {
+    "id": "API action is not a web-action",
+    "translation": "API action is not a web-action"
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",

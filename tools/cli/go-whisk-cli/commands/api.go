@@ -203,7 +203,7 @@ var apiGetCmd = &cobra.Command{
         retApi, _, err := client.Apis.Get(apiGetReq, apiGetReqOptions)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
-            errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
+            errMsg := wski18n.T("Unable to get API '{{.name}}': {{.err}}", map[string]interface{}{"name": args[0], "err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
@@ -357,7 +357,7 @@ var apiListCmd = &cobra.Command{
             retApiList, _, err = client.Apis.List(apiListReqOptions)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
-                errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
+                errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
@@ -807,7 +807,7 @@ var apiCreateCmdV2 = &cobra.Command{
             }
             api, qname, err = parseApiV2(cmd, args)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "parseApi(%s, %s) error: %s\n", cmd, args, err)
+                whisk.Debug(whisk.DbgError, "parseApiV2(%s, %s) error: %s\n", cmd, args, err)
                 errMsg := wski18n.T("Unable to parse api command arguments: {{.err}}",
                     map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
@@ -816,9 +816,8 @@ var apiCreateCmdV2 = &cobra.Command{
             }
 
             // Confirm that the specified action is a web-action
-            if !isWebAction(client, *qname) {
-                whisk.Debug(whisk.DbgError, "IsWebAction(%v) is false\n", qname)
-                errMsg := wski18n.T("API action either does not exist or is not a web-action")
+            if ok, errMsg := isWebAction(client, *qname); !ok {
+                whisk.Debug(whisk.DbgError, "isWebAction(%v) is false\n", qname)
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return whiskErr
@@ -836,7 +835,7 @@ var apiCreateCmdV2 = &cobra.Command{
 
         retApi, _, err := client.Apis.InsertV2(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, false) error: %s\n", api, err)
+            whisk.Debug(whisk.DbgError, "client.Apis.InsertV2(%#v, false) error: %s\n", api, err)
             errMsg := wski18n.T("Unable to create API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -920,13 +919,13 @@ var apiGetCmdV2 = &cobra.Command{
 
         retApi, _, err := client.Apis.GetV2(apiGetReq, apiGetReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
-            errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
+            whisk.Debug(whisk.DbgError, "client.Apis.GetV2(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+            errMsg := wski18n.T("Unable to get API '{{.name}}': {{.err}}", map[string]interface{}{"name": args[0], "err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
-        whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+        whisk.Debug(whisk.DbgInfo, "client.Apis.GetV2 returned: %#v\n", retApi)
 
         var displayResult interface{} = nil
         if (flags.common.detail) {
@@ -1017,7 +1016,7 @@ var apiDeleteCmdV2 = &cobra.Command{
 
         _, err := client.Apis.DeleteV2(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
+            whisk.Debug(whisk.DbgError, "client.Apis.DeleteV2(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
             errMsg := wski18n.T("Unable to delete action: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -1101,13 +1100,13 @@ var apiListCmdV2 = &cobra.Command{
         if (len(args) == 0) {
             retApiList, _, err = client.Apis.ListV2(apiListReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
-                errMsg := wski18n.T("Unable to get API: {{.err}}", map[string]interface{}{"err": err})
+                whisk.Debug(whisk.DbgError, "client.Apis.ListV2(%#v) error: %s\n", apiListReqOptions, err)
+                errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiList, retApiList)
+            whisk.Debug(whisk.DbgInfo, "client.Apis.ListV2 returned: %#v (%+v)\n", retApiList, retApiList)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArrayV2)(retApiList)
         } else {
@@ -1130,13 +1129,13 @@ var apiListCmdV2 = &cobra.Command{
 
             retApi, _, err = client.Apis.GetV2(apiGetReq, apiGetReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+                whisk.Debug(whisk.DbgError, "client.Apis.GetV2(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+            whisk.Debug(whisk.DbgInfo, "client.Apis.GetV2 returned: %#v\n", retApi)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArrayV2)(retApi)
         }
@@ -1408,7 +1407,7 @@ func parseApiV2(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, 
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.namespace + "/" + urlActionPackage + "/" + qName.actionName + ".http"
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.namespace + "/" + urlActionPackage + "/" + qName.entity + ".http"
     api.Action.BackendMethod = api.GatewayMethod
     api.Action.Name = qName.entityName
     api.Action.Namespace = qName.namespace

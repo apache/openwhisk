@@ -835,8 +835,9 @@ func printActionDeleted(entityName string) {
 }
 
 // Check if the specified action is a web-action
-func isWebAction(client *whisk.Client, qname QualifiedName) bool {
+func isWebAction(client *whisk.Client, qname QualifiedName) (bool, string) {
     var isWebAction = false;
+    var errMsg string = ""
 
     savedNs := client.Namespace
     client.Namespace = qname.namespace
@@ -846,7 +847,9 @@ func isWebAction(client *whisk.Client, qname QualifiedName) bool {
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
+        errMsg = wski18n.T("API action does not exist")
     } else {
+        errMsg = wski18n.T("API action is not a web-action")
         weVal := getValue(action.Annotations, "web-export")
         if (reflect.TypeOf(weVal) == nil) {
             whisk.Debug(whisk.DbgError, "getValue(annotations, web-export) for action %s found no value\n", fullActionName)
@@ -859,12 +862,13 @@ func isWebAction(client *whisk.Client, qname QualifiedName) bool {
                 whisk.Debug(whisk.DbgError, "web-export annotation value is false\n", weVal)
             } else {
                 isWebAction = true;
+                errMsg = ""
             }
         }
     }
 
     client.Namespace = savedNs
-    return isWebAction
+    return isWebAction, errMsg
 }
 
 func init() {

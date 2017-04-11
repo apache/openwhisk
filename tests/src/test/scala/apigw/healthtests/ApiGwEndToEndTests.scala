@@ -62,8 +62,8 @@ class ApiGwEndToEndTests
     val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
 
     /*
- * Create a CLI properties file for use by the tests
- */
+     * Create a CLI properties file for use by the tests
+     */
     override def beforeAll() = {
         cliWskPropsFile.deleteOnExit()
         val wskprops = WskPropsV2(token = "SOME TOKEN")

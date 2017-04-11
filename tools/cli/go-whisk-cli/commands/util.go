@@ -41,10 +41,10 @@ import (
 )
 
 type QualifiedName struct {
-    namespace   string
-    packageName string
-    entityName  string
-    actionName  string
+    namespace   string  // namespace. does not include leading '/'.  may be "" (i.e. default namespace)
+    packageName string  // package.  may be "".  does not include leading/trailing '/'
+    entity      string  // entity.  should not be ""
+    entityName  string  // pkg+entity
 }
 
 func (qName QualifiedName) String() string {
@@ -103,7 +103,7 @@ func parseQualifiedName(name string) (QualifiedName, error) {
         if len(parts) == 4 {
             qualifiedName.packageName = parts[2]
         }
-        qualifiedName.actionName = parts[len(parts)-1]
+        qualifiedName.entity = parts[len(parts)-1]
     } else {
         if len(name) == 0 || name == "." {
             whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
@@ -113,7 +113,7 @@ func parseQualifiedName(name string) (QualifiedName, error) {
         }
 
         parts := strings.Split(name, "/")
-        qualifiedName.actionName = parts[len(parts)-1]
+        qualifiedName.entity = parts[len(parts)-1]
         if len(parts) == 2 {
             qualifiedName.packageName = parts[0]
         }
@@ -121,10 +121,10 @@ func parseQualifiedName(name string) (QualifiedName, error) {
         qualifiedName.namespace = getNamespace()
     }
 
-    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qualifiedName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qualified action namespace: %s\n", qualifiedName.namespace)
-    whisk.Debug(whisk.DbgInfo, "Qualified action package: %s\n", qualifiedName.packageName)
-    whisk.Debug(whisk.DbgInfo, "Qualified action name: %s\n", qualifiedName.actionName)
+    whisk.Debug(whisk.DbgInfo, "Qualified pkg+entity (EntityName): %s\n", qualifiedName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qualified namespace: %s\n", qualifiedName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified package: %s\n", qualifiedName.packageName)
+    whisk.Debug(whisk.DbgInfo, "Qualified entity: %s\n", qualifiedName.entity)
 
     return qualifiedName, nil
 }
