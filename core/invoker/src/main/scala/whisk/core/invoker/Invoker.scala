@@ -203,7 +203,7 @@ class Invoker(
                     pool.putBack(con, deleteContainer)
                 }
 
-                activationResult withLogs ActivationLogs.serdes.read(contents)
+                activationResult withLogs ActivationLogs(contents)
         }
     }
 
@@ -277,7 +277,7 @@ class Invoker(
      * next activation if the marker is not observed but the log limit is reached.
      */
     private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(
-        implicit transid: TransactionId): JsArray = {
+        implicit transid: TransactionId): Vector[String] = {
         val size = pool.getLogSize(con, runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
@@ -296,13 +296,7 @@ class Invoker(
                 getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
                 con.lastLogSize = size
-                val formattedLogs = logs.map(_.toFormattedString)
-
-                val finishedLogs = if (isTruncated) {
-                    formattedLogs :+ Messages.truncateLogs(loglimit.asMegaBytes)
-                } else formattedLogs
-
-                JsArray(finishedLogs.map(_.toJson))
+                logs
             }
         } else {
             logging.info(this, s"log cursor has not advanced, trying $tries more times")
