@@ -75,13 +75,12 @@ class InvokerReactive(
     cleanup()
     sys.addShutdownHook(cleanup())
 
-    val containerFactory = (tid: TransactionId, name: String, exec: Exec, memory: ByteSize) => {
-        val codeExec = exec.asInstanceOf[CodeExec[_]]
-        val image = ExecImageName.containerImageName(config.dockerRegistry, config.dockerImagePrefix, codeExec, config.dockerImageTag)
+    val containerFactory = (tid: TransactionId, name: String, exec: CodeExec[_], memory: ByteSize) => {
+        val image = ExecImageName.containerImageName(config.dockerRegistry, config.dockerImagePrefix, exec, config.dockerImageTag)
         DockerContainer.create(
             tid,
             image = image,
-            userProvidedImage = codeExec.pull,
+            userProvidedImage = exec.pull,
             memory = memory,
             cpuShares = OldContainerPool.cpuShare(config),
             environment = Map("__OW_API_HOST" -> config.wskApiHost),
@@ -133,7 +132,7 @@ class InvokerReactive(
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()).map { action =>
             // only Exec instances that are subtypes of CodeExec reach the invoker
             assume(action.exec.isInstanceOf[CodeExec[_]])
-            pool ! Run(action, msg)
+            pool ! Run(action.toExecutableWhiskAction, msg)
         }
     }
 

@@ -43,7 +43,7 @@ trait Container {
     /**
      * Initializes code in the container.
      */
-    def initialize(initializer: Option[JsObject], timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval]
+    def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval]
 
     /**
      * Runs code in the container.

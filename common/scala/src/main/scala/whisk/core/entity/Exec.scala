@@ -57,7 +57,7 @@ sealed abstract class Exec extends ByteSizeable {
  * A common super class for all action exec types that contain their executable
  * code explicitly (i.e., any action other than a sequence).
  */
-sealed abstract class CodeExec[T <% SizeConversion] extends Exec {
+sealed abstract class CodeExec[+T <% SizeConversion] extends Exec {
     /** An entrypoint (typically name of 'main' function). 'None' means a default value will be used. */
     val entryPoint: Option[String]
 

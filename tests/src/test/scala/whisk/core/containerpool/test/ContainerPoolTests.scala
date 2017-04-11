@@ -35,6 +35,7 @@ import whisk.core.containerpool.PreWarmedData
 import whisk.core.containerpool.WorkerData
 import whisk.core.containerpool.Free
 import whisk.core.containerpool.ContainerData
+import whisk.core.entity.ExecutableWhiskAction
 
 /**
  * Unit tests for ContainerPool schedule
@@ -45,9 +46,9 @@ class ContainerPoolScheduleTests extends FlatSpec with Matchers with MockFactory
     val actionExec = CodeExecAsString(RuntimeManifest("actionKind"), "testCode", None)
 
     def createAction(namespace: String = "actionNS", name: String = "actionName") =
-        WhiskAction(EntityPath(namespace), EntityName(name), actionExec)
+        WhiskAction(EntityPath(namespace), EntityName(name), actionExec).toExecutableWhiskAction
 
-    def warmedData(action: WhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
+    def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
         WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
 
     def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind)

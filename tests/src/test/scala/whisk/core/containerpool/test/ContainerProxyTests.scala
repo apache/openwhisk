@@ -69,12 +69,13 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     // the values is done properly.
     val exec = CodeExecAsString(RuntimeManifest("actionKind"), "testCode", None)
     val invocationNamespace = EntityName("invocationSpace")
-    val action = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val actionTemplate = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val action = actionTemplate.toExecutableWhiskAction
 
     val message = ActivationMessage(
         TransactionId.testing,
         action.fullyQualifiedName(true),
-        action.rev,
+        actionTemplate.rev,
         Identity(Subject(), invocationNamespace, AuthKey(), Set()),
         ActivationId(),
         invocationNamespace.toPath,
@@ -113,7 +114,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         }
 
         /** Expect a NeedWork message with warmed data */
-        def expectWarmed(namespace: String, action: WhiskAction) = {
+        def expectWarmed(namespace: String, action: ExecutableWhiskAction) = {
             val test = EntityName(namespace)
             expectMsgPF() {
                 case NeedWork(WarmedData(_, `test`, `action`, _)) => true
@@ -270,7 +271,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
 
     it should "complete the transaction and destroy the container on a failed init" in {
         val container = new TestContainer {
-            override def initialize(initializer: Option[JsObject], timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+            override def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
                 initializeCount += 1
                 Future.failed(InitializationError(ActivationResponse.applicationError("boom"), Interval.zero))
             }
@@ -328,7 +329,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     it should "delay a deletion message until the transaction is completed successfully" in {
         val initPromise = Promise[Interval]
         val container = new TestContainer {
-            override def initialize(initializer: Option[JsObject], timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+            override def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
                 initializeCount += 1
                 initPromise.future
             }
@@ -432,7 +433,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
             destroyCount += 1
             Future.successful(())
         }
-        def initialize(initializer: Option[JsObject], timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+        def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
             initializeCount += 1
             initializer shouldBe action.containerInitializer
             timeout shouldBe action.limits.timeout.duration

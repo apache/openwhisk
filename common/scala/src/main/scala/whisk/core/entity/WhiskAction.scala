@@ -150,6 +150,32 @@ case class WhiskAction(
     }
 
     def toJson = WhiskAction.serdes.write(this).asJsObject
+
+    def toExecutableWhiskAction = ExecutableWhiskAction(namespace, name, exec.asInstanceOf[CodeExec[_]], limits, version)
+}
+
+case class ExecutableWhiskAction(
+    namespace: EntityPath,
+    name: EntityName,
+    exec: CodeExec[_],
+    limits: ActionLimits = ActionLimits(),
+    version: SemVer = SemVer()) {
+
+    /**
+     * Gets initializer for action. This typically includes
+     * the code to execute, or a zip file containing the executable artifacts.
+     */
+    def containerInitializer: JsObject = {
+        val code = Option(exec.codeAsJson).filter(_ != JsNull).map("code" -> _)
+        val base = Map("name" -> name.toJson, "binary" -> exec.binary.toJson, "main" -> exec.entryPoint.getOrElse("main").toJson)
+        JsObject(base ++ code)
+    }
+
+    /**
+     * The name of the entity qualified with its namespace and version for
+     * creating unique keys in backend services.
+     */
+    final def fullyQualifiedName(withVersion: Boolean) = FullyQualifiedEntityName(namespace, name, if (withVersion) Some(version) else None)
 }
 
 object WhiskAction

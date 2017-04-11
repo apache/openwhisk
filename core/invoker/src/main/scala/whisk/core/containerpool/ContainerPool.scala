@@ -23,10 +23,10 @@ import akka.actor.Props
 import whisk.core.dispatcher.ActivationFeed.FreeWilly
 import whisk.common.AkkaLogging
 import akka.actor.ActorRefFactory
-import whisk.core.entity.WhiskAction
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.CodeExecAsString
+import whisk.core.entity.ExecutableWhiskAction
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -159,7 +159,7 @@ object ContainerPool {
      * @param idles a map of idle containers, awaiting work
      * @return a container if one found
      */
-    def schedule[A](action: WhiskAction, namespace: EntityName, idles: Map[A, WorkerData]): Option[A] = {
+    def schedule[A](action: ExecutableWhiskAction, namespace: EntityName, idles: Map[A, WorkerData]): Option[A] = {
         idles.find {
             case (_, WorkerData(WarmedData(_, `namespace`, `action`, _), Free)) => true
             case _ => false

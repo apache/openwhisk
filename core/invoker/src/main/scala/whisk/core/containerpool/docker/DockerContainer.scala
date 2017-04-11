@@ -157,10 +157,10 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
     def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
     def destroy()(implicit transid: TransactionId): Future[Unit] = docker.rm(id)
 
-    def initialize(initializer: Option[JsObject], timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
+    def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to $id $ip")
 
-        val body = initializer.map(init => JsObject("value" -> init)).getOrElse(JsObject())
+        val body = JsObject("value" -> initializer)
         callContainer("/init", body, timeout, retry = true).andThen {
             case Success(r: RunResult) =>
                 transid.finished(this, start.copy(start = r.interval.start), s"initialization result: ${r.toBriefString}", endTime = r.interval.end)

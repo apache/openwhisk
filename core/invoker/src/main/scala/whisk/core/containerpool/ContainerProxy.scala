@@ -39,11 +39,10 @@ import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
-import whisk.core.entity.Exec
 import whisk.core.entity.Parameters
-import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.size._
+import whisk.core.entity.ExecutableWhiskAction
 
 // States
 sealed trait ContainerState
@@ -60,11 +59,11 @@ case object Removing extends ContainerState
 sealed abstract class ContainerData(val lastUsed: Instant)
 case class NoData() extends ContainerData(Instant.EPOCH)
 case class PreWarmedData(container: Container, kind: String) extends ContainerData(Instant.EPOCH)
-case class WarmedData(container: Container, namespace: EntityName, action: WhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
+case class WarmedData(container: Container, namespace: EntityName, action: ExecutableWhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
 
 // Events received by the actor
-case class Start(exec: Exec)
-case class Run(action: WhiskAction, msg: ActivationMessage)
+case class Start(exec: CodeExec[_])
+case class Run(action: ExecutableWhiskAction, msg: ActivationMessage)
 case object Remove
 
 // Events sent by the actor
@@ -92,7 +91,7 @@ case object ContainerRemoved
  * @param storeActivation a function storing the activation in a persistent store
  */
 class ContainerProxy(
-    factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
+    factory: (TransactionId, String, CodeExec[_], ByteSize) => Future[Container],
     sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
@@ -339,7 +338,7 @@ class ContainerProxy(
 }
 
 object ContainerProxy {
-    def props(factory: (TransactionId, String, Exec, ByteSize) => Future[Container],
+    def props(factory: (TransactionId, String, CodeExec[_], ByteSize) => Future[Container],
               ack: (TransactionId, WhiskActivation) => Future[Any],
               store: (TransactionId, WhiskActivation) => Future[Any]) = Props(new ContainerProxy(factory, ack, store))
 

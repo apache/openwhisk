@@ -121,7 +121,7 @@ class DockerContainerTests extends FlatSpec
             Future.successful(RunResult(interval, Right(ContainerResponse(true, "", None))))
         }
 
-        val initInterval = container.initialize(Some(JsObject()), 1.second)
+        val initInterval = container.initialize(JsObject(), 1.second)
         initInterval.futureValue shouldBe interval
 
         // assert the starting log is there
@@ -142,7 +142,7 @@ class DockerContainerTests extends FlatSpec
             Future.failed(new RuntimeException())
         }
 
-        val init = container.initialize(Some(JsObject()), 1.second)
+        val init = container.initialize(JsObject(), 1.second)
 
         val error = the[InitializationError] thrownBy await(init)
         error.interval.duration shouldBe Duration.Zero
@@ -164,7 +164,7 @@ class DockerContainerTests extends FlatSpec
             Future.successful(RunResult(interval, Left(Timeout())))
         }
 
-        val init = container.initialize(Some(JsObject()), initTimeout)
+        val init = container.initialize(JsObject(), initTimeout)
 
         val error = the[InitializationError] thrownBy await(init)
         error.interval shouldBe interval
