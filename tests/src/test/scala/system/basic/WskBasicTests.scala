@@ -28,6 +28,7 @@ import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
@@ -864,19 +865,19 @@ class WskBasicTests
     }
 
     it should "reject get of activation that does not exist" in {
-        val name = "00000000000000000000000000000000"
+        val name = "0"*32
         val stderr = wsk.activation.get(name, expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject logs of activation that does not exist" in {
-        val name = "00000000000000000000000000000000"
+        val name = "0"*32
         val stderr = wsk.activation.logs(name, expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get logs for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject result of activation that does not exist" in {
-        val name = "00000000000000000000000000000000"
+        val name = "0"*32
         val stderr = wsk.activation.result(name, expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
