@@ -35,7 +35,7 @@ import (
 const (
     defaultBaseURL = "openwhisk.ng.bluemix.net"
     AuthRequired = true
-    AuthOptional = false
+    NoAuth = false
     IncludeNamespaceInUrl = true
     DoNotIncludeNamespaceInUrl = false
     AppendOpenWhiskPathPrefix = true
@@ -478,13 +478,17 @@ func IsResponseResultSuccess(data []byte) bool {
 //   urlRelResource - *url.URL structure representing the relative resource URL, including query params
 //   body           - optional. Object whose contents will be JSON encoded and placed in HTTP request body
 //   includeNamespaceInUrl - when true "/namespaces/NAMESPACE" is included in the final URL; otherwise not included.
+//   appendOpenWhiskPath - when true, the OpenWhisk URL format is generated
+//   encodeBodyAs   - specifies body encoding (json or form data)
+//   useAuthentication - when true, the basic Authorization is included with the configured authkey as the value
 func (c *Client) NewRequestUrl(
         method string,
         urlRelResource *url.URL,
         body interface{},
         includeNamespaceInUrl bool,
         appendOpenWhiskPath bool,
-        encodeBodyAs string) (*http.Request, error) {
+        encodeBodyAs string,
+        useAuthentication bool) (*http.Request, error) {
     var requestUrl *url.URL
     var err error
 
@@ -576,13 +580,17 @@ func (c *Client) NewRequestUrl(
         req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
     }
 
-    err = c.addAuthHeader(req, AuthRequired)
-    if err != nil {
-        Debug(DbgError, "addAuthHeader() error: %s\n", err)
-        errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
-            map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, werr
+    if useAuthentication {
+        err = c.addAuthHeader(req, AuthRequired)
+        if err != nil {
+            Debug(DbgError, "addAuthHeader() error: %s\n", err)
+            errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
+                map[string]interface{}{"err": err})
+            werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            return nil, werr
+        }
+    } else {
+        Debug(DbgInfo, "No auth header required\n")
     }
 
     return req, nil
