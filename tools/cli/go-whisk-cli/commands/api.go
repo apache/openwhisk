@@ -816,10 +816,10 @@ var apiCreateCmdV2 = &cobra.Command{
             }
 
             // Confirm that the specified action is a web-action
-            if ok, errMsg := isWebAction(client, *qname); !ok {
-                whisk.Debug(whisk.DbgError, "isWebAction(%v) is false\n", qname)
-                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                    whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            err = isWebAction(client, *qname)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "isWebAction(%v) is false: %s\n", qname, err)
+                whiskErr := whisk.MakeWskError(err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return whiskErr
             }
         }

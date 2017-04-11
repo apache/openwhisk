@@ -30,7 +30,6 @@ import (
     "github.com/fatih/color"
     "github.com/spf13/cobra"
     "github.com/mattn/go-colorable"
-    "reflect"
 )
 
 const MEMORY_LIMIT = 256
@@ -835,9 +834,8 @@ func printActionDeleted(entityName string) {
 }
 
 // Check if the specified action is a web-action
-func isWebAction(client *whisk.Client, qname QualifiedName) (bool, string) {
-    var isWebAction = false;
-    var errMsg string = ""
+func isWebAction(client *whisk.Client, qname QualifiedName) error {
+    var err error = nil
 
     savedNs := client.Namespace
     client.Namespace = qname.namespace
@@ -847,11 +845,11 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (bool, string) {
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
-        errMsg = wski18n.T("API action does not exist")
+        err = errors.New(wski18n.T("API action does not exist"))
     } else {
-        errMsg = wski18n.T("API action is not a web-action")
+        err = errors.New(wski18n.T("API action is not a web-action"))
         weVal := getValue(action.Annotations, "web-export")
-        if (reflect.TypeOf(weVal) == nil) {
+        if (weVal == nil) {
             whisk.Debug(whisk.DbgError, "getValue(annotations, web-export) for action %s found no value\n", fullActionName)
         } else {
             var webExport bool
@@ -861,14 +859,13 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (bool, string) {
             } else if !webExport {
                 whisk.Debug(whisk.DbgError, "web-export annotation value is false\n", weVal)
             } else {
-                isWebAction = true;
-                errMsg = ""
+                err = nil
             }
         }
     }
 
     client.Namespace = savedNs
-    return isWebAction, errMsg
+    return err
 }
 
 func init() {
