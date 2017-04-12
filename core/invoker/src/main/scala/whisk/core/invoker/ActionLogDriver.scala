@@ -114,6 +114,6 @@ protected[invoker] trait ActionLogDriver {
         if (lines.hasNext) truncated = true
         if (truncated) logLines.append(Messages.truncateLogs(limit))
 
-        ((hasOut && hasErr) || !requireSentinel, truncated || lines.hasNext, logLines.toVector)
+        ((hasOut && hasErr) || !requireSentinel, truncated, logLines.toVector)
     }
 }
