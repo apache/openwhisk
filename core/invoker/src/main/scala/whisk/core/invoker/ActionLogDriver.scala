@@ -27,6 +27,7 @@ import whisk.common.{ Logging, TransactionId }
 import whisk.core.entity._
 import whisk.core.entity.size.{ SizeInt, SizeString }
 import scala.collection.mutable.Buffer
+import whisk.http.Messages
 
 /**
  * Represents a single log line as read from a docker log
@@ -61,13 +62,13 @@ protected[invoker] trait ActionLogDriver {
      * @return Tuple containing (isComplete, isTruncated, logs)
      */
     protected def processJsonDriverLogContents(logMsgs: String, requireSentinel: Boolean, limit: ByteSize)(
-        implicit transid: TransactionId, logging: Logging): (Boolean, Boolean, Vector[LogLine]) = {
+        implicit transid: TransactionId, logging: Logging): (Boolean, Boolean, Vector[String]) = {
 
         var hasOut = false
         var hasErr = false
         var truncated = false
         var bytesSoFar = 0.B
-        val logLines = Buffer[LogLine]()
+        val logLines = Buffer[String]()
         val lines = logMsgs.lines
 
         // read whiles bytesSoFar <= limit when requireSentinel to try and grab sentinel if they exist to indicate completion
@@ -81,12 +82,12 @@ protected[invoker] trait ActionLogDriver {
                         if (t.log.nonEmpty) {
                             bytesSoFar += t.log.sizeInBytes
                             if (bytesSoFar <= limit) {
-                                logLines.append(t)
+                                logLines.append(t.toFormattedString)
                             } else {
                                 // chop off the right most bytes that overflow
                                 val chopped = t.dropRight(bytesSoFar - limit)
                                 if (chopped.log.nonEmpty) {
-                                    logLines.append(chopped)
+                                    logLines.append(chopped.toFormattedString)
                                 }
                                 truncated = true
                             }
@@ -110,6 +111,9 @@ protected[invoker] trait ActionLogDriver {
             }
         }
 
-        ((hasOut && hasErr) || !requireSentinel, truncated || lines.hasNext, logLines.toVector)
+        if (lines.hasNext) truncated = true
+        if (truncated) logLines.append(Messages.truncateLogs(limit))
+
+        ((hasOut && hasErr) || !requireSentinel, truncated, logLines.toVector)
     }
 }
