@@ -248,7 +248,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
     }
     Debug(DbgError, "Api create route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("POST", routeUrl, api, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
+    req, err := s.client.NewRequestUrl("POST", routeUrl, api, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(POST, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
@@ -355,7 +355,7 @@ func (s *ApiService) ListV2(apiListOptions *ApiListRequestOptions) (*ApiListResp
     }
     Debug(DbgInfo, "Api GET/list route with api options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -396,7 +396,7 @@ func (s *ApiService) InsertV2(api *ApiCreateRequest, options *ApiCreateRequestOp
     }
     Debug(DbgError, "Api create route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("POST", routeUrl, api, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
+    req, err := s.client.NewRequestUrl("POST", routeUrl, api, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(POST, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
@@ -437,7 +437,7 @@ func (s *ApiService) GetV2(api *ApiGetRequest, options *ApiGetRequestOptions) (*
     }
     Debug(DbgError, "Api get route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
+    req, err := s.client.NewRequestUrl("GET", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
@@ -472,7 +472,7 @@ func (s *ApiService) DeleteV2(api *ApiDeleteRequest, options *ApiDeleteRequestOp
     }
     Debug(DbgError, "Api DELETE route with options: %s\n", routeUrl)
 
-    req, err := s.client.NewRequestUrl("DELETE", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson)
+    req, err := s.client.NewRequestUrl("DELETE", routeUrl, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired)
     if err != nil {
         Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
