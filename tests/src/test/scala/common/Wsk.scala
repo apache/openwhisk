@@ -881,7 +881,7 @@ object Wsk {
         if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getCLIPath)
 }
 
-sealed trait RunWskCmd extends Matchers {
+trait RunWskCmd extends Matchers {
 
     /**
      * The base command to run.
