@@ -158,7 +158,7 @@ trait ContainerUtils {
      * Reads the contents of the file at the given position.
      * It is assumed that the contents does exist and that region is not changing concurrently.
      */
-    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): Array[Byte] = {
+    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): java.nio.ByteBuffer = {
         var fis: java.io.FileInputStream = null
         try {
             val file = getDockerLogFile(containerHash, mounted)
@@ -168,14 +168,19 @@ trait ContainerUtils {
             val buffer = java.nio.ByteBuffer.allocate(remain)
             while (remain > 0) {
                 val read = channel.read(buffer)
-                if (read > 0)
-                    remain = read - read.toInt
+                if (read >= 0) {
+                    remain -= read
+                } else {
+                    // read < 0 means premature end of file => terminate loop
+                    remain = 0
+                }
             }
-            buffer.array
+            buffer
         } catch {
             case e: Exception =>
                 logging.error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
-                Array()
+                // Return an empty buffer
+                java.nio.ByteBuffer.wrap(Array())
         } finally {
             if (fis != null) fis.close()
         }

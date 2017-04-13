@@ -759,7 +759,7 @@ class ContainerPool(
                 this.getDockerLogContent(container.containerId, 0, size, mounted)
             }
             val filename = s"${_logDir}/${container.nameAsString}.log"
-            Files.write(Paths.get(filename), rawLogBytes)
+            Files.write(Paths.get(filename), rawLogBytes.array)
             logging.info(this, s"teardownContainers: wrote docker logs to $filename")
         }
         container.transid = transid

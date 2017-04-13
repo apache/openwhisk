@@ -318,7 +318,7 @@ class Invoker(
                 pool.getDockerLogContent(con.containerId, con.lastLogSize, size, runningInContainer)
             }
 
-            val rawLog = new String(rawLogBytes, StandardCharsets.UTF_8)
+            val rawLog = new String(rawLogBytes.array, rawLogBytes.arrayOffset, rawLogBytes.position, StandardCharsets.UTF_8)
 
             val (complete, isTruncated, logs) = processJsonDriverLogContents(rawLog, sentinelled, loglimit.asMegaBytes)
 
