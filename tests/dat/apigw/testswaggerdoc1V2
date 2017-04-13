@@ -1,0 +1,61 @@
+{
+    "swagger": "2.0",
+    "basePath": "/CLI_APIGWTEST7_bp",
+    "info": {
+        "title": "CLI_APIGWTEST7 API Name",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/path": {
+            "get": {
+                "operationId": "get_/path",
+                "responses": {
+                    "default": {
+                        "description": "Default response"
+                    }
+                },
+                "x-openwhisk": {
+                    "action": "CLI_APIGWTEST7_action",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http"
+                }
+            }
+        }
+    },
+    "x-ibm-configuration": {
+        "assembly": {
+            "execute": [
+                {
+                    "set-variable": {
+                        "actions": [
+                            {
+                                "set": "message.headers.Authorization",
+                                "value": "Basic Nzg5YzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOmFiY3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                            }
+                        ]
+                    }
+                },
+                {
+                    "operation-switch": {
+                        "case": [
+                            {
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http",
+                                            "verb": "keep"
+                                        }
+                                    }
+                                ],
+                                "operations": [
+                                    "get_/path"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

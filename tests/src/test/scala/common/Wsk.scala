@@ -16,7 +16,9 @@
 
 package common
 
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 
 import scala.Left
 import scala.Right
@@ -73,6 +75,21 @@ case class WskProps(
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
 }
 
+case class WskPropsV2(
+    authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
+    namespace: String = "_",
+    apiversion: String = "v1",
+    apihost: String = WhiskProperties.getEdgeHost,
+    token: String = "") {
+    def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
+    def writeFile(propsfile: File) = {
+        val propsStr = s"NAMESPACE=${namespace}\nAPIVERSION=${apiversion}\nAUTH=${authKey}\nAPIHOST=${apihost}\nAPIGW_ACCESS_TOKEN=${token}\n"
+        val bw = new BufferedWriter(new FileWriter(propsfile))
+        bw.write(propsStr)
+        bw.close()
+    }
+}
+
 class Wsk() extends RunWskCmd {
     implicit val action = new WskAction
     implicit val trigger = new WskTrigger
@@ -81,6 +98,7 @@ class Wsk() extends RunWskCmd {
     implicit val pkg = new WskPackage
     implicit val namespace = new WskNamespace
     implicit val api = new WskApi
+    implicit val apiexperimental = new WskApiExperimental
 }
 
 trait FullyQualifiedNames {
@@ -743,8 +761,7 @@ class WskPackage()
     }
 }
 
-class WskApi()
-    extends RunWskCmd {
+class WskApiExperimental extends RunWskCmd {
     protected val noun = "api-experimental"
 
     /**
@@ -831,6 +848,101 @@ class WskApi()
             { relpath map { r => Seq(r) } getOrElse Seq() } ++
             { operation map { o => Seq(o) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
+    }
+}
+
+class WskApi()
+    extends RunWskCmd {
+    protected val noun = "api"
+
+    /**
+     * Creates and API endpoint. Parameters mirror those available in the CLI.
+     *
+     * @param expectedExitCode (optional) the expected exit code for the command
+     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     */
+    def create(
+        basepath: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        action: Option[String] = None,
+        apiname: Option[String] = None,
+        swagger: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = None)(
+            implicit wp: WskProps): RunResult = {
+        val params = Seq(noun, "create", "--auth", wp.authKey) ++
+            { basepath map { b => Seq(b) } getOrElse Seq() } ++
+            { relpath map { r => Seq(r) } getOrElse Seq() } ++
+            { operation map { o => Seq(o) } getOrElse Seq() } ++
+            { action map { aa => Seq(aa) } getOrElse Seq() } ++
+            { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
+            { swagger map { s => Seq("--config-file", s) } getOrElse Seq() }
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+    }
+
+    /**
+     * Retrieve a list of API endpoints. Parameters mirror those available in the CLI.
+     *
+     * @param expectedExitCode (optional) the expected exit code for the command
+     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     */
+    def list(
+        basepathOrApiName: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        limit: Option[Int] = None,
+        since: Option[Instant] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = None)(
+            implicit wp: WskProps): RunResult = {
+        val params = Seq(noun, "list", "--auth", wp.authKey) ++
+            { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
+            { relpath map { r => Seq(r) } getOrElse Seq() } ++
+            { operation map { o => Seq(o) } getOrElse Seq() } ++
+            { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
+            { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() } ++
+            { full map { r => Seq("--full") } getOrElse Seq() }
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+    }
+
+    /**
+     * Retieves an API's configuration. Parameters mirror those available in the CLI.
+     * Runs a command wsk [params] where the arguments come in as a sequence.
+     *
+     * @param expectedExitCode (optional) the expected exit code for the command
+     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     */
+    def get(
+        basepathOrApiName: Option[String] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = None)(
+            implicit wp: WskProps): RunResult = {
+        val params = Seq(noun, "get", "--auth", wp.authKey) ++
+            { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
+            { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() }
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+    }
+
+    /**
+     * Delete an entire API or a subset of API endpoints. Parameters mirror those available in the CLI.
+     *
+     * @param expectedExitCode (optional) the expected exit code for the command
+     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     */
+    def delete(
+        basepathOrApiName: String,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = None)(
+            implicit wp: WskProps): RunResult = {
+        val params = Seq(noun, "delete", "--auth", wp.authKey, basepathOrApiName) ++
+            { relpath map { r => Seq(r) } getOrElse Seq() } ++
+            { operation map { o => Seq(o) } getOrElse Seq() }
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 }
 

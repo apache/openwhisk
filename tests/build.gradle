@@ -20,6 +20,7 @@ task testLean(type: Test) {
     exclude '**/*Python*'
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
+    exclude '**/*ApiGwTests*'
 }
 
 // Add all images needed for local testing here
