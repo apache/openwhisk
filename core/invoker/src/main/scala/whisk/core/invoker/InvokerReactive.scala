@@ -41,6 +41,7 @@ import whisk.core.containerpool.docker.RuncApi
 import whisk.core.connector.CompletionMessage
 import scala.util.Success
 import scala.util.Failure
+import whisk.core.containerpool.PrewarmingConfig
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -104,11 +105,17 @@ class InvokerReactive(
         }
     }
 
+    val prewarmKind = "nodejs:6"
+    val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
+        new CodeExecAsString(manifest, "", None)
+    }.get
+
     val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
     val pool = actorSystem.actorOf(whisk.core.containerpool.ContainerPool.props(
         childFactory,
         OldContainerPool.getDefaultMaxActive(config),
-        activationFeed))
+        activationFeed,
+        Some(PrewarmingConfig(2, prewarmExec))))
 
     override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[Unit] = {
         require(msg != null, "message undefined")

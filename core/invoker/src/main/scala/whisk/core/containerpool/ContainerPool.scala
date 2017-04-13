@@ -16,16 +16,16 @@
 
 package whisk.core.containerpool
 
-import akka.actor.Actor
 import scala.collection.mutable
+
+import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.Props
-import whisk.core.dispatcher.ActivationFeed.FreeWilly
-import whisk.common.AkkaLogging
 import akka.actor.ActorRefFactory
+import akka.actor.Props
+import whisk.common.AkkaLogging
+import whisk.core.dispatcher.ActivationFeed.FreeWilly
+import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.CodeExecAsString
 import whisk.core.entity.ExecutableWhiskAction
 
 sealed trait WorkerState
@@ -44,21 +44,18 @@ case class WorkerData(data: ContainerData, state: WorkerState)
 class ContainerPool(
     childFactory: ActorRefFactory => ActorRef,
     poolSize: Int,
-    feed: ActorRef) extends Actor {
+    feed: ActorRef,
+    prewarmConfig: Option[PrewarmingConfig] = None) extends Actor {
     val logging = new AkkaLogging(context.system.log)
 
     val pool = new mutable.HashMap[ActorRef, WorkerData]
     val prewarmedPool = new mutable.HashMap[ActorRef, WorkerData]
 
-    val prewarmKind = "nodejs:6"
-    val prewarmCount = 2
-    val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
-        new CodeExecAsString(manifest, "", None)
-    }
-
-    logging.info(this, s"pre-warming $prewarmCount $prewarmKind containers")
-    (1 to prewarmCount).foreach { _ =>
-        prewarmContainer()
+    prewarmConfig.foreach { config =>
+        logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")
+        (1 to config.count).foreach { _ =>
+            prewarmContainer()
+        }
     }
 
     def receive: Receive = {
@@ -93,11 +90,12 @@ class ContainerPool(
                     self ! r
             }
 
-        // Container tells us it is free to take more work
+        // Container is free to take more work
         case NeedWork(data: WarmedData) =>
             pool.update(sender(), WorkerData(data, Free))
             feed ! FreeWilly
 
+        // Container is prewarmed and ready to take work
         case NeedWork(data: PreWarmedData) =>
             prewarmedPool.update(sender(), WorkerData(data, Free))
 
@@ -106,37 +104,40 @@ class ContainerPool(
             pool.remove(sender())
     }
 
-    /**
-     * Creates a new container and updates state accordingly.
-     */
+    /** Creates a new container and updates state accordingly. */
     def createContainer() = {
         val ref = childFactory(context)
         pool.update(ref, WorkerData(NoData(), Free))
         ref
     }
 
-    def prewarmContainer() = prewarmExec match {
-        case Some(exec) => childFactory(context) ! Start(exec)
-        case None       => logging.error(this, "could not pre-warm containers because the manifest is missing")
-    }
-
-    def takePrewarmContainer(kind: String) =
-        if (kind == prewarmKind) {
-            prewarmedPool.headOption.map {
-                case (ref, data) =>
-                    // Move the container to the usual pool
-                    pool.update(ref, data)
-                    prewarmedPool.remove(ref)
-                    // Create a new prewarm container
-                    prewarmContainer()
-
-                    ref
-            }
-        } else None
+    /** Creates a new prewarmed container */
+    def prewarmContainer() = prewarmConfig.foreach(config => childFactory(context) ! Start(config.exec))
 
     /**
-     * Removes a container and updates state accordingly.
+     * Takes a prewarm container out of the prewarmed pool
+     * iff a container with a matching kind is found.
+     *
+     * @param kind the kind you want to invoke
+     * @return the container iff found
      */
+    def takePrewarmContainer(kind: String) = prewarmConfig.flatMap { config =>
+        prewarmedPool.find {
+            case (_, WorkerData(PreWarmedData(_, `kind`), _)) => true
+            case _ => false
+        }.map {
+            case (ref, data) =>
+                // Move the container to the usual pool
+                pool.update(ref, data)
+                prewarmedPool.remove(ref)
+                // Create a new prewarm container
+                prewarmContainer()
+
+                ref
+        }
+    }
+
+    /** Removes a container and updates state accordingly. */
     def removeContainer(toDelete: ActorRef) = {
         toDelete ! Remove
         pool.remove(toDelete)
@@ -179,7 +180,7 @@ object ContainerPool {
      */
     def remove[A](namespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
         val grouped = pool.collect {
-            case (ref, WorkerData(w: WarmedData, Free)) => ref -> w
+            case (ref, WorkerData(w: WarmedData, _)) => ref -> w
         }.groupBy {
             case (ref, data) => data.namespace
         }
@@ -193,5 +194,8 @@ object ContainerPool {
 
     def props(factory: ActorRefFactory => ActorRef,
               size: Int,
-              feed: ActorRef) = Props(new ContainerPool(factory, size, feed))
+              feed: ActorRef,
+              prewarmConfig: Option[PrewarmingConfig] = None) = Props(new ContainerPool(factory, size, feed, prewarmConfig))
 }
+
+case class PrewarmingConfig(count: Int, exec: CodeExec[Any])
