@@ -1208,16 +1208,16 @@
     "translation": "get API"
   },
   {
-    "id": "Unable to get API: {{.err}}",
-    "translation": "Unable to get API: {{.err}}"
+    "id": "Unable to get API '{{.name}}': {{.err}}",
+    "translation": "Unable to get API '{{.name}}': {{.err}}"
   },
   {
     "id": "delete an API",
     "translation": "delete an API"
   },
   {
-    "id": "Unable to delete action: {{.err}}",
-    "translation": "Unable to delete action: {{.err}}"
+    "id": "Unable to delete API: {{.err}}",
+    "translation": "Unable to delete API: {{.err}}"
   },
   {
     "id": "{{.ok}} deleted API {{.basepath}}\n",
@@ -1374,5 +1374,65 @@
   {
     "id": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'.",
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
+  },
+  {
+    "id": "API action does not exist",
+    "translation": "API action does not exist"
+  },
+  {
+    "id": "API action is not a web-action",
+    "translation": "API action is not a web-action"
+  },
+  {
+    "id": "Invalid configuration. The x-openwhisk stanza is missing.",
+    "translation": "Invalid configuration. The x-openwhisk stanza is missing."
+  },
+  {
+    "id": "Internal error. Missing value stanza in API configuration response",
+    "translation": "Internal error. Missing value stanza in API configuration response"
+  },
+  {
+    "id": "Internal error. Missing apidoc stanza in API configuration",
+    "translation": "Internal error. Missing apidoc stanza in API configuration"
+  },
+  {
+    "id": "Missing operationId field in API configuration for operation {{.op}}",
+    "translation": "Missing operationId field in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "Missing x-openwhisk stanza in API configuration for operation {{.op}}",
+    "translation": "Missing x-openwhisk stanza in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "Missing x-openwhisk.namespace field in API configuration for operation {{.op}}",
+    "translation": "Missing x-openwhisk.namespace field in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "Missing x-openwhisk.action field in API configuration for operation {{.op}}",
+    "translation": "Missing x-openwhisk.action field in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "Missing x-openwhisk.url field in API configuration for operation {{.op}}",
+    "translation": "Missing x-openwhisk.url field in API configuration for operation {{.op}}"
+  },
+  {
+    "id": "COMING SOON - work with APIs",
+    "translation": "COMING SOON - work with APIs"
+  },
+  {
+    "id": "COMING SOON - create a new API",
+    "translation": "COMING SOON - create a new API"
+  },
+  {
+    "id": "COMING SOON - get API details",
+    "translation": "COMING SOON - get API details"
+  },
+  {
+    "id": "COMING SOON - delete an API",
+    "translation": "COMING SOON - delete an API"
+  },
+  {
+    "id": "COMING SOON - list APIs",
+    "translation": "COMING SOON - list APIs"
   }
 ]

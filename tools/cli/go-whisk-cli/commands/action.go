@@ -833,6 +833,41 @@ func printActionDeleted(entityName string) {
             }))
 }
 
+// Check if the specified action is a web-action
+func isWebAction(client *whisk.Client, qname QualifiedName) error {
+    var err error = nil
+
+    savedNs := client.Namespace
+    client.Namespace = qname.namespace
+    fullActionName := "/" + qname.namespace + "/" + qname.entityName
+
+    action, _, err := client.Actions.Get(qname.entityName)
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
+        whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
+        err = errors.New(wski18n.T("API action does not exist"))
+    } else {
+        err = errors.New(wski18n.T("API action is not a web-action"))
+        weVal := getValue(action.Annotations, "web-export")
+        if (weVal == nil) {
+            whisk.Debug(whisk.DbgError, "getValue(annotations, web-export) for action %s found no value\n", fullActionName)
+        } else {
+            var webExport bool
+            var ok bool
+            if webExport, ok = weVal.(bool); !ok {
+                whisk.Debug(whisk.DbgError, "web-export annotation value (%v) is not a boolean\n", weVal)
+            } else if !webExport {
+                whisk.Debug(whisk.DbgError, "web-export annotation value is false\n", weVal)
+            } else {
+                err = nil
+            }
+        }
+    }
+
+    client.Namespace = savedNs
+    return err
+}
+
 func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
