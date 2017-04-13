@@ -148,7 +148,7 @@ var activationGetCmd = &cobra.Command{
                         "namespace": activation.Namespace,
                         "name": activation.Name,
                         "status": activation.Response.Status,
-                        "time": time.Unix(activation.End/1000, 0)}))
+                        "time": time.Unix(activation.End/1000, 0).UTC()}))
             printJSON(activation.Response.Result)
         } else {
 
@@ -159,8 +159,9 @@ var activationGetCmd = &cobra.Command{
                         "field": boldString(field)}))
                 printField(activation, field)
             } else {
-                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got activation {{.id}}\n",
-                        map[string]interface{}{"ok": color.GreenString("ok:"), "id": boldString(id)}))
+                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got activation {{.id}} (started at {{.time}})\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "id": boldString(id),
+                        "time": time.Unix(activation.Start/1000, 0).UTC()}))
                 printJSON(activation)
             }
         }

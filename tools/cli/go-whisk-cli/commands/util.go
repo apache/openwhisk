@@ -21,7 +21,7 @@ import (
     "errors"
     "fmt"
     "strings"
-
+    "time"
     "../../go-whisk/whisk"
     "../wski18n"
 
@@ -343,9 +343,15 @@ func printNamespaceList(namespaces []whisk.Namespace) {
 }
 
 func printActivationList(activations []whisk.Activation) {
-    fmt.Fprintf(color.Output, "%s\n", boldString("activations"))
+    var maxNameLength = 0;
     for _, activation := range activations {
-        fmt.Printf("%s %-20s\n", activation.ActivationID, activation.Name)
+        if len(activation.Name) > maxNameLength {maxNameLength = len(activation.Name)}
+    }
+    fmt.Fprintf(color.Output, "%s %-*s %s %s %s\n", boldString("ActivationID                     Name"), maxNameLength-5, " ", boldString("Status "), boldString("StartTime                     "), boldString("Duration") )
+    for _, activation := range activations {
+        var status = "Success"
+        if activation.Response.StatusCode > 0 {status="Failure"}
+        fmt.Printf("%s %-*s %s %-30s %6d\n", activation.ActivationID, maxNameLength, activation.Name, status, time.Unix(activation.Start/1000, 0).UTC(), activation.Duration)
     }
 }
 
