@@ -14,46 +14,232 @@
  * limitations under the License.
  */
 
-package whisk.core.containerpool.docker.test
+package whisk.core.containerpool.test
 
-import org.scalatest.FlatSpec
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import whisk.core.containerpool.ContainerPool
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.CodeExecAsString
-import whisk.core.entity.ExecManifest.RuntimeManifest
-import whisk.core.entity.EntityPath
-import whisk.core.entity.EntityName
-import whisk.core.containerpool.Container
 import java.time.Instant
-import whisk.core.containerpool.WarmedData
-import org.scalatest.Matchers
+
+import scala.collection.mutable
+import scala.concurrent.duration._
+
+import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
-import whisk.core.containerpool.NoData
-import whisk.core.containerpool.PreWarmedData
-import whisk.core.containerpool.WorkerData
-import whisk.core.containerpool.Free
-import whisk.core.containerpool.ContainerData
-import whisk.core.entity.ExecutableWhiskAction
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpec
+import org.scalatest.FlatSpecLike
+import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
+
+import akka.actor.ActorRefFactory
+import akka.actor.ActorSystem
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import whisk.common.TransactionId
+import whisk.core.connector.ActivationMessage
+import whisk.core.containerpool._
+import whisk.core.dispatcher.ActivationFeed.FreeWilly
+import whisk.core.entity._
+import whisk.core.entity.ExecManifest.RuntimeManifest
 
 /**
- * Unit tests for ContainerPool schedule
+ * Behavior tests for the ContainerPool
+ *
+ * These tests test the runtime behavior of a ContainerPool actor.
  */
 @RunWith(classOf[JUnitRunner])
-class ContainerPoolScheduleTests extends FlatSpec with Matchers with MockFactory {
+class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
+    with ImplicitSender
+    with FlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with MockFactory {
+
+    override def afterAll = TestKit.shutdownActorSystem(system)
+
+    val timeout = 5.seconds
+
+    // Common entities to pass to the tests. We don't really care what's inside
+    // those for the behavior testing here, as none of the contents will really
+    // reach a container anyway. We merely assert that passing and extraction of
+    // the values is done properly.
+    val exec = CodeExecAsString(RuntimeManifest("actionKind"), "testCode", None)
+    val invocationNamespace = EntityName("invocationSpace")
+    val actionTemplate = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val action = actionTemplate.toExecutableWhiskAction
+
+    val message = ActivationMessage(
+        TransactionId.testing,
+        action.fullyQualifiedName(true),
+        actionTemplate.rev,
+        Identity(Subject(), invocationNamespace, AuthKey(), Set()),
+        ActivationId(),
+        invocationNamespace.toPath,
+        None)
+
+    val runMessage = Run(action, message)
+
+    /** Helper to create PreWarmedData */
+    def preWarmedData(kind: String) = PreWarmedData(stub[Container], kind)
+
+    /** Helper to create WarmedData */
+    def warmedData(action: ExecutableWhiskAction = action, namespace: String = "invocationSpace", lastUsed: Instant = Instant.now) =
+        WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
+
+    /** Creates a sequence of containers and a factory returning this sequence. */
+    def testContainers(n: Int) = {
+        val containers = (0 to n).map(_ => TestProbe())
+        val queue = mutable.Queue(containers: _*)
+        val factory = (fac: ActorRefFactory) => queue.dequeue().ref
+        (containers, factory)
+    }
+
+    behavior of "ContainerPool"
+
+    it should "indicate free resources to the feed only if a warm container responds" in within(timeout) {
+        val (containers, factory) = testContainers(1)
+        val feed = TestProbe()
+
+        val pool = system.actorOf(ContainerPool.props(factory, 0, feed.ref))
+        containers(0).send(pool, NeedWork(warmedData()))
+        feed.expectMsg(FreeWilly)
+    }
+
+    /*
+     * CONTAINER SCHEDULING
+     *
+     * These tests only test the simplest approaches. Look below for full coverage tests
+     * of the respective scheduling methods.
+     */
+    it should "reuse a warm container" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+    }
+
+    it should "create a container if it cannot find a matching container" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        // Note that the container doesn't respond, thus it's not free to take work
+        pool ! runMessage
+        containers(1).expectMsg(runMessage)
+    }
+
+    it should "remove a container to make space in the pool if it is already full" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        // a pool with only 1 slot
+        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        pool ! runMessage
+        containers(0).expectMsg(Remove)
+        containers(1).expectMsg(runMessage)
+    }
+
+    /*
+     * CONTAINER PREWARMING
+     */
+    it should "create prewarmed containers on startup" in within(timeout) {
+        val (containers, factory) = testContainers(1)
+        val feed = TestProbe()
+
+        val pool = system.actorOf(ContainerPool.props(factory, 0, feed.ref, Some(PrewarmingConfig(1, exec))))
+        containers(0).expectMsg(Start(exec))
+    }
+
+    it should "use a prewarmed container and create a new one to fill its place" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, exec))))
+        containers(0).expectMsg(Start(exec))
+        containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
+        pool ! Run(action, message)
+        containers(1).expectMsg(Start(exec))
+    }
+
+    it should "not use a prewarmed container if it doesn't fit the kind" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        val alternativeExec = CodeExecAsString(RuntimeManifest("anotherKind"), "testCode", None)
+
+        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, alternativeExec))))
+        containers(0).expectMsg(Start(alternativeExec)) // container0 was prewarmed
+        pool ! runMessage
+        containers(1).expectMsg(runMessage) // but container1 is used
+    }
+
+    /*
+     * CONTAINER DELETION
+     */
+    it should "not reuse a container which is scheduled for deletion" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+
+        // container0 is created and used
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+
+        // container0 is reused
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+
+        // container0 is deleted
+        containers(0).send(pool, ContainerRemoved)
+
+        // container1 is created and used
+        pool ! Run(action, message)
+        containers(1).expectMsg(Run(action, message))
+    }
+
+}
+
+/**
+ * Unit tests for the ContainerPool object.
+ *
+ * These tests test only the "static" methods "schedule" and "remove"
+ * of the ContainerPool object.
+ */
+@RunWith(classOf[JUnitRunner])
+class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val actionExec = CodeExecAsString(RuntimeManifest("actionKind"), "testCode", None)
 
+    /** Helper to create a new action from String representations */
     def createAction(namespace: String = "actionNS", name: String = "actionName") =
         WhiskAction(EntityPath(namespace), EntityName(name), actionExec).toExecutableWhiskAction
 
+    /** Helper to create WarmedData with sensible defaults */
     def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
         WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
 
+    /** Helper to create PreWarmedData with sensible defaults */
     def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind)
+
+    /** Helper to create NoData */
     def noData() = NoData()
 
+    /** Helper to create a free Worker, for shorter notation */
     def freeWorker(data: ContainerData) = WorkerData(data, Free)
 
     behavior of "ContainerPool schedule()"
