@@ -55,6 +55,7 @@ var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 
 function main(message) {
+  //console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
     return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
