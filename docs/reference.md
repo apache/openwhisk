@@ -361,7 +361,7 @@ Docker actions run a user-supplied binary in a Docker container. The binary runs
 
 The Docker skeleton is a convenient way to build OpenWhisk-compatible Docker images. You can install the skeleton with the `wsk sdk install docker` CLI command.
 
-The main binary program must be located in `/action/exec` inside the container. The executable receives the input arguments via a singlecommand-line argument string which can be deserialized as a `JSON` object. It must return a result via `stdout`.
+The main binary program must be located in `/action/exec` inside the container. The executable receives the input arguments via a single command-line argument string which can be deserialized as a `JSON` object. It must return a result via `stdout`.
 
 You may include any compilation steps or dependencies by modifying the `Dockerfile` included in the `dockerSkeleton`.
 
