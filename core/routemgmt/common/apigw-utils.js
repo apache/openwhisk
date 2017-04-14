@@ -398,7 +398,6 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
 
     // API GW extensions
     console.log('addEndpointToSwaggerApi: setting api gw extension values');
-    setActionInvocationHeaders(swaggerApi, 'Basic '+auth_base64);
     setActionOperationInvocationDetails(swaggerApi, endpoint, operationId);
   }
   catch(e) {
@@ -409,20 +408,13 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
   return swaggerApi;
 }
 
-function setActionInvocationHeaders(swagger, authHeaderValue) {
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].set', 'message.headers.Authorization');
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].value', authHeaderValue);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].set', 'message.headers.Content-Type');
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].value', 'application/json');
-}
-
 function setActionOperationInvocationDetails(swagger, endpoint, operationId) {
-  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case') || [];
   var caseIdx = getCaseOperationIdx(caseArr, operationId);
   var operations = [operationId];
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].operations', operations);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, 'http'));
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, 'http'));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
 }
 
 // Return the numeric index into case[] into which the associated operation will be configured
