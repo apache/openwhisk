@@ -49,7 +49,7 @@ class WhiskJsonUtils {
             let arr = try JSONSerialization.jsonObject(with: jsonData, options: [])
             return (arr as? [Any])
         } catch {
-            print("Error converting json data to dictionary \(error)")
+            print("Error converting JSON data to dictionary \(error)")
             return nil
         }
     }
@@ -59,7 +59,7 @@ class WhiskJsonUtils {
             let dic = try JSONSerialization.jsonObject(with: jsonData, options: [])
             return dic as? [String:Any]
         } catch {
-            print("Error converting json data to dictionary \(error)")
+            print("Error converting JSON data to dictionary \(error)")
             return nil
         }
     }
@@ -68,19 +68,23 @@ class WhiskJsonUtils {
     // https://github.com/IBM-Swift/SwiftRuntime/issues/230
     class func dictionaryToJsonString(jsonDict: [String:Any]) -> String? {
         
-        if let escapedDict = escape(json: jsonDict) {
-            let json: JSON = JSON(escapedDict)
-            if let jsonStr = json.rawString() {
-                let trimmed = jsonStr.replacingOccurrences(of: "\n", with: "").replacingOccurrences(of: "\r", with: "")
-                return trimmed
-            } else {
-                print("Could not convert dictionary \(jsonDict) to JSON")
-                return nil
+        
+        if JSONSerialization.isValidJSONObject(jsonDict) {
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: jsonDict, options: [])
+                if let jsonStr = String(data: jsonData, encoding: String.Encoding.utf8) {
+                    return jsonStr
+                } else {
+                    print("Error serializing data to JSON, data conversion returns nil string")
+                }
+            } catch {
+                print(("\(error)"))
             }
         } else {
-            print("Escaping dictionary failed, returning nil")
-            return nil
+            print("Error serializing JSON, data does not appear to be valid JSON")
         }
+        
+        return nil
     }
     
     class func dictionaryToData(jsonDict: [String:Any]) -> Data? {
