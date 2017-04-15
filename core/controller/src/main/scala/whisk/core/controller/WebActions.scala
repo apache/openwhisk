@@ -198,7 +198,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
             case JsString(s)  => complete(OK, s)
             case JsBoolean(b) => complete(OK, b.toString)
             case JsNumber(n)  => complete(OK, n.toString)
-            case JsNull       => complete(OK)
+            case JsNull       => complete(OK, JsNull.toString)
         }
     }
 
@@ -240,7 +240,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
                 respondWithHeaders(headers) {
                     // note that if header defined a content-type, it will be ignored
                     // since the type must be compatible with the data response
-                    complete(code)
+                    complete(code, HttpEntity.Empty)
                 }
             }
         } getOrElse {
