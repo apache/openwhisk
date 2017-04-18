@@ -17,7 +17,8 @@
 
 package whisk.core.container
 
-import java.io.{ File, FileNotFoundException }
+import java.io.{ File, FileNotFoundException, FileInputStream }
+import java.nio.ByteBuffer
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -158,14 +159,14 @@ trait ContainerUtils {
      * Reads the contents of the file at the given position.
      * It is assumed that the contents does exist and that region is not changing concurrently.
      */
-    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): java.nio.ByteBuffer = {
-        var fis: java.io.FileInputStream = null
+    def getDockerLogContent(containerHash: ContainerHash, start: Long, end: Long, mounted: Boolean)(implicit transid: TransactionId): ByteBuffer = {
+        var fis: FileInputStream = null
         try {
             val file = getDockerLogFile(containerHash, mounted)
-            fis = new java.io.FileInputStream(file)
+            fis = new FileInputStream(file)
             val channel = fis.getChannel().position(start)
             var remain = (end - start).toInt
-            val buffer = java.nio.ByteBuffer.allocate(remain)
+            val buffer = ByteBuffer.allocate(remain)
             while (remain > 0) {
                 val read = channel.read(buffer)
                 if (read >= 0) {
@@ -180,7 +181,7 @@ trait ContainerUtils {
             case e: Exception =>
                 logging.error(this, s"getDockerLogContent failed on ${containerHash.hash}: ${e.getClass}: ${e.getMessage}")
                 // Return an empty buffer
-                java.nio.ByteBuffer.wrap(Array())
+                ByteBuffer.wrap(Array())
         } finally {
             if (fis != null) fis.close()
         }
@@ -239,7 +240,7 @@ trait ContainerUtils {
     /**
      * Gets the filename of the docker logs of other containers that is mapped back into the invoker.
      */
-    private def getDockerLogFile(containerId: ContainerHash, mounted: Boolean) = {
+    protected def getDockerLogFile(containerId: ContainerHash, mounted: Boolean) = {
         new java.io.File(s"""${dockerContainerDir(mounted, containerId)}/${containerId.hash}-json.log""").getCanonicalFile()
     }
 
