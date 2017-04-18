@@ -5,7 +5,6 @@
 
 - include: deploy.yml
   when: mode == "deploy"
-  with_dict: "{{ cli_repos }}"
-
+ 
 - include: clean.yml
   when: mode == "clean"
