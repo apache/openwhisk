@@ -169,7 +169,8 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
 
     /**
-     * Creates or updates a test action by updating the entity store. This is intended for use on startup.
+     * Creates or updates a health test action by updating the entity store.
+     * This method is intended for use on startup.
      * @return Future that completes successfully iff the action is added to the database
      */
     def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
@@ -186,23 +187,27 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
 
     /** Gets a producer which can publish messages to the kafka bus. */
     private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
-    private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    private val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
-    private val consul = new ConsulClient(config.consulServer)
-    private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
 
-    // Do not create the invokerpool if it is not possible to create the test action to recover the invokers.
-    InvokerPool.testAction.map {
-        // Await the creation of the test action to abort the startup of the controller, if it is not possible
-        a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
-    }.orElse {
-        throw new IllegalStateException("Test action is not defined for invoker health; check that a valid runtime manifest exists.")
+    private val invokerPool = {
+        // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
+        InvokerPool.healthAction.map {
+            // Await the creation of the test action; on failure, this will abort the constructor which should
+            // in turn abort the startup of the controller.
+            a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
+        }.orElse {
+            throw new IllegalStateException("Test action is not defined for invoker health; check that a valid runtime manifest exists.")
+        }
+
+        val consul = new ConsulClient(config.consulServer)
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+        val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+
+        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
+            clearInvokerState(invoker)
+            logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
+        }, messageProducer, ackConsumer, msg => processCompletion(msg), pingConsumer))
     }
-
-    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-        clearInvokerState(invoker)
-        logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
-    }, messageProducer, ackConsumer, msg => processCompletion(msg), pingConsumer))
 
     def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 

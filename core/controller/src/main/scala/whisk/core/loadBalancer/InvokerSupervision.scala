@@ -187,7 +187,8 @@ object InvokerPool {
         acb: CompletionMessage => Unit,
         pc: MessageConsumer) = Props(new InvokerPool(f, kv, cb, p, ackC, acb, pc))
 
-    def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String)(implicit tid: TransactionId, logging: Logging, ec: ExecutionContext): Future[RecordMetadata] = {
+    def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String)(
+        implicit tid: TransactionId, logging: Logging, ec: ExecutionContext): Future[RecordMetadata] = {
         implicit val transid = msg.transid
         val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
 
@@ -197,17 +198,19 @@ object InvokerPool {
         }
     }
 
-    val whiskSystem = "whisk.system"
+    /** A stub identity for invoking the test action. This does not need to be a valid identity. */
+    val healthActionIdentity = {
+        val whiskSystem = "whisk.system"
+        Identity(Subject(whiskSystem), EntityName(whiskSystem), AuthKey(UUID(), Secret()), Set[Privilege]())
+    }
 
-    val testAction = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
+    /** An action to use for monitoring invoker health. */
+    val healthAction = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
         new WhiskAction(
-            namespace = EntityPath(whiskSystem),
+            namespace = healthActionIdentity.namespace.toPath,
             name = EntityName("invokerHealthTestAction"),
             exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
     }
-
-    // Authentication is not needed anymore at this point.
-    val authentication = Identity(Subject(whiskSystem), EntityName(whiskSystem), AuthKey(UUID(), Secret()), Set[Privilege]())
 }
 
 /**
@@ -326,14 +329,14 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
      * The InvokerPool redirects it to the invoker which is represented by this InvokerActor.
      */
     private def invokeTestAction() = {
-        InvokerPool.testAction.map { action =>
+        InvokerPool.healthAction.map { action =>
             val activationMessage = ActivationMessage(
                 // Use the sid of the InvokerSupervisor as tid
                 transid = transid,
                 action = action.fullyQualifiedName(true),
                 // Use empty DocRevision to force the invoker to pull the action from db all the time
                 revision = DocRevision(),
-                user = InvokerPool.authentication,
+                user = InvokerPool.healthActionIdentity,
                 // Create a new Activation ID for this activation
                 activationId = new ActivationIdGenerator {}.make(),
                 activationNamespace = action.namespace,
