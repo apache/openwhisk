@@ -1,0 +1,28 @@
+---
+
+- name: "ensure cli sub directory structure exists"
+  file:
+    path: "{{ cli_nginx_dir }}/mac/amd64"
+    state: directory
+
+- name: "download cli into ngnix"
+  local_action: >
+    get_url
+    url="https://github.com/openwhisk/openwhisk-cli/releases/download/latest/OpenWhisk_CLI-latest-darwin-amd64.zip"
+    dest="{{ cli_nginx_dir }}/mac/amd64/OpenWhisk_CLI-mac.zip"
+    validate_certs=False
+
+- name: "unarchive cli into ngnix"
+  unarchive: >
+    src="{{ cli_nginx_dir }}/mac/amd64/OpenWhisk_CLI-mac.zip"
+    dest="{{ cli_nginx_dir }}/mac/amd64"
+    creates=wsk
+    mode=0755
+
+- name: "download cli (mac) to openwhisk home at {{ openwhisk_home }}"
+  local_action: >
+    get_url
+    url="https://{{ groups['edge'] | first }}/cli/go/download/mac/amd64/wsk"
+    dest="{{ openwhisk_home }}/bin/wsk"
+    mode=0755
+    validate_certs=False

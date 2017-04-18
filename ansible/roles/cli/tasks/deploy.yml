@@ -3,28 +3,15 @@
 
 - name: "ensure nginx directory for cli exists"
   file:
-    path: "{{ cli_nginx_dir  }}"
+    path: "{{ cli_nginx_dir }}"
     state: directory
 
-- include: docker_login.yml
+- name: "download and unarchive wsk cli for mac"
+  include: >
+    download_cli_mac.yml
+  when: "'environments/mac' in inventory_dir"
 
-- include: build_cli.yml
-
-- name: "pull the {{ docker_image_tag }} image of cli"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-  when: docker_registry != ""
-
-- name: "run Docker"
-  shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-
-- name: "copy all the cli binaries into nginx"
-  shell: "docker cp cli:/src/github.com/openwhisk/openwhisk-cli/build/. '{{ cli_nginx_dir }}'"
-  ignore_errors: yes
-
-- name: "stop Docker"
-  shell: "docker stop cli"
-
-- name: "remove cli container after publishing"
-  shell: "docker rm cli"
-
-- include: download_cli.yml
+- name: "download and unarchive wsk cli for linux"
+  include: >
+    download_cli_linux.yml
+  when: "'environments/mac' not in inventory_dir"
