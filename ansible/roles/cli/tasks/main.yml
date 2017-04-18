@@ -5,6 +5,6 @@
 
 - include: deploy.yml
   when: mode == "deploy"
- 
+
 - include: clean.yml
   when: mode == "clean"
