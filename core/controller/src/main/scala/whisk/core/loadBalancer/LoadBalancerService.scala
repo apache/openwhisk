@@ -30,8 +30,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 import scala.util.Failure
 
-import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.pattern.ask
@@ -41,13 +39,13 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
+import whisk.core.database.NoDocumentException
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
-import whisk.core.database.NoDocumentException
 
 trait LoadBalancer {
 
@@ -92,7 +90,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
         chooseInvoker(action, msg).flatMap { invokerName =>
             val subject = msg.user.subject.asString
             val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
-            InvokerPool.sendActivationToInvoker(messageProducer, msg, invokerName).mapTo[RecordMetadata].map { _ =>
+            InvokerPool.sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
             }
         }
@@ -170,29 +168,20 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     /** Make a new immutable map so caller cannot mess up the state */
     private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
 
-    /*
-     * INVOKER MANAGEMENT
+    /**
+     * Creates or updates a test action by updating the entity store. This is intended for use on startup.
+     * @return Future that completes successfully iff the action is added to the database
      */
-
-    /** Create an test action on startup if it is not there. */
-    def createTestActionForInvokerHealth(db: EntityStore): WhiskAction = {
+    def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
         implicit val tid = TransactionId.loadbalancer
-        val errorMsg = "Error on creating testaction for invokerHealth: Probably there were problems with the manifest."
-        require(InvokerPool.testAction.isDefined, errorMsg)
-
-        val actionCreation = InvokerPool.testAction.map { action =>
-            WhiskAction.get(db, action.docid).flatMap { oldAction =>
-                WhiskAction.put(db, action.revision(oldAction.rev))
-            }.recover {
-                case _: NoDocumentException => WhiskAction.put(db, action)
-            }.map(_ => action).andThen {
-                case Success(_) => logging.info(this, "Testaction for invokerHealth exists now.")
-                case Failure(e) => logging.error(this, s"Error on creating testaction for invokerHealth: $e")
-            }
-        }.getOrElse(Future.failed(new Exception(errorMsg)))
-
-        // Await the creation of the test action to abort the startup of the controller, if it is not possible
-        Await.result(actionCreation, 1.minute)
+        WhiskAction.get(db, action.docid).flatMap { oldAction =>
+            WhiskAction.put(db, action.revision(oldAction.rev))
+        }.recover {
+            case _: NoDocumentException => WhiskAction.put(db, action)
+        }.map(_ => {}).andThen {
+            case Success(_) => logging.info(this, "Test action for invoker health now exists.")
+            case Failure(e) => logging.error(this, s"Error creating test action for invoker health: $e")
+        }
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
@@ -201,8 +190,15 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     private val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
     private val consul = new ConsulClient(config.consulServer)
     private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
-    // Do not create the invokerpool, if it is not possible to create the test action to recover the invokers.
-    createTestActionForInvokerHealth(entityStore)
+
+    // Do not create the invokerpool if it is not possible to create the test action to recover the invokers.
+    InvokerPool.testAction.map {
+        // Await the creation of the test action to abort the startup of the controller, if it is not possible
+        a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
+    }.orElse {
+        throw new IllegalStateException("Test action is not defined for invoker health; check that a valid runtime manifest exists.")
+    }
+
     private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
         clearInvokerState(invoker)
         logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
@@ -234,7 +230,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[String] = {
+    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage): Future[String] = {
         val isBlackbox = action.exec match {
             case e: CodeExec[_] => e.pull
             case _              => false
