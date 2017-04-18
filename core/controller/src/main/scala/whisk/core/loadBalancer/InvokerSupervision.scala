@@ -97,9 +97,7 @@ class InvokerPool(
     childFactory: (ActorRefFactory, String) => ActorRef,
     kv: KeyValueStore,
     invokerDownCallback: String => Unit,
-    producer: MessageProducer,
-    activeAckConsumer: MessageConsumer,
-    activeAckCallback: CompletionMessage => Unit,
+    sendActivationToInvoker: (ActivationMessage, String) => Future[RecordMetadata],
     pingConsumer: MessageConsumer) extends Actor {
 
     implicit val transid = TransactionId.invokerHealth
@@ -142,7 +140,7 @@ class InvokerPool(
             publishStatus()
 
         /** this is only used for the internal test action to become healthy again */
-        case msg: ActivationRequest => InvokerPool.sendActivationToInvoker(producer, msg.msg, msg.invoker).pipeTo(sender)
+        case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
     }
 
     def publishStatus() = {
@@ -154,18 +152,6 @@ class InvokerPool(
         }.map { case (name, state) => s"$name: $state" }
         logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
     }
-
-    /** Receive activeAcks from Invoker. */
-    activeAckConsumer.onMessage((topic, _, _, bytes) => {
-        val raw = new String(bytes, StandardCharsets.UTF_8)
-        CompletionMessage.parse(raw) match {
-            case Success(m: CompletionMessage) => {
-                self ! InvocationFinishedMessage(m.invoker, m.response.response.statusCode <= 2)
-                activeAckCallback(m)
-            }
-            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
-        }
-    })
 
     /** Receive Ping messages from invokers. */
     pingConsumer.onMessage((topic, _, _, bytes) => {
@@ -179,23 +165,12 @@ class InvokerPool(
 
 object InvokerPool {
     def props(
-        f: (ActorRefFactory, String) => ActorRef,
         kv: KeyValueStore,
         cb: String => Unit,
-        p: MessageProducer,
-        ackC: MessageConsumer,
-        acb: CompletionMessage => Unit,
-        pc: MessageConsumer) = Props(new InvokerPool(f, kv, cb, p, ackC, acb, pc))
-
-    def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String)(
-        implicit tid: TransactionId, logging: Logging, ec: ExecutionContext): Future[RecordMetadata] = {
-        implicit val transid = msg.transid
-        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
-
-        producer.send(invokerName, msg).andThen {
-            case Success(status) => transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-            case Failure(e)      => transid.failed(this, start, s"Error on posting to topic $invokerName")
-        }
+        p: (ActivationMessage, String) => Future[RecordMetadata],
+        pc: MessageConsumer) = {
+        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+        Props(new InvokerPool(invokerFactory, kv, cb, p, pc))
     }
 
     /** A stub identity for invoking the test action. This does not need to be a valid identity. */
