@@ -52,7 +52,7 @@ case object Removing extends ContainerState
 // Data
 sealed abstract class ContainerData(val lastUsed: Instant)
 case class NoData() extends ContainerData(Instant.EPOCH)
-case class PreWarmedData(container: Container, kind: String) extends ContainerData(Instant.EPOCH)
+case class PreWarmedData(container: Container, kind: String, memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH)
 case class WarmedData(container: Container, namespace: EntityName, action: ExecutableWhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
 
 // Events received by the actor
@@ -107,7 +107,7 @@ class ContainerProxy(
                 job.exec.image,
                 job.exec.pull,
                 job.memoryLimit)
-                .map(container => PreWarmedData(container, job.exec.kind))
+                .map(container => PreWarmedData(container, job.exec.kind, job.memoryLimit))
                 .pipeTo(self)
 
             goto(Starting)
@@ -122,7 +122,7 @@ class ContainerProxy(
                 job.action.exec.pull,
                 job.action.limits.memory.megabytes.MB)
                 .andThen {
-                    case Success(container) => self ! PreWarmedData(container, job.action.exec.kind)
+                    case Success(container) => self ! PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB)
                     case Failure(t) =>
                         val response = t match {
                             case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
