@@ -7,6 +7,7 @@
 OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at http://openwhisk.org or try it on [IBM Bluemix](https://ibm.biz/openwhisk).
 
 
+
 * [Quick Start](#quick-start)
 * [Other Configurations](#custom-configurations)
 * [Learn concepts and commands](#learn-concepts-and-commands)
