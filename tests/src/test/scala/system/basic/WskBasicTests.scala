@@ -28,6 +28,7 @@ import common.TestUtils._
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
@@ -168,7 +169,7 @@ class WskBasicTests
 
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.pkg, name) {
-                (action, _) => action.create(name, parameters = paramInput)
+                (pkg, _) => pkg.create(name, parameters = paramInput)
             }
 
             val expectedParam = JsObject(
@@ -182,6 +183,30 @@ class WskBasicTests
             wsk.pkg.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
             wsk.pkg.get(name, fieldFilter = Some("binding")).stdout should include regex (s"""\\{\\}""")
             wsk.pkg.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
+    }
+
+    it should "reject creation of duplication packages" in withAssetCleaner(wskprops) {
+        val name = "dupePackage"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.pkg, name) {
+                (pkg, _) => pkg.create(name)
+            }
+
+        val stderr = wsk.pkg.create(name, expectedExitCode = CONFLICT).stderr
+        stderr should include regex (s"""Unable to create package '$name': resource already exists \\(code \\d+\\)""")
+    }
+
+    it should "reject delete of package that does not exist" in {
+        val name = "nonexistentPackage"
+        val stderr = wsk.pkg.delete(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to delete package '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject get of package that does not exist" in {
+        val name = "nonexistentPackage"
+        val stderr = wsk.pkg.get(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get package '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     behavior of "Wsk Action CLI"
@@ -212,9 +237,35 @@ class WskBasicTests
             wsk.action.list().stdout should include(name)
     }
 
+    it should "reject create of an action that already exists" in withAssetCleaner(wskprops) {
+        val name = "dupeAction"
+        val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file)
+            }
+
+            val stderr = wsk.action.create(name, file, expectedExitCode = CONFLICT).stderr
+            stderr should include regex (s"""Unable to create action '$name': resource already exists \\(code \\d+\\)""")
+    }
+
     it should "reject delete of action that does not exist" in {
-        wsk.action.sanitize("deleteFantasy").
-            stderr should include regex ("""The requested resource does not exist. \(code \d+\)""")
+        val name = "nonexistentAction"
+        val stderr = wsk.action.delete(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to delete action '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject invocation of action that does not exist" in {
+        val name = "nonexistentAction"
+        val stderr = wsk.action.invoke(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to invoke action '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject get of an action that does not exist" in {
+        val name = "nonexistentAction"
+        val stderr = wsk.action.get(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get action '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
@@ -574,13 +625,43 @@ class WskBasicTests
             }
     }
 
+    it should "reject creation of duplicate triggers" in withAssetCleaner(wskprops) {
+        val name = "dupeTrigger"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.trigger, name) {
+                (trigger, _) => trigger.create(name)
+            }
+
+        val stderr = wsk.trigger.create(name, expectedExitCode = CONFLICT).stderr
+        stderr should include regex (s"""Unable to create trigger '$name': resource already exists \\(code \\d+\\)""")
+    }
+    it should "reject delete of trigger that does not exist" in {
+        val name = "nonexistentTrigger"
+        val stderr = wsk.trigger.delete(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to delete trigger '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject get of trigger that does not exist" in {
+        val name = "nonexistentTrigger"
+        val stderr = wsk.trigger.get(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get trigger '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject firing of a trigger that does not exist" in {
+        val name = "nonexistentTrigger"
+        val stderr = wsk.trigger.fire(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to fire trigger '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
     behavior of "Wsk Rule CLI"
 
     it should "create rule, get rule, update rule and list rule" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val ruleName = "listRules"
             val triggerName = "listRulesTrigger"
-            val actionName = "listRulesAction";
+            val actionName = "listRulesAction"
+
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) => trigger.create(name)
             }
@@ -607,7 +688,8 @@ class WskBasicTests
         (wp, assetHelper) =>
             val ruleName = "enabledRule"
             val triggerName = "enabledRuleTrigger"
-            val actionName = "enabledRuleAction";
+            val actionName = "enabledRuleAction"
+
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) => trigger.create(name)
             }
@@ -627,7 +709,8 @@ class WskBasicTests
         (wp, assetHelper) =>
             val ruleName = "mySummaryRule"
             val triggerName = "summaryRuleTrigger"
-            val actionName = "summaryRuleAction";
+            val actionName = "summaryRuleAction"
+
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) => trigger.create(name)
             }
@@ -647,11 +730,11 @@ class WskBasicTests
     it should "create a rule, and get its individual fields" in withAssetCleaner(wskprops) {
         val ruleName = "ruleFields"
         val triggerName = "ruleTriggerFields"
-        val actionName = "ruleActionFields"; val paramInput = Map("payload" -> "test".toJson)
+        val actionName = "ruleActionFields"
+        val paramInput = Map("payload" -> "test".toJson)
         val successMsg = s"ok: got rule $ruleName, displaying field"
 
         (wp, assetHelper) =>
-
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) => trigger.create(name)
             }
@@ -677,6 +760,57 @@ class WskBasicTests
             action should include regex (s"""$successMsg action\n""")
             action should include(actionName)
             action should not include (triggerName)
+    }
+
+    it should "reject creation of duplicate rules" in withAssetCleaner(wskprops) {
+        val ruleName = "dupeRule"
+        val triggerName = "triggerName"
+        val actionName = "actionName"
+
+        (wp, assetHelper) =>
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, name) =>
+                    rule.create(name, trigger = triggerName, action = actionName)
+            }
+
+        val stderr = wsk.rule.create(ruleName, trigger = triggerName, action = actionName, expectedExitCode = CONFLICT).stderr
+        stderr should include regex (s"""Unable to create rule '$ruleName': resource already exists \\(code \\d+\\)""")
+    }
+
+    it should "reject delete of rule that does not exist" in {
+        val name = "nonexistentRule"
+        val stderr = wsk.rule.delete(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to delete rule '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject enable of rule that does not exist" in {
+        val name = "nonexistentRule"
+        val stderr = wsk.rule.enable(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to enable rule '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject disable of rule that does not exist" in {
+        val name = "nonexistentRule"
+        val stderr = wsk.rule.disable(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to disable rule '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject status of rule that does not exist" in {
+        val name = "nonexistentRule"
+        val stderr = wsk.rule.state(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get status of rule '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject get of rule that does not exist" in {
+        val name = "nonexistentRule"
+        val stderr = wsk.rule.get(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get rule '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     behavior of "Wsk Namespace CLI"
@@ -728,5 +862,23 @@ class WskBasicTests
                     wsk.activation.get(activation.activationId, fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
                     wsk.activation.get(activation.activationId, fieldFilter = Some("annotations")).stdout should include(s"""$successMsg annotations\n[]""")
             }
+    }
+
+    it should "reject get of activation that does not exist" in {
+        val name = "0"*32
+        val stderr = wsk.activation.get(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject logs of activation that does not exist" in {
+        val name = "0"*32
+        val stderr = wsk.activation.logs(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get logs for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "reject result of activation that does not exist" in {
+        val name = "0"*32
+        val stderr = wsk.activation.result(name, expectedExitCode = NOT_FOUND).stderr
+        stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 }

@@ -120,8 +120,8 @@
     "translation": "create a new package"
   },
   {
-    "id": "Package creation failed: {{.err}}",
-    "translation": "Package creation failed: {{.err}}"
+    "id": "Unable to create package '{{.name}}': {{.err}}",
+    "translation": "Unable to create package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} created package {{.name}}\n",
@@ -144,8 +144,8 @@
     "translation": "get package"
   },
   {
-    "id": "Package get failed: {{.err}}",
-    "translation": "Package get failed: {{.err}}"
+    "id": "Unable to get package '{{.name}}': {{.err}}",
+    "translation": "Unable to get package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} got package {{.name}}\n",
@@ -156,8 +156,8 @@
     "translation": "delete package"
   },
   {
-    "id": "Package delete failed: {{.err}}",
-    "translation": "Package delete failed: {{.err}}"
+    "id": "Unable to delete package '{{.name}}': {{.err}}",
+    "translation": "Unable to delete package '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} deleted package {{.name}}\n",
@@ -421,8 +421,12 @@
     "translation": "get rule status"
   },
   {
-    "id": "Unable to retrieve rule '{{.name}}': {{.err}}",
-    "translation": "Unable to retrieve rule '{{.name}}': {{.err}}"
+    "id": "Unable to get rule '{{.name}}': {{.err}}",
+    "translation": "Unable to get rule '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "Unable to get status of rule '{{.name}}': {{.err}}",
+    "translation": "Unable to get status of rule '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} rule {{.name}} is {{.status}}\n",
@@ -772,8 +776,8 @@
     "translation": "Unable to parse action command arguments: {{.err}}"
   },
   {
-    "id": "Unable to create action: {{.err}}",
-    "translation": "Unable to create action: {{.err}}"
+    "id": "Unable to create action '{{.name}}': {{.err}}",
+    "translation": "Unable to create action '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} created action {{.name}}\n",
@@ -824,8 +828,8 @@
     "translation": "delete action"
   },
   {
-    "id": "Unable to delete action: {{.err}}",
-    "translation": "Unable to delete action: {{.err}}"
+    "id": "Unable to delete action '{{.name}}': {{.err}}",
+    "translation": "Unable to delete action '{{.name}}': {{.err}}"
   },
   {
     "id": "{{.ok}} deleted action {{.name}}\n",
@@ -844,8 +848,8 @@
     "translation": "Could not find 'main' method in '{{.name}}'"
   },
   {
-    "id": "Unable to obtain action '{{.name}}' to copy: {{.err}}",
-    "translation": "Unable to obtain action '{{.name}}' to copy: {{.err}}"
+    "id": "Unable to get action '{{.name}}': {{.err}}",
+    "translation": "Unable to get action '{{.name}}': {{.err}}"
   },
   {
     "id": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
@@ -944,8 +948,8 @@
     "translation": "get activation"
   },
   {
-    "id": "Unable to obtain activation record for '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain activation record for '{{.id}}': {{.err}}"
+    "id": "Unable to get activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
   {
     "id": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n",
@@ -960,12 +964,12 @@
     "translation": "get the logs of an activation"
   },
   {
-    "id": "Unable to obtain logs for activation '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain logs for activation '{{.id}}': {{.err}}"
+    "id": "Unable to get logs for activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get logs for activation '{{.id}}': {{.err}}"
   },
   {
-    "id": "Unable to obtain result information for activation '{{.id}}': {{.err}}",
-    "translation": "Unable to obtain result information for activation '{{.id}}': {{.err}}"
+    "id": "Unable to get result for activation '{{.id}}': {{.err}}",
+    "translation": "Unable to get result for activation '{{.id}}': {{.err}}"
   },
   {
     "id": "poll continuously for log messages from currently running actions",

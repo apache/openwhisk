@@ -426,9 +426,7 @@ class WskRule()
         val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name), (trigger), (action)) ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
             { shared map { s => Seq("--shared", if (s) "yes" else "no") } getOrElse Seq() }
-        val result = cli(wp.overrides ++ params, expectedExitCode)
-        if (expectedExitCode == SUCCESS_EXIT) assert(result.stdout.contains("ok:"), result)
-        result
+        cli(wp.overrides ++ params, expectedExitCode)
     }
 
     /**
@@ -452,13 +450,11 @@ class WskRule()
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
-    def enableRule(
+    def enable(
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val result = cli(wp.overrides ++ Seq(noun, "enable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
-        assert(result.stdout.contains("ok:"), result)
-        result
+        cli(wp.overrides ++ Seq(noun, "enable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
     }
 
     /**
@@ -468,13 +464,11 @@ class WskRule()
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
-    def disableRule(
+    def disable(
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT)(
             implicit wp: WskProps): RunResult = {
-        val result = cli(wp.overrides ++ Seq(noun, "disable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
-        assert(result.stdout.contains("ok:"), result)
-        result
+        cli(wp.overrides ++ Seq(noun, "disable", "--auth", wp.authKey, fqn(name)), expectedExitCode)
     }
 
     /**
@@ -484,16 +478,11 @@ class WskRule()
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
-    def checkRuleState(
+    def state(
         name: String,
-        active: Boolean)(
-            implicit wp: WskProps): Boolean = {
-        val result = cli(wp.overrides ++ Seq(noun, "status", "--auth", wp.authKey, fqn(name))).stdout
-        if (active) {
-            result.contains("is active")
-        } else {
-            result.contains("is inactive")
-        }
+        expectedExitCode: Int = SUCCESS_EXIT)(
+            implicit wp: WskProps): RunResult = {
+        cli(wp.overrides ++ Seq(noun, "status", "--auth", wp.authKey, fqn(name)), expectedExitCode)
     }
 }
 
