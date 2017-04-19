@@ -287,7 +287,17 @@ var apiDeleteCmd = &cobra.Command{
         _, err := client.Apis.Delete(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
-            errMsg := wski18n.T("Unable to delete API: {{.err}}", map[string]interface{}{"err": err})
+            var errMsg = ""
+            if (len(args) == 1) {
+                errMsg = wski18n.T("Unable to delete API {{.basepath}}: {{.err}}",
+                    map[string]interface{}{"basepath": options.ApiBasePath,"err": err})
+            } else if (len(args) == 2 ) {
+                errMsg = wski18n.T("Unable to delete {{.path}} from {{.basepath}}: {{.err}}",
+                    map[string]interface{}{"path": options.ApiRelPath,"basepath": options.ApiBasePath,"err": err})
+            } else {
+                errMsg = wski18n.T("Unable to delete {{.path}} {{.verb}} from {{.basepath}}: {{.err}}",
+                    map[string]interface{}{"path": options.ApiRelPath,"verb": options.ApiVerb,"basepath": options.ApiBasePath,"err": err})
+            }
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr

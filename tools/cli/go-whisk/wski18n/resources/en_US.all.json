@@ -88,19 +88,19 @@
     "translation": "Unable to build request URL: {{.err}}"
   },
   {
-    "id": "Unable to create GET HTTP request for '{{.route}}': {{.err}}",
+    "id": "Unable to create HTTP request for GET '{{.route}}': {{.err}}",
     "translation": "Unable to create GET HTTP request for '{{.route}}': {{.err}}"
   },
   {
-    "id": "Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
+    "id": "Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
     "translation": "Unable to create PUT HTTP request for '{{.route}}': {{.err}}"
   },
   {
-    "id": "Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
+    "id": "Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
     "translation": "Unable to create DELETE HTTP request for '{{.route}}': {{.err}}"
   },
   {
-    "id": "Unable to create POST HTTP request for '{{.route}}': {{.err}}",
+    "id": "Unable to create HTTP request for POST '{{.route}}': {{.err}}",
     "translation": "Unable to create POST HTTP request for '{{.route}}': {{.err}}"
   },
   {
