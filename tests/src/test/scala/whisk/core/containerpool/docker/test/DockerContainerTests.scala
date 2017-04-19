@@ -16,34 +16,35 @@
 
 package whisk.core.containerpool.docker.test
 
-import org.scalatest.FlatSpec
+import java.time.Instant
+
+import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+import common.StreamLogging
 import org.junit.runner.RunWith
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-import org.scalamock.scalatest.MockFactory
-import scala.concurrent.ExecutionContext.Implicits.global
-import common.StreamLogging
-import whisk.common.TransactionId
-import whisk.core.containerpool.docker.RuncApi
-import whisk.core.containerpool.docker.DockerApi
-import whisk.core.containerpool.docker.DockerContainer
-import whisk.core.containerpool.docker.ContainerId
-import whisk.core.containerpool.docker.ContainerIp
 import spray.json.JsObject
-import scala.concurrent.Future
-import whisk.core.container.RunResult
-import whisk.core.entity.ActivationResponse.ContainerResponse
-import whisk.core.container.Interval
-import java.time.Instant
-import scala.concurrent.duration._
-import org.scalatest.concurrent.ScalaFutures
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
-import whisk.core.containerpool.InitializationError
+import whisk.common.TransactionId
+import whisk.core.container.Interval
+import whisk.core.container.RunResult
+import whisk.core.containerpool._
+import whisk.core.containerpool.docker._
 import whisk.core.entity.ActivationResponse
-import org.scalatest.BeforeAndAfterEach
-import scala.concurrent.Await
+import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
+import whisk.core.entity.size._
+import whisk.http.Messages
 
 /**
  * Unit tests for ContainerPool schedule
@@ -63,6 +64,10 @@ class DockerContainerTests extends FlatSpec
     /** Awaits the given future, throws the exception enclosed in Failure. */
     def await[A](f: Future[A], timeout: FiniteDuration = 100.millisecond) = Await.result[A](f, timeout)
 
+    /**
+     * Constructs a testcontainer with overridden IO methods. Results of the override can be provided
+     * as parameters.
+     */
     def dockerContainer(id: ContainerId = ContainerId("id"), ip: ContainerIp = ContainerIp("ip"))(ccRes: Future[RunResult])(
         implicit docker: DockerApi, runc: RuncApi): DockerContainer = {
 
@@ -73,19 +78,129 @@ class DockerContainerTests extends FlatSpec
         }
     }
 
+    /** Creates an interval starting at EPOCH with the given duration. */
     def intervalOf(duration: FiniteDuration) = Interval(Instant.EPOCH, Instant.ofEpochMilli(duration.toMillis))
 
     behavior of "DockerContainer"
 
     implicit val transid = TransactionId.testing
 
-    ignore should "create a new instance" in {
-        implicit val docker = stub[DockerApi]
+    /*
+     * CONTAINER CREATION
+     */
+    it should "create a new instance" in {
+        implicit val docker = new TestDockerClient
         implicit val runc = stub[RuncApi]
 
-        val container = DockerContainer.create(transid = TransactionId.testing, image = "image")
+        val image = "image"
+        val memory = 128.MB
+        val cpuShares = 1
+        val environment = Map("test" -> "hi")
+        val network = "testwork"
+        val name = "myContainer"
+
+        val container = DockerContainer.create(
+            transid = transid,
+            image = image,
+            memory = memory,
+            cpuShares = cpuShares,
+            environment = environment,
+            network = network,
+            name = Some(name))
+
+        await(container)
+
+        docker.runs should have size 1
+        docker.pulls should have size 0
+        docker.rms should have size 0
+
+        val (testImage, args) = docker.runs.head
+        testImage shouldBe "image"
+
+        // Assert fixed values are passed as well
+        args should contain allOf ("--cap-drop", "NET_RAW", "NET_ADMIN")
+        args should contain inOrder ("--ulimit", "nofile=1024:1024")
+        args should contain inOrder ("--pids-limit", "64")
+
+        // Assert proper parameter translation
+        args should contain inOrder ("--memory", s"${memory.toMB}m")
+        args should contain inOrder ("--memory-swap", s"${memory.toMB}m")
+        args should contain inOrder ("--cpu-shares", cpuShares.toString)
+        args should contain inOrder ("--network", network)
+        args should contain inOrder ("--name", name)
+
+        // Assert proper environment passing
+        args should contain allOf ("-e", "test=hi", "SERVICE_IGNORE=true")
     }
 
+    it should "pull a user provided image before creating the container" in {
+        implicit val docker = new TestDockerClient
+        implicit val runc = stub[RuncApi]
+
+        val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+        await(container)
+
+        docker.runs should have size 1
+        docker.pulls should have size 1
+        docker.rms should have size 0
+    }
+
+    it should "remove the container if inspect fails" in {
+        implicit val docker = new TestDockerClient {
+            override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
+                inspects += id
+                Future.failed(new RuntimeException())
+            }
+        }
+        implicit val runc = stub[RuncApi]
+
+        val container = DockerContainer.create(transid = transid, image = "image")
+        a[WhiskContainerStartupError] should be thrownBy await(container)
+
+        docker.runs should have size 1
+        docker.inspects should have size 1
+        docker.rms should have size 1
+    }
+
+    it should "disambiguate errors if user images are provided" in {
+        implicit val docker = new TestDockerClient {
+            override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
+                inspects += id
+                Future.failed(new RuntimeException())
+            }
+        }
+        implicit val runc = stub[RuncApi]
+
+        val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+        a[BlackboxStartupError] should be thrownBy await(container)
+
+        docker.pulls should have size 1
+        docker.runs should have size 1
+        docker.inspects should have size 1
+        docker.rms should have size 1
+    }
+
+    it should "return a specific error if pulling a user provided image failed" in {
+        implicit val docker = new TestDockerClient {
+            override def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+                pulls += image
+                Future.failed(new RuntimeException())
+            }
+        }
+        implicit val runc = stub[RuncApi]
+
+        val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+        a[BlackboxStartupError] should be thrownBy await(container)
+
+        docker.pulls should have size 1
+        docker.runs should have size 0
+        docker.inspects should have size 0
+        docker.rms should have size 0
+    }
+
+    /*
+     * DOCKER COMMANDS
+     */
     it should "halt and resume container via runc" in {
         implicit val docker = stub[DockerApi]
         implicit val runc = stub[RuncApi]
@@ -112,6 +227,12 @@ class DockerContainerTests extends FlatSpec
         (docker.rm(_: ContainerId)(_: TransactionId)).verify(id, transid)
     }
 
+    /*
+     * INITIALIZE
+     *
+     * Only tests for quite simple cases. Disambiguation of errors is delegated to ActivationResponse
+     * and so are the tests for those.
+     */
     it should "initialize a container" in {
         implicit val docker = stub[DockerApi]
         implicit val runc = stub[RuncApi]
@@ -134,25 +255,6 @@ class DockerContainerTests extends FlatSpec
         end.deltaToMarkerStart shouldBe Some(interval.duration.toMillis)
     }
 
-    it should "properly deal with terminal initialization failures" in {
-        implicit val docker = stub[DockerApi]
-        implicit val runc = stub[RuncApi]
-
-        val container = dockerContainer() {
-            Future.failed(new RuntimeException())
-        }
-
-        val init = container.initialize(JsObject(), 1.second)
-
-        val error = the[InitializationError] thrownBy await(init)
-        error.interval.duration shouldBe Duration.Zero
-        error.response.statusCode shouldBe ActivationResponse.WhiskError
-
-        // assert the error log is there
-        val end = LogMarker.parse(logLines.last)
-        end.token shouldBe INVOKER_ACTIVATION_INIT.asError
-    }
-
     it should "properly deal with a timeout during initialization" in {
         implicit val docker = stub[DockerApi]
         implicit val runc = stub[RuncApi]
@@ -173,6 +275,100 @@ class DockerContainerTests extends FlatSpec
         // assert the finish log is there
         val end = LogMarker.parse(logLines.last)
         end.token shouldBe INVOKER_ACTIVATION_INIT.asFinish
+    }
+
+    /*
+     * RUN
+     *
+     * Only tests for quite simple cases. Disambiguation of errors is delegated to ActivationResponse
+     * and so are the tests for those.
+     */
+    it should "run a container" in {
+        implicit val docker = stub[DockerApi]
+        implicit val runc = stub[RuncApi]
+
+        val interval = intervalOf(1.millisecond)
+        val result = JsObject()
+        val container = dockerContainer() {
+            Future.successful(RunResult(interval, Right(ContainerResponse(true, result.compactPrint, None))))
+        }
+
+        val runResult = container.run(JsObject(), JsObject(), 1.second)
+        runResult.futureValue shouldBe (interval, ActivationResponse.success(Some(result)))
+
+        // assert the starting log is there
+        val start = LogMarker.parse(logLines.head)
+        start.token shouldBe INVOKER_ACTIVATION_RUN
+
+        // assert the end log is there
+        val end = LogMarker.parse(logLines.last)
+        end.token shouldBe INVOKER_ACTIVATION_RUN.asFinish
+        end.deltaToMarkerStart shouldBe Some(interval.duration.toMillis)
+    }
+
+    it should "properly deal with a timeout during run" in {
+        implicit val docker = stub[DockerApi]
+        implicit val runc = stub[RuncApi]
+
+        val runTimeout = 1.second
+        val interval = intervalOf(runTimeout + 1.nanoseconds)
+
+        val container = dockerContainer() {
+            Future.successful(RunResult(interval, Left(Timeout())))
+        }
+
+        val runResult = container.run(JsObject(), JsObject(), runTimeout)
+
+        runResult.futureValue shouldBe (interval, ActivationResponse.applicationError(Messages.timedoutActivation(runTimeout, false)))
+
+        // assert the finish log is there
+        val end = LogMarker.parse(logLines.last)
+        end.token shouldBe INVOKER_ACTIVATION_RUN.asFinish
+    }
+
+    /*
+     * LOGS
+     */
+
+    class TestDockerClient extends DockerApi {
+        var runs = mutable.Buffer.empty[(String, Seq[String])]
+        var inspects = mutable.Buffer.empty[ContainerId]
+        var pauses = mutable.Buffer.empty[ContainerId]
+        var unpauses = mutable.Buffer.empty[ContainerId]
+        var rms = mutable.Buffer.empty[ContainerId]
+        var pulls = mutable.Buffer.empty[String]
+
+        def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
+            runs += ((image, args))
+            Future.successful(ContainerId("testId"))
+        }
+
+        def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
+            inspects += id
+            Future.successful(ContainerIp("testIp"))
+        }
+
+        def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
+            pauses += id
+            Future.successful(())
+        }
+
+        def unpause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
+            unpauses += id
+            Future.successful(())
+        }
+
+        def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
+            rms += id
+            Future.successful(())
+        }
+
+        def ps(filters: Seq[(String, String)] = Seq(), all: Boolean = false)(implicit transid: TransactionId): Future[Seq[ContainerId]] = ???
+
+        def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+            pulls += image
+            Future.successful(())
+        }
     }
 }
 

@@ -52,7 +52,7 @@ object DockerContainer {
      * @param transid transaction creating the container
      * @param image image to create the container from
      * @param userProvidedImage whether the image is provided by the user
-     * or an OpenWhisk provided image
+     *     or is an OpenWhisk provided image
      * @param memory memorylimit of the container
      * @param cpuShares sharefactor for the container
      * @param environment environment variables to set on the container
@@ -69,6 +69,7 @@ object DockerContainer {
                network: String = "bridge",
                name: Option[String] = None)(
                    implicit docker: DockerApi, runc: RuncApi, ec: ExecutionContext, log: Logging) = {
+        implicit val tid = transid
 
         val environmentArgs = (environment + ("SERVICE_IGNORE" -> true.toString)).map {
             case (key, value) => Seq("-e", s"$key=$value")
@@ -87,18 +88,18 @@ object DockerContainer {
             name.map(n => Seq("--name", n)).getOrElse(Seq.empty)
 
         val pulled = if (userProvidedImage) {
-            docker.pull(image)(transid).recoverWith {
+            docker.pull(image).recoverWith {
                 case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '$image'."))
             }
         } else Future.successful(())
 
         val container = for {
             _ <- pulled
-            id <- docker.run(image, args)(transid)
-            ip <- DockerContainer.ipFromFile(id, network).recoverWith {
-                case _ => docker.inspectIPAddress(id)(transid)
-            }.andThen {
-                case Failure(_) => docker.rm(id)(transid)
+            id <- docker.run(image, args)
+            ip <- docker.inspectIPAddress(id).andThen {
+                // remove the container immediatly if inspect failed as
+                // we cannot recover that case automatically
+                case Failure(_) => docker.rm(id)
             }
         } yield new DockerContainer(id, ip)
 
@@ -109,29 +110,6 @@ object DockerContainer {
                 Future.failed(WhiskContainerStartupError(t.getMessage))
             }
         }
-    }
-
-    /** Directory to look for containers */
-    val containersDirectory = Paths.get("containers").toFile
-
-    /**
-     * Extracts the ip of the container from the local config file of the docker daemon.
-     *
-     * @param id id of the container to get the ip from
-     * @param network the network the container is running in
-     * @return the ip address of the container
-     */
-    def ipFromFile(id: ContainerId, network: String)(implicit ec: ExecutionContext) = Future {
-        val containerDirectory = new File(DockerContainer.containersDirectory, id.asString)
-        val configFile = new File(containerDirectory, "config.v2.json")
-        val source = scala.io.Source.fromFile(configFile)
-        val contents = source.mkString
-        source.close()
-
-        val networks = contents.parseJson.asJsObject.fields("NetworkSettings").asJsObject.fields("Networks").asJsObject
-        val userland = networks.fields(network).asJsObject
-        val ipAddr = userland.fields("IPAddress")
-        ContainerIp(ipAddr.convertTo[String])
     }
 }
 
@@ -147,11 +125,15 @@ object DockerContainer {
  */
 class DockerContainer(id: ContainerId, ip: ContainerIp)(
     implicit docker: DockerApi, runc: RuncApi, ec: ExecutionContext, log: Logging) extends Container with DockerFileLogs {
-    val containerDirectory = new File(DockerContainer.containersDirectory, id.asString)
-    val logFile = new File(containerDirectory, s"${id.asString}-json.log")
-    var logPointer = 0L
 
-    var httpConnection: Option[HttpUtils] = None
+    private val containerDirectory = new File(Paths.get("containers").toFile, id.asString)
+    private val logFile = new File(containerDirectory, s"${id.asString}-json.log")
+
+    /** The last read-position in the log file */
+    private var logPointer = 0L
+
+    /** HTTP connection to the container, will be lazily established by callContainer */
+    private var httpConnection: Option[HttpUtils] = None
 
     def halt()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
     def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
@@ -161,14 +143,11 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to $id $ip")
 
         val body = JsObject("value" -> initializer)
-        callContainer("/init", body, timeout, retry = true).andThen {
+        callContainer("/init", body, timeout, retry = true).andThen { // never fails
             case Success(r: RunResult) =>
                 transid.finished(this, start.copy(start = r.interval.start), s"initialization result: ${r.toBriefString}", endTime = r.interval.end)
             case Failure(t) =>
                 transid.failed(this, start, s"initializiation failed with $t")
-        }.recoverWith {
-            case t =>
-                Future.failed(InitializationError(ActivationResponse.whiskError("action failed to initialize"), Interval.zero))
         }.flatMap { result =>
             if (result.ok) {
                 Future.successful(result.interval)
@@ -186,7 +165,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
 
         val parameterWrapper = JsObject("value" -> parameters)
         val body = JsObject(parameterWrapper.fields ++ environment.fields)
-        callContainer("/run", body, timeout, retry = false).andThen {
+        callContainer("/run", body, timeout, retry = false).andThen { // never fails
             case Success(r: RunResult) =>
                 transid.finished(this, start.copy(start = r.interval.start), s"running result: ${r.toBriefString}", endTime = r.interval.end)
             case Failure(t) =>
@@ -229,6 +208,16 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
         Future(readLogs(15))
     }
 
+    /**
+     * Makes an HTTP request to the container.
+     *
+     * Note that `http.post` will not throw an exception, hence the generated Future cannot fail.
+     *
+     * @param path relative path to use in the http request
+     * @param body body to send
+     * @param timeout timeout of the request
+     * @param retry whether or not to retry the request
+     */
     protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false): Future[RunResult] = {
         val started = Instant.now()
         val http = httpConnection.getOrElse {
