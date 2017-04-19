@@ -31,8 +31,6 @@ import org.scalatest.BeforeAndAfter
 import java.io.FileWriter
 import java.nio.charset.StandardCharsets
 import org.scalatest.Matchers
-import org.scalatest.concurrent.TimeLimitedTests
-import org.scalatest.time.SpanSugar._
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
@@ -41,10 +39,7 @@ import org.scalatest.time.SpanSugar._
 class ContainerUtilsTests extends FlatSpec
     with BeforeAndAfter
     with Matchers
-    with StreamLogging
-    with TimeLimitedTests {
-
-    val timeLimit = 100 millis
+    with StreamLogging {
 
     before {
         stream.reset()
@@ -77,61 +72,65 @@ class ContainerUtilsTests extends FlatSpec
         fixture.file.length
     }
 
+    val containerHash = ContainerHash.fromString("0123")
+
     it should "tolerate an empty log file" in { fixture =>
         val logText = ""
         val size = writeLogFile(fixture, logText)
 
-        val buffer = fixture.cu.getDockerLogContent(containerHash = ContainerHash.fromString("0123"), start = 0, end = size, mounted = false)
+        val buffer = fixture.cu.getDockerLogContent(containerHash, start = 0, end = size, mounted = false)
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe logText
-        stream.size() shouldBe 0
+        stream should have size 0
     }
 
     it should "read a full log file" in { fixture =>
         val logText = "text"
         val size = writeLogFile(fixture, logText)
 
-        val buffer = fixture.cu.getDockerLogContent(containerHash = ContainerHash.fromString("0123"), start = 0, end = size, mounted = false)
+        val buffer = fixture.cu.getDockerLogContent(containerHash, start = 0, end = size, mounted = false)
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe logText
-        stream.size() shouldBe 0
+        stream should have size 0
     }
 
     it should "read a log file portion" in { fixture =>
-        val count = 4
-        val logText = (1 to count).map(i => s"Line ${i}\n").mkString("")
-        val size = writeLogFile(fixture, logText)
-        val quarter = count / 4
-        val qlen = logText.length / 4 // length of a quarter
-        val from = qlen // start reading from second quarter
-        val to = from + 2 * qlen // read second and third quarter
+        val logText =
+            """Hey, dude-it'z true not sad
+              |Take a thrash song and make it better
+              |Admit it! Beatallica'z under your skin!
+              |So now begin to be a shredder""".stripMargin
+        val from = 66 // extract the third line...
+        val to = 105
         val expectedText = logText.substring(from, to)
 
-        val buffer = fixture.cu.getDockerLogContent(containerHash = ContainerHash.fromString("0123"), start = from, end = to, mounted = false)
+        val size = writeLogFile(fixture, logText)
+
+        val buffer = fixture.cu.getDockerLogContent(containerHash, start = from, end = to, mounted = false)
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe expectedText
-        stream.size() shouldBe 0
+        stream should have size 0
     }
 
     it should "tolerate premature end of log file" in { fixture =>
-        val logText = (1 to 2).map(i => s"Line ${i}\n").mkString("")
+        val logText = (1 to 2).map(i => s"Line ${i}\n").mkString
         val size = writeLogFile(fixture, logText)
         val to = 2 * size
 
-        val buffer = fixture.cu.getDockerLogContent(containerHash = ContainerHash.fromString("0123"), start = 0, end = to, mounted = false)
+        val buffer = fixture.cu.getDockerLogContent(containerHash, start = 0, end = to, mounted = false)
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe logText
-        stream.size() shouldBe 0
+        stream should have size 0
     }
 
     it should "provide an empty result on failure" in { fixture =>
         fixture.cu.logFile = new File("/nonsense")
 
-        val buffer = fixture.cu.getDockerLogContent(containerHash = ContainerHash.fromString("0123"), start = 0, end = 1, mounted = false)
+        val buffer = fixture.cu.getDockerLogContent(containerHash, start = 0, end = 1, mounted = false)
 
         buffer.capacity() shouldBe 0
         logLines.head should include("getDockerLogContent failed")
