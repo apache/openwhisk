@@ -24,7 +24,6 @@ import (
     "time"
     "../../go-whisk/whisk"
     "../wski18n"
-
     "github.com/fatih/color"
     //prettyjson "github.com/hokaccha/go-prettyjson"  // See prettyjson comment below
     "archive/tar"
@@ -343,15 +342,24 @@ func printNamespaceList(namespaces []whisk.Namespace) {
 }
 
 func printActivationList(activations []whisk.Activation) {
+    limitNameLength := 50
     var maxNameLength = 0;
+    // find out maximal width of activation name and duration (used for dynamic field width)
     for _, activation := range activations {
         if len(activation.Name) > maxNameLength {maxNameLength = len(activation.Name)}
     }
-    fmt.Fprintf(color.Output, "%s %-*s %s %s %s\n", boldString("ActivationID                     Name"), maxNameLength-5, " ", boldString("Status "), boldString("StartTime                     "), boldString("Duration") )
+    // limit display name length to width (min 6 and max limitNameLength)
+    if maxNameLength > limitNameLength {maxNameLength = limitNameLength}
+    if maxNameLength < 6 {maxNameLength = 6}
+
+    fmt.Fprintf(color.Output, "%s %-*s %s %s %s\n", boldString("Activation ID                    Name"), maxNameLength-5, " ", boldString("Status "), boldString("Start Time                    "), boldString("Duration [ms]") )
     for _, activation := range activations {
         var status = "Success"
         if activation.Response.StatusCode > 0 {status="Failure"}
-        fmt.Printf("%s %-*s %s %-30s %6d\n", activation.ActivationID, maxNameLength, activation.Name, status, time.Unix(activation.Start/1000, 0).UTC(), activation.Duration)
+        var nameLength = len(activation.Name)
+        var dots = ""
+        if nameLength > limitNameLength {nameLength = limitNameLength-4;dots = " ..."}
+        fmt.Printf("%s %-*s %s %-30s %13d\n", activation.ActivationID, maxNameLength, activation.Name[0:nameLength]+dots, status, time.Unix(activation.Start/1000, 0).UTC(), activation.Duration)
     }
 }
 
