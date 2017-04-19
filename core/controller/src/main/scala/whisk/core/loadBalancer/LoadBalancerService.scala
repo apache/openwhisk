@@ -218,8 +218,9 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
 
         val consul = new ConsulClient(config.consulServer)
         val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
 
-        actorSystem.actorOf(InvokerPool.props(consul.kv, invoker => {
+        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
             clearInvokerState(invoker)
             logging.info(this, s"cleared load balancer state for $invoker")(TransactionId.invokerHealth)
         }, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))

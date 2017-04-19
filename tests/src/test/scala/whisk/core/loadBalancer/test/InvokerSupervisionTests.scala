@@ -50,7 +50,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.MessageConsumer
-import whisk.core.connector.MessageProducer
 import whisk.core.connector.PingMessage
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -112,10 +111,9 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val childFactory = (f: ActorRefFactory, name: String) => children.dequeue()
 
         val kv = stub[KeyValueStore]
-        val p = stub[MessageProducer]
-        val ackC = stub[MessageConsumer]
+        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
         val pC = stub[MessageConsumer]
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, p, ackC, () => _, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // create first invoker
@@ -155,10 +153,9 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
 
         val kv = stub[KeyValueStore]
         val callback = stubFunction[String, Unit]
-        val p = stub[MessageProducer]
-        val ackC = stub[MessageConsumer]
+        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
         val pC = stub[MessageConsumer]
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, callback, p, ackC, () => _, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, callback, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // create first invoker
@@ -186,11 +183,10 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val invokerName = invoker.ref.path.name
         val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
         val kv = stub[KeyValueStore]
-        val p = stub[MessageProducer]
-        val ackC = stub[MessageConsumer]
+        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
         val pC = stub[MessageConsumer]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, p, ackC, () => _, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // Create one invoker
@@ -208,17 +204,16 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         }
     }
 
-    it should "forward an ActivationMessage to the MessageConsumer" in {
+    it should "forward an ActivationMessage to the sendActivation-Method" in {
         val invoker = TestProbe()
         val invokerName = invoker.ref.path.name
         val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
 
         val kv = stub[KeyValueStore]
-        val p = stub[MessageProducer]
-        val ackC = stub[MessageConsumer]
+        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
         val pC = stub[MessageConsumer]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, p, ackC, () => _, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 
         // Send ActivationMessage to InvokerPool
         val activationMessage = ActivationMessage(
@@ -231,12 +226,12 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             content = None)
         val msg = ActivationRequest(activationMessage, invokerName)
 
-        (p.send _).when(invokerName, activationMessage).returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
+        sendActivationToInvoker.when(activationMessage, invokerName).returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
 
         supervisor ! msg
 
         // Verify, that MessageProducer will receive a call to send the message
-        retry((p.send _).verify(invokerName, activationMessage).once, N = 3, waitBeforeRetry = Some(500.milliseconds))
+        retry(sendActivationToInvoker.verify(activationMessage, invokerName).once, N = 3, waitBeforeRetry = Some(500.milliseconds))
     }
 
     behavior of "InvokerActor"

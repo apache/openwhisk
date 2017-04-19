@@ -19,7 +19,6 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -42,14 +41,11 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.AkkaLogging
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.KeyValueStore
-import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageConsumer
-import whisk.core.connector.MessageProducer
 import whisk.core.connector.PingMessage
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -57,7 +53,6 @@ import whisk.core.entity.AuthKey
 import whisk.core.entity.CodeExecAsString
 import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.Identity
 import whisk.core.entity.Secret
@@ -165,12 +160,12 @@ class InvokerPool(
 
 object InvokerPool {
     def props(
+        f: (ActorRefFactory, String) => ActorRef,
         kv: KeyValueStore,
         cb: String => Unit,
         p: (ActivationMessage, String) => Future[RecordMetadata],
         pc: MessageConsumer) = {
-        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
-        Props(new InvokerPool(invokerFactory, kv, cb, p, pc))
+        Props(new InvokerPool(f, kv, cb, p, pc))
     }
 
     /** A stub identity for invoking the test action. This does not need to be a valid identity. */
