@@ -18,6 +18,7 @@
  */
 """
 import os
+import glob
 import sys
 import subprocess
 import codecs
@@ -25,7 +26,7 @@ import json
 sys.path.append('../actionProxy')
 from actionproxy import ActionRunner, main, setRunner  # noqa
 
-SRC_EPILOGUE_FILE = './epilogue.swift'
+SRC_EPILOGUE_FILE = '/swift3Action/epilogue.swift'
 DEST_SCRIPT_FILE = '/swift3Action/spm-build/main.swift'
 DEST_SCRIPT_DIR = '/swift3Action/spm-build'
 DEST_BIN_FILE = '/swift3Action/spm-build/.build/release/Action'
@@ -53,10 +54,18 @@ class Swift3Runner(ActionRunner):
             main_function = init_message['main']
         else:
             main_function = 'main'
+        # make sure there is a main.swift file
+        open(DEST_SCRIPT_FILE, 'a').close()
 
         with codecs.open(DEST_SCRIPT_FILE, 'a', 'utf-8') as fp:
+            os.chdir(DEST_SCRIPT_DIR)
+            for file in glob.glob("*.swift"):
+                if file not in ["Package.swift", "main.swift", "_WhiskJSONUtils.swift", "_Whisk.swift"]:
+                    with codecs.open(file, 'r', 'utf-8') as f:
+                        fp.write(f.read())
             with codecs.open(SRC_EPILOGUE_FILE, 'r', 'utf-8') as ep:
                 fp.write(ep.read())
+
             fp.write('_run_main(mainFunction: %s)\n' % main_function)
 
     def build(self, init_message):
