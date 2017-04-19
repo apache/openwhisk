@@ -163,8 +163,8 @@ Parameters can be passed to the action when it is invoked.
   }
   ```
 
-  Notice the use of the `--result` option to display only the invocation result. This option invokes an action implicitly as a blocking invocation and the option `--blocking`can be omitted.
-  
+  Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then
+  displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
 
 ### Setting default parameters
 
