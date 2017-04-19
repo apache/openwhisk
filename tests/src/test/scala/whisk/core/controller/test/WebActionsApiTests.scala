@@ -29,6 +29,7 @@ import org.scalatest.Matchers
 import org.scalatest.FlatSpec
 
 import spray.http.FormData
+import spray.http.HttpEntity
 import spray.http.HttpMethods
 import spray.http.MediaTypes
 import spray.http.StatusCodes._
@@ -427,7 +428,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             }
         }
 
-        it should s"invoke action that errors and response with error and code (auth? ${creds.isDefined})" in {
+        it should s"invoke action that errors and respond with error and code (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
             failActivation = 2
 
@@ -696,6 +697,52 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                             contentType shouldBe MediaTypes.`image/svg+xml`.withCharset(HttpCharsets.`UTF-8`)
                             val response = responseAs[String]
                             response shouldBe svg
+                        }
+                    }
+                }
+        }
+
+        it should s"handle http web action and provide defaults (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject())
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            status should be(OK)
+                            response.entity shouldBe HttpEntity.Empty
+                            withClue(headers) {
+                                headers.length shouldBe 0
+                            }
+                        }
+                    }
+                }
+        }
+
+        it should s"handle all JSON values with .text extension (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(JsObject("a" -> "A".toJson), JsArray("a".toJson), JsString("a"), JsBoolean(true), JsNumber(1), JsNull).
+                foreach { jsval =>
+                    val path = s"$systemId/proxy/export_c.text/res"
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject("res" -> jsval))
+
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            responseAs[String] shouldBe {
+                                jsval match {
+                                    case _: JsObject  => jsval.prettyPrint
+                                    case _: JsArray   => jsval.prettyPrint
+                                    case JsString(s)  => s
+                                    case JsBoolean(b) => b.toString
+                                    case JsNumber(n)  => n.toString
+                                    case _            => "null"
+                                }
+                            }
                         }
                     }
                 }
