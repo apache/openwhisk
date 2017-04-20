@@ -45,6 +45,8 @@ import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.http.Messages
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 
 /**
  * Unit tests for ContainerPool schedule
@@ -69,7 +71,7 @@ class DockerContainerTests extends FlatSpec
      * as parameters.
      */
     def dockerContainer(id: ContainerId = ContainerId("id"), ip: ContainerIp = ContainerIp("ip"))(ccRes: Future[RunResult])(
-        implicit docker: DockerApi, runc: RuncApi): DockerContainer = {
+        implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
         new DockerContainer(id, ip) {
             override protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false): Future[RunResult] = {
@@ -120,7 +122,7 @@ class DockerContainerTests extends FlatSpec
         // Assert fixed values are passed as well
         args should contain allOf ("--cap-drop", "NET_RAW", "NET_ADMIN")
         args should contain inOrder ("--ulimit", "nofile=1024:1024")
-        args should contain inOrder ("--pids-limit", "64")
+        args should contain inOrder ("--pids-limit", "1024") // OW PR 2119
 
         // Assert proper parameter translation
         args should contain inOrder ("--memory", s"${memory.toMB}m")
@@ -147,8 +149,8 @@ class DockerContainerTests extends FlatSpec
 
     it should "remove the container if inspect fails" in {
         implicit val docker = new TestDockerClient {
-            override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
-                inspects += id
+            override def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+                inspects += ((id, network))
                 Future.failed(new RuntimeException())
             }
         }
@@ -164,8 +166,8 @@ class DockerContainerTests extends FlatSpec
 
     it should "disambiguate errors if user images are provided" in {
         implicit val docker = new TestDockerClient {
-            override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
-                inspects += id
+            override def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+                inspects += ((id, network))
                 Future.failed(new RuntimeException())
             }
         }
@@ -202,7 +204,7 @@ class DockerContainerTests extends FlatSpec
      * DOCKER COMMANDS
      */
     it should "halt and resume container via runc" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val id = ContainerId("id")
@@ -216,7 +218,7 @@ class DockerContainerTests extends FlatSpec
     }
 
     it should "destroy a container via Docker" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val id = ContainerId("id")
@@ -234,7 +236,7 @@ class DockerContainerTests extends FlatSpec
      * and so are the tests for those.
      */
     it should "initialize a container" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val interval = intervalOf(1.millisecond)
@@ -256,7 +258,7 @@ class DockerContainerTests extends FlatSpec
     }
 
     it should "properly deal with a timeout during initialization" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val initTimeout = 1.second
@@ -284,7 +286,7 @@ class DockerContainerTests extends FlatSpec
      * and so are the tests for those.
      */
     it should "run a container" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val interval = intervalOf(1.millisecond)
@@ -307,7 +309,7 @@ class DockerContainerTests extends FlatSpec
     }
 
     it should "properly deal with a timeout during run" in {
-        implicit val docker = stub[DockerApi]
+        implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
         val runTimeout = 1.second
@@ -330,21 +332,22 @@ class DockerContainerTests extends FlatSpec
      * LOGS
      */
 
-    class TestDockerClient extends DockerApi {
+    class TestDockerClient extends DockerApiWithFileAccess {
         var runs = mutable.Buffer.empty[(String, Seq[String])]
-        var inspects = mutable.Buffer.empty[ContainerId]
+        var inspects = mutable.Buffer.empty[(ContainerId, String)]
         var pauses = mutable.Buffer.empty[ContainerId]
         var unpauses = mutable.Buffer.empty[ContainerId]
         var rms = mutable.Buffer.empty[ContainerId]
         var pulls = mutable.Buffer.empty[String]
+        var logs = mutable.Buffer.empty[(ContainerId, Long)]
 
         def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
             runs += ((image, args))
             Future.successful(ContainerId("testId"))
         }
 
-        def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] = {
-            inspects += id
+        def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+            inspects += ((id, network))
             Future.successful(ContainerIp("testIp"))
         }
 
@@ -368,6 +371,11 @@ class DockerContainerTests extends FlatSpec
         def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
             pulls += image
             Future.successful(())
+        }
+
+        def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
+            logs += ((containerId, fromPos))
+            Future.successful(ByteBuffer.wrap("".getBytes(StandardCharsets.UTF_8)))
         }
     }
 }

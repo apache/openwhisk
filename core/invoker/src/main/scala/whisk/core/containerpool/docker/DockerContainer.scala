@@ -44,6 +44,7 @@ import whisk.core.containerpool.BlackboxStartupError
 import whisk.core.containerpool.WhiskContainerStartupError
 import whisk.core.containerpool.InitializationError
 import whisk.core.containerpool.Container
+import whisk.core.invoker.ActionLogDriver
 
 object DockerContainer {
     /**
@@ -68,7 +69,7 @@ object DockerContainer {
                environment: Map[String, String] = Map(),
                network: String = "bridge",
                name: Option[String] = None)(
-                   implicit docker: DockerApi, runc: RuncApi, ec: ExecutionContext, log: Logging) = {
+                   implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging) = {
         implicit val tid = transid
 
         val environmentArgs = (environment + ("SERVICE_IGNORE" -> true.toString)).map {
@@ -79,7 +80,7 @@ object DockerContainer {
             "--cap-drop", "NET_RAW",
             "--cap-drop", "NET_ADMIN",
             "--ulimit", "nofile=1024:1024",
-            "--pids-limit", "64",
+            "--pids-limit", "1024", // OW PR 2119
             "--cpu-shares", cpuShares.toString,
             "--memory", s"${memory.toMB}m",
             "--memory-swap", s"${memory.toMB}m",
@@ -96,7 +97,7 @@ object DockerContainer {
         val container = for {
             _ <- pulled
             id <- docker.run(image, args)
-            ip <- docker.inspectIPAddress(id).andThen {
+            ip <- docker.inspectIPAddress(id, network).andThen {
                 // remove the container immediatly if inspect failed as
                 // we cannot recover that case automatically
                 case Failure(_) => docker.rm(id)
@@ -124,13 +125,10 @@ object DockerContainer {
  * @param ip the ip of the container
  */
 class DockerContainer(id: ContainerId, ip: ContainerIp)(
-    implicit docker: DockerApi, runc: RuncApi, ec: ExecutionContext, log: Logging) extends Container with DockerFileLogs {
-
-    private val containerDirectory = new File(Paths.get("containers").toFile, id.asString)
-    private val logFile = new File(containerDirectory, s"${id.asString}-json.log")
+    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging) extends Container with ActionLogDriver {
 
     /** The last read-position in the log file */
-    private var logPointer = 0L
+    private var logFileOffset = 0L
 
     /** HTTP connection to the container, will be lazily established by callContainer */
     private var httpConnection: Option[HttpUtils] = None
@@ -181,31 +179,51 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
         }
     }
 
-    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[List[String]] = {
-        val from = logPointer
-        def readLogs(retries: Int): List[String] = {
-            val to = logFile.length
+    /**
+     * Obtains the container's stdout and stderr output and converts it to our own JSON format.
+     * At the moment, this is done by reading the internal Docker log file for the container.
+     * Said file is written by Docker's JSON log driver and has a "well-known" location and name.
+     *
+     * For warm containers, the container log file already holds output from
+     * previous activations that have to be skipped. For this reason, a starting position
+     * is kept and updated upon each invocation.
+     *
+     * If asked, check for sentinel markers - but exclude the identified markers from
+     * the result returned from this method.
+     *
+     * Only parses and returns as much logs as fit in the passed log limit.
+     * Even if the log limit is exceeded, read until all output is consumed / sentinel
+     * marker is found such that subsequent invocations only provide new output.
+     *
+     * @param limit the limit to apply to the log size
+     * @param waitForSentinel determines if the processor should wait for a sentinel to appear
+     *
+     * @return a vector of Strings with log lines in our own JSON format
+     */
+    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]] = {
+        val retryCount = 15
+        val retryWait = 100.millis
 
-            val lines = linesFromFile(logFile, from, to)
-            val (isComplete, isTruncated, logs) = processJsonDriverLogContents(lines, waitForSentinel, limit)
+        def readLogs(retries: Int): Future[Vector[String]] = {
+            docker.rawContainerLogs(id, logFileOffset).flatMap { rawLogBytes =>
+                val rawLog = new String(rawLogBytes.array, rawLogBytes.arrayOffset, rawLogBytes.position, StandardCharsets.UTF_8)
+                val (isComplete, isTruncated, formattedLogs) = processJsonDriverLogContents(rawLog, waitForSentinel, limit)
 
-            if (retries > 0 && !isComplete && !isTruncated) {
-                log.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
-                Thread.sleep(100)
-                readLogs(retries - 1)
-            } else {
-                logPointer = to
-
-                val formattedLogs = logs.map(_.toFormattedString)
-                val finishedLogs = if (isTruncated) {
-                    formattedLogs :+ Messages.truncateLogs(limit)
-                } else formattedLogs
-
-                finishedLogs.toList
+                if (retries > 0 && !isComplete && !isTruncated) {
+                    log.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
+                    Thread.sleep(retryWait.toMillis)
+                    readLogs(retries - 1)
+                } else {
+                    logFileOffset += rawLogBytes.position - rawLogBytes.arrayOffset
+                    Future.successful(formattedLogs)
+                }
+            }.andThen {
+                case Failure(e) =>
+                    log.error(this, s"Failed to obtain logs of ${id.asString}: ${e.getClass} - ${e.getMessage}")
             }
         }
 
-        Future(readLogs(15))
+        readLogs(retryCount)
     }
 
     /**
@@ -230,117 +248,6 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
         }.map { response =>
             val finished = Instant.now()
             RunResult(Interval(started, finished), response)
-        }
-    }
-}
-
-case class LogLine(time: String, stream: String, log: String) {
-    def toFormattedString = f"$time%-30s $stream: ${log.trim}"
-    def dropRight(maxBytes: ByteSize) = {
-        val bytes = log.getBytes(StandardCharsets.UTF_8).dropRight(maxBytes.toBytes.toInt)
-        LogLine(time, stream, new String(bytes, StandardCharsets.UTF_8))
-    }
-}
-
-object LogLine extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat3(LogLine.apply)
-}
-
-trait DockerFileLogs {
-    // The action proxies inserts this line in the logs at the end of each activation for stdout/stderr
-    protected val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
-
-    /**
-     * Given the JSON driver's raw output of a docker container, convert it into our own
-     * JSON format. If asked, check for sentinel markers (which are not included in the output).
-     *
-     * Only parses and returns so much logs to fit into the LogLimit passed.
-     *
-     * @param logMsgs raw String read from a JSON log-driver written file
-     * @param requireSentinel determines if the processor should wait for a sentinel to appear
-     * @param limit the limit to apply to the log size
-     *
-     * @return Tuple containing (isComplete, isTruncated, logs)
-     */
-    def processJsonDriverLogContents(lines: Iterator[String], requireSentinel: Boolean, limit: ByteSize)(
-        implicit transid: TransactionId, logging: Logging): (Boolean, Boolean, Vector[LogLine]) = {
-
-        var hasOut = false
-        var hasErr = false
-        var truncated = false
-        var bytesSoFar = 0.B
-        val logLines = Buffer[LogLine]()
-
-        // read whiles bytesSoFar <= limit when requireSentinel to try and grab sentinel if they exist to indicate completion
-        while (lines.hasNext && ((requireSentinel && bytesSoFar <= limit) || bytesSoFar < limit)) {
-            // if line does not parse, there's an error in the container log driver
-            Try(lines.next().parseJson.convertTo[LogLine]) match {
-                case Success(t) =>
-                    // if sentinels are expected, do not account for their size, otherwise, all bytes are accounted for
-                    if (requireSentinel && t.log.trim != LOG_ACTIVATION_SENTINEL || !requireSentinel) {
-                        // ignore empty log lines
-                        if (t.log.nonEmpty) {
-                            bytesSoFar += t.log.sizeInBytes
-                            if (bytesSoFar <= limit) {
-                                logLines.append(t)
-                            } else {
-                                // chop off the right most bytes that overflow
-                                val chopped = t.dropRight(bytesSoFar - limit)
-                                if (chopped.log.nonEmpty) {
-                                    logLines.append(chopped)
-                                }
-                                truncated = true
-                            }
-                        }
-                    } else if (requireSentinel) {
-                        // there may be more than one sentinel in stdout/stderr (as logs may leak across activations
-                        // if for example there log limit was exceeded in one activation and the container was reused
-                        // to run the same action again (this is considered a feature - otherwise, must drain the logs
-                        // or destroy the container as if it errored)
-                        if (t.stream == "stdout") {
-                            hasOut = true
-                        } else if (t.stream == "stderr") {
-                            hasErr = true
-                        }
-                    }
-
-                case Failure(t) =>
-                    // Drop lines that did not parse to JSON objects.
-                    // However, should not happen since we are using the json log driver.
-                    logging.error(this, s"log line skipped/did not parse: $t")
-            }
-        }
-
-        ((hasOut && hasErr) || !requireSentinel, truncated || lines.hasNext, logLines.toVector)
-    }
-
-    /**
-     * Reads lines from a given file in a specified byte-range.
-     *
-     * @param file the file to read from
-     * @param from byteoffset to start
-     * @param to byteoffset to stop
-     * @return individual lines from the file
-     */
-    def linesFromFile(file: File, from: Long, to: Long): Iterator[String] = {
-        var fis: java.io.FileInputStream = null
-        try {
-            fis = new java.io.FileInputStream(file)
-            val channel = fis.getChannel().position(from)
-            var remain = (to - from).toInt
-            val buffer = java.nio.ByteBuffer.allocate(remain)
-            while (remain > 0) {
-                val read = channel.read(buffer)
-                if (read > 0)
-                    remain = read - read.toInt
-            }
-            new String(buffer.array, StandardCharsets.UTF_8).lines
-        } catch {
-            case e: Exception =>
-                print(e)
-                Iterator.empty
-        } finally {
-            if (fis != null) fis.close()
         }
     }
 }

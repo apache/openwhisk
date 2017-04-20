@@ -27,7 +27,7 @@ import scala.concurrent.Future
 import whisk.common.LoggingMarkers
 import whisk.core.entity._
 import whisk.core.containerpool.docker.DockerContainer
-import whisk.core.containerpool.docker.DockerClient
+import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.RuncClient
 import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.containerpool.Run
@@ -55,8 +55,8 @@ class InvokerReactive(
     private val entityStore = WhiskEntityStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
 
-    implicit val docker: DockerApi = new DockerClient()(ec)
-    implicit val runc: RuncApi = new RuncClient(ec)
+    implicit val docker = new DockerClientWithFileAccess()(ec)
+    implicit val runc = new RuncClient(ec)
 
     /** Cleans up all running wsk_ containers */
     def cleanup() = {

@@ -324,7 +324,7 @@ class ContainerProxy(
         }.flatMap { activation =>
             val exec = job.action.exec.asInstanceOf[CodeExec[_]]
             container.logs(job.action.limits.logs.asMegaBytes, exec.sentinelledLogs).map { logs =>
-                activation.withLogs(ActivationLogs(logs.toVector))
+                activation.withLogs(ActivationLogs(logs))
             }
         }.andThen {
             case Success(activation) => storeActivation(tid, activation)
