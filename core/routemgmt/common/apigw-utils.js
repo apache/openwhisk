@@ -155,6 +155,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     headers: {
       'Accept': 'application/json'
     },
+    json: true
   };
   if (qs) {
     options.qs = qs;
@@ -168,8 +169,10 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getApis: response status: '+ statusCode);
+      if (response.headers) console.log('getApis: response headers: '+JSON.stringify(response.headers));
       if (error) console.error('Warning: getApis request failed: '+JSON.stringify(error));
-      if (body) console.log('getApis: response body: '+JSON.stringify(body));
+      console.log('getApis: body type = '+typeof body);
+      if (body) console.log('getApis: response JSON.stringify(body): '+JSON.stringify(body));
       if (error) {
         console.error('getApis: Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
         reject('Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
@@ -177,24 +180,18 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
         console.error('getApis: failure: response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
-          if (body.error && body.error.message) errMsg = body.error.message;
+          if (body.error && body.error.error && body.error.error.message) errMsg = body.error.error.message;
           reject('Unable to obtain API(s) from the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
           reject('Unable to obtain API(s) from the API Gateway: Response failure code: '+statusCode);
         }
       } else {
         if (body) {
-          try {
-            var bodyJson = JSON.parse(body);
-            if (Array.isArray(bodyJson)) {
-              resolve(bodyJson);
-            } else {
-              console.error('getApis: Invalid API GW response body; a JSON array was not returned');
-              resolve( [] );
-            }
-          } catch(e) {
-            console.error('getApis: Invalid API GW response body; JSON.parse() failure: '+e);
-            reject('Invalid API Gateway response: '+e);
+          if (Array.isArray(body)) {
+            resolve(body);
+          } else {
+            console.error('getApis: Invalid API GW response body; a JSON array was not returned');
+            resolve( [] );
           }
         } else {
           console.log('getApis: No APIs found');
