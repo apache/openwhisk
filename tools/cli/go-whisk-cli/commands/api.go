@@ -777,14 +777,6 @@ var apiCreateCmdV2 = &cobra.Command{
         var err error
         var qname *QualifiedName
 
-        if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
-            errMsg := wski18n.T("You must login prior to issuing this command.")
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return whiskErr
-        }
-
         if (len(args) == 0 && flags.api.configfile == "") {
             whisk.Debug(whisk.DbgError, "No swagger file and no arguments\n")
             errMsg := wski18n.T("Invalid argument(s). Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.")
@@ -829,15 +821,18 @@ var apiCreateCmdV2 = &cobra.Command{
 
         apiCreateReqOptions := new(whisk.ApiCreateRequestOptions)
         props, _ := readProps(Properties.PropsFile)
-        apiCreateReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiCreateReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
+        apiCreateReqOptions.AccessToken = "DUMMY_TOKEN"
+        if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
+            apiCreateReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
+        }
         whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\n", apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid)
 
         retApi, _, err := client.Apis.InsertV2(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.InsertV2(%#v, false) error: %s\n", api, err)
             errMsg := wski18n.T("Unable to create API: {{.err}}", map[string]interface{}{"err": err})
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK,
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
@@ -896,14 +891,6 @@ var apiGetCmdV2 = &cobra.Command{
         var err error
         var isBasePathArg bool = true
 
-        if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
-            errMsg := wski18n.T("You must login prior to issuing this command.")
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return whiskErr
-        }
-
         if whiskErr := checkArgs(args, 1, 1, "Api get",
             wski18n.T("An API base path or API name is required.")); whiskErr != nil {
             return whiskErr
@@ -913,15 +900,17 @@ var apiGetCmdV2 = &cobra.Command{
         apiGetReqOptions := new(whisk.ApiGetRequestOptions)
         apiGetReqOptions.ApiBasePath = args[0]
         props, _ := readProps(Properties.PropsFile)
-        apiGetReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiGetReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
-
+        apiGetReqOptions.AccessToken = "DUMMY_TOKEN"
+        if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
+            apiGetReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
+        }
 
         retApi, _, err := client.Apis.GetV2(apiGetReq, apiGetReqOptions)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.GetV2(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
             errMsg := wski18n.T("Unable to get API '{{.name}}': {{.err}}", map[string]interface{}{"name": args[0], "err": err})
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
@@ -972,14 +961,6 @@ var apiDeleteCmdV2 = &cobra.Command{
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
-        if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
-            errMsg := wski18n.T("You must login prior to issuing this command.")
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return whiskErr
-        }
-
         if whiskErr := checkArgs(args, 1, 3, "Api delete",
             wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
@@ -988,8 +969,11 @@ var apiDeleteCmdV2 = &cobra.Command{
         apiDeleteReq := new(whisk.ApiDeleteRequest)
         apiDeleteReqOptions := new(whisk.ApiDeleteRequestOptions)
         props, _ := readProps(Properties.PropsFile)
-        apiDeleteReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         apiDeleteReqOptions.SpaceGuid = strings.Split(props["AUTH"], ":")[0]
+        apiDeleteReqOptions.AccessToken = "DUMMY_TOKEN"
+        if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
+            apiDeleteReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
+        }
 
         // Is the argument a basepath (must start with /) or an API name
         if _, ok := isValidBasepath(args[0]); !ok {
@@ -1018,7 +1002,7 @@ var apiDeleteCmdV2 = &cobra.Command{
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.DeleteV2(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
             errMsg := wski18n.T("Unable to delete action: {{.err}}", map[string]interface{}{"err": err})
-            whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
@@ -1065,22 +1049,17 @@ var apiListCmdV2 = &cobra.Command{
         var retApi *whisk.ApiGetResponseV2
         var retApiArray *whisk.RetApiArrayV2
 
-        if (!hasApiGwAccessToken()) {
-            whisk.Debug(whisk.DbgError, "No APIGW_ACCESS_TOKEN in properties file\n")
-            errMsg := wski18n.T("You must login prior to issuing this command.")
-            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
-                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-            return whiskErr
-        }
-
         if whiskErr := checkArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
             return whiskErr
         }
 
         props, _ := readProps(Properties.PropsFile)
-        accesstoken := props["APIGW_ACCESS_TOKEN"]
         spaceguid := strings.Split(props["AUTH"], ":")[0]
+        var accesstoken string = "DUMMY_TOKEN"
+        if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
+            accesstoken = props["APIGW_ACCESS_TOKEN"]
+        }
 
         // Get API request body
         apiGetReq := new(whisk.ApiGetRequest)
@@ -1102,7 +1081,7 @@ var apiListCmdV2 = &cobra.Command{
             if err != nil {
                 whisk.Debug(whisk.DbgError, "client.Apis.ListV2(%#v) error: %s\n", apiListReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
-                whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
@@ -1310,11 +1289,6 @@ func getLargestApiNameSizeV2(retApiArray *whisk.RetApiArrayV2, api *whisk.ApiOpt
         }
     }
     return maxNameSize
-}
-
-func hasApiGwAccessToken() bool {
-    props, _ := readProps(Properties.PropsFile)
-    return (len(props["APIGW_ACCESS_TOKEN"]) > 0)
 }
 
 /*
