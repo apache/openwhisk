@@ -85,7 +85,7 @@ class CleanUpActivationsTest extends FlatSpec
 
         println(s"Creating database: $name")
         val db = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name)
-        db.createDb().futureValue shouldBe 'right
+        retry({ db.createDb().futureValue shouldBe 'right }, N = 10, waitBeforeRetry = Some(500.milliseconds))
 
         retry({
             val list = db.dbs().futureValue.right.get
@@ -133,7 +133,7 @@ class CleanUpActivationsTest extends FlatSpec
 
     it should "delete old activations and keep new ones" in {
         // Create a database
-        val dbName = testDbPrefix + "database_to_clean"
+        val dbName = testDbPrefix + "database_to_clean_old_and_keep_new"
         val client = createDatabase(dbName)
 
         println(s"Creating testdocuments")
@@ -161,7 +161,7 @@ class CleanUpActivationsTest extends FlatSpec
 
     it should "delete old activations in several iterations" in {
         // Create a database
-        val dbName = testDbPrefix + "database_to_clean"
+        val dbName = testDbPrefix + "database_to_clean_in_iterations"
         val client = createDatabase(dbName)
         println(s"Creating testdocuments")
         val ids = (1 to 5).map { current =>
