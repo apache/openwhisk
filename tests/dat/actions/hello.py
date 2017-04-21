@@ -19,9 +19,9 @@
 """
 
 
-def main(args_dict):
+def main(args):
     """Main."""
-    name = args_dict.get('name', 'stranger')
+    name = args.get('name', 'stranger')
     greeting = 'Hello ' + name + '!'
     print(greeting)
     return {'greeting': greeting}
