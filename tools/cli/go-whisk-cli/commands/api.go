@@ -826,7 +826,9 @@ var apiCreateCmdV2 = &cobra.Command{
         if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
             apiCreateReqOptions.AccessToken = props["APIGW_ACCESS_TOKEN"]
         }
-        whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\n", apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid)
+        apiCreateReqOptions.ResponseType = flags.api.resptype
+        whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\nResponsType: %s",
+            apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid, apiCreateReqOptions.ResponseType)
 
         retApi, _, err := client.Apis.InsertV2(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
         if err != nil {
@@ -1418,6 +1420,7 @@ func init() {
 
     apiCreateCmdV2.Flags().StringVarP(&flags.api.apiname, "apiname", "n", "", wski18n.T("Friendly name of the API; ignored when CFG_FILE is specified (default BASE_PATH)"))
     apiCreateCmdV2.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`CFG_FILE` containing API configuration in swagger JSON format"))
+    apiCreateCmdV2.Flags().StringVar(&flags.api.resptype, "response-type", "json", wski18n.T("Set the web action response `TYPE`. Possible values are html, http, json, text, svg"))
     apiGetCmdV2.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
     apiListCmdV2.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmdV2.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))

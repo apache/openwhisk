@@ -1438,5 +1438,9 @@
   {
     "id": "list APIs",
     "translation": "list APIs"
+  },
+  {
+    "id": "Set the web action response TYPE. Possible values are html, http, json, text, svg",
+    "translation": "Set the web action response TYPE. Possible values are html, http, json, text, svg"
   }
 ]

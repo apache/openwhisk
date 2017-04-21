@@ -117,6 +117,7 @@ var flags struct {
         basepath   string
         apiname    string
         configfile string
+        resptype   string
     }
 }
 

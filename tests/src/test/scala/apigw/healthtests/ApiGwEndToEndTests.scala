@@ -167,6 +167,7 @@ class ApiGwEndToEndTests
                 operation = Some(testurlop),
                 action = Some(actionName),
                 apiname = Some(testapiname),
+                responsetype = Some("http"),
                 cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
             )
             rr.stdout should include("ok: created API")
