@@ -538,13 +538,9 @@ class WskActivation()
      * @return sequence of activations
      */
     def ids(rr: RunResult): Seq[String] = {
-        rr.stdout.split("\n") filter {
-            // remove empty lines the header
-            s => s.nonEmpty && s != "activations"
-        } map {
-            // split into (id, name)
-            _.split(" ")(0)
-        }
+        rr.stdout.lines.toSeq.drop(1).flatMap {
+            _.split(" ").headOption
+        }.filter(_.nonEmpty)
     }
 
     /**
@@ -869,7 +865,7 @@ class WskApi()
             { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
             { swagger map { s => Seq("--config-file", s) } getOrElse Seq() } ++
             { responsetype map { t => Seq("--response-type", t) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -895,7 +891,7 @@ class WskApi()
             { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
             { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() } ++
             { full map { r => Seq("--full") } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -914,7 +910,7 @@ class WskApi()
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
             { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
             { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -933,7 +929,7 @@ class WskApi()
         val params = Seq(noun, "delete", "--auth", wp.authKey, basepathOrApiName) ++
             { relpath map { r => Seq(r) } getOrElse Seq() } ++
             { operation map { o => Seq(o) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 }
 
