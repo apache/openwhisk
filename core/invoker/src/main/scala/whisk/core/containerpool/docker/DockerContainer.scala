@@ -27,17 +27,13 @@ import scala.util.Failure
 import java.time.Instant
 import whisk.core.container.RunResult
 import whisk.core.container.Interval
-import java.nio.file.Paths
-import java.io.File
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import scala.util.Try
 import whisk.common.TransactionId
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.core.entity.ByteSize
 import java.nio.charset.StandardCharsets
-import scala.collection.mutable.Buffer
 import whisk.http.Messages
 import whisk.core.entity.ActivationResponse
 import whisk.core.containerpool.BlackboxStartupError
@@ -130,6 +126,9 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
     /** The last read-position in the log file */
     private var logFileOffset = 0L
 
+    protected val logsRetryCount = 15
+    protected val logsRetryWait = 100.millis
+
     /** HTTP connection to the container, will be lazily established by callContainer */
     private var httpConnection: Option[HttpUtils] = None
 
@@ -201,8 +200,6 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
      * @return a vector of Strings with log lines in our own JSON format
      */
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]] = {
-        val retryCount = 15
-        val retryWait = 100.millis
 
         def readLogs(retries: Int): Future[Vector[String]] = {
             docker.rawContainerLogs(id, logFileOffset).flatMap { rawLogBytes =>
@@ -211,7 +208,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
 
                 if (retries > 0 && !isComplete && !isTruncated) {
                     log.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
-                    Thread.sleep(retryWait.toMillis)
+                    Thread.sleep(logsRetryWait.toMillis)
                     readLogs(retries - 1)
                 } else {
                     logFileOffset += rawLogBytes.position - rawLogBytes.arrayOffset
@@ -223,7 +220,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
             }
         }
 
-        readLogs(retryCount)
+        readLogs(logsRetryCount)
     }
 
     /**

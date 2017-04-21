@@ -36,8 +36,6 @@ import akka.actor.ActorRefFactory
 import whisk.core.containerpool.ContainerProxy
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import whisk.core.containerpool.docker.DockerApi
-import whisk.core.containerpool.docker.RuncApi
 import whisk.core.connector.CompletionMessage
 import scala.util.Success
 import scala.util.Failure

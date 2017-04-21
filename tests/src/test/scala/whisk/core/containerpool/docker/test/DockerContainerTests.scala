@@ -32,7 +32,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-import spray.json.JsObject
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
 import whisk.common.TransactionId
@@ -47,6 +48,7 @@ import whisk.core.entity.size._
 import whisk.http.Messages
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import whisk.core.invoker.ActionLogDriver
 
 /**
  * Unit tests for ContainerPool schedule
@@ -70,13 +72,19 @@ class DockerContainerTests extends FlatSpec
      * Constructs a testcontainer with overridden IO methods. Results of the override can be provided
      * as parameters.
      */
-    def dockerContainer(id: ContainerId = ContainerId("id"), ip: ContainerIp = ContainerIp("ip"))(ccRes: Future[RunResult])(
-        implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
+    def dockerContainer(
+        id: ContainerId = ContainerId("id"),
+        ip: ContainerIp = ContainerIp("ip"))(
+            ccRes: Future[RunResult] = Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
+            retryCount: Int = 1)(
+                implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
         new DockerContainer(id, ip) {
             override protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false): Future[RunResult] = {
                 ccRes
             }
+            override protected val logsRetryCount = retryCount
+            override protected val logsRetryWait = 0.millis
         }
     }
 
@@ -112,8 +120,9 @@ class DockerContainerTests extends FlatSpec
 
         await(container)
 
-        docker.runs should have size 1
         docker.pulls should have size 0
+        docker.runs should have size 1
+        docker.inspects should have size 1
         docker.rms should have size 0
 
         val (testImage, args) = docker.runs.head
@@ -142,8 +151,9 @@ class DockerContainerTests extends FlatSpec
         val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
         await(container)
 
-        docker.runs should have size 1
         docker.pulls should have size 1
+        docker.runs should have size 1
+        docker.inspects should have size 1
         docker.rms should have size 0
     }
 
@@ -159,6 +169,7 @@ class DockerContainerTests extends FlatSpec
         val container = DockerContainer.create(transid = transid, image = "image")
         a[WhiskContainerStartupError] should be thrownBy await(container)
 
+        docker.pulls should have size 0
         docker.runs should have size 1
         docker.inspects should have size 1
         docker.rms should have size 1
@@ -331,6 +342,115 @@ class DockerContainerTests extends FlatSpec
     /*
      * LOGS
      */
+    def toByteBuffer(s: String): ByteBuffer = {
+        val bb = ByteBuffer.wrap(s.getBytes(StandardCharsets.UTF_8))
+        bb.position(bb.capacity()) // set position after provided string to simulate read
+        bb
+    }
+
+    def toRawLog(log: Seq[TestLogLine], appendSentinel: Boolean = true): ByteBuffer = {
+        val appendedLog = if (appendSentinel) {
+            val lastTime = log.lastOption.map { case TestLogLine(_, _, time) => time }.getOrElse(Instant.EPOCH)
+            log :+
+                TestLogLine(s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n", Stderr, lastTime) :+
+                TestLogLine(s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n", Stdout, lastTime)
+        } else {
+            log
+        }
+        toByteBuffer(appendedLog.map(_.toJson.compactPrint).mkString("", "\n", "\n"))
+    }
+
+    it should "read a simple log with sentinel" in {
+        val expectedText = "This is a log entry.\n"
+        val expectedStream = Stdout
+        val expectedTime = Instant.EPOCH
+        val log = Seq(TestLogLine(expectedText, expectedStream, expectedTime))
+
+        implicit val docker = new TestDockerClient {
+            override def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
+                logs += ((containerId, fromPos))
+                Future.successful(toRawLog(log))
+            }
+        }
+        implicit val runc = stub[RuncApi]
+        val containerId = ContainerId("logContainer")
+
+        val container = dockerContainer(id = containerId)()
+        // Read with tight limit to verify that no truncation occurs
+        val processedLogs = Await.result(container.logs(limit = expectedText.sizeInBytes, waitForSentinel = true), 500.milliseconds)
+
+        docker.logs should have size 1
+        docker.logs.head._1 shouldBe containerId
+        docker.logs.head._2 shouldBe 0 // fromPos
+
+        processedLogs should have size 1
+        processedLogs.head should startWith(expectedTime.toString)
+        processedLogs.head should endWith(s"${expectedStream.toString}: ${expectedText.trim}")
+    }
+
+    it should "read a simple log without sentinel" in {
+        val expectedText = "This is a log entry.\n"
+        val expectedStream = Stdout
+        val expectedTime = Instant.EPOCH
+        val log = Seq(TestLogLine(expectedText, expectedStream, expectedTime))
+
+        implicit val docker = new TestDockerClient {
+            override def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
+                logs += ((containerId, fromPos))
+                Future.successful(toRawLog(log, appendSentinel = false))
+            }
+        }
+        implicit val runc = stub[RuncApi]
+        val containerId = ContainerId("logContainer")
+
+        val container = dockerContainer(id = containerId)()
+        // Read without tight limit so that the full read result is processed
+        val processedLogs = Await.result(container.logs(limit = 1.MB, waitForSentinel = false), 500.milliseconds)
+
+        docker.logs should have size 1
+        docker.logs.head._1 shouldBe containerId
+        docker.logs.head._2 shouldBe 0 // fromPos
+
+        processedLogs should have size 1
+        processedLogs.head should startWith(expectedTime.toString)
+        processedLogs.head should endWith(s"${expectedStream.toString}: ${expectedText.trim}")
+    }
+
+    it should "read two consecutive logs where first has a sentinel" in {
+        val firstExpectedText = "This is the first log.\n"
+        val secondExpectedText = "This is the second log.\n"
+        val firstRawLog = toRawLog(Seq(TestLogLine(firstExpectedText)), appendSentinel = true)
+        val secondRawLog = toRawLog(Seq(TestLogLine(secondExpectedText)), appendSentinel = false)
+
+        implicit val docker = new TestDockerClient {
+            override def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
+                logs += ((containerId, fromPos))
+                logs.size match {
+                    case 1 => Future.successful(firstRawLog)
+                    case 2 => Future.successful(secondRawLog)
+                    case _ => Future.successful(ByteBuffer.wrap(Array[Byte]()))
+                }
+            }
+        }
+        implicit val runc = stub[RuncApi]
+        val containerId = ContainerId("logContainer")
+
+        val container = dockerContainer(id = containerId)()
+        // Read without tight limit so that the full read result is processed
+        val processedFirstLog = Await.result(container.logs(limit = 1.MB, waitForSentinel = true), 500.milliseconds)
+        val processedSecondLog = Await.result(container.logs(limit = 1.MB, waitForSentinel = false), 500.milliseconds)
+
+        docker.logs should have size 2
+        docker.logs(0)._1 shouldBe containerId
+        docker.logs(0)._2 shouldBe 0 // fromPos
+        docker.logs(1)._1 shouldBe containerId
+        docker.logs(1)._2 shouldBe firstRawLog.capacity() // fromPos
+
+        processedFirstLog should have size 1
+        processedFirstLog.head should endWith(firstExpectedText.trim)
+        processedSecondLog should have size 1
+        processedSecondLog.head should endWith(secondExpectedText.trim)
+    }
 
     class TestDockerClient extends DockerApiWithFileAccess {
         var runs = mutable.Buffer.empty[(String, Seq[String])]
@@ -377,6 +497,28 @@ class DockerContainerTests extends FlatSpec
             logs += ((containerId, fromPos))
             Future.successful(ByteBuffer.wrap("".getBytes(StandardCharsets.UTF_8)))
         }
+    }
+
+    sealed trait Stream {
+        def toJson: JsString = ???
+        override def toString: String = ???
+    }
+
+    case object Stdout extends Stream {
+        override def toJson = JsString("stdout")
+        override def toString = "stdout"
+    }
+
+    case object Stderr extends Stream {
+        override def toJson = JsString("stderr")
+        override def toString = "stderr"
+    }
+
+    case class TestLogLine(log: String, stream: Stream = Stdout, time: Instant = Instant.EPOCH) {
+        def toJson = JsObject(
+            "log" -> log.toJson,
+            "stream" -> stream.toJson,
+            "time" -> JsString(time.toString))
     }
 }
 
