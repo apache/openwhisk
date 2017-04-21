@@ -64,6 +64,8 @@ class Invoker(
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
+    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
+
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 

@@ -10,12 +10,10 @@
 - include: db/recreateDoc.yml
   vars:
     dbName: "{{ db.whisk.auth }}"
-    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/auth_index.json') }}"
-
-- include: db/recreateDoc.yml
-  vars:
-    dbName: "{{ db.whisk.auth }}"
-    doc: "{{ lookup('file', '{{ openwhisk_home }}/ansible/files/filter_design_document.json') }}"
+    doc: "{{ lookup('file', '{{ item }}') }}"
+  with_items:
+    - "{{ openwhisk_home }}/ansible/files/auth_index.json"
+    - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
 
 - name: create necessary "auth" keys
   include: db/recreateDoc.yml
