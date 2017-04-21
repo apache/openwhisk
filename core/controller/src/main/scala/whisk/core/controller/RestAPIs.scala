@@ -57,6 +57,9 @@ abstract protected[controller] class RestAPIVersion(
     protected val swaggeruipath = "docs"
     protected val swaggerdocpath = "api-docs"
 
+    /** Info end points. */
+    protected val infopath = "info"
+
     def prefix = pathPrefix(apipath / apiversion)
 
     /**
@@ -73,6 +76,18 @@ abstract protected[controller] class RestAPIVersion(
             "version" -> apiversion.toJson,
             "build" -> build.toJson,
             "buildno" -> buildno.toJson)
+    }
+
+      /**
+      * Information which describes details of the system metadata.
+      */
+    def systemInfo = {
+        JsObject(
+            "name" -> "openwhisk".toJson,
+            "support" -> "https://github.com/openwhisk/openwhisk/issues".toJson,
+            "build" -> build.toJson,
+            "buildno" -> buildno.toJson,
+            "api_version" -> apiversion.toJson)
     }
 }
 
@@ -155,7 +170,9 @@ protected[controller] class RestAPIVersion_v1()(
             sendCorsHeaders {
                 (pathEndOrSingleSlash & get) {
                     complete(OK, info)
-                } ~ authenticate(basicauth) {
+                }  ~ path(infopath) {
+                     complete(OK, systemInfo)
+                }  ~ authenticate(basicauth) {
                     user =>
                         namespaces.routes(user) ~
                             pathPrefix(Collection.NAMESPACES) {
