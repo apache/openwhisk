@@ -89,6 +89,7 @@ type ApiOptions struct {
     ApiName         string    `url:"apiname,omitempty"`
     SpaceGuid       string    `url:"spaceguid,omitempty"`
     AccessToken     string    `url:"accesstoken,omitempty"`
+    ResponseType    string    `url:"responsetype,omitempty"`
 }
 
 type ApiUserAuth struct {

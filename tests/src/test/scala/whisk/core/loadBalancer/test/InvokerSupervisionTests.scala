@@ -16,37 +16,39 @@
 
 package whisk.core.loadBalancer.test
 
-import scala.concurrent.duration._
-import org.scalatest.Matchers
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import whisk.core.loadBalancer.InvokerActor
-import akka.pattern.ask
-import whisk.core.loadBalancer.Offline
-import whisk.core.loadBalancer.Healthy
-import whisk.core.loadBalancer.GetStatus
-import akka.util.Timeout
-import scala.concurrent.Await
-import whisk.core.loadBalancer.InvokerPool
-import akka.actor.FSM
-import akka.actor.ActorRef
-import whisk.core.connector.PingMessage
-import org.scalamock.scalatest.MockFactory
-import whisk.common.KeyValueStore
-import whisk.common.ConsulKV.LoadBalancerKeys
-import akka.testkit.TestKit
-import akka.actor.ActorSystem
-import akka.testkit.ImplicitSender
-import org.scalatest.FlatSpecLike
-import akka.testkit.TestProbe
 import scala.collection.mutable
-import akka.actor.ActorRefFactory
+import scala.concurrent.Await
 import scala.concurrent.duration._
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.CurrentState
-import whisk.core.loadBalancer.InvokerState
-import akka.actor.FSM.Transition
+
+import org.junit.runner.RunWith
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpecLike
+import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
+
+import akka.actor.ActorRef
+import akka.actor.ActorRefFactory
+import akka.actor.ActorSystem
+import akka.actor.FSM
+import akka.actor.FSM.CurrentState
+import akka.actor.FSM.SubscribeTransitionCallBack
+import akka.actor.FSM.Transition
+import akka.pattern.ask
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import akka.util.Timeout
+import whisk.common.ConsulKV.LoadBalancerKeys
+import whisk.common.KeyValueStore
+import whisk.core.connector.PingMessage
+import whisk.core.loadBalancer.GetStatus
+import whisk.core.loadBalancer.Healthy
+import whisk.core.loadBalancer.InvokerActor
+import whisk.core.loadBalancer.InvokerPool
+import whisk.core.loadBalancer.InvokerState
+import whisk.core.loadBalancer.Offline
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
@@ -137,8 +139,10 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             invoker.send(supervisor, Transition(invoker.ref, Offline, Healthy))
         }
 
-        (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).repeated(3)
-        callback.verify(invokerName)
+        retry({
+            (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).repeated(3)
+            callback.verify(invokerName)
+        }, N = 3, waitBeforeRetry = Some(500.milliseconds))
     }
 
     behavior of "InvokerActor"

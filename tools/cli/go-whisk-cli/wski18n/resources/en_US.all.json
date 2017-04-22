@@ -1384,8 +1384,8 @@
     "translation": "API action does not exist"
   },
   {
-    "id": "API action is not a web-action",
-    "translation": "API action is not a web-action"
+    "id": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+    "translation": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",
@@ -1420,23 +1420,27 @@
     "translation": "Missing x-openwhisk.url field in API configuration for operation {{.op}}"
   },
   {
-    "id": "COMING SOON - work with APIs",
-    "translation": "COMING SOON - work with APIs"
+    "id": "work with APIs",
+    "translation": "work with APIs"
   },
   {
-    "id": "COMING SOON - create a new API",
-    "translation": "COMING SOON - create a new API"
+    "id": "create a new API",
+    "translation": "create a new API"
   },
   {
-    "id": "COMING SOON - get API details",
-    "translation": "COMING SOON - get API details"
+    "id": "get API details",
+    "translation": "get API details"
   },
   {
-    "id": "COMING SOON - delete an API",
-    "translation": "COMING SOON - delete an API"
+    "id": "delete an API",
+    "translation": "delete an API"
   },
   {
-    "id": "COMING SOON - list APIs",
-    "translation": "COMING SOON - list APIs"
+    "id": "list APIs",
+    "translation": "list APIs"
+  },
+  {
+    "id": "Set the web action response TYPE. Possible values are html, http, json, text, svg",
+    "translation": "Set the web action response TYPE. Possible values are html, http, json, text, svg"
   }
 ]
