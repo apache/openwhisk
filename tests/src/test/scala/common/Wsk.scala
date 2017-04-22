@@ -857,6 +857,7 @@ class WskApi()
         action: Option[String] = None,
         apiname: Option[String] = None,
         swagger: Option[String] = None,
+        responsetype: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = None)(
             implicit wp: WskProps): RunResult = {
@@ -866,7 +867,8 @@ class WskApi()
             { operation map { o => Seq(o) } getOrElse Seq() } ++
             { action map { aa => Seq(aa) } getOrElse Seq() } ++
             { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
-            { swagger map { s => Seq("--config-file", s) } getOrElse Seq() }
+            { swagger map { s => Seq("--config-file", s) } getOrElse Seq() } ++
+            { responsetype map { t => Seq("--response-type", t) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
