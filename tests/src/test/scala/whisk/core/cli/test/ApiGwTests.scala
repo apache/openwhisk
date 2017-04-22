@@ -159,10 +159,11 @@ class ApiGwTests
       action: Option[String] = None,
       apiname: Option[String] = None,
       swagger: Option[String] = None,
+      responsetype: Option[String] = None,
       expectedExitCode: Int = SUCCESS_EXIT,
       cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
         checkThrottle()
-        wsk.api.create(basepath, relpath, operation, action, apiname, swagger, expectedExitCode, cliCfgFile)
+        wsk.api.create(basepath, relpath, operation, action, apiname, swagger, responsetype, expectedExitCode, cliCfgFile)
     }
 
     def apiList(
@@ -670,6 +671,7 @@ class ApiGwTests
       rr = apiGet(basepathOrApiName = Some(testapiname))
       rr.stdout should include(testbasepath)
       rr.stdout should include(s"${actionName}")
+      rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.json""")
     }
     finally {
       val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
@@ -1019,7 +1021,7 @@ class ApiGwTests
     }
   }
 
-  it should "reject an API created with an action that is not a web-action" in {
+  it should "reject an API created with an action that is not a web action" in {
     val testName = "CLI_APIGWTEST16"
     val testbasepath = "/" + testName + "_bp"
     val testbasepath2 = "/" + testName + "_bp2"
@@ -1034,11 +1036,44 @@ class ApiGwTests
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
 
       var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
-      rr.stderr should include("API action is not a web-action")
+      rr.stderr should include("is not a web action")
     } finally {
       val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
       var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
     }
   }
 
+  it should "verify API with http response type " in {
+    val testName = "CLI_APIGWTEST17"
+    val testbasepath = "/"+testName+"_bp"
+    val testrelpath = "/path"
+    val testnewrelpath = "/path_new"
+    val testurlop = "get"
+    val testapiname = testName+" API Name"
+    val actionName = testName+"_action"
+    val responseType = "http"
+    try {
+      // Create the action for the API.  It must be a "web-action" action.
+      val file = TestUtils.getTestActionFilename(s"echo.js")
+      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+      var rr = apiCreate(
+          basepath = Some(testbasepath),
+          relpath = Some(testrelpath),
+          operation = Some(testurlop),
+          action = Some(actionName),
+          apiname = Some(testapiname),
+          responsetype = Some(responseType)
+      )
+      rr.stdout should include("ok: created API")
+      rr = apiGet(basepathOrApiName = Some(testapiname))
+      rr.stdout should include(testbasepath)
+      rr.stdout should include(s"${actionName}")
+      rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.${responseType}""")
+    }
+    finally {
+      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+    }
+  }
 }
