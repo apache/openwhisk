@@ -1384,8 +1384,8 @@
     "translation": "API action does not exist"
   },
   {
-    "id": "API action is not a web-action",
-    "translation": "API action is not a web-action"
+    "id": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+    "translation": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",

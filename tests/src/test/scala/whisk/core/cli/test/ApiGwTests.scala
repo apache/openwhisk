@@ -1036,7 +1036,7 @@ class ApiGwTests
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
 
       var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
-      rr.stderr should include("API action is not a web-action")
+      rr.stderr should include("is not a web action")
     } finally {
       val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
       var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
