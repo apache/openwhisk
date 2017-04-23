@@ -1003,7 +1003,7 @@ var apiDeleteCmdV2 = &cobra.Command{
         _, err := client.Apis.DeleteV2(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.DeleteV2(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
-            errMsg := wski18n.T("Unable to delete action: {{.err}}", map[string]interface{}{"err": err})
+            errMsg := wski18n.T("Unable to delete API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
