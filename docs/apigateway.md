@@ -17,7 +17,7 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
 
 **Note:** The APIs you created using the `wsk api-experimental` will continue to work for a short period, however you should begin migrating your APIs to web actions and reconfigure your existing apis using the new CLI command `wsk api`.
 
-### Create your first API usign the CLI
+### Create your first API using the CLI
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
   ```javascript
@@ -29,10 +29,10 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
 2. Create a web action from the following JavaScript function. For this example, the action is called 'hello'. Make sure to add the flag `--web true`
   
   ```
-  wsk action update hello hello.js --web true
+  wsk action create hello hello.js --web true
   ```
   ```
-  ok: updated action hello
+  ok: created action hello
   ```
   
 3. Create an API with base path `/hello`, path `/world` and method `get` with response type `json`
@@ -60,7 +60,7 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   
 ### Full control over the HTTP response
   
-  The `--response-type` flag controls the target url of the web action to be proxy the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
+  The `--response-type` flag controls the target url of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
   
   Once you get started you want to have full control over the http response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target url of the web action with the `http` extension.
 
