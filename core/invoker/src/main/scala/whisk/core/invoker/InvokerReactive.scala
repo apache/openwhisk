@@ -40,6 +40,9 @@ import whisk.core.connector.CompletionMessage
 import scala.util.Success
 import scala.util.Failure
 import whisk.core.containerpool.PrewarmingConfig
+import whisk.core.container.Interval
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -138,6 +141,27 @@ class InvokerReactive(
             // only Exec instances that are subtypes of CodeExec reach the invoker
             assume(action.exec.isInstanceOf[CodeExec[_]])
             pool ! Run(action.toExecutableWhiskAction, msg)
+        }.recover {
+            case _ =>
+                val interval = Interval.zero
+                val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+                val activation = WhiskActivation(
+                    activationId = msg.activationId,
+                    namespace = msg.activationNamespace,
+                    subject = msg.user.subject,
+                    cause = msg.cause,
+                    name = msg.action.name,
+                    version = msg.action.version.getOrElse(SemVer()),
+                    start = interval.start,
+                    end = interval.end,
+                    duration = Some(interval.duration.toMillis),
+                    response = ActivationResponse.applicationError("action could not be found"),
+                    annotations = {
+                        Parameters("path", msg.action.toString.toJson) ++ causedBy
+                    })
+
+                ack(msg.transid, activation)
+                store(msg.transid, activation)
         }
     }
 
