@@ -47,7 +47,7 @@ trait Container {
     def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)]
 
     /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
-    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[List[String]]
+    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]]
 }
 
 /** Indicates a general error with the container */
