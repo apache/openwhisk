@@ -1,22 +1,23 @@
 # API Gateway
 
-API Gateway is no longer experimental.
+OpenWhisk actions can benefit from being managed by API management.
 
-[Web Actions](webactions.md) allow you to invoke an action with HTTP methods other than POST and without the action's authorization API key.
+The API Gateway acts as a proxy to [Web Actions](webactions.md) and provides them with additional features features including HTTP method routing, security and rate limiting policies and more.
 
-As a result of user feedback, Web Actions are the programming model chosen to build OpenWhisk actions capable of handling HTTP events.
-
-The API Gateway acts as a proxy to Web Actions and providing them with additional features features including HTTP method routing, rate limiting, oauth token validation, API keys, and more.
+Web Actions allows you to invoke an action with HTTP methods other than POST and in a public way without the action's authorization API key.
 
 For more information on API Gateway feature you can read the [api management documentation](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/management_interface.md)
 
-**Note:** The APIs you created using the `wsk api-experimental` will continue to work for a short period, however you should begin migrating your APIs to web actions and reconfigure your existing apis using the new CLI command `wsk api`.
 
-## OpenWhisk CLI configuration
+## Create APIs from OpenWhisk web actions using the CLI
+
+### OpenWhisk CLI configuration
 
 Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
-## Expose an OpenWhisk web action
+**Note:** The APIs you created using the `wsk api-experimental` will continue to work for a short period, however you should begin migrating your APIs to web actions and reconfigure your existing apis using the new CLI command `wsk api`.
+
+### Expose an OpenWhisk web action
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
   ```javascript
@@ -57,7 +58,7 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   ```
   The action `hello` got invoked, returning back a JSON string including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via request body.
   
-## Full control over the HTTP response
+### Full control over the HTTP response
   
   The `--response-type` flag controls the target url of the web action to be proxy the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
   
@@ -213,5 +214,3 @@ postBooks                 post         Book Club       https://${APIHOST}:9001/a
 putBooks                   put         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
 deleteBooks             delete         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
 ```
-
-- **Note**: The `wsk api-experimental` CLI command will be available for a short period of time to allow you to migrate and delete your existing APIs.
