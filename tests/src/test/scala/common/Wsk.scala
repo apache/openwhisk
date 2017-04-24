@@ -253,11 +253,11 @@ trait HasActivation {
      */
     private def extractActivationId(idPrefix: String, output: String): Option[String] = {
         Try {
+            val ACTIVATIONIDLENGTH = 32
             val start = output.indexOf(idPrefix) + idPrefix.length
-            var end = start
+            var end = start + ACTIVATIONIDLENGTH
             assert(start > 0)
-            while (end < output.length && output.charAt(end) != '\n')
-                end = end + 1
+            assert(end <= output.length)
             output.substring(start, end) // a uuid
         } toOption
     }
