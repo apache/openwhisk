@@ -191,8 +191,9 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
      * the result returned from this method.
      *
      * Only parses and returns as much logs as fit in the passed log limit.
-     * Even if the log limit is exceeded, read until all output is consumed / sentinel
-     * marker is found such that subsequent invocations only provide new output.
+     * Even if the log limit is exceeded, advance the starting position for the next invocation
+     * behind the bytes most recently read - but don't actively read any more until sentinel
+     * markers have been found.
      *
      * @param limit the limit to apply to the log size
      * @param waitForSentinel determines if the processor should wait for a sentinel to appear
