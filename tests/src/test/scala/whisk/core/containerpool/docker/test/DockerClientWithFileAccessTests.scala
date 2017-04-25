@@ -105,6 +105,15 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
     }
 }
 
+/**
+ * The file access tests use fixtures (org.scalatest.fixture.FlatSpec) in contrast to
+ * the IP address related tests. For this reason, the file access tests are in a separate
+ * test suite.
+ *
+ * This test uses fixtures because they provide a good way for setup and cleanup(!) in a thread-safe
+ * way such that tests could be run in parallel. In particular, this test suite creates
+ * a temporary file for each test and cleans it up afterwards.
+ */
 @RunWith(classOf[JUnitRunner])
 class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
 
@@ -121,17 +130,19 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
 
     def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
-    case class FixtureParam(file: File, writer: FileWriter, dc: DockerClientWithFileAccess)
+    /** The fixture parameter must be of type FixtureParam. This is hard-wired in fixture suits. */
+    case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess)
 
-    def withFixture(test: OneArgTest) = {
+    /** This overridden method gets control for each test and actually invokes the test. */
+    override def withFixture(test: OneArgTest) = {
         val file = File.createTempFile(this.getClass.getName, test.name.replaceAll("[^a-zA-Z0-9.-]", "_"))
         val writer = new FileWriter(file)
-        val dc = dockerClient(file)
+        val docker = dockerClient(file)
 
-        val fixture = FixtureParam(file, writer, dc)
+        val fixture = FixtureParam(file, writer, docker)
 
         try {
-            withFixture(test.toNoArgTest(fixture))
+            super.withFixture(test.toNoArgTest(fixture))
         } finally {
             writer.close()
             file.delete()
@@ -149,8 +160,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
         val logText = ""
         writeLogFile(fixture, logText)
 
-        val buffer = await(fixture.dc.rawContainerLogs(containerId, fromPos = 0))
-
+        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe logText
@@ -161,7 +171,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
         val logText = "text"
         writeLogFile(fixture, logText)
 
-        val buffer = await(fixture.dc.rawContainerLogs(containerId, fromPos = 0))
+        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe logText
@@ -179,7 +189,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
 
         writeLogFile(fixture, logText)
 
-        val buffer = await(fixture.dc.rawContainerLogs(containerId, fromPos = from))
+        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = from))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
         logContent shouldBe expectedText
@@ -190,7 +200,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
         fixture.writer.close()
         fixture.file.delete()
 
-        an[IOException] should be thrownBy await(fixture.dc.rawContainerLogs(containerId, fromPos = 0))
+        an[IOException] should be thrownBy await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
         stream should have size 0
     }
 }

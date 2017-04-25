@@ -25,6 +25,7 @@ import java.nio.file.Paths
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
+import scala.io.Source
 
 import spray.json.DefaultJsonProtocol._
 import spray.json._
@@ -90,7 +91,7 @@ class DockerClientWithFileAccess(
      */
     protected def configFileContents(configFile: File): Future[JsObject] = Future {
         blocking { // Needed due to synchronous file operations
-            val source = scala.io.Source.fromFile(configFile)
+            val source = Source.fromFile(configFile)
             val config = try source.mkString finally source.close()
             config.parseJson.asJsObject
         }
@@ -116,14 +117,14 @@ class DockerClientWithFileAccess(
         }
     }
 
-    // See implemented trait for description
+    // See extended trait for description
     override def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
         ipAddressFromFile(id, network).recoverWith {
             case _ => super.inspectIPAddress(id, network)
         }
     }
 
-    // See implemented trait for description
+    // See extended trait for description
     def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = Future {
         blocking { // Needed due to synchronous file operations
             var fis: FileInputStream = null
@@ -152,7 +153,6 @@ class DockerClientWithFileAccess(
             } catch {
                 case e: Exception =>
                     throw new IOException(s"rawContainerLogs failed on ${containerId}", e)
-
             } finally {
                 if (fis != null) fis.close()
             }
@@ -169,9 +169,6 @@ trait DockerApiWithFileAccess extends DockerApi {
      *
      * Reads the log file from the specified position to its end. The returned ByteBuffer
      * indicates how many bytes were actually read from the file.
-     *
-     * For warm containers, the container log file already holds output from
-     * previous activations that have to be skipped. For this reason, a starting position can be specified.
      *
      * Attention: a ByteBuffer is allocated to keep the file from the specified position to its end
      * fully in memory. At the moment, there is no size limit checking which can lead to
