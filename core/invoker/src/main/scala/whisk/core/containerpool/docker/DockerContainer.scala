@@ -16,31 +16,33 @@
 
 package whisk.core.containerpool.docker
 
-import scala.concurrent.Future
-import spray.json.JsObject
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
-import whisk.core.container.HttpUtils
-import whisk.core.entity.size._
-import scala.util.Success
-import scala.util.Failure
+import java.nio.charset.StandardCharsets
 import java.time.Instant
-import whisk.core.container.RunResult
-import whisk.core.container.Interval
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionId
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.core.entity.ByteSize
-import java.nio.charset.StandardCharsets
-import whisk.http.Messages
-import whisk.core.entity.ActivationResponse
+import whisk.common.TransactionId
+import whisk.core.container.HttpUtils
+import whisk.core.container.Interval
+import whisk.core.container.RunResult
 import whisk.core.containerpool.BlackboxStartupError
-import whisk.core.containerpool.WhiskContainerStartupError
-import whisk.core.containerpool.InitializationError
 import whisk.core.containerpool.Container
+import whisk.core.containerpool.InitializationError
+import whisk.core.containerpool.WhiskContainerStartupError
+import whisk.core.entity.ActivationResponse
+import whisk.core.entity.ByteSize
+import whisk.core.entity.size._
 import whisk.core.invoker.ActionLogDriver
+import whisk.http.Messages
 
 object DockerContainer {
     /**

@@ -16,6 +16,9 @@
 
 package whisk.core.containerpool.docker.test
 
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 import scala.collection.mutable
@@ -24,15 +27,16 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.FlatSpec
+import org.scalatest.Inspectors._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-import org.scalatest.Inspectors._
+
+import common.StreamLogging
 import spray.json._
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
@@ -45,12 +49,9 @@ import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
-import whisk.http.Messages
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
 import whisk.core.invoker.ActionLogDriver
 import whisk.core.invoker.LogLine
-import java.io.IOException
+import whisk.http.Messages
 
 /**
  * Unit tests for ContainerPool schedule

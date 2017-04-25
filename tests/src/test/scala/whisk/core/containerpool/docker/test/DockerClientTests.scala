@@ -16,25 +16,26 @@
 
 package whisk.core.containerpool.docker.test
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
 import org.scalatest.Matchers
+
 import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
-import whisk.common.TransactionId
-import org.scalatest.BeforeAndAfterEach
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
-import whisk.core.containerpool.docker.DockerClient
+import whisk.common.TransactionId
+import whisk.core.containerpool.docker.ContainerId
 import whisk.core.containerpool.docker.ContainerIp
+import whisk.core.containerpool.docker.DockerClient
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
