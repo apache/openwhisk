@@ -186,15 +186,8 @@ var propertyUnsetCmd = &cobra.Command{
         if flags.property.auth {
             delete(props, "AUTH")
             okMsg += fmt.Sprintf(
-                wski18n.T("{{.ok}} whisk auth unset",
+                wski18n.T("{{.ok}} whisk auth unset.\n",
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
-            if len(DefaultAuth) > 0 {
-                okMsg += fmt.Sprintf(
-                    wski18n.T("; the default value will be used. Run 'wsk property get --auth' to see the new value.\n"))
-            } else {
-                okMsg += fmt.Sprint(
-                    wski18n.T("; there is no default value that can be used.\n"))
-            }
         }
 
         if flags.property.namespace {
@@ -215,16 +208,8 @@ var propertyUnsetCmd = &cobra.Command{
         if flags.property.apihost {
             delete(props, "APIHOST")
             okMsg += fmt.Sprintf(
-                wski18n.T("{{.ok}} whisk API host unset",
+                wski18n.T("{{.ok}} whisk API host unset.\n",
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
-            if len(DefaultAPIHost) > 0 {
-                okMsg += fmt.Sprintf(
-                    wski18n.T("; the default value of {{.default}} will be used.\n",
-                        map[string]interface{}{"default": boldString(DefaultAPIHost)}))
-            } else {
-                okMsg += fmt.Sprint(
-                    wski18n.T("; there is no default value that can be used.\n"))
-            }
         }
 
         if flags.property.apiversion {

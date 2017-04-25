@@ -293,16 +293,16 @@
     "translation": "Unable to unset the property value: {{.err}}"
   },
   {
-    "id": "{{.ok}} whisk auth unset",
-    "translation": "{{.ok}} whisk auth unset"
+    "id": "{{.ok}} whisk auth unset.\n",
+    "translation": "{{.ok}} whisk auth unset.\n"
   },
   {
     "id": "{{.ok}} whisk namespace unset",
     "translation": "{{.ok}} whisk namespace unset"
   },
   {
-    "id": "{{.ok}} whisk API host unset",
-    "translation": "{{.ok}} whisk API host unset"
+    "id": "{{.ok}} whisk API host unset.\n",
+    "translation": "{{.ok}} whisk API host unset.\n"
   },
   {
     "id": "{{.ok}} whisk API version unset",
@@ -311,10 +311,6 @@
   {
     "id": "; the default value of {{.default}} will be used.\n",
     "translation": "; the default value of {{.default}} will be used.\n"
-  },
-  {
-    "id": "; the default value will be used. Run 'wsk property get --auth' to see the new value.\n",
-    "translation": "; the default value will be used. Run 'wsk property get --auth' to see the new value.\n"
   },
   {
     "id": "; there is no default value that can be used.\n",
