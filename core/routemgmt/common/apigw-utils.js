@@ -341,6 +341,10 @@ function generateBaseSwaggerApi(basepath, apiname) {
     'x-ibm-configuration': {
       'assembly': {
       }
+// CORS support pending openwhisk-apigateway issue #186
+//      'cors': {
+//        'enabled': true
+//      }
     }
   };
   return swaggerApi;
@@ -501,11 +505,11 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
 
 function deleteActionOperationInvocationDetails(swagger, operationId) {
   console.log('deleteActionOperationInvocationDetails: deleting case entry for ' + operationId);
-  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case') || [];
   if (caseArr.length > 0) {
     var caseIdx = getCaseOperationIdx(caseArr, operationId);
     _.pullAt(caseArr, caseIdx);
-    _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case', caseArr);
+    _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case', caseArr);
   } else {
     console.log('deleteActionOperationInvocationDetails: empty case[] array; case operation '+operationId+' does not exist');
   }
