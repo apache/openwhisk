@@ -182,14 +182,14 @@ A namespace allows two or more subjects to share resources. Each subject will ha
 
 ```
 vagrant ssh
-wskadmin user create <subject> --ns <namespace>
+wskadmin user create <subject> -ns <namespace>
 ```
 
 The same tool may be used to remove a subject from a namespace or to delete a subject entirely.
 
 ```
 vagrant ssh
-wskadmin user delete <subject> --ns <namespace>  # removes <subject> from <namespace>
+wskadmin user delete <subject> -ns <namespace>  # removes <subject> from <namespace>
 wskadmin user delete <subject>                   # deletes <subject>
 ```
 
