@@ -6,7 +6,7 @@ The API Gateway acts as a proxy to [Web Actions](webactions.md) and provides the
 
 Web Actions allows you to invoke an action with HTTP methods other than POST and in a public way without the action's authorization API key.
 
-For more information on API Gateway feature you can read the [api management documentation](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/management_interface.md)
+For more information on API Gateway feature you can read the [api management documentation](https://github.com/openwhisk/openwhisk-apigateway)
 
 
 ## Create APIs from OpenWhisk web actions using the CLI
