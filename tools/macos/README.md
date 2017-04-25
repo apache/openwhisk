@@ -36,7 +36,7 @@ brew install scala
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install ansible==2.2.1.0 jsonschema couchdb' | bash
+sudo -H pip install ansible==2.3.0.0 jsonschema couchdb' | bash
 ```
 
 # Create and configure Docker machine
