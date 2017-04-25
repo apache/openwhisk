@@ -340,11 +340,10 @@ function generateBaseSwaggerApi(basepath, apiname) {
     'paths': {},
     'x-ibm-configuration': {
       'assembly': {
+      },
+      'cors': {
+        'enabled': true
       }
-// CORS support pending openwhisk-apigateway issue #186
-//      'cors': {
-//        'enabled': true
-//      }
     }
   };
   return swaggerApi;
