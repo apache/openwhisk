@@ -180,3 +180,32 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "no"
+
+# The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
+# installation_mode specifies whether to download the available binaries or build
+# the binaries from the source code. The available values for this key are download
+# and build. The default value is download. The key tag specifies the tag for the
+# binaries to download. The url specifies the URL of the repository
+# of the OpenWhisk CLI. The location specifies the location to save the source code of
+# the OpenWhisk CLI. The version specifies the hash of the commit to be cloned. If it
+# is omit or set to HEAD, the latest commit will be selected. The repo_update specifies
+# whether to retrieve new revisions from the origin repository and the default value is
+# yes, meaning that it will retrieve the new revisions. The keys url and location are
+# mandatory and the keys version and repo_update are optional.
+#
+# If the installation_mode is set to download, all the other keys become invalid
+# except the tag and the location.
+#
+openwhisk_cli:
+  installation_mode: download
+  tag: latest
+  url: https://github.com/openwhisk/openwhisk-cli.git
+  # Set the local location as the same level as openwhisk home, but it can be changed.
+  location: "{{ openwhisk_home }}/../openwhisk-cli"
+  version: "HEAD"
+  repo_update: "no"
+
+cli_os:
+  - linux
+  - mac
+  - windows

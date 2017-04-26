@@ -1,1 +1,397 @@
-../tools/build/redo
+#!/usr/bin/env python
+
+#
+# Copyright 2015-2016 IBM Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import os
+import sys
+import platform
+import argparse
+import shlex
+import subprocess
+
+# the default openwhisk location in openwhisk checkouts
+defaultOpenwhisk = os.path.dirname(os.path.realpath(__file__)) + '/../../'
+# the openwhisk env var overrides if it exists
+whiskHome = os.getenv('WHISK_HOME', defaultOpenwhisk)
+
+def main():
+    args = getArgs()
+
+    if (not args.build and
+        not args.teardown and
+        not args.deploy):
+        args.build = True
+        args.teardown = True
+        args.deploy = True
+
+    # args.dir is either explicitly set or default to openwhisk home per environment
+    wskhome = args.dir
+    # change to wsk home to use build/deploy scripts
+    os.chdir(wskhome)
+
+    props = {}
+    props['ENV'] = args.target
+    props['WSK_HOME'] = wskhome
+    props['MAIN_DOCKER_ENDPOINT'] = getDockerHost()
+    doComponentSequence(props, args, args.components)
+
+def doComponentSequence(props, args, components):
+    for c in components:
+        component = getComponent(c)
+        if not component:
+            if args.yaml:
+                file = c if c.endswith('.yml') else '%s.yml' % c
+                component = makeComponent('custom deployment', 'deploying using %s' % file, yaml = file, modes = 'clean')
+            elif args.gradle:
+                file = c if c.endswith('.gradle') else '%s.gradle' % c
+                component = makeComponent('custom build target', 'building using %s' % file, yaml = False, gradle = True, tasks = c)
+            else:
+                print('unknown component %s' % c)
+                exit(1)
+
+        if component['steps']:
+            doComponentSequence(props, args, component['steps'])
+        else:
+            doOne(component, args, props)
+
+def getArgs():
+    def detectDeployTarget():
+        osname = platform.system()
+        if osname == 'Linux':
+            return 'local'
+        elif osname == 'Darwin':
+            return 'mac'
+        else:
+            return None
+
+    parser = argparse.ArgumentParser(description='[re]build and [re]deploy a whisk component if no args are given, otherwise do what is instructed')
+    parser.add_argument('-b', '--build', help='build component', action='store_const', const=True, default=False)
+    parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
+    parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
+    parser.add_argument('-t', '--target', help='deploy target (one of [mac, local])', default=detectDeployTarget())
+    parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
+    parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
+    parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
+    parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
+    parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to underlying task command')
+    parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
+    parser.add_argument('--dir', help='whisk home directory')
+
+    args = parser.parse_args()
+
+    if args.target is None:
+        print('Use "--target" to specify a deployment target because one '
+              'could not be determined automatically for your platform '
+              '(supported platforms are GNU/Linux (Ubuntu) and Mac OS X.')
+        exit(-1)
+
+    if args.dir is None:
+        if whiskHome is None:
+            print('Must specify whisk home directory with "--dir".')
+            exit(-1)
+        else:
+            args.dir = whiskHome
+
+    if args.list:
+        print("{:<27}{:<40}".format(bold('component'), bold('description')))
+        for c in Components:
+            print("{:<30}{:<40}".format(hilite(c['name']), c['description']))
+        exit(0)
+    elif not args.components:
+        parser.print_usage()
+        exit(0)
+    else:
+        return args
+
+class Playbook:
+    cmd = 'ansible-playbook'
+
+    dir = False
+    file = False
+    modes = False
+    env = False
+
+    # dir: the ansible directory containing the yaml files, roles, etc.
+    # file: the yml file for the playbook
+    # modes: the modes supported for the playbook as a comma separated string (e.g., 'clean')
+    # env: the environments directory (e.g., 'environment) or None if not environment specific playbook
+    def __init__(self, dir, file, modes, env):
+        self.dir = dir
+        self.file = file
+        self.modes = modes.split(',')
+        self.env = env
+
+    def path(self, basedir):
+        return basedir + '/' + self.dir
+
+    def execcmd(self, props, mode = False, extraArgs = ''):
+        if self.dir and self.file and (mode is False or mode in self.modes):
+            cmd = [ self.cmd ]
+            if self.env:
+                cmd.append('-i %s/%s' % (self.env, props['ENV']))
+            cmd.append(self.file)
+            if mode:
+                cmd.append('-e mode=%s' % mode)
+            if extraArgs is not '':
+                cmd.append(extraArgs)
+            return ' '.join(cmd)
+
+class Gradle:
+    cmd = 'gradlew'
+
+    tasks = False
+    components = False
+
+    def __init__(self, tasks, components = False):
+        self.tasks = tasks.split(',')
+        self.components = components
+
+    def execcmd(self, props, task, extraArgs = ''):
+        if task:
+            if self.components and self.components is not True:
+                parts = map(lambda c: '%s:%s' % (c, task), self.components.split(','))
+                parts = ' '.join(parts)
+            else:
+                parts = task
+
+            dh = props['MAIN_DOCKER_ENDPOINT']
+            return '%s %s %s --parallel %s' % (
+                   props['WSK_HOME'] + '/' + self.cmd,
+                   parts,
+                   extraArgs,
+                   ('-PdockerHost=%s' % dh) if dh else '')
+
+def getDockerHost():
+    dh = os.getenv('DOCKER_HOST')
+    if dh is not None and dh.startswith('tcp://'):
+        return dh[6:]
+
+def makeComponent(name,                   # component name, implies playbook default and gradle tasks roots
+                  description,
+                  yaml = True,            # true for default file name else the file name
+                  modes = '',
+                  env = 'environments',
+                  dir = 'ansible',
+                  gradle = False,         # gradle buildable iff true
+                  tasks = 'distDocker',
+                  steps = None):          # comma separated, runs these steps in sequence, each step is a reference to another component (yaml/gradle not allowed)
+    yaml = ('%s.yml' % name) if yaml is True else yaml
+    playbook = Playbook(dir, yaml, modes, env) if yaml is not False else None
+    gradle = Gradle(tasks, gradle) if gradle is not False else None
+    if steps and (playbook is not None or gradle is not None):
+        print('Cannot create component "%s" with a sequence of steps and also '
+              'a playbook with gradle build target' % name)
+        exit(-1)
+    elif steps:
+        steps = map(lambda c: c.strip(), steps.split(','))
+    return { 'name': name, 'description': description, 'playbook': playbook, 'gradle': gradle, 'steps': steps }
+
+Components = [
+    makeComponent('fresh',
+                  'setup, build, and deploy a fresh whisk system using couchdb',
+                  yaml = False,
+                  steps = 'setup, prereq, couchdb, initdb, wipedb, deploy, catalog'),
+
+    makeComponent('setup',
+                  'system setup'),
+
+    makeComponent('prereq',
+                  'install requisites'),
+
+    makeComponent('couchdb',
+                  'deploy couchdb',
+                  modes = 'clean'),
+
+    makeComponent('initdb',
+                  'initialize db with guest/system keys'),
+
+    makeComponent('wipedb',
+                  'recreate main db for entities',
+                  yaml = 'wipe.yml'),
+
+    makeComponent('build',
+                  'build system',
+                  yaml = False,
+                  gradle = True),
+
+    makeComponent('deploy',
+                  'build/deploy system',
+                  yaml = 'openwhisk.yml',
+                  modes = 'clean',
+                  gradle = True),
+
+    makeComponent('teardown',
+                  'teardown all deployed containers',
+                  yaml = 'teardown.yml'),
+
+    makeComponent('consul',
+                  'build/deploy consul (includes registrator)',
+                  modes = 'clean'),
+
+    makeComponent('kafka',
+                  'build/deploy kafka',
+                  modes = 'clean'),
+
+    makeComponent('controller',
+                  'build/deploy controller',
+                  modes = 'clean',
+                  gradle = 'core:controller'),
+
+    makeComponent('invoker',
+                  'build/deploy invoker',
+                  modes = 'clean',
+                  gradle = ':core:invoker'),
+
+    makeComponent('edge',
+                  'deploy edge',
+                  gradle = ':tools:cli'),
+
+    makeComponent('catalog',
+                  'install catalog',
+                  yaml = 'postdeploy.yml'),
+
+    # the following (re)build images via gradle
+
+    makeComponent('nodejs6action',
+                  'build node.js v6 action container',
+                  yaml = False,
+                  gradle = 'core:nodejs6Action'),
+
+    makeComponent('actionproxy',
+                  'build action proxy container',
+                  yaml = False,
+                  gradle = 'core:actionProxy'),
+
+    makeComponent('python2action',
+                  'build python v2.7 action container',
+                  yaml = False,
+                  gradle = 'core:python2Action'),
+
+    makeComponent('python3action',
+                  'build python action container',
+                  yaml = False,
+                  gradle = 'core:pythonAction'),
+
+    makeComponent('swift3action',
+                  'build swift v3 action container',
+                  yaml = False,
+                  gradle = 'core:swift3Action'),
+
+    makeComponent('java8action',
+                  'build java action container',
+                  yaml = False,
+                  gradle = 'core:javaAction'),
+
+    makeComponent('dockersdk',
+                  'build docker action SDK (to deploy, use edge component)',
+                  yaml = False,
+                  gradle = 'sdk:docker'),
+
+    makeComponent('cli',
+                  'build CLI (to deploy, use edge component)',
+                  yaml = False,
+                  gradle = ':tools:cli'),
+
+    # required for tests
+    makeComponent('props',
+                  'build whisk.properties file (required for tests)',
+                  yaml = 'properties.yml'),
+
+    # convenient to run all tests
+    makeComponent('tests',
+                  'run all tests',
+                  yaml = False,
+                  gradle = True,
+                  tasks = 'test')
+]
+
+def getComponent(component):
+    for c in Components:
+        if c['name'] == component:
+            return c
+    return False
+
+def bold(string):
+    if sys.stdin.isatty():
+        attr = []
+        attr.append('1')
+        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+    else:
+        return string
+
+def hilite(string, isError = False):
+    if sys.stdin.isatty():
+        attr = []
+        attr.append('34' if not isError else '31')  # blue or red if isError
+        attr.append('1')
+        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+    else:
+        return string
+
+def run(cmd, dir, skiprun, allowToFail = False):
+    if cmd is not None:
+        print(hilite(cmd))
+        if not skiprun:
+            args = shlex.split(cmd)
+            p = subprocess.Popen(args, cwd = dir)
+            p.wait()
+            if p.returncode and not allowToFail:
+               abort('command failed', p.returncode)
+
+def runAndGetStdout(cmd):
+    print(hilite(cmd))
+    args = shlex.split(cmd)
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    # stdout/stderr may be either text or bytes, depending on Python
+    # version.   In the latter case, decode to text.
+    if isinstance(out, bytes):
+        out = out.decode('utf-8')
+    if isinstance(err, bytes):
+        err = err.decode('utf-8')
+    if p.returncode:
+        print(hilite(out))
+        print(hilite(err, True))
+        abort('command failed', p.returncode)
+    return out
+
+def abort(msg, code = -1):
+    print(hilite(msg, True))
+    exit(code)
+
+def doOne(component, args, props):
+    basedir = props['WSK_HOME']
+    playbook = component['playbook']
+    gradle = component['gradle']
+    print(bold(component['description']))
+
+    extraArgs = '' if args.extraArgs is None or [] else ' '.join(map(str, args.extraArgs))
+
+    if args.build and gradle is not None:
+        cmd = gradle.execcmd(props, gradle.tasks[0], extraArgs)
+        run(cmd, basedir, args.skiprun)
+
+    if args.teardown and playbook is not None:
+        cmd = playbook.execcmd(props, 'clean', extraArgs = extraArgs)
+        run(cmd, playbook.path(basedir), args.skiprun)
+
+    if args.deploy and playbook is not None:
+        cmd = playbook.execcmd(props, extraArgs = extraArgs)
+        run(cmd, playbook.path(basedir), args.skiprun)
+
+if __name__ == '__main__':
+    main()
