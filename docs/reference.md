@@ -289,6 +289,7 @@ The following packages are available for use by Python actions, in addition to t
 - lxml v3.6.4
 - MarkupSafe v1.0
 - multidict v2.1.4
+- node-jq v0.5.2
 - packaging v16.8
 - parsel v1.1.0
 - pyasn1 v0.2.3
