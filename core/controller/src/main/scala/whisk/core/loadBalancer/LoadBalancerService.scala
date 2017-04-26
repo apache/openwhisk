@@ -16,10 +16,13 @@
 
 package whisk.core.loadBalancer
 
+import java.nio.charset.StandardCharsets
+
 import java.time.{ Clock, Instant }
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -29,8 +32,12 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 
+import org.apache.kafka.clients.producer.RecordMetadata
+
+import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.pattern.ask
+import akka.util.Timeout
 import whisk.common.ConsulClient
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -40,10 +47,11 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.MessageProducer
+import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
-import whisk.core.connector.PingMessage
-import akka.util.Timeout
-import akka.actor.ActorRefFactory
+import whisk.core.entity.WhiskAction
+import whisk.core.entity.types.EntityStore
 
 trait LoadBalancer {
 
@@ -68,7 +76,7 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
+class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -83,22 +91,18 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
 
     override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
-    /** Gets a producer which can publish messages to the kafka bus. */
-    private val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
     override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[Future[WhiskActivation]] = {
         chooseInvoker(action, msg).flatMap { invokerName =>
-            val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA)
-            val topic = invokerName
             val subject = msg.user.subject.asString
             val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
-            logging.info(this, s"posting topic '$topic' with activation id '${msg.activationId}'")
-            producer.send(topic, msg).map { status =>
-                transid.finished(this, start, s"Posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+            sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
             }
         }
     }
+
+    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 
     /**
      * A map storing current activations based on ActivationId.
@@ -109,15 +113,6 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
     private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
     private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
-
-    private val ackConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-    ackConsumer.onMessage((topic, _, _, bytes) => {
-        val raw = new String(bytes, "utf-8")
-        CompletionMessage.parse(raw) match {
-            case Success(m: CompletionMessage) => processCompletion(m)
-            case Failure(t)                    => logging.error(this, s"failed processing message: $raw with $t")(TransactionId.loadbalancer)
-        }
-    })
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -181,27 +176,70 @@ class LoadBalancerService(config: WhiskConfig)(implicit val actorSystem: ActorSy
     /** Make a new immutable map so caller cannot mess up the state */
     private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
 
-    /*
-     * INVOKER MANAGEMENT
+    /**
+     * Creates or updates a health test action by updating the entity store.
+     * This method is intended for use on startup.
+     * @return Future that completes successfully iff the action is added to the database
      */
+    private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
+        implicit val tid = TransactionId.loadbalancer
+        WhiskAction.get(db, action.docid).flatMap { oldAction =>
+            WhiskAction.put(db, action.revision(oldAction.rev))
+        }.recover {
+            case _: NoDocumentException => WhiskAction.put(db, action)
+        }.map(_ => {}).andThen {
+            case Success(_) => logging.info(this, "test action for invoker health now exists")
+            case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
+        }
+    }
 
-    private val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
-    pingConsumer.onMessage((topic, _, _, bytes) => {
-        val raw = new String(bytes, "utf-8")
-        PingMessage.parse(raw) match {
-            case Success(p: PingMessage) => invokerPool ! p
-            case Failure(t)              => logging.error(this, s"failed processing message: $raw with $t")
+    /** Gets a producer which can publish messages to the kafka bus. */
+    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+
+    private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String): Future[RecordMetadata] = {
+        implicit val transid = msg.transid
+        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
+
+        producer.send(invokerName, msg).andThen {
+            case Success(status) => transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+            case Failure(e)      => transid.failed(this, start, s"error on posting to topic $invokerName")
+        }
+    }
+
+    private val invokerPool = {
+        // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
+        InvokerPool.healthAction.map {
+            // Await the creation of the test action; on failure, this will abort the constructor which should
+            // in turn abort the startup of the controller.
+            a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
+        }.orElse {
+            throw new IllegalStateException("cannot create test action for invoker health because runtime manifest is not valid")
+        }
+
+        val consul = new ConsulClient(config.consulServer)
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+
+        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
+            clearInvokerState(invoker)
+            logging.info(this, s"cleared load balancer state for $invoker")(TransactionId.invokerHealth)
+        }, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
+    }
+
+    /** Subscribes to active acks (completion messages from the invokers). */
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+
+    /** Registers a handler for received active acks from invokers. */
+    activeAckConsumer.onMessage((topic, _, _, bytes) => {
+        val raw = new String(bytes, StandardCharsets.UTF_8)
+        CompletionMessage.parse(raw) match {
+            case Success(m: CompletionMessage) =>
+                processCompletion(m)
+                invokerPool ! InvocationFinishedMessage(m.invoker, m.response.response.statusCode <= 2)
+
+            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
         }
     })
-
-    private val consul = new ConsulClient(config.consulServer)
-    private val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
-    private val invokerPool = actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-        clearInvokerState(invoker)
-        logging.info(this, s"cleared loadbalancer state of $invoker")(TransactionId.invokerHealth)
-    }))
-
-    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 
     /** Return a sorted list of available invokers. */
     private def availableInvokers: Future[Seq[String]] = invokerHealth.map {
