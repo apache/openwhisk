@@ -41,6 +41,14 @@ class WskRuleTests
     val testResult = JsObject("count" -> testString.split(" ").length.toJson)
 
     /**
+     * Invoker clock skew can sometimes make it appear as if an action was invoked
+     * _before_ the trigger was fired. The "fudge factor" below allows the test to look
+     * for action activations that occur starting at most this amount of time before
+     * the trigger was fired.
+     */
+    val activationTimeSkewFactorMs = 500
+
+    /**
      * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
      * and links it all up.
      *
@@ -92,11 +100,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) { activationList =>
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) { activationList =>
                         activationList.head.response.result shouldBe Some(testResult)
                         activationList.head.cause shouldBe None
                     }
@@ -126,11 +134,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -163,11 +171,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -196,7 +204,7 @@ class WskRuleTests
             withActivation(wsk.activation, first) {
                 activation =>
                     // tries to find 2 activations for the action, should only find 1
-                    val activations = wsk.activation.pollFor(2, Some(actionName), since = Some(activation.start), retries = 30)
+                    val activations = wsk.activation.pollFor(2, Some(actionName), since = Some(activation.start.minusMillis(activationTimeSkewFactorMs)), retries = 30)
 
                     activations.length shouldBe 1
             }
@@ -220,7 +228,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, first) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             results should contain theSameElementsAs Seq(Some(testResult), Some(testResult))
@@ -257,7 +265,7 @@ class WskRuleTests
             val first = wsk.trigger.fire(triggerName2, Map("payload" -> testString.toJson))
             withActivation(wsk.activation, first) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -281,7 +289,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             val expectedResults = testPayloads.map { payload =>
@@ -308,10 +316,10 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName1, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName1, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
-                    withActivationsFromEntity(wsk.activation, actionName2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.logs.get.mkString(" ") should include(s"hello, $testString")
                     }
             }
@@ -337,7 +345,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName1, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName1, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             val expectedResults = testPayloads.map { payload =>
@@ -346,7 +354,7 @@ class WskRuleTests
 
                             results should contain theSameElementsAs expectedResults
                     }
-                    withActivationsFromEntity(wsk.activation, actionName2, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName2, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             // drops the leftmost 39 characters (timestamp + streamname)
                             val logs = activations.map(_.logs.get.map(_.drop(39))).flatten
