@@ -2,13 +2,8 @@
 
 OpenWhisk actions can benefit from being managed by API management.
 
-The API Gateway acts as a proxy to [Web Actions](webactions.md) and provides them with additional features features including HTTP method routing, security and rate limiting policies and more.
-
-Web Actions allows you to invoke an action with HTTP methods other than POST and in a public way without the action's authorization API key.
-
-
-For more information on API Gateway feature you can read the [api management documentation](https://github.com/openwhisk/openwhisk-apigateway)
-
+The API Gateway acts as a proxy to [Web Actions](webactions.md) and provides them with additional features including HTTP method routing , client id/secrets, rate limiting and CORS.
+For more information on API Gateway feature you can read the [api management documentation](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md)
 
 
 ## Create APIs from OpenWhisk web actions using the CLI
@@ -58,15 +53,15 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   "payload": "Hello world OpenWhisk"
   }
   ```
-  The action `hello` got invoked, returning back a JSON string including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via request body.
+  The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
   
 ### Full control over the HTTP response
   
-  The `--response-type` flag controls the target url of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
+  The `--response-type` flag controls the target URL of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
   
-  Once you get started you want to have full control over the http response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target url of the web action with the `http` extension.
+  Once you get started you want to have full control over the HTTP response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target URL of the web action with the `http` extension.
 
-  You can choose to change the code of the action to comply with the return of web actions with `http` extension or include the action in a sequence passing it's result to a new action that transform the result to be properly formatted for an http response. You can read more about response types and web actions extensions in the [Web Actions](webactions.md) documentation.
+  You can choose to change the code of the action to comply with the return of web actions with `http` extension or include the action in a sequence passing its result to a new action that transforms the result to be properly formatted for an HTTP response. You can read more about response types and web actions extensions in the [Web Actions](webactions.md) documentation.
 
   Change the code for the `hello.js` returning the JSON properties `body`, `statusCode` and `headers`
   ```javascript
@@ -97,14 +92,14 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   "payload": "Hello world Serverless API"
   }
   ```
-  Now you are in full control of your APIs, can control the content like returning html, or set the status code for things like Not Found (404), or Unauthorized (401), or even Internal Error (500).
+  Now you are in full control of your APIs, can control the content like returning HTML, or set the status code for things like Not Found (404), or Unauthorized (401), or even Internal Error (500).
 
 ### Exposing multiple web actions
 
 Let's say you want to expose a set of actions for a book club for your friends.
 You have a series of actions to implement your backend for the book club:
 
-| action | http method | description |
+| action | HTTP method | description |
 | ----------- | ----------- | ------------ |
 | getBooks    | GET | get book details  |
 | postBooks   | POST | adds a book |
@@ -174,7 +169,7 @@ curl -X GET https://${APIHOST}:9001/api/21ef035/club/books
 }
 ```
 
-### Exporting configuration
+### Exporting the configuration
 Let's export API named `Book Club` into a file that we can use as a base to to re-create the APIs using a file as input. 
 ```
 wsk api get "Book Club" > club-swagger.json
@@ -188,6 +183,11 @@ wsk api delete /club
 ```
 ok: deleted API /club
 ```
+### Changing the configuration
+
+You can edit the configuration file to configure API Gateway extensions such as disabling or enabling CORS, for more info on the format of the configuration file reger to the API Gateway [docs](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md#gateway-specific-extensions).
+
+### Importing the configuration
 
 Now let's restore the API named `Book Club` by using the file `club-swagger.json`
 ```
