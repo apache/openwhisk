@@ -35,6 +35,8 @@ def replicateDatabases(args):
     if "_replicator" not in sourceDb:
         sourceDb.create("_replicator")
 
+    replicator = sourceDb["_replicator"]
+
     now = int(time.time())
     backupPrefix = "backup_%d_" % now
 
@@ -55,7 +57,7 @@ def replicateDatabases(args):
         filterDesignDocument = sourceDb[db].get("_design/%s" % filterName)
         if not args.continuous and filterDesignDocument:
             replicateDesignDocument["filter"] = "%s/withoutDeletedAndDesignDocuments" % filterName
-        sourceDb["_replicator"].save(replicateDesignDocument)
+        replicator.save(replicateDesignDocument)
 
     def isBackupDb(dbName):
         return re.match("^backup_\d+_" + args.dbPrefix, dbName)
@@ -65,6 +67,12 @@ def replicateDatabases(args):
 
     def isExpired(timestamp):
         return now - args.expires > timestamp
+
+    # Delete all documents in the _replicator-database of old backups to avoid that they continue after they are deprecated
+    print("----- Delete backup-documents older than %d seconds -----" % args.expires)
+    for doc in filter(lambda doc: isBackupDb(doc.id) and isExpired(extractTimestamp(doc.id)), replicator.view('_all_docs', include_docs=True)):
+        print("deleting backup document: %s" % doc.id)
+        replicator.delete(doc.doc)
 
     # Delete all backup-databases, that are older than specified
     print("----- Delete backups older than %d seconds -----" % args.expires)
