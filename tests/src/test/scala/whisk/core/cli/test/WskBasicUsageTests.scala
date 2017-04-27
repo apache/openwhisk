@@ -99,7 +99,7 @@ class WskBasicUsageTests
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
             val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
                 "--namespace", namespace), env = env).stdout
-            stdout should include(s"ok: whisk auth set to ${wskprops.authKey}")
+            stdout should include(s"ok: whisk auth set")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
             stdout should include(s"ok: whisk namespace set to ${namespace}")
         } finally {
