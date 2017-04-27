@@ -185,7 +185,7 @@ ok: deleted API /club
 ```
 ### Changing the configuration
 
-You can edit the configuration file to configure API Gateway extensions such as disabling or enabling CORS, for more info on the format of the configuration file reger to the API Gateway [docs](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md#gateway-specific-extensions).
+You can edit the configuration file to configure API Gateway extensions such as disabling or enabling CORS, for more info on the format of the configuration file refer to the API Gateway [docs](https://github.com/openwhisk/openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md#gateway-specific-extensions).
 
 ### Importing the configuration
 
