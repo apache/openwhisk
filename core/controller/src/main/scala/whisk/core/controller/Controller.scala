@@ -177,8 +177,8 @@ object Controller {
         val config = new WhiskConfig(requiredProperties, optionalProperties)
 
         // if deploying multiple instances (scale out), must pass the instance number as the
-        // second argument.  (TODO .. seems fragile)
-        val instance = if (args.length > 0) args(1).toInt else 0
+        require(args.length >= 1, "controller instance required")
+        val instance = args(0).toInt
 
         def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
