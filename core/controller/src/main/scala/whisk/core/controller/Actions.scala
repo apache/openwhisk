@@ -34,7 +34,6 @@ import spray.httpx.unmarshalling._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.actions.BlockingInvokeTimeout
@@ -220,8 +219,6 @@ trait WhiskActionsApi
                         val action = act.resolve(user.namespace)
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
                             case Success(_) =>
-                                transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
-
                                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
                                 onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, Some(waitOverride))) {
                                     case Success((activationId, None)) =>
