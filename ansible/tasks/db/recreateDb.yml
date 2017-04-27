@@ -1,7 +1,7 @@
 ---
-# Delete and recreate the specified database.
-# dbName - name of the database to recreate
-# forceRecreation - deletes the database
+# (re))create the specified database.
+# dbName - name of the database to (re)create
+# forceRecreation - if true, the databases will be deleted (if it exists) and recreated. If false, it will not be recreated.
 
 - name: check if {{ dbName }} with {{ db_provider }} exists
   uri:
