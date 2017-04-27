@@ -104,6 +104,12 @@ nginx:
     http: 80
     api: 443
     adminportal: 8443
+  ssl:
+    path: "{{ openwhisk_home }}/ansible/roles/nginx/files"
+    cert: "openwhisk-cert.pem"
+    key: "openwhisk-key.pem"
+    password_enabled: false
+    password_file: "ssl.pass"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.

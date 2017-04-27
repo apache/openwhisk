@@ -26,8 +26,11 @@ http {
 
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  10m;
-        ssl_certificate      /etc/nginx/openwhisk-cert.pem;
-        ssl_certificate_key  /etc/nginx/openwhisk-key.pem;
+        ssl_certificate      /etc/nginx/{{ nginx.ssl.cert }};
+        ssl_certificate_key  /etc/nginx/{{ nginx.ssl.key }};
+        {% if nginx.ssl.password_enabled %}
+        ssl_password_file   "/etc/nginx/{{ nginx.ssl.password_file }}";
+        {% endif %}
         ssl_verify_client off;
         ssl_protocols        TLSv1 TLSv1.1 TLSv1.2;
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;
