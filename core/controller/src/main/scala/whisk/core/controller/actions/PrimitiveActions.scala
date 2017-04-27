@@ -22,14 +22,11 @@ import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Failure
-import scala.util.Success
 
 import akka.actor.ActorSystem
-import spray.http.StatusCodes._
 import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.StartMarker
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
@@ -106,18 +103,19 @@ protected[actions] trait PrimitiveActions {
             args,
             cause = cause)
 
-        val start = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
+        val startActivation = transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
+        val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
         val postedFuture = loadBalancer.publish(action, message, activeAckTimeout)
         postedFuture flatMap { activationResponse =>
-            transid.finished(this, start)
+            transid.finished(this, startLoadbalancer)
             if (blocking) {
                 waitForActivationResponse(user, message.activationId, timeout, activationResponse) map {
                     whiskActivation => (whiskActivation.activationId, Some(whiskActivation))
+                } andThen {
+                    case _ => transid.finished(this, startActivation)
                 }
             } else {
-                // Duration of the non-blocking activation in Controller.
-                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION))
+                transid.finished(this, startActivation)
                 Future.successful { (message.activationId, None) }
             }
         }
@@ -152,19 +150,12 @@ protected[actions] trait PrimitiveActions {
                 pollDbForResult(docid, activationId, promise)
         }
 
-        val response = promise.future withTimeout (totalWaitTime, new BlockingInvokeTimeout(activationId))
-
-        response onComplete {
-            case Success(_) =>
-                // Duration of the blocking activation in Controller.
-                // We use the start time of the tid instead of a startMarker to avoid passing the start marker around.
-                transid.finished(this, StartMarker(transid.meta.start, LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING))
-            case Failure(t) =>
-                // short circuits db polling
-                promise.tryFailure(t)
-        }
-
-        response // will either complete with activation or fail with timeout
+        // Will either complete with activation or timeout
+        promise.future
+            .withTimeout(totalWaitTime, new BlockingInvokeTimeout(activationId))
+            .andThen {
+                case Failure(t) => promise.tryFailure(t) // Short-circuit db polling
+            }
     }
 
     /**
