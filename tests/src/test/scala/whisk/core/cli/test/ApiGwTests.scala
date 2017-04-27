@@ -671,6 +671,7 @@ class ApiGwTests
       rr = apiGet(basepathOrApiName = Some(testapiname))
       rr.stdout should include(testbasepath)
       rr.stdout should include(s"${actionName}")
+      rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
       rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.json""")
     }
     finally {

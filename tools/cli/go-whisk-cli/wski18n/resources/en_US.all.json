@@ -253,8 +253,8 @@
     "translation": "Unable to set the property value: {{.err}}"
   },
   {
-    "id": "{{.ok}} whisk auth set to {{.auth}}\n",
-    "translation": "{{.ok}} whisk auth set to {{.auth}}\n"
+    "id": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
+    "translation": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n"
   },
   {
     "id": "Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
@@ -293,16 +293,16 @@
     "translation": "Unable to unset the property value: {{.err}}"
   },
   {
-    "id": "{{.ok}} whisk auth unset",
-    "translation": "{{.ok}} whisk auth unset"
+    "id": "{{.ok}} whisk auth unset.\n",
+    "translation": "{{.ok}} whisk auth unset.\n"
   },
   {
     "id": "{{.ok}} whisk namespace unset",
     "translation": "{{.ok}} whisk namespace unset"
   },
   {
-    "id": "{{.ok}} whisk API host unset",
-    "translation": "{{.ok}} whisk API host unset"
+    "id": "{{.ok}} whisk API host unset.\n",
+    "translation": "{{.ok}} whisk API host unset.\n"
   },
   {
     "id": "{{.ok}} whisk API version unset",
