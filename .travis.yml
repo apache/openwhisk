@@ -9,10 +9,6 @@ scala:
 services:
   - docker
 
-env:
-  global:
-    - TERM=dumb
-
 notifications:
   email: false
   slack:

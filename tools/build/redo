@@ -271,6 +271,11 @@ Components = [
                   yaml = False,
                   gradle = 'core:nodejs6Action'),
 
+    makeComponent('nodejs8action',
+                  'build node.js v8 action container',
+                  yaml = False,
+                  gradle = 'core:nodejs8Action'),
+
     makeComponent('actionproxy',
                   'build action proxy container',
                   yaml = False,

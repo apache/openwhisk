@@ -1,0 +1,22 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.eclipse.wst.jsdt.core.jsNature'
+        buildCommand 'org.eclipse.wst.jsdt.core.javascriptValidator'
+    }
+}
+
+ext.dockerImageName = 'nodejs8action'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'copyFiles'
+distDocker.finalizedBy 'rmFiles'
+
+task copyFiles(type: Copy) {
+    from project(':core:nodejsActionBase').projectDir
+    into './nodejsAction'
+}
+
+task rmFiles(type: Delete) {
+    delete 'nodejsAction'
+}
+
