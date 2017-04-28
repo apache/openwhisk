@@ -7,9 +7,9 @@
     state: absent
   become: true
 
-- name: remove docker-py
+- name: remove docker
   pip: 
-    name: docker-py
+    name: docker
     state: absent
   become: true
 
