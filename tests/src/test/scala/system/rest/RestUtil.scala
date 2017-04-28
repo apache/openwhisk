@@ -37,7 +37,7 @@ trait RestUtil {
     // force RestAssured to allow all hosts in SSL certificates
     protected val sslconfig = {
         new RestAssuredConfig().
-            sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames());
+            sslConfig(new SSLConfig().relaxedHTTPSValidation())
     }
 
     /**
