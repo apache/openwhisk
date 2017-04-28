@@ -21,7 +21,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: "{{ forceRecreation }} == True and response.status == 200"
+  when: forceRecreation == True and response.status == 200
 
 - name: create {{ dbName }} with {{ db_provider }}
   uri:
@@ -31,4 +31,4 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: "{{ forceRecreation }} == True or {{ response.status }} == 404"
+  when: forceRecreation == True or response.status == 404
