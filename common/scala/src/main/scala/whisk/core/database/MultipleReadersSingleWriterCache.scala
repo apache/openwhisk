@@ -17,20 +17,21 @@
 package whisk.core.database
 
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentMap
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 
 import spray.caching.Cache
-import spray.caching.LruCache
 import spray.caching.ValueMagnet.fromAny
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import com.github.benmanes.caffeine.cache.Caffeine
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -409,5 +410,46 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** This is the backing store. */
-    private val cache: Cache[Entry] = LruCache(timeToLive = 5.minutes)
+    private val cache: Cache[Entry] = new ConcurrentMapBackedCache(
+        Caffeine.newBuilder().asInstanceOf[Caffeine[Any, Future[Entry]]]
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .softValues()
+            .build().asMap())
+}
+
+/**
+ * A thread-safe implementation of [[spray.caching.cache]] backed by a plain
+ * [[java.util.concurrent.ConcurrentMap]].
+ *
+ * The implementation is entirely copied from [[spray.caching.SimpleLruCache]]
+ * the only difference being the store type. Implementation is identical.
+ *
+ * The unimplemented methods are not needed for our internal implementation.
+ */
+private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) extends Cache[V] {
+
+    def get(key: Any) = Option(store.get(key))
+
+    def apply(key: Any, genValue: () ⇒ Future[V])(implicit ec: ExecutionContext): Future[V] = {
+        val promise = Promise[V]()
+        store.putIfAbsent(key, promise.future) match {
+            case null ⇒
+                val future = genValue()
+                future.onComplete { value ⇒
+                    promise.complete(value)
+                    // in case of exceptions we remove the cache entry (i.e. try again later)
+                    if (value.isFailure) store.remove(key, promise.future)
+                }
+                future
+            case existingFuture ⇒ existingFuture
+        }
+    }
+
+    def remove(key: Any) = Option(store.remove(key))
+
+    def clear(): Unit = store.clear()
+    def keys: Set[Any] = ???
+    def ascendingKeys(limit: Option[Int] = None) = ???
+
+    def size = store.size
 }

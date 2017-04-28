@@ -34,6 +34,8 @@
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"
+      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
+      "CONTROLLER_OPTS": "{{ controller.arguments }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller:/logs"
     ports:

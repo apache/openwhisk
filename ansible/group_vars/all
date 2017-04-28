@@ -68,6 +68,8 @@ defaultLimits:
 # port means outer port
 controller:
   port: 10001
+  heap: "{{ controller_heap | default('2g') }}"
+  arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10
 
 consul:
@@ -92,6 +94,8 @@ zookeeper:
 
 invoker:
   port: 12001
+  heap: "{{ invoker_heap | default('2g') }}"
+  arguments: "{{ invoker_arguments | default('') }}"
   numcore: 2
   coreshare: 2
   serializeDockerOp: true
@@ -104,14 +108,27 @@ nginx:
     http: 80
     api: 443
     adminportal: 8443
+  ssl:
+    path: "{{ openwhisk_home }}/ansible/roles/nginx/files"
+    cert: "openwhisk-cert.pem"
+    key: "openwhisk-key.pem"
+    password_enabled: false
+    password_file: "ssl.pass"
 
+# These are the variables to define all database relevant settings.
+# The authKeys are the users, that are initially created to use OpenWhisk.
+# The keys are stored in ansible/files and will be inserted into the authentication databse.
+# The key db.whisk.actions is the name of the database where all artifacts of the user are stored. These artifacts are actions, triggers, rules and packages.
+# The key db.whisk.activation is the name of the database where all activations are stored.
+# The key db.whisk.auth is the name of the authentication database where all keys of all users are stored.
+# The db_prefix is defined for each environment on its own. The CouchDb credentials are also defined for each environment on its own.
 db:
   authkeys:
   - guest
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
-    activations: "{% if db_split_actions_and_activations is defined and db_split_actions_and_activations %}{{ db_prefix }}activations{% else %}{{ db_prefix }}whisks{% endif %}"
+    activations: "{% if db_split_actions_and_activations %}{{ db_prefix }}activations{% else %}{{ db_prefix }}whisks{% endif %}"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
