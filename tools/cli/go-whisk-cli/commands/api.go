@@ -784,7 +784,7 @@ var apiCreateCmdV2 = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return whiskErr
         } else if (len(args) == 0 && flags.api.configfile != "") {
-            api, err = parseSwaggerApi()
+            api, err = parseSwaggerApiV2()
             if err != nil {
                 whisk.Debug(whisk.DbgError, "parseSwaggerApi() error: %s\n", err)
                 errMsg := wski18n.T("Unable to parse swagger file: {{.err}}", map[string]interface{}{"err": err})
@@ -1394,6 +1394,59 @@ func parseApiV2(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, 
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
     return api, &qName, nil
+}
+
+func parseSwaggerApiV2() (*whisk.Api, error) {
+    // Test is for completeness, but this situation should only arise due to an internal error
+    if ( len(flags.api.configfile) == 0 ) {
+        whisk.Debug(whisk.DbgError, "No swagger file is specified\n")
+        errMsg := wski18n.T("A configuration file was not specified.")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg),whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    swagger, err:= readFile(flags.api.configfile)
+    if ( err != nil ) {
+        whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Error reading swagger file '{{.name}}': {{.err}}",
+            map[string]interface{}{"name": flags.api.configfile, "err": err})
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    // Parse the JSON into a swagger object
+    swaggerObj := new(whisk.ApiSwaggerV2)
+    err = json.Unmarshal([]byte(swagger), swaggerObj)
+    if ( err != nil ) {
+        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
+            map[string]interface{}{"name": flags.api.configfile, "err": err})
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+    if (swaggerObj.BasePath == "" || swaggerObj.SwaggerName == "" || swaggerObj.Info == nil || swaggerObj.Paths == nil) {
+        whisk.Debug(whisk.DbgError, "Swagger file is invalid.\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Swagger file is invalid (missing basePath, info, paths, or swagger fields)")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+    if _, ok := isValidBasepath(swaggerObj.BasePath); !ok {
+        whisk.Debug(whisk.DbgError, "Swagger file basePath is invalid.\n", flags.api.configfile, err)
+        errMsg := wski18n.T("Swagger file basePath must start with a leading slash (/)")
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    api := new(whisk.Api)
+    api.Namespace = client.Config.Namespace
+    api.Swagger = swagger
+
+    return api, nil
 }
 
 ///////////

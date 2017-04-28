@@ -49,6 +49,8 @@
         -e SERVICE_CHECK_HTTP=/ping
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
+        -e JAVA_OPTS=-Xmx{{ invoker.heap }}
+        -e INVOKER_OPTS={{ invoker.arguments }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs

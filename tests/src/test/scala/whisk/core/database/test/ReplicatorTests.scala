@@ -104,6 +104,14 @@ class ReplicatorTests extends FlatSpec
         db
     }
 
+    /** Removes a document from the _replicator-database */
+    def removeReplicationDoc(id: String) = {
+        println(s"Removing replication doc: $id")
+        val response = replicatorClient.getDoc(id).futureValue
+        val rev = if (response.isRight) Some(response.right.get.fields("_rev").convertTo[String]) else None
+        rev.map(replicatorClient.deleteDoc(id, _).futureValue)
+    }
+
     /** Runs the replicator script to replicate databases */
     def runReplicator(sourceDbUrl: String, targetDbUrl: String, dbPrefix: String, expires: FiniteDuration, continuous: Boolean = false) = {
         println(s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous")
@@ -112,16 +120,17 @@ class ReplicatorTests extends FlatSpec
         val cmd = Seq(python, replicator, "--sourceDbUrl", sourceDbUrl, "--targetDbUrl", targetDbUrl, "replicate", "--dbPrefix", dbPrefix, "--expires", expires.toSeconds.toString) ++ continuousFlag
         val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
 
-        val Seq(created, deleted) = Seq("create backup: ", "deleting backup: ").map { prefix =>
+        val Seq(created, deletedDoc, deleted) = Seq("create backup: ", "deleting backup document: ", "deleting backup: ").map { prefix =>
             rr.stdout.lines.collect {
                 case line if line.startsWith(prefix) => line.replace(prefix, "")
             }.toList
         }
 
         println(s"Created: $created")
+        println(s"DeletedDocs: $deletedDoc")
         println(s"Deleted: $deleted")
 
-        (created, deleted)
+        (created, deletedDoc, deleted)
     }
 
     /** Runs the replicator script to replay databases */
@@ -198,7 +207,7 @@ class ReplicatorTests extends FlatSpec
         client.putDoc("testId", testDocument).futureValue
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
+        val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
@@ -211,6 +220,7 @@ class ReplicatorTests extends FlatSpec
 
         // Remove all created databases
         createdBackupDbs.foreach(removeDatabase(_))
+        createdBackupDbs.foreach(removeReplicationDoc(_))
         removeDatabase(dbName)
     }
 
@@ -233,7 +243,7 @@ class ReplicatorTests extends FlatSpec
         }
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
+        val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
@@ -246,6 +256,7 @@ class ReplicatorTests extends FlatSpec
 
         // Remove all created databases
         createdBackupDbs.foreach(removeDatabase(_))
+        createdBackupDbs.foreach(removeReplicationDoc(_))
         removeDatabase(dbName)
     }
 
@@ -275,7 +286,7 @@ class ReplicatorTests extends FlatSpec
         client.deleteDoc(idOfDeletedDocument, documents(indexOfDocumentToDelete).fields("rev").convertTo[String])
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
+        val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName should fullyMatch regex s"backup_\\d+_$dbName"
@@ -297,6 +308,7 @@ class ReplicatorTests extends FlatSpec
 
         // Remove all created databases
         createdBackupDbs.foreach(removeDatabase(_))
+        createdBackupDbs.foreach(removeReplicationDoc(_))
         removeDatabase(dbName)
     }
 
@@ -306,7 +318,7 @@ class ReplicatorTests extends FlatSpec
         val client = createDatabase(dbName)
 
         // Trigger replication and verify the created databases have the correct format
-        val (createdBackupDbs, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, true)
+        val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, true)
         createdBackupDbs should have size 1
         val backupDbName = createdBackupDbs.head
         backupDbName shouldBe s"continuous_$dbName"
@@ -334,10 +346,11 @@ class ReplicatorTests extends FlatSpec
 
         // Remove all created databases
         createdBackupDbs.foreach(removeDatabase(_))
+        createdBackupDbs.foreach(removeReplicationDoc(_))
         removeDatabase(dbName)
     }
 
-    it should "remove outdated databases" in {
+    it should "remove outdated databases and replicationDocs" in {
         val now = Instant.now()
         val expires = 10.minutes
 
@@ -347,14 +360,17 @@ class ReplicatorTests extends FlatSpec
         val expired = now.minus(expires + 5.minutes)
         val expiredName = s"backup_${toEpochSeconds(expired)}_${testDbPrefix}expired_backup"
         val expiredClient = createDatabase(expiredName)
+        replicatorClient.putDoc(expiredName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
 
         // Create a database that is not yet expired
         val notExpired = now.plus(expires - 5.minutes)
         val notExpiredName = s"backup_${toEpochSeconds(notExpired)}_${testDbPrefix}notexpired_backup"
         val notExpiredClient = createDatabase(notExpiredName)
+        replicatorClient.putDoc(notExpiredName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
 
         // Trigger replication and verify the expired database is deleted while the unexpired one is kept
-        val (createdDatabases, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
+        val (createdDatabases, deletedReplicationDocs, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
+        deletedReplicationDocs should (contain(expiredName) and not contain (notExpiredName))
         deletedDatabases should (contain(expiredName) and not contain (notExpiredName))
 
         expiredClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
@@ -362,6 +378,8 @@ class ReplicatorTests extends FlatSpec
 
         // Cleanup backup database
         createdDatabases.foreach(removeDatabase(_))
+        createdDatabases.foreach(removeReplicationDoc(_))
+        removeReplicationDoc(notExpiredName)
         removeDatabase(notExpiredName)
     }
 
@@ -376,14 +394,17 @@ class ReplicatorTests extends FlatSpec
         // Create a database that is expired with correct prefix
         val correctPrefixName = s"backup_${toEpochSeconds(expired)}_${testDbPrefix}expired_backup_correct_prefix"
         val correctPrefixClient = createDatabase(correctPrefixName)
+        replicatorClient.putDoc(correctPrefixName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
 
         // Create a database that is expired with wrong prefix
         val wrongPrefix = s"replicatortest_wrongprefix_${config.dbPrefix}"
         val wrongPrefixName = s"backup_${toEpochSeconds(expired)}_${wrongPrefix}expired_backup_wrong_prefix"
         val wrongPrefixClient = createDatabase(wrongPrefixName)
+        replicatorClient.putDoc(wrongPrefixName, JsObject("source" -> "".toJson, "target" -> "".toJson)).futureValue
 
         // Trigger replication and verify the expired database with correct prefix is deleted while the db with the wrong prefix is kept
-        val (createdDatabases, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
+        val (createdDatabases, deletedReplicationDocs, deletedDatabases) = runReplicator(dbUrl, dbUrl, testDbPrefix, expires)
+        deletedReplicationDocs should (contain(correctPrefixName) and not contain (wrongPrefixName))
         deletedDatabases should (contain(correctPrefixName) and not contain (wrongPrefixName))
 
         correctPrefixClient.getAllDocs().futureValue shouldBe Left(StatusCodes.NotFound)
@@ -391,6 +412,8 @@ class ReplicatorTests extends FlatSpec
 
         // Cleanup backup database
         createdDatabases.foreach(removeDatabase(_))
+        createdDatabases.foreach(removeReplicationDoc(_))
+        removeReplicationDoc(wrongPrefixName)
         removeDatabase(wrongPrefixName)
     }
 
