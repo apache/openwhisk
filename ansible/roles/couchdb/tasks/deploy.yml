@@ -8,12 +8,12 @@
 - name: check for persistent disk
   shell: df -h
   register: disk_status
-  when: "{{ block_device is defined }}"
+  when: block_device is defined
 
 - set_fact:
     instance: "{{instances | selectattr('name', 'equalto', 'db') | list | first}}"
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
-  when: "{{ (block_device is defined) and (block_device in disk_status.stdout) }}"
+  when: (block_device is defined) and (block_device in disk_status.stdout)
 
 - name: "pull the couchdb:{{ couchdb.version }} image"
   shell: "docker pull couchdb:{{ couchdb.version }}"

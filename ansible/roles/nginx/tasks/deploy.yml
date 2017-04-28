@@ -23,7 +23,7 @@
   copy:
     src: "files/{{ nginx.ssl.password_file }}"
     dest: "{{ nginx_conf_dir }}"
-  when: "{{ nginx.ssl.password_enabled == true }}"
+  when: nginx.ssl.password_enabled == true
 
 - name: ensure nginx log directory is created with permissions
   file:
