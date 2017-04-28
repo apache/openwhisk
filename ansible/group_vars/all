@@ -90,6 +90,8 @@ defaultLimits:
 # port means outer port
 controller:
   port: 10001
+  heap: "{{ controller_heap | default('2g') }}"
+  arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10
 
 consul:
@@ -114,6 +116,8 @@ zookeeper:
 
 invoker:
   port: 12001
+  heap: "{{ invoker_heap | default('2g') }}"
+  arguments: "{{ invoker_arguments | default('') }}"
   numcore: 2
   coreshare: 2
   serializeDockerOp: true

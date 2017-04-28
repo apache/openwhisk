@@ -10,9 +10,9 @@ node("ubuntu&&xenial") {
       sh "pip install --user markupsafe"
       sh "pip install --user jsonschema"
       sh "pip install --user couchdb"
-      sh "pip install --user ansible==2.1.2.0"
+      sh "pip install --user ansible==2.3.0.0"
       sh "pip install --user requests==2.10.0"
-      sh "pip install --user docker-py==1.9.0"
+      sh "pip install --user docker==2.2.1"
       sh "pip install --user httplib2==0.9.2"
     }
     checkout([$class: 'GitSCM',
