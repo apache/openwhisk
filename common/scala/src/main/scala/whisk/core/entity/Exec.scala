@@ -25,7 +25,7 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.Attachments._
-import whisk.core.entity.ExecManifest.RuntimeManifest
+import whisk.core.entity.ExecManifest._
 import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
@@ -67,8 +67,8 @@ sealed abstract class CodeExec[T <% SizeConversion] extends Exec {
     /** Serialize code to a JSON value. */
     def codeAsJson: JsValue
 
-    /** The runtime image (either built-in or a blackbox image. */
-    val image: String
+    /** The runtime image (either built-in or a public image). */
+    val image: ImageName
 
     /** Indicates if the action execution generates log markers to stdout/stderr once action activation completes. */
     val sentinelledLogs: Boolean
@@ -93,7 +93,7 @@ protected[core] case class CodeExecAsString(
     override val entryPoint: Option[String])
     extends CodeExec[String] {
     override val kind = manifest.kind
-    override val image: String = manifest.image.getOrElse(Exec.imagename(kind))
+    override val image = manifest.image
     override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
     override val deprecated = manifest.deprecated.getOrElse(false)
     override val pull = false
@@ -107,7 +107,7 @@ protected[core] case class CodeExecAsAttachment(
     override val entryPoint: Option[String])
     extends CodeExec[Attachment[String]] {
     override val kind = manifest.kind
-    override val image: String = manifest.image.getOrElse(Exec.imagename(kind))
+    override val image = manifest.image
     override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
     override val deprecated = manifest.deprecated.getOrElse(false)
     override val pull = false
@@ -131,17 +131,18 @@ protected[core] case class CodeExecAsAttachment(
  * @param code an optional script or zip archive (as base64 encoded) string
  */
 protected[core] case class BlackBoxExec(
-    override val image: String,
+    override val image: ImageName,
     override val code: Option[String],
-    override val entryPoint: Option[String])
+    override val entryPoint: Option[String],
+    val native: Boolean)
     extends CodeExec[Option[String]] {
     override val kind = Exec.BLACKBOX
     override val deprecated = false
     override def codeAsJson = code.toJson
     override lazy val binary = code map { Exec.isBinaryCode(_) } getOrElse false
-    override val sentinelledLogs = image == Exec.BLACKBOX_SKELETON
-    override val pull = image != Exec.BLACKBOX_SKELETON
-    override def size = super.size + image.sizeInBytes
+    override val sentinelledLogs = native
+    override val pull = !native
+    override def size = super.size + image.publicImageName.sizeInBytes
 }
 
 protected[core] case class SequenceExec(components: Vector[FullyQualifiedEntityName]) extends Exec {
@@ -161,10 +162,6 @@ protected[core] object Exec
     // - Black Box because it is a type marker
     protected[core] val SEQUENCE = "sequence"
     protected[core] val BLACKBOX = "blackbox"
-    protected[core] val BLACKBOX_SKELETON = "openwhisk/dockerskeleton"
-
-    // Constructs standard image name for action with a supported runtime
-    protected[core] def imagename(name: String) = s"${name}action".replace(":", "")
 
     private def execManifests = ExecManifest.runtimesManifest
 
@@ -187,7 +184,7 @@ protected[core] object Exec
                 JsObject("kind" -> JsString(s.kind), "components" -> comp.map(_.qualifiedNameWithLeadingSlash).toJson)
 
             case b: BlackBoxExec =>
-                val base = Map("kind" -> JsString(b.kind), "image" -> JsString(b.image), "binary" -> JsBoolean(b.binary))
+                val base = Map("kind" -> JsString(b.kind), "image" -> JsString(b.image.publicImageName), "binary" -> JsBoolean(b.binary))
                 val code = b.code.filter(_.trim.nonEmpty).map("code" -> JsString(_))
                 val main = b.entryPoint.map("main" -> JsString(_))
                 JsObject(base ++ code ++ main)
@@ -205,30 +202,31 @@ protected[core] object Exec
 
             lazy val optMainField: Option[String] = obj.fields.get("main") match {
                 case Some(JsString(m)) => Some(m)
+                case Some(_)           => throw new DeserializationException(s"if defined, 'main' be a string in 'exec' for '$kind' actions")
                 case None              => None
-                case _                 => throw new DeserializationException(s"if defined, 'main' be a string in 'exec' for '$kind' actions")
             }
 
             kind match {
                 case Exec.SEQUENCE =>
-                    val comp: Vector[FullyQualifiedEntityName] = obj.getFields("components") match {
-                        case Seq(JsArray(components)) => components map { FullyQualifiedEntityName.serdes.read(_) }
-                        case Seq(_)                   => throw new DeserializationException(s"'components' must be an array")
-                        case _                        => throw new DeserializationException(s"'components' must be defined for sequence kind")
+                    val comp: Vector[FullyQualifiedEntityName] = obj.fields.get("components") match {
+                        case Some(JsArray(components)) => components map (FullyQualifiedEntityName.serdes.read(_))
+                        case Some(_)                   => throw new DeserializationException(s"'components' must be an array")
+                        case None                      => throw new DeserializationException(s"'components' must be defined for sequence kind")
                     }
                     SequenceExec(comp)
 
                 case Exec.BLACKBOX =>
-                    val image: String = obj.getFields("image") match {
-                        case Seq(JsString(i)) => i
-                        case _                => throw new DeserializationException(s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
+                    val image: ImageName = obj.fields.get("image") match {
+                        case Some(JsString(i)) => ImageName.fromString(i).get // throws deserialization exception on failure
+                        case _                 => throw new DeserializationException(s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
                     }
-                    val code: Option[String] = obj.getFields("code") match {
-                        case Seq(JsString(i)) => if (i.trim.nonEmpty) Some(i) else None
-                        case Seq(_)           => throw new DeserializationException(s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
-                        case _                => None
+                    val code: Option[String] = obj.fields.get("code") match {
+                        case Some(JsString(i)) => if (i.trim.nonEmpty) Some(i) else None
+                        case Some(_)           => throw new DeserializationException(s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
+                        case None              => None
                     }
-                    BlackBoxExec(image, code, optMainField)
+                    val native = execManifests.blackboxImages.contains(image)
+                    BlackBoxExec(image, code, optMainField, native)
 
                 case _ =>
                     // map "default" virtual runtime versions to the currently blessed actual runtime version
@@ -239,10 +237,10 @@ protected[core] object Exec
 
                     manifest.attached.map { a =>
                         val jar: Attachment[String] = {
-                            obj.fields.get("code").map(attFmt[String].read(_))
-                        } orElse {
                             // java actions once stored the attachment in "jar" instead of "code"
-                            obj.fields.get("jar").map(attFmt[String].read(_))
+                            obj.fields.get("code").orElse(obj.fields.get("jar"))
+                        } map {
+                            attFmt[String].read(_)
                         } getOrElse {
                             throw new DeserializationException(s"'code' must be a valid base64 string in 'exec' for '$kind' actions")
                         }
