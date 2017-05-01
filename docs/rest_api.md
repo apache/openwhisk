@@ -8,26 +8,26 @@ For more details about the APIs for actions, activations, packages, rules, and t
 All the capabilities in the system are available through a REST API. There are collection and entity endpoints for actions, triggers, rules, packages, activations, and namespaces.
 
 These are the collection endpoints:
-- `https://{BASE URL}/api/v1/namespaces`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/actions`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/rules`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/packages`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/activations`
+- `https://{APIHOST}/api/v1/namespaces`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/actions`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/triggers`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/rules`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/packages`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/activations`
 
-The `{BASE URL}` is the OpenWhisk API hostname (for example, openwhisk.ng.bluemix.net, 172.17.0.1, and so on).
+The `{APIHOST}` is the OpenWhisk API hostname (for example, openwhisk.ng.bluemix.net, 172.17.0.1, and so on).
 For the `{namespace}`, the character `_` can be used to specify the user's *default
 namespace*.
 
 You can perform a GET request on the collection endpoints to fetch a list of entities in the collection.
 
 There are entity endpoints for each type of entity:
-- `https://{BASE URL}/api/v1/namespaces/{namespace}`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/triggers/{triggerName}`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/rules/{ruleName}`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/packages/{packageName}`
-- `https://{BASE URL}/api/v1/namespaces/{namespace}/activations/{activationName}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/actions/[{packageName}/]{actionName}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/triggers/{triggerName}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/rules/{ruleName}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/packages/{packageName}`
+- `https://{APIHOST}/api/v1/namespaces/{namespace}/activations/{activationName}`
 
 The namespace and activation endpoints support only GET requests. The actions, triggers, rules, and packages endpoints support GET, PUT, and DELETE requests. The endpoints of actions, triggers, and rules also support POST requests, which are used to invoke actions and triggers and enable or disable rules. 
 
@@ -61,7 +61,7 @@ curl -u USERNAME:PASSWORD https://openwhisk.ng.bluemix.net/api/v1/namespaces/whi
 ]
 ```
 
-In this example the authentication was passed using the `-u` flag, you can pass this value also as part of the URL as `https://$AUTH@{BASE URL}`
+In this example the authentication was passed using the `-u` flag, you can pass this value also as part of the URL as `https://$AUTH@{APIHOST}`
 
 The OpenWhisk API supports request-response calls from web clients. OpenWhisk responds to `OPTIONS` requests with Cross-Origin Resource Sharing headers. Currently, all origins are allowed (that is, Access-Control-Allow-Origin is "`*`") and Access-Control-Allow-Headers yield Authorization and Content-Type.
 
