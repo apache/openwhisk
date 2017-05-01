@@ -387,6 +387,7 @@ var triggerDeleteCmd = &cobra.Command{
         var err error
         var retTrigger *whisk.Trigger
         var fullFeedName string
+        var origParams []string
 
         if whiskErr := checkArgs(args, 1, 1, "Trigger delete",
                 wski18n.T("A trigger name is required.")); whiskErr != nil {
@@ -409,7 +410,7 @@ var triggerDeleteCmd = &cobra.Command{
         retTrigger, _, err = client.Triggers.Get(qName.entityName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qName.entityName, err)
-            errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
+            errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qName.entityName, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -420,6 +421,7 @@ var triggerDeleteCmd = &cobra.Command{
             fullFeedName = getValueString(retTrigger.Annotations, "feed")
 
             if len(fullFeedName) > 0 {
+                origParams = flags.common.param
                 fullTriggerName := fmt.Sprintf("/%s/%s", qName.namespace, qName.entityName)
                 flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_DELETE))
                 flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
@@ -427,9 +429,13 @@ var triggerDeleteCmd = &cobra.Command{
 
                 err = configureFeed(qName.entityName, fullFeedName)
                 if err != nil {
-                    whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qName.entityName, flags.common.feed, err)
+                    whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qName.entityName, fullFeedName, err)
                 }
+
+                flags.common.param = origParams
+                client.Namespace = qName.namespace
             }
+
         }
 
         retTrigger, _, err = client.Triggers.Delete(qName.entityName)
