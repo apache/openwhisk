@@ -19,15 +19,18 @@ package whisk.core.controller
 import scala.concurrent.ExecutionContext
 
 import akka.actor.ActorSystem
+
 import spray.http.AllOrigins
 import spray.http.HttpHeaders._
 import spray.http.StatusCodes._
+import spray.http.Uri
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
+
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -44,36 +47,37 @@ import RestApiCommons._
  * Abstract class which provides basic Directives which are used to construct route structures
  * which are common to all versions of the Rest API.
  */
-abstract protected[controller] class RestAPIVersion(
-    protected val apiversion: String,
-    protected val build: String,
-    protected val buildno: String)
+protected[controller] class SwaggerDocs(
+    apipath: Uri.Path,
+    doc: String)(
+        implicit actorSystem: ActorSystem)
     extends Directives {
-
-    /** Base API prefix. */
-    protected val apipath = "api"
 
     /** Swagger end points. */
     protected val swaggeruipath = "docs"
     protected val swaggerdocpath = "api-docs"
 
-    def prefix = pathPrefix(apipath / apiversion)
-
-    /**
-     * This is the most important method -- it provides the routes that define the REST API.
-     */
-    def routes(implicit transid: TransactionId): Route
-
-    /**
-     * Information which describes details of a particular deployment of the REST API.
-     */
-    def info = {
-        JsObject(
-            "openwhisk" -> "hello".toJson,
-            "version" -> apiversion.toJson,
-            "build" -> build.toJson,
-            "buildno" -> buildno.toJson)
+    def basepath(url: Uri.Path = apipath): String = {
+        (if (url.startsWithSlash) url else Uri.Path./(url)).toString
     }
+
+    /**
+     * Defines the routes to serve the swagger docs.
+     */
+    val swaggerRoutes: Route = {
+        pathPrefix(swaggeruipath) {
+            getFromDirectory("/swagger-ui/")
+        } ~ path(swaggeruipath) {
+            redirect(s"$swaggeruipath/index.html?url=$apiDocsUrl", PermanentRedirect)
+        } ~ pathPrefix(swaggerdocpath) {
+            pathEndOrSingleSlash {
+                getFromResource(doc)
+            }
+        }
+    }
+
+    /** Forces add leading slash for swagger api-doc url rewrite to work. */
+    private def apiDocsUrl = basepath(apipath / swaggerdocpath)
 }
 
 /**
@@ -127,7 +131,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
 /**
  * An object which creates the Routes that define v1 of the whisk REST API.
  */
-protected[controller] class RestAPIVersion_v1()(
+protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
     implicit val authStore: AuthStore,
     implicit val entityStore: EntityStore,
     implicit val activationStore: ActivationStore,
@@ -139,7 +143,7 @@ protected[controller] class RestAPIVersion_v1()(
     implicit val executionContext: ExecutionContext,
     implicit val logging: Logging,
     implicit val whiskConfig: WhiskConfig)
-    extends RestAPIVersion("v1", whiskConfig(whiskVersionDate), whiskConfig(whiskVersionBuildno))
+    extends SwaggerDocs(Uri.Path(apipath) / apiversion, "apiv1swagger.json")
     with Authenticate
     with AuthenticatedRoute
     with RespondWithHeaders {
@@ -150,7 +154,7 @@ protected[controller] class RestAPIVersion_v1()(
      * @Idioglossia This relies on the spray routing DSL.
      * @see http://spray.io/documentation/1.2.2/spray-routing/
      */
-    override def routes(implicit transid: TransactionId): Route = {
+    def routes(implicit transid: TransactionId): Route = {
         pathPrefix(apipath / apiversion) {
             sendCorsHeaders {
                 (pathEndOrSingleSlash & get) {
@@ -167,12 +171,8 @@ protected[controller] class RestAPIVersion_v1()(
                             } ~ webexp.routes(user)
                 } ~ {
                     webexp.routes()
-                } ~ pathPrefix(swaggeruipath) {
-                    getFromDirectory("/swagger-ui/")
-                } ~ path(swaggeruipath) {
-                    redirect(s"$swaggeruipath/index.html", PermanentRedirect)
-                } ~ path(swaggerdocpath) {
-                    getFromResource("whiskswagger.json")
+                } ~ {
+                    swaggerRoutes
                 } ~ options {
                     complete(OK)
                 }
@@ -194,6 +194,19 @@ protected[controller] class RestAPIVersion_v1()(
     private val packages = new PackagesApi(apipath, apiversion)
     private val webexp = new WebActionsApi(Seq("experimental", "web"), WebApiDirectives.exp)
     private val web = new WebActionsApi(Seq("web"), WebApiDirectives.web)
+
+    /**
+     * Describes details of a particular API path.
+     */
+    private val info = JsObject(
+        "description" -> "OpenWhisk API".toJson,
+        "api_version" -> SemVer(1, 0, 0).toJson,
+        "api_version_path" -> apiversion.toJson,
+        "build" -> whiskConfig(whiskVersionDate).toJson,
+        "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
+        "swagger_paths" -> JsObject(
+            "ui" -> s"/$swaggeruipath".toJson,
+            "api-docs" -> s"/$swaggerdocpath".toJson))
 
     class NamespacesApi(
         val apipath: String,

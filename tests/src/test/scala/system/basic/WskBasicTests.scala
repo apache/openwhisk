@@ -485,7 +485,7 @@ class WskBasicTests
         val name = "dockerContainer"
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some("fakeContainer"), kind = Some("docker"))
+                (action, _) => action.create(name, Some("fake-container"), kind = Some("docker"))
             }
 
             wsk.action.get(name).stdout should not include (""""code"""")

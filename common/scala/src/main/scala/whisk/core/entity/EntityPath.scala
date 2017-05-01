@@ -16,6 +16,8 @@
 
 package whisk.core.entity
 
+import java.util.regex.Matcher
+
 import scala.util.Try
 
 import spray.json.JsString
@@ -139,7 +141,7 @@ protected[core] object EntityPath {
     @throws[IllegalArgumentException]
     private def apply(parts: Seq[String]): EntityPath = {
         require(parts != null && parts.nonEmpty, "path undefined")
-        require(parts.forall { s => s != null && s.matches(EntityName.REGEX) }, s"path contains invalid parts ${parts.toString}")
+        require(parts.forall { s => s != null && EntityName.entityNameMatcher(s).matches }, s"path contains invalid parts ${parts.toString}")
         new EntityPath(parts)
     }
 
@@ -182,7 +184,9 @@ protected[core] object EntityName {
      * is a letter|digit|underscore, followed by one or more allowed characters in [\w@ .-].
      * The name may not have trailing white space.
      */
-    protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .-]{0,${ENTITY_NAME_MAX_LENGTH-2}}[\w@.-])\z"
+    protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .-]{0,${ENTITY_NAME_MAX_LENGTH - 2}}[\w@.-])\z"
+    private val entityNamePattern = REGEX.r.pattern // compile once
+    protected[core] def entityNameMatcher(s: String): Matcher = entityNamePattern.matcher(s)
 
     /**
      * Unapply method for convenience of case matching.
@@ -197,7 +201,7 @@ protected[core] object EntityName {
      */
     @throws[IllegalArgumentException]
     protected[core] def apply(name: String): EntityName = {
-        require(name != null && name.matches(REGEX), s"name [$name] is not allowed")
+        require(name != null && entityNameMatcher(name).matches, s"name [$name] is not allowed")
         new EntityName(name)
     }
 

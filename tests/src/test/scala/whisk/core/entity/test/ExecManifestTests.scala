@@ -16,6 +16,8 @@
 
 package whisk.core.entity.test
 
+import scala.util.Success
+
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
@@ -33,11 +35,36 @@ class ExecManifestTests
 
     behavior of "ExecManifest"
 
-    it should "read a valid configuration" in {
-        val k1 = RuntimeManifest("k1")
-        val k2 = RuntimeManifest("k2", default = Some(true))
-        val p1 = RuntimeManifest("p1")
-        val mf = JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson)
+    private def manifestFactory(runtimes: JsObject) = {
+        JsObject("runtimes" -> runtimes)
+    }
+
+    it should "parse an image name" in {
+        Map("i" -> ImageName("i"),
+            "i:t" -> ImageName("i", tag = Some("t")),
+            "i:tt" -> ImageName("i", tag = Some("tt")),
+            "ii" -> ImageName("ii"),
+            "ii:t" -> ImageName("ii", tag = Some("t")),
+            "ii:tt" -> ImageName("ii", tag = Some("tt")),
+            "p/i" -> ImageName("i", Some("p")),
+            "pre/img" -> ImageName("img", Some("pre")),
+            "pre/img:t" -> ImageName("img", Some("pre"), Some("t")),
+            "pre1/pre2/img:t" -> ImageName("img", Some("pre1/pre2"), Some("t")),
+            "pre1/pre2/img" -> ImageName("img", Some("pre1/pre2")))
+            .foreach {
+                case (s, v) => ImageName.fromString(s) shouldBe Success(v)
+            }
+
+        Seq("ABC", "x:8080/abc", "p/a:x:y").foreach { s =>
+            a[DeserializationException] should be thrownBy ImageName.fromString(s).get
+        }
+    }
+
+    it should "read a valid configuration without default prefix, default tag or blackbox images" in {
+        val k1 = RuntimeManifest("k1", ImageName("???"))
+        val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
+        val p1 = RuntimeManifest("p1", ImageName("???"))
+        val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson))
         val runtimes = ExecManifest.runtimes(mf).get
 
         Seq("k1", "k2", "p1").foreach {
@@ -54,19 +81,93 @@ class ExecManifestTests
         runtimes.resolveDefaultRuntime("p1:default") shouldBe Some(p1)
     }
 
+    it should "read a valid configuration without default prefix, default tag" in {
+        val i1 = RuntimeManifest("i1", ImageName("???"))
+        val i2 = RuntimeManifest("i2", ImageName("???", Some("ppp")), default = Some(true))
+        val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
+        val k1 = RuntimeManifest("k1", ImageName("???", None, Some("ttt")))
+
+        val mf = JsObject(
+            "defaultImagePrefix" -> "pre".toJson,
+            "defaultImageTag" -> "test".toJson,
+            "runtimes" -> JsObject("is" -> Set(i1, i2).toJson, "js" -> Set(j1).toJson, "ks" -> Set(k1).toJson))
+        val runtimes = ExecManifest.runtimes(mf).get
+
+        runtimes.resolveDefaultRuntime("i1").get.image.publicImageName shouldBe "pre/???:test"
+        runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???:test"
+        runtimes.resolveDefaultRuntime("j1").get.image.publicImageName shouldBe "ppp/???:ttt"
+        runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "pre/???:ttt"
+    }
+
+    it should "read a valid configuration with blackbox images but without default prefix or tag" in {
+        val imgs = Set(
+            ImageName("???"),
+            ImageName("???", Some("ppp")),
+            ImageName("???", Some("ppp"), Some("ttt")),
+            ImageName("???", None, Some("ttt")))
+
+        val mf = JsObject(
+            "runtimes" -> JsObject(),
+            "blackboxes" -> imgs.toJson)
+        val runtimes = ExecManifest.runtimes(mf).get
+        runtimes.blackboxImages shouldBe imgs
+    }
+
+    it should "read a valid configuration with blackbox images, default prefix and tag" in {
+        val imgs = Set(
+            ImageName("???"),
+            ImageName("???", Some("ppp")),
+            ImageName("???", Some("ppp"), Some("ttt")),
+            ImageName("???", None, Some("ttt")))
+
+        val mf = JsObject(
+            "defaultImagePrefix" -> "pre".toJson,
+            "defaultImageTag" -> "test".toJson,
+            "runtimes" -> JsObject(),
+            "blackboxes" -> imgs.toJson)
+        val runtimes = ExecManifest.runtimes(mf).get
+
+        runtimes.blackboxImages shouldBe {
+            Set(ImageName("???", Some("pre"), Some("test")),
+                ImageName("???", Some("ppp"), Some("test")),
+                ImageName("???", Some("ppp"), Some("ttt")),
+                ImageName("???", Some("pre"), Some("ttt")))
+        }
+
+    }
+
     it should "reject runtimes with multiple defaults" in {
-        val k1 = RuntimeManifest("k1", default = Some(true))
-        val k2 = RuntimeManifest("k2", default = Some(true))
-        val mf = JsObject("ks" -> Set(k1, k2).toJson)
+        val k1 = RuntimeManifest("k1", ImageName("???"), default = Some(true))
+        val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
+        val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
 
         an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
     }
 
     it should "reject finding a default when none is specified for multiple versions" in {
-        val k1 = RuntimeManifest("k1")
-        val k2 = RuntimeManifest("k2")
-        val mf = JsObject("ks" -> Set(k1, k2).toJson)
+        val k1 = RuntimeManifest("k1", ImageName("???"))
+        val k2 = RuntimeManifest("k2", ImageName("???"))
+        val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
 
         an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
+    }
+
+    it should "prefix image name with overrides" in {
+        val name = "xyz"
+        ExecManifest.ImageName(name, Some(""), Some("")).publicImageName shouldBe name
+
+        Seq((ExecManifest.ImageName(name), name),
+            (ExecManifest.ImageName(name, Some("pre")), s"pre/$name"),
+            (ExecManifest.ImageName(name, None, Some("t")), s"$name:t"),
+            (ExecManifest.ImageName(name, Some("pre"), Some("t")), s"pre/$name:t")).foreach {
+                case (image, exp) =>
+                    image.publicImageName shouldBe exp
+
+                    image.localImageName("", "", None) shouldBe image.tag.map(t => s"$name:$t").getOrElse(s"$name:latest")
+                    image.localImageName("", "p", None) shouldBe image.tag.map(t => s"p/$name:$t").getOrElse(s"p/$name:latest")
+                    image.localImageName("r", "", None) shouldBe image.tag.map(t => s"r/$name:$t").getOrElse(s"r/$name:latest")
+                    image.localImageName("r", "p", None) shouldBe image.tag.map(t => s"r/p/$name:$t").getOrElse(s"r/p/$name:latest")
+                    image.localImageName("r", "p", Some("tag")) shouldBe s"r/p/$name:tag"
+            }
     }
 }
