@@ -30,7 +30,7 @@ To use this example, follow these steps:
 3. Then, invoke the action by entering the following commands.
 
     ```
-    $ wsk action invoke hello --blocking --result
+    $ wsk action invoke hello --result
     ```
 
     This command outputs:
@@ -42,7 +42,7 @@ To use this example, follow these steps:
     ```
 
     ```
-    $ wsk action invoke hello --blocking --result --param name Fred
+    $ wsk action invoke hello --result --param name Fred
     ```
 
     This command outputs:

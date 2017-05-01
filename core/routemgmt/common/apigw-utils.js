@@ -155,6 +155,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     headers: {
       'Accept': 'application/json'
     },
+    json: true
   };
   if (qs) {
     options.qs = qs;
@@ -168,8 +169,10 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getApis: response status: '+ statusCode);
+      if (response.headers) console.log('getApis: response headers: '+JSON.stringify(response.headers));
       if (error) console.error('Warning: getApis request failed: '+JSON.stringify(error));
-      if (body) console.log('getApis: response body: '+JSON.stringify(body));
+      console.log('getApis: body type = '+typeof body);
+      if (body) console.log('getApis: response JSON.stringify(body): '+JSON.stringify(body));
       if (error) {
         console.error('getApis: Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
         reject('Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
@@ -177,24 +180,18 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
         console.error('getApis: failure: response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
-          if (body.error && body.error.message) errMsg = body.error.message;
+          if (body.error && body.error.error && body.error.error.message) errMsg = body.error.error.message;
           reject('Unable to obtain API(s) from the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
           reject('Unable to obtain API(s) from the API Gateway: Response failure code: '+statusCode);
         }
       } else {
         if (body) {
-          try {
-            var bodyJson = JSON.parse(body);
-            if (Array.isArray(bodyJson)) {
-              resolve(bodyJson);
-            } else {
-              console.error('getApis: Invalid API GW response body; a JSON array was not returned');
-              resolve( [] );
-            }
-          } catch(e) {
-            console.error('getApis: Invalid API GW response body; JSON.parse() failure: '+e);
-            reject('Invalid API Gateway response: '+e);
+          if (Array.isArray(body)) {
+            resolve(body);
+          } else {
+            console.error('getApis: Invalid API GW response body; a JSON array was not returned');
+            resolve( [] );
           }
         } else {
           console.log('getApis: No APIs found');
@@ -343,6 +340,9 @@ function generateBaseSwaggerApi(basepath, apiname) {
     'paths': {},
     'x-ibm-configuration': {
       'assembly': {
+      },
+      'cors': {
+        'enabled': true
       }
     }
   };
@@ -366,12 +366,14 @@ function generateBaseSwaggerApi(basepath, apiname) {
  *                    namespace:
  *                  }
  *                }
+ *   responsetype Optional. The web action invocation .extension.  Defaults to json
  * Returns:
  *   swaggerApi - Input JSON object in swagger format containing the union of swaggerApi + new path/operation
  */
-function addEndpointToSwaggerApi(swaggerApi, endpoint) {
+function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
   var operation = endpoint.gatewayMethod.toLowerCase();
   var operationId = operation + '_' + endpoint.gatewayPath;
+  var responsetype = responsetype || 'json';
   console.log('addEndpointToSwaggerApi: operationid = '+operationId);
   try {
     var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
@@ -384,7 +386,7 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
     swaggerApi.paths[endpoint.gatewayPath][operation] = {
       'operationId': operationId,
       'x-openwhisk': {
-        'url': makeWebActionBackendUrl(endpoint.action ,'http'),
+        'url': makeWebActionBackendUrl(endpoint.action, responsetype),
         'namespace': endpoint.action.namespace,
         'package': getPackageNameFromFqActionName(endpoint.action.name),
         'action': getActionNameFromFqActionName(endpoint.action.name),
@@ -398,8 +400,7 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
 
     // API GW extensions
     console.log('addEndpointToSwaggerApi: setting api gw extension values');
-    setActionInvocationHeaders(swaggerApi, 'Basic '+auth_base64);
-    setActionOperationInvocationDetails(swaggerApi, endpoint, operationId);
+    setActionOperationInvocationDetails(swaggerApi, endpoint, operationId, responsetype);
   }
   catch(e) {
     console.log("addEndpointToSwaggerApi: exception "+e);
@@ -409,20 +410,13 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
   return swaggerApi;
 }
 
-function setActionInvocationHeaders(swagger, authHeaderValue) {
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].set', 'message.headers.Authorization');
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[0].value', authHeaderValue);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].set', 'message.headers.Content-Type');
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].set-variable.actions[1].value', 'application/json');
-}
-
-function setActionOperationInvocationDetails(swagger, endpoint, operationId) {
-  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+function setActionOperationInvocationDetails(swagger, endpoint, operationId, responsetype) {
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case') || [];
   var caseIdx = getCaseOperationIdx(caseArr, operationId);
   var operations = [operationId];
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].operations', operations);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, 'http'));
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
 }
 
 // Return the numeric index into case[] into which the associated operation will be configured
@@ -510,11 +504,11 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
 
 function deleteActionOperationInvocationDetails(swagger, operationId) {
   console.log('deleteActionOperationInvocationDetails: deleting case entry for ' + operationId);
-  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case') || [];
+  var caseArr = _.get(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case') || [];
   if (caseArr.length > 0) {
     var caseIdx = getCaseOperationIdx(caseArr, operationId);
     _.pullAt(caseArr, caseIdx);
-    _.set(swagger, 'x-ibm-configuration.assembly.execute[1].operation-switch.case', caseArr);
+    _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case', caseArr);
   } else {
     console.log('deleteActionOperationInvocationDetails: empty case[] array; case operation '+operationId+' does not exist');
   }
@@ -579,10 +573,11 @@ function generateCliApiFromGwApi(gwApi) {
  *           result[3] : namespace
  *           result[4] : package name
  *           result[5] : action name
+ *           result[6] : action response type (i.e http, json, text, html, or svg)
  */
 function parseActionUrl(actionUrl) {
   console.log('parseActionUrl: parsing action url: '+actionUrl);
-  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.http/;
+  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.(\w+)/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {

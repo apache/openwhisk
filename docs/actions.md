@@ -139,7 +139,7 @@ Parameters can be passed to the action when it is invoked.
 
   To pass parameters directly through the command-line, supply a key/value pair to the `--param` flag:
   ```
-  $ wsk action invoke --blocking --result hello --param name Bernie --param place Vermont
+  $ wsk action invoke --result hello --param name Bernie --param place Vermont
   ```
 
   In order to use a file containing parameter content, create a file containing the parameters in JSON format. The
@@ -154,7 +154,7 @@ Parameters can be passed to the action when it is invoked.
   ```
 
   ```
-  $ wsk action invoke --blocking --result hello --param-file parameters.json
+  $ wsk action invoke --result hello --param-file parameters.json
   ```
 
   ```
@@ -163,7 +163,8 @@ Parameters can be passed to the action when it is invoked.
   }
   ```
 
-  Notice the use of the `--result` option to display only the invocation result.
+  Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then
+  displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
 
 ### Setting default parameters
 
@@ -196,7 +197,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
 2. Invoke the action, passing only the `name` parameter this time.
 
   ```
-  $ wsk action invoke --blocking --result hello --param name Bernie
+  $ wsk action invoke --result hello --param name Bernie
   ```
   ```
   {
@@ -211,7 +212,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
   Using the `--param` flag:
 
   ```
-  $ wsk action invoke --blocking --result hello --param name Bernie --param place "Washington, DC"
+  $ wsk action invoke --result hello --param name Bernie --param place "Washington, DC"
   ```
 
   Using the `--param-file` flag:
@@ -225,7 +226,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
   ```
 
   ```
-  $ wsk action invoke --blocking --result hello --param-file parameters.json
+  $ wsk action invoke --result hello --param-file parameters.json
   ```
 
   ```
@@ -264,7 +265,7 @@ JavaScript functions that run asynchronously may need to return the activation r
   $ wsk action create asyncAction asyncAction.js
   ```
   ```
-  $ wsk action invoke --blocking --result asyncAction
+  $ wsk action invoke --result asyncAction
   ```
   ```
   {
@@ -340,7 +341,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   $ wsk action create weather weather.js
   ```
   ```
-  $ wsk action invoke --blocking --result weather --param location "Brooklyn, NY"
+  $ wsk action invoke --result weather --param location "Brooklyn, NY"
   ```
   ```
   {
@@ -404,7 +405,7 @@ To create an OpenWhisk action from this package:
 4. You can invoke the action like any other:
 
   ```
-  $ wsk action invoke --blocking --result packageAction --param lines "[\"and now\", \"for something completely\", \"different\" ]"
+  $ wsk action invoke --result packageAction --param lines "[\"and now\", \"for something completely\", \"different\" ]"
   ```
   ```
   {
@@ -452,7 +453,7 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
 3. Invoke the action:
 
   ```
-  $ wsk action invoke --blocking --result sequenceAction --param payload "Over-ripe sushi,\nThe Master\nIs full of regret."
+  $ wsk action invoke --result sequenceAction --param payload "Over-ripe sushi,\nThe Master\nIs full of regret."
   ```
   ```
   {
@@ -502,7 +503,7 @@ The CLI automatically infers the type of the action from the source file extensi
 Action invocation is the same for Python actions as it is for JavaScript actions:
 
 ```
-$ wsk action invoke --blocking --result helloPython --param name World
+$ wsk action invoke --result helloPython --param name World
 ```
 
 ```
@@ -592,7 +593,7 @@ the tool determines that from the file extension.
 Action invocation is the same for Swift actions as it is for JavaScript actions:
 
 ```
-$ wsk action invoke --blocking --result helloSwift --param name World
+$ wsk action invoke --result helloSwift --param name World
 ```
 
 ```
@@ -709,7 +710,7 @@ e.g., `--main com.example.MyMain`.
 Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
 
 ```
-$ wsk action invoke --blocking --result helloJava --param name World
+$ wsk action invoke --result helloJava --param name World
 ```
 
 ```
@@ -794,7 +795,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   The action may be invoked as any other OpenWhisk action.
 
   ```
-  $ wsk action invoke --blocking --result example --param payload Rey
+  $ wsk action invoke --result example --param payload Rey
   ```
   ```
   {

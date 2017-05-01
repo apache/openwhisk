@@ -88,7 +88,7 @@ An OpenWhisk action that is not a web action requires both authentication and mu
 
 1. `headers`: a JSON object where the keys are header-names and the values are string values for those headers (default is no headers).
 2. `statusCode`: a valid HTTP status code (default is 200 OK).
-3. `body`: a string which is either plain text or a base64 encoded string (for binary data).
+3. `body`: a string which is either plain text or a base64 encoded string for binary data (default is empty response).
 
 The controller will pass along the action-specified headers, if any, to the HTTP client when terminating the request/response. Similarly the controller will respond with the given status code when present. Lastly, the body is passed along as the body of the response. Unless a `content-type header` is declared in the action result’s `headers`, the body is passed along as is if it’s a string (or results in an error otherwise). When the `content-type` is defined, the controller will determine if the response is binary data or plain text and decode the string using a base64 decoder as needed. Should the body fail to decoded correctly, an error is returned to the caller.
 

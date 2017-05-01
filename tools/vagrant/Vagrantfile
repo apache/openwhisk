@@ -20,7 +20,7 @@ Vagrant.configure('2') do |config|
   config.vm.box_url = BOX_URL
 
   config.vm.network :private_network, ip: MACHINE_IP
-  
+
   # If true, then any SSH connections made will enable agent forwarding.
   # Default value: false
   config.ssh.forward_agent = true
@@ -34,7 +34,7 @@ Vagrant.configure('2') do |config|
     vb.customize ['modifyvm', :id, '--ostype', 'Ubuntu_64']
     vb.customize ['modifyvm', :id, '--memory', BOX_MEMORY]
   end
-  
+
   # Shared root of repository; do not use symlinks
   config.vm.synced_folder '../../', '/home/vagrant/openwhisk'
 
@@ -43,7 +43,7 @@ Vagrant.configure('2') do |config|
     s.privileged = false
     s.inline = "sudo sed -i '/tty/!s/mesg n/tty -s \\&\\& mesg n/' /root/.profile"
   end
-  
+
   # Install Software
 $script_common = <<SCRIPT
   set -e
@@ -52,7 +52,7 @@ $script_common = <<SCRIPT
   sudo apt-get update
   sudo apt-get install git -y
   sudo apt-get install htop
-  
+
   # Configure swapfile
   echo 'swapfile not found. Adding swapfile.'
   fallocate -l 8000M /swapfile
@@ -78,7 +78,7 @@ $script_common = <<SCRIPT
 SCRIPT
 
   config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
-   
+
   # Configure Custom Database
 $script_db = <<SCRIPT
 export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
@@ -116,7 +116,7 @@ export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
 cd /home/vagrant/openwhisk/ansible
 su vagrant -c 'ansible-playbook -i environments/local initdb.yml'
 INIT_DB
-  
+
   if OW_DB
     config.vm.provision "script_db", type: "shell", keep_color: true, inline: $script_db
   else
@@ -141,7 +141,7 @@ $script_end = <<SCRIPT
   su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
   su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
   su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
-  
+
   # Setup OpenWhisk CLI
   su vagrant -c 'mkdir ${HOME}/bin'
   su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/admin/wskadmin ${HOME}/bin/wskadmin'
@@ -151,16 +151,16 @@ $script_end = <<SCRIPT
   chown vagrant:vagrant ${HOME}/bin/wsk
   PATH=${PATH}:${HOME}/bin
   echo 'pushd "$(mktemp -d)" > /dev/null && wsk sdk install bashauto > /dev/null && source wsk_cli_bash_completion.sh && popd > /dev/null' >> $HOME/.bashrc
-  
+
   # Run OpenWhisk CLI
   touch $HOME/.wskprops
   chown -R vagrant:vagrant $HOME
-  # This allows user to see how to configure the wsk cli outside the VM 
-  wsk property set --apihost 192.168.33.13 --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
-  wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+  # This allows user to see how to configure the wsk cli outside the VM
+  wsk property set --apihost ${WHISK_IP} --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
+  wsk action invoke /whisk.system/utils/echo -p message hello --result
 SCRIPT
 
-  config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end
+  config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end, env: {"WHISK_IP" => MACHINE_IP}
 
   if ENV['gui'] == 'true'
     # Install ubuntu-desktop and virtualbox additions

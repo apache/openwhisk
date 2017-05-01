@@ -196,6 +196,11 @@ object LoggingMarkers {
     private val kafka = "kafka"
     private val loadbalancer = "loadbalancer"
 
+    /*
+     * Controller related markers
+     */
+    def CONTROLLER_STARTUP(i: Int) = LogMarkerToken(controller, s"startup$i", count)
+
     // Time of the activation in controller until it is delivered to Kafka
     val CONTROLLER_ACTIVATION = LogMarkerToken(controller, activation, start)
     val CONTROLLER_ACTIVATION_BLOCKING = LogMarkerToken(controller, "blockingActivation", start)
@@ -205,6 +210,15 @@ object LoggingMarkers {
 
     // Time that is needed to produce message in kafka
     val CONTROLLER_KAFKA = LogMarkerToken(controller, kafka, start)
+
+    /*
+     * Invoker related markers
+     */
+    def INVOKER_STARTUP(i: Int) = LogMarkerToken(invoker, s"startup$i", count)
+
+    // Check invoker healthy state from loadbalancer
+    val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
+    val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
 
     // Time that is needed to execute the action
     val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
@@ -217,6 +231,9 @@ object LoggingMarkers {
     def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
     def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
 
+    /*
+     * General markers
+     */
     val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
     val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)
     val DATABASE_SAVE = LogMarkerToken(database, "saveDocument", start)

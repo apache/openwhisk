@@ -64,6 +64,8 @@ class Invoker(
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
+    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
+
     /** This generates completion messages back to the controller */
     val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
@@ -203,7 +205,7 @@ class Invoker(
                     pool.putBack(con, deleteContainer)
                 }
 
-                activationResult withLogs ActivationLogs.serdes.read(contents)
+                activationResult withLogs ActivationLogs(contents)
         }
     }
 
@@ -252,7 +254,7 @@ class Invoker(
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
-        val completeMsg = CompletionMessage(transid, activationResult)
+        val completeMsg = CompletionMessage(transid, activationResult, this.name)
 
         producer.send("completed", completeMsg) map { status =>
             logging.info(this, s"posted completion of activation ${msg.activationId}")
@@ -277,7 +279,7 @@ class Invoker(
      * next activation if the marker is not observed but the log limit is reached.
      */
     private def getContainerLogs(con: WhiskContainer, sentinelled: Boolean, loglimit: LogLimit, tries: Int = LogRetryCount)(
-        implicit transid: TransactionId): JsArray = {
+        implicit transid: TransactionId): Vector[String] = {
         val size = pool.getLogSize(con, runningInContainer)
         val advanced = size != con.lastLogSize
         if (tries <= 0 || advanced) {
@@ -296,13 +298,7 @@ class Invoker(
                 getContainerLogs(con, sentinelled, loglimit, tries - 1)
             } else {
                 con.lastLogSize = size
-                val formattedLogs = logs.map(_.toFormattedString)
-
-                val finishedLogs = if (isTruncated) {
-                    formattedLogs :+ Messages.truncateLogs(loglimit.asMegaBytes)
-                } else formattedLogs
-
-                JsArray(finishedLogs.map(_.toJson))
+                logs
             }
         } else {
             logging.info(this, s"log cursor has not advanced, trying $tries more times")

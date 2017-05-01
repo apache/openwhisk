@@ -99,7 +99,7 @@ class WskBasicUsageTests
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
             val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
                 "--namespace", namespace), env = env).stdout
-            stdout should include(s"ok: whisk auth set to ${wskprops.authKey}")
+            stdout should include(s"ok: whisk auth set")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
             stdout should include(s"ok: whisk namespace set to ${namespace}")
         } finally {
@@ -529,6 +529,17 @@ class WskBasicUsageTests
                     fields("activation_id") shouldBe activation.activationId
                     fields("deadline").toLong should be >= start
             }
+    }
+
+    it should "invoke an action successfully with options --blocking and --result" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "invokeResult"
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+            }
+            val args = Map("hello" -> "Robert".toJson)
+            val run = wsk.action.invoke(name, args, blocking = true, result = true)
+            run.stdout.parseJson shouldBe args.toJson
     }
 
     it should "invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {

@@ -135,6 +135,10 @@ object JsonArgsForTests {
             "value" -> JsNumber(8)
         ),
         JsObject(
+            "key" -> JsString("bignumber"),
+            "value" -> JsNumber(12345678912.123456789012)
+        ),
+        JsObject(
             "key" -> JsString("objArr"),
             "value" -> JsArray(
                 JsObject(
@@ -192,6 +196,7 @@ object JsonArgsForTests {
         "string" -> JsString("This is a string"),
         "strNum" -> JsString("9"),
         "number" -> JsNumber(8),
+        "bignumber" -> JsNumber(12345678912.123456789012),
         "numArr" -> JsArray(
             JsNumber(44),
             JsNumber(55)

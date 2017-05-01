@@ -41,9 +41,10 @@ import (
 )
 
 type QualifiedName struct {
-    namespace   string
-    packageName string
-    entityName  string
+    namespace   string  // namespace. does not include leading '/'.  may be "" (i.e. default namespace)
+    packageName string  // package.  may be "".  does not include leading/trailing '/'
+    entity      string  // entity.  should not be ""
+    entityName  string  // pkg+entity
 }
 
 func (qName QualifiedName) String() string {
@@ -99,6 +100,10 @@ func parseQualifiedName(name string) (QualifiedName, error) {
         }
 
         qualifiedName.entityName = strings.Join(parts[2:], "/")
+        if len(parts) == 4 {
+            qualifiedName.packageName = parts[2]
+        }
+        qualifiedName.entity = parts[len(parts)-1]
     } else {
         if len(name) == 0 || name == "." {
             whisk.Debug(whisk.DbgError, "A valid qualified name was not detected\n")
@@ -107,12 +112,19 @@ func parseQualifiedName(name string) (QualifiedName, error) {
             return qualifiedName, err
         }
 
+        parts := strings.Split(name, "/")
+        qualifiedName.entity = parts[len(parts)-1]
+        if len(parts) == 2 {
+            qualifiedName.packageName = parts[0]
+        }
         qualifiedName.entityName = name
         qualifiedName.namespace = getNamespace()
     }
 
-    whisk.Debug(whisk.DbgInfo, "Qualified entityName: %s\n", qualifiedName.entityName)
-    whisk.Debug(whisk.DbgInfo, "Qaulified namespace: %s\n", qualifiedName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified pkg+entity (EntityName): %s\n", qualifiedName.entityName)
+    whisk.Debug(whisk.DbgInfo, "Qualified namespace: %s\n", qualifiedName.namespace)
+    whisk.Debug(whisk.DbgInfo, "Qualified package: %s\n", qualifiedName.packageName)
+    whisk.Debug(whisk.DbgInfo, "Qualified entity: %s\n", qualifiedName.entity)
 
     return qualifiedName, nil
 }
@@ -167,9 +179,11 @@ func getJSONFromStrings(content []string, keyValueFormat bool) (interface{}, err
     whisk.Debug(whisk.DbgInfo, "Convert content to JSON: %#v\n", content)
 
     for i := 0; i < len(content); i++ {
-        if err := json.Unmarshal([]byte(content[i]), &data); err != nil {
-            whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s'\n", content[i])
-            return whisk.KeyValueArr{}, err
+        dc := json.NewDecoder(strings.NewReader(content[i]))
+        dc.UseNumber()
+        if err := dc.Decode(&data); err!=nil {
+            whisk.Debug(whisk.DbgError, "Invalid JSON detected for '%s' \n", content[i])
+            return whisk.KeyValueArr{} , err
         }
 
         whisk.Debug(whisk.DbgInfo, "Created map '%v' from '%v'\n", data, content[i])

@@ -17,10 +17,10 @@
     version: 2.10.0
   become: true
 
-- name: install docker-py
+- name: install docker for python
   pip: 
-    name: docker-py
-    version: 1.9.0
+    name: docker
+    version: 2.2.1
   become: true
 
 - name: install httplib2

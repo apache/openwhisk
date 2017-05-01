@@ -52,12 +52,9 @@ for instruction in buildInstructions:
     elif instruction.startswith(LINKER_PREFIX):
         linkCommand = instruction
 
-# if found, create build script, otherwise exit with error
+# Create build script if found, exit otherwise
 if compileCommand is not None and linkCommand is not None:
-    print("Generated OpenWhisk Compile command: %s" % compileCommand)
-    print("=========")
-    print("Generated OpenWhisk Link command: %s" % linkCommand)
-
+    print("Success, command and link commands found.")
     with open(GENERATED_BUILD_SCRIPT, "a") as buildScript:
         buildScript.write("#!/bin/bash\n")
         buildScript.write("echo \"Compiling\"\n")
@@ -68,7 +65,7 @@ if compileCommand is not None and linkCommand is not None:
         buildScript.write("echo \"Linking\"\n")
         buildScript.write("%s\n" % linkCommand)
         buildScript.write("else\n")
-        buildScript.write(">2& echo \"Action did not compile\"\n")
+        buildScript.write(">&2 echo \"Action did not compile\"\n")
         buildScript.write("exit 1\n")
         buildScript.write("fi")
 

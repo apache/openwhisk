@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker.test
+package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 
@@ -28,8 +28,7 @@ import common.StreamLogging
 import spray.json.pimpAny
 import whisk.common.TransactionId
 import whisk.core.entity.size._
-import whisk.core.invoker.ActionLogDriver
-import whisk.core.invoker.LogLine
+import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class ActionLogDriverTests
@@ -53,7 +52,7 @@ class ActionLogDriverTests
     }
 
     private def makeLogLines(lines: Seq[String], stream: String = "stdout") = {
-        lines.map(LogLine("", stream, _)).filter(_.log.nonEmpty).toVector
+        lines.map(LogLine("", stream, _)).filter(_.log.nonEmpty).map(_.toFormattedString).toVector
     }
 
     behavior of "LogLine"
@@ -113,7 +112,7 @@ class ActionLogDriverTests
             }
     }
 
-    it should "account for sentinels when logs are not form a sentinelled action runtime" in {
+    it should "account for sentinels when logs are not from a sentinelled action runtime" in {
         implicit val tid = TransactionId.testing
 
         Seq(
@@ -126,7 +125,7 @@ class ActionLogDriverTests
             .foreach {
                 case (msgs, l) =>
                     processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = true), false, l.B) shouldBe {
-                        (true, true, makeLogLines(msgs))
+                        (true, true, makeLogLines(msgs) ++ Vector(Messages.truncateLogs(l.B)))
                     }
             }
     }
@@ -145,7 +144,7 @@ class ActionLogDriverTests
                 case (msgs, exp, l) =>
                     Seq(true, false).foreach { sentinel =>
                         processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = sentinel), sentinel, l.B) shouldBe {
-                            (!sentinel, true, makeLogLines(exp))
+                            (!sentinel, true, makeLogLines(exp) ++ Vector(Messages.truncateLogs(l.B)))
                         }
                     }
             }

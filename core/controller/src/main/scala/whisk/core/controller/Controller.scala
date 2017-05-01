@@ -43,6 +43,7 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
+import whisk.common.LoggingMarkers
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -84,7 +85,7 @@ class Controller(
         }
     }
 
-    logging.info(this, s"starting controller instance ${instance}")
+    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance), s"starting controller instance ${instance}")
 
     // initialize datastores
     private implicit val actorSystem = context.system
@@ -94,7 +95,7 @@ class Controller(
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services
-    private implicit val loadBalancer = new LoadBalancerService(whiskConfig)
+    private implicit val loadBalancer = new LoadBalancerService(whiskConfig, entityStore)
     private implicit val consulServer = whiskConfig.consulServer
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}

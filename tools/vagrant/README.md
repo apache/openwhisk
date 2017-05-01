@@ -41,7 +41,7 @@ For more information on data store configurations see [tools/db/README.md](../db
 
 ### Wait for hello action output
 ```
-wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"
 }
@@ -70,7 +70,7 @@ The following commands assume that you have `wsk` setup correctly in your PATH.
 wsk property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
-wsk -i action invoke /whisk.system/utils/echo -p message hello --blocking --result
+wsk -i action invoke /whisk.system/utils/echo -p message hello --result
 {
     "message": "hello"
 }
@@ -92,12 +92,12 @@ For your convenience, a `wsk` wrapper is provided inside the VM which delegates 
 
 Calling the wsk CLI via `vagrant ssh` directly
 ```
-vagrant ssh -- wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+vagrant ssh -- wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
 Calling the wsk CLI by login into the Vagrant VM
 ```
 vagrant ssh
-wsk action invoke /whisk.system/utils/echo -p message hello --blocking --result
+wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
 
 ### Run OpenWhisk tests
@@ -182,14 +182,14 @@ A namespace allows two or more subjects to share resources. Each subject will ha
 
 ```
 vagrant ssh
-wskadmin user create <subject> --ns <namespace>
+wskadmin user create <subject> -ns <namespace>
 ```
 
 The same tool may be used to remove a subject from a namespace or to delete a subject entirely.
 
 ```
 vagrant ssh
-wskadmin user delete <subject> --ns <namespace>  # removes <subject> from <namespace>
+wskadmin user delete <subject> -ns <namespace>  # removes <subject> from <namespace>
 wskadmin user delete <subject>                   # deletes <subject>
 ```
 

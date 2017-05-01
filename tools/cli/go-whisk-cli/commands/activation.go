@@ -135,7 +135,7 @@ var activationGetCmd = &cobra.Command{
         activation, _, err := client.Activations.Get(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.Get(%s) failed: %s\n", id, err)
-            errStr := wski18n.T("Unable to obtain activation record for '{{.id}}': {{.err}}",
+            errStr := wski18n.T("Unable to get activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -186,7 +186,7 @@ var activationLogsCmd = &cobra.Command{
         activation, _, err := client.Activations.Logs(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.Logs(%s) failed: %s\n", id, err)
-            errStr := wski18n.T("Unable to obtain logs for activation '{{.id}}': {{.err}}",
+            errStr := wski18n.T("Unable to get logs for activation '{{.id}}': {{.err}}",
                 map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -214,7 +214,7 @@ var activationResultCmd = &cobra.Command{
         result, _, err := client.Activations.Result(id)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.result(%s) failed: %s\n", id, err)
-            errStr := wski18n.T("Unable to obtain result information for activation '{{.id}}': {{.err}}",
+            errStr := wski18n.T("Unable to get result for activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr

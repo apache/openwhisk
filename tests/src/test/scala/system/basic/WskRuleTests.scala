@@ -213,9 +213,9 @@ class WskRuleTests
                 assetHelper)
 
             val first = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
-            wsk.rule.disableRule(ruleName)
+            wsk.rule.disable(ruleName)
             wsk.trigger.fire(triggerName, Map("payload" -> s"$testString with added words".toJson))
-            wsk.rule.enableRule(ruleName)
+            wsk.rule.enable(ruleName)
             wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
 
             withActivation(wsk.activation, first) {

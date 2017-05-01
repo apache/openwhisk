@@ -31,6 +31,7 @@
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
  *   spaceguid            Optional. Namespace unique id.
+ *   responsetype         Optional. web action response .extension to use.  default to json
  *   apidoc               Required. The API Gateway mapping document
  *      namespace           Required.  Namespace of user/caller
  *      apiName             Optional if swagger not specified.  API descriptive name
@@ -55,6 +56,7 @@ var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 
 function main(message) {
+  //console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
     return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
@@ -102,6 +104,7 @@ function main(message) {
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
   console.log('accesstoken   : '+message.accesstoken);
   console.log('spaceguid     : '+message.spaceguid);
+  console.log('responsetype  : '+message.responsetype);
   console.log('API name      : '+doc.apiName);
   console.log('basepath      : '+basepath);
   console.log('relpath       : '+doc.gatewayPath);
@@ -140,7 +143,7 @@ function main(message) {
         return Promise.resolve(doc.swagger);
       } else {
         console.log('Add the provided API endpoint');
-        return Promise.resolve(utils2.addEndpointToSwaggerApi(endpointDoc, doc));
+        return Promise.resolve(utils2.addEndpointToSwaggerApi(endpointDoc, doc, message.responsetype));
       }
     })
     .then(function(apiSwagger) {
