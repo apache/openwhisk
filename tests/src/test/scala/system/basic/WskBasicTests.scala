@@ -639,7 +639,7 @@ class WskBasicTests
     it should "reject delete of trigger that does not exist" in {
         val name = "nonexistentTrigger"
         val stderr = wsk.trigger.delete(name, expectedExitCode = NOT_FOUND).stderr
-        stderr should include regex (s"""Unable to delete trigger '$name'. The requested resource does not exist. \\(code \\d+\\)""")
+        stderr should include regex (s"""Unable to get trigger '$name'. The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject get of trigger that does not exist" in {

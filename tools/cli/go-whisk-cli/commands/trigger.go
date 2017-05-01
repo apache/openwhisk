@@ -27,6 +27,12 @@ import (
     "github.com/fatih/color"
 )
 
+const FEED_LIFECYCLE_EVENT  = "lifecycleEvent"
+const FEED_TRIGGER_NAME     = "triggerName"
+const FEED_AUTH_KEY         = "authKey"
+const FEED_CREATE           = "CREATE"
+const FEED_DELETE           = "DELETE"
+
 // triggerCmd represents the trigger command
 var triggerCmd = &cobra.Command{
     Use:   "trigger",
@@ -150,9 +156,9 @@ var triggerCreateCmd = &cobra.Command{
 
             fullFeedName = fmt.Sprintf("/%s/%s", feedqName.namespace, feedqName.entityName)
             fullTriggerName = fmt.Sprintf("/%s/%s", qName.namespace, qName.entityName)
-            flags.common.param = append(flags.common.param, getFormattedJSON("lifecycleEvent", "CREATE"))
-            flags.common.param = append(flags.common.param, getFormattedJSON("triggerName", fullTriggerName))
-            flags.common.param = append(flags.common.param, getFormattedJSON("authKey", client.Config.AuthToken))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_CREATE))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, client.Config.AuthToken))
         }
 
 
@@ -381,6 +387,7 @@ var triggerDeleteCmd = &cobra.Command{
         var err error
         var retTrigger *whisk.Trigger
         var fullFeedName string
+        var origParams []string
 
         if whiskErr := checkArgs(args, 1, 1, "Trigger delete",
                 wski18n.T("A trigger name is required.")); whiskErr != nil {
@@ -400,10 +407,10 @@ var triggerDeleteCmd = &cobra.Command{
 
         client.Namespace = qName.namespace
 
-        retTrigger, _, err = client.Triggers.Delete(qName.entityName)
+        retTrigger, _, err = client.Triggers.Get(qName.entityName)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qName.entityName, err)
-            errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
+            whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qName.entityName, err)
+            errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qName.entityName, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
@@ -414,27 +421,36 @@ var triggerDeleteCmd = &cobra.Command{
             fullFeedName = getValueString(retTrigger.Annotations, "feed")
 
             if len(fullFeedName) > 0 {
+                origParams = flags.common.param
                 fullTriggerName := fmt.Sprintf("/%s/%s", qName.namespace, qName.entityName)
-                flags.common.param = append(flags.common.param, getFormattedJSON("lifecycleEvent", "DELETE"))
-                flags.common.param = append(flags.common.param, getFormattedJSON("triggerName", fullTriggerName))
-                flags.common.param = append(flags.common.param, getFormattedJSON("authKey", client.Config.AuthToken))
+                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_DELETE))
+                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
+                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, client.Config.AuthToken))
 
                 err = configureFeed(qName.entityName, fullFeedName)
                 if err != nil {
-                    whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qName.entityName, flags.common.feed,
-                        err)
-                    errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
-                            map[string]interface{}{"name": qName.entityName, "err": err})
-                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-
-                    return werr
+                    whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qName.entityName, fullFeedName, err)
                 }
+
+                flags.common.param = origParams
+                client.Namespace = qName.namespace
             }
+
+        }
+
+        retTrigger, _, err = client.Triggers.Delete(qName.entityName)
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qName.entityName, err)
+            errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": qName.entityName, "err": err})
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return werr
         }
 
         fmt.Fprintf(color.Output,
             wski18n.T("{{.ok}} deleted trigger {{.name}}\n",
                 map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qName.entityName)}))
+
         return nil
     },
 }
