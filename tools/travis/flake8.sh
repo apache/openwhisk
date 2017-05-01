@@ -14,7 +14,7 @@ declare -a PYTHON_FILES=("."
 echo 'Flake8: first round (fast fail) stops the build if there are any Python 3 syntax errors...'
 for i in "${PYTHON_FILES[@]}"
 do
-    flake8 "$i" --select=E999 --statistics
+    flake8 "$i" --select=E999,F821 --statistics
     RETURN_CODE=$?
     if [ $RETURN_CODE != 0 ]; then
         echo 'Flake8 found Python 3 syntax errors above.  See: https://docs.python.org/3/howto/pyporting.html'
