@@ -77,7 +77,7 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
+class LoadBalancerService(config: WhiskConfig, instance: Int, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -220,7 +220,8 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
         }
 
         val consul = new ConsulClient(config.consulServer)
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+        // Each controller gets its own Group Id, to receive all messages
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health$instance", "health")
         val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
@@ -230,7 +231,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     }
 
     /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, s"completions$instance", "completed")
 
     /** Registers a handler for received active acks from invokers. */
     activeAckConsumer.onMessage((topic, _, _, bytes) => {

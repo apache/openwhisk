@@ -154,7 +154,7 @@ class InvokerPool(
         val raw = new String(bytes, StandardCharsets.UTF_8)
         PingMessage.parse(raw) match {
             case Success(p: PingMessage) => self ! p
-            case Failure(t)              => logging.error(this, s"failed processing message: $raw with $t")
+            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
         }
     })
 }
