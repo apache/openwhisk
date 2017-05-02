@@ -366,7 +366,7 @@ The main binary program must be located in `/action/exec` inside the container. 
 You may include any compilation steps or dependencies by modifying the `Dockerfile` included in the `dockerSkeleton`.
 
 ## REST API
-The REST API section have moved [here](rest_api.md)
+Information about the REST API can be found [here](rest_api.md)
 
 
 ## System limits

@@ -2,7 +2,7 @@
 
 After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls.
 
-For more details about the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/whiskswagger.json).
+For more details about the APIs for actions, activations, packages, rules, and triggers, see the [OpenWhisk API documentation](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/openwhisk/openwhisk/master/core/controller/src/main/resources/apiv1swagger.json).
 
 
 All the capabilities in the system are available through a REST API. There are collection and entity endpoints for actions, triggers, rules, packages, activations, and namespaces.
@@ -162,7 +162,7 @@ You get the following response:
 
 ## Annotations and Web Actions
 
-To create an action as a web action, you need to add an [annotation](annotations.md) of `web-export=true` for web actions. Since web-actions are publicly accessible, you should protect pre-defined parameters (i.e., treat them as final) using the annotation `final=true`.
+To create an action as a web action, you need to add an [annotation](annotations.md) of `web-export=true` for web actions. Since web-actions are publicly accessible, you should protect pre-defined parameters (i.e., treat them as final) using the annotation `final=true`. If you create or update an action using the CLI flag `--web true` this command will add both annotations `web-export=true` and `final=true`.
 
 Run the curl command providing the complete list of annotations to set on the action
 ```bash
@@ -198,7 +198,7 @@ Take into account when specifying the names of the actions, they have to be full
 
 ## Triggers
 
-To create a trigger, the minimum information you need is a name for the trigger, you could also include default parameters that get passed to the action thru a rule when the trigger gets fired.
+To create a trigger, the minimum information you need is a name for the trigger. You could also include default parameters that get passed to the action through a rule when the trigger gets fired.
 
 Create a trigger with name `events` with a default parameter `type` with value `webhook` set.
 ```bash
@@ -219,7 +219,7 @@ curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/even
 
 ### Triggers with Feed Actions
 
-There are special triggers that can be created using a feed action. The feed action it's an action that helps with the configuration of a feed provider that will be in charge of firing the trigger whenever there is an event for the trigger. Learn more how these feed providers in the [feeds.md] documentation.
+There are special triggers that can be created using a feed action. The feed action it's an action that helps with the configuration of a feed provider that will be in charge of firing the trigger whenever there is an event for the trigger. Learn more about these feed providers in the [feeds.md] documentation.
 
 Some of the available triggers that leverage a feed action are periodic/alarms, Slack, Github, Cloudant/Couchdb, and messageHub/Kafka. You also can create your own feed action and feed provider.
 
