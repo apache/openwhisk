@@ -110,7 +110,9 @@ curl -u $AUTH -d '{"namespace":"_","name":"hello","exec":{"kind":"nodejs:6","cod
 
 To perform a blocking invocation on an action, send a HTTP request with a method `POST` and body containing the input parameter `name` use the following:
 ```bash
-curl -u $AUTH -d '{"name":"John"}' -X POST -H "Content-Type: application/json" "https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?blocking=true"
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?blocking=true \
+-X POST -H "Content-Type: application/json" \
+-d '{"name":"John"}'  
 ```
 You get the following response:
 ```json
@@ -147,7 +149,9 @@ You get the following response:
 ```
 If you just want to get the `response.result`, run the command again with the query parameter `result=true`
 ```bash
-curl -u $AUTH -d '{"name":"John"}' -X POST -H "Content-Type: application/json" "https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?blocking=true&result=true"
+curl -u $AUTH "https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?blocking=true&result=true" \
+-X POST -H "Content-Type: application/json" \
+-d '{"name":"John"}' 
 ```
 You get the following response:
 ```json
@@ -162,7 +166,9 @@ To create an action as a web action, you need to add an [annotation](annotations
 
 Run the curl command providing the complete list of annotations to set on the action
 ```bash
-curl -u $AUTH -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?overwrite=true -d '{"namespace":"_","name":"hello","exec":{"kind":"nodejs:6","code":"function main(params) { return {payload:\"Hello \"+params.name}}"},"annotations":[{"key":"web-export","value":true},{"key":"raw-http","value":false},{"key":"final","value":true}]}'
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"namespace":"_","name":"hello","exec":{"kind":"nodejs:6","code":"function main(params) { return {payload:\"Hello \"+params.name}}"},"annotations":[{"key":"web-export","value":true},{"key":"raw-http","value":false},{"key":"final","value":true}]}'
 ```
 You can now invoke this action as a public URL with no OpenWhisk authorization. Try invoking using the web action public URL including an optional extension such as `.json` or `.http` for example at the end of the URL.
 ```bash
@@ -183,7 +189,9 @@ $ wsk action create sequenceAction --sequence /whisk.system/utils/split,/whisk.s
 
 Create a sequence with the actions `/whisk.system/utils/split` and `/whisk.system/utils/sort`.
 ```bash
-curl -u $AUTH -d '{"namespace":"_","name":"sequenceAction","exec":{"kind":"sequence","components":["/whisk.system/utils/split","/whisk.system/utils/sort"]},"annotations":[{"key":"web-export","value":true},{"key":"raw-http","value":false},{"key":"final","value":true}]}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/sequenceAction?overwrite=true 
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/sequenceAction?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"namespace":"_","name":"sequenceAction","exec":{"kind":"sequence","components":["/whisk.system/utils/split","/whisk.system/utils/sort"]},"annotations":[{"key":"web-export","value":true},{"key":"raw-http","value":false},{"key":"final","value":true}]}' 
 ```
 
 Take into account when specifying the names of the actions, they have to be full qualified.
@@ -194,7 +202,9 @@ To create a trigger, the minimum information you need is a name for the trigger,
 
 Create a trigger with name `events` with a default parameter `type` with value `webhook` set.
 ```bash
-curl -u $AUTH -d '{"name":"events","parameters":[{"key":"type","value":"webhook"}]}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/events?overwrite=true 
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/events?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"name":"events","parameters":[{"key":"type","value":"webhook"}]}' 
 ```
 
 Now whenever you have an event that needs to fire this trigger it just takes an HTTP request with a method `POST` using the OpenWhisk Authorization key.
@@ -202,7 +212,9 @@ Now whenever you have an event that needs to fire this trigger it just takes an 
 To fire the trigger `events` with a parameter `temperature`, send the following HTTP request.
 
 ```bash
-curl -u $AUTH -d '{"temperature":60}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/events
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/events \
+-X POST -H "Content-Type: application/json" \
+-d '{"temperature":60}' 
 ```
 
 ### Triggers with Feed Actions
@@ -222,38 +234,49 @@ As you will see because we are using the `-v` flag is that two HTTP requests are
 
 To do the same with the REST API, lets create the trigger first
 ```bash
-curl -u $AUTH -d '{"name":"periodic","annotations":[{"key":"feed","value":"/whisk.system/alarms/alarm"}]}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/periodic?overwrite=true 
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/periodic?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"name":"periodic","annotations":[{"key":"feed","value":"/whisk.system/alarms/alarm"}]}'  
 ```
 
 As you can see the annotation `feed` is stored in the trigger. Later we will use this annotation to know which feed action to use when deleting the trigger.
 
 Now that the trigger is created, lets invoke the feed action
 ```bash
-curl -u $AUTH -d "{\"authKey\":\"$AUTH\",\"cron\":\"0 */2 * * *\",\"lifecycleEvent\":\"CREATE\",\"triggerName\":\"/_/periodic\"}" -X POST -H "Content-Type: application/json" "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/actions/alarms/alarm?blocking=true&result=false"
+curl -u $AUTH "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/actions/alarms/alarm?blocking=true&result=false" \
+-X POST -H "Content-Type: application/json" \
+-d "{\"authKey\":\"$AUTH\",\"cron\":\"0 */2 * * *\",\"lifecycleEvent\":\"CREATE\",\"triggerName\":\"/_/periodic\"}" 
 ```
 
 Deleting the trigger, it's a similar process as creating the trigger, this time deleting the trigger and also using the feed action to configure the feed provider to delete the handler for the trigger.
 
 Invoke the feed action to delete the trigger handler from the feed provider
 ```bash
-curl -u $AUTH -d "{\"authKey\":\"$AUTH\",\"lifecycleEvent\":\"DELETE\",\"triggerName\":\"/_/periodic\"}" -X POST -H "Content-Type: application/json" "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/actions/alarms/alarm?blocking=true&result=false"
+curl -u $AUTH "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/actions/alarms/alarm?blocking=true&result=false" \
+-X POST -H "Content-Type: application/json" \
+-d "{\"authKey\":\"$AUTH\",\"lifecycleEvent\":\"DELETE\",\"triggerName\":\"/_/periodic\"}"  
 ```
 
 Now delete the trigger with a HTTP request using `DELETE` method
 ```bash
-curl -u $AUTH -X DELETE -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/periodic
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/periodic \
+-X DELETE -H "Content-Type: application/json" 
 ```
 
 ## Rules
 
 To create a rule that associates a trigger with an action, send a HTTP request with a `PUT` method providing the trigger and action in the body of the request.
 ```bash
-curl -u $AUTH -d '{"name":"t2a","status":"","trigger":"/_/events","action":"/_/hello"}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/rules/t2a?overwrite=true
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/rules/t2a?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"name":"t2a","status":"","trigger":"/_/events","action":"/_/hello"}' 
 ```
 
 Rules can be enabled or disabled, and you can change the status of the rule by updating its status property. For example, to disable the rule `t2a` send in the body of the request `status: "inactive"` with a `POST` method.
 ```bash
-curl -u $AUTH -d '{"status":"inactive","trigger":null,"action":null}' -X POST -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/rules/t2a?overwrite=true
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/rules/t2a?overwrite=true \
+-X POST -H "Content-Type: application/json" \
+-d '{"status":"inactive","trigger":null,"action":null}'  
 ```
 
 ## Packages
@@ -261,17 +284,19 @@ curl -u $AUTH -d '{"status":"inactive","trigger":null,"action":null}' -X POST -H
 To create an action in a package you have to create a package first, to create a package with name `iot` send an HTTP request with a `PUT` method
 
 ```bash
-curl -u $AUTH -d '{"namespace":"_","name":"iot"}' -X PUT -H "Content-Type: application/json" https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/packages/iot?overwrite=true
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/packages/iot?overwrite=true \
+-X PUT -H "Content-Type: application/json" \
+-d '{"namespace":"_","name":"iot"}' 
 ```
 
 ## Activations
 
 To get the list of the last 3 activations use a HTTP request with a `GET` method, passing the query parameter `limit=3`
 ```bash
-curl -u $AUTH  https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/activations?limit=3
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/activations?limit=3
 ```
 
 To get all the details of an activation including results and logs, send a HTTP request with a `GET` method passing the activation identifier as a path parameter
 ```bash
-curl -u $AUTH  https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/activations/f81dfddd7156401a8a6497f2724fec7b
+curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/activations/f81dfddd7156401a8a6497f2724fec7b
 ```
