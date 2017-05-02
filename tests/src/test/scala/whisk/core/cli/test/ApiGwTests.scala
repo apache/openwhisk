@@ -183,9 +183,10 @@ class ApiGwTests
       basepathOrApiName: Option[String] = None,
       full: Option[Boolean] = None,
       expectedExitCode: Int = SUCCESS_EXIT,
-      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()),
+      format: Option[String] = None): RunResult = {
         checkThrottle()
-        wsk.api.get(basepathOrApiName, full, expectedExitCode, cliCfgFile)
+        wsk.api.get(basepathOrApiName, full, expectedExitCode, cliCfgFile, format)
     }
 
     def apiDelete(
@@ -198,7 +199,7 @@ class ApiGwTests
         wsk.api.delete(basepathOrApiName, relpath, operation, expectedExitCode, cliCfgFile)
     }
 
-  behavior of "Wsk api-experimental"
+    behavior of "Wsk api-experimental"
 
     it should "reject an api commands with an invalid path parameter" in {
         val badpath = "badpath"
@@ -214,33 +215,33 @@ class ApiGwTests
     }
 
     it should "verify full list output" in {
-      val testName = "CLI_APIGWTEST_RO1"
-      val testbasepath = "/" + testName + "_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName + " API Name"
-      val actionName = testName + "_action"
-      try {
-        println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+        val testName = "CLI_APIGWTEST_RO1"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
 
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        println("api create: " + rr.stdout)
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), full = Some(true))
-        println("api list: " + rr.stdout)
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"Action:\\s+/${clinamespace}/${actionName}\n")
-        rr.stdout should include regex (s"Verb:\\s+${testurlop}\n")
-        rr.stdout should include regex (s"Base path:\\s+${testbasepath}\n")
-        rr.stdout should include regex (s"Path:\\s+${testrelpath}\n")
-        rr.stdout should include regex (s"API Name:\\s+${testapiname}\n")
-        rr.stdout should include regex (s"URL:\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath)
-      }
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            println("api create: " + rr.stdout)
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), full = Some(true))
+            println("api list: " + rr.stdout)
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"Action:\\s+/${clinamespace}/${actionName}\n")
+            rr.stdout should include regex (s"Verb:\\s+${testurlop}\n")
+            rr.stdout should include regex (s"Base path:\\s+${testbasepath}\n")
+            rr.stdout should include regex (s"Path:\\s+${testrelpath}\n")
+            rr.stdout should include regex (s"API Name:\\s+${testapiname}\n")
+            rr.stdout should include regex (s"URL:\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath)
+        }
     }
 
     it should "verify successful creation and deletion of a new API" in {
@@ -289,792 +290,903 @@ class ApiGwTests
     }
 
     it should "verify delete API name " in {
-      val testName = "CLI_APIGWTEST4"
-      val testbasepath = "/"+testName+"_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"_action"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiDeleteExperimental(basepathOrApiName = testapiname)
-        rr.stdout should include("ok: deleted API")
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST4"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiDeleteExperimental(basepathOrApiName = testapiname)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify delete API basepath " in {
-      val testName = "CLI_APIGWTEST5"
-      val testbasepath = "/"+testName+"_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"_action"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiDeleteExperimental(basepathOrApiName = testbasepath)
-        rr.stdout should include("ok: deleted API")
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST5"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiDeleteExperimental(basepathOrApiName = testbasepath)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify adding endpoints to existing api" in {
-      val testName = "CLI_APIGWTEST6"
-      val testbasepath = "/"+testName+"_bp"
-      val testrelpath = "/path2"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"_action"
-      val newEndpoint = "/newEndpoint"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr.stdout should include(testbasepath + newEndpoint)
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST6"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val newEndpoint = "/newEndpoint"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + newEndpoint)
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify successful creation with swagger doc as input" in {
-      // NOTE: These values must match the swagger file contents
-      val testName = "CLI_APIGWTEST7"
-      val testbasepath = "/"+testName+"_bp"
-      val testrelpath = "/path"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"_action"
-      val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1")
-      try {
-        var rr = apiCreateExperimental(swagger = Some(swaggerPath))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-        println("list stdout: "+rr.stdout)
-        println("list stderr: "+rr.stderr)
-        rr.stdout should include("ok: APIs")
-        // Actual CLI namespace will vary from local dev to automated test environments, so don't check
-        rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        // NOTE: These values must match the swagger file contents
+        val testName = "CLI_APIGWTEST7"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1")
+        try {
+            var rr = apiCreateExperimental(swagger = Some(swaggerPath))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            println("list stdout: "+rr.stdout)
+            println("list stderr: "+rr.stderr)
+            rr.stdout should include("ok: APIs")
+            // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+            rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify adding endpoints to two existing apis" in {
-      val testName = "CLI_APIGWTEST8"
-      val testbasepath = "/"+testName+"_bp"
-      val testbasepath2 = "/"+testName+"_bp2"
-      val testrelpath = "/path2"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"_action"
-      val newEndpoint = "/newEndpoint"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
+        val testName = "CLI_APIGWTEST8"
+        val testbasepath = "/"+testName+"_bp"
+        val testbasepath2 = "/"+testName+"_bp2"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val newEndpoint = "/newEndpoint"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
 
-        // Update both APIs - each with a new endpoint
-        rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
-        rr.stdout should include("ok: created API")
-        rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
-        rr.stdout should include("ok: created API")
+            // Update both APIs - each with a new endpoint
+            rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
+            rr.stdout should include("ok: created API")
+            rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
+            rr.stdout should include("ok: created API")
 
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr.stdout should include(testbasepath + newEndpoint)
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + newEndpoint)
 
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath2))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath2 + testrelpath)
-        rr.stdout should include(testbasepath2 + newEndpoint)
-      }
-      finally {
-        var deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-        deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
-      }
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath2))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath2 + testrelpath)
+            rr.stdout should include(testbasepath2 + newEndpoint)
+        }
+        finally {
+            var deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify successful creation of a new API using an action name using all allowed characters" in {
-      // Be aware: full action name is close to being truncated by the 'list' command
-      // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
-      val testName = "CLI_APIGWTEST9"
-      val testbasepath = "/" + testName + "_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName+" API Name"
-      val actionName = testName+"a-c@t ion"
-      try {
-        println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+        // Be aware: full action name is close to being truncated by the 'list' command
+        // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
+        val testName = "CLI_APIGWTEST9"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"a-c@t ion"
+        try {
+            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
 
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath)
-        deleteresult.stdout should include("ok: deleted API")
-      }
-      finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify failed creation with invalid swagger doc as input" in {
-      val testName = "CLI_APIGWTEST10"
-      val testbasepath = "/" + testName + "_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName + " API Name"
-      val actionName = testName + "_action"
-      val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
-      try {
-        var rr = apiCreateExperimental(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
-        println("api create stdout: " + rr.stdout)
-        println("api create stderr: " + rr.stderr)
-        rr.stderr should include(s"Swagger file is invalid")
-      } finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST10"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
+        try {
+            var rr = apiCreateExperimental(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
+            println("api create stdout: " + rr.stdout)
+            println("api create stderr: " + rr.stderr)
+            rr.stderr should include(s"Swagger file is invalid")
+        } finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify delete basepath/path " in {
-      val testName = "CLI_APIGWTEST11"
-      val testbasepath = "/" + testName + "_bp"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName + " API Name"
-      val actionName = testName + "_action"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        var rr2 = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr2.stdout should include("ok: created API")
-        rr = apiDeleteExperimental(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
-        rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
-        rr2 = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
-        rr2.stdout should include("ok: APIs")
-        rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr2.stdout should include(testbasepath + testnewrelpath)
-      } finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST11"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            var rr2 = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr2.stdout should include("ok: created API")
+            rr = apiDeleteExperimental(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
+            rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
+            rr2 = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
+            rr2.stdout should include("ok: APIs")
+            rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr2.stdout should include(testbasepath + testnewrelpath)
+        } finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify delete single operation from existing API basepath/path/operation(s) " in {
-      val testName = "CLI_APIGWTEST12"
-      val testbasepath = "/" + testName + "_bp"
-      val testrelpath = "/path2"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testurlop2 = "post"
-      val testapiname = testName + " API Name"
-      val actionName = testName + "_action"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr = apiDeleteExperimental(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
-        rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      } finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST12"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testurlop2 = "post"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiDeleteExperimental(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
+            rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        } finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify successful creation with complex swagger doc as input" in {
-      val testName = "CLI_APIGWTEST13"
-      val testbasepath = "/test1/v1"
-      val testrelpath = "/whisk.system/utils/echo"
-      val testrelpath2 = "/whisk.system/utils/split"
-      val testurlop = "get"
-      val testapiname = "/test1/v1"
-      val actionName = "test1a"
-      val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
-      try {
-        var rr = apiCreateExperimental(swagger = Some(swaggerPath))
-        println("api create stdout: " + rr.stdout)
-        println("api create stderror: " + rr.stderr)
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
-        rr.stdout should include("ok: APIs")
-        // Actual CLI namespace will vary from local dev to automated test environments, so don't check
-        rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr.stdout should include(testbasepath + testrelpath2)
-      } finally {
-        val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST13"
+        val testbasepath = "/test1/v1"
+        val testrelpath = "/whisk.system/utils/echo"
+        val testrelpath2 = "/whisk.system/utils/split"
+        val testurlop = "get"
+        val testapiname = "/test1/v1"
+        val actionName = "test1a"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
+        try {
+            var rr = apiCreateExperimental(swagger = Some(swaggerPath))
+            println("api create stdout: " + rr.stdout)
+            println("api create stderror: " + rr.stderr)
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+            rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + testrelpath2)
+        } finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
     it should "verify successful creation and deletion with multiple base paths" in {
-      val testName = "CLI_APIGWTEST14"
-      val testbasepath = "/" + testName + "_bp"
-      val testbasepath2 = "/" + testName + "_bp2"
-      val testrelpath = "/path"
-      val testnewrelpath = "/path_new"
-      val testurlop = "get"
-      val testapiname = testName + " API Name"
-      val actionName = testName + "_action"
-      try {
-        var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-        rr.stdout should include("ok: created API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath2 + testrelpath)
-        rr = apiDeleteExperimental(basepathOrApiName = testbasepath2)
-        rr.stdout should include("ok: deleted API")
-        rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-        rr.stdout should include("ok: APIs")
-        rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-        rr.stdout should include(testbasepath + testrelpath)
-        rr = apiDeleteExperimental(basepathOrApiName = testbasepath)
-        rr.stdout should include("ok: deleted API")
-      } finally {
-        var deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-        deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
-      }
+        val testName = "CLI_APIGWTEST14"
+        val testbasepath = "/" + testName + "_bp"
+        val testbasepath2 = "/" + testName + "_bp2"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiCreateExperimental(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath2 + testrelpath)
+            rr = apiDeleteExperimental(basepathOrApiName = testbasepath2)
+            rr.stdout should include("ok: deleted API")
+            rr = apiListExperimental(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiDeleteExperimental(basepathOrApiName = testbasepath)
+            rr.stdout should include("ok: deleted API")
+        } finally {
+            var deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 
-  behavior of "Wsk api"
+    behavior of "Wsk api"
 
-  it should "reject an api commands with an invalid path parameter" in {
-    val badpath = "badpath"
+    it should "reject an api commands with an invalid path parameter" in {
+        val badpath = "badpath"
 
-    var rr = apiCreate(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
-    rr.stderr should include (s"'${badpath}' must begin with '/'")
+        var rr = apiCreate(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
 
-    rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
-    rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
 
-    rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
-    rr.stderr should include (s"'${badpath}' must begin with '/'")
-  }
-
-  it should "verify full list output" in {
-    val testName = "CLI_APIGWTEST_RO1"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
-
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      println("api create: " + rr.stdout)
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), full = Some(true))
-      println("api list: " + rr.stdout)
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"Action:\\s+/${clinamespace}/${actionName}\n")
-      rr.stdout should include regex (s"Verb:\\s+${testurlop}\n")
-      rr.stdout should include regex (s"Base path:\\s+${testbasepath}\n")
-      rr.stdout should include regex (s"Path:\\s+${testrelpath}\n")
-      rr.stdout should include regex (s"API Name:\\s+${testapiname}\n")
-      rr.stdout should include regex (s"URL:\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
+        rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"'${badpath}' must begin with '/'")
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath)
+
+    it should "verify full list output" in {
+        val testName = "CLI_APIGWTEST_RO1"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            println("api create: " + rr.stdout)
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), full = Some(true))
+            println("api list: " + rr.stdout)
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"Action:\\s+/${clinamespace}/${actionName}\n")
+            rr.stdout should include regex (s"Verb:\\s+${testurlop}\n")
+            rr.stdout should include regex (s"Base path:\\s+${testbasepath}\n")
+            rr.stdout should include regex (s"Path:\\s+${testrelpath}\n")
+            rr.stdout should include regex (s"API Name:\\s+${testapiname}\n")
+            rr.stdout should include regex (s"URL:\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath)
+        }
     }
-  }
 
-  it should "verify successful creation and deletion of a new API" in {
-    val testName = "CLI_APIGWTEST1"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    try {
-      println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+    it should "verify successful creation and deletion of a new API" in {
+        val testName = "CLI_APIGWTEST1"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
 
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath)
-      deleteresult.stdout should include("ok: deleted API")
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify get API name " in {
+        val testName = "CLI_APIGWTEST3"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiGet(basepathOrApiName = Some(testapiname))
+            rr.stdout should include(testbasepath)
+            rr.stdout should include(s"${actionName}")
+            rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
+            rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.json""")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify get API name " in {
-    val testName = "CLI_APIGWTEST3"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "verify delete API name " in {
+        val testName = "CLI_APIGWTEST4"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiGet(basepathOrApiName = Some(testapiname))
-      rr.stdout should include(testbasepath)
-      rr.stdout should include(s"${actionName}")
-      rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
-      rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.json""")
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiDelete(basepathOrApiName = testapiname)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify delete API basepath " in {
+        val testName = "CLI_APIGWTEST5"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiDelete(basepathOrApiName = testbasepath)
+            rr.stdout should include("ok: deleted API")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify delete API name " in {
-    val testName = "CLI_APIGWTEST4"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "verify adding endpoints to existing api" in {
+        val testName = "CLI_APIGWTEST6"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val newEndpoint = "/newEndpoint"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiDelete(basepathOrApiName = testapiname)
-      rr.stdout should include("ok: deleted API")
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreate(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + newEndpoint)
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify successful creation with swagger doc as input" in {
+        // NOTE: These values must match the swagger file contents
+        val testName = "CLI_APIGWTEST7"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1V2")
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            println("list stdout: "+rr.stdout)
+            println("list stderr: "+rr.stderr)
+            rr.stdout should include("ok: APIs")
+            // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+            rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        }
+        finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify delete API basepath " in {
-    val testName = "CLI_APIGWTEST5"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "verify adding endpoints to two existing apis" in {
+        val testName = "CLI_APIGWTEST8"
+        val testbasepath = "/"+testName+"_bp"
+        val testbasepath2 = "/"+testName+"_bp2"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val newEndpoint = "/newEndpoint"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiDelete(basepathOrApiName = testbasepath)
-      rr.stdout should include("ok: deleted API")
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+
+            // Update both APIs - each with a new endpoint
+            rr = apiCreate(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
+            rr.stdout should include("ok: created API")
+            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
+            rr.stdout should include("ok: created API")
+
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + newEndpoint)
+
+            rr = apiList(basepathOrApiName = Some(testbasepath2))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath2 + testrelpath)
+            rr.stdout should include(testbasepath2 + newEndpoint)
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            deleteresult = apiDelete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify successful creation of a new API using an action name using all allowed characters" in {
+        // Be aware: full action name is close to being truncated by the 'list' command
+        // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
+        val testName = "CLI_APIGWTEST9"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"a-c@t ion"
+        try {
+            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath)
+            deleteresult.stdout should include("ok: deleted API")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify adding endpoints to existing api" in {
-    val testName = "CLI_APIGWTEST6"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path2"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    val newEndpoint = "/newEndpoint"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
-
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiCreate(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr.stdout should include(testbasepath + newEndpoint)
+    it should "verify failed creation with invalid swagger doc as input" in {
+        val testName = "CLI_APIGWTEST10"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
+            println("api create stdout: " + rr.stdout)
+            println("api create stderr: " + rr.stderr)
+            rr.stderr should include(s"Swagger file is invalid")
+        } finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify delete basepath/path " in {
+        val testName = "CLI_APIGWTEST11"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            var rr2 = apiCreate(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr2.stdout should include("ok: created API")
+            rr = apiDelete(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
+            rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
+            rr2 = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
+            rr2.stdout should include("ok: APIs")
+            rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr2.stdout should include(testbasepath + testnewrelpath)
+        } finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify successful creation with swagger doc as input" in {
-    // NOTE: These values must match the swagger file contents
-    val testName = "CLI_APIGWTEST7"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1V2")
-    try {
-      var rr = apiCreate(swagger = Some(swaggerPath))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      println("list stdout: "+rr.stdout)
-      println("list stderr: "+rr.stderr)
-      rr.stdout should include("ok: APIs")
-      // Actual CLI namespace will vary from local dev to automated test environments, so don't check
-      rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
+    it should "verify delete single operation from existing API basepath/path/operation(s) " in {
+        val testName = "CLI_APIGWTEST12"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path2"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testurlop2 = "post"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiDelete(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
+            rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+        } finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify successful creation with complex swagger doc as input" in {
+        val testName = "CLI_APIGWTEST13"
+        val testbasepath = "/test1/v1"
+        val testrelpath = "/whisk_system/utils/echo"
+        val testrelpath2 = "/whisk_system/utils/split"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = "test1a"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2V2")
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath))
+            println("api create stdout: " + rr.stdout)
+            println("api create stderror: " + rr.stderr)
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+            rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr.stdout should include(testbasepath + testrelpath2)
+        } finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify adding endpoints to two existing apis" in {
-    val testName = "CLI_APIGWTEST8"
-    val testbasepath = "/"+testName+"_bp"
-    val testbasepath2 = "/"+testName+"_bp2"
-    val testrelpath = "/path2"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    val newEndpoint = "/newEndpoint"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "verify successful creation and deletion with multiple base paths" in {
+        val testName = "CLI_APIGWTEST14"
+        val testbasepath = "/" + testName + "_bp"
+        val testbasepath2 = "/" + testName + "_bp2"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-
-      // Update both APIs - each with a new endpoint
-      rr = apiCreate(basepath = Some(testbasepath), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
-      rr.stdout should include("ok: created API")
-      rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(newEndpoint), operation = Some(testurlop), action = Some(actionName))
-      rr.stdout should include("ok: created API")
-
-      rr = apiList(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr.stdout should include(testbasepath + newEndpoint)
-
-      rr = apiList(basepathOrApiName = Some(testbasepath2))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath2 + testrelpath)
-      rr.stdout should include(testbasepath2 + newEndpoint)
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath2 + testrelpath)
+            rr = apiDelete(basepathOrApiName = testbasepath2)
+            rr.stdout should include("ok: deleted API")
+            rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
+            rr.stdout should include("ok: APIs")
+            rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+            rr = apiDelete(basepathOrApiName = testbasepath)
+            rr.stdout should include("ok: deleted API")
+        } finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            deleteresult = apiDelete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      deleteresult = apiDelete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+
+    it should "reject an API created with a non-existent action" in {
+        val testName = "CLI_APIGWTEST15"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        try {
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
+            rr.stderr should include("does not exist")
+        }
+        finally {
+            val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify successful creation of a new API using an action name using all allowed characters" in {
-    // Be aware: full action name is close to being truncated by the 'list' command
-    // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
-    val testName = "CLI_APIGWTEST9"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"a-c@t ion"
-    try {
-      println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "reject an API created with an action that is not a web action" in {
+        val testName = "CLI_APIGWTEST16"
+        val testbasepath = "/" + testName + "_bp"
+        val testbasepath2 = "/" + testName + "_bp2"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        try {
+            // Create the action for the API.  It must NOT be a "web-action" action for this test
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath)
-      deleteresult.stdout should include("ok: deleted API")
+            var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
+            rr.stderr should include("is not a web action")
+        } finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+
+    it should "verify API with http response type " in {
+        val testName = "CLI_APIGWTEST17"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val responseType = "http"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+
+            var rr = apiCreate(
+                basepath = Some(testbasepath),
+                relpath = Some(testrelpath),
+                operation = Some(testurlop),
+                action = Some(actionName),
+                apiname = Some(testapiname),
+                responsetype = Some(responseType)
+            )
+            rr.stdout should include("ok: created API")
+            rr = apiGet(basepathOrApiName = Some(testapiname))
+            rr.stdout should include(testbasepath)
+            rr.stdout should include(s"${actionName}")
+            rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.${responseType}""")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify failed creation with invalid swagger doc as input" in {
-    val testName = "CLI_APIGWTEST10"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
-    try {
-      var rr = apiCreate(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
-      println("api create stdout: " + rr.stdout)
-      println("api create stderr: " + rr.stderr)
-      rr.stderr should include(s"Swagger file is invalid")
-    } finally {
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+    it should "reject API export when export type is invalid" in {
+        val testName = "CLI_APIGWTEST18"
+        val testbasepath = "/"+testName+"_bp"
+
+        var rr = apiGet(basepathOrApiName = Some(testbasepath), format = Some("BadType"), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include("Invalid format type")
     }
-  }
 
-  it should "verify delete basepath/path " in {
-    val testName = "CLI_APIGWTEST11"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "successfully export an API in YAML format" in {
+        val testName = "CLI_APIGWTEST19"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val responseType = "http"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      var rr2 = apiCreate(basepath = Some(testbasepath), relpath = Some(testnewrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr2.stdout should include("ok: created API")
-      rr = apiDelete(basepathOrApiName = testbasepath, relpath = Some(testrelpath))
-      rr.stdout should include("ok: deleted " + testrelpath +" from "+ testbasepath)
-      rr2 = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testnewrelpath))
-      rr2.stdout should include("ok: APIs")
-      rr2.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr2.stdout should include(testbasepath + testnewrelpath)
-    } finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            var rr = apiCreate(
+                basepath = Some(testbasepath),
+                relpath = Some(testrelpath),
+                operation = Some(testurlop),
+                action = Some(actionName),
+                apiname = Some(testapiname),
+                responsetype = Some(responseType)
+            )
+            rr.stdout should include("ok: created API")
+            rr = apiGet(basepathOrApiName = Some(testapiname), format = Some("yaml"))
+            rr.stdout should include (s"basePath: ${testbasepath}")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify delete single operation from existing API basepath/path/operation(s) " in {
-    val testName = "CLI_APIGWTEST12"
-    val testbasepath = "/" + testName + "_bp"
-    val testrelpath = "/path2"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testurlop2 = "post"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+    it should "successfully export an API when JSON format is explcitly specified" in {
+        val testName = "CLI_APIGWTEST20"
+        val testbasepath = "/"+testName+"_bp"
+        val testrelpath = "/path"
+        val testnewrelpath = "/path_new"
+        val testurlop = "get"
+        val testapiname = testName+" API Name"
+        val actionName = testName+"_action"
+        val responseType = "http"
+        try {
+            // Create the action for the API.  It must be a "web-action" action.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
 
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop2), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr = apiDelete(basepathOrApiName = testbasepath,relpath = Some(testrelpath), operation = Some(testurlop2))
-      rr.stdout should include("ok: deleted " + testrelpath + " " + "POST" +" from "+ testbasepath)
-      rr = apiList(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-    } finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+            var rr = apiCreate(
+                basepath = Some(testbasepath),
+                relpath = Some(testrelpath),
+                operation = Some(testurlop),
+                action = Some(actionName),
+                apiname = Some(testapiname),
+                responsetype = Some(responseType)
+            )
+            rr.stdout should include("ok: created API")
+            rr = apiGet(basepathOrApiName = Some(testapiname), format = Some("json"))
+            rr.stdout should include(testbasepath)
+            rr.stdout should include(s"${actionName}")
+            rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.${responseType}""")
+        }
+        finally {
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify successful creation with complex swagger doc as input" in {
-    val testName = "CLI_APIGWTEST13"
-    val testbasepath = "/test1/v1"
-    val testrelpath = "/whisk_system/utils/echo"
-    val testrelpath2 = "/whisk_system/utils/split"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = "test1a"
-    val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2V2")
-    try {
-      var rr = apiCreate(swagger = Some(swaggerPath))
-      println("api create stdout: " + rr.stdout)
-      println("api create stderror: " + rr.stderr)
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath))
-      rr.stdout should include("ok: APIs")
-      // Actual CLI namespace will vary from local dev to automated test environments, so don't check
-      rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr.stdout should include(testbasepath + testrelpath2)
-    } finally {
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+    it should "successfully create an API from a YAML formatted API configuration file" in {
+        val testName = "CLI_APIGWTEST21"
+        val testbasepath = "/bp"
+        val testrelpath = "/rp"
+        val testurlop = "get"
+        val testapiname = testbasepath
+        val actionName = "webhttpecho"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"local.api.yaml")
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath))
+            println("api create stdout: " + rr.stdout)
+            println("api create stderror: " + rr.stderr)
+            rr.stdout should include("ok: created API")
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include("ok: APIs")
+            // Actual CLI namespace will vary from local dev to automated test environments, so don't check
+            rr.stdout should include regex (s"/[@\\w._\\-]+/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include(testbasepath + testrelpath)
+        } finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
 
-  it should "verify successful creation and deletion with multiple base paths" in {
-    val testName = "CLI_APIGWTEST14"
-    val testbasepath = "/" + testName + "_bp"
-    val testbasepath2 = "/" + testName + "_bp2"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
-
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiList(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath2 + testrelpath)
-      rr = apiDelete(basepathOrApiName = testbasepath2)
-      rr.stdout should include("ok: deleted API")
-      rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
-      rr = apiDelete(basepathOrApiName = testbasepath)
-      rr.stdout should include("ok: deleted API")
-    } finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-      deleteresult = apiDelete(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
+    it should "reject creation of an API from invalid YAML formatted API configuration file" in {
+        val testName = "CLI_APIGWTEST22"
+        val testbasepath = "/bp"
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"local.api.bad.yaml")
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
+            println("api create stdout: " + rr.stdout)
+            println("api create stderror: " + rr.stderr)
+            rr.stderr should include("Unable to parse YAML configuration file")
+        } finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
-  }
-
-  it should "reject an API created with a non-existent action" in {
-    val testName = "CLI_APIGWTEST15"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    try {
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
-      rr.stderr should include("API action does not exist")
-    }
-    finally {
-      val deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-    }
-  }
-
-  it should "reject an API created with an action that is not a web action" in {
-    val testName = "CLI_APIGWTEST16"
-    val testbasepath = "/" + testName + "_bp"
-    val testbasepath2 = "/" + testName + "_bp2"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName + " API Name"
-    val actionName = testName + "_action"
-    try {
-      // Create the action for the API.  It must NOT be a "web-action" action for this test
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
-
-      var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname), expectedExitCode = ANY_ERROR_EXIT)
-      rr.stderr should include("is not a web action")
-    } finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-    }
-  }
-
-  it should "verify API with http response type " in {
-    val testName = "CLI_APIGWTEST17"
-    val testbasepath = "/"+testName+"_bp"
-    val testrelpath = "/path"
-    val testnewrelpath = "/path_new"
-    val testurlop = "get"
-    val testapiname = testName+" API Name"
-    val actionName = testName+"_action"
-    val responseType = "http"
-    try {
-      // Create the action for the API.  It must be a "web-action" action.
-      val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
-
-      var rr = apiCreate(
-          basepath = Some(testbasepath),
-          relpath = Some(testrelpath),
-          operation = Some(testurlop),
-          action = Some(actionName),
-          apiname = Some(testapiname),
-          responsetype = Some(responseType)
-      )
-      rr.stdout should include("ok: created API")
-      rr = apiGet(basepathOrApiName = Some(testapiname))
-      rr.stdout should include(testbasepath)
-      rr.stdout should include(s"${actionName}")
-      rr.stdout should include regex (s""""target-url":\\s+.*${actionName}.${responseType}""")
-    }
-    finally {
-      val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-      val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-    }
-  }
 }
