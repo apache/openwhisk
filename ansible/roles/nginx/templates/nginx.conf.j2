@@ -2,7 +2,7 @@
 
 events {
 {# default: 1024 #}
-    worker_connections  4096;  
+    worker_connections  4096;
 }
 
 http {
@@ -15,6 +15,15 @@ http {
         '$request $status $body_bytes_sent '
         '$http_referer $http_user_agent $upstream_addr';
     access_log /logs/nginx_access.log combined-upstream;
+
+    upstream controllers {
+        server {{ groups['controllers'] | first }}:{{ controller.port }};
+{% for ip in groups['controllers'] %}
+    {% if groups['controllers'].index(ip) > 0 %}
+        server {{ ip }}:{{ controller.port + groups['controllers'].index(ip) }} backup;
+    {% endif %}
+{% endfor %}
+    }
 
     server {
         listen 443 default ssl;
@@ -42,7 +51,7 @@ http {
             if ($namespace) {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_pass http://controllers;
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
 
@@ -51,7 +60,7 @@ http {
             if ($namespace) {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
-            proxy_pass http://{{ groups['controllers']|first }}:{{ controller.port }};
+            proxy_pass http://controllers;
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
 

@@ -10,21 +10,21 @@
 
 - name: ensure controller log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/controller{{ play_hosts.index(inventory_hostname) }}"
+    path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
   become: true
 
 - name: (re)start controller
   docker_container:
-    name: controller{{ play_hosts.index(inventory_hostname) }}
+    name: controller{{ groups['controllers'].index(inventory_hostname) }}
     image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "controller{{ play_hosts.index(inventory_hostname) }}"
+    hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
-      "COMPONENT_NAME": "controller{{ play_hosts.index(inventory_hostname) }}"
+      "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
@@ -37,14 +37,14 @@
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
     volumes:
-      - "{{ whisk_logs_dir }}/controller{{ play_hosts.index(inventory_hostname) }}:/logs"
+      - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
-      - "{{ controller.port + play_hosts.index(inventory_hostname) }}:8080"
-    command: /bin/sh -c "controller/bin/controller {{play_hosts.index(inventory_hostname)}} >> /logs/controller{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+      - "{{ controller.port + groups['controllers'].index(inventory_hostname) }}:8080"
+    command: /bin/sh -c "controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.port + play_hosts.index(inventory_hostname) }}/ping"
+    url: "http://{{ inventory_hostname }}:{{ controller.port + groups['controllers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12
