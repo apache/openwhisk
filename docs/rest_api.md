@@ -248,7 +248,7 @@ curl -u $AUTH "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/a
 -d "{\"authKey\":\"$AUTH\",\"cron\":\"0 */2 * * *\",\"lifecycleEvent\":\"CREATE\",\"triggerName\":\"/_/periodic\"}" 
 ```
 
-Deleting the trigger, it's a similar process as creating the trigger, this time deleting the trigger and also using the feed action to configure the feed provider to delete the handler for the trigger.
+Deleting the trigger is a similar to creating the trigger, this time deleting the trigger and also using the feed action to configure the feed provider to delete the handler for the trigger.
 
 Invoke the feed action to delete the trigger handler from the feed provider
 ```bash
