@@ -51,8 +51,9 @@ class DockerClientWithFileAccess(
      * @param containerId Id of the desired Docker container
      * @return canonical location of the container's home directory
      */
-    protected def containerDirectory(containerId: ContainerId) =
+    protected def containerDirectory(containerId: ContainerId) = {
         new File(containersDirectory, containerId.asString).getCanonicalFile()
+    }
 
     /**
      * Provides the configuration file of the specified Docker container.
@@ -79,8 +80,9 @@ class DockerClientWithFileAccess(
      * @param containerId Id of the desired Docker container
      * @return canonical location of the container's log file
      */
-    protected def containerLogFile(containerId: ContainerId) =
+    protected def containerLogFile(containerId: ContainerId) = {
         new File(containerDirectory(containerId), s"${containerId.asString}-json.log").getCanonicalFile()
+    }
 
     /**
      * Provides the contents of the specified Docker container's configuration

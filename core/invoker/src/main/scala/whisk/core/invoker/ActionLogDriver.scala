@@ -32,7 +32,7 @@ import whisk.http.Messages
 /**
  * Represents a single log line as read from a docker log
  */
-protected[core] case class LogLine(time: String, stream: String, log: String) {
+protected[invoker] case class LogLine(time: String, stream: String, log: String) {
     def toFormattedString = f"$time%-30s $stream: ${log.trim}"
     def dropRight(maxBytes: ByteSize) = {
         val bytes = log.getBytes(StandardCharsets.UTF_8).dropRight(maxBytes.toBytes.toInt)
@@ -40,11 +40,11 @@ protected[core] case class LogLine(time: String, stream: String, log: String) {
     }
 }
 
-protected[core] object LogLine extends DefaultJsonProtocol {
+protected[invoker] object LogLine extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(LogLine.apply)
 }
 
-protected[core] trait ActionLogDriver {
+protected[invoker] trait ActionLogDriver {
 
     // The action proxies inserts this line in the logs at the end of each activation for stdout/stderr
     protected val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
