@@ -108,16 +108,17 @@ class ReplicatorTests extends FlatSpec
     def removeReplicationDoc(id: String) = {
         println(s"Removing replication doc: $id")
         val response = replicatorClient.getDoc(id).futureValue
-        val rev = if (response.isRight) Some(response.right.get.fields("_rev").convertTo[String]) else None
+        val rev = response.right.toOption.map(_.fields("_rev").convertTo[String])
         rev.map(replicatorClient.deleteDoc(id, _).futureValue)
     }
 
     /** Runs the replicator script to replicate databases */
-    def runReplicator(sourceDbUrl: String, targetDbUrl: String, dbPrefix: String, expires: FiniteDuration, continuous: Boolean = false) = {
-        println(s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous")
+    def runReplicator(sourceDbUrl: String, targetDbUrl: String, dbPrefix: String, expires: FiniteDuration, continuous: Boolean = false, exclude: List[String] = List()) = {
+        println(s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous, $exclude")
 
         val continuousFlag = if (continuous) Some("--continuous") else None
-        val cmd = Seq(python, replicator, "--sourceDbUrl", sourceDbUrl, "--targetDbUrl", targetDbUrl, "replicate", "--dbPrefix", dbPrefix, "--expires", expires.toSeconds.toString) ++ continuousFlag
+        val excludeFlag = Seq(exclude.mkString(",")).filter(_.nonEmpty).flatMap(ex => Seq("--exclude", ex))
+        val cmd = Seq(python, replicator, "--sourceDbUrl", sourceDbUrl, "--targetDbUrl", targetDbUrl, "replicate", "--dbPrefix", dbPrefix, "--expires", expires.toSeconds.toString) ++ continuousFlag ++ excludeFlag
         val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
 
         val Seq(created, deletedDoc, deleted) = Seq("create backup: ", "deleting backup document: ", "deleting backup: ").map { prefix =>
@@ -222,6 +223,30 @@ class ReplicatorTests extends FlatSpec
         createdBackupDbs.foreach(removeDatabase(_))
         createdBackupDbs.foreach(removeReplicationDoc(_))
         removeDatabase(dbName)
+    }
+
+    it should "do not replicate a database that is excluded" in {
+        // Create a database to backup
+        val dbNameToBackup = testDbPrefix + "database_for_single_replication_with_exclude"
+        val nExClient = createDatabase(dbNameToBackup)
+
+        val excludedName = "some_excluded_name"
+        val exClient = createDatabase(testDbPrefix + excludedName)
+
+        // Trigger replication and verify the created databases have the correct format
+        val (createdBackupDbs, _, _) = runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, exclude = List(excludedName))
+        createdBackupDbs should have size 1
+        val backupDbName = createdBackupDbs.head
+        backupDbName should fullyMatch regex s"backup_\\d+_$dbNameToBackup"
+
+        // Wait for the replication to finish
+        waitForReplication(backupDbName)
+
+        // Remove all created databases
+        createdBackupDbs.foreach(removeDatabase(_))
+        createdBackupDbs.foreach(removeReplicationDoc(_))
+        removeDatabase(dbNameToBackup)
+        removeDatabase(testDbPrefix + excludedName)
     }
 
     it should "replicate a database (snapshot) even if the filter is not available" in {

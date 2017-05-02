@@ -25,11 +25,23 @@ import time
 import re
 import couchdb.client
 
+def retry(fn, retries):
+    try:
+        return fn
+    except:
+        if (retries > 0):
+            time.sleep(1)
+            return retry(fn, retries - 1)
+        else:
+            raise
+
 
 def replicateDatabases(args):
     """Replicate databases."""
     sourceDb = couchdb.client.Server(args.sourceDbUrl)
     targetDb = couchdb.client.Server(args.targetDbUrl)
+
+    excludedDatabases = args.exclude.split(",")
 
     # Create _replicator DB if it does not exist yet.
     if "_replicator" not in sourceDb:
@@ -40,9 +52,12 @@ def replicateDatabases(args):
     now = int(time.time())
     backupPrefix = "backup_%d_" % now
 
+    def isExcluded(dbName):
+        return dbName.replace(args.dbPrefix, "", 1) in excludedDatabases
+
     # Create backup of all databases with given prefix
     print("----- Create backups -----")
-    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
+    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix) and not isExcluded(dbName), sourceDb):
         backupDb = backupPrefix + db if not args.continuous else 'continuous_' + db
         replicateDesignDocument = {
             "_id": backupDb,
@@ -72,7 +87,8 @@ def replicateDatabases(args):
     print("----- Delete backup-documents older than %d seconds -----" % args.expires)
     for doc in filter(lambda doc: isBackupDb(doc.id) and isExpired(extractTimestamp(doc.id)), replicator.view('_all_docs', include_docs=True)):
         print("deleting backup document: %s" % doc.id)
-        replicator.delete(doc.doc)
+        # Get again the latest version of the document to delete the right revision and avoid Conflicts
+        retry(lambda: replicator.delete(replicator[doc.id]), 5)
 
     # Delete all backup-databases, that are older than specified
     print("----- Delete backups older than %d seconds -----" % args.expires)
@@ -108,6 +124,7 @@ replicateParser = subparsers.add_parser("replicate", help="Replicates source dat
 replicateParser.add_argument("--dbPrefix", required=True, help="Prefix of the databases, that should be backed up.")
 replicateParser.add_argument("--expires", required=True, type=int, help="Deletes all backups, that are older than the given value in seconds.")
 replicateParser.add_argument("--continuous", action="store_true", help="Wether or not the backup should be continuous")
+replicateParser.add_argument("--exclude", default="", help="Comma separated list of database names, that should not be backed up. (Without prefix).")
 replicateParser.set_defaults(func=replicateDatabases)
 
 # Replay
