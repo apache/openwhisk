@@ -79,11 +79,13 @@ class WhiskConfig(
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
     val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
     val invokerUseReactivePool = this(WhiskConfig.invokerUseReactivePool)
+    val invokerInstances = this(WhiskConfig.invokerInstances)
 
     val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
     val loadbalancerInvokerBusyThreshold = this.getAsInt(WhiskConfig.loadbalancerInvokerBusyThreshold, 16)
+    val controllerInstances = this(WhiskConfig.controllerInstances)
 
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
@@ -237,6 +239,7 @@ object WhiskConfig {
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
     val invokerUseRunc = "invoker.useRunc"
     val invokerUseReactivePool = "invoker.useReactivePool"
+    val invokerInstances = "invoker.instances"
 
     val wskApiProtocol = "whisk.api.host.proto"
     val wskApiPort = "whisk.api.host.port"
@@ -250,6 +253,7 @@ object WhiskConfig {
     private val controllerHostName = "controller.host"
     private val controllerHostPort = "controller.host.port"
     private val controllerBlackboxFraction = "controller.blackboxFraction"
+    val controllerInstances = "controller.instances"
 
     val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 

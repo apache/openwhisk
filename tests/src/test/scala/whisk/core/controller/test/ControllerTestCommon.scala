@@ -59,6 +59,9 @@ protected trait ControllerTestCommon
     with HttpService
     with StreamLogging {
 
+    override val instance = 0
+    override val numberOfInstances = 1
+
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 

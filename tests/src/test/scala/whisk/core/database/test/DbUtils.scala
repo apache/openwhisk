@@ -56,6 +56,8 @@ import whisk.core.entity.AuthKey
  */
 trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
+    override val numberOfInstances = 1
+    override val instance = 0
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
     case class RetryOp() extends Throwable
 

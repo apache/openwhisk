@@ -93,6 +93,7 @@ controller:
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10
+  instances: "{{ groups['controllers'] | length }}"
 
 consul:
   confdir: "{{ config_root_dir }}/consul"
@@ -129,6 +130,7 @@ invoker:
   serializeDockerPull: true
   useRunc: false
   useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
+  instances: "{{ groups['invokers'] | length }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"

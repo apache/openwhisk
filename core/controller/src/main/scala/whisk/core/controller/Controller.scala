@@ -62,7 +62,7 @@ import scala.util.{Failure, Success}
  * @param executionContext Scala runtime support for concurrent operations
  */
 class Controller(
-    instance: Int,
+    override val instance: Int,
     runtimes: Runtimes,
     implicit val whiskConfig: WhiskConfig,
     implicit val logging: Logging)
@@ -71,6 +71,8 @@ class Controller(
 
     // each akka Actor has an implicit context
     override def actorRefFactory: ActorContext = context
+
+    override val numberOfInstances = whiskConfig.controllerInstances.toInt
 
     /**
      * A Route in spray is technically a function taking a RequestContext as a parameter.
@@ -144,6 +146,7 @@ object Controller {
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+        Map(WhiskConfig.controllerInstances -> 1.toString) ++
         ExecManifest.requiredProperties ++
         RestApiCommons.requiredProperties ++
         LoadBalancerService.requiredProperties ++

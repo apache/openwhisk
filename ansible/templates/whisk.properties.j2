@@ -65,6 +65,8 @@ consul.host.port4={{ consul.port.http }}
 consul.host.port5={{ consul.port.server }}
 invoker.hosts.baseport={{ invoker.port }}
 
+controller.instances={{ controller.instances }}
+
 invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
@@ -74,6 +76,7 @@ invoker.serializeDockerOp={{ invoker.serializeDockerOp }}
 invoker.serializeDockerPull={{ invoker.serializeDockerPull }}
 invoker.useRunc={{ invoker_use_runc | default(invoker.useRunc) }}
 invoker.useReactivePool={{ invoker.useReactivePool }}
+invoker.instances={{ invoker.instances }}
 
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}

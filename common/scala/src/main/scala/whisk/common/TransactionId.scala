@@ -175,9 +175,12 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
+    val numberOfInstances: Int
+    val instance: Int
+
     def transid(): TransactionId = {
-        TransactionId(cnt.incrementAndGet())
+        TransactionId(cnt.addAndGet(numberOfInstances))
     }
 
-    private val cnt = new AtomicInteger(1)
+    private val cnt = new AtomicInteger(numberOfInstances + instance)
 }
