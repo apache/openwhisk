@@ -104,7 +104,7 @@ protected[core] object ExecManifest {
      * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
      * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
      */
-    protected[entity] case class RuntimeManifest(
+    protected[core] case class RuntimeManifest(
         kind: String,
         image: ImageName,
         deprecated: Option[Boolean] = None,
@@ -128,7 +128,7 @@ protected[core] object ExecManifest {
      * An image name for an action refers to the container image canonically as
      * "prefix/name[:tag]" e.g., "openwhisk/python3action:latest".
      */
-    protected[entity] case class ImageName(
+    protected[core] case class ImageName(
         name: String,
         prefix: Option[String] = None,
         tag: Option[String] = None) {
@@ -170,7 +170,7 @@ protected[core] object ExecManifest {
         }
     }
 
-    protected[entity] object ImageName {
+    protected[core] object ImageName {
         protected val defaultImageTag = "latest"
         private val componentRegex = """([a-z0-9._-]+)""".r
         private val tagRegex = """([\w.-]{0,128})""".r

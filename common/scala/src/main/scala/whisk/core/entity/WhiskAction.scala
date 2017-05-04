@@ -150,6 +150,54 @@ case class WhiskAction(
     }
 
     def toJson = WhiskAction.serdes.write(this).asJsObject
+
+    def toExecutableWhiskAction = exec match {
+        case codeExec: CodeExec[_] => Some(ExecutableWhiskAction(namespace, name, codeExec, limits, version, rev))
+        case _                     => None
+    }
+}
+
+/**
+ * Variant of WhiskAction which only includes information necessary to be
+ * executed by an Invoker.
+ *
+ * exec is typed to CodeExec to guarantee executability by an Invoker.
+ *
+ * rev is stored as part of the case-class to make action-matching as
+ * narrow as possible. version is not enough, because a user might delete
+ * an action and recreate it later, effectively resetting the version
+ * counter and thus producing "duplicates".
+ *
+ * @param namespace the namespace for the action
+ * @param name the name of the action
+ * @param exec the action executable details
+ * @param limits the limits to impose on the action
+ * @param version the semantic version
+ * @param rev the revision of the document
+ */
+case class ExecutableWhiskAction(
+    namespace: EntityPath,
+    name: EntityName,
+    exec: CodeExec[_],
+    limits: ActionLimits = ActionLimits(),
+    version: SemVer = SemVer(),
+    rev: DocRevision = DocRevision()) {
+
+    /**
+     * Gets initializer for action. This typically includes the code to execute,
+     * or a zip file containing the executable artifacts.
+     */
+    def containerInitializer: JsObject = {
+        val code = Option(exec.codeAsJson).filter(_ != JsNull).map("code" -> _)
+        val base = Map("name" -> name.toJson, "binary" -> exec.binary.toJson, "main" -> exec.entryPoint.getOrElse("main").toJson)
+        JsObject(base ++ code)
+    }
+
+    /**
+     * The name of the entity qualified with its namespace and version for
+     * creating unique keys in backend services.
+     */
+    final def fullyQualifiedName(withVersion: Boolean) = FullyQualifiedEntityName(namespace, name, if (withVersion) Some(version) else None)
 }
 
 object WhiskAction
