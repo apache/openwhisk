@@ -106,6 +106,7 @@ protected[controller] object RestApiCommons {
         override val webApiDirectives: WebApiDirectives)(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
+            override val activeAckTopicIndex: Int,
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
@@ -133,6 +134,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
  * An object which creates the Routes that define v1 of the whisk REST API.
  */
 protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
+    implicit val activeAckTopicIndex: Int,
     implicit val authStore: AuthStore,
     implicit val entityStore: EntityStore,
     implicit val activationStore: ActivationStore,
@@ -224,6 +226,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
         val apipath: String,
         val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
+            override val activeAckTopicIndex: Int,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,

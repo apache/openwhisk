@@ -48,6 +48,9 @@ protected[actions] trait PrimitiveActions {
 
     protected implicit val logging: Logging
 
+    /** The index of the active ack topic, this controller is listening for. Typically this is also the instance number of the controller */
+    protected val activeAckTopicIndex: Int
+
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
 
@@ -99,6 +102,7 @@ protected[actions] trait PrimitiveActions {
             user,
             activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
+            activeAckTopicIndex,
             args,
             cause = cause)
 

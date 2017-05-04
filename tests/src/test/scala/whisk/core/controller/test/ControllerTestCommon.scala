@@ -61,6 +61,7 @@ protected trait ControllerTestCommon
 
     override val instance = 0
     override val numberOfInstances = 1
+    val activeAckTopicIndex = 0
 
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)

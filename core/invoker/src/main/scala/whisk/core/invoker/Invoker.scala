@@ -257,7 +257,7 @@ class Invoker(
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult, this.name)
 
-        producer.send("completed", completeMsg) map { status =>
+        producer.send(s"completed${msg.rootControllerIndex}", completeMsg) map { status =>
             logging.info(this, s"posted completion of activation ${msg.activationId}")
         }
 

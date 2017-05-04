@@ -107,9 +107,9 @@ class InvokerReactive(
     }
 
     /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activation: WhiskActivation) => {
+    val ack = (tid: TransactionId, activation: WhiskActivation, controllerInstance: Int) => {
         implicit val transid = tid
-        producer.send("completed", CompletionMessage(tid, activation, s"invoker$instance")).andThen {
+        producer.send(s"completed$controllerInstance", CompletionMessage(tid, activation, s"invoker$instance")).andThen {
             case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
         }
     }
@@ -195,7 +195,7 @@ class InvokerReactive(
                     })
 
                 activationFeed ! FailedActivation(msg.transid)
-                ack(msg.transid, activation)
+                ack(msg.transid, activation, msg.rootControllerIndex)
                 store(msg.transid, activation)
         }
     }

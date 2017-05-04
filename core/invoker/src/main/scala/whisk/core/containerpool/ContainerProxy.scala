@@ -96,7 +96,7 @@ case object ActivationCompleted
  */
 class ContainerProxy(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-    sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
+    sendActiveAck: (TransactionId, WhiskActivation, Int) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
     unusedTimeout: FiniteDuration,
     pauseGrace: FiniteDuration) extends FSM[ContainerState, ContainerData] with Stash {
@@ -154,7 +154,7 @@ class ContainerProxy(
                     // transitions to Running
                     val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
                     self ! ActivationCompleted
-                    sendActiveAck(transid, activation)
+                    sendActiveAck(transid, activation, job.msg.rootControllerIndex)
                     storeActivation(transid, activation)
             }.flatMap {
                 container =>
@@ -361,7 +361,7 @@ class ContainerProxy(
         // asynchronous.
         activation.andThen {
             // the activation future will always complete with Success
-            case Success(ack) => sendActiveAck(tid, ack)
+            case Success(ack) => sendActiveAck(tid, ack, job.msg.rootControllerIndex)
         }.flatMap { activation =>
             container.logs(job.action.limits.logs.asMegaBytes, job.action.exec.sentinelledLogs).map { logs =>
                 activation.withLogs(ActivationLogs(logs.toVector))
@@ -380,7 +380,7 @@ class ContainerProxy(
 
 object ContainerProxy {
     def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-              ack: (TransactionId, WhiskActivation) => Future[Any],
+              ack: (TransactionId, WhiskActivation, Int) => Future[Any],
               store: (TransactionId, WhiskActivation) => Future[Any],
               unusedTimeout: FiniteDuration = 10.minutes,
               pauseGrace: FiniteDuration = 50.milliseconds) = Props(new ContainerProxy(factory, ack, store, unusedTimeout, pauseGrace))

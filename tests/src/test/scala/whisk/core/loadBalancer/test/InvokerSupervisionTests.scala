@@ -224,6 +224,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             user = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]()),
             activationId = new ActivationIdGenerator {}.make(),
             activationNamespace = EntityPath("guest"),
+            rootControllerIndex = 0,
             content = None)
         val msg = ActivationRequest(activationMessage, invokerName)
 
@@ -241,7 +242,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "start unhealthy, go offline if the state times out and goes unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(0))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -257,7 +258,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // unhealthy -> healthy
     it should "goto healthy again, if unhealthy and error buffer has enough successful invocations" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(0))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -280,7 +281,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "go offline when unhealthy, if the state times out and go unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(0))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -295,7 +296,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     }
 
     it should "start timer to send testactions when unhealthy" in {
-        val invoker = TestFSMRef(new InvokerActor)
+        val invoker = TestFSMRef(new InvokerActor(0))
         invoker.stateName shouldBe UnHealthy
 
         invoker.isTimerActive(InvokerActor.timerName) shouldBe true
