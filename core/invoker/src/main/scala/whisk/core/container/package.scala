@@ -53,6 +53,14 @@ package object container {
         def duration = Duration.create(end.toEpochMilli() - start.toEpochMilli(), MILLISECONDS)
     }
 
+    object Interval {
+        /** An interval starting now with zero duration. */
+        def zero = {
+            val now = Instant.now
+            Interval(now, now)
+        }
+    }
+
     /**
      * Represents the result of accessing an endpoint in a container:
      * Start time, End time, Some(response) from container consisting of status code and payload
@@ -128,7 +136,7 @@ package object container {
         def apply(content: String) = new DockerOutput(Some(content))
         def unavailable = new DockerOutput(None)
 
-        def isSuccessful(output : DockerOutput) : Boolean =
+        def isSuccessful(output: DockerOutput): Boolean =
             output match {
                 case output if output == DockerOutput.unavailable => false
                 case _ => true
