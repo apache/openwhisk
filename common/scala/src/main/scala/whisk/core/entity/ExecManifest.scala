@@ -104,7 +104,7 @@ protected[core] object ExecManifest {
      * @param sentinelledLogs true iff the runtime generates stdout/stderr log sentinels after an activation
      * @param image optional image name, otherwise inferred via fixed mapping (remove colons and append 'action')
      */
-    protected[entity] case class RuntimeManifest(
+    protected[core] case class RuntimeManifest(
         kind: String,
         image: ImageName,
         deprecated: Option[Boolean] = None,

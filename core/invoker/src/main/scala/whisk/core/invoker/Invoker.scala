@@ -34,7 +34,7 @@ import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion }
+import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
@@ -45,6 +45,8 @@ import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
 import whisk.common.Scheduler
 import whisk.core.connector.PingMessage
+import whisk.core.connector.MessageProducer
+import scala.util.Try
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -58,6 +60,7 @@ class Invoker(
     config: WhiskConfig,
     instance: Int,
     activationFeed: ActorRef,
+    producer: MessageProducer,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
     extends MessageHandler(s"invoker$instance")
     with ActionLogDriver {
@@ -65,9 +68,6 @@ class Invoker(
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
     TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
-
-    /** This generates completion messages back to the controller */
-    val producer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
     /**
      * This is the handler for the kafka message
@@ -397,12 +397,6 @@ class Invoker(
     private val activationStore = WhiskActivationStore.datastore(config)
     private val pool = new ContainerPool(config, instance)
     private val activationCounter = new Counter() // global activation counter
-
-    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-        producer.send("health", PingMessage(s"invoker$instance")).andThen {
-            case Failure(t) => logging.error(this, s"failed to ping the controller: $t")
-        }
-    })
 }
 
 object Invoker {
@@ -413,7 +407,8 @@ object Invoker {
         servicePort -> 8080.toString(),
         logsDir -> null,
         dockerRegistry -> null,
-        dockerImagePrefix -> null) ++
+        dockerImagePrefix -> null,
+        invokerUseReactivePool -> false.toString) ++
         ExecManifest.requiredProperties ++
         WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
@@ -442,11 +437,24 @@ object Invoker {
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
             val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+            val producer = new KafkaProducerConnector(config.kafkaHost, ec)
             val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
-            val invoker = new Invoker(config, instance, dispatcher.activationFeed)
+            val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
+                new InvokerReactive(config, instance, dispatcher.activationFeed, producer)
+            } else {
+                new Invoker(config, instance, dispatcher.activationFeed, producer)
+            }
+            logger.info(this, s"using $invoker")
+
             dispatcher.addHandler(invoker, true)
             dispatcher.start()
+
+            Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+                producer.send("health", PingMessage(s"invoker$instance")).andThen {
+                    case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+                }
+            })
 
             val port = config.servicePort.toInt
             BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
