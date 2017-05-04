@@ -772,7 +772,6 @@ var apiCreateCmdV2 = &cobra.Command{
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-
         var api *whisk.Api
         var err error
         var qname *QualifiedName
@@ -820,8 +819,12 @@ var apiCreateCmdV2 = &cobra.Command{
         apiCreateReq.ApiDoc = api
 
         apiCreateReqOptions := new(whisk.ApiCreateRequestOptions)
-        apiCreateReqOptions.SpaceGuid, _ = getUserContextId()
-        apiCreateReqOptions.AccessToken, _ = getAccessToken()
+        if apiCreateReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
+            return err
+        }
+        if apiCreateReqOptions.AccessToken, err = getAccessToken(); err != nil {
+            return err
+        }
         apiCreateReqOptions.ResponseType = flags.api.resptype
         whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\nResponsType: %s",
             apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid, apiCreateReqOptions.ResponseType)
@@ -897,8 +900,12 @@ var apiGetCmdV2 = &cobra.Command{
         apiGetReq := new(whisk.ApiGetRequest)
         apiGetReqOptions := new(whisk.ApiGetRequestOptions)
         apiGetReqOptions.ApiBasePath = args[0]
-        apiGetReqOptions.SpaceGuid, _ = getUserContextId()
-        apiGetReqOptions.AccessToken, _ = getAccessToken()
+        if apiGetReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
+            return err
+        }
+        if apiGetReqOptions.AccessToken, err = getAccessToken(); err != nil {
+            return err
+        }
 
         retApi, _, err := client.Apis.GetV2(apiGetReq, apiGetReqOptions)
         if err != nil {
@@ -954,6 +961,7 @@ var apiDeleteCmdV2 = &cobra.Command{
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
+        var err error
 
         if whiskErr := checkArgs(args, 1, 3, "Api delete",
             wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
@@ -962,8 +970,12 @@ var apiDeleteCmdV2 = &cobra.Command{
 
         apiDeleteReq := new(whisk.ApiDeleteRequest)
         apiDeleteReqOptions := new(whisk.ApiDeleteRequestOptions)
-        apiDeleteReqOptions.SpaceGuid, _ = getUserContextId()
-        apiDeleteReqOptions.AccessToken, _ = getAccessToken()
+        if apiDeleteReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
+            return err
+        }
+        if apiDeleteReqOptions.AccessToken, err = getAccessToken(); err != nil {
+            return err
+        }
 
         // Is the argument a basepath (must start with /) or an API name
         if _, ok := isValidBasepath(args[0]); !ok {
@@ -988,7 +1000,7 @@ var apiDeleteCmdV2 = &cobra.Command{
             apiDeleteReqOptions.ApiVerb = strings.ToUpper(args[2])
         }
 
-        _, err := client.Apis.DeleteV2(apiDeleteReq, apiDeleteReqOptions)
+        _, err = client.Apis.DeleteV2(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Apis.DeleteV2(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
             errMsg := wski18n.T("Unable to delete API: {{.err}}", map[string]interface{}{"err": err})
@@ -1051,8 +1063,12 @@ var apiListCmdV2 = &cobra.Command{
             apiListReqOptions := new(whisk.ApiListRequestOptions)
             apiListReqOptions.Limit = flags.common.limit
             apiListReqOptions.Skip = flags.common.skip
-            apiListReqOptions.SpaceGuid, _ = getUserContextId()
-            apiListReqOptions.AccessToken, _ = getAccessToken()
+            if apiListReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
+                return err
+            }
+            if apiListReqOptions.AccessToken, err = getAccessToken(); err != nil {
+                return err
+            }
 
             retApiList, _, err = client.Apis.ListV2(apiListReqOptions)
             if err != nil {
@@ -1071,8 +1087,12 @@ var apiListCmdV2 = &cobra.Command{
             apiGetReq.Namespace = client.Config.Namespace
             // Get API request options
             apiGetReqOptions := new(whisk.ApiGetRequestOptions)
-            apiGetReqOptions.SpaceGuid, _ = getUserContextId()
-            apiGetReqOptions.AccessToken, _ = getAccessToken()
+            if apiGetReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
+                return err
+            }
+            if apiGetReqOptions.AccessToken, err = getAccessToken(); err != nil {
+                return err
+            }
 
             // The first argument is either a basepath (must start with /) or an API name
             apiGetReqOptions.ApiBasePath = args[0]
@@ -1460,6 +1480,10 @@ func getUserContextId() (string, error) {
     if err == nil {
         if len(props["AUTH"]) > 0 {
             guid = strings.Split(props["AUTH"], ":")[0]
+        } else {
+            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: %s\n", Properties.PropsFile)
+            errStr := wski18n.T("Authorization key is not configured (--auth is required)")
+            err = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         }
     } else {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
