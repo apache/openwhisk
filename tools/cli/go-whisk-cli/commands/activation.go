@@ -31,12 +31,9 @@ import (
     "github.com/spf13/cobra"
 )
 
-const (
-    PollInterval = time.Second * 2
-    Delay        = time.Second * 5
-)
+const MAX_ACTIVATION_LIMIT = 200
+const DEFAULT_ACTIVATION_LIMIT = 30
 
-// activationCmd represents the activation command
 var activationCmd = &cobra.Command{
     Use:   "activation",
     Short: wski18n.T("work with activations"),
@@ -76,6 +73,16 @@ var activationListCmd = &cobra.Command{
             Since: flags.activation.since,
             Docs:  flags.common.full,
         }
+
+        if options.Limit > MAX_ACTIVATION_LIMIT {
+            errStr := wski18n.T("Activation limit of {{.limit}} exceeds maximum limit of {{.max}}",
+                map[string]interface{}{
+                    "limit": options.Limit,
+                    "max": MAX_ACTIVATION_LIMIT})
+            whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return whiskErr
+        }
+
         activations, _, err := client.Activations.List(options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.List() error: %s\n", err)
@@ -331,7 +338,7 @@ var activationPollCmd = &cobra.Command{
 
 func init() {
     activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of activations from the result"))
-    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of activations from the collection"))
+    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", DEFAULT_ACTIVATION_LIMIT, wski18n.T("only return `LIMIT` number of activations from the collection with a maximum LIMIT of 200 activations"))
     activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("include full activation description"))
     activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, wski18n.T("return activations with timestamps earlier than `UPTO`; measured in milliseconds since Th, 01, Jan 1970"))
     activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, wski18n.T("return activations with timestamps later than `SINCE`; measured in milliseconds since Th, 01, Jan 1970"))

@@ -996,8 +996,8 @@
     "translation": "exclude the first `SKIP` number of activations from the result"
   },
   {
-    "id": "only return `LIMIT` number of activations from the collection",
-    "translation": "only return `LIMIT` number of activations from the collection"
+    "id": "only return `LIMIT` number of activations from the collection with a maximum LIMIT of 200 activations",
+    "translation": "only return `LIMIT` number of activations from the collection with a maximum LIMIT of 200 activations"
   },
   {
     "id": "include full activation description",
@@ -1466,5 +1466,9 @@
   {
     "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
     "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
+  },
+  {
+    "id": "Activation limit of {{.limit}} exceeds maximum limit of {{.max}}",
+    "translation": "Activation limit of {{.limit}} exceeds maximum limit of {{.max}}"
   }
 ]
