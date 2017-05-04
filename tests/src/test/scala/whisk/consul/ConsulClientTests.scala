@@ -39,6 +39,7 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulService
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.consulServer
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ConsulClientTests
@@ -158,14 +159,13 @@ class ConsulClientTests
         registerService(passing.name, passing.id, Some("exit 0")).futureValue
         registerService(failing.name, failing.id, Some("exit 1")).futureValue
 
-        Thread.sleep(checkInterval.toMillis * 2)
-
-        val services = consul.health.service(passing.name, true).futureValue
-        // Immediately deregister before actually asserting to clean up
-        deregisterService(passing.id).futureValue
-        deregisterService(failing.id).futureValue
-
-        services.head shouldBe passing
+        try {
+            retry(consul.health.service(passing.name, true).futureValue.head shouldBe passing, 3, Some(checkInterval))
+        } finally {
+            // Make sure, that deregister runs, even if test fails
+            deregisterService(passing.id).futureValue
+            deregisterService(failing.id).futureValue
+        }
     }
 
     "ConsulClient helper methods" should "drop the first part of the key" in {
