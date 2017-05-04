@@ -215,6 +215,16 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         }
     }
 
+    it should "reject activation list when limit is greater than maximum allowed value" in {
+        implicit val tid = transid()
+        val exceededMaxLimit = maxActivationLimit + 1
+        val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> sealRoute(routes(creds)) ~> check {
+            val response = responseAs[String]
+            response should include(Messages.maxActivationLimitExceeded(exceededMaxLimit, maxActivationLimit))
+            status should be(BadRequest)
+        }
+    }
+
     it should "reject get activation by namespace and action name when action name is not a valid name" in {
         implicit val tid = transid()
         Get(s"$collectionPath?name=0%20") ~> sealRoute(routes(creds)) ~> check {

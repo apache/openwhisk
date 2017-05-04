@@ -1388,13 +1388,4 @@ class WskBasicUsageTests
             }
             tmpProps.delete()
     }
-
-    behavior of "Wsk activation"
-
-    it should "reject activation list with a limit that exceeds the maximum limit" in {
-        val maxLimit = 200
-        val exceededLimit = maxLimit + 1
-        wsk.activation.list(limit = Some(exceededLimit), expectedExitCode = ERROR_EXIT).
-            stderr should include(s"Activation limit of $exceededLimit exceeds maximum limit of 200")
-    }
 }
