@@ -8,7 +8,7 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 
 
 * [Quick Start](#quick-start) (Vagrant)
-* [Native development](#Native development) (Mac and Ubuntu)
+* [Native development](#native-development) (Mac and Ubuntu)
 * [Learn concepts and commands](#learn-concepts-and-commands)
 * [License](#license)
 * [Issues](#issues)
