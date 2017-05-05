@@ -1442,5 +1442,9 @@
   {
     "id": "Set the web action response TYPE. Possible values are html, http, json, text, svg",
     "translation": "Set the web action response TYPE. Possible values are html, http, json, text, svg"
+  },
+  {
+    "id": "Authorization key is not configured (--auth is required)",
+    "translation": "Authorization key is not configured (--auth is required)"
   }
 ]
