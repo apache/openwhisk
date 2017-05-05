@@ -24,6 +24,7 @@ import akka.japi.Creator
 import spray.httpx.SprayJsonSupport._
 import whisk.common.Logging
 import whisk.common.TransactionId
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which
@@ -51,8 +52,8 @@ trait BasicRasService extends BasicHttpService {
  */
 object BasicRasService {
 
-    def startService(system: ActorSystem, name: String, interface: String, port: Integer, instance: Int, numberOfInstances: Int)(implicit logging: Logging) = {
-        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder(instance, numberOfInstances))
+    def startService(system: ActorSystem, name: String, interface: String, port: Integer, instance: Int, numberOfInstances: Int, delay: FiniteDuration)(implicit logging: Logging) = {
+        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder(instance, numberOfInstances), delay)
     }
 
     /**

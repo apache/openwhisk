@@ -44,7 +44,7 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.common.LoggingMarkers
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -198,7 +198,7 @@ object Controller {
         ExecManifest.initialize(config) match {
             case Success(_) =>
                 val port = config.servicePort.toInt
-                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
+                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger), 30.seconds)
 
             case Failure(t) =>
                 logger.error(this, s"Invalid runtimes manifest: $t")

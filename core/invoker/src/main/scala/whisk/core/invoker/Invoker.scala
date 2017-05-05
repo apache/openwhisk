@@ -480,7 +480,7 @@ object Invoker {
                 override val instance = invokerInstance
                 override val numberOfInstances = config.invokerInstances.toInt
             }
-        })
+        }, 30.seconds)
 
     }
 }
