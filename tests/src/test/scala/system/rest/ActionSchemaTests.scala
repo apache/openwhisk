@@ -52,13 +52,13 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
                 (pkg, _) => pkg.create(packageName, shared = Some(true))
             }
 
-            val auth = WhiskProperties.getBasicAuth;
+            val auth = WhiskProperties.getBasicAuth
             val response = RestAssured.
                 given().
                 config(sslconfig).
                 auth().basic(auth.fst, auth.snd).
-                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/");
-            assert(response.statusCode() == 200);
+                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/")
+            assert(response.statusCode() == 200)
 
             val body = Try { response.body().asString().parseJson }
             val schema = getJsonSchema("EntityBrief").compactPrint
@@ -91,13 +91,13 @@ class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSc
             assetHelper.withCleaner(wsk.action, fullActionName) {
                 (action, _) => action.create(fullActionName, Some(TestUtils.getTestActionFilename("wc.js")))
             }
-            val auth = WhiskProperties.getBasicAuth;
+            val auth = WhiskProperties.getBasicAuth
             val response = RestAssured.
                 given().
                 config(sslconfig).
                 auth().basic(auth.fst, auth.snd).
-                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/$actionName");
-            assert(response.statusCode() == 200);
+                get(getBaseURL() + s"/namespaces/$guestNamespace/actions/$packageName/$actionName")
+            assert(response.statusCode() == 200)
 
             val body = Try { response.body().asString().parseJson }
             val schema = getJsonSchema("Action").compactPrint

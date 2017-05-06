@@ -37,7 +37,6 @@
                 ],
                 "description": "Get all namespaces for authenticated user",
                 "summary": "Get all namespaces for authenticated user",
-                "x-swagger-router-controller": "namespaces",
                 "operationId": "getAllNamespaces",
                 "produces": [
                     "application/json"
@@ -68,7 +67,6 @@
                 ],
                 "description": "Get all entities in a namespace",
                 "summary": "Get all entities in a namespace",
-                "x-swagger-router-controller": "namespaces",
                 "operationId": "getAllEntitiesInNamespace",
                 "parameters": [
                     {
@@ -137,7 +135,6 @@
                 ],
                 "description": "Get all actions",
                 "summary": "Get all actions",
-                "x-swagger-router-controller": "actions",
                 "operationId": "getAllActions",
                 "parameters": [
                     {
@@ -191,7 +188,6 @@
                 ],
                 "summary": "Get action information",
                 "description": "Get action information.",
-                "x-swagger-router-controller": "actions",
                 "operationId": "getActionByName",
                 "parameters": [
                     {
@@ -236,7 +232,6 @@
                 ],
                 "description": "Create or update an action",
                 "summary": "Create or update an action",
-                "x-swagger-router-controller": "actions",
                 "operationId": "updateAction",
                 "parameters": [
                     {
@@ -307,7 +302,6 @@
                 ],
                 "description": "Delete an action",
                 "summary": "Delete an action",
-                "x-swagger-router-controller": "actions",
                 "operationId": "deleteAction",
                 "parameters": [
                     {
@@ -346,7 +340,6 @@
                 ],
                 "description": "Invoke an action",
                 "summary": "Invoke an action",
-                "x-swagger-router-controller": "actions",
                 "operationId": "invokeAction",
                 "parameters": [
                     {
@@ -441,7 +434,6 @@
                 ],
                 "description": "Get all rules",
                 "summary": "Get all rules",
-                "x-swagger-router-controller": "rules",
                 "operationId": "getAllRules",
                 "parameters": [
                     {
@@ -495,7 +487,6 @@
                 ],
                 "description": "Get rule information",
                 "summary": "Get rule information",
-                "x-swagger-router-controller": "rules",
                 "operationId": "getRuleByName",
                 "parameters": [
                     {
@@ -540,7 +531,6 @@
                 ],
                 "description": "Update a rule",
                 "summary": "Update a rule",
-                "x-swagger-router-controller": "rules",
                 "operationId": "updateRule",
                 "parameters": [
                     {
@@ -611,7 +601,6 @@
                 ],
                 "description": "Delete a rule",
                 "summary": "Delete a rule",
-                "x-swagger-router-controller": "rules",
                 "operationId": "deleteRule",
                 "parameters": [
                     {
@@ -650,7 +639,6 @@
                 ],
                 "description": "Enable or disable a rule",
                 "summary": "Enable or disable a rule",
-                "x-swagger-router-controller": "rules",
                 "operationId": "setState",
                 "parameters": [
                     {
@@ -708,7 +696,6 @@
                 ],
                 "description": "Get all triggers",
                 "summary": "Get all triggers",
-                "x-swagger-router-controller": "triggers",
                 "operationId": "getAllTriggers",
                 "parameters": [
                     {
@@ -762,7 +749,6 @@
                 ],
                 "description": "Get trigger information",
                 "summary": "Get trigger information",
-                "x-swagger-router-controller": "triggers",
                 "operationId": "getTriggerByName",
                 "parameters": [
                     {
@@ -807,7 +793,6 @@
                 ],
                 "description": "Update a trigger",
                 "summary": "Update a trigger",
-                "x-swagger-router-controller": "triggers",
                 "operationId": "updateTrigger",
                 "parameters": [
                     {
@@ -878,7 +863,6 @@
                 ],
                 "description": "Delete a trigger",
                 "summary": "Delete a trigger",
-                "x-swagger-router-controller": "triggers",
                 "operationId": "deleteTrigger",
                 "parameters": [
                     {
@@ -917,7 +901,6 @@
                 ],
                 "description": "Fire a trigger",
                 "summary": "Fire a trigger",
-                "x-swagger-router-controller": "triggers",
                 "operationId": "fireTrigger",
                 "parameters": [
                     {
@@ -973,7 +956,6 @@
                 ],
                 "description": "Get all packages",
                 "summary": "Get all packages",
-                "x-swagger-router-controller": "packages",
                 "operationId": "getAlPackages",
                 "parameters": [
                     {
@@ -1034,7 +1016,6 @@
                 ],
                 "summary": "Get package information",
                 "description": "Get package information.",
-                "x-swagger-router-controller": "packages",
                 "operationId": "getPackageByName",
                 "parameters": [
                     {
@@ -1079,7 +1060,6 @@
                 ],
                 "description": "Create or update a package",
                 "summary": "Create or update a package",
-                "x-swagger-router-controller": "packages",
                 "operationId": "updatePackage",
                 "parameters": [
                     {
@@ -1150,7 +1130,6 @@
                 ],
                 "description": "Delete a package",
                 "summary": "Delete a package",
-                "x-swagger-router-controller": "packages",
                 "operationId": "deletePackage",
                 "parameters": [
                     {
@@ -1191,7 +1170,6 @@
                 ],
                 "summary": "Get activation ids",
                 "description": "Get activation ids.",
-                "x-swagger-router-controller": "activations",
                 "operationId": "getActivations",
                 "parameters": [
                     {
@@ -1273,7 +1251,6 @@
                 ],
                 "summary": "Get activation information",
                 "description": "Get activation information.",
-                "x-swagger-router-controller": "activations",
                 "operationId": "getActivationById",
                 "parameters": [
                     {
@@ -1320,7 +1297,6 @@
                 ],
                 "summary": "Get the logs for an activation",
                 "description": "Get activation logs information.",
-                "x-swagger-router-controller": "activations",
                 "parameters": [
                     {
                         "name": "namespace",
@@ -1366,7 +1342,6 @@
                 ],
                 "summary": "Get the result of an activation",
                 "description": "Get activation result.",
-                "x-swagger-router-controller": "activations",
                 "parameters": [
                     {
                         "name": "namespace",

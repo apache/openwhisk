@@ -19,7 +19,6 @@ whisk_logs_dir: /tmp/wsklogs
 cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
 registry_conf_dir: /tmp/registry
 registry_storage_dir: "/"
-#docker_registry: "whisk-registry:5000/"
 docker_registry: "{{ groups['registry'] | first }}:5000/"
 docker_dns: ""
 

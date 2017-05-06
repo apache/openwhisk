@@ -21,37 +21,59 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema)
+##
+# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
+# briefly:
+#   defaultImagePrefix: the default image prefix when not given explicitly
+#   defaultImageTag: the default image tag
+#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
+#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#
 runtimesManifest:
-  nodejs:
-  - kind: "nodejs"
-    deprecated: true
-  - kind: "nodejs:6"
-    image: "nodejs6action"
-    default: true
-  python:
-  - kind: "python"
-    image: "python2action"
-  - kind: "python:2"
-    image: "python2action"
-    default: true
-  - kind: "python:3"
-    image: "python3action"
-  swift:
-  - kind: "swift"
-    deprecated: true
-  - kind: "swift:3"
-    image: "swift3action"
-    default: true
-  java:
-  - kind: "java"
-    attached:
-      attachmentName: "jarfile"
-      attachmentType: "application/java-archive"
-    sentinelledLogs: false
-    requireMain: true
-    image: "java8action"
-    default: true
+  defaultImagePrefix: "openwhisk"
+  defaultImageTag: "latest"
+  runtimes:
+    nodejs:
+    - kind: "nodejs"
+      image:
+        name: "nodejsaction"
+      deprecated: true
+    - kind: "nodejs:6"
+      default: true
+      image:
+        name: "nodejs6action"
+    python:
+    - kind: "python"
+      image:
+        name: "python2action"
+    - kind: "python:2"
+      default: true
+      image:
+        name: "python2action"
+    - kind: "python:3"
+      image:
+        name: "python3action"
+    swift:
+    - kind: "swift"
+      image:
+        name: "swiftaction"
+      deprecated: true
+    - kind: "swift:3"
+      default: true
+      image:
+        name: "swift3action"
+    java:
+    - kind: "java"
+      attached:
+        attachmentName: "jarfile"
+        attachmentType: "application/java-archive"
+      sentinelledLogs: false
+      requireMain: true
+      image:
+        name: "java8action"
+      default: true
+  blackboxes:
+    - name: "dockerskeleton"
 
 defaultLimits:
   actions:

@@ -38,7 +38,7 @@
 
 - set_fact:
     document: "{{ docWithRev }}"
-  when: "docWithRev['_id'] is defined and {{ create }} == True"
+  when: docWithRev['_id'] is defined and create == True
 
 - name: recreate or update the document on the {{ dbName }} database
   uri:
@@ -50,4 +50,4 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: "{{ create }} == True"
+  when: create == True

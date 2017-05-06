@@ -199,6 +199,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     if c.Config.AuthToken != "" {
         encodedAuthToken := base64.StdEncoding.EncodeToString([]byte(c.Config.AuthToken))
         req.Header.Add("Authorization", fmt.Sprintf("Basic %s", encodedAuthToken))
+        Debug(DbgInfo, "Adding basic auth header; using authkey\n")
     } else {
         if authRequired {
             Debug(DbgError, "The required authorization key is not configured - neither set as a property nor set via the --auth CLI argument\n")
@@ -239,7 +240,8 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
-    defer resp.Body.Close()
+    // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
+    // do custom body parsing, such as handling per-route error responses.
     Verbose("RESPONSE:")
     Verbose("Got response with code %d\n", resp.StatusCode)
     if (IsVerbose() && len(resp.Header) > 0) {
@@ -257,6 +259,10 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     Verbose("Response body size is %d bytes\n", len(data))
     Verbose("Response body received:\n%s\n", string(data))
     Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
+
+    // Reload the response body to allow caller access to the body; otherwise,
+    // the caller will have any empty body to read
+    resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 
     // With the HTTP response status code and the HTTP body contents,
     // the possible response scenarios are:
