@@ -21,8 +21,7 @@ import java.time.Instant
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 
@@ -57,7 +56,7 @@ object DockerContainer {
      * @param environment environment variables to set on the container
      * @param network network to launch the container in
      * @param name optional name for the container
-     * @return a container
+     * @return a Future which either completes with a DockerContainer or one of two specific failures
      */
     def create(transid: TransactionId,
                image: String,
@@ -67,7 +66,7 @@ object DockerContainer {
                environment: Map[String, String] = Map(),
                network: String = "bridge",
                name: Option[String] = None)(
-                   implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging) = {
+                   implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging): Future[DockerContainer] = {
         implicit val tid = transid
 
         val environmentArgs = (environment + ("SERVICE_IGNORE" -> true.toString)).map {
@@ -78,7 +77,7 @@ object DockerContainer {
             "--cap-drop", "NET_RAW",
             "--cap-drop", "NET_ADMIN",
             "--ulimit", "nofile=1024:1024",
-            "--pids-limit", "1024", // OW PR 2119
+            "--pids-limit", "1024",
             "--cpu-shares", cpuShares.toString,
             "--memory", s"${memory.toMB}m",
             "--memory-swap", s"${memory.toMB}m",
@@ -123,7 +122,7 @@ object DockerContainer {
  * @param ip the ip of the container
  */
 class DockerContainer(id: ContainerId, ip: ContainerIp)(
-    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging) extends Container with ActionLogDriver {
+    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, logger: Logging) extends Container with ActionLogDriver {
 
     /** The last read-position in the log file */
     private var logFileOffset = 0L
@@ -153,7 +152,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
             } else if (result.interval.duration >= timeout) {
                 Future.failed(InitializationError(ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true)), result.interval))
             } else {
-                Future.failed(InitializationError(ActivationResponse.processInitResponseContent(result.response, log), result.interval))
+                Future.failed(InitializationError(ActivationResponse.processInitResponseContent(result.response, logger), result.interval))
             }
         }
     }
@@ -168,12 +167,12 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
             case Success(r: RunResult) =>
                 transid.finished(this, start.copy(start = r.interval.start), s"running result: ${r.toBriefString}", endTime = r.interval.end)
             case Failure(t) =>
-                transid.failed(this, start, s"initializiation failed with $t")
+                transid.failed(this, start, s"run failed with $t")
         }.map { result =>
             val response = if (result.interval.duration >= timeout) {
                 ActivationResponse.applicationError(Messages.timedoutActivation(timeout, false))
             } else {
-                ActivationResponse.processRunResponseContent(result.response, log)
+                ActivationResponse.processRunResponseContent(result.response, logger)
             }
 
             (result.interval, response)
@@ -210,7 +209,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
                 val (isComplete, isTruncated, formattedLogs) = processJsonDriverLogContents(rawLog, waitForSentinel, limit)
 
                 if (retries > 0 && !isComplete && !isTruncated) {
-                    log.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
+                    logger.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
                     Thread.sleep(logsRetryWait.toMillis)
                     readLogs(retries - 1)
                 } else {
@@ -219,7 +218,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
                 }
             }.andThen {
                 case Failure(e) =>
-                    log.error(this, s"Failed to obtain logs of ${id.asString}: ${e.getClass} - ${e.getMessage}")
+                    logger.error(this, s"Failed to obtain logs of ${id.asString}: ${e.getClass} - ${e.getMessage}")
             }
         }
 
