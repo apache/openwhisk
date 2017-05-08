@@ -19,8 +19,6 @@ package whisk.core.cli.test
 import java.io.File
 import java.time.Instant
 import scala.concurrent.duration._
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
@@ -602,7 +600,7 @@ class ApiGwTests
             println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             println("api create: " + rr.stdout)
@@ -637,7 +635,7 @@ class ApiGwTests
 
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -665,7 +663,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -692,7 +690,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -716,7 +714,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -741,7 +739,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -797,7 +795,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -843,7 +841,7 @@ class ApiGwTests
             println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -890,7 +888,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -920,7 +918,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -977,7 +975,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -1057,7 +1055,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(
                 basepath = Some(testbasepath),
@@ -1099,7 +1097,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(
                 basepath = Some(testbasepath),
@@ -1131,7 +1129,7 @@ class ApiGwTests
         try {
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, annotations = Map("web-export" -> true.toJson))
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
 
             var rr = apiCreate(
                 basepath = Some(testbasepath),

@@ -34,6 +34,14 @@ import (
     "encoding/json"
 )
 
+const (
+    yamlFileExtension = "yaml"
+    ymlFileExtension = "yml"
+
+    formatOptionYaml = "yaml"
+    formatOptionJson = "json"
+)
+
 //////////////
 // Commands //
 //////////////
@@ -900,7 +908,9 @@ var apiGetCmdV2 = &cobra.Command{
             return whiskErr
         }
 
-        if (cmd.LocalFlags().Changed("format") && strings.ToLower(flags.common.format) != "yaml" && strings.ToLower(flags.common.format) != "json") {
+        if ( cmd.LocalFlags().Changed("format") &&
+             strings.ToLower(flags.common.format) != formatOptionYaml &&
+             strings.ToLower(flags.common.format) != formatOptionJson) {
             errMsg := wski18n.T("Invalid format type: {{.type}}", map[string]interface{}{"type": flags.common.format})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -959,7 +969,7 @@ var apiGetCmdV2 = &cobra.Command{
             return whiskErr
         }
 
-        if (cmd.LocalFlags().Changed("format") && strings.ToLower(flags.common.format) == "yaml") {
+        if ( cmd.LocalFlags().Changed("format") && strings.ToLower(flags.common.format) == formatOptionYaml ) {
             var jsonOutputBuffer bytes.Buffer
             var jsonOutputWriter = bufio.NewWriter(&jsonOutputBuffer)
             printJSON(displayResult, jsonOutputWriter)
@@ -1449,7 +1459,7 @@ func parseSwaggerApiV2() (*whisk.Api, error) {
     }
 
     // Check if this swagger is in JSON or YAML format
-    isYaml := strings.HasSuffix(flags.api.configfile, "yaml") || strings.HasSuffix(flags.api.configfile, "yml")
+    isYaml := strings.HasSuffix(flags.api.configfile, yamlFileExtension) || strings.HasSuffix(flags.api.configfile, ymlFileExtension)
     if isYaml {
         whisk.Debug(whisk.DbgInfo, "Converting YAML formated API configuration into JSON\n")
         jsonbytes, err := yaml.YAMLToJSON([]byte(swagger))
@@ -1562,7 +1572,7 @@ func init() {
     apiCreateCmdV2.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`CFG_FILE` containing API configuration in swagger JSON format"))
     apiCreateCmdV2.Flags().StringVar(&flags.api.resptype, "response-type", "json", wski18n.T("Set the web action response `TYPE`. Possible values are html, http, json, text, svg"))
     apiGetCmdV2.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
-    apiGetCmdV2.Flags().StringVarP(&flags.common.format, "format", "", "json", wski18n.T("Specify the API output `TYPE`, either json or yaml"))
+    apiGetCmdV2.Flags().StringVarP(&flags.common.format, "format", "", formatOptionJson, wski18n.T("Specify the API output `TYPE`, either json or yaml"))
     apiListCmdV2.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmdV2.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
     apiListCmdV2.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("display full description of each API"))
