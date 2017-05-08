@@ -178,9 +178,9 @@ object ContainerPool {
      * @param idles a map of idle containers, awaiting work
      * @return a container if one found
      */
-    def schedule[A](action: ExecutableWhiskAction, namespace: EntityName, idles: Map[A, WorkerData]): Option[A] = {
+    def schedule[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, idles: Map[A, WorkerData]): Option[A] = {
         idles.find {
-            case (_, WorkerData(WarmedData(_, `namespace`, `action`, _), Free)) => true
+            case (_, WorkerData(WarmedData(_, `invocationNamespace`, `action`, _), Free)) => true
             case _ => false
         }.map(_._1)
     }
@@ -196,11 +196,11 @@ object ContainerPool {
      * @param pool a map of all containers in the pool
      * @return a container to be removed iff found
      */
-    def remove[A](namespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
+    def remove[A](invocationNamespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
         val grouped = pool.collect {
             case (ref, WorkerData(w: WarmedData, _)) => ref -> w
         }.groupBy {
-            case (ref, data) => data.namespace
+            case (ref, data) => data.invocationNamespace
         }
 
         if (!grouped.isEmpty) {

@@ -271,7 +271,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
         val pool = Map('name -> freeWorker(data))
 
         // copy to make sure, referencial equality doesn't suffice
-        ContainerPool.schedule(data.action.copy(), data.namespace, pool) shouldBe Some('name)
+        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe Some('name)
     }
 
     it should "reuse an applicable warm container from idle pool with several applicable containers" in {
@@ -280,7 +280,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'first -> freeWorker(data),
             'second -> freeWorker(data))
 
-        ContainerPool.schedule(data.action.copy(), data.namespace, pool) should contain oneOf ('first, 'second)
+        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) should contain oneOf ('first, 'second)
     }
 
     it should "reuse an applicable warm container from idle pool with several different containers" in {
@@ -290,7 +290,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'pre -> freeWorker(preWarmedData()),
             'warm -> freeWorker(matchingData))
 
-        ContainerPool.schedule(matchingData.action.copy(), matchingData.namespace, pool) shouldBe Some('warm)
+        ContainerPool.schedule(matchingData.action.copy(), matchingData.invocationNamespace, pool) shouldBe Some('warm)
     }
 
     it should "not reuse a container from idle pool with non-warm containers" in {
@@ -300,15 +300,15 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'none -> freeWorker(noData()),
             'pre -> freeWorker(preWarmedData()))
 
-        ContainerPool.schedule(data.action.copy(), data.namespace, pool) shouldBe None
+        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe None
     }
 
     it should "not reuse a warm container with different invocation namespace" in {
         val data = warmedData()
         val pool = Map('warm -> freeWorker(data))
-        val differentNamespace = EntityName(data.namespace.asString + "butDifferent")
+        val differentNamespace = EntityName(data.invocationNamespace.asString + "butDifferent")
 
-        data.namespace should not be differentNamespace
+        data.invocationNamespace should not be differentNamespace
         ContainerPool.schedule(data.action.copy(), differentNamespace, pool) shouldBe None
     }
 
@@ -319,7 +319,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'warm -> freeWorker(data))
 
         data.action.name should not be differentAction.name
-        ContainerPool.schedule(differentAction, data.namespace, pool) shouldBe None
+        ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
     }
 
     it should "not reuse a warm container with different action version" in {
@@ -329,7 +329,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'warm -> freeWorker(data))
 
         data.action.version should not be differentAction.version
-        ContainerPool.schedule(differentAction, data.namespace, pool) shouldBe None
+        ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
     }
 
     behavior of "ContainerPool remove()"
@@ -350,8 +350,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
         val data = warmedData()
         val pool = Map('warm -> freeWorker(data))
 
-        ContainerPool.remove(data.namespace, pool) shouldBe Some('warm)
-        ContainerPool.remove(EntityName(data.namespace.asString + "butDifferent"), pool) shouldBe Some('warm)
+        ContainerPool.remove(data.invocationNamespace, pool) shouldBe Some('warm)
+        ContainerPool.remove(EntityName(data.invocationNamespace.asString + "butDifferent"), pool) shouldBe Some('warm)
     }
 
     it should "provide oldest container from busy pool with multiple containers" in {
@@ -381,6 +381,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'largeYoung -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(3))),
             'largeOld -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(2))))
 
-        ContainerPool.remove(myData.namespace, pool) shouldBe Some('largeOld)
+        ContainerPool.remove(myData.invocationNamespace, pool) shouldBe Some('largeOld)
     }
 }

@@ -53,7 +53,7 @@ case object Removing extends ContainerState
 sealed abstract class ContainerData(val lastUsed: Instant)
 case class NoData() extends ContainerData(Instant.EPOCH)
 case class PreWarmedData(container: Container, kind: String, memoryLimit: ByteSize) extends ContainerData(Instant.EPOCH)
-case class WarmedData(container: Container, namespace: EntityName, action: ExecutableWhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
+case class WarmedData(container: Container, invocationNamespace: EntityName, action: ExecutableWhiskAction, override val lastUsed: Instant) extends ContainerData(lastUsed)
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
