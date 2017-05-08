@@ -124,6 +124,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
         pool ! runMessage
         containers(0).expectMsg(runMessage)
+        containers(1).expectNoMsg(100.milliseconds)
     }
 
     it should "create a container if it cannot find a matching container" in within(timeout) {
