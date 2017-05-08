@@ -52,13 +52,13 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * (kind, memory) and there is space in the pool.
  *
  * @param childFactory method to create new containers
- * @param poolSize maximum size of containers allowed in the pool
+ * @param maxPoolSize maximum size of containers allowed in the pool
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  */
 class ContainerPool(
     childFactory: ActorRefFactory => ActorRef,
-    poolSize: Int,
+    maxPoolSize: Int,
     feed: ActorRef,
     prewarmConfig: Option[PrewarmingConfig] = None) extends Actor {
     val logging = new AkkaLogging(context.system.log)
@@ -79,7 +79,7 @@ class ContainerPool(
             // Schedule a job to a warm container
             ContainerPool.schedule(r.action, r.msg.user.namespace, pool.toMap).orElse {
                 // Create a cold container iff there's space in the pool
-                if (pool.size < poolSize) {
+                if (pool.size < maxPoolSize) {
                     takePrewarmContainer(r.action).orElse {
                         Some(createContainer())
                     }
