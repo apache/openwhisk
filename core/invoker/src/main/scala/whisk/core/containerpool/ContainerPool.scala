@@ -69,7 +69,7 @@ class ContainerPool(
     prewarmConfig.foreach { config =>
         logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")
         (1 to config.count).foreach { _ =>
-            prewarmContainer()
+            prewarmContainer(config.exec, config.memoryLimit)
         }
     }
 
@@ -127,7 +127,8 @@ class ContainerPool(
     }
 
     /** Creates a new prewarmed container */
-    def prewarmContainer() = prewarmConfig.foreach(config => childFactory(context) ! Start(config.exec, config.memoryLimit))
+    def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize) =
+        prewarmConfig.foreach(config => childFactory(context) ! Start(exec, memoryLimit))
 
     /**
      * Takes a prewarm container out of the prewarmed pool
@@ -148,7 +149,7 @@ class ContainerPool(
                 pool.update(ref, data)
                 prewarmedPool.remove(ref)
                 // Create a new prewarm container
-                prewarmContainer()
+                prewarmContainer(config.exec, config.memoryLimit)
 
                 ref
         }
