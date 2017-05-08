@@ -68,7 +68,7 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
         readResult: Future[JsObject] = Future.successful(dockerConfig)) =
         new DockerClientWithFileAccess()(global) {
             override val dockerCmd = Seq(dockerCommand)
-            override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
+            override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext) = execResult
             override def configFileContents(configFile: File) = readResult
             // Make protected ipAddressFromFile available for testing - requires reflectiveCalls
             def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerIp] = ipAddressFromFile(id, network)

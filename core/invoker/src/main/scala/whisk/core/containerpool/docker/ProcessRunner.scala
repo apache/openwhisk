@@ -21,32 +21,56 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.sys.process._
+import java.util.concurrent.TimeoutException
+import scala.concurrent.duration._
+import scala.concurrent.Await
+import scala.util.Try
+import scala.util.Failure
 
 trait ProcessRunner {
 
     /**
      * Runs the specified command with arguments asynchronously and
-     * capture stdout as well as stderr.
+     * captures stdout as well as stderr. If a timeout is specified,
+     * aborts the running command if execution exceeds timeout.
      *
      * Be cautious with the execution context you pass because the command
      * is blocking.
      *
      * @param args command to be run including arguments
-     * @return a future completing according to the command's exit code
+     * @param timeout
+     *        optional wait time after which the running command is aborted
+     *        if not specified or set to [[scala.concurrent.duration.Duration.Inf Duration.Inf]],
+     *        the command runs without time limit
+     *        a negative timeout requires immediate command execution which
+     *        only makes sense in test scenarios
+     * @return a future completing with the commands stdout if successful or a failure otherwise
      */
-    protected def executeProcess(args: String*)(implicit ec: ExecutionContext) =
-        Future(blocking {
-            val out = new mutable.ListBuffer[String]
-            val err = new mutable.ListBuffer[String]
-            val exitCode = args ! ProcessLogger(o => out += o, e => err += e)
+    protected[docker] def executeProcess(args: Seq[String], timeout: Duration = Duration.Inf)(implicit ec: ExecutionContext): Future[String] = {
+        val out = mutable.ListBuffer[String]()
+        val err = mutable.ListBuffer[String]()
 
-            (exitCode, out.mkString("\n"), err.mkString("\n"))
-        }).flatMap {
-            case (0, stdout, _) =>
-                Future.successful(stdout)
-            case (code, stdout, stderr) =>
-                Future.failed(ProcessRunningException(code, stdout, stderr))
+        Future(args.run(ProcessLogger(o => out += o, e => err += e))).flatMap { process =>
+            blocking {
+                if (timeout.isFinite) {
+                    val exitCode = Try(Await.result(Future(blocking(process.exitValue())), timeout)).recoverWith {
+                        case e: TimeoutException =>
+                            process.destroy()
+                            Failure(ProcessTimeoutException(s"Executed command did not finish within ${timeout.toCoarsest}: '${args.mkString(" ")}'"))
+                    }
+                    Future.fromTry(exitCode)
+                } else {
+                    Future.successful(process.exitValue())
+                }
+            }
+        }.flatMap {
+            case 0 =>
+                Future.successful(out.mkString("\n"))
+            case exitCode =>
+                Future.failed(ProcessRunningException(exitCode, out.mkString("\n"), err.mkString("\n")))
         }
+    }
 }
 
 case class ProcessRunningException(exitCode: Int, stdout: String, stderr: String) extends Exception(s"code: $exitCode, stdout: $stdout, stderr: $stderr")
+case class ProcessTimeoutException(message: String) extends Exception(message)

@@ -16,24 +16,25 @@
 
 package whisk.core.containerpool.docker.test
 
+import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
 import org.scalatest.Matchers
-import whisk.core.containerpool.docker.RuncClient
+
 import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
-import whisk.common.TransactionId
-import org.scalatest.BeforeAndAfterEach
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_RUNC_CMD
+import whisk.common.TransactionId
+import whisk.core.containerpool.docker.ContainerId
+import whisk.core.containerpool.docker.RuncClient
 
 @RunWith(classOf[JUnitRunner])
 class RuncClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
@@ -46,12 +47,6 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
     def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
     val runcCommand = "docker-runc"
-
-    /** Returns a RuncClient with a mocked result for 'executeProcess' */
-    def runcClient(result: Future[String]) = new RuncClient(global) {
-        override val runcCmd = Seq(runcCommand)
-        override def executeProcess(args: String*)(implicit ec: ExecutionContext) = result
-    }
 
     /** Calls a runc method based on the name of the method. */
     def runcProxy(runc: RuncClient, method: String) = {
@@ -78,17 +73,40 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
     behavior of "RuncClient"
 
     Seq("pause", "resume").foreach { cmd =>
-        it should s"$cmd a container successfully and create log entries" in {
-            val rc = runcClient { Future.successful("") }
+        it should s"$cmd a container successfully, create log entries and invoe proper commands" in {
+            val rc = new TestRuncClient(Future.successful(""))
             await(runcProxy(rc, cmd))
             verifyLogs(cmd)
+            rc.verifyExecProcInvocation(cmd)
         }
 
         it should s"write error markers when $cmd fails" in {
-            val rc = runcClient { Future.failed(new RuntimeException()) }
+            val rc = new TestRuncClient(Future.failed(new RuntimeException()))
             a[RuntimeException] should be thrownBy await(runcProxy(rc, cmd))
             verifyLogs(cmd, failed = true)
         }
 
+    }
+
+    class TestRuncClient(execResult: Future[String])(implicit executionContext: ExecutionContext) extends RuncClient(executionContext)(logging) {
+        val execProcInvocations = mutable.Buffer.empty[(Seq[String], Duration)]
+
+        override val runcCmd = Seq(runcCommand)
+        override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext): Future[String] = {
+            execProcInvocations += ((args, timeout))
+            execResult
+        }
+
+        /** Verify proper Runc command invocation including parameters and timeout */
+        def verifyExecProcInvocation(expectedRuncCmd: String) = {
+            execProcInvocations should have size 1
+            val (actualArgs, actualTimeout) = execProcInvocations(0)
+
+            actualArgs should have size 3
+            actualArgs(0) shouldBe runcCommand
+            actualArgs(1) shouldBe expectedRuncCmd
+            actualArgs(2) shouldBe id.asString
+            actualTimeout shouldBe 1.minute
+        }
     }
 }

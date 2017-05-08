@@ -16,44 +16,91 @@
 
 package whisk.core.containerpool.docker.test
 
+import java.io.File
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import whisk.core.containerpool.docker.ProcessRunner
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
-import org.scalatest.Matchers
 import whisk.core.containerpool.docker.ProcessRunningException
-import scala.language.reflectiveCalls // Needed to invoke run() method of structural ProcessRunner extension
+import whisk.core.containerpool.docker.ProcessTimeoutException
 
 @RunWith(classOf[JUnitRunner])
 class ProcessRunnerTests extends FlatSpec with Matchers {
 
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+    // Timeouts chosen long enough for tested commands to complete timely
+    val waitTimeout = 500.milliseconds
+    val cmdTimeout = 2 * waitTimeout
+
+    def await[A](f: Future[A], timeout: FiniteDuration = waitTimeout) = Await.result(f, timeout)
 
     val processRunner = new ProcessRunner {
-        def run(args: String*)(implicit ec: ExecutionContext) = executeProcess(args: _*)
     }
 
     behavior of "ProcessRunner"
 
     it should "run an external command successfully and capture its output" in {
         val stdout = "Output"
-        await(processRunner.run("echo", stdout)) shouldBe stdout
+
+        Seq(Duration.Inf, cmdTimeout).foreach { timeout =>
+            await(processRunner.executeProcess(Seq("echo", stdout), timeout)) shouldBe stdout
+        }
     }
 
-    it should "run an external command unsuccessfully and capture its output" in {
+    it should "run an external command unsuccessfully without timeout and capture its output" in {
         val exitCode = 1
         val stdout = "Output"
         val stderr = "Error"
 
-        val future = processRunner.run("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitCode}")
+        Seq(Duration.Inf, cmdTimeout).foreach { timeout =>
+            val future = processRunner.executeProcess(Seq("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitCode}"), timeout)
 
-        the[ProcessRunningException] thrownBy await(future) shouldBe ProcessRunningException(exitCode, stdout, stderr)
+            the[ProcessRunningException] thrownBy await(future) shouldBe ProcessRunningException(exitCode, stdout, stderr)
+        }
+    }
+
+    it should "time out" in {
+        val longCmd = Seq("sleep", "1") // sleep 1 second
+        val timeout = 1.millisecond
+        val expectedException = ProcessTimeoutException(s"Executed command did not finish within ${timeout.toCoarsest}: '${longCmd.mkString(" ")}'")
+
+        val future = processRunner.executeProcess(longCmd, timeout)
+
+        the[ProcessTimeoutException] thrownBy await(future) shouldBe expectedException
+    }
+
+    it should "deal with a non-existing command" in {
+        an[Exception] should be thrownBy await(processRunner.executeProcess(Seq("/does-not-exist")))
+    }
+
+    it should "deal with non-readable command" in {
+        val file = File.createTempFile(this.getClass.getName, null)
+        try {
+            val cmd = file.getCanonicalPath
+            file.setExecutable(true, false) // enable execute for everybody
+            file.setReadable(false, false) // disable read for everybody
+            an[Exception] should be thrownBy await(processRunner.executeProcess(Seq(cmd)))
+        } finally {
+            file.delete()
+        }
+    }
+
+    it should "deal with non-executable command" in {
+        val file = File.createTempFile(this.getClass.getName, null)
+        try {
+            val cmd = file.getCanonicalPath
+            file.setExecutable(false, false) // disable execute for everybody
+            file.setReadable(true, false) // enable read for everybody
+            an[Exception] should be thrownBy await(processRunner.executeProcess(Seq(cmd)))
+        } finally {
+            file.delete()
+        }
     }
 }

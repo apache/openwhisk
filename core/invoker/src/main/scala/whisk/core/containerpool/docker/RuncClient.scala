@@ -16,14 +16,16 @@
 
 package whisk.core.containerpool.docker
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Failure
-import whisk.common.TransactionId
 import scala.util.Success
-import whisk.common.LoggingMarkers
-import whisk.common.Logging
+
 import akka.event.Logging.ErrorLevel
+import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.TransactionId
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -40,14 +42,14 @@ class RuncClient(executionContext: ExecutionContext)(implicit log: Logging) exte
     // a failure to initialize this instance of DockerClient.
     protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
 
-    def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("pause", id.asString).map(_ => ())
+    def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd(Seq("pause", id.asString), timeout = 1.minute).map(_ => ())
 
-    def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("resume", id.asString).map(_ => ())
+    def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd(Seq("resume", id.asString), timeout = 1.minute).map(_ => ())
 
-    private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
+    private def runCmd(args: Seq[String], timeout: Duration = Duration.Inf)(implicit transid: TransactionId): Future[String] = {
         val cmd = runcCmd ++ args
         val start = transid.started(this, LoggingMarkers.INVOKER_RUNC_CMD(args.head), s"running ${cmd.mkString(" ")}")
-        executeProcess(cmd: _*).andThen {
+        executeProcess(cmd, timeout).andThen {
             case Success(_) => transid.finished(this, start)
             case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
         }

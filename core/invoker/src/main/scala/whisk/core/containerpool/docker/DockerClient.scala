@@ -28,6 +28,7 @@ import whisk.common.LoggingMarkers
 import akka.event.Logging.ErrorLevel
 import scala.util.Failure
 import scala.util.Success
+import scala.concurrent.duration._
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -57,10 +58,10 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     }
 
     def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] =
-        runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*).map(ContainerId.apply)
+        runCmd(Seq("run", "-d") ++ args ++ Seq(image), timeout = 1.minute).map(ContainerId.apply)
 
     def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] =
-        runCmd("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString).flatMap {
+        runCmd(Seq("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString), timeout = 1.minute).flatMap {
             _ match {
                 case "<no value>" => Future.failed(new NoSuchElementException)
                 case stdout       => Future.successful(ContainerIp(stdout))
@@ -68,28 +69,30 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
         }
 
     def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-        runCmd("pause", id.asString).map(_ => ())
+        runCmd(Seq("pause", id.asString), timeout = 1.minute).map(_ => ())
 
     def unpause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-        runCmd("unpause", id.asString).map(_ => ())
+        runCmd(Seq("unpause", id.asString), timeout = 1.minute).map(_ => ())
 
     def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-        runCmd("rm", "-f", id.asString).map(_ => ())
+        runCmd(Seq("rm", "-f", id.asString), timeout = 1.minute).map(_ => ())
 
     def ps(filters: Seq[(String, String)] = Seq(), all: Boolean = false)(implicit transid: TransactionId): Future[Seq[ContainerId]] = {
         val filterArgs = filters.map { case (attr, value) => Seq("--filter", s"$attr=$value") }.flatten
         val allArg = if (all) Seq("--all") else Seq.empty[String]
         val cmd = Seq("ps", "--quiet", "--no-trunc") ++ allArg ++ filterArgs
-        runCmd(cmd: _*).map(_.lines.toSeq.map(ContainerId.apply))
+        runCmd(cmd, timeout = 1.minute).map(_.lines.toSeq.map(ContainerId.apply))
     }
 
-    def pull(image: String)(implicit transid: TransactionId): Future[Unit] =
-        runCmd("pull", image).map(_ => ())
+    def pull(image: String)(implicit transid: TransactionId): Future[Unit] = {
+        // Investigation shows that a `docker pull` very rarely takes longer than 5 minutes
+        runCmd(Seq("pull", image), timeout = 5.minutes).map(_ => ())
+    }
 
-    private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
+    private def runCmd(args: Seq[String], timeout: Duration = Duration.Inf)(implicit transid: TransactionId): Future[String] = {
         val cmd = dockerCmd ++ args
         val start = transid.started(this, LoggingMarkers.INVOKER_DOCKER_CMD(args.head), s"running ${cmd.mkString(" ")}")
-        executeProcess(cmd: _*).andThen {
+        executeProcess(cmd, timeout).andThen {
             case Success(_) => transid.finished(this, start)
             case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
         }

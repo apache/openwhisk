@@ -16,25 +16,26 @@
 
 package whisk.core.containerpool.docker.test
 
+import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
-import org.scalatest.Matchers
-import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
-import whisk.common.TransactionId
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+
+import common.StreamLogging
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
-import whisk.core.containerpool.docker.DockerClient
+import whisk.common.TransactionId
+import whisk.core.containerpool.docker.ContainerId
 import whisk.core.containerpool.docker.ContainerIp
+import whisk.core.containerpool.docker.DockerClient
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
@@ -48,76 +49,82 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
 
     val dockerCommand = "docker"
 
-    /** Returns a DockerClient with a mocked result for 'executeProcess' */
-    def dockerClient(execResult: Future[String]) = new DockerClient()(global) {
-        override val dockerCmd = Seq(dockerCommand)
-        override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
-    }
-
     behavior of "DockerClient"
 
     it should "return a list of containers and pass down the correct arguments when using 'ps'" in {
         val containers = Seq("1", "2", "3")
-        val dc = dockerClient { Future.successful(containers.mkString("\n")) }
-
+        val dc = new TestDockerClient(Future.successful(containers.mkString("\n")))
         val filters = Seq("name" -> "wsk", "label" -> "docker")
+        val expectedDockerCmd = "ps"
+        val expectedParams = Seq("--quiet", "--no-trunc", "--all") ++ filters.map { case (k, v) => Seq("--filter", s"${k}=${v}") }.flatten
+
         await(dc.ps(filters, all = true)) shouldBe containers.map(ContainerId.apply)
 
         val firstLine = logLines.head
-        firstLine should include(s"${dockerCommand} ps")
-        firstLine should include("--quiet")
-        firstLine should include("--no-trunc")
-        firstLine should include("--all")
-        filters.foreach {
-            case (k, v) => firstLine should include(s"--filter $k=$v")
-        }
+        firstLine should include(s"${dockerCommand} ${expectedDockerCmd}")
+        expectedParams.foreach { parm => firstLine should include(parm) }
+
+        dc.verifyExecProcInvocation(expectedDockerCmd, expectedParams, 1.minute)
     }
 
     it should "throw NoSuchElementException if specified network does not exist when using 'inspectIPAddress'" in {
-        val dc = dockerClient { Future.successful("<no value>") }
+        val dc = new TestDockerClient(Future.successful("<no value>"))
 
         a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
     }
 
-    it should "write proper log markers on a successful command" in {
+    it should "write proper log markers on a successful command and invoke proper commands" in {
         // a dummy string works here as we do not assert any output
         // from the methods below
         val stdout = "stdout"
-        val dc = dockerClient { Future.successful(stdout) }
+        val network = "userland"
+        val image = "image"
+        val dc = new TestDockerClient(Future.successful(stdout))
 
-        /** Awaits the command and checks for proper logging. */
-        def runAndVerify(f: Future[_], cmd: String, args: Seq[String] = Seq.empty[String]) = {
+        /** Awaits the command and checks for proper logging as well as command invocation. */
+        def runAndVerify(expectedDockerCmd: String, expectedTimeout: Duration = 1.minute) = {
+            val dc = new TestDockerClient(Future.successful(stdout))
+            val (f, expectedParams) = expectedDockerCmd match {
+                case "pause"   => (dc.pause(id), Seq(id.asString))
+                case "unpause" => (dc.unpause(id), Seq(id.asString))
+                case "rm"      => (dc.rm(id), Seq("-f", id.asString))
+                case "ps"      => (dc.ps(), Seq.empty[String])
+                case "inspect" =>
+                    val inspectArgs = Seq("--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString)
+                    (dc.inspectIPAddress(id, network), inspectArgs)
+                case "run" =>
+                    val runArgs = Seq("--memory", "256m", "--cpushares", "1024")
+                    (dc.run(image, runArgs), Seq("-d") ++ runArgs ++ Seq(image))
+                case "pull" => (dc.pull(image), Seq(image))
+                case _      => (Future.failed(new RuntimeException()), Seq.empty[String])
+            }
             val result = await(f)
 
-            logLines.head should include((Seq(dockerCommand, cmd) ++ args).mkString(" "))
+            logLines.head should include((Seq(dockerCommand, expectedDockerCmd) ++ expectedParams).mkString(" "))
 
             val start = LogMarker.parse(logLines.head)
-            start.token shouldBe INVOKER_DOCKER_CMD(cmd)
+            start.token shouldBe INVOKER_DOCKER_CMD(expectedDockerCmd)
 
             val end = LogMarker.parse(logLines.last)
-            end.token shouldBe INVOKER_DOCKER_CMD(cmd).asFinish
+            end.token shouldBe INVOKER_DOCKER_CMD(expectedDockerCmd).asFinish
+
+            dc.verifyExecProcInvocation(expectedDockerCmd, expectedParams, expectedTimeout)
 
             stream.reset()
             result
         }
 
-        runAndVerify(dc.pause(id), "pause", Seq(id.asString))
-        runAndVerify(dc.unpause(id), "unpause", Seq(id.asString))
-        runAndVerify(dc.rm(id), "rm", Seq("-f", id.asString))
-        runAndVerify(dc.ps(), "ps")
-
-        val network = "userland"
-        val inspectArgs = Seq("--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString)
-        runAndVerify(dc.inspectIPAddress(id, network), "inspect", inspectArgs) shouldBe ContainerIp(stdout)
-
-        val image = "image"
-        val runArgs = Seq("--memory", "256m", "--cpushares", "1024")
-        runAndVerify(dc.run(image, runArgs), "run", Seq("-d") ++ runArgs ++ Seq(image)) shouldBe ContainerId(stdout)
-        runAndVerify(dc.pull(image), "pull", Seq(image))
+        runAndVerify("pause")
+        runAndVerify("unpause")
+        runAndVerify("rm")
+        runAndVerify("ps")
+        runAndVerify("inspect") shouldBe ContainerIp(stdout)
+        runAndVerify("run") shouldBe ContainerId(stdout)
+        runAndVerify("pull", expectedTimeout = 5.minutes)
     }
 
     it should "write proper log markers on a failing command" in {
-        val dc = dockerClient { Future.failed(new RuntimeException()) }
+        val dc = new TestDockerClient(Future.failed(new RuntimeException()))
 
         /** Awaits the command, asserts the exception and checks for proper logging. */
         def runAndVerify(f: Future[_], cmd: String) = {
@@ -139,5 +146,27 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         runAndVerify(dc.inspectIPAddress(id, "network"), "inspect")
         runAndVerify(dc.run("image"), "run")
         runAndVerify(dc.pull("image"), "pull")
+    }
+
+    class TestDockerClient(execResult: Future[String])(implicit executionContext: ExecutionContext) extends DockerClient()(executionContext)(logging) {
+        val execProcInvocations = mutable.Buffer.empty[(Seq[String], Duration)]
+
+        override val dockerCmd = Seq(dockerCommand)
+        override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext): Future[String] = {
+            execProcInvocations += ((args, timeout))
+            execResult
+        }
+
+        /** Verify proper Docker command invocation including parameters and timeout */
+        def verifyExecProcInvocation(expectedDockerCmd: String, expectedParams: Seq[String] = Seq.empty[String], expectedTimeout: Duration = 1.minute) = {
+            execProcInvocations should have size 1
+            val (actualArgs, actualTimeout) = execProcInvocations(0)
+
+            actualArgs.size shouldBe >=(2 + expectedParams.size)
+            actualArgs(0) shouldBe dockerCommand
+            actualArgs(1) shouldBe expectedDockerCmd
+            expectedParams.foreach { parm => actualArgs should contain(parm) }
+            actualTimeout shouldBe expectedTimeout
+        }
     }
 }
