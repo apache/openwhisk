@@ -18,6 +18,7 @@ package whisk.core.cli.test
 
 import java.io.File
 import java.time.Instant
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
@@ -49,10 +50,8 @@ class ApiGwTests
     // throttling restriction.  To avoid CLI failures due to being throttled, track the
     // CLI invocation calls and when at the throttle limit, pause the next CLI invocation
     // with exactly enough time to relax the throttling.
-    val throttleWindow = 1.minute
-    var cliCallCount = 5  // Set to >0 to allow for other action invocations in prior tests
-    var clearedThrottleTime = Instant.now
     val maxActionsPerMin = WhiskProperties.getMaxActionInvokesPerMinute()
+    val invocationTimes = new ArrayBuffer[Instant]()
 
     // Custom CLI properties file
     val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
@@ -62,39 +61,42 @@ class ApiGwTests
       * If number of CLI invocations in this suite have reached the throttle limit
       * then pause the test for enough time so that the throttle restriction is gone
       */
-    def checkThrottle() = {
-      // If the # CLI calls at the throttle limit, then wait enough time to avoid the CLI being blocked
-      cliCallCount += 1
-      println(s"Action invokes ${cliCallCount}; per minute thottle limit ${maxActionsPerMin}")
-      if ( cliCallCount > (maxActionsPerMin - 10) ) {  // Allow for some margin...10 invocations
-        println(s"Action invokes ${cliCallCount} close to exceeding per minute thottle limit of ${maxActionsPerMin}")
-        val waitedAlready = Duration.fromNanos(java.time.Duration.between(clearedThrottleTime, Instant.now).toNanos)
-        settleThrottle(waitedAlready)
-        cliCallCount = 0
-        clearedThrottleTime = Instant.now
-      }
-    }
+    def checkThrottle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin) = {
+        var t = Instant.now
+        var tminus60 = t.minusSeconds(60)
+        var invocationsLast60Seconds = invocationTimes.filter(_.isAfter(tminus60)).sorted
+        var invocationCount = invocationsLast60Seconds.length
+        println(s"Action invokes within last minute: ${invocationCount}")
 
-    /**
-     * Settles throttles of 1 minute. Waits up to 1 minute depending on the time already waited.
-     *
-     * @param waitedAlready the time already gone after the last invoke or fire
-     */
-    def settleThrottle(waitedAlready: FiniteDuration) = {
-      val timeToWait = (throttleWindow - waitedAlready).max(Duration.Zero)
-      println(s"Waiting for ${timeToWait.toSeconds} seconds, already waited for ${waitedAlready.toSeconds} seconds")
-      Thread.sleep(timeToWait.toMillis)
+        if (invocationCount >= maxInvocationsBeforeThrottle) {
+            // Instead of waiting a fixed 60 seconds to settle the throttle,
+            // calculate a wait time that will clear out about half of the
+            // current invocations (assuming even distribution) from the
+            // next 60 second period.
+            var oldestInvocationInLast60Seconds = invocationsLast60Seconds.head
+
+            // Take the oldest invocation time in this 60 second period.  To clear
+            // this invocation from the next 60 second period, the wait time will be
+            // (60sec - oldest invocation's delta time away from the period end).
+            // This will clear all of the invocations from the next period at the
+            // expense of potentially waiting uncessarily long. Instead, this calculation
+            // halves the delta time as a compromise.
+            var throttleTime =  60.seconds.toMillis - ((t.toEpochMilli - oldestInvocationInLast60Seconds.toEpochMilli) /2)
+            println(s"Waiting ${throttleTime} milliseconds to settle the throttle")
+            Thread.sleep(throttleTime)
+        }
+        invocationTimes += Instant.now
     }
 
     /*
      * Create a CLI properties file for use by the tests
      */
     override def beforeAll() = {
-      //cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
-      cliWskPropsFile.deleteOnExit()
-      val wskprops = WskPropsV2(token = "SOME TOKEN")
-      wskprops.writeFile(cliWskPropsFile)
-      println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
+        //cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
+        cliWskPropsFile.deleteOnExit()
+        val wskprops = WskPropsV2(token = "SOME TOKEN")
+        wskprops.writeFile(cliWskPropsFile)
+        println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
     }
 
     /*
@@ -102,97 +104,102 @@ class ApiGwTests
      * this test suite
      */
     override def afterAll() = {
-      // If this test suite is exiting with over 30 action invocations since the last throttle clearing, clear the throttle
-      if (cliCallCount > 30) {
-        val waitedAlready = Duration.fromNanos(java.time.Duration.between(clearedThrottleTime, Instant.now).toNanos)
-        settleThrottle(waitedAlready)
-      }
+        // Check and settle the throttle so that this test won't cause issues with and follow on tests
+        checkThrottle(30)
     }
 
     def apiCreateExperimental(
-      basepath: Option[String] = None,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      action: Option[String] = None,
-      apiname: Option[String] = None,
-      swagger: Option[String] = None,
-      expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+        basepath: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        action: Option[String] = None,
+        apiname: Option[String] = None,
+        swagger: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+
         checkThrottle()
         wsk.apiexperimental.create(basepath, relpath, operation, action, apiname, swagger, expectedExitCode)
     }
 
     def apiListExperimental(
-      basepathOrApiName: Option[String] = None,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      limit: Option[Int] = None,
-      since: Option[Instant] = None,
-      full: Option[Boolean] = None,
-      expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+        basepathOrApiName: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        limit: Option[Int] = None,
+        since: Option[Instant] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+
         checkThrottle()
         wsk.apiexperimental.list(basepathOrApiName, relpath, operation, limit, since, full, expectedExitCode)
     }
 
     def apiGetExperimental(
-      basepathOrApiName: Option[String] = None,
-      full: Option[Boolean] = None,
-      expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+        basepathOrApiName: Option[String] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+
         checkThrottle()
         wsk.apiexperimental.get(basepathOrApiName, full, expectedExitCode)
     }
 
     def apiDeleteExperimental(
-      basepathOrApiName: String,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+        basepathOrApiName: String,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT): RunResult = {
+
         checkThrottle()
         wsk.apiexperimental.delete(basepathOrApiName, relpath, operation, expectedExitCode)
     }
 
     def apiCreate(
-      basepath: Option[String] = None,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      action: Option[String] = None,
-      apiname: Option[String] = None,
-      swagger: Option[String] = None,
-      responsetype: Option[String] = None,
-      expectedExitCode: Int = SUCCESS_EXIT,
-      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+        basepath: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        action: Option[String] = None,
+        apiname: Option[String] = None,
+        swagger: Option[String] = None,
+        responsetype: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+
         checkThrottle()
         wsk.api.create(basepath, relpath, operation, action, apiname, swagger, responsetype, expectedExitCode, cliCfgFile)
     }
 
     def apiList(
-      basepathOrApiName: Option[String] = None,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      limit: Option[Int] = None,
-      since: Option[Instant] = None,
-      full: Option[Boolean] = None,
-      expectedExitCode: Int = SUCCESS_EXIT,
-      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+        basepathOrApiName: Option[String] = None,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        limit: Option[Int] = None,
+        since: Option[Instant] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+
         checkThrottle()
         wsk.api.list(basepathOrApiName, relpath, operation, limit, since, full, expectedExitCode, cliCfgFile)
     }
 
     def apiGet(
-      basepathOrApiName: Option[String] = None,
-      full: Option[Boolean] = None,
-      expectedExitCode: Int = SUCCESS_EXIT,
-      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()),
-      format: Option[String] = None): RunResult = {
+        basepathOrApiName: Option[String] = None,
+        full: Option[Boolean] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()),
+        format: Option[String] = None): RunResult = {
+
         checkThrottle()
         wsk.api.get(basepathOrApiName, full, expectedExitCode, cliCfgFile, format)
     }
 
     def apiDelete(
-      basepathOrApiName: String,
-      relpath: Option[String] = None,
-      operation: Option[String] = None,
-      expectedExitCode: Int = SUCCESS_EXIT,
-      cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+        basepathOrApiName: String,
+        relpath: Option[String] = None,
+        operation: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+
         checkThrottle()
         wsk.api.delete(basepathOrApiName, relpath, operation, expectedExitCode, cliCfgFile)
     }
