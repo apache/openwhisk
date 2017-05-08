@@ -133,7 +133,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
     /** HTTP connection to the container, will be lazily established by callContainer */
     private var httpConnection: Option[HttpUtils] = None
 
-    def halt()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
+    def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
     def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
     def destroy()(implicit transid: TransactionId): Future[Unit] = docker.rm(id)
 
@@ -150,9 +150,9 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
             if (result.ok) {
                 Future.successful(result.interval)
             } else if (result.interval.duration >= timeout) {
-                Future.failed(InitializationError(ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true)), result.interval))
+                Future.failed(InitializationError(result.interval, ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true))))
             } else {
-                Future.failed(InitializationError(ActivationResponse.processInitResponseContent(result.response, logger), result.interval))
+                Future.failed(InitializationError(result.interval, ActivationResponse.processInitResponseContent(result.response, logger)))
             }
         }
     }

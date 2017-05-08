@@ -225,7 +225,7 @@ class DockerContainerTests extends FlatSpec
         val id = ContainerId("id")
         val container = new DockerContainer(id, ContainerIp("ip"))
 
-        container.halt()
+        container.suspend()
         container.resume()
 
         (runc.pause(_: ContainerId)(_: TransactionId)).verify(id, transid)
