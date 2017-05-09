@@ -59,8 +59,8 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
     val dockerConfig =
         JsObject("NetworkSettings" ->
             JsObject("Networks" ->
-                JsObject(s"${networkInConfigFile}" ->
-                    JsObject("IPAddress" -> JsString(s"${ipInConfigFile.asString}")))))
+                JsObject(networkInConfigFile ->
+                    JsObject("IPAddress" -> JsString(ipInConfigFile.asString)))))
 
     /** Returns a DockerClient with mocked results */
     def dockerClient(
@@ -131,7 +131,12 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
     def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
     /** The fixture parameter must be of type FixtureParam. This is hard-wired in fixture suits. */
-    case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess)
+    case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess) {
+        def writeLogFile(content: String) = {
+            writer.write(content)
+            writer.flush()
+        }
+    }
 
     /** This overridden method gets control for each test and actually invokes the test. */
     override def withFixture(test: OneArgTest) = {
@@ -149,16 +154,11 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
         }
     }
 
-    def writeLogFile(fixture: FixtureParam, content: String) = {
-        fixture.writer.write(content)
-        fixture.writer.flush()
-    }
-
     val containerId = ContainerId("Id")
 
     it should "tolerate an empty log file" in { fixture =>
         val logText = ""
-        writeLogFile(fixture, logText)
+        fixture.writeLogFile(logText)
 
         val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
@@ -169,7 +169,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
 
     it should "read a full log file" in { fixture =>
         val logText = "text"
-        writeLogFile(fixture, logText)
+        fixture.writeLogFile(logText)
 
         val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
@@ -187,7 +187,7 @@ class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers 
         val from = 66 // start at third line...
         val expectedText = logText.substring(from)
 
-        writeLogFile(fixture, logText)
+        fixture.writeLogFile(logText)
 
         val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = from))
         val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
