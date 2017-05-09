@@ -34,7 +34,7 @@ object ActivationFeed {
     case class FillQueueWithMessages()
 
     /** Indicates resources are available because transaction completed, may cause pipeline fill. */
-    case class ContainerReleased(tid: TransactionId) extends ActivationNotification
+    case object ContainerReleased extends ActivationNotification
 
     /** Indicate resources are available because transaction failed, may cause pipeline fill. */
     case class FailedActivation(tid: TransactionId) extends ActivationNotification
