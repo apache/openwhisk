@@ -41,6 +41,14 @@ class WskRuleTests
     val testResult = JsObject("count" -> testString.split(" ").length.toJson)
 
     /**
+     * Invoker clock skew can sometimes make it appear as if an action was invoked
+     * _before_ the trigger was fired. The "fudge factor" below allows the test to look
+     * for action activations that occur starting at most this amount of time before
+     * the trigger was fired.
+     */
+    val activationTimeSkewFactorMs = 500
+
+    /**
      * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
      * and links it all up.
      *
@@ -74,13 +82,18 @@ class WskRuleTests
         }
     }
 
+    /**
+     * Append the current timestamp in ms
+     */
+    def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
+
     behavior of "Whisk rules"
 
     it should "invoke the action attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "r1to1"
-            val triggerName = "t1to1"
-            val actionName = "a1 to 1" // spaces in name intended for greater test coverage
+            val ruleName = withTimestamp("r1to1")
+            val triggerName = withTimestamp("t1to1")
+            val actionName = withTimestamp("a1 to 1") // spaces in name intended for greater test coverage
 
             ruleSetup(Seq(
                 (ruleName, triggerName, (actionName, actionName, defaultAction))),
@@ -92,11 +105,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) { activationList =>
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) { activationList =>
                         activationList.head.response.result shouldBe Some(testResult)
                         activationList.head.cause shouldBe None
                     }
@@ -105,10 +118,10 @@ class WskRuleTests
 
     it should "invoke the action from a package attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "pr1to1"
-            val triggerName = "pt1to1"
-            val pkgName = "rule pkg" // spaces in name intended to test uri path encoding
-            val actionName = "a1 to 1"
+            val ruleName = withTimestamp("pr1to1")
+            val triggerName = withTimestamp("pt1to1")
+            val pkgName = withTimestamp("rule pkg") // spaces in name intended to test uri path encoding
+            val actionName = withTimestamp("a1 to 1")
             val pkgActionName = s"$pkgName/$actionName"
 
             assetHelper.withCleaner(wsk.pkg, pkgName) {
@@ -126,11 +139,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -138,11 +151,11 @@ class WskRuleTests
 
     it should "invoke the action from a package binding attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "pr1to1"
-            val triggerName = "pt1to1"
-            val pkgName = "rule pkg" // spaces in name intended to test uri path encoding
-            val pkgBindingName = "rule pkg binding"
-            val actionName = "a1 to 1"
+            val ruleName = withTimestamp("pr1to1")
+            val triggerName = withTimestamp("pt1to1")
+            val pkgName = withTimestamp("rule pkg") // spaces in name intended to test uri path encoding
+            val pkgBindingName = withTimestamp("rule pkg binding")
+            val actionName = withTimestamp("a1 to 1")
             val pkgActionName = s"$pkgName/$actionName"
 
             assetHelper.withCleaner(wsk.pkg, pkgName) {
@@ -163,11 +176,11 @@ class WskRuleTests
                 triggerActivation =>
                     triggerActivation.cause shouldBe None
 
-                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, ruleName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.cause shouldBe Some(triggerActivation.activationId)
                     }
 
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -175,9 +188,9 @@ class WskRuleTests
 
     it should "not activate an action if the rule is deleted when the trigger is fired" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "ruleDelete"
-            val triggerName = "ruleDeleteTrigger"
-            val actionName = "ruleDeleteAction"
+            val ruleName = withTimestamp("ruleDelete")
+            val triggerName = withTimestamp("ruleDeleteTrigger")
+            val actionName = withTimestamp("ruleDeleteAction")
 
             assetHelper.withCleaner(wsk.trigger, triggerName) {
                 (trigger, name) => trigger.create(name)
@@ -196,7 +209,7 @@ class WskRuleTests
             withActivation(wsk.activation, first) {
                 activation =>
                     // tries to find 2 activations for the action, should only find 1
-                    val activations = wsk.activation.pollFor(2, Some(actionName), since = Some(activation.start), retries = 30)
+                    val activations = wsk.activation.pollFor(2, Some(actionName), since = Some(activation.start.minusMillis(activationTimeSkewFactorMs)), retries = 30)
 
                     activations.length shouldBe 1
             }
@@ -204,9 +217,9 @@ class WskRuleTests
 
     it should "enable and disable a rule and check action is activated only when rule is enabled" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "ruleDisable"
-            val triggerName = "ruleDisableTrigger"
-            val actionName = "ruleDisableAction"
+            val ruleName = withTimestamp("ruleDisable")
+            val triggerName = withTimestamp("ruleDisableTrigger")
+            val actionName = withTimestamp("ruleDisableAction")
 
             ruleSetup(Seq(
                 (ruleName, triggerName, (actionName, actionName, defaultAction))),
@@ -220,7 +233,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, first) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             results should contain theSameElementsAs Seq(Some(testResult), Some(testResult))
@@ -230,10 +243,10 @@ class WskRuleTests
 
     it should "be able to recreate a rule with the same name and match it successfully" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val ruleName = "ruleRecreate"
-            val triggerName1 = "ruleRecreateTrigger1"
-            val triggerName2 = "ruleRecreateTrigger2"
-            val actionName = "ruleRecreateAction"
+            val ruleName = withTimestamp("ruleRecreate")
+            val triggerName1 = withTimestamp("ruleRecreateTrigger1")
+            val triggerName2 = withTimestamp("ruleRecreateTrigger2")
+            val actionName = withTimestamp("ruleRecreateAction")
 
             assetHelper.withCleaner(wsk.trigger, triggerName1) {
                 (trigger, name) => trigger.create(name)
@@ -257,7 +270,7 @@ class WskRuleTests
             val first = wsk.trigger.fire(triggerName2, Map("payload" -> testString.toJson))
             withActivation(wsk.activation, first) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
             }
@@ -265,9 +278,9 @@ class WskRuleTests
 
     it should "connect two triggers via rules to one action and activate it accordingly" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val triggerName1 = "t2to1a"
-            val triggerName2 = "t2to1b"
-            val actionName = "a2to1"
+            val triggerName1 = withTimestamp("t2to1a")
+            val triggerName2 = withTimestamp("t2to1b")
+            val actionName = withTimestamp("a2to1")
 
             ruleSetup(Seq(
                 ("r2to1a", triggerName1, (actionName, actionName, defaultAction)),
@@ -281,7 +294,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             val expectedResults = testPayloads.map { payload =>
@@ -295,9 +308,9 @@ class WskRuleTests
 
     it should "connect one trigger to two different actions, invoking them both eventually" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val triggerName = "t1to2"
-            val actionName1 = "a1to2a"
-            val actionName2 = "a1to2b"
+            val triggerName = withTimestamp("t1to2")
+            val actionName1 = withTimestamp("a1to2a")
+            val actionName2 = withTimestamp("a1to2b")
 
             ruleSetup(Seq(
                 ("r1to2a", triggerName, (actionName1, actionName1, defaultAction)),
@@ -308,10 +321,10 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName1, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName1, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.response.result shouldBe Some(testResult)
                     }
-                    withActivationsFromEntity(wsk.activation, actionName2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         _.head.logs.get.mkString(" ") should include(s"hello, $testString")
                     }
             }
@@ -319,10 +332,10 @@ class WskRuleTests
 
     it should "connect two triggers to two different actions, invoking them both eventually" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val triggerName1 = "t1to1a"
-            val triggerName2 = "t1to1b"
-            val actionName1 = "a1to1a"
-            val actionName2 = "a1to1b"
+            val triggerName1 = withTimestamp("t1to1a")
+            val triggerName2 = withTimestamp("t1to1b")
+            val actionName1 = withTimestamp("a1to1a")
+            val actionName2 = withTimestamp("a1to1b")
 
             ruleSetup(Seq(
                 ("r2to2a", triggerName1, (actionName1, actionName1, defaultAction)),
@@ -337,7 +350,7 @@ class WskRuleTests
 
             withActivation(wsk.activation, run) {
                 triggerActivation =>
-                    withActivationsFromEntity(wsk.activation, actionName1, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName1, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             val results = activations.map(_.response.result)
                             val expectedResults = testPayloads.map { payload =>
@@ -346,7 +359,7 @@ class WskRuleTests
 
                             results should contain theSameElementsAs expectedResults
                     }
-                    withActivationsFromEntity(wsk.activation, actionName2, N = 2, since = Some(triggerActivation.start)) {
+                    withActivationsFromEntity(wsk.activation, actionName2, N = 2, since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
                         activations =>
                             // drops the leftmost 39 characters (timestamp + streamname)
                             val logs = activations.map(_.logs.get.map(_.drop(39))).flatten
