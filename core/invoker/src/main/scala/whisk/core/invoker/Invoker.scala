@@ -111,7 +111,7 @@ class Invoker(
                     case Success(activation) =>
                         transactionPromise.completeWith {
                             // this completes the successful activation case (1)
-                            completeTransaction(tran, activation, ContainerReleased(transid))
+                            completeTransaction(tran, activation, ContainerReleased)
                         }
 
                     case Failure(t) =>
