@@ -166,6 +166,27 @@ Parameters can be passed to the action when it is invoked.
   Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then
   displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
 
+  Additionally, if parameter values specified on the command-line are valid JSON, then they will be parsed and sent to your action as a structured object. For example, if we update our hello action to:
+
+  ```
+  function main(params) {
+      return {payload:  'Hello, ' + params.person.name + ' from ' + params.person.place};
+  }
+  ```
+
+  Now the action expects a single `person` parameter to have fields `name` and `place`. If we invoke the action with a single `person` parameter that is valid JSON:
+
+  ```
+  $ wsk action invoke --result hello -p person '{"name": "Bernie", "place": "Vermont"}'
+  ```
+
+  The result is the same because the CLI automatically parses the `person` parameter value into the structured object that the action now expects:
+  ```
+  {
+      "payload": "Hello, Bernie from Vermont"
+  }
+  ```
+
 ### Setting default parameters
 
 Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
