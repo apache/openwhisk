@@ -110,7 +110,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
 
     /** Expect a NeedWork message with prewarmed data */
     def expectPreWarmed(kind: String) = expectMsgPF() {
-        case NeedWork(PreWarmedData(_, kind)) => true
+        case NeedWork(PreWarmedData(_, kind, memoryLimit)) => true
     }
 
     /** Expect a NeedWork message with warmed data */
