@@ -16,18 +16,20 @@
 
 package whisk.core.containerpool.docker
 
-import scala.util.Try
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
-import scala.concurrent.Future
+
 import scala.concurrent.ExecutionContext
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.common.LoggingMarkers
-import akka.event.Logging.ErrorLevel
+import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
+
+import akka.event.Logging.ErrorLevel
+import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.TransactionId
 
 /**
  * Serves as interface to the docker CLI tool.
