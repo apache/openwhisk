@@ -41,8 +41,8 @@ class ActionLogDriverTests
     private def makeLogMsgs(lines: Seq[String], stream: String = "stdout", addSentinel: Boolean = true) = {
         val msgs = if (addSentinel) {
             lines.map((stream, _)) :+
-                ("stdout", s"$LOG_ACTIVATION_SENTINEL\n") :+
-                ("stderr", s"$LOG_ACTIVATION_SENTINEL\n")
+                ("stdout", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}") :+
+                ("stderr", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}")
         } else {
             lines.map((stream, _))
         }
@@ -77,8 +77,8 @@ class ActionLogDriverTests
             raw"""|{"time":"","stream":"stdout","log":"a"}
                   |{"time":"","stream":"stdout","log":"b"}
                   |{"time":"","stream":"stdout","log":"c"}
-                  |{"time":"","stream":"stdout","log":"$LOG_ACTIVATION_SENTINEL\n"}
-                  |{"time":"","stream":"stderr","log":"$LOG_ACTIVATION_SENTINEL\n"}""".stripMargin('|')
+                  |{"time":"","stream":"stdout","log":"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}"}
+                  |{"time":"","stream":"stderr","log":"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}"}""".stripMargin('|')
         }
     }
 
