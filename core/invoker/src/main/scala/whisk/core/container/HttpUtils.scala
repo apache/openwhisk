@@ -50,7 +50,7 @@ import whisk.core.entity.size.SizeLong
  * @param timeoutMsec the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
-protected[container] class HttpUtils(
+protected[core] class HttpUtils(
     hostname: String,
     timeout: FiniteDuration,
     maxResponse: ByteSize) {

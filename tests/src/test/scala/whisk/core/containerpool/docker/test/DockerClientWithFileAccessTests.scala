@@ -16,30 +16,32 @@
 
 package whisk.core.containerpool.docker.test
 
-import scala.concurrent.Future
-
-import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.fixture.{ FlatSpec => FixtureFlatSpec }
-import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
-import org.scalatest.Matchers
-import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
-import whisk.common.TransactionId
-import org.scalatest.BeforeAndAfterEach
-import whisk.core.containerpool.docker.ContainerIp
-import whisk.core.containerpool.docker.DockerClientWithFileAccess
-import spray.json._
-import java.nio.charset.StandardCharsets
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
+import java.nio.charset.StandardCharsets
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.language.reflectiveCalls // Needed to invoke publicIpAddressFromFile() method of structural dockerClientForIp extension
+
+import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.FlatSpec
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.Matchers
+import org.scalatest.fixture.{ FlatSpec => FixtureFlatSpec }
+
+import common.StreamLogging
+import spray.json._
+import whisk.common.TransactionId
+import whisk.core.containerpool.docker.ContainerId
+import whisk.core.containerpool.docker.ContainerIp
+import whisk.core.containerpool.docker.DockerClientWithFileAccess
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {

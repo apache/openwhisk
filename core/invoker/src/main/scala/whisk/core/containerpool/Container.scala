@@ -47,7 +47,7 @@ trait Container {
     def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[(Interval, ActivationResponse)]
 
     /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
-    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[List[String]]
+    def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]]
 }
 
 /** Indicates a general error with the container */
@@ -56,10 +56,10 @@ sealed abstract class ContainerError(msg: String) extends Exception(msg)
 /** Indicates an error while starting a container */
 sealed abstract class ContainerStartupError(msg: String) extends ContainerError(msg)
 
-/** Indicates an error while starting a container of a managed runtime */
+/** Indicates any error while starting a container either of a managed runtime or a non-application-specific blackbox container */
 case class WhiskContainerStartupError(msg: String) extends ContainerStartupError(msg)
 
-/** Indicates an error while starting a blackbox container */
+/** Indicates an application-specific error while starting a blackbox container */
 case class BlackboxStartupError(msg: String) extends ContainerStartupError(msg)
 
 /** Indicates an error while initializing a container */
