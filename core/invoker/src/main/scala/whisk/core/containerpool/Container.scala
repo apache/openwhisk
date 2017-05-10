@@ -56,10 +56,10 @@ sealed abstract class ContainerError(msg: String) extends Exception(msg)
 /** Indicates an error while starting a container */
 sealed abstract class ContainerStartupError(msg: String) extends ContainerError(msg)
 
-/** Indicates an error while starting a container of a managed runtime */
+/** Indicates any error while starting a container either of a managed runtime or a non-application-specific blackbox container */
 case class WhiskContainerStartupError(msg: String) extends ContainerStartupError(msg)
 
-/** Indicates an error while starting a blackbox container */
+/** Indicates an application-specific error while starting a blackbox container */
 case class BlackboxStartupError(msg: String) extends ContainerStartupError(msg)
 
 /** Indicates an error while initializing a container */

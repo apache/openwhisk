@@ -179,7 +179,25 @@ class DockerContainerTests extends FlatSpec
         docker.rms should have size 1
     }
 
-    it should "disambiguate errors if user images are provided" in {
+    it should "provide a proper error if run fails for blackbox containers" in {
+        implicit val docker = new TestDockerClient {
+            override def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
+                runs += ((image, args))
+                Future.failed(new RuntimeException())
+            }
+        }
+        implicit val runc = stub[RuncApi]
+
+        val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+        a[WhiskContainerStartupError] should be thrownBy await(container)
+
+        docker.pulls should have size 1
+        docker.runs should have size 1
+        docker.inspects should have size 0
+        docker.rms should have size 0
+    }
+
+    it should "provide a proper error if inspect fails for blackbox containers" in {
         implicit val docker = new TestDockerClient {
             override def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
                 inspects += ((id, network))
@@ -189,7 +207,7 @@ class DockerContainerTests extends FlatSpec
         implicit val runc = stub[RuncApi]
 
         val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
-        a[BlackboxStartupError] should be thrownBy await(container)
+        a[WhiskContainerStartupError] should be thrownBy await(container)
 
         docker.pulls should have size 1
         docker.runs should have size 1

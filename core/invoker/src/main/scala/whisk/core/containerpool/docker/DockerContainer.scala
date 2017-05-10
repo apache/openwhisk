@@ -87,27 +87,23 @@ object DockerContainer {
 
         val pulled = if (userProvidedImage) {
             docker.pull(image).recoverWith {
-                case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '$image'."))
+                case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '${image}'."))
             }
         } else Future.successful(())
 
-        val container = for {
+        for {
             _ <- pulled
-            id <- docker.run(image, args)
-            ip <- docker.inspectIPAddress(id, network).andThen {
-                // remove the container immediatly if inspect failed as
+            id <- docker.run(image, args).recoverWith {
+                case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+            }
+            ip <- docker.inspectIPAddress(id, network).recoverWith {
+                // remove the container immediately if inspect failed as
                 // we cannot recover that case automatically
-                case Failure(_) => docker.rm(id)
+                case _ =>
+                    docker.rm(id)
+                    Future.failed(WhiskContainerStartupError(s"Failed to obtain IP address of container '${id.asString}'."))
             }
         } yield new DockerContainer(id, ip)
-
-        container.recoverWith {
-            case t => if (userProvidedImage) {
-                Future.failed(BlackboxStartupError(t.getMessage))
-            } else {
-                Future.failed(WhiskContainerStartupError(t.getMessage))
-            }
-        }
     }
 }
 
