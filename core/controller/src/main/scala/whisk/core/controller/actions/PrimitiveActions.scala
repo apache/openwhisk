@@ -93,12 +93,11 @@ protected[actions] trait PrimitiveActions {
      */
     protected[actions] def invokeSingleAction(
         user: Identity,
-        action: WhiskAction,
+        action: ExecutableWhiskAction,
         payload: Option[JsObject],
         waitForResponse: Option[FiniteDuration],
         cause: Option[ActivationId])(
             implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-        require(action.exec.kind != Exec.SEQUENCE, "this method requires a primitive action")
 
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = action.parameters merge payload
@@ -115,7 +114,7 @@ protected[actions] trait PrimitiveActions {
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
-        val postedFuture = loadBalancer.publish(action, message)
+        val postedFuture = loadBalancer.publish(action.toWhiskAction, message)
 
         postedFuture.flatMap { activeAckResponse =>
             // successfully posted activation request to the message bus
