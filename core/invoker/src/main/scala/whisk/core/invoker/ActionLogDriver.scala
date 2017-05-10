@@ -32,7 +32,7 @@ import whisk.http.Messages
 /**
  * Represents a single log line as read from a docker log
  */
-protected[invoker] case class LogLine(time: String, stream: String, log: String) {
+protected[core] case class LogLine(time: String, stream: String, log: String) {
     def toFormattedString = f"$time%-30s $stream: ${log.trim}"
     def dropRight(maxBytes: ByteSize) = {
         val bytes = log.getBytes(StandardCharsets.UTF_8).dropRight(maxBytes.toBytes.toInt)
@@ -40,14 +40,16 @@ protected[invoker] case class LogLine(time: String, stream: String, log: String)
     }
 }
 
-protected[invoker] object LogLine extends DefaultJsonProtocol {
+protected[core] object LogLine extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(LogLine.apply)
 }
 
-protected[invoker] trait ActionLogDriver {
-
+protected[core] object ActionLogDriver {
     // The action proxies inserts this line in the logs at the end of each activation for stdout/stderr
-    protected val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+    val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
+}
+
+protected[core] trait ActionLogDriver {
 
     /**
      * Given the JSON driver's raw output of a docker container, convert it into our own
@@ -77,7 +79,7 @@ protected[invoker] trait ActionLogDriver {
             Try(lines.next().parseJson.convertTo[LogLine]) match {
                 case Success(t) =>
                     // if sentinels are expected, do not account for their size, otherwise, all bytes are accounted for
-                    if (requireSentinel && t.log.trim != LOG_ACTIVATION_SENTINEL || !requireSentinel) {
+                    if (requireSentinel && t.log.trim != ActionLogDriver.LOG_ACTIVATION_SENTINEL || !requireSentinel) {
                         // ignore empty log lines
                         if (t.log.nonEmpty) {
                             bytesSoFar += t.log.sizeInBytes
