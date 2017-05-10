@@ -848,7 +848,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) error {
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
-        err = errors.New(wski18n.T("API action does not exist"))
+        err = errors.New(wski18n.T("API action '{{.name}}' does not exist", map[string]interface{}{"name": fullActionName}))
     } else {
         err = errors.New(wski18n.T("API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
             map[string]interface{}{"name": fullActionName}))

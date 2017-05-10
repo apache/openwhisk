@@ -1380,8 +1380,8 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "API action does not exist",
-    "translation": "API action does not exist"
+    "id": "API action '{{.name}}' does not exist",
+    "translation": "API action '{{.name}}' does not exist"
   },
   {
     "id": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
@@ -1446,5 +1446,21 @@
   {
     "id": "Authorization key is not configured (--auth is required)",
     "translation": "Authorization key is not configured (--auth is required)"
+  },
+  {
+    "id": "Specify the API output `TYPE`, either json or yaml",
+    "translation": "Specify the API output `TYPE`, either json or yaml"
+  },
+  {
+    "id": "Unable to parse YAML configuration file: {{.err}}",
+    "translation": "Unable to parse YAML configuration file: {{.err}}"
+  },
+  {
+    "id": "Unable to convert API into YAML: {{.err}}",
+    "translation": "Unable to convert API into YAML: {{.err}}"
+  },
+  {
+    "id": "Invalid format type: {{.type}}",
+    "translation": "Invalid format type: {{.type}}"
   }
 ]

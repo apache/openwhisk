@@ -909,11 +909,13 @@ class WskApi()
         basepathOrApiName: Option[String] = None,
         full: Option[Boolean] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
-        cliCfgFile: Option[String] = None)(
+        cliCfgFile: Option[String] = None,
+        format: Option[String] = None)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
             { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
-            { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() }
+            { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() } ++
+            { format map { ft => Seq("--format", ft) } getOrElse Seq() }
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
