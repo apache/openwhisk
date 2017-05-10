@@ -956,8 +956,8 @@
     "translation": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n"
   },
   {
-    "id": "{{.ok}} got activation {{.id}}\n",
-    "translation": "{{.ok}} got activation {{.id}}\n"
+    "id": "{{.ok}} got activation {{.id}} (started at {{.time}})\n",
+    "translation": "{{.ok}} got activation {{.id}} (started at {{.time}})\n"
   },
   {
     "id": "get the logs of an activation",
