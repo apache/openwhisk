@@ -165,6 +165,8 @@ nginx:
     password_file: "ssl.pass"
     client_ca_cert: "{{ openwhisk_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
     verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
+  wpn:
+    router: "{{ nginx_wpn_router | default('1') }}"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.
