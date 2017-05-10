@@ -123,6 +123,7 @@ invoker:
   serializeDockerOp: true
   serializeDockerPull: true
   useRunc: false
+  useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
 
 nginx:
   version: 1.11
