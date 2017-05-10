@@ -1,0 +1,31 @@
+basePath: /bp
+info:
+  title: /bp
+  version: 1.0.0
+paths:
+  /rp:
+    get:
+      operationId: get_/rp
+      responses:
+        default:
+          description: Default response
+      x-openwhisk:
+        action: webhttpecho
+        namespace: guest
+        package: ""
+        url: https://127.0.0.1/api/v1/web/guest/default/webhttpecho.http
+swagger: "2.0"
+x-ibm-configuration:
+  assembly:
+    execute:
+    - operation-switch:
+        case:
+        - execute:
+          - invoke:
+              target-url: https://127.0.0.1/api/v1/web/guest/default/webhttpecho.http
+              verb: keep
+          operations:
+          - get_/rp
+  cors:
+    enabled: true
+
