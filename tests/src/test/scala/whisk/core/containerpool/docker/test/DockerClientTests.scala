@@ -16,25 +16,26 @@
 
 package whisk.core.containerpool.docker.test
 
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-import scala.concurrent.Await
 import org.scalatest.Matchers
+
 import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
-import whisk.common.TransactionId
-import org.scalatest.BeforeAndAfterEach
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
-import whisk.core.containerpool.docker.DockerClient
+import whisk.common.TransactionId
+import whisk.core.containerpool.docker.ContainerId
 import whisk.core.containerpool.docker.ContainerIp
+import whisk.core.containerpool.docker.DockerClient
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
@@ -49,9 +50,9 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     val dockerCommand = "docker"
 
     /** Returns a DockerClient with a mocked result for 'executeProcess' */
-    def dockerClient(result: Future[String]) = new DockerClient()(global) {
+    def dockerClient(execResult: Future[String]) = new DockerClient()(global) {
         override val dockerCmd = Seq(dockerCommand)
-        override def executeProcess(args: String*)(implicit ec: ExecutionContext) = result
+        override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
     }
 
     behavior of "DockerClient"
@@ -71,6 +72,12 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         filters.foreach {
             case (k, v) => firstLine should include(s"--filter $k=$v")
         }
+    }
+
+    it should "throw NoSuchElementException if specified network does not exist when using 'inspectIPAddress'" in {
+        val dc = dockerClient { Future.successful("<no value>") }
+
+        a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
     }
 
     it should "write proper log markers on a successful command" in {
@@ -100,8 +107,9 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         runAndVerify(dc.rm(id), "rm", Seq("-f", id.asString))
         runAndVerify(dc.ps(), "ps")
 
-        val inspectArgs = Seq("--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}", id.asString)
-        runAndVerify(dc.inspectIPAddress(id), "inspect", inspectArgs) shouldBe ContainerIp(stdout)
+        val network = "userland"
+        val inspectArgs = Seq("--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString)
+        runAndVerify(dc.inspectIPAddress(id, network), "inspect", inspectArgs) shouldBe ContainerIp(stdout)
 
         val image = "image"
         val runArgs = Seq("--memory", "256m", "--cpushares", "1024")
@@ -129,7 +137,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         runAndVerify(dc.unpause(id), "unpause")
         runAndVerify(dc.rm(id), "rm")
         runAndVerify(dc.ps(), "ps")
-        runAndVerify(dc.inspectIPAddress(id), "inspect")
+        runAndVerify(dc.inspectIPAddress(id, "network"), "inspect")
         runAndVerify(dc.run("image"), "run")
         runAndVerify(dc.pull("image"), "pull")
     }

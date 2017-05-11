@@ -16,18 +16,20 @@
 
 package whisk.core.containerpool.docker
 
-import scala.util.Try
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
-import scala.concurrent.Future
+
 import scala.concurrent.ExecutionContext
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.common.LoggingMarkers
-import akka.event.Logging.ErrorLevel
+import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
+
+import akka.event.Logging.ErrorLevel
+import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.TransactionId
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -59,8 +61,13 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] =
         runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*).map(ContainerId.apply)
 
-    def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp] =
-        runCmd("inspect", "--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}", id.asString).map(ContainerIp.apply)
+    def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] =
+        runCmd("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString).flatMap {
+            _ match {
+                case "<no value>" => Future.failed(new NoSuchElementException)
+                case stdout       => Future.successful(ContainerIp(stdout))
+            }
+        }
 
     def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
         runCmd("pause", id.asString).map(_ => ())
@@ -109,12 +116,17 @@ trait DockerApi {
     def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId]
 
     /**
-     * Gets the IP adress of a given container.
+     * Gets the IP address of a given container.
+     *
+     * A container may have more than one network. The container has an
+     * IP address in each of these networks such that the network name
+     * is needed.
      *
      * @param id the id of the container to get the IP address from
+     * @param network name of the network to get the IP address from
      * @return ip of the container
      */
-    def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerIp]
+    def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp]
 
     /**
      * Pauses the container with the given id.

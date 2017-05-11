@@ -74,7 +74,12 @@
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "e4d366fc3c7938e2958e662b4258c7a89e1f0e3e"
+			"Rev": "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b"
+		},
+		{
+			"ImportPath": "github.com/ghodss/yaml",
+			"Comment": "v1.0.0",
+			"Rev": "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
 		}
 	]
 }

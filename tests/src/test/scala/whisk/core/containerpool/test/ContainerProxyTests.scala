@@ -110,7 +110,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
 
     /** Expect a NeedWork message with prewarmed data */
     def expectPreWarmed(kind: String) = expectMsgPF() {
-        case NeedWork(PreWarmedData(_, kind)) => true
+        case NeedWork(PreWarmedData(_, kind, memoryLimit)) => true
     }
 
     /** Expect a NeedWork message with warmed data */
@@ -535,9 +535,9 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
 
             Future.successful((Interval.zero, ActivationResponse.success()))
         }
-        def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[List[String]] = {
+        def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]] = {
             logsCount += 1
-            Future.successful(List("helloTest"))
+            Future.successful(Vector("helloTest"))
         }
     }
 }

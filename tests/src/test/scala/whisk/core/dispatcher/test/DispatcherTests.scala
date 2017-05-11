@@ -147,7 +147,7 @@ class DispatcherTests
             // that dispatcher refilled the pipeline
             stream.reset()
             Console.withOut(stream) {
-                dispatcher.activationFeed ! ActivationFeed.ContainerReleased(transid)
+                dispatcher.activationFeed ! ActivationFeed.ContainerReleased
                 // wait until additional message is drained
                 retry({
                     withClue("additional messages processed") {

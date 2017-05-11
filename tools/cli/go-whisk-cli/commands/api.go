@@ -17,6 +17,8 @@
 package commands
 
 import (
+    "bytes"
+    "bufio"
     "errors"
     "fmt"
     "reflect"
@@ -27,8 +29,17 @@ import (
     "../wski18n"
 
     "github.com/fatih/color"
+    "github.com/ghodss/yaml"
     "github.com/spf13/cobra"
     "encoding/json"
+)
+
+const (
+    yamlFileExtension = "yaml"
+    ymlFileExtension = "yml"
+
+    formatOptionYaml = "yaml"
+    formatOptionJson = "json"
 )
 
 //////////////
@@ -897,6 +908,15 @@ var apiGetCmdV2 = &cobra.Command{
             return whiskErr
         }
 
+        if ( cmd.LocalFlags().Changed("format") &&
+             strings.ToLower(flags.common.format) != formatOptionYaml &&
+             strings.ToLower(flags.common.format) != formatOptionJson) {
+            errMsg := wski18n.T("Invalid format type: {{.type}}", map[string]interface{}{"type": flags.common.format})
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return whiskErr
+        }
+
         apiGetReq := new(whisk.ApiGetRequest)
         apiGetReqOptions := new(whisk.ApiGetRequestOptions)
         apiGetReqOptions.ApiBasePath = args[0]
@@ -948,7 +968,24 @@ var apiGetCmdV2 = &cobra.Command{
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
-        printJSON(displayResult)
+
+        if ( cmd.LocalFlags().Changed("format") && strings.ToLower(flags.common.format) == formatOptionYaml ) {
+            var jsonOutputBuffer bytes.Buffer
+            var jsonOutputWriter = bufio.NewWriter(&jsonOutputBuffer)
+            printJSON(displayResult, jsonOutputWriter)
+            jsonOutputWriter.Flush()
+            yamlbytes, err := yaml.JSONToYAML(jsonOutputBuffer.Bytes())
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "yaml.JSONToYAML() error: %s\n", err)
+                errMsg := wski18n.T("Unable to convert API into YAML: {{.err}}", map[string]interface{}{"err": err})
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return whiskErr
+            }
+            fmt.Println(string(yamlbytes))
+        } else {
+            printJSON(displayResult)
+        }
 
         return nil
     },
@@ -1421,6 +1458,21 @@ func parseSwaggerApiV2() (*whisk.Api, error) {
         return nil, whiskErr
     }
 
+    // Check if this swagger is in JSON or YAML format
+    isYaml := strings.HasSuffix(flags.api.configfile, yamlFileExtension) || strings.HasSuffix(flags.api.configfile, ymlFileExtension)
+    if isYaml {
+        whisk.Debug(whisk.DbgInfo, "Converting YAML formated API configuration into JSON\n")
+        jsonbytes, err := yaml.YAMLToJSON([]byte(swagger))
+        if err != nil {
+            whisk.Debug(whisk.DbgError, "yaml.YAMLToJSON() error: %s\n", err)
+            errMsg := wski18n.T("Unable to parse YAML configuration file: {{.err}}", map[string]interface{}{"err": err})
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            return nil, whiskErr
+        }
+        swagger = string(jsonbytes)
+    }
+
     // Parse the JSON into a swagger object
     swaggerObj := new(whisk.ApiSwaggerV2)
     err = json.Unmarshal([]byte(swagger), swaggerObj)
@@ -1520,6 +1572,7 @@ func init() {
     apiCreateCmdV2.Flags().StringVarP(&flags.api.configfile, "config-file", "c", "", wski18n.T("`CFG_FILE` containing API configuration in swagger JSON format"))
     apiCreateCmdV2.Flags().StringVar(&flags.api.resptype, "response-type", "json", wski18n.T("Set the web action response `TYPE`. Possible values are html, http, json, text, svg"))
     apiGetCmdV2.Flags().BoolVarP(&flags.common.detail, "full", "f", false, wski18n.T("display full API configuration details"))
+    apiGetCmdV2.Flags().StringVarP(&flags.common.format, "format", "", formatOptionJson, wski18n.T("Specify the API output `TYPE`, either json or yaml"))
     apiListCmdV2.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     apiListCmdV2.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
     apiListCmdV2.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("display full description of each API"))
