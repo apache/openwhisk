@@ -55,11 +55,12 @@ class WhiskContainer(
     network: String,
     cpuShare: Int,
     policy: Option[String],
+    dnsServers: Seq[String],
     env: Map[String, String],
     limits: ActionLimits,
     args: Array[String] = Array())(
         override implicit val logging: Logging)
-    extends Container(originalId, useRunc, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, limits, env, args) {
+    extends Container(originalId, useRunc, dockerhost, mounted, key, Some(containerName), image, network, cpuShare, policy, dnsServers, limits, env, args) {
 
     var lastLogSize = 0L
 

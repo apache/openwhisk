@@ -55,6 +55,7 @@ object DockerContainer {
      * @param cpuShares sharefactor for the container
      * @param environment environment variables to set on the container
      * @param network network to launch the container in
+     * @param dnsServers list of dns servers to use in the container
      * @param name optional name for the container
      * @return a Future which either completes with a DockerContainer or one of two specific failures
      */
@@ -65,6 +66,7 @@ object DockerContainer {
                cpuShares: Int = 0,
                environment: Map[String, String] = Map(),
                network: String = "bridge",
+               dnsServers: Seq[String] = Seq(),
                name: Option[String] = None)(
                    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging): Future[DockerContainer] = {
         implicit val tid = transid
@@ -72,6 +74,8 @@ object DockerContainer {
         val environmentArgs = (environment + ("SERVICE_IGNORE" -> true.toString)).map {
             case (key, value) => Seq("-e", s"$key=$value")
         }.flatten
+
+        val dnsArgs = dnsServers.map(Seq("--dns",_)).flatten
 
         val args = Seq(
             "--cap-drop", "NET_RAW",
@@ -82,6 +86,7 @@ object DockerContainer {
             "--memory", s"${memory.toMB}m",
             "--memory-swap", s"${memory.toMB}m",
             "--network", network) ++
+            dnsArgs ++
             environmentArgs ++
             name.map(n => Seq("--name", n)).getOrElse(Seq.empty)
 
