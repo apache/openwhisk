@@ -19,6 +19,7 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
+import scala.concurrent.duration.DurationInt
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.JsHelpers
@@ -136,7 +137,7 @@ class WskBasicPythonTests
                                 action.create(name, zippedPythonAction, kind = Some(kind))
                         }
 
-                        withActivation(wsk.activation, wsk.action.invoke(name)) {
+                        withActivation(wsk.activation, wsk.action.invoke(name), totalWait = 120.seconds) {
                             activation =>
                                 val response = activation.response
                                 response.result.get.fields.get("error") shouldBe empty
