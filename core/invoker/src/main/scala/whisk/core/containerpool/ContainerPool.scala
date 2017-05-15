@@ -86,7 +86,7 @@ class ContainerPool(
                 } else None
             }.orElse {
                 // Remove a container and create a new one for the given job
-                ContainerPool.remove(r.action, pool.toMap).map { toDelete =>
+                ContainerPool.remove(r.action, r.msg.user.namespace, pool.toMap).map { toDelete =>
                     removeContainer(toDelete)
                     createContainer()
                 }
@@ -193,13 +193,14 @@ object ContainerPool {
      * not already the most consuming one.
      *
      * @param action the action that wants to get a container
+     * @param invocationNamespace the namespace, that wants to run the action
      * @param pool a map of all containers in the pool
      * @return a container to be removed iff found
      */
-    def remove[A](action: ExecutableWhiskAction, pool: Map[A, WorkerData]): Option[A] = {
+    def remove[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
         //try to find a Free container that is initialized with any OTHER action
         val grouped = pool.collect {
-            case (ref, WorkerData(w: WarmedData, Free)) if (w.action != action) => ref -> w
+            case (ref, WorkerData(w: WarmedData, Free)) if (w.action != action || w.invocationNamespace != invocationNamespace) => ref -> w
         }.groupBy {
             case (ref, data) => data.invocationNamespace
         }
