@@ -150,7 +150,7 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
-    activations: "{% if db_split_actions_and_activations %}{{ db_prefix }}activations{% else %}{{ db_prefix }}whisks{% endif %}"
+    activations: "{{ db_prefix }}activations"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
