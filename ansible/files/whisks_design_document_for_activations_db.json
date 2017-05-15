@@ -2,12 +2,11 @@
   "_id": "_design/whisks",
   "views": {
     "all": {
-      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n  var collection = function (doc) {\n    if (isActivation(doc)) return \"activations\";\n    return \"??\";\n  };\n\n  try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0]; ns.shift();\n    var type = collection(doc);\n    var date = new Date(doc.start || doc.updated);\n    var value = {collection: type, namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations};\n    value.activationId = doc.activationId;\n    emit([root, date], value);\n  } catch (e) {}\n}\n"
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n  var collection = function (doc) {\n    if (isActivation(doc)) return \"activations\";\n    return \"??\";\n  };\n\n  if (isActivation(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0]; ns.shift();\n    var type = collection(doc);\n    var date = new Date(doc.start || doc.updated);\n    var value = {collection: type, namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations};\n    value.activationId = doc.activationId;\n    emit([root, date], value);\n  } catch (e) {}\n}\n"
     },
     "activations": {
-      "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  try {\n    var date = new Date(doc.start || doc.updated);\n    emit([doc.namespace, date.getTime(), doc.name], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n    emit([doc.namespace+PATHSEP+doc.name, date.getTime()], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n  } catch (e) {}\n}\n"
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n\n  if (isActivation(doc)) try {\n    var date = new Date(doc.start || doc.updated);\n    emit([doc.namespace, date.getTime(), doc.name], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n    emit([doc.namespace+PATHSEP+doc.name, date.getTime()], {namespace: doc.namespace, name: doc.name, version: doc.version, publish: doc.publish, annotations: doc.annotations, activationId: doc.activationId});\n  } catch (e) {}\n}\n"
     }
   },
-  "language": "javascript",
-  "indexes": {}
+  "language": "javascript"
 }
