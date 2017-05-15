@@ -305,7 +305,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
                 transid = transid,
                 action = action.fullyQualifiedName(true),
                 // Use empty DocRevision to force the invoker to pull the action from db all the time
-                revision = DocRevision(),
+                revision = DocRevision.empty,
                 user = InvokerPool.healthActionIdentity,
                 // Create a new Activation ID for this activation
                 activationId = new ActivationIdGenerator {}.make(),

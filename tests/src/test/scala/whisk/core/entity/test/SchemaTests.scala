@@ -101,7 +101,7 @@ class SchemaTests
             assert(d.rev == (if (i != null) i.trim else null))
         }
 
-        DocRevision.serdes.read(JsNull) shouldBe DocRevision()
+        DocRevision.serdes.read(JsNull) shouldBe DocRevision.empty
         DocRevision.serdes.read(JsString("")) shouldBe DocRevision("")
         DocRevision.serdes.read(JsString("a")) shouldBe DocRevision("a")
         DocRevision.serdes.read(JsString(" a")) shouldBe DocRevision("a")
