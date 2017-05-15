@@ -71,6 +71,7 @@ class WhiskConfig(
 
     val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
     val invokerContainerPolicy = if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
+    val invokerContainerDns = if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
     val invokerNumCore = this(WhiskConfig.invokerNumCore)
     val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
     val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
@@ -227,6 +228,7 @@ object WhiskConfig {
 
     val invokerContainerNetwork = "invoker.container.network"
     val invokerContainerPolicy = "invoker.container.policy"
+    val invokerContainerDns = "invoker.container.dns"
     val invokerNumCore = "invoker.numcore"
     val invokerCoreShare = "invoker.coreshare"
     val invokerSerializeDockerOp = "invoker.serializeDockerOp"
