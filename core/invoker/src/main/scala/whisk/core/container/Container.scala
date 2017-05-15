@@ -39,6 +39,7 @@ class Container(
     network: String,
     cpuShare: Int,
     policy: Option[String],
+    dnsServers: Seq[String],
     val limits: ActionLimits = ActionLimits(),
     env: Map[String, String] = Map(),
     args: Array[String] = Array())(
@@ -50,7 +51,7 @@ class Container(
     val id = Container.idCounter.next()
     val nameAsString = containerName.map(_.name).getOrElse("anon")
 
-    val (containerId, containerHostAndPort) = bringup(mounted, containerName, image, network, cpuShare, env, args, limits, policy)
+    val (containerId, containerHostAndPort) = bringup(mounted, containerName, image, network, cpuShare, env, args, limits, policy, dnsServers)
 
     def details: String = {
         val name = containerName.map(_.name) getOrElse "??"
