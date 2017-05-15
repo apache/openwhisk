@@ -20,6 +20,7 @@ import java.time.Instant
 
 import scala.collection.mutable
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
