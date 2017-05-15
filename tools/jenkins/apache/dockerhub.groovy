@@ -23,7 +23,7 @@ node("ubuntu&&xenial") {
                 [$class: 'CloneOption', noTags: true, reference: '', shallow: true]
             ],
             submoduleCfg: [],
-            userRemoteConfigs: [[url: 'https://github.com/openwhisk/openwhisk.git']]
+            userRemoteConfigs: [[url: 'https://github.com/apache/incubator-openwhisk.git']]
         ])
   }
 
