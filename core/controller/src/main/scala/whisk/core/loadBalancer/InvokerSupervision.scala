@@ -190,7 +190,7 @@ object InvokerPool {
  * This finite state-machine represents an Invoker in its possible
  * states "Healthy" and "Offline".
  */
-class InvokerActor(instance: Int) extends FSM[InvokerState, InvokerInfo] {
+class InvokerActor(controllerInstance: Int) extends FSM[InvokerState, InvokerInfo] {
     implicit val transid = TransactionId.invokerHealth
     implicit val logging = new AkkaLogging(context.system.log)
     def name = self.path.name
@@ -311,7 +311,7 @@ class InvokerActor(instance: Int) extends FSM[InvokerState, InvokerInfo] {
                 // Create a new Activation ID for this activation
                 activationId = new ActivationIdGenerator {}.make(),
                 activationNamespace = action.namespace,
-                rootControllerIndex = instance,
+                rootControllerIndex = controllerInstance,
                 content = None)
 
             context.parent ! ActivationRequest(activationMessage, name)
@@ -329,7 +329,7 @@ class InvokerActor(instance: Int) extends FSM[InvokerState, InvokerInfo] {
 }
 
 object InvokerActor {
-    def props(instance: Int) = Props(new InvokerActor(instance))
+    def props(controllerInstance: Int) = Props(new InvokerActor(controllerInstance))
 
     val bufferSize = 10
     val bufferErrorTolerance = 3

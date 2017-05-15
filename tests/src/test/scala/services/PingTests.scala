@@ -17,19 +17,34 @@
 
 package services
 
-import org.junit.Assert.assertTrue
-
 import java.io.File
 
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TestRule
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
+import scala.util.Try
+
+import org.junit.Assert.assertTrue
+import org.junit.runner.RunWith
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
+import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import common.TestUtils
-import common.WhiskProperties
 import common.TestUtils.RunResult
+import common.WhiskProperties
+import common.WskActorSystem
+import common.WskTestHelpers
+import akka.http.scaladsl.model.StatusCodes
 
 /**
  * Basic tests to check that a Whisk installation is healthy in that all
@@ -38,14 +53,27 @@ import common.TestUtils.RunResult
 object PingTests {
     val bin: File = WhiskProperties.getFileRelativeToWhiskHome("tools/health")
 
-    def isAlive(name: String, whiskPropertyFile: String): RunResult = {
+    def isAliveScript(name: String, whiskPropertyFile: String): RunResult = {
         TestUtils.runCmd(TestUtils.SUCCESS_EXIT, bin, WhiskProperties.python, "isAlive", "-d", whiskPropertyFile, "--wait", "30", name)
+    }
+
+    def ping(host: String, port: Int)(implicit actorSystem: ActorSystem, ec: ExecutionContext, materializer: Materializer) = {
+        val response = Try { Await.result(Http().singleRequest(HttpRequest(uri = s"http://$host:$port/ping")), 10.seconds) }.toOption
+
+        response.map { res =>
+            (res.status, Await.result(Unmarshal(res).to[String], 10.seconds))
+        }
     }
 }
 
-class PingTests {
-    @Rule
-    def watcher(): TestRule = TestUtils.makeTestWatcher
+@RunWith(classOf[JUnitRunner])
+class PingTests extends FlatSpec
+    with Matchers
+    with WskTestHelpers
+    with ScalaFutures
+    with WskActorSystem {
+
+    implicit val materializer = ActorMaterializer()
 
     /**
      * Check that the docker REST interface at endpoint is up. envVar is the
@@ -61,45 +89,41 @@ class PingTests {
         assertTrue(response.contains("Containers"))
     }
 
-    /**
-     * Check that the main docker endpoint is functioning.
-     */
-    @Test
-    def pingMainDocker(): Unit = {
+    behavior of "PingTest"
+
+    it should "check that the main docker endpoint is functioning" in {
         pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint)
     }
 
-    /**
-     * Check the kafka docker endpoint is functioning.
-     */
-    @Test
-    def pingKafkaDocker(): Unit = {
+    it should "Check the kafka docker endpoint is functioning" in {
         pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint)
     }
 
-    /**
-     * Check that the zookeeper endpoint is up and running
-     */
-    @Test
-    def pingZookeeper(): Unit = {
-        PingTests.isAlive("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
+    it should "check that the zookeeper endpoint is up and running" in {
+        PingTests.isAliveScript("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
     }
 
-    /**
-     * Check that the invoker endpoints are up and running
-     */
-    @Test
-    def pingInvoker(): Unit = {
-        for (i <- 0 until WhiskProperties.numberOfInvokers) {
-            PingTests.isAlive("invoker" + i, WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
+    it should "Check that the invoker endpoints are up and running" in {
+        val basePort = WhiskProperties.getProperty("invoker.hosts.baseport").toInt
+        val invokers = WhiskProperties.getInvokerHosts.zipWithIndex.map {
+            case (invoker, instance) =>
+                val res = PingTests.ping(invoker, basePort + instance)
+
+                res shouldBe defined
+                res.get._1 shouldBe StatusCodes.OK
+                res.get._2 shouldBe "pong"
         }
     }
 
-    /**
-     * Check that the controller endpoint is up and running
-     */
-    @Test
-    def pingController(): Unit = {
-        PingTests.isAlive("controller", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
+    it should "check that the controller endpoint is up and running" in {
+        val basePort = WhiskProperties.getControllerBasePort()
+        val controllers = WhiskProperties.getControllerHosts().split(",").zipWithIndex.map {
+            case (controller, instance) =>
+                val res = PingTests.ping(controller, basePort + instance)
+
+                res shouldBe defined
+                res.get._1 shouldBe StatusCodes.OK
+                res.get._2 shouldBe "pong"
+        }
     }
 }

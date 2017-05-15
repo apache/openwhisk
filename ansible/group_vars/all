@@ -89,7 +89,7 @@ defaultLimits:
 
 # port means outer port
 controller:
-  port: 10001
+  basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10

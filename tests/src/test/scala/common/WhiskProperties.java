@@ -238,20 +238,12 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("edge.host.apiport"));
     }
 
-    public static String getLoadbalancerHost() {
-        return whiskProperties.getProperty("loadbalancer.host");
+    public static String getControllerHosts() {
+        return whiskProperties.getProperty("controller.hosts");
     }
 
-    public static int getLoadbalancerPort() {
-        return Integer.parseInt(whiskProperties.getProperty("loadbalancer.host.port"));
-    }
-
-    public static String getControllerHost() {
-        return whiskProperties.getProperty("controller.host");
-    }
-
-    public static int getControllerPort() {
-        return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
+    public static int getControllerBasePort() {
+        return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
     }
 
     public static int getMaxActionInvokesPerMinute() {

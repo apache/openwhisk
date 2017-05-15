@@ -39,12 +39,12 @@
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
-      - "{{ controller.port + groups['controllers'].index(inventory_hostname) }}:8080"
+      - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
     command: /bin/sh -c "controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.port + groups['controllers'].index(inventory_hostname) }}/ping"
+    url: "http://{{ inventory_hostname }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12
