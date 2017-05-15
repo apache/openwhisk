@@ -60,9 +60,10 @@ trait ContainerUtils {
                 env: Map[String, String],
                 args: Array[String],
                 limits: ActionLimits,
-                policy: Option[String])(
+                policy: Option[String],
+                dnsServer: Seq[String])(
                     implicit transid: TransactionId): (ContainerHash, Option[ContainerAddr]) = {
-        val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy)
+        val id = makeContainer(name, image, network, cpuShare, env, args, limits, policy, dnsServer)
         val host = getContainerIpAddr(id, mounted, network)
         (id, host map { ContainerAddr(_, 8080) })
     }
@@ -83,7 +84,8 @@ trait ContainerUtils {
                       env: Map[String, String],
                       args: Seq[String],
                       limits: ActionLimits,
-                      policy: Option[String])(
+                      policy: Option[String],
+                      dnsServers: Seq[String])(
                           implicit transid: TransactionId): ContainerHash = {
         val nameOption = name.map(n => Array("--name", n.name)).getOrElse(Array.empty[String])
         val cpuArg = Array("-c", cpuShare.toString)
@@ -93,10 +95,11 @@ trait ContainerUtils {
         val fileHandleLimit = Array("--ulimit", "nofile=1024:1024")
         val processLimit = Array("--pids-limit", "1024")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
+        val dnsOpts = dnsServers.map(Seq("--dns", _)).flatten
         val containerNetwork = Array("--net", network)
 
         val cmd = Seq("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
-            capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ containerNetwork ++ Seq("-d", image) ++ args
+            capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ dnsOpts ++ containerNetwork ++ Seq("-d", image) ++ args
 
         runDockerCmd(cmd: _*).toOption.map { result =>
             ContainerHash.fromString(result)

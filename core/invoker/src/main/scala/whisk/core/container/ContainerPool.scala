@@ -591,6 +591,7 @@ class ContainerPool(
         val network = config.invokerContainerNetwork
         val cpuShare = ContainerPool.cpuShare(config)
         val policy = config.invokerContainerPolicy
+        val dnsServers = config.invokerContainerDns
         val env = getContainerEnvironment()
 
         // distinguishes between a black box container vs a whisk container
@@ -616,7 +617,7 @@ class ContainerPool(
                 // there could be a container to reuse (from a previous run of the same action, or
                 // from a stem cell container); should revisit this logic
                 new WhiskContainer(transid, useRunc, this.dockerhost, mounted, key, containerName, imageName,
-                    network, cpuShare, policy, env, limits)
+                    network, cpuShare, policy, dnsServers, env, limits)
             }
         }
     }
@@ -637,7 +638,7 @@ class ContainerPool(
             new WhiskContainer(transid, useRunc, this.dockerhost, mounted,
                 key, makeContainerName("testContainer"), imageName,
                 config.invokerContainerNetwork, ContainerPool.cpuShare(config),
-                config.invokerContainerPolicy, Map(), ActionLimits(), args)
+                config.invokerContainerPolicy, config.invokerContainerDns, Map(), ActionLimits(), args)
         }
     }
 
@@ -825,6 +826,7 @@ object ContainerPool {
         invokerSerializeDockerPull -> "true",
         invokerUseRunc -> "false",
         invokerContainerPolicy -> "",
+        invokerContainerDns -> "",
         invokerContainerNetwork -> null)
 
     /*
