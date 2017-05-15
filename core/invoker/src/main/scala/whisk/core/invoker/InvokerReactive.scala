@@ -143,10 +143,10 @@ class InvokerReactive(
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
-        if (actionid.rev == DocRevision()) {
+        if (actionid.rev == DocRevision.empty) {
             logging.error(this, s"revision was not provided for ${actionid.id}")
         }
-        WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision()).flatMap { action =>
+        WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty).flatMap { action =>
             action.toExecutableWhiskAction match {
                 case Some(executable) =>
                     pool ! Run(executable, msg)

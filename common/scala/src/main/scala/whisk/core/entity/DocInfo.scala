@@ -66,7 +66,7 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
  * @param id the document id
  * @param rev the document revision, optional; this is an opaque value determined by the datastore
  */
-protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevision = DocRevision()) {
+protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevision = DocRevision.empty) {
     override def toString = {
         if (rev.empty) {
             s"id: $id"
@@ -107,14 +107,16 @@ protected[core] object DocRevision {
      * @param s is the document revision as a string, may be null
      * @return DocRevision
      */
-    protected[core] def apply(s: String = null): DocRevision = new DocRevision(trim(s))
+    protected[core] def apply(s: String): DocRevision = new DocRevision(trim(s))
+
+    protected[core] val empty: DocRevision = new DocRevision(null)
 
     implicit val serdes = new RootJsonFormat[DocRevision] {
         def write(d: DocRevision) = if (d.rev != null) JsString(d.rev) else JsNull
 
         def read(value: JsValue) = value match {
             case JsString(s) => DocRevision(s)
-            case JsNull      => DocRevision()
+            case JsNull      => DocRevision.empty
             case _           => deserializationError("doc revision malformed")
         }
     }

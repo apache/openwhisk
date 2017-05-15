@@ -219,7 +219,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val activationMessage = ActivationMessage(
             transid = TransactionId.invokerHealth,
             action = FullyQualifiedEntityName(EntityPath("whisk.system/utils"), EntityName("date")),
-            revision = DocRevision(),
+            revision = DocRevision.empty,
             user = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]()),
             activationId = new ActivationIdGenerator {}.make(),
             activationNamespace = EntityPath("guest"),
