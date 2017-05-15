@@ -154,7 +154,7 @@ object Controller {
     private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) = JsObject(
         "description" -> "OpenWhisk".toJson,
         "support" -> JsObject(
-            "github" -> "https://github.com/openwhisk/openwhisk/issues".toJson,
+            "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
             "slack" -> "http://slack.openwhisk.org".toJson),
         "api_paths" -> apis.toJson,
         "limits" -> JsObject(

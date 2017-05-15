@@ -14,7 +14,7 @@ information shown below.
 If you are reporting an enhancement request, please include information on what you are trying to achieve and why that enhancement would help you.
 
 For more information about reporting issues, see
-https://github.com/openwhisk/openwhisk/blob/master/CONTRIBUTING.md#raising-issues
+https://github.com/apache/incubator-openwhisk/blob/master/CONTRIBUTING.md#raising-issues
 
 Use the commands below to provide key information from your environment:
 You do not have to include this information if this is a feature request.

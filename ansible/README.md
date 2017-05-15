@@ -159,7 +159,7 @@ Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wipi
 
 ### Verification after Deployment
 After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
-See main [README](https://github.com/openwhisk/openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
+See main [README](https://github.com/apache/incubator-openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
 
 
 ### Hot-swapping a Single Component
