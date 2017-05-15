@@ -181,7 +181,7 @@ case class ExecutableWhiskAction(
     exec: CodeExec[_],
     limits: ActionLimits = ActionLimits(),
     version: SemVer = SemVer(),
-    rev: DocRevision = DocRevision()) {
+    rev: DocRevision = DocRevision.empty) {
 
     /**
      * Gets initializer for action. This typically includes the code to execute,
@@ -249,7 +249,7 @@ object WhiskAction
     }
 
     // overriden to retrieve attached code
-    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean)(
+    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
         implicit val ec = db.executionContext

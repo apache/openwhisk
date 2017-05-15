@@ -93,7 +93,7 @@ protected[core] trait DocumentRevisionProvider {
 
     protected[core] def rev = _rev
 
-    private var _rev: DocRevision = DocRevision()
+    private var _rev: DocRevision = DocRevision.empty
 }
 
 /**
@@ -212,7 +212,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
      * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
      */
-    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocId, rev: DocRevision = DocRevision(), fromCache: Boolean = cacheEnabled)(
+    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean = cacheEnabled)(
         implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
         Try {
             require(db != null, "db undefined")
