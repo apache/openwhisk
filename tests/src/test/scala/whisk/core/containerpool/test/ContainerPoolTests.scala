@@ -281,13 +281,15 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val actionExec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val standardNamespace = EntityName("standardNamespace")
+    val differentNamespace = EntityName("differentNamespace")
 
     /** Helper to create a new action from String representations */
     def createAction(namespace: String = "actionNS", name: String = "actionName") =
         ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec)
 
     /** Helper to create WarmedData with sensible defaults */
-    def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
+    def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = standardNamespace.asString, lastUsed: Instant = Instant.now) =
         WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
 
     /** Helper to create PreWarmedData with sensible defaults */
@@ -305,7 +307,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     behavior of "ContainerPool schedule()"
 
     it should "not provide a container if idle pool is empty" in {
-        ContainerPool.schedule(createAction(), EntityName("anyNamespace"), Map()) shouldBe None
+        ContainerPool.schedule(createAction(), standardNamespace, Map()) shouldBe None
     }
 
     it should "reuse an applicable warm container from idle pool with one container" in {
@@ -377,14 +379,14 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     behavior of "ContainerPool remove()"
 
     it should "not provide a container if pool is empty" in {
-        ContainerPool.remove(createAction(), EntityName("anyNamespace"), Map()) shouldBe None
+        ContainerPool.remove(createAction(), standardNamespace, Map()) shouldBe None
     }
 
     it should "not provide a container from busy pool with non-warm containers" in {
         val pool = Map(
             'none -> freeWorker(noData()),
             'pre -> freeWorker(preWarmedData()))
-        ContainerPool.remove(createAction(), EntityName("anyNamespace"), pool) shouldBe None
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
     }
 
     it should "not provide a container from busy pool with warm Busy containers" in {
@@ -392,21 +394,30 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'none -> freeWorker(noData()),
             'pre -> freeWorker(preWarmedData()),
             'busy -> busyWorker(warmedData()))
-        ContainerPool.remove(createAction(), EntityName("anyNamespace"), pool) shouldBe None
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
     }
 
-    //TODO: isolate by action AND subject
-    it should "not provide a container from pool with one single free container with the same action" in {
+    it should "not provide a container from pool with one single free container with the same action and namespace" in {
         val data = warmedData()
         val pool = Map('warm -> freeWorker(data))
 
-        ContainerPool.remove(data.action, EntityName("anyNamespace"), pool) shouldBe None
-        ContainerPool.remove(createAction(data.invocationNamespace.name, data.action.name + "butDifferent"),
-            EntityName("anyNamespace"), pool) shouldBe Some('warm)
+        // same data --> no removal
+        ContainerPool.remove(data.action, data.invocationNamespace, pool) shouldBe None
+
+        // different action, same namespace --> remove
+        ContainerPool.remove(createAction(data.action.name + "butDifferent"),
+            data.invocationNamespace, pool) shouldBe Some('warm)
+
+        // different namespace, same action --> remove
+        ContainerPool.remove(data.action, differentNamespace, pool) shouldBe Some('warm)
+
+        // different everything --> remove
+        ContainerPool.remove(createAction(data.action.name + "butDifferent"),
+            differentNamespace, pool) shouldBe Some('warm)
     }
 
     it should "provide oldest container from busy pool with multiple containers" in {
-        val commonNamespace = "commonNamespace"
+        val commonNamespace = differentNamespace.asString
         val first = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(1))
         val second = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(2))
         val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0))
@@ -416,7 +427,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'second -> freeWorker(second),
             'oldest -> freeWorker(oldest))
 
-        ContainerPool.remove(createAction(), EntityName("anyNamespace"), pool) shouldBe Some('oldest)
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('oldest)
     }
 
     it should "provide oldest container of largest namespace group from busy pool with multiple containers" in {
@@ -432,6 +443,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'largeYoung -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(3))),
             'largeOld -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(2))))
 
-        ContainerPool.remove(createAction(), EntityName("anyNamespace"), pool) shouldBe Some('largeOld)
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('largeOld)
     }
 }
