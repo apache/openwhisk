@@ -200,7 +200,7 @@ object ContainerPool {
     def remove[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
         //try to find a Free container that is initialized with any OTHER action
         val grouped = pool.collect {
-            case (ref, WorkerData(w: WarmedData, Free)) if (w.action != action || w.invocationNamespace != invocationNamespace) => ref -> w
+            case (ref, WorkerData(w: WarmedData, _)) if (w.action != action || w.invocationNamespace != invocationNamespace) => ref -> w
         }.groupBy {
             case (ref, data) => data.invocationNamespace
         }
