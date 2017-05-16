@@ -67,19 +67,27 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
     val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
     val memoryLimit = 256.MB
 
+    /** Creates a `Run` message */
+    def createRunMessage(action: ExecutableWhiskAction, invocationNamespace: EntityName) = {
+        val message = ActivationMessage(
+            TransactionId.testing,
+            action.fullyQualifiedName(true),
+            action.rev,
+            Identity(Subject(), invocationNamespace, AuthKey(), Set()),
+            ActivationId(),
+            invocationNamespace.toPath,
+            None)
+        Run(action, message)
+    }
+
     val invocationNamespace = EntityName("invocationSpace")
+    val differentInvocationNamespace = EntityName("invocationSpace2")
     val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val differentAction = action.copy(name = EntityName("actionName2"))
 
-    val message = ActivationMessage(
-        TransactionId.testing,
-        action.fullyQualifiedName(true),
-        action.rev,
-        Identity(Subject(), invocationNamespace, AuthKey(), Set()),
-        ActivationId(),
-        invocationNamespace.toPath,
-        None)
-
-    val runMessage = Run(action, message)
+    val runMessage = createRunMessage(action, invocationNamespace)
+    val runMessageDifferentNamespace = createRunMessage(action, differentInvocationNamespace)
+    val runMessageDifferentEverything = createRunMessage(differentAction, differentInvocationNamespace)
 
     /** Helper to create PreWarmedData */
     def preWarmedData(kind: String, memoryLimit: ByteSize = memoryLimit) = PreWarmedData(stub[Container], kind, memoryLimit)
@@ -139,7 +147,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(1).expectMsg(runMessage)
     }
 
-    it should "remove a container to make space in the pool if it is already full" in within(timeout) {
+    it should "remove a container to make space in the pool if it is already full and a different action arrives" in within(timeout) {
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
 
@@ -148,11 +156,42 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
+        feed.expectMsg(ContainerReleased)
+        pool ! runMessageDifferentEverything
+        containers(0).expectMsg(Remove)
+        containers(1).expectMsg(runMessageDifferentEverything)
+    }
+
+    it should "remove a container to make space in the pool if it is already full and another action with different invocation namespace arrives" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        // a pool with only 1 slot
+        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
-        pool ! runMessage
+        containers(0).send(pool, NeedWork(warmedData()))
+        feed.expectMsg(ContainerReleased)
+        pool ! runMessageDifferentNamespace
         containers(0).expectMsg(Remove)
-        containers(1).expectMsg(runMessage)
+        containers(1).expectMsg(runMessageDifferentNamespace)
+    }
+
+    it should "not remove a container to make space in the pool if it is already full and the same action + same invocation namespace arrives" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        // a pool with only 1 slot
+        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+        feed.expectMsg(ContainerReleased)
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        pool ! runMessage //expect this message to be requeued since previous is incomplete.
+        containers(0).expectNoMsg(100.milliseconds)
+        containers(1).expectNoMsg(100.milliseconds)
     }
 
     /*
@@ -173,7 +212,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, exec, memoryLimit))))
         containers(0).expectMsg(Start(exec, memoryLimit))
         containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
-        pool ! Run(action, message)
+        pool ! runMessage
         containers(1).expectMsg(Start(exec, memoryLimit))
     }
 
@@ -226,8 +265,8 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(0).send(pool, ContainerRemoved)
 
         // container1 is created and used
-        pool ! Run(action, message)
-        containers(1).expectMsg(Run(action, message))
+        pool ! runMessage
+        containers(1).expectMsg(runMessage)
     }
 
 }
@@ -242,13 +281,15 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val actionExec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val standardNamespace = EntityName("standardNamespace")
+    val differentNamespace = EntityName("differentNamespace")
 
     /** Helper to create a new action from String representations */
     def createAction(namespace: String = "actionNS", name: String = "actionName") =
         ExecutableWhiskAction(EntityPath(namespace), EntityName(name), actionExec)
 
     /** Helper to create WarmedData with sensible defaults */
-    def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = "anyNamespace", lastUsed: Instant = Instant.now) =
+    def warmedData(action: ExecutableWhiskAction = createAction(), namespace: String = standardNamespace.asString, lastUsed: Instant = Instant.now) =
         WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
 
     /** Helper to create PreWarmedData with sensible defaults */
@@ -260,10 +301,13 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     /** Helper to create a free Worker, for shorter notation */
     def freeWorker(data: ContainerData) = WorkerData(data, Free)
 
+    /** Helper to create a busy Worker, for shorter notation */
+    def busyWorker(data: ContainerData) = WorkerData(data, Busy)
+
     behavior of "ContainerPool schedule()"
 
     it should "not provide a container if idle pool is empty" in {
-        ContainerPool.schedule(createAction(), EntityName("anyNamespace"), Map()) shouldBe None
+        ContainerPool.schedule(createAction(), standardNamespace, Map()) shouldBe None
     }
 
     it should "reuse an applicable warm container from idle pool with one container" in {
@@ -335,27 +379,45 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     behavior of "ContainerPool remove()"
 
     it should "not provide a container if pool is empty" in {
-        ContainerPool.remove(EntityName("anyNamespace"), Map()) shouldBe None
+        ContainerPool.remove(createAction(), standardNamespace, Map()) shouldBe None
     }
 
     it should "not provide a container from busy pool with non-warm containers" in {
         val pool = Map(
             'none -> freeWorker(noData()),
             'pre -> freeWorker(preWarmedData()))
-
-        ContainerPool.remove(EntityName("anyNamespace"), pool) shouldBe None
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
     }
 
-    it should "provide a container from pool with one single container regardless of invocation namespace" in {
+    it should "not provide a container from busy pool with warm Busy containers" in {
+        val pool = Map(
+            'none -> freeWorker(noData()),
+            'pre -> freeWorker(preWarmedData()),
+            'busy -> busyWorker(warmedData()))
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
+    }
+
+    it should "not provide a container from pool with one single free container with the same action and namespace" in {
         val data = warmedData()
         val pool = Map('warm -> freeWorker(data))
 
-        ContainerPool.remove(data.invocationNamespace, pool) shouldBe Some('warm)
-        ContainerPool.remove(EntityName(data.invocationNamespace.asString + "butDifferent"), pool) shouldBe Some('warm)
+        // same data --> no removal
+        ContainerPool.remove(data.action, data.invocationNamespace, pool) shouldBe None
+
+        // different action, same namespace --> remove
+        ContainerPool.remove(createAction(data.action.name + "butDifferent"),
+            data.invocationNamespace, pool) shouldBe Some('warm)
+
+        // different namespace, same action --> remove
+        ContainerPool.remove(data.action, differentNamespace, pool) shouldBe Some('warm)
+
+        // different everything --> remove
+        ContainerPool.remove(createAction(data.action.name + "butDifferent"),
+            differentNamespace, pool) shouldBe Some('warm)
     }
 
     it should "provide oldest container from busy pool with multiple containers" in {
-        val commonNamespace = "commonNamespace"
+        val commonNamespace = differentNamespace.asString
         val first = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(1))
         val second = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(2))
         val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0))
@@ -365,7 +427,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'second -> freeWorker(second),
             'oldest -> freeWorker(oldest))
 
-        ContainerPool.remove(EntityName(commonNamespace), pool) shouldBe Some('oldest)
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('oldest)
     }
 
     it should "provide oldest container of largest namespace group from busy pool with multiple containers" in {
@@ -381,6 +443,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'largeYoung -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(3))),
             'largeOld -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(2))))
 
-        ContainerPool.remove(myData.invocationNamespace, pool) shouldBe Some('largeOld)
+        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('largeOld)
     }
 }
