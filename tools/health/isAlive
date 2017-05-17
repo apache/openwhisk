@@ -98,9 +98,9 @@ def isConsulAlive() :
 
 def isZookeeperAlive() :
     host_port = getHostAndPort('zookeeper').split(':')
-    cmd = ['nc', '-w', '3', host_port[0], host_port[1]]
+    cmd = '(echo ruok; sleep 1) | nc '+ host_port[0] + ' '+ host_port[1]
     okString = 'imok'
-    (rc, output) = monitorUtil.run(cmd, 'ruok')
+    (rc, output) = monitorUtil.run(cmd, 'ruok', True)
     if (rc != 0):
         print('isZooKeeperAlive: still waiting for zookeeper (nc failed with '
               '%d: %s)' % (rc, output))
