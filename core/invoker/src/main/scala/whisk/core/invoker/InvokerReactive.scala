@@ -46,6 +46,10 @@ import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
+import whisk.core.dispatcher.ActivationFeed.ContainerReleased
+import whisk.core.containerpool.ContainerPool
+import whisk.core.database.NoDocumentException
+import whisk.http.Messages
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -67,6 +71,7 @@ class InvokerReactive(
         val cleaning = docker.ps(Seq("name" -> "wsk_"))(TransactionId.invokerNanny).flatMap { containers =>
             val removals = containers.map { id =>
                 runc.resume(id)(TransactionId.invokerNanny).recoverWith {
+                    // Ignore resume failures and try to remove anyway
                     case _ => Future.successful(())
                 }.flatMap {
                     _ => docker.rm(id)(TransactionId.invokerNanny)
@@ -80,6 +85,7 @@ class InvokerReactive(
     cleanup()
     sys.addShutdownHook(cleanup())
 
+    /** Factory used by the ContainerProxy to physically create a new container. */
     val containerFactory = (tid: TransactionId, name: String, actionImage: ImageName, userProvidedImage: Boolean, memory: ByteSize) => {
         val image = if (userProvidedImage) {
             actionImage.publicImageName
@@ -99,6 +105,7 @@ class InvokerReactive(
             name = Some(name))
     }
 
+    /** Sends an active-ack. */
     val ack = (tid: TransactionId, activation: WhiskActivation) => {
         implicit val transid = tid
         producer.send("completed", CompletionMessage(tid, activation, s"invoker$instance")).andThen {
@@ -106,6 +113,7 @@ class InvokerReactive(
         }
     }
 
+    /** Stores an activation in the database. */
     val store = (tid: TransactionId, activation: WhiskActivation) => {
         implicit val transid = tid
         logging.info(this, "recording the activation result to the data store")
@@ -115,18 +123,21 @@ class InvokerReactive(
         }
     }
 
+    /** Creates a ContainerProxy Actor when being called. */
+    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
+
     val prewarmKind = "nodejs:6"
     val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
         new CodeExecAsString(manifest, "", None)
     }.get
 
-    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
-    val pool = actorSystem.actorOf(whisk.core.containerpool.ContainerPool.props(
+    val pool = actorSystem.actorOf(ContainerPool.props(
         childFactory,
         OldContainerPool.getDefaultMaxActive(config),
         activationFeed,
         Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
+    /** Is called when an ActivationMessage is read from Kafka */
     override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[Unit] = {
         require(msg != null, "message undefined")
         require(msg.action.version.isDefined, "action version undefined")
@@ -144,7 +155,7 @@ class InvokerReactive(
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
         if (actionid.rev == DocRevision.empty) {
-            logging.error(this, s"revision was not provided for ${actionid.id}")
+            logging.warn(this, s"revision was not provided for ${actionid.id}")
         }
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty).flatMap { action =>
             action.toExecutableWhiskAction match {
@@ -156,7 +167,14 @@ class InvokerReactive(
                     Future.failed(new IllegalStateException())
             }
         }.recover {
-            case _ =>
+            case t =>
+                // If the action cannot be found, the user has concurrently deleted it,
+                // making this an application error. All other errors are considered system
+                // errors and should cause the invoker to be considered unhealthy.
+                val response = t match {
+                    case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+                    case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                }
                 val interval = Interval.zero
                 val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
                 val activation = WhiskActivation(
@@ -169,11 +187,12 @@ class InvokerReactive(
                     start = interval.start,
                     end = interval.end,
                     duration = Some(interval.duration.toMillis),
-                    response = ActivationResponse.applicationError("action could not be found"),
+                    response = response,
                     annotations = {
                         Parameters("path", msg.action.toString.toJson) ++ causedBy
                     })
 
+                activationFeed ! ContainerReleased
                 ack(msg.transid, activation)
                 store(msg.transid, activation)
         }
