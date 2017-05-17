@@ -44,15 +44,17 @@ def checkLoop(name, checker, delay):
 # Runs the given command with optional input.
 # The command is run in a blocking fashion and the return code
 # and output (both stdout/stderr combined) returned as a pair.
-def run(cmd, inData=""):
+def run(cmd, inData="", isShell=False):
     try:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             shell=isShell,
                              stdin=subprocess.PIPE,
                              stderr=subprocess.STDOUT)
         if (inData != ""):
             p.stdin.write(inData)
-        p.wait()
-        output = p.stdout.read()
+        (output, err) = p.communicate()
+        if (err != None):
+            return (-1, str(err))
         rc = p.returncode
     except Exception as e:
         print("exec: died with exception ", end="")
