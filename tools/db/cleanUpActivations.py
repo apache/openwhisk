@@ -20,6 +20,11 @@ import argparse
 import time
 import couchdb.client
 
+try:
+    long        # Python 2
+except NameError:
+    long = int  # Python 3
+
 DAY = 1000 * 60 * 60 * 24
 
 #
