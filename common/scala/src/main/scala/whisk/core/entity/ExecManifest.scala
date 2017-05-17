@@ -16,9 +16,7 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-import scala.util.Failure
-
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
@@ -47,10 +45,15 @@ protected[core] object ExecManifest {
      */
     protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Boolean = {
         if (manifest.isEmpty || reinit) {
-            Try(config.runtimesManifest.parseJson.asJsObject)
+            val result = Try(config.runtimesManifest.parseJson.asJsObject)
                 .flatMap(runtimes(_))
                 .map(m => manifest = Some(m))
-                .isSuccess
+            result match {
+                case Success(res) =>
+                    true
+                case Failure(e) =>
+                    throw new IllegalStateException("Runtimes manifest is set but it's invalid: " + e.toString)
+            }
         } else true
     }
 
