@@ -203,7 +203,7 @@ const (
 ////////////////////
 
 func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListResponse, *http.Response, error) {
-    route := "experimental/web/whisk.system/routemgmt/getApi.json"
+    route := "web/whisk.system/routemgmt/getApi.http"
     Debug(DbgInfo, "Api GET/list route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, apiListOptions)
@@ -238,7 +238,7 @@ func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListRespon
 }
 
 func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOptions, overwrite bool) (*ApiCreateResponse, *http.Response, error) {
-    route := "experimental/web/whisk.system/routemgmt/createApi.json"
+    route := "web/whisk.system/routemgmt/createApi.http"
     Debug(DbgInfo, "Api PUT route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
@@ -273,7 +273,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
 }
 
 func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*ApiGetResponse, *http.Response, error) {
-    route := "experimental/web/whisk.system/routemgmt/getApi.json"
+    route := "web/whisk.system/routemgmt/getApi.http"
     Debug(DbgInfo, "Api GET route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)
@@ -308,7 +308,7 @@ func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*Ap
 }
 
 func (s *ApiService) Delete(api *ApiDeleteRequest, options *ApiDeleteRequestOptions) (*http.Response, error) {
-    route := "experimental/web/whisk.system/routemgmt/deleteApi.json"
+    route := "web/whisk.system/routemgmt/deleteApi.http"
     Debug(DbgInfo, "Api DELETE route: %s\n", route)
 
     routeUrl, err := addRouteOptions(route, options)

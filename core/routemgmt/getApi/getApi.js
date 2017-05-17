@@ -20,9 +20,8 @@
  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
  *   gwUser               Optional. The API Gateway authentication
  *   gwPwd                Optional. The API Gateway authentication
- *   namespace            Required if __ow_user or __ow_meta_namespace not specified.  Namespace of API author
- *   __ow_meta_namespace  Required when accesstoken is not specified. Namespace of API author
- *   __ow_user            Required when accesstoken is specified. Namespace of API author
+ *   namespace            Optional. Input value is now overwritten by __ow_user.  Namespace of API author
+ *   __ow_user            Required. Namespace of API author
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
  *   spaceguid            Optional. Namespace unique id.
@@ -60,12 +59,14 @@ function main(message) {
   }
 
   // Set namespace override if provided
-  message.namespace = (message.accesstoken ? message.__ow_user : message.__ow_meta_namespace) || message.namespace;
+  message.namespace = message.__ow_user || message.namespace;
+
+  // This can be invoked as either web action or as a normal action
+  var calledAsWebAction = message.__ow_method != undefined;
 
   // Log parameter values
   console.log('gwUrl         : '+message.gwUrl);
   console.log('GW URL V2     : '+message.gwUrlV2);
-  console.log('__ow_meta_namespace: '+message.__ow_meta_namespace);
   console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+message.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
@@ -75,6 +76,7 @@ function main(message) {
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
   console.log('outputFormat  : '+message.outputFormat);
+  console.log('calledAsWebAction: '+calledAsWebAction);
 
   if (message.accesstoken) {
     gwInfo.gwUrl = message.gwUrlV2;
@@ -88,11 +90,12 @@ function main(message) {
       }
       var cliApis = utils2.generateCliResponse(endpointDocs);
       console.log('getApi success');
-      return Promise.resolve(utils2.makeResponseObject({ apis: cliApis }, (message.__ow_method != undefined)));
+      return Promise.resolve(utils2.makeResponseObject({ apis: cliApis }, calledAsWebAction));
     })
     .catch(function(reason) {
-      console.error('API GW failure: '+JSON.stringify(reason));
-      return Promise.reject(utils2.makeErrorResponseObject(reason, (message.__ow_method != undefined)));
+      var reasonstr = JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+      console.error('API GW failure: '+reasonstr);
+      return Promise.reject(utils2.makeErrorResponseObject(reasonstr, calledAsWebAction));
     });
   } else {
     // Issue a request to read API(s) from the API GW
@@ -123,18 +126,19 @@ function main(message) {
       }
       var cliApis = utils.generateCliResponse(apis);
       console.log('getApi success');
-      //MWD return Promise.resolve(utils2.makeResponseObject({ apis: cliApis }, (message.__ow_method != undefined)));
-      return Promise.resolve({ apis: cliApis });
+      return Promise.resolve(utils2.makeResponseObject({ apis: cliApis }, calledAsWebAction));
     })
     .catch(function(reason) {
-      console.error('API GW failure: '+JSON.stringify(reason));
+      var reasonstr = JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+      var rejmsg = 'API GW failure: ' + reasonstr;
+      console.error(rejmsg);
       // Special case handling
       // If no tenant id found, then just return an empty list of APIs
       if ( (typeof reason === 'string') && (reason.indexOf('No Tenant found') !== -1) ) {
         console.log('Namespace has no tenant id yet; returning empty list of APIs');
-        return Promise.resolve(utils2.makeResponseObject({ apis: utils.generateCliResponse([]) }, (message.__ow_method != undefined)));
+        return Promise.resolve(utils2.makeResponseObject({ apis: utils.generateCliResponse([]) }, calledAsWebAction));
       }
-      return Promise.reject(utils2.makeErrorResponseObject(reason, (message.__ow_method != undefined)));
+      return Promise.reject(utils2.makeErrorResponseObject(reasonstr, calledAsWebAction));
     });
   }
 
@@ -147,12 +151,8 @@ function validateArgs(message) {
     return 'Internal error. A message parameter was not supplied.';
   }
 
-  if (message.accesstoken && !message.__ow_user) {
+  if (!message.__ow_user) {
     return '__ow_user is required.';
-  }
-
-  if (!message.accesstoken && !message.__ow_meta_namespace) {
-    return '__ow_meta_namespace is required.';
   }
 
   if (!message.gwUrl) {

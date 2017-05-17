@@ -23,8 +23,7 @@
  *   gwUser               Optional. The API Gateway authentication
  *   gwPwd                Optional. The API Gateway authentication
  *   namespace            Required if __ow_user not specified.  Namespace of API author
- *   __ow_meta_namespace  Required when accesstoken is not specified. Namespace of API author
- *   __ow_user            Required when accesstoken is specified. Namespace of API author
+ *   __ow_user            Required. Namespace of API author
  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
  *   spaceguid            Optional. Namespace unique id.
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
@@ -55,16 +54,18 @@ function main(message) {
   }
 
   // Set namespace override if provided
-  message.namespace = (message.accesstoken ? message.__ow_user : message.__ow_meta_namespace) || message.namespace;
+  message.namespace = message.__ow_user || message.namespace;
 
   var tenantInstance = message.tenantInstance || 'openwhisk';
+
+  // This can be invoked as either a web action or as a normal action
+  var calledAsWebAction = message.__ow_method != undefined;
 
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW URL V2     : '+message.gwUrlV2);
   console.log('GW User       : '+utils.confidentialPrint(message.gwUser));
   console.log('GW Pwd        : '+utils.confidentialPrint(message.gwPwd));
-  console.log('__ow_meta_namespace: '+message.__ow_meta_namespace);
   console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+message.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
@@ -73,6 +74,7 @@ function main(message) {
   console.log('basepath/name : '+message.basepath);
   console.log('relpath       : '+message.relpath);
   console.log('operation     : '+message.operation);
+  console.log('calledAsWebAction: '+calledAsWebAction);
 
   // If no relpath (or relpath/operation) is specified, delete the entire API
   var deleteEntireApi = !message.relpath;
@@ -93,7 +95,7 @@ function main(message) {
       console.log('Got '+endpointDocs.length+' APIs');
       if (endpointDocs.length === 0) {
         console.log('No API found for namespace '+message.namespace + ' with basePath '+ message.basepath)
-        return Promise.reject('API '+message.basepath+' does not exist.');
+        return Promise.reject('API \''+message.basepath+'\' does not exist.');
       } else if (endpointDocs.length > 1) {
         console.error('Multiple APIs found for namespace '+message.namespace+' with basepath/apiname '+message.basepath);
       }
@@ -123,11 +125,12 @@ function main(message) {
     })
     .then(function() {
       console.log('deleteApi success');
-      return Promise.resolve(utils2.makeResponseObject({}, (message.__ow_method != undefined)));
+      return Promise.resolve(utils2.makeResponseObject({}, calledAsWebAction));
     })
     .catch(function(reason) {
-        console.error('API deletion failure: '+JSON.stringify(reason));
-        return Promise.reject(utils2.makeErrorResponseObject('API deletion failure: '+JSON.stringify(reason), (message.__ow_method != undefined)));
+        var rejmsg = 'API deletion failure: ' + JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+        console.error(rejmsg);
+        return Promise.reject(utils2.makeErrorResponseObject(rejmsg, calledAsWebAction));
     });
   } else {
     // Delete an API route
@@ -161,7 +164,7 @@ function main(message) {
       console.log('Got '+apis.length+' APIs');
       if (apis.length === 0) {
         console.log('No APIs found for namespace '+message.namespace+' with basepath/apiname '+message.basepath);
-        return Promise.reject('API '+message.basepath+' does not exist.');
+        return Promise.reject('API \''+message.basepath+'\' does not exist.');
       } else if (apis.length > 1) {
         console.error('Multiple APIs found for namespace '+message.namespace+' with basepath/apiname '+message.basepath);
         Promise.reject('Internal error. Multiple APIs found for namespace '+message.namespace+' with basepath '+message.basepath);
@@ -188,12 +191,12 @@ function main(message) {
     })
     .then(function() {
       console.log('deleteApi success');
-      //MWD return Promise.resolve(utils2.makeResponseObject({}, (message.__ow_method != undefined)));
-      return Promise.resolve()
+      return Promise.resolve(utils2.makeResponseObject({}, calledAsWebAction));
     })
     .catch(function(reason) {
-        console.error('API deletion failure: '+reason);
-        return Promise.reject(utils2.makeErrorResponseObject('API deletion failure: '+reason, (message.__ow_method != undefined)));
+      var rejmsg = 'API deletion failure: ' + JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+      console.error(rejmsg);
+      return Promise.reject(utils2.makeErrorResponseObject(rejmsg, calledAsWebAction));
     });
   }
 }
@@ -210,12 +213,8 @@ function validateArgs(message) {
     return 'gwUrl is required.';
   }
 
-  if (message.accesstoken && !message.__ow_user) {
+  if (!message.__ow_user) {
     return '__ow_user is required.';
-  }
-
-  if (!message.accesstoken && !message.__ow_meta_namespace) {
-    return '__ow_meta_namespace is required.';
   }
 
   if (!message.basepath) {
