@@ -30,7 +30,6 @@ import scala.concurrent.Future
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.FlatSpec
 import org.scalatest.Inspectors._
 import org.scalatest.junit.JUnitRunner
@@ -61,7 +60,6 @@ class DockerContainerTests extends FlatSpec
     with Matchers
     with MockFactory
     with StreamLogging
-    with ScalaFutures
     with BeforeAndAfterEach {
 
     override def beforeEach() = {
@@ -69,7 +67,7 @@ class DockerContainerTests extends FlatSpec
     }
 
     /** Awaits the given future, throws the exception enclosed in Failure. */
-    def await[A](f: Future[A], timeout: FiniteDuration = 100.millisecond) = Await.result[A](f, timeout)
+    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
 
     val containerId = ContainerId("id")
     /**
@@ -278,7 +276,7 @@ class DockerContainerTests extends FlatSpec
         }
 
         val initInterval = container.initialize(JsObject(), 1.second)
-        initInterval.futureValue shouldBe interval
+        await(initInterval) shouldBe interval
 
         // assert the starting log is there
         val start = LogMarker.parse(logLines.head)
@@ -329,7 +327,7 @@ class DockerContainerTests extends FlatSpec
         }
 
         val runResult = container.run(JsObject(), JsObject(), 1.second)
-        runResult.futureValue shouldBe (interval, ActivationResponse.success(Some(result)))
+        await(runResult) shouldBe (interval, ActivationResponse.success(Some(result)))
 
         // assert the starting log is there
         val start = LogMarker.parse(logLines.head)
@@ -353,8 +351,7 @@ class DockerContainerTests extends FlatSpec
         }
 
         val runResult = container.run(JsObject(), JsObject(), runTimeout)
-
-        runResult.futureValue shouldBe (interval, ActivationResponse.applicationError(Messages.timedoutActivation(runTimeout, false)))
+        await(runResult) shouldBe (interval, ActivationResponse.applicationError(Messages.timedoutActivation(runTimeout, false)))
 
         // assert the finish log is there
         val end = LogMarker.parse(logLines.last)
