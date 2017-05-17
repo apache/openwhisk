@@ -25,9 +25,9 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
 
 import akka.actor.ActorSystem
 import spray.json._
@@ -101,21 +101,20 @@ protected[actions] trait SequenceActions {
         val start = Instant.now(Clock.systemUTC())
         val seqActivationPromise = Promise[Option[WhiskActivation]]
         // the cause for the component activations is the current sequence
-        val futureWskActivations = invokeSequenceComponents(user, action, seqActivationId, payload, components, cause = Some(seqActivationId), atomicActionsCount)
-        val futureSeqResult = Future.sequence(futureWskActivations)
+        val futureSeqResult = invokeSequenceComponents(user, action, seqActivationId, payload, components, cause = Some(seqActivationId), atomicActionsCount)
         val response: Future[(ActivationId, Option[WhiskActivation], Int)] =
             if (topmost) { // need to deal with blocking and closing connection
                 if (blocking) {
+                    logging.info(this, s"invoke sequence blocking topmost!")
                     val timeout = maxWaitForBlockingActivation + blockingInvokeGrace
+
                     val futureSeqResultTimeout = futureSeqResult withTimeout (timeout, new BlockingInvokeTimeout(seqActivationId))
                     // if the future fails with a timeout, the failure is dealt with at the caller level
-                    futureSeqResultTimeout map { wskActivationTuples =>
-                        val wskActivationEithers = wskActivationTuples.map(_._1)
+                    futureSeqResultTimeout map { accounting =>
                         // the execution of the sequence was successful, return the result
                         val end = Instant.now(Clock.systemUTC())
-                        val seqActivation = Some(makeSequenceActivation(user, action, seqActivationId, wskActivationEithers, topmost, cause, start, end))
-                        val atomicActionCnt = wskActivationTuples.last._2
-                        (seqActivationId, seqActivation, atomicActionCnt)
+                        val seqActivation = Some(makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end))
+                        (seqActivationId, seqActivation, accounting.atomicActionCnt)
                     } andThen {
                         case Success((_, seqActivation, _)) => seqActivationPromise.success(seqActivation)
                         case Failure(t)                     => seqActivationPromise.success(None)
@@ -128,13 +127,11 @@ protected[actions] trait SequenceActions {
                 }
             } else {
                 // not topmost, no need to worry about terminating incoming request
-                futureSeqResult map { wskActivationTuples =>
-                    val wskActivationEithers = wskActivationTuples.map(_._1)
+                futureSeqResult map { accounting =>
                     // all activations are successful, the result of the sequence is the result of the last activation
                     val end = Instant.now(Clock.systemUTC())
-                    val seqActivation = Some(makeSequenceActivation(user, action, seqActivationId, wskActivationEithers, topmost, cause, start, end))
-                    val atomicActionCnt = wskActivationTuples.last._2
-                    (seqActivationId, seqActivation, atomicActionCnt)
+                    val seqActivation = Some(makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end))
+                    (seqActivationId, seqActivation, accounting.atomicActionCnt)
                 } andThen {
                     case Success((_, seqActivation, _)) => seqActivationPromise.success(seqActivation)
                     case Failure(t)                     => seqActivationPromise.success(None)
@@ -145,14 +142,13 @@ protected[actions] trait SequenceActions {
         // if seqActivation is defined, use it; otherwise create it (e.g., for non-blocking activations)
         // the execution can reach here without a seqActivation due to non-blocking activations OR blocking activations that reach the blocking invoke timeout
         // futureSeqResult should always be successful, if failed, there is an error
-        futureSeqResult flatMap { tuples => seqActivationPromise.future map { (tuples, _) } } onComplete {
-            case Success((wskActivationTuples, seqActivation)) =>
+        futureSeqResult flatMap { accounting => seqActivationPromise.future map { (accounting, _) } } onComplete {
+            case Success((accounting, seqActivation)) =>
                 // all activations were successful
                 val activation = seqActivation getOrElse {
-                    val wskActivationEithers = wskActivationTuples.map(_._1)
                     val end = Instant.now(Clock.systemUTC())
                     // the response of the sequence is the response of the very last activation
-                    makeSequenceActivation(user, action, seqActivationId, wskActivationEithers, topmost, cause, start, end)
+                    makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end)
                 }
                 storeSequenceActivation(activation)
             case Failure(t: Throwable) =>
@@ -172,7 +168,7 @@ protected[actions] trait SequenceActions {
         logging.info(this, s"recording activation '${activation.activationId}'")
         WhiskActivation.put(activationStore, activation) onComplete {
             case Success(id) => logging.info(this, s"recorded activation")
-            case Failure(t)  => logging.error(this, s"failed to record activation")
+            case Failure(t)  => logging.error(this, s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
         }
     }
 
@@ -183,49 +179,19 @@ protected[actions] trait SequenceActions {
         user: Identity,
         action: WhiskAction,
         activationId: ActivationId,
-        wskActivationEithers: Vector[Either[ActivationResponse, WhiskActivation]],
+        accounting: SequenceAccounting,
         topmost: Boolean,
         cause: Option[ActivationId],
         start: Instant,
         end: Instant): WhiskActivation = {
 
-        // extract all successful activations from the vector of activation eithers
-        // the vector is either all rights, all lefts, or some rights followed by some lefts (no interleaving)
-        val (right, left) = wskActivationEithers.span(_.isRight)
-        val wskActivations = right.map(_.right.get)
-
-        // the activation response is either the first left if it exists or the response of the last successful activation
-        val activationResponse = if (left.length == 0) {
-            wskActivations.last.response
-        } else {
-            left.head.left.get
-        }
-
-        // compose logs
-        val logs = ActivationLogs(wskActivations map {
-            activation => activation.activationId.toString
-        })
-
-        // compute duration
-        val duration = (wskActivations map { activation =>
-            activation.duration getOrElse {
-                logging.error(this, s"duration for $activation is not defined")
-                activation.end.toEpochMilli - activation.start.toEpochMilli
-            }
-        }).sum
-
         // compute max memory
-        val maxMemory = Try {
-            val memoryLimits = wskActivations map { activation =>
-                val limits = ActionLimits.serdes.read(activation.annotations.get("limits").get)
-                limits.memory.megabytes
-            }
-            memoryLimits.max.MB
-        }
-
-        val sequenceLimits = maxMemory map {
-            mb => ActionLimits(action.limits.timeout, MemoryLimit(mb), action.limits.logs)
-        }
+        val sequenceLimits = accounting.maxMemory map {
+            maxMemoryAcrossActionsInSequence =>
+                Parameters("limits", ActionLimits(action.limits.timeout,
+                    MemoryLimit(maxMemoryAcrossActionsInSequence MB),
+                    action.limits.logs).toJson)
+        } getOrElse (Parameters())
 
         // set causedBy if not topmost sequence
         val causedBy = if (!topmost) {
@@ -243,16 +209,127 @@ protected[actions] trait SequenceActions {
             start = start,
             end = end,
             cause = if (topmost) None else cause, // propagate the cause for inner sequences, but undefined for topmost
-            response = activationResponse,
-            logs = logs,
+            response = accounting.previousResponse.getAndSet(null),
+            logs = accounting.finalLogs,
             version = action.version,
             publish = false,
             annotations = Parameters("topmost", JsBoolean(topmost)) ++
                 Parameters("path", action.fullyQualifiedName(false).toString) ++
                 Parameters("kind", "sequence") ++
                 causedBy ++
-                sequenceLimits.map(l => Parameters("limits", l.toJson)).getOrElse(Parameters()),
-            duration = Some(duration))
+                sequenceLimits,
+            duration = Some(accounting.duration))
+    }
+
+    /**
+     * Cumulative accounting of what happened during the execution of a sequence
+     *
+     */
+    case class SequenceAccounting(atomicActionCnt: Int, previousResponse: java.util.concurrent.atomic.AtomicReference[ActivationResponse],
+                                  logs: Array[ActivationId], duration: Long = 0, cursor: Int = 0, maxMemory: Option[Int] = None,
+                                  shortcircuit: Boolean = false) {
+
+        /** @return the ActivationLogs data structure for this sequence invocation */
+        def finalLogs = ActivationLogs(logs.take(cursor).map(id => id.asString).toVector)
+
+        /** the previous activation was successful */
+        def success(activation: WhiskActivation, newCnt: Int, shortcircuit: Boolean = false) = {
+          previousResponse.set(null)
+          SequenceAccounting(
+            prev = this,
+            newCnt = newCnt,
+            shortcircuit = shortcircuit,
+            incrDuration = activation.duration,
+            previousResponse = activation.response,
+            previousActivationId = activation.activationId,
+            previousMemoryLimit = activation.annotations.get("limits") map {
+                limitsAnnotation => // we have a limits annotation
+                    limitsAnnotation.asJsObject.getFields("memory") match {
+                        case Seq(JsNumber(memory)) => Some(memory.toInt) // we have a numerical "memory" field in the "limits" annotation
+                    }
+            } getOrElse { None })
+        }
+
+        /** the previous activation failed */
+        def fail(failureResponse: ActivationResponse) = SequenceAccounting(this, failureResponse)
+
+        /** determine whether the previous activation succeeded or failed */
+        def maybe(response: Either[ActivationResponse, WhiskActivation], newCnt: Int) = {
+            response match {
+                case Right(activation) =>
+                    // check conditions on payload that may lead to interrupting the execution of the sequence
+                    //     short-circuit the execution of the sequence iff the payload contains an error field
+                    //     and is the result of an action return, not the initial payload
+                    val outputPayload = activation.response.result.map(_.asJsObject)
+                    val payloadContent = outputPayload getOrElse JsObject.empty
+                    val errorFields = payloadContent.getFields(ActivationResponse.ERROR_FIELD)
+                    val errorShortcircuit = !errorFields.isEmpty
+
+                    if (newCnt > actionSequenceLimit) {
+                        // oops, the dynamic count of actions exceeds the threshold
+                        fail(ActivationResponse.applicationError(s"$sequenceIsTooLong"))
+                    } else if (!errorShortcircuit) {
+                        // all good with this action invocation!
+                        success(activation, newCnt)
+                    } else {
+                        // there is an error field in the activation response. here, we treat this like success,
+                        // in the sense of tallying up the accounting fields, but terminate the sequence early
+                        success(activation, newCnt, shortcircuit = true)
+                    }
+                case Left(response) =>
+                    // utter failure somewhere downstream
+                    fail(response)
+            }
+        }
+    }
+    /**
+     *  Three constructors for SequenceAccounting:
+     *     - one for successful invocation of an action in the sequence,
+     *     - one for failed invocation, and
+     *     - one to initialize things
+     */
+    object SequenceAccounting {
+        // constructor for successful invocations, or error'ing ones (where shortcircuit = true)
+        def apply(prev: SequenceAccounting, newCnt: Int,
+                  incrDuration: Option[Long],
+                  previousResponse: ActivationResponse,
+                  previousActivationId: ActivationId,
+                  previousMemoryLimit: Option[Int],
+                  shortcircuit: Boolean): SequenceAccounting = {
+
+            // compute the new max memory
+            val newMaxMemory = prev.maxMemory map {
+                currentMax => // currentMax is Some
+                    previousMemoryLimit map {
+                        previousLimit => // previousMemoryLimit is Some
+                            Some(Math.max(currentMax, previousLimit)) // so take the max of them
+                    } getOrElse { prev.maxMemory } // currentMax is Some, previousMemoryLimit is None
+            } getOrElse { previousMemoryLimit } // currentMax is None
+
+            // append log entry
+            prev.logs.update(prev.cursor, previousActivationId)
+
+            SequenceAccounting(
+                atomicActionCnt = newCnt,
+                previousResponse = new java.util.concurrent.atomic.AtomicReference(previousResponse),
+                logs = prev.logs,
+                duration = incrDuration map { prev.duration + _ } getOrElse { prev.duration },
+                cursor = prev.cursor + 1,
+                maxMemory = newMaxMemory,
+                shortcircuit = shortcircuit)
+        }
+
+        // constructor for failures, or limits exceeded
+        def apply(prev: SequenceAccounting, failureResponse: ActivationResponse): SequenceAccounting =
+            SequenceAccounting(prev.atomicActionCnt, new java.util.concurrent.atomic.AtomicReference(failureResponse),
+                prev.logs, prev.duration,
+                prev.cursor, prev.maxMemory,
+                shortcircuit = true)
+
+        // constructor for initial payload
+        def apply(length: Int, atomicActionCnt: Int, initialPayload: ActivationResponse): SequenceAccounting =
+            SequenceAccounting(atomicActionCnt, new java.util.concurrent.atomic.AtomicReference(initialPayload), new Array[ActivationId](length))
+
     }
 
     /**
@@ -276,12 +353,12 @@ protected[actions] trait SequenceActions {
         user: Identity,
         seqAction: WhiskAction,
         seqActivationId: ActivationId,
-        payload: Option[JsObject],
+        inputPayload: Option[JsObject],
         components: Vector[FullyQualifiedEntityName],
         cause: Option[ActivationId],
         atomicActionCnt: Int)(
-            implicit transid: TransactionId): Vector[Future[(Either[ActivationResponse, WhiskActivation], Int)]] = {
-        logging.info(this, s"invoke sequence $seqAction ($seqActivationId) with components $components")
+            implicit transid: TransactionId): Future[SequenceAccounting] = {
+        // logging.info(this, s"invoke sequence $seqAction ($seqActivationId) with components $components")
 
         // first retrieve the information/entities on all actions
         // do not wait to successfully retrieve all the actions before starting the execution
@@ -291,69 +368,35 @@ protected[actions] trait SequenceActions {
         // NOTE: OLD-STYLE sequences may have default namespace in the names of the components, resolve default namespace first
         val resolvedFutureActions = resolveDefaultNamespace(components, user) map { c => WhiskAction.resolveActionAndMergeParameters(entityStore, c) }
 
-        // "scan" the wskActions to execute them in blocking fashion
-        // use scanLeft instead of foldLeft as we need the intermediate results
+        // this holds the initial value of the accounting structure, including an ActivationResponse to house the input payload
+        val initialAccounting = Future.successful(SequenceAccounting(components.length, atomicActionCnt,
+            ActivationResponse.payloadPlaceholder(inputPayload)))
+
+        // execute the wskActions in sequential blocking fashion
         // TODO: double-check the package param policy
-        // env are the parameters for the package that the sequence is in; throw them away, not used in the sequence execution
-        // create a "fake" WhiskActivation to hold the payload of the sequence to init the scanLeft
-        val fakeStart = Instant.now()
-        val fakeEnd = Instant.now()
-        val fakeResponse = ActivationResponse.payloadPlaceholder(payload)
-
-        // NOTE: the init value is a fake (unused) activation to bootstrap the invocations of actions
-        val initFakeWhiskActivation: Future[(Either[ActivationResponse, WhiskActivation], Int, Boolean)] = Future successful {
-            // use boolean in tuple to indicate first/incoming payload
-            (Right(WhiskActivation(seqAction.namespace, seqAction.name, user.subject, seqActivationId, fakeStart, fakeEnd, response = fakeResponse, duration = None)), atomicActionCnt, true)
-        }
-
-        // seqComponentWskActivationFutures contains a fake activation on the first position in the vector; the rest of the vector is the result of each component execution/activation
-        val seqComponentWskActivationFutures = resolvedFutureActions.scanLeft(initFakeWhiskActivation) {
-            (futureActivationAtomicCntTuple, futureAction) =>
-                futureAction flatMap {
-                    action =>
-                        futureActivationAtomicCntTuple flatMap {
-                            case (activationEither, atomicActionCount, first) =>
-                                activationEither match {
-                                    case Right(activation) =>
-                                        val payload = activation.response.result.map(_.asJsObject)
-                                        // first check conditions on payload that may lead to interrupting the execution of the sequence
-                                        val payloadContent = payload getOrElse JsObject.empty
-                                        val errorFields = payloadContent.getFields(ActivationResponse.ERROR_FIELD)
-                                        // short-circuit the execution of the sequence iff the payload contains an error field and is the result of an action return, not the initial payload
-                                        val errorShortcircuit = !errorFields.isEmpty && !first
-                                        if (!errorShortcircuit) {
-                                            // second check the atomic action count for sequence action limit)
-                                            if (atomicActionCount >= actionSequenceLimit) {
-                                                val activationResponse = ActivationResponse.applicationError(s"$sequenceIsTooLong")
-                                                Future.successful(Left(activationResponse), atomicActionCount, false) // dynamic action count and first don't really matter anymore
-                                            } else {
-                                                val compResultFuture : Future[(Either[ActivationResponse, WhiskActivation], Int)] = invokeSeqOneComponent(user, action, payload, cause, atomicActionCount)
-                                                compResultFuture map {
-                                                    activationDynamicCountPair => (activationDynamicCountPair._1, activationDynamicCountPair._2, false) // it's not first payload anymore
-                                                }
-                                            }
-                                        } else {
-                                            // there is an error field, terminate sequence early
-                                            // propagate the activation response
-                                            Future.successful(Left(activation.response), atomicActionCount, false) // dynamic action count and first don't really matter anymore
-                                        }
-                                    case Left(activationResponse) =>
-                                        // the sequence is interrupted, no more processing
-                                        Future.successful(Left(activationResponse), 0, false) // dynamic action count and first do not matter from now on
+        resolvedFutureActions.foldLeft(initialAccounting) {
+            (accountingFuture, futureAction) =>
+                accountingFuture flatMap { accounting =>
+                    if (accounting.shortcircuit) {
+                        // this sequence has been short-circuited
+                        Future.successful(accounting)
+                    } else {
+                        futureAction flatMap {
+                            action =>
+                                val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
+                                // logging.info(this, s"invoke sequence component of ($seqActivationId) component ${action.name} payload ${inputPayload}")
+                                invokeSeqOneComponent(user, action, inputPayload, cause, accounting.atomicActionCnt) map {
+                                    case (response, newCnt) => accounting.maybe(response, newCnt)
                                 }
+
+                        } recover {
+                            // check any failure here and generate an activation response to encapsulate the failure mode
+                            case t: Throwable =>
+                                // consider this failure a whisk error
+                                accounting.fail(ActivationResponse.whiskError(sequenceActivationFailure))
                         }
-                } recover {
-                    // check any failure here and generate an activation response such that this method always returns a vector of successful futures
-                    case t: Throwable =>
-                        // consider this failure a whisk error
-                        val activationResponse = ActivationResponse.whiskError(sequenceActivationFailure)
-                        (Left(activationResponse), 0, false)
+                    }
                 }
-        }
-        // drop the first future which contains the init value from scanLeft and project the first two fields from the tuples
-        // the third one was used to treat error property differently for first action vs the rest of the actions in the sequence (not useful past this point)
-        seqComponentWskActivationFutures.drop(1) map {
-            tupleFuture => tupleFuture map { tuple => (tuple._1, tuple._2) }
         }
     }
 
@@ -381,10 +424,7 @@ protected[actions] trait SequenceActions {
                 logging.info(this, s"sequence invoking an enclosed sequence $action")
                 // call invokeSequence to invoke the inner sequence
                 // true for blocking; false for topmost
-                invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause, atomicActionCount) map {
-                    case (activationId, wskActivation, seqAtomicActionCnt) =>
-                        (activationId, wskActivation, seqAtomicActionCnt + atomicActionCount)
-                }
+                invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause, atomicActionCount)
             case _ =>
                 // this is an invoke for an atomic action
                 logging.info(this, s"sequence invoking an enclosed atomic action $action")
