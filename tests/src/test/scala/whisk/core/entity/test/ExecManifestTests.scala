@@ -19,7 +19,7 @@ package whisk.core.entity.test
 import java.io.{BufferedWriter, File, FileWriter}
 import java.util.NoSuchElementException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
