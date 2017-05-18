@@ -432,7 +432,8 @@ object Invoker {
         val config = new WhiskConfig(requiredProperties)
 
         // if configuration is valid, initialize the runtimes manifest
-        if (config.isValid && ExecManifest.initialize(config)) {
+        val execManifest = ExecManifest.initialize(config)
+        if (config.isValid && execManifest.isSuccess) {
             val topic = s"invoker$instance"
             val groupid = "invokers"
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
@@ -463,7 +464,8 @@ object Invoker {
                 }
             })
         } else {
-            logger.error(this, "Bad configuration, cannot start.")
+            logger.error(this, "Bad configuration, cannot start." +
+              (if (execManifest.isFailure) " Invalid runtimes.manifest: " + execManifest.failed.get.toString else ""))
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
         }

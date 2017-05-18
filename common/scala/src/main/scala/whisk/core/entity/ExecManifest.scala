@@ -41,20 +41,14 @@ protected[core] object ExecManifest {
      *
      * @param config a valid configuration
      * @param reinit re-initialize singleton iff true
-     * @return true if initialized successfully, or if previously initialized
+     * @return the manifest if initialized successfully, or if previously initialized
      */
-    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Boolean = {
+    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[_] = {
         if (manifest.isEmpty || reinit) {
-            val result = Try(config.runtimesManifest.parseJson.asJsObject)
+            Try(config.runtimesManifest.parseJson.asJsObject)
                 .flatMap(runtimes(_))
                 .map(m => manifest = Some(m))
-            result match {
-                case Success(res) =>
-                    true
-                case Failure(e) =>
-                    throw new IllegalStateException("Runtimes manifest is set but it's invalid: " + e.toString)
-            }
-        } else true
+        } else Success(manifest)
     }
 
     /**

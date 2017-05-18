@@ -16,21 +16,27 @@
 
 package whisk.core.entity.test
 
-import scala.util.Success
+import java.io.{BufferedWriter, File, FileWriter}
+import java.util.NoSuchElementException
 
+import scala.util.{Failure, Success, Try}
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.WhiskConfig
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
+import common.StreamLogging
+import common.WskActorSystem
 
 @RunWith(classOf[JUnitRunner])
 class ExecManifestTests
     extends FlatSpec
+    with WskActorSystem
+    with StreamLogging
     with Matchers {
 
     behavior of "ExecManifest"
@@ -169,5 +175,23 @@ class ExecManifestTests
                     image.localImageName("r", "p", None) shouldBe image.tag.map(t => s"r/p/$name:$t").getOrElse(s"r/p/$name:latest")
                     image.localImageName("r", "p", Some("tag")) shouldBe s"r/p/$name:tag"
             }
+    }
+
+    it should "throw an error when configured manifest is invalid" in {
+        val config_manifest = "{\"nodejs\":[{\"kind\":\"nodejs\",\"image\":{\"name\":\"nodejsaction\"},\"deprecated\":true},{\"kind\":\"nodejs:6\",\"default\":true,\"image\":{\"name\":\"nodejs6action\"}}]}"
+        val file = File.createTempFile("cxt", ".txt")
+        file.deleteOnExit()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("runtimes.manifest=" + config_manifest + "\n")
+        bw.close()
+
+        var result:Try[_] = ExecManifest.initialize(new WhiskConfig(Map("runtimes.manifest" -> null), Set(), file), true)
+
+        result.isSuccess should be (false)
+
+        the [NoSuchElementException] thrownBy {
+            result.get
+        } should have message ("key not found: runtimes")
     }
 }
