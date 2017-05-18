@@ -180,18 +180,24 @@ object Controller {
         // second argument.  (TODO .. seems fragile)
         val instance = if (args.length > 0) args(1).toInt else 0
 
-        // initialize the runtimes manifest
-        val execManifest = ExecManifest.initialize(config)
-        if (execManifest.isFailure) {
-            logger.error(this, "Required property runtimes.manifest is invalid: " + execManifest.failed.get.toString)
-        }
-        if (config.isValid && execManifest.isSuccess) {
-            val port = config.servicePort.toInt
-            BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
-        } else {
+        def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
         }
+
+        if (!config.isValid) {
+            abort()
+            return
+        }
+
+        val execManifest = ExecManifest.initialize(config)
+        if (execManifest.isFailure) {
+            logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
+            abort()
+            return
+        }
+        val port = config.servicePort.toInt
+        BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
     }
 }

@@ -43,12 +43,12 @@ protected[core] object ExecManifest {
      * @param reinit re-initialize singleton iff true
      * @return the manifest if initialized successfully, or if previously initialized
      */
-    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[_] = {
+    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[Runtimes] = {
         if (manifest.isEmpty || reinit) {
-            Try(config.runtimesManifest.parseJson.asJsObject)
-                .flatMap(runtimes(_))
-                .map(m => manifest = Some(m))
-        } else Success(manifest)
+            val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_))
+            mf.foreach(m => manifest = Some(m))
+            mf
+        } else Success(manifest.get)
     }
 
     /**
