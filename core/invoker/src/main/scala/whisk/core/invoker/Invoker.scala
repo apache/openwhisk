@@ -433,6 +433,9 @@ object Invoker {
 
         // if configuration is valid, initialize the runtimes manifest
         val execManifest = ExecManifest.initialize(config)
+        if (execManifest.isFailure) {
+          logger.error(this, "Required property runtimes.manifest is invalid: " + execManifest.failed.get.toString)
+        }
         if (config.isValid && execManifest.isSuccess) {
             val topic = s"invoker$instance"
             val groupid = "invokers"
@@ -464,8 +467,7 @@ object Invoker {
                 }
             })
         } else {
-            logger.error(this, "Bad configuration, cannot start." +
-              (if (execManifest.isFailure) " Invalid runtimes.manifest: " + execManifest.failed.get.toString else ""))
+            logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
         }
