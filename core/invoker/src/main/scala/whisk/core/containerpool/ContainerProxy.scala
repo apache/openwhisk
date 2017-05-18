@@ -90,7 +90,7 @@ class ContainerProxy(
     implicit val ec = context.system.dispatcher
 
     // The container is destroyed after this period of time
-    val unusedTimeout = 30.seconds
+    val unusedTimeout = 10.minutes
 
     // The container is not paused for this period of time
     // after an activation has finished successfully
@@ -241,7 +241,8 @@ class ContainerProxy(
             // Send the job back to the pool to be rescheduled
             context.parent ! job
             stay
-        case Event(ContainerRemoved, _) => stop()
+        case Event(ContainerRemoved, _)  => stop()
+        case Event(_: FailureMessage, _) => stop()
     }
 
     // Unstash all messages stashed while in intermediate state
