@@ -1,0 +1,42 @@
+---
+
+# Download the cli to openwhisk_home
+
+- set_fact:
+    cli_tag="{{ openwhisk_cli.tag }}"
+    arc_64="amd64"
+    arc_32="386"
+
+- name: "ensure openwhisk cli directory for ({{ item }}) amd64 exists"
+  file:
+    path: "{{ openwhisk_cli.location }}/bin/{{ item }}/amd64"
+    state: directory
+
+- name: "download cli ({{ item }}) amd64 to openwhisk cli directory"
+  get_url:
+    url: https://github.com/openwhisk/openwhisk-cli/releases/download/latest/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_64 }}.zip
+    dest: "{{ openwhisk_cli.location }}/bin/{{ item }}/amd64/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_64 }}.zip"
+    mode: 0755
+
+- name: "Unzip cli ({{ item }}) amd64"
+  unarchive:
+    src: "{{ openwhisk_cli.location }}/bin/{{ item }}/amd64/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_64 }}.zip"
+    dest: "{{ openwhisk_cli.location }}/bin/{{ item }}/amd64/"
+    remote_src: True
+
+- name: "ensure openwhisk cli directory for ({{ item }}) 32-bit exists"
+  file:
+    path: "{{ openwhisk_cli.location }}/bin/{{ item }}/386"
+    state: directory
+
+- name: "download cli ({{ item }}) 32-bit to openwhisk cli directory"
+  get_url:
+    url: https://github.com/openwhisk/openwhisk-cli/releases/download/latest/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_32 }}.zip
+    dest: "{{ openwhisk_cli.location }}/bin/{{ item }}/386/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_32 }}.zip"
+    mode: 0755
+
+- name: "Unzip cli ({{ item }}) 32-bit"
+  unarchive:
+    src: "{{ openwhisk_cli.location }}/bin/{{ item }}/386/OpenWhisk_CLI-{{ cli_tag }}-{{ item }}-{{ arc_32 }}.zip"
+    dest: "{{ openwhisk_cli.location }}/bin/{{ item }}/386/"
+    remote_src: True

@@ -3,26 +3,29 @@
 
 - name: "ensure nginx directory for cli exists"
   file:
-    path: "{{ cli_nginx_dir  }}"
+    path: "{{ cli_nginx_dir }}"
     state: directory
 
-- include: docker_login.yml
+- name: "ensure openwhisk cli directory for binaries exists"
+  file:
+    path: "{{ openwhisk_cli.location }}/bin"
+    state: directory
 
-- name: "pull the {{ docker_image_tag }} image of cli"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-  when: docker_registry != ""
+- set_fact:
+    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
 
-- name: "run Docker"
-  shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
+- name: "download the binaries from the release page of OpenWhisk CLI"
+  include: download_openwhisk_cli.yml
+  with_items: "{{ cli_os }}"
+  when: cli_installation_mode == "download"
+
+- name: "download the source code if necessary and build the binaries locally"
+  shell: "pwd"
+  when: cli_installation_mode == "build"
 
 - name: "copy all the cli binaries into nginx"
-  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli_nginx_dir }}'"
-  ignore_errors: yes
-
-- name: "stop Docker"
-  shell: "docker stop cli"
-
-- name: "remove cli container after publishing"
-  shell: "docker rm cli"
+  copy: src={{ item }} dest={{ cli_nginx_dir }} owner=root mode=600
+  with_fileglob:
+    - "{{ openwhisk_cli.location }}/bin/*"
 
 - include: download_cli.yml
