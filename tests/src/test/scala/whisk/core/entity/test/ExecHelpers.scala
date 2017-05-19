@@ -33,7 +33,7 @@ trait ExecHelpers
     self: Suite =>
 
     private val config = new WhiskConfig(ExecManifest.requiredProperties)
-    ExecManifest.initialize(config) shouldBe true
+    ExecManifest.initialize(config).isSuccess shouldBe true
 
     protected val NODEJS = "nodejs"
     protected val NODEJS6 = "nodejs:6"
