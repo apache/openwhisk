@@ -48,6 +48,7 @@ Vagrant.configure('2') do |config|
 $script_common = <<SCRIPT
   set -e
   set -x
+  echo "`date`: ubuntu-setup-start" >> /tmp/vagrant-times.txt
   sudo add-apt-repository ppa:git-core/ppa
   sudo apt-get update
   sudo apt-get install git -y
@@ -75,6 +76,7 @@ $script_common = <<SCRIPT
   cd /home/vagrant/openwhisk
   cd tools/ubuntu-setup
   su vagrant -c 'source all.sh'
+  echo "`date`: ubuntu-setup-end" >> /tmp/vagrant-times.txt
 SCRIPT
 
   config.vm.provision "script_common", type: "shell", keep_color: true, inline: $script_common
@@ -104,11 +106,13 @@ SCRIPT
 
   # Configure Default CouchDB
 $couch_db = <<COUCH_DB
+echo "`date`: couchdb-setup-start" >> /tmp/vagrant-times.txt
 export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
 cd /home/vagrant/openwhisk/ansible
 su vagrant -c 'ansible-playbook -i environments/local setup.yml'
 su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
 su vagrant -c 'ansible-playbook -i environments/local couchdb.yml'
+echo "`date`: couchdb-setup-end" >> /tmp/vagrant-times.txt
 COUCH_DB
 
 $init_db = <<INIT_DB
@@ -128,18 +132,19 @@ INIT_DB
 $script_end = <<SCRIPT
   set -e
   set -x
-
+  echo "`date`: build-start" >> /tmp/vagrant-times.txt
   HOME=/home/vagrant
   source /etc/environment
   # Build OpenWhisk using gradle
   cd ${OPENWHISK_HOME}
-  su vagrant -c './gradlew distDocker --parallel'
+  su vagrant -c './gradlew  tools:cli:distDocker -PdockerImagePrefix=openwhisk'
 
+  echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
   # Deploy OpenWhisk using ansible
   cd ${ANSIBLE_HOME}
   su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
   su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
-  su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
+  su vagrant -c 'ansible-playbook -i environments/local -e docker_image_prefix=openwhisk openwhisk.yml'
   su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
 
   # Setup OpenWhisk CLI
@@ -158,6 +163,7 @@ $script_end = <<SCRIPT
   # This allows user to see how to configure the wsk cli outside the VM
   wsk property set --apihost ${WHISK_IP} --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   wsk action invoke /whisk.system/utils/echo -p message hello --result
+  echo "`date`: build-deploy-end" >> /tmp/vagrant-times.txt
 SCRIPT
 
   config.vm.provision "script_end", type: "shell", keep_color: true, inline: $script_end, env: {"WHISK_IP" => MACHINE_IP}

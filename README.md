@@ -21,7 +21,7 @@ Download and install [Vagrant](https://www.vagrantup.com/downloads.html) for you
 Follow these step to run your first OpenWhisk Action:
 ```
 # Clone openwhisk
-git clone --depth=1 https://github.com/apache/incubator-openwhisk.git
+git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
 
 # Change directory to tools/vagrant
 cd openwhisk/tools/vagrant
