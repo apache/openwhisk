@@ -1,5 +1,5 @@
 ---
-# Remove consul agent/server and registrator containers as well as the consul_conf_dir
+# Remove consul agent/server and registrator containers as well as the consul.confdir
 
 - name: remove registrator
   docker_container:
@@ -17,7 +17,7 @@
 
 - name: remove consul config directory
   file:
-    path: "{{ consul_conf_dir }}"
+    path: "{{ consul.confdir }}"
     state: absent
   become: true
 

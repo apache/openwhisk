@@ -69,7 +69,7 @@ def killRegistry():
 
 def startRegistry():
     syslog.syslog("Starting registry %s" % REGISTRY_NAME)
-    cmd=['docker', 'run', '-d', '-p', '{{ registry.port }}:5000', '--name', REGISTRY_NAME, '--restart={{ docker.restart.policy }}', '-v', '{{ registry_conf_dir }}/certs:/certs', '-e',
+    cmd=['docker', 'run', '-d', '-p', '{{ registry.port }}:5000', '--name', REGISTRY_NAME, '--restart={{ docker.restart.policy }}', '-v', '{{ registry.confdir }}/certs:/certs', '-e',
     'REGISTRY_HTTP_TLS_CERTIFICATE=/certs/whisk_docker_registry.crt', '-e', 'REGISTRY_HTTP_TLS_KEY=/certs/whisk_docker_registry.key', REGISTRY_VERSION]
     output = subprocess.check_output(cmd)
     return output

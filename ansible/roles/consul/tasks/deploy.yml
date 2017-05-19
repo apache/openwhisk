@@ -7,14 +7,14 @@
 
 - name: ensure consul config directory exists
   file:
-    path: "{{ consul_conf_dir }}"
+    path: "{{ consul.confdir }}"
     state: directory
   when: "'consul_servers' in group_names"
 
 - name: copy template from local to remote in consul config directory
   template:
     src: config.json.j2
-    dest: "{{ consul_conf_dir }}/config.json"
+    dest: "{{ consul.confdir }}/config.json"
   when: "'consul_servers' in group_names"
 
 - name: ensure consul log directory is created with permissions
@@ -37,7 +37,7 @@
     command: "consul agent -config-dir /consul/config"
     volumes:
       - "{{ whisk_logs_dir }}/consul:/logs"
-      - "{{ consul_conf_dir }}:/consul/config"
+      - "{{ consul.confdir }}:/consul/config"
     ports:
       - "{{ consul.port.dns }}:8600/udp"
       - "{{ consul.port.http }}:8500"
