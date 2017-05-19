@@ -75,4 +75,4 @@ xmlhttprequest@1.8.0 \
 yauzl@2.7.0
 
 # See app.js
-CMD node app.js
+CMD node --expose-gc app.js
