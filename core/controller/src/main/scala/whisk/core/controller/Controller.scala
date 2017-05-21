@@ -18,12 +18,10 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-
 import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
-
 import spray.http.StatusCodes._
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport._
@@ -31,7 +29,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.routing.Directive.pimpApply
 import spray.routing.Route
-
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -45,6 +42,8 @@ import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.common.LoggingMarkers
+
+import scala.util.{Failure, Success}
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -191,13 +190,14 @@ object Controller {
             return
         }
 
-        val execManifest = ExecManifest.initialize(config)
-        if (execManifest.isFailure) {
-            logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
-            abort()
-            return
+        ExecManifest.initialize(config) match {
+            case Success(_) =>
+                val port = config.servicePort.toInt
+                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
+
+            case Failure(t) =>
+                logger.error(this, s"Invalid runtimes manifest: $t")
+                abort()
         }
-        val port = config.servicePort.toInt
-        BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
     }
 }
