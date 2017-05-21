@@ -640,7 +640,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   ```
   docker run --rm -it -v "$(pwd):/owexec" openwhisk/action-swift-v3.1.1 bash
   ```
-  This puts you in a bash shell within the Docker container. 
+  This puts you in a bash shell within the Docker container.
 
 - Copy the source code and prepare to build it.
   ```
@@ -658,7 +658,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
 - (Optional) Create the `Package.swift` file to add dependencies.
   ```swift
   import PackageDescription
-  
+
   let package = Package(
     name: "Action",
         dependencies: [
@@ -699,7 +699,7 @@ and so you should include them in your own `Package.swift`.
   exit
   ```
 
-  This has created hello.zip in the same directory as hello.swift. 
+  This has created hello.zip in the same directory as hello.swift.
 
 - Upload it to OpenWhisk with the action name helloSwifty:
   ```
@@ -731,6 +731,7 @@ For example, create a Java file called `Hello.java` with the following content:
 
 ```java
 import com.google.gson.JsonObject;
+
 public class Hello {
     public static JsonObject main(JsonObject args) {
         String name = "stranger";

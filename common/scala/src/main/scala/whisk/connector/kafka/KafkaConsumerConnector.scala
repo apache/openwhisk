@@ -24,9 +24,7 @@ import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
 
-import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -62,34 +60,8 @@ class KafkaConsumerConnector(
      */
     def commit() = consumer.commitSync()
 
-    override def onMessage(process: (String, Int, Long, Array[Byte]) => Unit) = {
-        val self = this
-        val thread = new Thread() {
-            override def run() = {
-                while (!disconnect) {
-                    Try {
-                        // Grab next batch of messages and commit offsets immediately
-                        // It won't be processed twice (tested in "KafkaConnectorTests")
-                        val messages = peek()
-                        commit()
-                        messages
-                    } map {
-                        _.foreach { process.tupled(_) }
-                    } recover {
-                        case e: CommitFailedException => logging.error(self, s"failed to commit to kafka: ${e.getMessage}")
-                        case e: Throwable             => logging.error(self, s"exception while pulling new records: ${e.getMessage}")
-                    }
-                }
-                logging.warn(self, "consumer stream terminated")
-                consumer.close()
-            }
-        }
-        thread.start()
-    }
-
     override def close() = {
         logging.info(this, s"closing '$topic' consumer")
-        disconnect = true
     }
 
     private def getProps: Properties = {
@@ -122,5 +94,4 @@ class KafkaConsumerConnector(
     }
 
     private val consumer = getConsumer(getProps, Some(List(topic)))
-    private var disconnect = false
 }

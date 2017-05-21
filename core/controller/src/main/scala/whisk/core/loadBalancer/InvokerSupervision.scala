@@ -37,30 +37,20 @@ import akka.actor.FSM.Transition
 import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.AkkaLogging
 import whisk.common.ConsulKV.LoadBalancerKeys
 import whisk.common.KeyValueStore
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
-import whisk.core.connector.ActivationMessage
-import whisk.core.connector.MessageConsumer
-import whisk.core.connector.PingMessage
+import whisk.core.connector._
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.entity.AuthKey
-import whisk.core.entity.CodeExecAsString
-import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityName
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.Secret
-import whisk.core.entity.Subject
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAction
+import whisk.core.entity._
 
 // Received events
 case object GetStatus
@@ -151,13 +141,23 @@ class InvokerPool(
     }
 
     /** Receive Ping messages from invokers. */
-    pingConsumer.onMessage((topic, _, _, bytes) => {
+    val pingPollDuration = 1.second
+    val invokerPingFeed = context.system.actorOf(Props {
+        new MessageFeed("ping", logging, pingConsumer, pingConsumer.maxPeek, pingPollDuration, processInvokerPing, logHandoff = false)
+    })
+
+    def processInvokerPing(bytes: Array[Byte]): Future[Unit] = Future {
         val raw = new String(bytes, StandardCharsets.UTF_8)
         PingMessage.parse(raw) match {
-            case Success(p: PingMessage) => self ! p
-            case Failure(t)              => logging.error(this, s"failed processing message: $raw with $t")
+            case Success(p: PingMessage) =>
+                self ! p
+                invokerPingFeed ! MessageFeed.Processed
+
+            case Failure(t) =>
+                invokerPingFeed ! MessageFeed.Processed
+                logging.error(this, s"failed processing message: $raw with $t")
         }
-    })
+    }
 }
 
 object InvokerPool {
