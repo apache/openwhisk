@@ -8,11 +8,11 @@ The commands below should be executed on the host machine for single VM/server d
   # Install git if it is not installed
   sudo apt-get install git -y
 
-  # Clone incubator-openwhisk
-  git clone https://github.com/apache/incubator-openwhisk.git
+  # Clone openwhisk
+  git clone https://github.com/apache/incubator-openwhisk.git openwhisk
   
-  # Change current directory to incubator-openwhisk
-  cd incubator-openwhisk
+  # Change current directory to openwhisk
+  cd openwhisk
 
   # Install all required software
   (cd tools/ubuntu-setup && ./all.sh)
