@@ -18,15 +18,10 @@ package whisk.core
 
 import java.io.File
 
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
 import scala.io.Source
-import scala.util.Try
 
 import akka.actor.ActorSystem
 import whisk.common.Config
-import whisk.common.ConsulClient
-import whisk.common.ConsulKV
 import whisk.common.Logging
 
 /**
@@ -55,7 +50,6 @@ class WhiskConfig(
     override protected def getProperties() = {
         val properties = super.getProperties()
         WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
-        WhiskConfig.readPropertiesFromConsul(properties)
         properties
     }
 
@@ -137,34 +131,6 @@ object WhiskConfig {
             propfile(dir.get, true)
         } else {
             null
-        }
-    }
-
-    /**
-     * Reads a Map of key-value pairs from the Consul service -- store them in the
-     * mutable properties object.
-     */
-    def readPropertiesFromConsul(properties: scala.collection.mutable.Map[String, String])(implicit system: ActorSystem, logging: Logging) = {
-        //try to get consulServer prop
-        val consulString = for {
-            server <- properties.get(consulServerHost).filter(s => s != null && s.trim.nonEmpty)
-            port <- properties.get(consulPort).filter(_ != null)
-        } yield server + ":" + port
-
-        consulString match {
-            case Some(consulServer) => Try {
-                logging.info(this, s"reading properties from consul at $consulServer")
-                val consul = new ConsulClient(consulServer)
-
-                val whiskProps = Await.result(consul.kv.getRecurse(ConsulKV.WhiskProps.whiskProps), 1.minute)
-                properties.keys foreach { p =>
-                    val kvp = ConsulKV.WhiskProps.whiskProps + "/" + p.replace('.', '_').toUpperCase
-                    whiskProps.get(kvp) foreach { properties += p -> _ }
-                }
-            } recover {
-                case ex => logging.warn(this, s"failed to read properties from consul: ${ex.getMessage}")
-            }
-            case _ => logging.info(this, "no consul server defined")
         }
     }
 
