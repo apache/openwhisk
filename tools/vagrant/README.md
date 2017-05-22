@@ -1,9 +1,10 @@
 ## Custom setup for OpenWhisk using Vagrant
 
-The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and may work on Windows.
+The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows.
 
 *Requirements*
-- Install [Vagrant](https://www.vagrantup.com/downloads.html)
+- Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.1.22)
+- Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 1.9.5)
  
 ### Clone the repository and change directory to `tools/vagrant`
 ```
