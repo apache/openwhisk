@@ -32,6 +32,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
+import whisk.common.ZipkinLogging
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
@@ -47,6 +48,7 @@ import whisk.common.Scheduler
 import whisk.core.connector.PingMessage
 import scala.util.Try
 import whisk.core.connector.MessageProducer
+import whisk.common.tracing.TraceUtil
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -78,6 +80,9 @@ class Invoker(
     override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[DocInfo] = {
         require(msg != null, "message undefined")
         require(msg.action.version.isDefined, "action version undefined")
+
+        //set current trace to continue tracing in context of given request
+        TraceUtil.setTracedRequestForTrasactionId(transid, msg.traceMetadata)
 
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
@@ -426,8 +431,9 @@ object Invoker {
         implicit val actorSystem: ActorSystem = ActorSystem(
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
-        implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
+        implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
+        TraceUtil.init(actorSystem);
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 

@@ -35,6 +35,7 @@ import spray.routing.Route
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.common.ZipkinLogging
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
@@ -45,6 +46,7 @@ import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.common.LoggingMarkers
+import whisk.common.tracing.TraceUtil
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -171,8 +173,8 @@ object Controller {
 
     def main(args: Array[String]): Unit = {
         implicit val actorSystem = ActorSystem("controller-actor-system")
-        implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
-
+        implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
+        TraceUtil.init(actorSystem);
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
 

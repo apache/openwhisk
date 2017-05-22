@@ -28,6 +28,7 @@ import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import whisk.common.tracing.{TraceUtil, TracedRequest}
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.controller.WhiskActionsApi
@@ -93,6 +94,10 @@ protected[actions] trait PrimitiveActions {
 
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = action.parameters merge payload
+
+        val startActivation = transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
+        val req: TracedRequest = TraceUtil.getTracedRequestForTrasactionId(transid)
+
         val message = ActivationMessage(
             transid,
             FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
@@ -101,9 +106,9 @@ protected[actions] trait PrimitiveActions {
             activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
             args,
-            cause = cause)
+            cause = cause,
+            traceMetadata = if (req != null) req.getMetadata() else None)
 
-        val startActivation = transid.started(this, if (blocking) LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING else LoggingMarkers.CONTROLLER_ACTIVATION)
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"[POST] action activation id: ${message.activationId}")
         val postedFuture = loadBalancer.publish(action, message, activeAckTimeout)
         postedFuture flatMap { activationResponse =>

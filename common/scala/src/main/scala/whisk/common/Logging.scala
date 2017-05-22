@@ -25,6 +25,7 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
+import whisk.common.tracing.TraceUtil
 
 trait Logging {
     /**
@@ -76,6 +77,19 @@ trait Logging {
      * @param message Message to write to the log
      */
     def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String)
+
+    /**
+      * Prints a message to the output using LogMarker.
+      *
+      * @param loglevel The level to log on
+      * @param id <code>TransactionId</code> to include in the log
+      * @param from Reference, where the method was called from.
+      * @param message Message to write to the log
+      * @param logMarker <code>LogMarker</code> to include in the log
+      */
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, logMarker: LogMarker) : Unit = {
+        emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
+    }
 }
 
 /**
@@ -118,6 +132,45 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
 
         val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage
         outputStream.println(parts.mkString(" "))
+    }
+}
+
+/**
+  * Implementation of logging which also supports tracing using Zipkin.
+  * @param logger <code>Logging<code> instance which can do basic logging
+  */
+class ZipkinLogging (logger: Logging) extends Logging {
+
+    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+        logger.emit(loglevel, id, from, message)
+    }
+
+    override def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, logMarker: LogMarker) = {
+
+        //log message as usual
+        emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
+
+        //tracing support
+        logMarker.token.state match {
+
+            case LoggingMarkers.start => {
+                TraceUtil.startTrace(logMarker.token.getServiceName(), id)
+            }
+
+            case LoggingMarkers.finish => {
+                var req = TraceUtil.getTracedRequestForTrasactionId(id)
+                if (req != null)
+                    TraceUtil.finish(id)
+            }
+
+            case LoggingMarkers.error => {
+                var req = TraceUtil.getTracedRequestForTrasactionId(id)
+                if (req != null)
+                    TraceUtil.finish(id)
+            }
+
+            case _ =>
+        }
     }
 }
 
@@ -171,6 +224,10 @@ case class LogMarkerToken(component: String, action: String, state: String) {
 
     def asFinish = copy(state = LoggingMarkers.finish)
     def asError = copy(state = LoggingMarkers.error)
+
+    def getServiceName(): String = {
+        component + "_" + action
+    }
 }
 
 object LogMarkerToken {
@@ -190,9 +247,12 @@ object LoggingMarkers {
     val count = "count"
 
     private val controller = "controller"
-    private val invoker = "invoker"
+    val invoker = "invoker"
     private val database = "database"
     private val activation = "activation"
+    private val blocking_activation = "blockingActivation"
+    private val activation_init = "activationInit"
+    private val activation_run = "activationRun"
     private val kafka = "kafka"
     private val loadbalancer = "loadbalancer"
 
@@ -203,7 +263,7 @@ object LoggingMarkers {
 
     // Time of the activation in controller until it is delivered to Kafka
     val CONTROLLER_ACTIVATION = LogMarkerToken(controller, activation, start)
-    val CONTROLLER_ACTIVATION_BLOCKING = LogMarkerToken(controller, "blockingActivation", start)
+    val CONTROLLER_ACTIVATION_BLOCKING = LogMarkerToken(controller, blocking_activation, start)
 
     // Time that is needed load balance the activation
     val CONTROLLER_LOADBALANCER = LogMarkerToken(controller, loadbalancer, start)
@@ -221,10 +281,10 @@ object LoggingMarkers {
     val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
 
     // Time that is needed to execute the action
-    val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
+    val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, activation_run, start)
 
     // Time that is needed to init the action
-    val INVOKER_ACTIVATION_INIT = LogMarkerToken(invoker, "activationInit", start)
+    val INVOKER_ACTIVATION_INIT = LogMarkerToken(invoker, activation_init, start)
 
     // Time in invoker
     val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)

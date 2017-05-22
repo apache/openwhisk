@@ -98,11 +98,11 @@ class WhiskContainer(
      * @return triple of start time, end time, response for user action.
      */
     def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
-        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
+        val startMarker = transid.started(LoggingMarkers.invoker, LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry = false)
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
-        transid.finished("Invoker", startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
+        transid.finished(LoggingMarkers.invoker, startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
         result
     }
 
