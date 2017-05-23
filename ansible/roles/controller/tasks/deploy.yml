@@ -36,6 +36,7 @@
       "SERVICE_CHECK_INTERVAL": "15s"
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
+    env_file: "{{ openwhisk_home }}/whisk.env"
     volumes:
       - "{{ whisk_logs_dir }}/controller:/logs"
     ports:
