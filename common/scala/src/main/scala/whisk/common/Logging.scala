@@ -80,6 +80,8 @@ trait Logging {
 
     /**
       * Prints a message to the output using LogMarker.
+      * This method will log a formatted message using the LogMarker.
+      * LogMarker will also be used to support Tracing if Logging instance supports it.
       *
       * @param loglevel The level to log on
       * @param id <code>TransactionId</code> to include in the log
