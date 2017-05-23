@@ -11,12 +11,12 @@ This directory contains the following utilities.
 The script is called `redo` because for most development, one will want to "redo" the compilation and deployment.
 
 - usage information: `redo -h`
-- initialize environment and `docker-machine` (for mac): `redo setup prereqs`
+- initialize environment and `docker-machine` (for mac): `redo setup prereq`
 - start CouchDB container and initialize DB with system and guest keys: `redo couchdb initdb`
 - build and deploy system: `redo deploy`
 - run tests: `redo props tests`
 
-To do a fresh build and deploy all with one line for a first time run `redo setup prereqs couchdb initdb deploy tests` as each of these is executed sequentially.
+To do a fresh build and deploy all with one line for a first time run `redo setup prereq couchdb initdb deploy tests` as each of these is executed sequentially.
 
 Individual components such as the `controller` may be rebuilt and redeployed as well.
 

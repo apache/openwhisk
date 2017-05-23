@@ -155,6 +155,8 @@ object Messages {
             if (!init) "." else " during initialization."
         }
     }
+
+    val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
@@ -171,13 +173,13 @@ object ErrorResponse extends Directives {
         } getOrElse None)
     }
 
-     def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(implicit transid: TransactionId): StandardRoute = {
+    def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(implicit transid: TransactionId): StandardRoute = {
         val errorResponse = error getOrElse response(status)
-            if (asJson) {
-                complete(status, errorResponse)
-            } else {
-                complete(status, s"${errorResponse.error} (code: ${errorResponse.code})")
-            }
+        if (asJson) {
+            complete(status, errorResponse)
+        } else {
+            complete(status, s"${errorResponse.error} (code: ${errorResponse.code})")
+        }
     }
 
     def response(status: StatusCode)(implicit transid: TransactionId): ErrorResponse = status match {

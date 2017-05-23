@@ -16,12 +16,12 @@ OpenWhisk is a cloud-first distributed event-based programming service. It provi
 ### Quick Start
 
 A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac, Windows PC or GNU/Linux.
-Download and install [Vagrant](https://www.vagrantup.com/downloads.html) for your operating system and architecture.
+Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html) for your operating system and architecture.
 
 Follow these step to run your first OpenWhisk Action:
 ```
 # Clone openwhisk
-git clone --depth=1 https://github.com/apache/incubator-openwhisk.git
+git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
 
 # Change directory to tools/vagrant
 cd openwhisk/tools/vagrant
