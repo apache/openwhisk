@@ -35,18 +35,19 @@ object TraceUtil{
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  def startTrace(serviceName: String, transactionId: TransactionId): TracedRequest = {
+  def startTrace(serviceName: String, transactionId: TransactionId): Unit = {
     var tracedRequest: TracedRequest = traceMap.get(transactionId.meta.id)
     if(tracedRequest == null){
       var tracedRequest = createTracedRequest(serviceName)
-      var metadata = trace.sample(tracedRequest.getRequest(), serviceName, true)
-      trace.start(tracedRequest.getRequest(), serviceName)
-      tracedRequest = new TracedRequest(tracedRequest.getRequest(), null, metadata)
-      traceMap.put(transactionId.meta.id, tracedRequest)
-      return tracedRequest
+      var metadata = trace.sample(tracedRequest.getRequest(), serviceName)
+      if(metadata != None){
+        trace.start(tracedRequest.getRequest(), serviceName)
+        tracedRequest = new TracedRequest(tracedRequest.getRequest(), null, metadata)
+        traceMap.put(transactionId.meta.id, tracedRequest)
+      }
     }
     else
-      return startChildTrace(serviceName, tracedRequest, transactionId)
+      startChildTrace(serviceName, tracedRequest, transactionId)
   }
 
   /**
@@ -56,16 +57,22 @@ object TraceUtil{
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  def startChildTrace(serviceName: String, parent: TracedRequest, transactionId: TransactionId): TracedRequest = {
+  def startChildTrace(serviceName: String, parent: TracedRequest, transactionId: TransactionId): Unit = {
     val request: TracedRequest = createTracedRequest(serviceName)
-    var metadata =  trace.sample(request.getRequest(), serviceName, true)
-    trace.createChild(request.getRequest(), parent.getRequest())
-    trace.start(request.getRequest(), serviceName)
-    val tracedRequest = new TracedRequest(request.getRequest(), parent, metadata)
-    traceMap.put(transactionId.meta.id, tracedRequest)
-    return tracedRequest
+    var metadata =  trace.sample(request.getRequest(), serviceName)
+    if(metadata != None){
+      trace.createChild(request.getRequest(), parent.getRequest())
+      trace.start(request.getRequest(), serviceName)
+      val tracedRequest = new TracedRequest(request.getRequest(), parent, metadata)
+      traceMap.put(transactionId.meta.id, tracedRequest)
+    }
+
   }
 
+  /**
+    * Finish a Trace associated with given transactionId.
+    * @param transactionId
+    */
   def finish(transactionId: TransactionId): Unit = {
     val request: TracedRequest = traceMap.get(transactionId.meta.id)
     if(request != null){
