@@ -113,6 +113,11 @@ kafka:
   port: 9092
   ras:
     port: 9093
+  topic:
+    completed_logByteSize: 1000000
+    health_logByteSize: 1000000
+    invoker_logByteSize: 100000000
+    consumer_offsets_logTime: 60000
 
 zookeeper:
   version: 3.4
