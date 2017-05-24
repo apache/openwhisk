@@ -9,7 +9,7 @@ The commands below should be executed on the host machine for single VM/server d
   sudo apt-get install git -y
 
   # Clone openwhisk
-  git clone https://github.com/apache/incubator-openwhisk.git
+  git clone https://github.com/apache/incubator-openwhisk.git openwhisk
   
   # Change current directory to openwhisk
   cd openwhisk
