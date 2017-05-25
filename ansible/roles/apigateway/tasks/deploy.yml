@@ -5,10 +5,11 @@
   shell: "docker pull openwhisk/apigateway"
   when: apigateway_local_build is undefined
 
+#temporary pinned to image 0.7.0 until apigateway fixes regressions
 - name: (re)start apigateway
   docker_container:
     name: apigateway
-    image: openwhisk/apigateway
+    image: openwhisk/apigateway:0.7.0
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
