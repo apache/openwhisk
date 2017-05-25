@@ -44,7 +44,7 @@ class SequenceApiTests
     behavior of "Sequence API"
 
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
-    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
+    val creds = WhiskAuthHelpers.newIdentity()
     val namespace = EntityPath(creds.subject.asString)
     val defaultNamespace = EntityPath.DEFAULT
     def aname() = MakeName.next("sequence_tests")

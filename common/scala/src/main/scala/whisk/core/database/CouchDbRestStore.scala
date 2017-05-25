@@ -188,7 +188,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
         val parts = table.split("/")
 
-        val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table ${startKey}:${endKey}'")
+        val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table")
 
         val f = for (
             eitherResponse <- client.executeView(parts(0), parts(1))(

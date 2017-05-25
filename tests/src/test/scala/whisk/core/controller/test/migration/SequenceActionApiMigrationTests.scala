@@ -25,27 +25,13 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.WskTestHelpers
 import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DefaultJsonProtocol.listFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.DefaultJsonProtocol.vectorFormat
-import spray.json.JsObject
-import spray.json.pimpAny
-import spray.json.pimpString
-
+import spray.httpx.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.controller.test.ControllerTestCommon
-import whisk.core.entity.AuthKey
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Exec
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionPut
-import whisk.core.entity.WhiskAuth
+import whisk.core.controller.test.WhiskAuthHelpers
+import whisk.core.entity._
 
 /**
  * Tests migration of a new implementation of sequences: old style sequences can be updated and retrieved - standalone tests
@@ -58,7 +44,7 @@ class SequenceActionApiMigrationTests extends ControllerTestCommon
 
     behavior of "Sequence Action API Migration"
 
-    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
+    val creds = WhiskAuthHelpers.newIdentity()
     val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("seq_migration_tests")

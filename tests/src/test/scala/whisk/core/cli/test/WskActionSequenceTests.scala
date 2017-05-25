@@ -23,10 +23,10 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
+import whisk.core.entity.EntityPath
 
 /**
  * Tests creation and retrieval of a sequence action
@@ -38,8 +38,8 @@ class WskActionSequenceTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
-    val defaultNamespace = wskprops.namespace
-    val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+    val defaultNamespace = EntityPath.DEFAULT.asString
+    val namespace = wsk.namespace.whois()
 
     behavior of "Wsk Action Sequence"
 

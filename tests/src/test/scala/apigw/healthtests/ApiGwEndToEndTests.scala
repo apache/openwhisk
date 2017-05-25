@@ -35,7 +35,6 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskPropsV2
 import common.WskTestHelpers
@@ -57,7 +56,7 @@ class ApiGwEndToEndTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
-    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
+    val clinamespace = wsk.namespace.whois()
 
     // Custom CLI properties file
     val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
@@ -85,7 +84,7 @@ class ApiGwEndToEndTests
         val urlqueryvalue = "test"
 
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
 
             // Create the action for the API
             val file = TestUtils.getTestActionFilename(s"echo.js")
@@ -155,7 +154,7 @@ class ApiGwEndToEndTests
         val urlqueryvalue = "test"
 
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
 
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
