@@ -202,6 +202,7 @@ class InvokerReactive(
                     start = interval.start,
                     end = interval.end,
                     duration = Some(interval.duration.toMillis),
+                    entityType = "action",
                     response = response,
                     annotations = {
                         Parameters("path", msg.action.toString.toJson) ++ causedBy

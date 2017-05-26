@@ -120,6 +120,7 @@ type Flags struct {
         basepath   string
         apiname    string
         configfile string
+        orderAction bool
         resptype   string
     }
 }

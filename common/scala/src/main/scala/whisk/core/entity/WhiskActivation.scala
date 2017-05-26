@@ -62,7 +62,8 @@ case class WhiskActivation(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters(),
-    duration: Option[Long] = None)
+    duration: Option[Long] = None,
+    entityType: String)
     extends WhiskEntity(EntityName(activationId.asString)) {
 
     require(cause != null, "cause undefined")
@@ -112,7 +113,7 @@ object WhiskActivation
     }
 
     override val collectionName = "activations"
-    override implicit val serdes = jsonFormat13(WhiskActivation.apply)
+    override implicit val serdes = jsonFormat14(WhiskActivation.apply)
 
     // Caching activations doesn't make much sense in the common case as usually,
     // an activation is only asked for once.

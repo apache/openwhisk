@@ -23,6 +23,10 @@ import (
     "errors"
     "net/url"
     "../wski18n"
+    "time"
+    "strconv"
+    "regexp"
+    "strings"
 )
 
 type ActivationService struct {
@@ -43,6 +47,8 @@ type Activation struct {
     Logs            []string    `json:"logs"`
     Annotations     KeyValueArr `json:"annotations"`
     Publish         *bool       `json:"publish,omitempty"`
+    BufferSize      int         `json:",omitempty"`
+    EntityType      string      `json:"entityType"`
 }
 
 type Response struct {
@@ -80,14 +86,74 @@ func(activation Activation) Compare(sortable Sortable) (bool) {
 
 // ToHeaderString() returns the header for a list of activations
 func(activation Activation) ToHeaderString() string {
-    return fmt.Sprintf("%s\n", "activations")
+    defaultHeader := fmt.Sprintf(
+        "%-40s  %-"+strconv.Itoa(activation.BufferSize+8)+"s  %-15s  %-14s  %-14s  %-16s  %-20s  %s\n",
+        "activation id",
+        "name",
+        "type",
+        "start date",
+        "start time",
+        "end time",
+        "duration (ms)",
+        "status")
+	return fmt.Sprintf("%s\n%s", "activations", defaultHeader)
 }
+
+//func getLargestAction(activations []Activation)
 
 // ToSummaryRowString() returns a compound string of required parameters for printing
 //   from CLI command `wsk activation list`.
 // ***Method of type Sortable***
 func(activation Activation) ToSummaryRowString() string {
-    return fmt.Sprintf("%s %-20s\n", activation.ActivationID, activation.Name)
+    // Convert time from milliseconds into human readable format
+    start := time.Unix(activation.Start / 1000, 0)
+    end := time.Unix(activation.End / 1000, 0)
+    name := getEntityName(activation.Annotations, activation.Name)
+    if len(name) > 50 {
+        name = name[:47] + "..."
+    }
+
+    return fmt.Sprintf("%-32s  %-"+strconv.Itoa(activation.BufferSize)+"s  %-7s  %9s  %10s  %8s  %13v  %v\n",
+        activation.ActivationID,
+        name,
+        activation.EntityType,
+        start.Format("2006-01-02"),     // Formatted Start date
+        start.Format("15:04:05"),       // Formatted Start time
+        formatEndTime(end, activation.EntityType),         // Formatted End Time
+        formatDuration(activation.Duration, activation.EntityType),
+        activation.Response.Status)
+}
+
+func formatEndTime(end time.Time, entityType string) string {
+    if entityType == "action" {
+        return end.Format("15:04:05")
+    }
+    return "--:--:--"
+}
+
+func formatDuration(duration int64, entityType string) string {
+    if entityType == "action" {
+        return fmt.Sprintf("%v", duration)
+    }
+    return "-"
+}
+
+func getEntityName(annotations KeyValueArr, name string) string {
+    var entityName []string
+    var entityPath string
+    delimiter := regexp.MustCompile("/")
+
+    for i := range annotations {
+        if annotations[i].Key == "path" {
+            entityPath = annotations[i].Value.(string)
+        }
+    }
+    if entityPath != "" && len(delimiter.FindAllString(entityPath, -1)) > 1 {
+        entityName = strings.Split(entityPath, "/")
+        return strings.Join(entityName[1:], "/")
+    }
+
+    return name
 }
 
 func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, *http.Response, error) {
