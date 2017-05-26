@@ -206,7 +206,7 @@ class ApiGwTests
 
     behavior of "Wsk api-experimental"
 
-    it should "reject an api commands with an invalid path parameter" in {
+    it should "reject api commands having an invalid path parameter" in {
         val badpath = "badpath"
 
         var rr = apiCreateExperimental(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
@@ -578,6 +578,13 @@ class ApiGwTests
             var deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
             deleteresult = apiDeleteExperimental(basepathOrApiName = testbasepath2, expectedExitCode = DONTCARE_EXIT)
         }
+    }
+
+    it should "reject deletion of a non-existent api" in {
+        val nonexistentApi = "/not-there"
+
+        var rr = apiDeleteExperimental(basepathOrApiName = nonexistentApi, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"API '${nonexistentApi}' does not exist")
     }
 
     behavior of "Wsk api"
@@ -1193,5 +1200,12 @@ class ApiGwTests
         } finally {
             val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
+    }
+
+    it should "reject deletion of a non-existent api" in {
+        val nonexistentApi = "/not-there"
+
+        var rr = apiDelete(basepathOrApiName = nonexistentApi, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"API '${nonexistentApi}' does not exist")
     }
 }

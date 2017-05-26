@@ -361,9 +361,9 @@ func parseApplicationError(resp *http.Response, data []byte, v interface{}) (*ht
     whiskErrorResponse := &WhiskErrorResponse{}
     err := json.Unmarshal(data, whiskErrorResponse)
 
-    // Handle application errors that occur when result is false (#5)
+    // Handle application errors that occur when --result option is false (#5)
     if err == nil && whiskErrorResponse != nil && whiskErrorResponse.Response != nil && whiskErrorResponse.Response.Status != nil {
-        Debug(DbgInfo, "Detected response status `%s` that a whisk.error(\"%s\") was returned\n",
+        Debug(DbgInfo, "Detected response status `%s` that a whisk.error(\"%#v\") was returned\n",
             *whiskErrorResponse.Response.Status, *whiskErrorResponse.Response.Result)
         errMsg := wski18n.T("The following application error was received: {{.err}}",
             map[string]interface{}{"err": *whiskErrorResponse.Response.Result})
@@ -375,14 +375,11 @@ func parseApplicationError(resp *http.Response, data []byte, v interface{}) (*ht
     appErrResult := &AppErrorResult{}
     err = json.Unmarshal(data, appErrResult)
 
-    // Handle application errors that occur with blocking invocations when result is true (#5)
+    // Handle application errors that occur with blocking invocations when --result option is true (#5)
     if err == nil && appErrResult.Error != nil {
         Debug(DbgInfo, "Error code is null, blocking with result invocation error has occured\n")
-        errMsg := wski18n.T(
-            "The following application error was received: {{.err}}",
-            map[string]interface{}{
-                "err": *appErrResult.Error,
-            })
+        errMsg := fmt.Sprintf("%v", *appErrResult.Error)
+        Debug(DbgInfo, "Application error received: %s\n", errMsg)
 
         whiskErr := MakeWskError(errors.New(errMsg), resp.StatusCode - 256, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
             NO_MSG_DISPLAYED, DISPLAY_PREFIX, APPLICATION_ERR)

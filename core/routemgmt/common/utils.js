@@ -17,6 +17,7 @@
  *
  **/
 var request = require('request');
+var utils2 = require('./apigw-utils.js');
 
 /*
  * Register a tenant with the API GW.
@@ -52,14 +53,13 @@ function createTenant(gwInfo, namespace, tenantInstance) {
     request.put(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('addTenantToGateway: response status: '+ statusCode);
-      if (error) console.error('Warning: addTenantToGateway request failed: '+JSON.stringify(error));
-      if (body) console.log('addTenantToGateway: response body: '+JSON.stringify(body));
+      if (error) console.error('Warning: addTenantToGateway request failed: '+utils2.makeJsonString(error));
+      if (body) console.log('addTenantToGateway: response body: '+utils2.makeJsonString(body));
 
       if (error) {
-        console.error('addTenantToGateway: Unable to configure a tenant on the API Gateway: '+JSON.stringify(error));
-        reject('Unable to configure the API Gateway: '+JSON.stringify(error));
+        console.error('addTenantToGateway: Unable to configure a tenant on the API Gateway');
+        reject('Unable to configure the API Gateway: '+utils2.makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('addTenantToGateway: failure: response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
           if (body.error && body.error.message) errMsg = body.error.message;
@@ -106,13 +106,12 @@ function getTenants(gwInfo, ns, tenantInstance) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getTenants: response status: '+ statusCode);
-      if (error) console.error('Warning: getTenant request failed: '+JSON.stringify(error));
-      if (body) console.log('getTenants: response body: '+body);
+      if (error) console.error('Warning: getTenant request failed: '+utils2.makeJsonString(error));
+      if (body) console.log('getTenants: response body: '+utils2.makeJsonString(body));
       if (error) {
-        console.error('getTenants: Unable to obtain tenant from the API Gateway: '+JSON.stringify(error));
-        reject('Unable to obtain Tenant from the API Gateway: '+JSON.stringify(error));
+        console.error('getTenants: Unable to obtain tenant from the API Gateway');
+        reject('Unable to obtain Tenant from the API Gateway: '+utils2.makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('getTenants: failure: response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
           if (body.error && body.error.message) errMsg = body.error.message;
@@ -196,14 +195,13 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
     requestFcn(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('addApiToGateway: response status:'+ statusCode);
-      if (error) console.error('Warning: addRouteToGateway request failed: '+ JSON.stringify(error));
-      if (body) console.log('addApiToGateway: response body: '+JSON.stringify(body));
+      if (error) console.error('Warning: addRouteToGateway request failed: '+ utils2.makeJsonString(error));
+      if (body) console.log('addApiToGateway: response body: '+utils2.makeJsonString(body));
 
       if (error) {
-        console.error('addApiToGateway: Unable to configure the API Gateway: '+JSON.stringify(error));
-        reject('Unable to configure the API Gateway: '+JSON.stringify(error));
+        console.error('addApiToGateway: Unable to configure the API Gateway');
+        reject('Unable to configure the API Gateway: '+utils2.makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('addApiToGateway: Response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
           if (body.error && body.error.message) errMsg = body.error.message;
@@ -247,14 +245,13 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
     request.delete(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('deleteApiFromGateway: response status:'+ statusCode);
-      if (error) console.error('Warning: deleteGatewayApi request failed: '+ JSON.stringify(error));
-      if (body) console.log('deleteApiFromGateway: response body: '+JSON.stringify(body));
+      if (error) console.error('Warning: deleteGatewayApi request failed: '+ utils2.makeJsonString(error));
+      if (body) console.log('deleteApiFromGateway: response body: '+utils2.makeJsonString(body));
 
       if (error) {
-        console.error('deleteApiFromGateway: Unable to delete the API Gateway: '+JSON.stringify(error));
-        reject('Unable to delete the API Gateway: '+JSON.stringify(error));
+        console.error('deleteApiFromGateway: Unable to delete the API Gateway');
+        reject('Unable to delete the API Gateway: '+utils2.makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('deleteApiFromGateway: Response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
           if (body.error && body.error.message) errMsg = body.error.message;
@@ -303,13 +300,12 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getApis: response status: '+ statusCode);
-      if (error) console.error('Warning: getApis request failed: '+JSON.stringify(error));
-      if (body) console.log('getApis: response body: '+JSON.stringify(body));
+      if (error) console.error('Warning: getApis request failed: '+utils2.makeJsonString(error));
+      if (body) console.log('getApis: response body: '+utils2.makeJsonString(body));
       if (error) {
-        console.error('getApis: Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
-        reject('Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
+        console.error('getApis: Unable to obtain API(s) from the API Gateway');
+        reject('Unable to obtain API(s) from the API Gateway: '+utils2.makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('getApis: failure: response code: '+statusCode);
         if (body) {
           var errMsg = JSON.stringify(body);
           if (body.error && body.error.message) errMsg = body.error.message;
