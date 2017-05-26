@@ -22,11 +22,8 @@
  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
  *   gwUser               Optional. The API Gateway authentication
  *   gwPwd                Optional. The API Gateway authentication
- *
- *   __ow_meta_namespace  Required when accesstoken is not specified. Namespace of API author
- *   __ow_user            Required when accesstoken is specified. Namespace of API author
- *                          Both namespace values are set by controller
- *                          The value value overrides namespace values in the apidoc
+ *   __ow_user            Required. Namespace of API author.  Set by controller
+ *                          The value overrides namespace values in the apidoc
  *                          Don't override namespace values in the swagger though
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
@@ -66,11 +63,11 @@ function main(message) {
     gwUrl: message.gwUrl,
   };
 
-  // Replace the CLI provided namespace valuse with the controller provided namespace value
+  // Replace the CLI provided namespace values with the controller provided namespace value
   if (message.accesstoken) {
     utils2.updateNamespace(message.apidoc, message.__ow_user);
   } else {
-    utils.updateNamespace(message.apidoc, message.__ow_meta_namespace);
+    utils.updateNamespace(message.apidoc, message.__ow_user);
   }
 
   // message.apidoc already validated; creating shortcut to it
@@ -94,11 +91,13 @@ function main(message) {
 
   var tenantInstance = message.tenantInstance || 'openwhisk';
 
+  // This can be invoked as either a standard web action or as a normal action
+  var calledAsWebAction = message.__ow_method != undefined;
+
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
   console.log('GW URL V2     : '+message.gwUrlV2);
   console.log('GW Auth       : '+utils.confidentialPrint(message.gwPwd));
-  console.log('__ow_meta_namespace: '+message.__ow_meta_namespace);
   console.log('__ow_user     : '+message.__ow_user);
   console.log('namespace     : '+doc.namespace);
   console.log('tenantInstance: '+message.tenantInstance+' / '+tenantInstance);
@@ -116,6 +115,7 @@ function main(message) {
     console.log('action backendMethod: '+doc.action.backendMethod);
     console.log('action authkey: '+utils.confidentialPrint(doc.action.authkey));
   }
+  console.log('calledAsWebAction: '+calledAsWebAction);
   console.log('apidoc        :\n'+JSON.stringify(doc));
 
   // If an API GW access token is provided, use the API GW V2 URL and use this token to auth with the API GW
@@ -154,11 +154,12 @@ function main(message) {
       console.log('API GW configured with API');
       var cliApi = utils2.generateCliApiFromGwApi(gwApi).value;
       console.log('createApi success');
-      return Promise.resolve(utils2.makeResponseObject(cliApi, (message.__ow_method != undefined)));
+      return Promise.resolve(utils2.makeResponseObject(cliApi, calledAsWebAction));
     })
     .catch(function(reason) {
-      console.error('API creation failure: '+JSON.stringify(reason));
-      return Promise.reject(utils2.makeErrorResponseObject('API creation failure: '+JSON.stringify(reason), (message.__ow_method != undefined)));
+      var rejmsg = 'API creation failure: ' + JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+      console.error(rejmsg);
+      return Promise.reject(utils2.makeErrorResponseObject(rejmsg, calledAsWebAction));
     });
   } else {
     // Create and activate a new API path
@@ -206,12 +207,12 @@ function main(message) {
       console.log('API GW configured with API');
       var cliApi = utils.generateCliApiFromGwApi(gwApi).value;
       console.log('createApi success');
-      //MWD return Promise.resolve(utils2.makeResponseObject(cliApi, (message.__ow_method != undefined)));
-      return Promise.resolve(cliApi);
+      return Promise.resolve(utils2.makeResponseObject(cliApi, calledAsWebAction));
     })
     .catch(function(reason) {
-      console.error('API creation failure: '+JSON.stringify(reason));
-      return Promise.reject(utils2.makeErrorResponseObject('API creation failure: '+JSON.stringify(reason), (message.__ow_method != undefined)));
+      var rejmsg = 'API creation failure: ' + JSON.parse(utils2.makeJsonString(reason)); // Avoid unnecessary JSON escapes
+      console.error(rejmsg);
+      return Promise.reject(utils2.makeErrorResponseObject(rejmsg, calledAsWebAction));
     });
   }
 }
@@ -235,12 +236,8 @@ function validateArgs(message) {
     return 'gwUrl is required.';
   }
 
-  if (message.accesstoken && !message.__ow_user) {
+  if (!message.__ow_user) {
     return '__ow_user is required.';
-  }
-
-  if (!message.accesstoken && !message.__ow_meta_namespace) {
-    return '__ow_meta_namespace is required.';
   }
 
   if(!message.apidoc) {

@@ -60,16 +60,15 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
     requestFcn(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('addApiToGateway: response status:'+ statusCode);
-      if (error) console.error('Warning: addRouteToGateway request failed: '+ JSON.stringify(error));
-      if (body) console.log('addApiToGateway: response body: '+JSON.stringify(body));
+      if (error) console.error('Warning: addRouteToGateway request failed: '+ makeJsonString(error));
+      if (body) console.log('addApiToGateway: response body: '+makeJsonString(body));
 
       if (error) {
-        console.error('addApiToGateway: Unable to configure the API Gateway: '+JSON.stringify(error));
-        reject('Unable to configure the API Gateway: '+JSON.stringify(error));
+        console.error('addApiToGateway: Unable to configure the API Gateway');
+        reject('Unable to configure the API Gateway: '+makeJsonString(error));
       } else if (statusCode != 200) {
-        console.error('addApiToGateway: Response code: '+statusCode);
         if (body) {
-          var errMsg = JSON.stringify(body);
+          var errMsg = makeJsonString(body);
           if (body.error && body.error.message) errMsg = body.error.message;
           reject('Unable to configure the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
@@ -112,16 +111,14 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
     request.delete(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('deleteApiFromGateway: response status:'+ statusCode);
-      if (error) console.error('Warning: deleteGatewayApi request failed: '+ JSON.stringify(error));
-      if (body) console.log('deleteApiFromGateway: response body: '+JSON.stringify(body));
-
+      if (error) console.error('Warning: deleteGatewayApi request failed: '+ makeJsonString(error));
+      if (body) console.log('deleteApiFromGateway: response body: '+makeJsonString(body));
       if (error) {
-        console.error('deleteApiFromGateway: Unable to delete the API Gateway: '+JSON.stringify(error));
-        reject('Unable to delete the API Gateway: '+JSON.stringify(error));
+        console.error('deleteApiFromGateway: Unable to delete the API Gateway');
+        reject('Unable to delete the API Gateway: '+makeJsonString(error));
       } else if (statusCode != 200  && statusCode != 204) {
-        console.error('deleteApiFromGateway: Response code: '+statusCode);
         if (body) {
-          var errMsg = JSON.stringify(body);
+          var errMsg = makeJsonString(body);
           if (body.error && body.error.message) errMsg = body.error.message;
           reject('Unable to delete the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
@@ -169,17 +166,17 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getApis: response status: '+ statusCode);
-      if (response.headers) console.log('getApis: response headers: '+JSON.stringify(response.headers));
-      if (error) console.error('Warning: getApis request failed: '+JSON.stringify(error));
+      if (response.headers) console.log('getApis: response headers: '+makeJsonString(response.headers));
+      if (error) console.error('Warning: getApis request failed: '+makeJsonString(error));
       console.log('getApis: body type = '+typeof body);
-      if (body) console.log('getApis: response JSON.stringify(body): '+JSON.stringify(body));
+      if (body) console.log('getApis: response JSON.stringify(body): '+makeJsonString(body));
       if (error) {
-        console.error('getApis: Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
-        reject('Unable to obtain API(s) from the API Gateway: '+JSON.stringify(error));
+        console.error('getApis: Unable to obtain API(s) from the API Gateway');
+        reject('Unable to obtain API(s) from the API Gateway: '+makeJsonString(error));
       } else if (statusCode != 200) {
         console.error('getApis: failure: response code: '+statusCode);
         if (body) {
-          var errMsg = JSON.stringify(body);
+          var errMsg = makeJsonString(body);
           if (body.error && body.error.error && body.error.error.message) errMsg = body.error.error.message;
           reject('Unable to obtain API(s) from the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
@@ -482,7 +479,7 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
           delete swaggerApi.paths[relpath];
       } else {
           console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' does not exist in the API');
-          return 'path '+relpath+' does not exist in the API';
+          return 'path \''+relpath+'\' does not exist in the API';
       }
   } else { // relpath and operation are specified, just delete the specific operation
       var operationId = operation + '_' + relpath;
@@ -495,7 +492,7 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
           deleteActionOperationInvocationDetails(swaggerApi, operationId);
       } else {
           console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' with operation '+operation+' does not exist in the API');
-          return 'path '+relpath+' with operation '+operation+' does not exist in the API';
+          return 'path \''+relpath+'\' with operation \''+operation+'\' does not exist in the API';
       }
   }
 
@@ -713,7 +710,7 @@ function updateNamespace(apidoc, namespace) {
  */
 function replaceNamespaceInUrl(url, namespace) {
   var namespacesPattern = /\/api\/v1\/web\/([\w@.-]+)\//;
-  console.log('replaceNamespaceInUrl: url before - '+url);
+  console.log('replaceNamespaceInUrl: namspace='+namespace+' url before - '+url);
   matchResult = url.match(namespacesPattern);
   if (matchResult !== null) {
     console.log('replaceNamespaceInUrl: replacing namespace \''+matchResult[1]+'\' with \''+namespace+'\'');
@@ -756,7 +753,7 @@ function makeErrorResponseObject(err, isWebAction) {
   var bodystr;
   if (typeof err === 'string') {
     bodystr = JSON.stringify({
-      "error": err,
+      "error": JSON.parse(makeJsonString(err)),  // Make sure err is plain old string to avoid duplicate JSON escaping
     });
   } else {
     bodystr = JSON.stringify(err);
@@ -800,7 +797,7 @@ function makeResponseObject(resp, isWebAction) {
 
   var bodystr;
   if (typeof resp === 'string') {
-    bodystr = resp;
+    bodystr = makeJsonString(resp);
   } else {
     bodystr = JSON.stringify(resp);
   }
@@ -810,6 +807,38 @@ function makeResponseObject(resp, isWebAction) {
     body: new Buffer(bodystr).toString('base64')
   };
   return retobj;
+}
+
+/*
+ * Take an object and serialize it into a JSON string.
+ *
+ * Special consideration is give to strings that are already JSON formatted since
+ * serializing these strings can result in redundant escaping.
+ *
+ * If the value is simply not JSON compliant, a JSON error string is returned.
+ */
+function makeJsonString(x) {
+  // If the value is not already a string, rely on JSON.stringify to convert it correctly
+  if (typeof x != 'string') {
+    try {
+      return JSON.stringify(x);
+    } catch (e) {
+      console.error('makeJsonString: value cannot be JSON serialized: '+e);
+      return e;
+    }
+  } else {
+    // It's a string. If it's already a JSON formatted string, leave it alone
+    // Otherwise, convert it into a JSON formatted string
+    try {
+      var temp = JSON.parse(x);
+      return x;
+    } catch (e) {
+      // The string is not a JSON string, so convert it to a JSON string.
+      console.log('makeJsonString: String is not JSON, so need to convert it: '+e);
+      return JSON.stringify(x);
+    }
+  }
+  return 'Unexpected JSON parsing failure';
 }
 
 module.exports.getApis = getApis;
@@ -827,3 +856,4 @@ module.exports.generateCliApiFromGwApi = generateCliApiFromGwApi;
 module.exports.updateNamespace = updateNamespace;
 module.exports.makeErrorResponseObject = makeErrorResponseObject;
 module.exports.makeResponseObject = makeResponseObject;
+module.exports.makeJsonString = makeJsonString;
