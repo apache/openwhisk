@@ -159,6 +159,7 @@ apigateway:
     api: 9000
     api_secure: 443
     mgmt: 9001
+  version: 0.7.0
 
 redis:
   version: 3.2
