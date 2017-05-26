@@ -23,6 +23,7 @@ import (
     "errors"
     "net/url"
     "../wski18n"
+    "github.com/fatih/color"
 )
 
 type TriggerService struct {
@@ -38,13 +39,30 @@ type Trigger struct {
     Parameters      KeyValueArr     `json:"parameters,omitempty"`
     Limits          *Limits         `json:"limits,omitempty"`
     Publish         *bool           `json:"publish,omitempty"`
-
 }
 
 type TriggerListOptions struct {
     Limit           int             `url:"limit"`
     Skip            int             `url:"skip"`
     Docs            bool            `url:"docs,omitempty"`
+}
+
+// ToHeaderString() returns the header for a list of triggers
+// ***Method of type Printable***
+func(trigger Trigger) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+    
+	return fmt.Sprintf("%s\n", boldString("triggers"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk trigger list`.
+// ***Method of type Printable***
+func(trigger Trigger) ToSummaryString() string {
+    publishState := wski18n.T("private")
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace,
+        trigger.Name), publishState)
 }
 
 func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Response, error) {

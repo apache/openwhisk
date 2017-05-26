@@ -21,6 +21,7 @@ import (
     "net/http"
     "errors"
     "../wski18n"
+    "fmt"
 )
 
 type ApiService struct {
@@ -184,6 +185,27 @@ type ApiSwaggerOpXOpenWhiskV2 struct {
     ApiUrl          string    `json:"url"`
 }
 
+// Used for printing individual APIs in non-truncated form
+type ApiFilteredList struct {
+    ActionName      string
+    ApiName         string
+    BasePath        string
+    RelPath         string
+    Verb            string
+    Url             string
+}
+
+// Used for printing individual APIs in truncated form
+type ApiFilteredRow struct {
+    ActionName      string
+    ApiName         string
+    BasePath        string
+    RelPath         string
+    Verb            string
+    Url             string
+    FmtString       string
+}
+
 var ApiVerbs map[string]bool = map[string]bool {
     "GET": true,
     "PUT": true,
@@ -202,6 +224,38 @@ const (
 ////////////////////
 // Api Methods //
 ////////////////////
+
+// ToHeaderString() returns the header for a list of apis
+// ***Method of type Printable***
+func(api ApiFilteredList) ToHeaderString() string {
+	return ""
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk api list` or `wsk api-experimental list`.
+// ***Method of type Printable***
+func(api ApiFilteredList) ToSummaryString() string {
+    return fmt.Sprintf("%s %s %s %s %s %s",
+        fmt.Sprintf("%s: %s\n", wski18n.T("Action"), api.ActionName),
+        fmt.Sprintf("  %s: %s\n", wski18n.T("API Name"), api.ApiName),
+        fmt.Sprintf("  %s: %s\n", wski18n.T("Base path"), api.BasePath),
+        fmt.Sprintf("  %s: %s\n", wski18n.T("Path"), api.RelPath),
+        fmt.Sprintf("  %s: %s\n", wski18n.T("Verb"), api.Verb),
+        fmt.Sprintf("  %s: %s\n", wski18n.T("URL"), api.Url))
+}
+
+// ToHeaderString() returns the header for a row of apis
+// ***Method of type Printable***
+func(api ApiFilteredRow) ToHeaderString() string {
+	return fmt.Sprintf("%s", fmt.Sprintf(api.FmtString, "Action", "Verb", "API Name", "URL"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk api list -f` or `wsk api-experimental list -f`.
+// ***Method of type Printable***
+func(api ApiFilteredRow) ToSummaryString() string {
+  return fmt.Sprintf(api.FmtString, api.ActionName, api.Verb, api.ApiName, api.Url)
+}
 
 func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListResponse, *http.Response, error) {
     route := "web/whisk.system/routemgmt/getApi.http"

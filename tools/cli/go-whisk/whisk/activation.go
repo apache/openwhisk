@@ -23,6 +23,7 @@ import (
     "errors"
     "net/url"
     "../wski18n"
+    "github.com/fatih/color"
 )
 
 type ActivationService struct {
@@ -68,6 +69,20 @@ type Log struct {
     Log    string `json:"log,omitempty"`
     Stream string `json:"stream,omitempty"`
     Time   string `json:"time,omitempty"`
+}
+
+// ToHeaderString() returns the header for a list of activations
+func(activation Activation) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+    
+	return fmt.Sprintf("%s\n", boldString("activations"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk activation list`.
+// ***Method of type Printable***
+func(activation Activation) ToSummaryString() string {
+	return fmt.Sprintf("%s %-20s\n", activation.ActivationID, activation.Name)
 }
 
 func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, *http.Response, error) {
