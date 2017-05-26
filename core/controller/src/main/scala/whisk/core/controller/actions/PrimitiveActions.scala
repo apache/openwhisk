@@ -21,7 +21,6 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.Failure
 
 import akka.actor.ActorSystem
 import spray.json._
@@ -35,7 +34,6 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
-import whisk.utils.ExecutionContextFactory.FutureExtensions
 
 protected[actions] trait PrimitiveActions {
     /** The core collections require backend services to be injected in this trait. */
@@ -150,12 +148,20 @@ protected[actions] trait PrimitiveActions {
                 pollDbForResult(docid, activationId, promise)
         }
 
-        // Will either complete with activation or timeout
-        promise.future
-            .withTimeout(totalWaitTime, new BlockingInvokeTimeout(activationId))
-            .andThen {
-                case Failure(t) => promise.tryFailure(t) // Short-circuit db polling
+        // install a timeout handler; this is the handler for "the action took longer than its Limit"
+        // note the use of WeakReferences; this is to avoid the handler's closure holding on to the
+        // WhiskActivation, which in turn holds on to the full JsObject of the response
+        val promiseRef = new java.lang.ref.WeakReference(promise)
+        actorSystem.scheduler.scheduleOnce(totalWaitTime) {
+            val p = promiseRef.get
+            if (p != null) {
+                p.tryFailure(new BlockingInvokeTimeout(activationId))
             }
+        }
+
+        // return the future. note that pollDbForResult's isCompleted check will protect against unnecessary db activity
+        // that may overlap with a totalWaitTime timeout (because the promise will have already by tryFailure'd)
+        promise.future
     }
 
     /**
