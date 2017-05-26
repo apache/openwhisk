@@ -194,6 +194,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             activationId = new ActivationIdGenerator {}.make(),
             activationNamespace = EntityPath("guest"),
             rootControllerIndex = InstanceId(0),
+            blocking = false,
             content = None)
         val msg = ActivationRequest(activationMessage, invokerInstance)
 
