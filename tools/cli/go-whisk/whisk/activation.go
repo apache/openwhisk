@@ -70,6 +70,26 @@ type Log struct {
     Time   string `json:"time,omitempty"`
 }
 
+// Compare(sortable) compares activation to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Activation.
+// ***Method of type Sortable***
+// ***Currently, no method of sorting defined***
+func(activation Activation) Compare(sortable Sortable) (bool) {
+    return true
+}
+
+// ToHeaderString() returns the header for a list of activations
+func(activation Activation) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "activations")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk activation list`.
+// ***Method of type Sortable***
+func(activation Activation) ToSummaryRowString() string {
+    return fmt.Sprintf("%s %-20s\n", activation.ActivationID, activation.Name)
+}
+
 func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, *http.Response, error) {
     // TODO :: for some reason /activations only works with "_" as namespace
     s.client.Namespace = "_"

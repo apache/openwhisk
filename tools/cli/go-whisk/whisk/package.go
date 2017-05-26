@@ -23,6 +23,7 @@ import (
     "net/url"
     "errors"
     "../wski18n"
+    "strings"
 )
 
 type PackageService struct {
@@ -46,6 +47,7 @@ type Package struct {
     Actions     []Action            `json:"actions,omitempty"`
     Feeds       []Action            `json:"feeds,omitempty"`
 }
+
 func (p *Package) GetName() string {
     return p.Name
 }
@@ -82,6 +84,43 @@ type PackageListOptions struct {
     Skip        int                 `url:"skip"`
     Since       int                 `url:"since,omitempty"`
     Docs        bool                `url:"docs,omitempty"`
+}
+
+// Compare(sortable) compares xPackage to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Package.
+// ***Method of type Sortable***
+func(xPackage Package) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> PACKAGE_NAME
+    packageToCompare := sortable.(Package)
+
+    var packageString string
+    var compareString string
+
+    packageString = strings.ToLower(fmt.Sprintf("%s%s",xPackage.Namespace,
+        xPackage.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", packageToCompare.Namespace,
+        packageToCompare.Name))
+
+    return packageString < compareString
+}
+
+// ToHeaderString() returns the header for a list of actions
+func(pkg Package) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "packages")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk package list`.
+// ***Method of type Sortable***
+func(xPackage Package) ToSummaryRowString() string{
+    publishState := wski18n.T("private")
+
+    if xPackage.Publish != nil && *xPackage.Publish {
+        publishState = wski18n.T("shared")
+    }
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace,
+        xPackage.Name), publishState)
 }
 
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {

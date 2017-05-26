@@ -131,11 +131,12 @@ class ApiGwTests
         limit: Option[Int] = None,
         since: Option[Instant] = None,
         full: Option[Boolean] = None,
+        nameSort: Option[Boolean] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
 
         checkThrottle()
-        wsk.api.list(basepathOrApiName, relpath, operation, limit, since, full, expectedExitCode, cliCfgFile)
+        wsk.api.list(basepathOrApiName, relpath, operation, limit, since, full, nameSort, expectedExitCode, cliCfgFile)
     }
 
     def apiGet(
@@ -904,6 +905,42 @@ class ApiGwTests
             wskprops = wskpropsBackup
             val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
             var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
+    }
+
+    it should "list api alphabetically by Base/Rel/Verb" in {
+        val baseName = "/BaseTestPathApiList"
+        val actionName = "actionName"
+        val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
+        try {
+            // Create Action for apis
+            var action = wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
+            println("action creation: " + action.stdout)
+            // Create apis
+            for (i <- 1 to 3) {
+                val base = s"$baseName$i"
+                var api = apiCreate(
+                    basepath = Some(base),
+                    relpath = Some("/relPath"),
+                    operation = Some("GET"),
+                    action = Some(actionName))
+                println("api creation: " + api.stdout)
+            }
+            val original = apiList(nameSort = Some(true)).stdout
+            val originalFull = apiList(full = Some(true), nameSort = Some(true)).stdout
+            val scalaSorted = List(s"${baseName}1" + "/", s"${baseName}2" + "/", s"${baseName}3" + "/")
+            val regex = s"${baseName}[1-3]/".r
+            val list  = (regex.findAllMatchIn(original)).toList
+            val listFull = (regex.findAllMatchIn(originalFull)).toList
+
+            scalaSorted.toString shouldEqual list.toString
+            scalaSorted.toString shouldEqual listFull.toString
+        } finally {
+            // Clean up Apis
+            for (i <- 1 to 3) {
+                val deleteApis = apiDelete(basepathOrApiName = s"${baseName}$i", expectedExitCode = DONTCARE_EXIT)
+            }
+            val deleteAction = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }

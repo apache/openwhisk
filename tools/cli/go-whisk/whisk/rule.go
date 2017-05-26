@@ -38,13 +38,43 @@ type Rule struct {
     Trigger interface{} `json:"trigger"`
     Action  interface{} `json:"action"`
     Publish *bool       `json:"publish,omitempty"`
-
 }
 
 type RuleListOptions struct {
     Limit       int     `url:"limit"`
     Skip        int     `url:"skip"`
     Docs        bool    `url:"docs,omitempty"`
+}
+
+// Compare(sortable) compares rule to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Rule.
+// ***Method of type Sortable***
+func(rule Rule) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> PACKAGE_NAME
+    ruleToCompare := sortable.(Rule)
+    var ruleString string
+    var compareString string
+
+    ruleString = strings.ToLower(fmt.Sprintf("%s%s",rule.Namespace, rule.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", ruleToCompare.Namespace,
+        ruleToCompare.Name))
+
+    return ruleString < compareString
+}
+
+// ToHeaderString() returns the header for a list of rules
+func(rule Rule) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "rules")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk rule list`.
+// ***Method of type Sortable***
+func(rule Rule) ToSummaryRowString() string{
+    publishState := wski18n.T("private")
+
+    return fmt.Sprintf("%-70s %-20s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace,
+        rule.Name), publishState, rule.Status)
 }
 
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {

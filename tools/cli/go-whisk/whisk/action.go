@@ -59,6 +59,51 @@ type ActionListOptions struct {
     Docs        bool        `url:"docs,omitempty"`
 }
 
+// Compare(sortable) compares action to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Action.
+// ***Method of type Sortable***
+func(action Action) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> PACKAGE_NAME -> ACTION_NAME, with
+    //    actions under default package at the top.
+    var actionString string
+    var compareString string
+    actionToCompare := sortable.(Action)
+
+    actionString = strings.ToLower(fmt.Sprintf("%s%s", action.Namespace, action.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", actionToCompare.Namespace,
+    actionToCompare.Name))
+    if strings.Contains(action.Namespace, "/") && !strings.Contains(actionToCompare.Namespace, "/") {
+        return false
+    } else if !strings.Contains(action.Namespace, "/") && strings.Contains(actionToCompare.Namespace, "/") {
+        return true
+    } else if strings.Contains(action.Namespace, "/") && strings.Contains(actionToCompare.Namespace, "/") {
+        return actionString < compareString
+    } else {
+        return action.Name < actionToCompare.Name
+    }
+}
+
+// ToHeaderString() returns the header for a list of actions
+func(action Action) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "actions")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk action list`.
+// ***Method of type Sortable***
+func(action Action) ToSummaryRowString() string{
+    var kind string
+    publishState := wski18n.T("private")
+
+    for i := range action.Annotations {
+        if (action.Annotations[i].Key == "exec") {
+            kind = action.Annotations[i].Value.(string)
+            break
+        }
+    }
+    return fmt.Sprintf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
+}
+
 /*
 Determines if an action is a web action by examining the action's annotations. A value of true is returned if the
 action's annotations contains a "web-export" key and its associated value is a boolean value of "true". Otherwise, false
