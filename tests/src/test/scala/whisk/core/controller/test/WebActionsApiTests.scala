@@ -260,8 +260,13 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         }
     }
 
-    override protected[controller] def invokeAction(user: Identity, action: WhiskAction, payload: Option[JsObject], blocking: Boolean, waitOverride: Option[FiniteDuration] = None)(
-        implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])] = {
+    override protected[controller] def invokeAction(
+        user: Identity,
+        action: WhiskAction,
+        payload: Option[JsObject],
+        waitForResponse: Option[FiniteDuration],
+        cause: Option[ActivationId])(
+            implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
         invocationCount = invocationCount + 1
 
         if (failActivation == 0) {
@@ -304,9 +309,9 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             }
             action.parameters.get("z") shouldBe defaultActionParameters.get("z")
 
-            Future.successful(activation.activationId, Some(activation))
+            Future.successful(Right(activation))
         } else if (failActivation == 1) {
-            Future.successful(ActivationId(), None)
+            Future.successful(Left(ActivationId()))
         } else {
             Future.failed(new IllegalStateException("bad activation"))
         }

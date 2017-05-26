@@ -50,18 +50,10 @@ object ExecutionContextFactory {
             implicit val ec = system.dispatcher
             firstCompletedOf(Seq(f, expire(timeout, system.scheduler)(Future.failed(msg))))
         }
-    }
 
-    /**
-     * Extends a promise with an scheduled call back. The call back may be used to complete the promise. The result of the
-     * call back is not interesting to this method.
-     * The idiom to use is: promise after(duration, promise.tryFailure(TimeoutException)`.
-     */
-    implicit class PromiseExtensions[T](p: Promise[T]) {
-        def after(timeout: FiniteDuration, next: => Unit)(implicit system: ActorSystem): Promise[T] = {
+        def withAlternativeAfterTimeout(timeout: FiniteDuration, alt: => Future[T])(implicit system: ActorSystem): Future[T] = {
             implicit val ec = system.dispatcher
-            expire(timeout, system.scheduler)(Future { next })
-            p
+            firstCompletedOf(Seq(f, expire(timeout, system.scheduler)(alt)))
         }
     }
 

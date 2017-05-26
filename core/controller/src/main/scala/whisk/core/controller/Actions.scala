@@ -37,7 +37,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.routing.RequestContext
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
@@ -59,7 +58,10 @@ object WhiskActionsApi {
     /** Grace period after action timeout limit to poll for result. */
     protected[core] val blockingInvokeGrace = 5 seconds
 
-    /** Max duration to wait for a blocking activation. */
+    /**
+     * Max duration to wait for a blocking activation.
+     * This is the default timeout on a POST request.
+     */
     protected[core] val maxWaitForBlockingActivation = 60 seconds
 }
 
@@ -221,11 +223,12 @@ trait WhiskActionsApi
                         onComplete(entitleReferencedEntities(user, Privilege.ACTIVATE, Some(action.exec))) {
                             case Success(_) =>
                                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
-                                onComplete(invokeAction(user, actionWithMergedParams, payload, blocking, Some(waitOverride))) {
-                                    case Success((activationId, None)) =>
+                                val waitForResponse = if (blocking) Some(waitOverride) else None
+                                onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+                                    case Success(Left(activationId)) =>
                                         // non-blocking invoke or blocking invoke which got queued instead
                                         complete(Accepted, activationId.toJsObject)
-                                    case Success((activationId, Some(activation))) =>
+                                    case Success(Right(activation)) =>
                                         val response = if (result) activation.resultAsJson else activation.toExtendedJson
 
                                         if (activation.response.isSuccess) {
@@ -243,9 +246,6 @@ trait WhiskActionsApi
                                         } else {
                                             complete(InternalServerError, response)
                                         }
-                                    case Failure(t: BlockingInvokeTimeout) =>
-                                        logging.info(this, s"[POST] action activation waiting period expired")
-                                        complete(Accepted, t.activationId.toJsObject)
                                     case Failure(t: RecordTooLargeException) =>
                                         logging.info(this, s"[POST] action payload was too large")
                                         terminate(RequestEntityTooLarge)

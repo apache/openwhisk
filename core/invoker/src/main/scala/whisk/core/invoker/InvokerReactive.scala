@@ -23,6 +23,8 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 
+import org.apache.kafka.common.errors.RecordTooLargeException
+
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
@@ -107,10 +109,20 @@ class InvokerReactive(
     }
 
     /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activation: WhiskActivation, controllerInstance: InstanceId) => {
+    val ack = (tid: TransactionId, activationResult: WhiskActivation, controllerInstance: InstanceId) => {
         implicit val transid = tid
-        producer.send(s"completed${controllerInstance.toInt}", CompletionMessage(tid, activation, s"invoker${instance.toInt}")).andThen {
-            case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
+
+        def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
+            val msg = CompletionMessage(transid, res, this.name)
+            producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
+                case Success(_) =>
+                    logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
+            }
+        }
+
+        send(Right(activationResult)).recoverWith {
+            case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
+                send(Left(activationResult.activationId), recovery = true)
         }
     }
 

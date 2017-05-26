@@ -30,10 +30,10 @@ import scala.util.Failure
 import scala.util.Success
 
 import akka.actor.ActorSystem
+
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.controller.WhiskActionsApi._
 import whisk.core.controller.WhiskServices
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
@@ -60,14 +60,13 @@ protected[actions] trait SequenceActions {
     protected val activationStore: ActivationStore
 
     /** A method that knows how to invoke a single primitive action. */
-    protected[actions] def invokeSingleAction(
+    protected[actions] def invokeAction(
         user: Identity,
         action: WhiskAction,
         payload: Option[JsObject],
-        timeout: FiniteDuration,
-        blocking: Boolean,
-        cause: Option[ActivationId] = None)(
-            implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation])]
+        waitForResponse: Option[FiniteDuration],
+        cause: Option[ActivationId])(
+            implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
     /**
      * Executes a sequence by invoking in a blocking fashion each of its components.
@@ -86,13 +85,13 @@ protected[actions] trait SequenceActions {
     protected[actions] def invokeSequence(
         user: Identity,
         action: WhiskAction,
-        payload: Option[JsObject],
-        blocking: Boolean,
-        topmost: Boolean,
         components: Vector[FullyQualifiedEntityName],
+        payload: Option[JsObject],
+        waitForOutermostResponse: Option[FiniteDuration],
         cause: Option[ActivationId],
+        topmost: Boolean,
         atomicActionsCount: Int)(
-            implicit transid: TransactionId): Future[(ActivationId, Option[WhiskActivation], Int)] = {
+            implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)] = {
         require(action.exec.kind == Exec.SEQUENCE, "this method requires an action sequence")
 
         // create new activation id that corresponds to the sequence
@@ -100,7 +99,10 @@ protected[actions] trait SequenceActions {
         logging.info(this, s"invoking sequence $action topmost $topmost activationid '$seqActivationId'")
 
         val start = Instant.now(Clock.systemUTC())
-        val futureSeqResult = {
+        val futureSeqResult: Future[(Either[ActivationId, WhiskActivation], Int)] = {
+            // even though the result of completeSequenceActivation is Right[WhiskActivation],
+            // use a more general type for futureSeqResult in case a blocking invoke takes
+            // longer than expected and we must return Left[ActivationId] instead
             completeSequenceActivation(
                 seqActivationId,
                 // the cause for the component activations is the current sequence
@@ -109,17 +111,16 @@ protected[actions] trait SequenceActions {
         }
 
         if (topmost) { // need to deal with blocking and closing connection
-            if (blocking) {
+            waitForOutermostResponse.map { timeout =>
                 logging.info(this, s"invoke sequence blocking topmost!")
-                val timeout = maxWaitForBlockingActivation + blockingInvokeGrace
-                // if the future fails with a timeout, the failure is dealt with at the caller level
-                futureSeqResult.withTimeout(timeout, new BlockingInvokeTimeout(seqActivationId))
-            } else {
+                futureSeqResult.withAlternativeAfterTimeout(timeout, Future.successful(Left(seqActivationId), atomicActionsCount))
+            }.getOrElse {
                 // non-blocking sequence execution, return activation id
-                Future.successful((seqActivationId, None, 0))
+                Future.successful(Left(seqActivationId), 0)
             }
         } else {
             // not topmost, no need to worry about terminating incoming request
+            // and this is a blocking activation therefore by definition
             // Note: the future for the sequence result recovers from all throwable failures
             futureSeqResult
         }
@@ -136,20 +137,20 @@ protected[actions] trait SequenceActions {
         topmost: Boolean,
         start: Instant,
         cause: Option[ActivationId])(
-            implicit transid: TransactionId): Future[(ActivationId, Some[WhiskActivation], Int)] = {
+            implicit transid: TransactionId): Future[(Right[ActivationId, WhiskActivation], Int)] = {
         // not topmost, no need to worry about terminating incoming request
         // Note: the future for the sequence result recovers from all throwable failures
         futureSeqResult.map { accounting =>
             // sequence terminated, the result of the sequence is the result of the last completed activation
             val end = Instant.now(Clock.systemUTC())
             val seqActivation = makeSequenceActivation(user, action, seqActivationId, accounting, topmost, cause, start, end)
-            (seqActivationId, Some(seqActivation), accounting.atomicActionCnt)
+            (Right(seqActivation), accounting.atomicActionCnt)
         }.andThen {
-            case Success((_, Some(seqActivation), _)) => storeSequenceActivation(seqActivation)
-            case Failure(t) =>
-                // This should never happen; in this case, there is no activation record created or stored:
-                // should there be?
-                logging.error(this, s"Sequence activation failed: ${t.getMessage}")
+            case Success((Right(seqActivation), _)) => storeSequenceActivation(seqActivation)
+
+            // This should never happen; in this case, there is no activation record created or stored:
+            // should there be?
+            case Failure(t)                         => logging.error(this, s"Sequence activation failed: ${t.getMessage}")
         }
     }
 
@@ -312,27 +313,27 @@ protected[actions] trait SequenceActions {
             val futureWhiskActivationTuple = action.exec match {
                 case SequenceExec(components) =>
                     logging.info(this, s"sequence invoking an enclosed sequence $action")
-                    // call invokeSequence to invoke the inner sequence
-                    invokeSequence(user, action, inputPayload, blocking = true, topmost = false, components, cause, accounting.atomicActionCnt)
+                    // call invokeSequence to invoke the inner sequence; this is a blocking activation by definition
+                    invokeSequence(user, action, components, inputPayload, None, cause, topmost = false, accounting.atomicActionCnt)
                 case _ =>
                     // this is an invoke for an atomic action
                     logging.info(this, s"sequence invoking an enclosed atomic action $action")
-                    val timeout = action.limits.timeout.duration + blockingInvokeGrace
-                    invokeSingleAction(user, action, inputPayload, timeout, blocking = true, cause) map {
-                        case (activationId, wskActivation) => (activationId, wskActivation, accounting.atomicActionCnt + 1)
+                    val timeout = action.limits.timeout.duration + 1.minute
+                    invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
+                        case res => (res, accounting.atomicActionCnt + 1)
                     }
             }
 
             futureWhiskActivationTuple.map {
-                case (activationId, wskActivation, atomicActionCountSoFar) =>
-                    wskActivation.map {
-                        activation => accounting.maybe(activation, atomicActionCountSoFar, actionSequenceLimit)
-                    }.getOrElse {
-                        // the wskActivation is None only if the result could not be retrieved in time either from active ack or from db
-                        logging.error(this, s"component activation timedout for $activationId")
-                        val activationResponse = ActivationResponse.whiskError(sequenceRetrieveActivationTimeout(activationId))
-                        accounting.fail(activationResponse, Some(activationId))
-                    }
+                case (Right(activation), atomicActionCountSoFar) =>
+                    accounting.maybe(activation, atomicActionCountSoFar, actionSequenceLimit)
+
+                case (Left(activationId), atomicActionCountSoFar) =>
+                    // the result could not be retrieved in time either from active ack or from db
+                    logging.error(this, s"component activation timedout for $activationId")
+                    val activationResponse = ActivationResponse.whiskError(sequenceRetrieveActivationTimeout(activationId))
+                    accounting.fail(activationResponse, Some(activationId))
+
             }.recover {
                 // check any failure here and generate an activation response to encapsulate
                 // the failure mode; consider this failure a whisk error

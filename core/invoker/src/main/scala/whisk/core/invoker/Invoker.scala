@@ -47,6 +47,11 @@ import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
+import whisk.common.Scheduler
+import whisk.core.connector.PingMessage
+import scala.util.Try
+import whisk.core.connector.MessageProducer
+import org.apache.kafka.common.errors.RecordTooLargeException
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -92,7 +97,7 @@ class Invoker(
         // hence when the transaction is fully processed, this method will complete a promise with the datastore
         // future writing back the activation record and for which there are three cases:
         // 1. success: there were no exceptions and hence the invoke path operated normally,
-        // 2. error during invocation: an exception occurred while trying to run the action,
+        // 2. error during invocation: an exception occurred while trying to run the action (failed to bring up a container for example),
         // 3. error fetching action: an exception occurred reading from the db, didn't get to run.
         val transactionPromise = Promise[DocInfo]
 
@@ -102,6 +107,7 @@ class Invoker(
         if (actionid.rev == DocRevision.empty) {
             logging.error(this, s"revision was not provided for ${actionid.id}")
         }
+
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty) onComplete {
             case Success(action) =>
                 // only Exec instances that are subtypes of CodeExec reach the invoker
@@ -143,8 +149,12 @@ class Invoker(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
         val interval = computeActivationInterval(tran)
-        val activation = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, limits)
-        completeTransaction(tran, activation, FailedActivation(transid))
+        val activationResult = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, limits)
+
+        // send activate ack for failed activations
+        sendActiveAck(tran, activationResult)
+
+        completeTransaction(tran, activationResult, FailedActivation(transid))
     }
 
     /*
@@ -189,7 +199,8 @@ class Invoker(
         } map {
             case (failedInit, con, result) =>
                 // process the result and send active ack message
-                val activationResult = sendActiveAck(tran, action, failedInit, result)
+                val activationResult = makeActivationResultForSuccess(tran, action, failedInit, result)
+                sendActiveAck(tran, activationResult)
 
                 // after sending active ack, drain logs and return container
                 val contents = getContainerLogs(con, action.exec.asInstanceOf[CodeExec[_]].sentinelledLogs, action.limits.logs)
@@ -241,26 +252,40 @@ class Invoker(
     }
 
     /**
-     * Creates WhiskActivation for the "run result" (which could be a failed initialization) and send
-     * ActiveAck message.
+     * Creates WhiskActivation for the "run result" (which could be a failed initialization); this
+     * method is only reached if the action actually ran with no invoker exceptions).
      *
      * @return WhiskActivation
      */
-    private def sendActiveAck(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
+    private def makeActivationResultForSuccess(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
         implicit transid: TransactionId): WhiskActivation = {
         if (!failedInit) tran.runInterval = Some(result.interval)
 
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
-        val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
-        val completeMsg = CompletionMessage(transid, activationResult, this.name)
+        makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
+    }
 
-        producer.send(s"completed${msg.rootControllerIndex.toInt}", completeMsg) map { status =>
-            logging.info(this, s"posted completion of activation ${msg.activationId}")
+    /**
+     * Sends ActiveAck message for a completed activation.
+     * If for some reason posting to the message bus fails, an active ack may not be sent.
+     */
+    private def sendActiveAck(tran: Transaction, activationResult: WhiskActivation)(
+        implicit transid: TransactionId): Unit = {
+
+        def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
+            val msg = CompletionMessage(transid, res, this.name)
+            producer.send(s"completed${tran.msg.rootControllerIndex.toInt}", msg).andThen {
+                case Success(_) =>
+                    logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
+            }
         }
 
-        activationResult
+        send(Right(activationResult)).onFailure {
+            case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
+                send(Left(activationResult.activationId), recovery = true)
+        }
     }
 
     // The nodeJsAction runner inserts this line in the logs at the end
