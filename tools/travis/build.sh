@@ -12,6 +12,7 @@ tools/build/scanCode.py .
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
+GRADLE_PROJS_SKIP="-x :core:pythonAction:distDocker  -x :core:python2Action:distDocker -x :core:swift3Action:distDocker"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
@@ -21,10 +22,8 @@ $ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker -PdockerImagePrefix=testing \
- -x :core:pythonAction:distDocker \
- -x :core:python2Action:distDocker \
- -x :core:swift3Action:distDocker
+TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
+ 
 
 cd $ROOTDIR/ansible
 
@@ -33,10 +32,7 @@ $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-./gradlew :tests:testLean  \
- -x :core:pythonAction:distDocker \
- -x :core:python2Action:distDocker \
- -x :core:swift3Action:distDocker
+TERM=dumb ./gradlew :tests:testLean $GRADLE_PROJS_SKIP
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
