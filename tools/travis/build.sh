@@ -12,7 +12,7 @@ tools/build/scanCode.py .
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
-GRADLE_PROJS_SKIP="-x :core:pythonAction:distDocker  -x :core:python2Action:distDocker -x :core:swift3Action:distDocker"
+GRADLE_PROJS_SKIP="-x :core:pythonAction:distDocker  -x :core:python2Action:distDocker -x :core:swift3Action:distDocker -x :core:javaAction:distDocker"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
