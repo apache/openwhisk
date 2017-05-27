@@ -25,7 +25,7 @@ import common.WskTestHelpers
 
 @RunWith(classOf[JUnitRunner])
 class WskUnicodeNodeTests
-    extends WskUnicodeJavaTests
+    extends WskUnicodeTests
     with WskTestHelpers
     with JsHelpers {
 
