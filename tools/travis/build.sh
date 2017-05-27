@@ -21,7 +21,10 @@ $ANSIBLE_CMD apigateway.yml
 
 cd $ROOTDIR
 
-./gradlew distDocker -PdockerImagePrefix=testing
+./gradlew distDocker -PdockerImagePrefix=testing \
+ -x :core:pythonAction:distDocker \
+ -x :core:python2Action:distDocker \
+ -x :core:swift3Action:distDocker
 
 cd $ROOTDIR/ansible
 
@@ -30,7 +33,10 @@ $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-./gradlew :tests:testLean
+./gradlew :tests:testLean  \
+ -x :core:pythonAction:distDocker \
+ -x :core:python2Action:distDocker \
+ -x :core:swift3Action:distDocker
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
