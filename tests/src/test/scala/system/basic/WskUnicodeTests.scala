@@ -34,8 +34,8 @@ abstract class WskUnicodeTests
     with WskTestHelpers
     with JsHelpers {
 
-    lazy val actionKind = ""
-    lazy val actionSource = ""
+    val actionKind:String
+    val actionSource:String
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
