@@ -36,6 +36,7 @@ glob@7.1.1 \
 gm@1.23.0 \
 lodash@4.17.2 \
 log4js@0.6.38 \
+ibm_db@2.0.0 \
 iconv-lite@0.4.15 \
 marked@0.3.6 \
 merge@1.2.0 \

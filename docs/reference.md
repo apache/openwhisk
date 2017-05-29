@@ -220,6 +220,7 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - gm v1.23.0
 - lodash v4.17.2
 - log4js v0.6.38
+- ibm_db v2.0.0
 - iconv-lite v0.4.15
 - marked v0.3.6
 - merge v1.2.0
