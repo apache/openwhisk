@@ -1,28 +1,49 @@
 ---
 # Tasks for handling CLI customization and publishing
 
+- set_fact:
+    os_type: "mac"
+    cli_label: "darwin"
+  when: "'environments/mac' in inventory_dir"
+
+- set_fact:
+    os_type: "linux"
+    cli_label: "linux"
+  when: "'environments/linux' in inventory_dir"
+
+- set_fact:
+    os_type: "windows"
+    cli_label: "windows"
+  when: "'environments/windows' in inventory_dir"
+
 - name: "ensure nginx directory for cli exists"
   file:
-    path: "{{ cli_nginx_dir  }}"
+    path: "{{ cli_nginx_dir }}"
     state: directory
 
-- include: docker_login.yml
+- name: "ensure cli sub directory structure exists"
+  file:
+    path: "{{ cli_nginx_dir }}/{{ os_type }}/amd64"
+    state: directory
 
-- name: "pull the {{ docker_image_tag }} image of cli"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-  when: docker_registry != ""
+- name: "download cli into ngnix"
+  local_action: >
+    get_url
+    url="https://github.com/openwhisk/openwhisk-cli/releases/download/latest/OpenWhisk_CLI-latest-{{ cli_label }}-amd64.zip"
+    dest="{{ cli_nginx_dir }}/{{ os_type }}/amd64/OpenWhisk_CLI-{{ os_type }}.zip"
+    validate_certs=True
 
-- name: "run Docker"
-  shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
+- name: "unarchive cli into ngnix"
+  unarchive: >
+    src="{{ cli_nginx_dir }}/{{ os_type }}/amd64/OpenWhisk_CLI-{{ os_type }}.zip"
+    dest="{{ cli_nginx_dir }}/{{ os_type }}/amd64"
+    creates=wsk
+    mode=0755
 
-- name: "copy all the cli binaries into nginx"
-  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli_nginx_dir }}'"
-  ignore_errors: yes
-
-- name: "stop Docker"
-  shell: "docker stop cli"
-
-- name: "remove cli container after publishing"
-  shell: "docker rm cli"
-
-- include: download_cli.yml
+- name: "download cli to openwhisk home at {{ openwhisk_home }}"
+  local_action: >
+    get_url
+    url="https://{{ groups['edge'] | first }}/cli/go/download/{{ os_type }}/amd64/wsk"
+    dest="{{ openwhisk_home }}/bin/wsk"
+    mode=0755
+    validate_certs=False
