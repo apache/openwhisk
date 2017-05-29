@@ -16,6 +16,6 @@
 
 - name: remove nginx log directory
   file:
-    path: "{{ whisk_logs_dir }}/nginx"
+    path: "{{ whisk_logs_dir }}/edgeproxy"
     state: absent
   become: true
