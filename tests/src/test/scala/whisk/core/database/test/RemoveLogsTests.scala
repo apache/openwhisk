@@ -53,7 +53,7 @@ class RemoveLogsTests
         val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
     }
 
-    behavior of "Activation Log Cleanup Skript"
+    behavior of "Activation Log Cleanup Script"
 
     it should "delete logs in old activation and keep log in new activation" in {
         val dbName = dbPrefix + "test_log_cleanup_1"
@@ -64,20 +64,20 @@ class RemoveLogsTests
             val oldActivation = WhiskActivation(
                 namespace = EntityPath("testns1"),
                 name = EntityName("testname1"),
-                subject = Subject("test-sub"),
-                activationId = ActivationId.apply(),
+                subject = Subject("test-sub1"),
+                activationId = ActivationId(),
                 start = Instant.now.minus(2, ChronoUnit.DAYS),
                 end = Instant.now,
-                logs = ActivationLogs(Vector("first line", "second line")))
+                logs = ActivationLogs(Vector("first line1", "second line1")))
 
             val newActivation = WhiskActivation(
-                namespace = EntityPath("testns1"),
-                name = EntityName("testname1"),
-                subject = Subject("test-sub"),
-                activationId = ActivationId.apply(),
+                namespace = EntityPath("testns2"),
+                name = EntityName("testname2"),
+                subject = Subject("test-sub2"),
+                activationId = ActivationId(),
                 start = Instant.now,
                 end = Instant.now,
-                logs = ActivationLogs(Vector("first line", "second line")))
+                logs = ActivationLogs(Vector("first line2", "second line2")))
 
             db.putDoc(oldActivation.docid.asString, oldActivation.toJson).futureValue shouldBe 'right
             db.putDoc(newActivation.docid.asString, newActivation.toJson).futureValue shouldBe 'right
@@ -96,7 +96,7 @@ class RemoveLogsTests
             oldActivationRequest shouldBe 'right
             val oldActivationFromDb = oldActivationRequest.right.get.convertTo[WhiskActivation]
             // Compare the Json of the Whiskactivations in case the test fails -> better log output
-            oldActivationFromDb.toJson shouldBe oldActivation.copy(logs = ActivationLogs()).toJson
+            oldActivationFromDb.toJson shouldBe oldActivation.withoutLogs.toJson
         } finally {
             removeDatabase(dbName)
         }

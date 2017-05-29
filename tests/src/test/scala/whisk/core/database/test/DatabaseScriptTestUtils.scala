@@ -20,25 +20,22 @@ import scala.concurrent.duration.DurationInt
 import scala.io.Source
 
 import org.scalatest.Matchers
+import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 
 import akka.actor.ActorSystem
 import common.WaitFor
+import common.WhiskProperties
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpString
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.database.CouchDbRestClient
-import whisk.utils.retry
-import common.WhiskProperties
 
 trait DatabaseScriptTestUtils extends ScalaFutures
     with Matchers
-    with WaitFor {
-
-    implicit val testConfig = PatienceConfig(10.seconds)
+    with WaitFor
+    with IntegrationPatience {
 
     val python = WhiskProperties.python
 
@@ -50,6 +47,8 @@ trait DatabaseScriptTestUtils extends ScalaFutures
     val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
     val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
 
+    def retry[T](task: => T) = whisk.utils.retry(task, 10, Some(500.milliseconds))
+
     /** Creates a new database with the given name */
     def createDatabase(name: String, designDocPath: Option[String])(implicit as: ActorSystem, logging: Logging) = {
         // Implicitly remove database for sanitization purposes
@@ -57,12 +56,12 @@ trait DatabaseScriptTestUtils extends ScalaFutures
 
         println(s"Creating database: $name")
         val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
-        retry({ db.createDb().futureValue shouldBe 'right }, N = 10, waitBeforeRetry = Some(500.milliseconds))
+        retry(db.createDb().futureValue shouldBe 'right)
 
-        retry({
+        retry {
             val list = db.dbs().futureValue.right.get
             list should contain(name)
-        }, N = 10, waitBeforeRetry = Some(500.milliseconds))
+        }
 
         designDocPath.map { path =>
             val designDoc = Source.fromFile(path).mkString.parseJson.asJsObject
@@ -85,10 +84,10 @@ trait DatabaseScriptTestUtils extends ScalaFutures
     def removeDatabase(name: String, ignoreFailure: Boolean = false)(implicit as: ActorSystem, logging: Logging) = {
         println(s"Removing database: $name")
         val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
-        retry({
+        retry {
             val delete = db.deleteDb().futureValue
             if (!ignoreFailure) delete shouldBe 'right
-        }, N = 10, waitBeforeRetry = Some(500.milliseconds))
+        }
         db
     }
 

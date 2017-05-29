@@ -27,6 +27,11 @@ except NameError:
 
 DAY = 1000 * 60 * 60 * 24
 
+def removeLogFromActivation(viewResult):
+    doc = viewResult.doc
+    doc["logs"] = []
+    return doc
+
 #
 # Delete activations
 #
@@ -36,12 +41,7 @@ def deleteLogsFromOldActivations(args):
     while True:
         activations = db.view("logCleanup/byDateWithLogs", limit=args.docsPerRequest, start_key=0, end_key=endkey, include_docs=True)
         if activations:
-            def transform(viewResult):
-                doc = viewResult.doc
-                doc["logs"] = []
-                return doc
-
-            activationsWithoutLogs = map(lambda activation: transform(activation), activations)
+            activationsWithoutLogs = map(removeLogFromActivation, activations)
             db.update(activationsWithoutLogs)
         else:
             return
