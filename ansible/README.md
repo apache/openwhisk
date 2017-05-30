@@ -161,6 +161,10 @@ Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wipi
 After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
 See main [README](https://github.com/apache/incubator-openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
 
+### Verification after Deployment
+After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
+See main [README](https://github.com/openwhisk/openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
+
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
