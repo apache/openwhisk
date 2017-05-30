@@ -95,6 +95,7 @@ controller:
   blackboxFraction: 0.10
 
 consul:
+  confdir: "{{ config_root_dir }}/consul"
   version: 0.7.0
   port:
     server: 8300
@@ -103,6 +104,9 @@ consul:
     rpc: 8400
     http: 8500
     dns: 8600
+
+registry:
+  confdir: "{{ config_root_dir }}/registry"
 
 kafka:
   version: 0.10.0.1
@@ -126,6 +130,7 @@ invoker:
   useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
 
 nginx:
+  confdir: "{{ config_root_dir }}/nginx"
   version: 1.11
   port:
     http: 80
@@ -183,7 +188,9 @@ docker:
   restart:
     policy: always
 
-cli_path: "{{ openwhisk_home }}/bin/wsk"
+cli:
+  path: "{{ openwhisk_home }}/bin/wsk"
+  nginxdir: "{{ nginx.confdir }}/cli/go/download"
 
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"

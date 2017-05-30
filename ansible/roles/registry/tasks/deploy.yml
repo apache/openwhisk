@@ -4,22 +4,22 @@
 - name: "pull the {{ registry.version }} image of registry"
   shell: "docker pull registry:{{ registry.version }}"
 
-- name: "create {{ registry_conf_dir }} on registry {{ inventory_hostname }}"
+- name: "create {{ registry.confdir }} on registry {{ inventory_hostname }}"
   file:
-    path: "{{ registry_conf_dir }}/certs"
+    path: "{{ registry.confdir }}/certs"
     state: directory
   when: registry.gencert
 
 - name: "copy cert to registry"
-  copy: 
+  copy:
     src: "files/whisk_docker_registry.crt"
-    dest: "{{ registry_conf_dir }}/certs"
+    dest: "{{ registry.confdir }}/certs"
   when: registry.gencert
 
 - name: "copy key to registry"
-  copy: 
+  copy:
     src: "files/whisk_docker_registry.key"
-    dest: "{{ registry_conf_dir }}/certs"
+    dest: "{{ registry.confdir }}/certs"
   when: registry.gencert
 
 - name: (re)start registry with ssl enabled
@@ -35,7 +35,7 @@
     ports:
       - "{{ registry.port }}:5000"
     volumes:
-      - "{{ registry_conf_dir }}/certs:/certs"
+      - "{{ registry.confdir }}/certs:/certs"
   when: registry.gencert
 
 - name: (re)start registry with insecure ssl

@@ -3,6 +3,6 @@
 
 - name: remove blackbox sdk
   file:
-    path: "{{ nginx_conf_dir }}/blackbox-0.1.0.tar.gz"
+    path: "{{ nginx.confdir }}/blackbox-0.1.0.tar.gz"
     state: absent
   become: true

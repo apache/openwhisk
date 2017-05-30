@@ -2,6 +2,6 @@
 
 - name: remove cli nginx directory
   file:
-    path: "{{ cli_nginx_dir }}"
+    path: "{{ cli.nginxdir }}"
     state: absent
   become: true

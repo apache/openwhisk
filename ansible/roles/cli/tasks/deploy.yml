@@ -3,7 +3,7 @@
 
 - name: "ensure nginx directory for cli exists"
   file:
-    path: "{{ cli_nginx_dir  }}"
+    path: "{{ cli.nginxdir  }}"
     state: directory
 
 - include: docker_login.yml
@@ -16,7 +16,7 @@
   shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
 
 - name: "copy all the cli binaries into nginx"
-  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli_nginx_dir }}'"
+  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli.nginxdir }}'"
   ignore_errors: yes
 
 - name: "stop Docker"
