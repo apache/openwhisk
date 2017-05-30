@@ -36,7 +36,27 @@
       "SERVICE_CHECK_INTERVAL": "15s"
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
-    env_file: "{{ openwhisk_home }}/whisk.env"
+
+      "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
+
+      "DB_PREFIX": "{{ db_prefix }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
+      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+
+      "DEFAULTLIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ defaultLimits.actions.invokes.perMinute }}"
+      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ defaultLimits.actions.invokes.concurrent }}"
+      "DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE":"{{ defaultLimits.triggers.fires.perMinute }}"
+      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ defaultLimits.actions.invokes.concurrentInSystem }}"
+      "DEFAULTLIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ defaultLimits.actions.sequence.maxLength }}"
+      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.actions.invokes.perMinute }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.actions.invokes.concurrent }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.actions.invokes.concurrentInSystem }}"
+      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.triggers.fires.perMinute }}"
+      "LOADBALANCER_ACTIVATIONCOUNTBEFORENEXTINVOKER": "{{ loadbalancer_activation_count_before_next_invoker }}"
+
+      "WHISK_SYSTEM_KEY": "whisk.system"
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller:/logs"
     ports:
