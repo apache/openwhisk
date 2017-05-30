@@ -1,7 +1,7 @@
 ---
-# This role will install Consul Servers/Agents in all machines. 
+# This role will install Consul Servers/Agents in all machines.
 # In deploy mode it will deploy a consul agent or server depending on whether the host is in the consul_servers group.
-# In clean mode it will remove consul agents/server and registrator containers as well as consul_conf_dir
+# In clean mode it will remove consul agents/server and registrator containers as well as consul.confdir
 
 - include: deploy.yml
   when: mode == "deploy"

@@ -3,18 +3,18 @@
 
 - name: ensure nginx config directory exists
   file:
-    path: "{{ nginx_conf_dir }}"
+    path: "{{ nginx.confdir }}"
     state: directory
 
 - name: copy template from local to remote in nginx config directory
   template:
     src: nginx.conf.j2
-    dest: "{{ nginx_conf_dir }}/nginx.conf"
+    dest: "{{ nginx.confdir }}/nginx.conf"
 
 - name: copy cert files from local to remote in nginx config directory
   copy:
     src: "files/{{ item }}"
-    dest: "{{ nginx_conf_dir }}"
+    dest: "{{ nginx.confdir }}"
   with_items:
         - "{{ nginx.ssl.cert }}"
         - "{{ nginx.ssl.key }}"
@@ -22,7 +22,7 @@
 - name: copy password files for cert from local to remote in nginx config directory
   copy:
     src: "files/{{ nginx.ssl.password_file }}"
-    dest: "{{ nginx_conf_dir }}"
+    dest: "{{ nginx.confdir }}"
   when: nginx.ssl.password_enabled == true
 
 - name: ensure nginx log directory is created with permissions
@@ -45,7 +45,7 @@
     hostname: "nginx"
     volumes:
       - "{{ whisk_logs_dir }}/nginx:/logs"
-      - "{{ nginx_conf_dir }}:/etc/nginx"
+      - "{{ nginx.confdir }}:/etc/nginx"
     expose:
       - 8443
     ports:

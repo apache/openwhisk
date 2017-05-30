@@ -10,7 +10,7 @@
 
 - name: remove nginx config directory
   file:
-    path: "{{ nginx_conf_dir }}"
+    path: "{{ nginx.confdir }}"
     state: absent
   become: true
 

@@ -29,6 +29,6 @@
     version: "{{ version }}"
 
 - name: install the catalog from the catalog location
-  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ catalog_namespace }} {{ cli_path }} chdir="{{ catalog_location }}/packages"
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ catalog_namespace }} {{ cli.path }} chdir="{{ catalog_location }}/packages"
   environment:
     OPENWHISK_HOME: "{{ openwhisk_home }}"

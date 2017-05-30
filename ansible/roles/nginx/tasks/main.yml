@@ -1,7 +1,7 @@
 ---
-# This role will install nginx. 
+# This role will install nginx.
 # In deploy mode it will deploy an nginx server.
-# In clean mode it will remove the nginx server as well as nginx_conf_dir
+# In clean mode it will remove the nginx server as well as nginx.confdir
 
 - include: deploy.yml
   when: mode == "deploy"
