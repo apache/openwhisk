@@ -299,8 +299,29 @@ func printSummary(collection interface{}) {
     }
 }
 
+func Len(collection interface{}) func() int {
+	switch collection := collection.(type) {
+	case []whisk.Action:
+
+	case []whisk.Trigger:
+
+	case []whisk.Package:
+
+	case []whisk.Rule:
+		return func() int{
+			return len(collection)
+		}
+
+	}
+	return nil
+}
+
 func printActionList(actions []whisk.Action) {
     fmt.Fprintf(color.Output, "%s\n", boldString("actions"))
+    if (!flags.namespace.date) {
+        sort.Sort(whisk.ActionArray(actions))
+    }
+
     for _, action := range actions {
         publishState := wski18n.T("private")
         kind := getValueString(action.Annotations, "exec")
@@ -310,6 +331,10 @@ func printActionList(actions []whisk.Action) {
 
 func printTriggerList(triggers []whisk.Trigger) {
     fmt.Fprintf(color.Output, "%s\n", boldString("triggers"))
+    if (!flags.namespace.date) {
+        sort.Sort(whisk.TriggerArray(triggers))
+    }
+
     for _, trigger := range triggers {
         publishState := wski18n.T("private")
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace, trigger.Name), publishState)
@@ -318,6 +343,10 @@ func printTriggerList(triggers []whisk.Trigger) {
 
 func printPackageList(packages []whisk.Package) {
     fmt.Fprintf(color.Output, "%s\n", boldString("packages"))
+    if (!flags.namespace.date) {
+        sort.Sort(whisk.PackageArray(packages))
+    }
+
     for _, xPackage := range packages {
         publishState := wski18n.T("private")
         if xPackage.Publish != nil && *xPackage.Publish {
@@ -329,6 +358,10 @@ func printPackageList(packages []whisk.Package) {
 
 func printRuleList(rules []whisk.Rule) {
     fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
+    if (!flags.namespace.date) {
+        sort.Sort((whisk.RuleArray(rules)))
+    }
+
     for _, rule := range rules {
         publishState := wski18n.T("private")
         fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)

@@ -49,6 +49,20 @@ func (p *Package) GetName() string {
     return p.Name
 }
 
+type PackageArray []Package
+
+func (pa PackageArray) Len() int {
+    return len(pa)
+}
+
+func (pa PackageArray) Less(i int, j int) bool {
+    return pa[i].Name < pa[j].Name
+}
+
+func (pa PackageArray) Swap(i int, j int) {
+    pa[i], pa[j] = pa[j], pa[i]
+}
+
 // Use this struct when creating a binding
 // Publish is NOT optional; Binding is a namespace/name object, not a bool
 type BindingPackage struct {
