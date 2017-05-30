@@ -186,7 +186,7 @@ class ExecManifestTests
         bw.write("runtimes.manifest=" + config_manifest + "\n")
         bw.close()
 
-        var result:Try[_] = ExecManifest.initialize(new WhiskConfig(Map("runtimes.manifest" -> null), Set(), file), true)
+        val result = ExecManifest.initialize(new WhiskConfig(Map("runtimes.manifest" -> null), Set(), file), true)
 
         result.isSuccess should be (false)
 
