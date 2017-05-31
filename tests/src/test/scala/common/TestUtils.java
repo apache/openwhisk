@@ -254,10 +254,29 @@ public class TestUtils {
      * @throws IOException
      */
     public static RunResult runCmd(int expectedExitCode, File dir, Logger logger, Map<String, String> env, String... params) throws IOException {
+        return runCmd(expectedExitCode, dir, logger, env, null, params);
+    }
+
+    /**
+     * Runs a command in another process.
+     *
+     * @param expectedExitCode the exit code expected from the command when it exists
+     * @param dir the working directory the command runs with
+     * @param logger the object to manage logging message
+     * @param env an environment map
+     * @param fileStdin a file to use as the command's stdin input
+     * @param params the parameters (including executable) to run
+     * @return RunResult instance
+     * @throws IOException
+     */
+    public static RunResult runCmd(int expectedExitCode, File dir, Logger logger, Map<String, String> env, File fileStdin, String... params) throws IOException {
         ProcessBuilder pb = new ProcessBuilder(params);
         pb.directory(dir);
         if (env != null) {
             pb.environment().putAll(env);
+        }
+        if (fileStdin != null ) {
+            pb.redirectInput(fileStdin);
         }
         Process p = pb.start();
 

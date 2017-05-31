@@ -1003,11 +1003,12 @@ trait RunWskCmd extends Matchers {
             verbose: Boolean = false,
             env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
             workingDir: File = new File("."),
+            stdinFile: Option[File] = None,
             showCmd: Boolean = false): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
         if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
+        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, stdinFile.getOrElse(null), args ++ params: _*)
 
         withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
             if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
