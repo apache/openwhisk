@@ -46,7 +46,7 @@
 
       "DEFAULTLIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ defaultLimits.actions.invokes.perMinute }}"
       "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ defaultLimits.actions.invokes.concurrent }}"
-      "DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE":"{{ defaultLimits.triggers.fires.perMinute }}"
+      "DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ defaultLimits.triggers.fires.perMinute }}"
       "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ defaultLimits.actions.invokes.concurrentInSystem }}"
       "DEFAULTLIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ defaultLimits.actions.sequence.maxLength }}"
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.actions.invokes.perMinute }}"
