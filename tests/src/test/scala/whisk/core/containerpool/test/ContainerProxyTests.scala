@@ -104,6 +104,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     def run(machine: ActorRef, currentState: ContainerState) = {
         machine ! Run(action, message)
         expectMsg(Transition(machine, currentState, Running))
+        expectMsg(ActivationCompleted)
         expectWarmed(invocationNamespace.name, action)
         expectMsg(Transition(machine, Running, Ready))
     }
@@ -124,7 +125,6 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     /** Expect the container to pause successfully */
     def expectPause(machine: ActorRef) = {
         expectMsg(Transition(machine, Ready, Pausing))
-        expectWarmed(invocationNamespace.name, action)
         expectMsg(Transition(machine, Pausing, Paused))
     }
 
@@ -271,6 +271,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
+        expectMsg(ActivationCompleted)
         expectMsg(ContainerRemoved)
 
         awaitAssert {
@@ -299,6 +300,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
+        expectMsg(ActivationCompleted)
         expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
         expectMsg(Transition(machine, Running, Removing))
 
@@ -327,6 +329,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
+        expectMsg(ActivationCompleted)
         expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
         expectMsg(Transition(machine, Running, Removing))
 
@@ -426,6 +429,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
 
         // Finish /init, note that /run and log-collecting happens nonetheless
         initPromise.success(Interval.zero)
+        expectMsg(ActivationCompleted)
         expectWarmed(invocationNamespace.name, action)
         expectMsg(Transition(machine, Running, Ready))
 

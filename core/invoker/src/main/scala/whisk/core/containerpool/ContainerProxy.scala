@@ -37,6 +37,8 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.common.Counter
 import whisk.core.entity.ExecManifest.ImageName
+import whisk.common.AkkaLogging
+import whisk.http.Messages
 
 // States
 sealed trait ContainerState
@@ -64,6 +66,7 @@ case object Remove
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
 case object ContainerRemoved
+case object ActivationCompleted
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -88,6 +91,7 @@ class ContainerProxy(
     sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
+    val logging = new AkkaLogging(context.system.log)
 
     // The container is destroyed after this period of time
     val unusedTimeout = 10.minutes
@@ -130,6 +134,7 @@ class ContainerProxy(
                             case _                               => ActivationResponse.whiskError(t.getMessage)
                         }
                         val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
+                        self ! ActivationCompleted
                         sendActiveAck(transid, activation)
                         storeActivation(transid, activation)
                 }
@@ -189,6 +194,11 @@ class ContainerProxy(
             context.parent ! ContainerRemoved
             stop()
 
+        // Activation finished either successfully or not
+        case Event(ActivationCompleted, _) =>
+            context.parent ! ActivationCompleted
+            stay
+
         case _ => delay
     }
 
@@ -210,10 +220,7 @@ class ContainerProxy(
     }
 
     when(Pausing) {
-        case Event(ContainerPaused, data: WarmedData) =>
-            context.parent ! NeedWork(data)
-            goto(Paused)
-
+        case Event(ContainerPaused, data: WarmedData) => goto(Paused)
         case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
         case _ => delay
     }
@@ -319,6 +326,10 @@ class ContainerProxy(
         }.recover {
             case InitializationError(interval, response) =>
                 ContainerProxy.constructWhiskActivation(job, interval, response)
+            case t =>
+                // Actually, this should never happen - but we want to make sure to not miss a problem
+                logging.error(this, s"caught unexpected error while running activation: ${t}")
+                ContainerProxy.constructWhiskActivation(job, Interval.zero, ActivationResponse.whiskError(Messages.abnormalRun))
         }
 
         // Sending active ack and storing the activation are concurrent side-effects
@@ -333,6 +344,7 @@ class ContainerProxy(
         }.andThen {
             case Success(activation) => storeActivation(tid, activation)
         }.flatMap { activation =>
+            self ! ActivationCompleted
             // Fail the future iff the activation was unsuccessful to facilitate
             // better cleanup logic.
             if (activation.response.isSuccess) Future.successful(activation)
@@ -353,7 +365,7 @@ object ContainerProxy {
      * Generates a unique container name.
      *
      * @param prefix the container name's prefix
-     * @param suffic the container name's suffix
+     * @param suffix the container name's suffix
      * @return a unique container name
      */
     def containerName(prefix: String, suffix: String) =
