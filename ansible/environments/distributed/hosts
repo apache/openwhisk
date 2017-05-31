@@ -8,6 +8,8 @@ ansible ansible_connection=local
 10.3.2.153
 [edge]
 10.3.2.154
+[apigateway:children]
+edge
 [controllers]
 10.3.2.155
 [kafka]
