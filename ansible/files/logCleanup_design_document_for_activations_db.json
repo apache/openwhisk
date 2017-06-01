@@ -1,0 +1,9 @@
+{
+  "_id": "_design/logCleanup",
+  "views": {
+    "byDateWithLogs": {
+      "map": "function (doc) {\n  if (doc.activationId !== undefined && doc.logs && doc.logs.length > 0) {\n    emit(doc.start, doc._id);\n  }\n}"
+    }
+  },
+  "language": "javascript"
+}

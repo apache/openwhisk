@@ -21,13 +21,11 @@ import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.io.Source
 import scala.language.implicitConversions
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
@@ -40,74 +38,21 @@ import common.WskActorSystem
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.pimpAny
-import spray.json.pimpString
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbHost
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbPort
-import whisk.core.WhiskConfig.dbPrefix
-import whisk.core.WhiskConfig.dbProtocol
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbUsername
-import whisk.core.database.CouchDbRestClient
-import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class CleanUpActivationsTest extends FlatSpec
     with Matchers
     with ScalaFutures
     with WskActorSystem
-    with IntegrationPatience
     with WaitFor
-    with StreamLogging {
+    with StreamLogging
+    with DatabaseScriptTestUtils {
 
-    val config = new WhiskConfig(Map(
-        dbProvider -> null,
-        dbProtocol -> null,
-        dbUsername -> null,
-        dbPassword -> null,
-        dbHost -> null,
-        dbPort -> null,
-        dbPrefix -> null))
-    val testDbPrefix = s"cleanuptest_${config.dbPrefix}"
-    val dbUrl = s"${config.dbProtocol}://${config.dbUsername}:${config.dbPassword}@${config.dbHost}:${config.dbPort}"
-    val python = WhiskProperties.python
+    val testDbPrefix = s"cleanuptest_${dbPrefix}"
     val cleanUpTool = WhiskProperties.getFileRelativeToWhiskHome("tools/db/cleanUpActivations.py").getAbsolutePath
     val designDocPath = WhiskProperties.getFileRelativeToWhiskHome("ansible/files/activations_design_document_for_activations_db.json").getAbsolutePath
 
     implicit def toDuration(dur: FiniteDuration) = java.time.Duration.ofMillis(dur.toMillis)
-    def toEpochSeconds(i: Instant) = i.toEpochMilli / 1000
-
-    /** Creates a new database with the given name */
-    def createDatabase(name: String) = {
-        // Implicitly remove database for sanitization purposes
-        removeDatabase(name, true)
-
-        println(s"Creating database: $name")
-        val db = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name)
-        retry({ db.createDb().futureValue shouldBe 'right }, N = 10, waitBeforeRetry = Some(500.milliseconds))
-
-        retry({
-            val list = db.dbs().futureValue.right.get
-            list should contain(name)
-        }, N = 10, waitBeforeRetry = Some(500.milliseconds))
-
-        val designDoc = Source.fromFile(designDocPath).mkString.parseJson.asJsObject
-        db.putDoc(designDoc.fields("_id").convertTo[String], designDoc)
-
-        db
-    }
-
-    /** Removes the database with the given name */
-    def removeDatabase(name: String, ignoreFailure: Boolean = false) = {
-        println(s"Removing database: $name")
-        val db = new ExtendedCouchDbRestClient(config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name)
-        retry({
-            val delete = db.deleteDb().futureValue
-            if (!ignoreFailure) delete shouldBe 'right
-        }, N = 10, waitBeforeRetry = Some(500.milliseconds))
-        db
-    }
 
     /** Runs the clean up script to delete old activations */
     def runCleanUpTool(dbUrl: String, dbName: String, days: Int, docsPerRequest: Int = 200) = {
@@ -117,24 +62,12 @@ class CleanUpActivationsTest extends FlatSpec
         val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
     }
 
-    /** wait until all documents are processed by the view */
-    def waitForView(db: CouchDbRestClient, designDoc: String, viewName: String, numDocuments: Int) = {
-        waitfor(() => {
-            val view = db.executeView(designDoc, viewName)().futureValue
-            view shouldBe 'right
-            view.right.get.fields("rows").convertTo[List[JsObject]].length == numDocuments
-        }, totalWait = 2.minutes)
-    }
-
-    /** Wait for a document to appear */
-    def waitForDocument(client: ExtendedCouchDbRestClient, id: String) = waitfor(() => client.getDoc(id).futureValue.isRight)
-
     behavior of "Database clean up script"
 
     it should "delete old activations and keep new ones" in {
         // Create a database
         val dbName = testDbPrefix + "database_to_clean_old_and_keep_new"
-        val client = createDatabase(dbName)
+        val client = createDatabase(dbName, Some(designDocPath))
 
         println(s"Creating testdocuments")
         val oldDocument = JsObject("start" -> Instant.now.minus(6.days).toEpochMilli.toJson,
@@ -162,7 +95,7 @@ class CleanUpActivationsTest extends FlatSpec
     it should "delete old activations in several iterations" in {
         // Create a database
         val dbName = testDbPrefix + "database_to_clean_in_iterations"
-        val client = createDatabase(dbName)
+        val client = createDatabase(dbName, Some(designDocPath))
         println(s"Creating testdocuments")
         val ids = (1 to 5).map { current =>
             client.putDoc(s"testId_$current", JsObject("start" -> Instant.now.minus(2.days).toEpochMilli.toJson,
