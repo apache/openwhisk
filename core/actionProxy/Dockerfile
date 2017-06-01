@@ -7,7 +7,7 @@ RUN apk add --no-cache bash \
         bzip2-dev \
         gcc \
         libc-dev \
-  && pip install --upgrade pip setuptools \
+  && pip install --upgrade pip setuptools six \
   && pip install --no-cache-dir gevent==1.2.1 flask==0.12 \
   && apk del .build-deps
 
