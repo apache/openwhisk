@@ -51,6 +51,7 @@ YELLOW = '\033[33m'
 # Translatable messages (error and general)
 ERR_GENERAL = "an unspecified error was detected."
 ERR_INVALID_CONFIG_FILE = "Invalid configuration file [%s]: %s.\n"
+ERR_EMAIL = "file contains forbidden email addresses."
 ERR_LICENSE = "file does not include required license header."
 ERR_NO_EOL_AT_EOF = "file does not end with EOL."
 ERR_PATH_IS_NOT_DIRECTORY = "%s: [%s] is not a valid directory.\n"
@@ -94,12 +95,14 @@ SECTION_LICENSE = "Licenses"
 SECTION_EXCLUDE = "Excludes"
 SECTION_INCLUDE = "Includes"
 SECTION_OPTIONS = "Options"
+SECTION_EMAILS  = "EmailPatterns"
 
 # Configuration Options known keys
 OPT_LICENSE_SLACK_LEN = "license_slack_length"
 
 # Globals
 """Hold valid license headers within an array strings."""
+email_patterns = []
 valid_licenses = []
 exclusion_paths = []
 exclusion_files_set = set()
@@ -224,6 +227,19 @@ def read_scan_options(config):
         raise Exception(ERR_REQUIRED_SECTION % SECTION_OPTIONS)
 
 
+def read_email_patterns(config):
+    """Read the EmailPatterns from the configuration file."""
+    options_dict = get_config_section_dict(config, SECTION_EMAILS)
+    # vprint("options_dict: " + str(options_dict))
+    if options_dict is not None:
+        # each key is a pattern string
+        for pattern in options_dict:
+            if pattern is not None:
+                email_patterns.append(pattern)
+    else:
+        raise Exception(ERR_REQUIRED_SECTION % SECTION_EMAILS)
+
+
 def read_config_file(file):
     """Read in and validate configuration file."""
     try:
@@ -238,6 +254,7 @@ def read_config_file(file):
         read_path_inclusions(config)
         read_path_exclusions(config)
         read_scan_options(config)
+        read_email_patterns(config)
     except Exception as e:
         print_error(e)
         return -1
@@ -262,6 +279,13 @@ def no_trailing_spaces(line):
     else:
         return None
 
+def no_emails(line):
+    """Assert line does not contain given email addresses."""
+    for pattern in email_patterns:
+        if re.match(pattern, line):
+            return ERR_EMAIL
+        else:
+            return None
 
 def eol_at_eof(line):
     """Assert line at End of File is an End of Line character."""
@@ -469,7 +493,8 @@ if __name__ == "__main__":
     LINE_CHECK_FUNCTIONS.update({
         "no_tabs": no_tabs,
         "no_trailing_spaces": no_trailing_spaces,
-        "eol_at_eof": eol_at_eof
+        "eol_at_eof": eol_at_eof,
+        "no_emails": no_emails
     })
 
     # Read / load configuration file from file (pointer)
