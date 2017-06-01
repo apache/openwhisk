@@ -15,7 +15,7 @@ RUN apk add --no-cache \
         python-dev
 
 # Install common modules for python
-RUN pip install --no-cache-dir --upgrade pip setuptools \
+RUN pip install --no-cache-dir --upgrade pip setuptools six \
  && pip install --no-cache-dir \
         gevent==1.1.2 \
         flask==0.11.1 \
