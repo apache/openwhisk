@@ -168,20 +168,20 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
                                     rules.routes(user) ~
                                     activations.routes(user) ~
                                     packages.routes(user)
-                            } ~ webexp.routes(user)
-                } ~ {
-                    webexp.routes()
+                            }
                 } ~ {
                     swaggerRoutes
-                } ~ options {
-                    complete(OK)
                 }
             } ~ {
                 // web actions are distinct to separate the cors header
                 // and allow the actions themselves to respond to options
                 authenticate(basicauth) {
-                    user => web.routes(user)
-                } ~ web.routes()
+                    user => web.routes(user) ~ webexp.routes(user)
+                } ~ web.routes() ~ webexp.routes() ~ options {
+                    sendCorsHeaders {
+                        complete(OK)
+                    }
+                }
             }
         }
     }

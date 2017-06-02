@@ -148,7 +148,7 @@ trait WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+                    action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()
@@ -187,7 +187,7 @@ trait WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson, "require-whisk-auth" -> true.toJson))
+                    action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> true.toJson))
             }
 
             val host = getServiceURL()
@@ -210,25 +210,23 @@ trait WskWebActionsTests
             authorizedResponse.body.asString shouldBe namespace
     }
 
-    if (testRoutePath == "/api/v1/web") {
-        it should "ensure that CORS header is preserved" in withAssetCleaner(wskprops) {
-            (wp, assetHelper) =>
-                val name = "webaction"
-                val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+    it should "ensure that CORS header is preserved for custom options" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
 
-                assetHelper.withCleaner(wsk.action, name) {
-                    (action, _) =>
-                        action.create(name, file, annotations = Map("web-export" -> true.toJson))
-                }
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("true"), annotations = Map("web-custom-options" -> true.toJson))
+            }
 
-                val host = getServiceURL()
-                val url = host + s"$testRoutePath/$namespace/default/webaction.http"
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
 
-                val response = RestAssured.given().config(sslconfig).options(url)
-                response.statusCode shouldBe 200
-                response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
-                response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
-        }
+            val response = RestAssured.given().config(sslconfig).options(url)
+            response.statusCode shouldBe 200
+            response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
+            response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
     }
 
     it should "invoke web action to ensure the returned body argument is correct" in withAssetCleaner(wskprops) {
@@ -239,7 +237,7 @@ trait WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+                    action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()
@@ -265,7 +263,7 @@ trait WskWebActionsTests
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, annotations = Map("web-export" -> true.toJson))
+                    action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()

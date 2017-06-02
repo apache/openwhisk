@@ -40,6 +40,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
+import spray.http.HttpMethods.{OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH}
 import whisk.common.TransactionId
 import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
@@ -291,10 +292,16 @@ protected[core] object WhiskWebActionsApi extends Directives {
     }
 }
 
+protected[controller] trait RespondWithMethods extends RespondWithHeaders {
+    val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
+    override val sendCorsHeaders = respondWithHeaders(allowOrigin, allowMethods)
+}
+
 trait WhiskWebActionsApi
     extends Directives
     with ValidateRequestSize
-    with PostActionActivation {
+    with PostActionActivation
+    with RespondWithMethods {
     services: WhiskServices =>
 
     /** API path invocation path for posting activations directly through the host. */
@@ -406,6 +413,11 @@ trait WhiskWebActionsApi
                         requestMethodParamsAndPath { context =>
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
+                                    case Success((actionOwnerIdentity, action))
+                                        if context.method == OPTIONS && !action.annotations.asBool("web-custom-options").exists(identity) =>
+                                            sendCorsHeaders {
+                                                complete(OK, HttpEntity.Empty)
+                                            }
                                     case Success((actionOwnerIdentity, action)) =>
                                         extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
 
