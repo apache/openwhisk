@@ -1,8 +1,10 @@
 {# this template is used to generate a nginx.conf for booting a nginx server based on the given environment inventory #}
 
+worker_processes auto;
+
 events {
 {# default: 1024 #}
-    worker_connections  4096;  
+    worker_connections  4096;
 }
 
 http {
