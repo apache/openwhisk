@@ -63,8 +63,16 @@ class ContainerPool(
     prewarmConfig: Option[PrewarmingConfig] = None) extends Actor {
     val logging = new AkkaLogging(context.system.log)
 
-    val pool = new mutable.HashMap[ActorRef, WorkerData]
-    val prewarmedPool = new mutable.HashMap[ActorRef, WorkerData]
+    val pool = mutable.HashMap[ActorRef, WorkerData]()
+    val prewarmedPool = mutable.HashMap[ActorRef, WorkerData]()
+
+    /**
+     * Number of containers which are scheduled to be removed
+     * but not yet removed. Effectively this is an overcommit
+     * rate.
+     */
+    val removalSlack = 4
+    val removing = mutable.Set[ActorRef]()
 
     prewarmConfig.foreach { config =>
         logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")
@@ -79,17 +87,19 @@ class ContainerPool(
             // Schedule a job to a warm container
             ContainerPool.schedule(r.action, r.msg.user.namespace, pool.toMap).orElse {
                 // Create a cold container iff there's space in the pool
-                if (pool.size < maxPoolSize) {
+                if (pool.size < maxPoolSize && removing.size < removalSlack) {
                     takePrewarmContainer(r.action).orElse {
                         Some(createContainer())
                     }
                 } else None
             }.orElse {
-                // Remove a container and create a new one for the given job
-                ContainerPool.remove(r.action, r.msg.user.namespace, pool.toMap).map { toDelete =>
-                    removeContainer(toDelete)
-                    createContainer()
-                }
+                if (removing.size < removalSlack) {
+                    // Remove a container and create a new one for the given job
+                    ContainerPool.remove(r.action, r.msg.user.namespace, pool.toMap).map { toDelete =>
+                        removeContainer(toDelete)
+                        createContainer()
+                    }
+                } else None
             } match {
                 case Some(actor) =>
                     pool.get(actor) match {
@@ -117,6 +127,7 @@ class ContainerPool(
         // Container got removed
         case ContainerRemoved =>
             pool.remove(sender())
+            removing.remove(sender())
     }
 
     /** Creates a new container and updates state accordingly. */
@@ -159,6 +170,7 @@ class ContainerPool(
     def removeContainer(toDelete: ActorRef) = {
         toDelete ! Remove
         pool.remove(toDelete)
+        removing.add(toDelete)
     }
 }
 
