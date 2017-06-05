@@ -111,7 +111,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val (containers, factory) = testContainers(1)
         val feed = TestProbe()
 
-        val pool = system.actorOf(ContainerPool.props(factory, 0, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 0, 0, feed.ref))
         containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
     }
@@ -125,7 +125,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
     it should "reuse a warm container" in within(timeout) {
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
-        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
 
         pool ! runMessage
         containers(0).expectMsg(runMessage)
@@ -140,7 +140,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
 
-        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         // Note that the container doesn't respond, thus it's not free to take work
@@ -153,7 +153,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val feed = TestProbe()
 
         // a pool with only 1 slot
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
@@ -164,12 +164,40 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(1).expectMsg(runMessageDifferentEverything)
     }
 
+    it should "cache a container if there is still space in the pool" in within(timeout) {
+        val (containers, factory) = testContainers(2)
+        val feed = TestProbe()
+
+        // a pool with only 1 active slot but 2 slots in total
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 2, feed.ref))
+
+        // Run the first container
+        pool ! runMessage
+        containers(0).expectMsg(runMessage)
+        containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, ActivationCompleted)
+        feed.expectMsg(ContainerReleased)
+
+        // Run the second container, don't remove the first one
+        pool ! runMessageDifferentEverything
+        containers(1).expectMsg(runMessageDifferentEverything)
+        containers(1).send(pool, NeedWork(warmedData()))
+        containers(1).send(pool, ActivationCompleted)
+        feed.expectMsg(ContainerReleased)
+
+        pool ! runMessageDifferentNamespace
+        containers(2).expectMsg(runMessageDifferentNamespace)
+
+        // 2 Slots exhausted, remove the first container to make space
+        containers(0).expectMsg(Remove)
+    }
+
     it should "remove a container to make space in the pool if it is already full and another action with different invocation namespace arrives" in within(timeout) {
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
 
         // a pool with only 1 slot
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
@@ -185,7 +213,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val feed = TestProbe()
 
         // a pool with only 1 slot
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
@@ -205,7 +233,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val (containers, factory) = testContainers(1)
         val feed = TestProbe()
 
-        val pool = system.actorOf(ContainerPool.props(factory, 0, feed.ref, Some(PrewarmingConfig(1, exec, memoryLimit))))
+        val pool = system.actorOf(ContainerPool.props(factory, 0, 0, feed.ref, Some(PrewarmingConfig(1, exec, memoryLimit))))
         containers(0).expectMsg(Start(exec, memoryLimit))
     }
 
@@ -213,7 +241,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
 
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, exec, memoryLimit))))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref, Some(PrewarmingConfig(1, exec, memoryLimit))))
         containers(0).expectMsg(Start(exec, memoryLimit))
         containers(0).send(pool, NeedWork(preWarmedData(exec.kind)))
         pool ! runMessage
@@ -226,7 +254,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
         val alternativeExec = CodeExecAsString(RuntimeManifest("anotherKind", ImageName("testImage")), "testCode", None)
 
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, alternativeExec, memoryLimit))))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref, Some(PrewarmingConfig(1, alternativeExec, memoryLimit))))
         containers(0).expectMsg(Start(alternativeExec, memoryLimit)) // container0 was prewarmed
         containers(0).send(pool, NeedWork(preWarmedData(alternativeExec.kind)))
         pool ! runMessage
@@ -239,7 +267,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
         val alternativeLimit = 128.MB
 
-        val pool = system.actorOf(ContainerPool.props(factory, 1, feed.ref, Some(PrewarmingConfig(1, exec, alternativeLimit))))
+        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref, Some(PrewarmingConfig(1, exec, alternativeLimit))))
         containers(0).expectMsg(Start(exec, alternativeLimit)) // container0 was prewarmed
         containers(0).send(pool, NeedWork(preWarmedData(exec.kind, alternativeLimit)))
         pool ! runMessage
@@ -253,7 +281,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         val (containers, factory) = testContainers(2)
         val feed = TestProbe()
 
-        val pool = system.actorOf(ContainerPool.props(factory, 2, feed.ref))
+        val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
 
         // container0 is created and used
         pool ! runMessage
@@ -272,7 +300,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(1).expectMsg(runMessage)
     }
-
 }
 
 /**
@@ -302,12 +329,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     /** Helper to create NoData */
     def noData() = NoData()
 
-    /** Helper to create a free Worker, for shorter notation */
-    def freeWorker(data: ContainerData) = WorkerData(data, Free)
-
-    /** Helper to create a busy Worker, for shorter notation */
-    def busyWorker(data: ContainerData) = WorkerData(data, Busy)
-
     behavior of "ContainerPool schedule()"
 
     it should "not provide a container if idle pool is empty" in {
@@ -316,7 +337,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     it should "reuse an applicable warm container from idle pool with one container" in {
         val data = warmedData()
-        val pool = Map('name -> freeWorker(data))
+        val pool = Map('name -> data)
 
         // copy to make sure, referencial equality doesn't suffice
         ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe Some('name)
@@ -325,8 +346,8 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     it should "reuse an applicable warm container from idle pool with several applicable containers" in {
         val data = warmedData()
         val pool = Map(
-            'first -> freeWorker(data),
-            'second -> freeWorker(data))
+            'first -> data,
+            'second -> data)
 
         ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) should contain oneOf ('first, 'second)
     }
@@ -334,9 +355,9 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     it should "reuse an applicable warm container from idle pool with several different containers" in {
         val matchingData = warmedData()
         val pool = Map(
-            'none -> freeWorker(noData()),
-            'pre -> freeWorker(preWarmedData()),
-            'warm -> freeWorker(matchingData))
+            'none -> noData(),
+            'pre -> preWarmedData(),
+            'warm -> matchingData)
 
         ContainerPool.schedule(matchingData.action.copy(), matchingData.invocationNamespace, pool) shouldBe Some('warm)
     }
@@ -345,15 +366,15 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
         val data = warmedData()
         // data is **not** in the pool!
         val pool = Map(
-            'none -> freeWorker(noData()),
-            'pre -> freeWorker(preWarmedData()))
+            'none -> noData(),
+            'pre -> preWarmedData())
 
         ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe None
     }
 
     it should "not reuse a warm container with different invocation namespace" in {
         val data = warmedData()
-        val pool = Map('warm -> freeWorker(data))
+        val pool = Map('warm -> data)
         val differentNamespace = EntityName(data.invocationNamespace.asString + "butDifferent")
 
         data.invocationNamespace should not be differentNamespace
@@ -363,8 +384,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     it should "not reuse a warm container with different action name" in {
         val data = warmedData()
         val differentAction = data.action.copy(name = EntityName(data.action.name.asString + "butDifferent"))
-        val pool = Map(
-            'warm -> freeWorker(data))
+        val pool = Map('warm -> data)
 
         data.action.name should not be differentAction.name
         ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
@@ -373,8 +393,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     it should "not reuse a warm container with different action version" in {
         val data = warmedData()
         val differentAction = data.action.copy(version = data.action.version.upMajor)
-        val pool = Map(
-            'warm -> freeWorker(data))
+        val pool = Map('warm -> data)
 
         data.action.version should not be differentAction.version
         ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
@@ -388,22 +407,14 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     it should "not provide a container from busy pool with non-warm containers" in {
         val pool = Map(
-            'none -> freeWorker(noData()),
-            'pre -> freeWorker(preWarmedData()))
-        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
-    }
-
-    it should "not provide a container from busy pool with warm Busy containers" in {
-        val pool = Map(
-            'none -> freeWorker(noData()),
-            'pre -> freeWorker(preWarmedData()),
-            'busy -> busyWorker(warmedData()))
+            'none -> noData(),
+            'pre -> preWarmedData())
         ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
     }
 
     it should "not provide a container from pool with one single free container with the same action and namespace" in {
         val data = warmedData()
-        val pool = Map('warm -> freeWorker(data))
+        val pool = Map('warm -> data)
 
         // same data --> no removal
         ContainerPool.remove(data.action, data.invocationNamespace, pool) shouldBe None
@@ -427,26 +438,10 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
         val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0))
 
         val pool = Map(
-            'first -> freeWorker(first),
-            'second -> freeWorker(second),
-            'oldest -> freeWorker(oldest))
+            'first -> first,
+            'second -> second,
+            'oldest -> oldest)
 
         ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('oldest)
-    }
-
-    it should "provide oldest container of largest namespace group from busy pool with multiple containers" in {
-        val smallNamespace = "smallNamespace"
-        val mediumNamespace = "mediumNamespace"
-        val largeNamespace = "largeNamespace"
-
-        // Note: We choose the oldest from the **largest** pool, although all other containers are even older.
-        val myData = warmedData(namespace = smallNamespace, lastUsed = Instant.ofEpochMilli(0))
-        val pool = Map(
-            'my -> freeWorker(myData),
-            'other -> freeWorker(warmedData(namespace = mediumNamespace, lastUsed = Instant.ofEpochMilli(1))),
-            'largeYoung -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(3))),
-            'largeOld -> freeWorker(warmedData(namespace = largeNamespace, lastUsed = Instant.ofEpochMilli(2))))
-
-        ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('largeOld)
     }
 }

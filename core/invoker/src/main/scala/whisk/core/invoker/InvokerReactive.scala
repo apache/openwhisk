@@ -135,6 +135,7 @@ class InvokerReactive(
     val pool = actorSystem.actorOf(ContainerPool.props(
         childFactory,
         OldContainerPool.getDefaultMaxActive(config),
+        OldContainerPool.getDefaultMaxActive(config),
         activationFeed,
         Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
