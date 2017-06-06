@@ -100,17 +100,12 @@ class ContainerPool(
             } else None
 
             container match {
-                case Some(actor) =>
-                    freePool.get(actor) match {
-                        case Some(data) =>
-                            busyPool.update(actor, data)
-                            freePool.remove(actor)
-                            actor ! r // forwards the run request to the container
-                        case None =>
-                            logging.error(this, "actor data not found")
-                            self ! r
-                    }
-                case None => self ! r
+                case Some((actor, data)) =>
+                    busyPool.update(actor, data)
+                    freePool.remove(actor)
+                    actor ! r // forwards the run request to the container
+                case None =>
+                    self ! r
             }
 
         // Container is free to take more work
@@ -133,15 +128,17 @@ class ContainerPool(
     }
 
     /** Creates a new container and updates state accordingly. */
-    def createContainer() = {
+    def createContainer(): (ActorRef, ContainerData) = {
         val ref = childFactory(context)
-        freePool.update(ref, NoData())
-        ref
+        val data = NoData()
+        freePool.update(ref, data)
+
+        (ref, data)
     }
 
     /** Creates a new prewarmed container */
     def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize) =
-        prewarmConfig.foreach(config => childFactory(context) ! Start(exec, memoryLimit))
+        childFactory(context) ! Start(exec, memoryLimit)
 
     /**
      * Takes a prewarm container out of the prewarmed pool
@@ -150,23 +147,24 @@ class ContainerPool(
      * @param kind the kind you want to invoke
      * @return the container iff found
      */
-    def takePrewarmContainer(action: ExecutableWhiskAction) = prewarmConfig.flatMap { config =>
-        val kind = action.exec.kind
-        val memory = action.limits.memory.megabytes.MB
-        prewarmedPool.find {
-            case (_, PreWarmedData(_, `kind`, `memory`)) => true
-            case _                                       => false
-        }.map {
-            case (ref, data) =>
-                // Move the container to the usual pool
-                freePool.update(ref, data)
-                prewarmedPool.remove(ref)
-                // Create a new prewarm container
-                prewarmContainer(config.exec, config.memoryLimit)
+    def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] =
+        prewarmConfig.flatMap { config =>
+            val kind = action.exec.kind
+            val memory = action.limits.memory.megabytes.MB
+            prewarmedPool.find {
+                case (_, PreWarmedData(_, `kind`, `memory`)) => true
+                case _                                       => false
+            }.map {
+                case (ref, data) =>
+                    // Move the container to the usual pool
+                    freePool.update(ref, data)
+                    prewarmedPool.remove(ref)
+                    // Create a new prewarm container
+                    prewarmContainer(config.exec, config.memoryLimit)
 
-                ref
+                    (ref, data)
+            }
         }
-    }
 
     /** Removes a container and updates state accordingly. */
     def removeContainer(toDelete: ActorRef) = {
@@ -192,11 +190,11 @@ object ContainerPool {
      * @param idles a map of idle containers, awaiting work
      * @return a container if one found
      */
-    def schedule[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, idles: Map[A, ContainerData]): Option[A] = {
+    def schedule[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
         idles.find {
             case (_, WarmedData(_, `invocationNamespace`, `action`, _)) => true
             case _ => false
-        }.map(_._1)
+        }
     }
 
     /**
