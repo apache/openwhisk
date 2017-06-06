@@ -340,7 +340,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
         val pool = Map('name -> data)
 
         // copy to make sure, referencial equality doesn't suffice
-        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe Some('name)
+        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) shouldBe Some('name, data)
     }
 
     it should "reuse an applicable warm container from idle pool with several applicable containers" in {
@@ -349,7 +349,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'first -> data,
             'second -> data)
 
-        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) should contain oneOf ('first, 'second)
+        ContainerPool.schedule(data.action.copy(), data.invocationNamespace, pool) should (be(Some('first, data)) or be(Some('second, data)))
     }
 
     it should "reuse an applicable warm container from idle pool with several different containers" in {
@@ -359,7 +359,7 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
             'pre -> preWarmedData(),
             'warm -> matchingData)
 
-        ContainerPool.schedule(matchingData.action.copy(), matchingData.invocationNamespace, pool) shouldBe Some('warm)
+        ContainerPool.schedule(matchingData.action.copy(), matchingData.invocationNamespace, pool) shouldBe Some('warm, matchingData)
     }
 
     it should "not reuse a container from idle pool with non-warm containers" in {
