@@ -561,12 +561,16 @@ class WskActivation()
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
     def get(
-        activationId: String,
+        activationId: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
-        fieldFilter: Option[String] = None)(
+        fieldFilter: Option[String] = None,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        val params = { fieldFilter map { f => Seq(f) } getOrElse Seq() }
-        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey, activationId) ++ params, expectedExitCode)
+        val params =
+          {activationId map {a => Seq(a)} getOrElse Seq() } ++
+          { fieldFilter map { f => Seq(f) } getOrElse Seq() } ++
+          {last map {l => Seq("--last")} getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**
@@ -577,10 +581,14 @@ class WskActivation()
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
     def logs(
-        activationId: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        activationId: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "logs", activationId, "--auth", wp.authKey), expectedExitCode)
+        val params =
+          {activationId map {a => Seq(a)} getOrElse Seq() } ++
+          {last map {l => Seq("--last")} getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "logs", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**
@@ -591,10 +599,14 @@ class WskActivation()
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
      */
     def result(
-        activationId: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        activationId: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "result", activationId, "--auth", wp.authKey), expectedExitCode)
+        val params =
+          {activationId map {a => Seq(a)} getOrElse Seq() } ++
+          {last map {l => Seq("--last")} getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "result", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**

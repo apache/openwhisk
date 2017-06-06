@@ -852,34 +852,145 @@ class WskBasicTests
             withActivation(wsk.activation, run) {
                 activation =>
                     val successMsg = s"ok: got activation ${activation.activationId}, displaying field"
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("activationid")).stdout should include(s"""$successMsg activationid\n"${activation.activationId}""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("annotations")).stdout should include(s"""$successMsg annotations\n[]""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("activationid")).stdout should include(s"""$successMsg activationid\n"${activation.activationId}""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("annotations")).stdout should include(s"""$successMsg annotations\n[]""")
             }
     }
 
     it should "reject get of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.get(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.get(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject logs of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.logs(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.logs(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get logs for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject result of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.result(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.result(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    }
+
+    it should "invoke an action and get the last activation" in withAssetCleaner(wskprops) {
+        (wp,assetHelper) =>
+        val name = "activationLast"
+        val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+        assetHelper.withCleaner(wsk.action, name) {
+          (action,_) => action.create(name, file)
+        }
+
+        val ar = wsk.action.invoke(name)
+        Thread.sleep(1000)
+        val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
+        wsk.activation.extractActivationId(ar) shouldBe lastID
+    }
+
+    it should "invoke an action and get the logs of the last activation" in withAssetCleaner(wskprops) {
+        (wp,assetHelper) =>
+        val name = "activationLast"
+        val file = Some(TestUtils.getTestActionFilename("hello.js"))
+        val params = Map("payload" -> "World".toJson)
+
+        assetHelper.withCleaner(wsk.action, name) {
+          (action,_) => action.create(name, file, parameters = params)
+        }
+
+        val rr = wsk.action.invoke(name)
+        Thread.sleep(1000)
+        val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
+        (wsk.activation.logs(wsk.activation.extractActivationId(rr))).toString shouldBe (wsk.activation.logs(lastID)).toString
+    }
+
+    it should "invoke an action and get the results of the last activation" in withAssetCleaner(wskprops) {
+      (wp, assetHelper) =>
+      val name = "activationLast"
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+      val params = Map("payload" -> "World".toJson)
+
+      assetHelper.withCleaner(wsk.action,name) {
+        (action,_) => action.create(name, file, parameters =params)
+      }
+
+      val ar = wsk.action.invoke(name)
+      Thread.sleep(1000)
+      val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
+      (wsk.activation.result(wsk.activation.extractActivationId(ar))).toString shouldBe (wsk.activation.result(lastID)).toString
+    }
+
+    it should "reject get when using activation ID and --last" in withAssetCleaner(wskprops) {
+      (wp, assetHelper) =>
+      val name = "activationLast"
+      val file = Some(TestUtils.getTestActionFilename("echo.js"))
+      val errormsg = "error: Unable to get activation: When specifying an activation ID, do not use the --last flag"
+
+      assetHelper.withCleaner(wsk.action, name) {
+        (action,_) => action.create(name, file)
+      }
+
+      val ar = wsk.action.invoke(name)
+      Thread.sleep(1000)
+      val arID = wsk.activation.extractActivationId(ar)
+      wsk.activation.get(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
+    }
+
+    it should "reject logs when using activation ID and --last" in withAssetCleaner(wskprops) {
+      (wp, assetHelper) =>
+      val name = "activationLast"
+      val file = Some(TestUtils.getTestActionFilename("echo.js"))
+      val errormsg = "error: Unable to get logs for activation: When specifying an activation ID, do not use the --last flag"
+
+      assetHelper.withCleaner(wsk.action, name) {
+        (action,_) => action.create(name, file)
+      }
+
+      val ar = wsk.action.invoke(name)
+      Thread.sleep(1000)
+      val arID = wsk.activation.extractActivationId(ar)
+      wsk.activation.logs(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
+    }
+
+    it should "reject result when using activation ID and --last" in withAssetCleaner(wskprops) {
+      (wp, assetHelper) =>
+      val name = "activationLast"
+      val file = Some(TestUtils.getTestActionFilename("echo.js"))
+      val errormsg = "error: Unable to get result for activation: When specifying an activation ID, do not use the --last flag"
+
+      assetHelper.withCleaner(wsk.action, name) {
+        (action,_) => action.create(name, file)
+      }
+
+      val ar = wsk.action.invoke(name)
+      Thread.sleep(1000)
+      val arID = wsk.activation.extractActivationId(ar)
+      wsk.activation.result(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
+    }
+
+    it should "reject get when using activation ID, filter field and --last" in withAssetCleaner(wskprops) {
+      (wp, assetHelper) =>
+      val name = "activationLast"
+      val file = Some(TestUtils.getTestActionFilename("echo.js"))
+      val errormsg = "error: Unable to get activation: When specifying an activation ID, do not use the --last flag"
+
+      assetHelper.withCleaner(wsk.action, name) {
+        (action,_) => action.create(name, file)
+      }
+
+      val ar = wsk.action.invoke(name)
+      Thread.sleep(1000)
+      val arID = wsk.activation.extractActivationId(ar)
+      wsk.activation.get(arID, fieldFilter = Some("publish") , last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
     }
 }
