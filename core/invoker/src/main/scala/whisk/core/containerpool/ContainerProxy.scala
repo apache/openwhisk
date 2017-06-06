@@ -37,6 +37,8 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.common.Counter
 import whisk.core.entity.ExecManifest.ImageName
+import whisk.common.AkkaLogging
+import whisk.http.Messages
 
 // States
 sealed trait ContainerState
@@ -64,6 +66,12 @@ case object Remove
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
 case object ContainerRemoved
+/**
+ * Indicates the container resource is now free to receive a new request.
+ * This message is sent to the parent which in turn notifies the feed that a
+ * resource slot is available.
+ */
+case object ActivationCompleted
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -88,6 +96,7 @@ class ContainerProxy(
     sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
+    val logging = new AkkaLogging(context.system.log)
 
     // The container is destroyed after this period of time
     val unusedTimeout = 10.minutes
@@ -99,7 +108,7 @@ class ContainerProxy(
     startWith(Uninitialized, NoData())
 
     when(Uninitialized) {
-        // pre warm a container
+        // pre warm a container (creates a stem cell container)
         case Event(job: Start, _) =>
             factory(
                 TransactionId.invokerWarmup,
@@ -112,32 +121,49 @@ class ContainerProxy(
 
             goto(Starting)
 
-        // cold start
+        // cold start (no container to reuse or available stem cell container)
         case Event(job: Run, _) =>
             implicit val transid = job.msg.transid
-            factory(
+
+            // create a new container
+            val container = factory(
                 job.msg.transid,
                 ContainerProxy.containerName(job.msg.user.namespace.name, job.action.name.name),
                 job.action.exec.image,
                 job.action.exec.pull,
                 job.action.limits.memory.megabytes.MB)
-                .andThen {
-                    case Success(container) => self ! PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB)
-                    case Failure(t) =>
-                        val response = t match {
-                            case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
-                            case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
-                            case _                               => ActivationResponse.whiskError(t.getMessage)
-                        }
-                        val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
-                        sendActiveAck(transid, activation)
-                        storeActivation(transid, activation)
-                }
-                .flatMap {
-                    container =>
-                        initializeAndRun(container, job)
-                            .map(_ => WarmedData(container, job.msg.user.namespace, job.action, Instant.now))
-                }.pipeTo(self)
+
+            // container factory will either yield a new container ready to execute the action, or
+            // starting up the container failed; for the latter, it's either an internal error starting
+            // a container or a docker action that is not conforming to the required action API
+            container.andThen {
+                case Success(container) =>
+                    // the container is ready to accept an activation; register it as PreWarmed; this
+                    // normalizes the life cycle for containers and their cleanup when activations fail
+                    self ! PreWarmedData(container, job.action.exec.kind, job.action.limits.memory.megabytes.MB)
+
+                case Failure(t) =>
+                    // the container did not come up cleanly, so disambiguate the failure mode and then cleanup
+                    // the failure is either the system fault, or for docker actions, the application/developer fault
+                    val response = t match {
+                        case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
+                        case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
+                        case _                               => ActivationResponse.whiskError(t.getMessage)
+                    }
+                    // construct an appropriate activation and record it in the datastore,
+                    // also update the feed and active ack; the container cleanup is queued
+                    // implicitly via a FailureMessage which will be processed later when the state
+                    // transitions to Running
+                    val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
+                    self ! ActivationCompleted
+                    sendActiveAck(transid, activation)
+                    storeActivation(transid, activation)
+            }.flatMap {
+                container =>
+                    // now attempt to inject the user code and run the action
+                    initializeAndRun(container, job)
+                        .map(_ => WarmedData(container, job.msg.user.namespace, job.action, Instant.now))
+            }.pipeTo(self)
 
             goto(Running)
     }
@@ -189,6 +215,11 @@ class ContainerProxy(
             context.parent ! ContainerRemoved
             stop()
 
+        // Activation finished either successfully or not
+        case Event(ActivationCompleted, _) =>
+            context.parent ! ActivationCompleted
+            stay
+
         case _ => delay
     }
 
@@ -210,10 +241,7 @@ class ContainerProxy(
     }
 
     when(Pausing) {
-        case Event(ContainerPaused, data: WarmedData) =>
-            context.parent ! NeedWork(data)
-            goto(Paused)
-
+        case Event(ContainerPaused, data: WarmedData) => goto(Paused)
         case Event(_: FailureMessage, data: WarmedData) => destroyContainer(data.container)
         case _ => delay
     }
@@ -284,6 +312,11 @@ class ContainerProxy(
 
     /**
      * Runs the job, initialize first if necessary.
+     * Completes the job by:
+     * 1. sending an activate ack,
+     * 2. fetching the logs for the run,
+     * 3. indicating the resource is free to the parent pool,
+     * 4. recording the result to the data store
      *
      * @param container the container to run the job on
      * @param job the job to run
@@ -319,13 +352,18 @@ class ContainerProxy(
         }.recover {
             case InitializationError(interval, response) =>
                 ContainerProxy.constructWhiskActivation(job, interval, response)
+            case t =>
+                // Actually, this should never happen - but we want to make sure to not miss a problem
+                logging.error(this, s"caught unexpected error while running activation: ${t}")
+                ContainerProxy.constructWhiskActivation(job, Interval.zero, ActivationResponse.whiskError(Messages.abnormalRun))
         }
 
         // Sending active ack and storing the activation are concurrent side-effects
         // and do not block further execution of the future. They are completely
         // asynchronous.
         activation.andThen {
-            case Success(activation) => sendActiveAck(tid, activation)
+            // the activation future will always complete with Success
+            case Success(ack) => sendActiveAck(tid, ack)
         }.flatMap { activation =>
             container.logs(job.action.limits.logs.asMegaBytes, job.action.exec.sentinelledLogs).map { logs =>
                 activation.withLogs(ActivationLogs(logs.toVector))
@@ -333,6 +371,7 @@ class ContainerProxy(
         }.andThen {
             case Success(activation) => storeActivation(tid, activation)
         }.flatMap { activation =>
+            self ! ActivationCompleted
             // Fail the future iff the activation was unsuccessful to facilitate
             // better cleanup logic.
             if (activation.response.isSuccess) Future.successful(activation)
@@ -353,7 +392,7 @@ object ContainerProxy {
      * Generates a unique container name.
      *
      * @param prefix the container name's prefix
-     * @param suffic the container name's suffix
+     * @param suffix the container name's suffix
      * @return a unique container name
      */
     def containerName(prefix: String, suffix: String) =

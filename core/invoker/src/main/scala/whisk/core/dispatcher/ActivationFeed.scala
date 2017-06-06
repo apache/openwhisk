@@ -90,8 +90,8 @@ protected class ActivationFeed(
                     case (records, count) =>
                         records foreach {
                             case (topic, partition, offset, bytes) =>
-                                logging.info(this, s"processing $topic[$partition][$offset ($count)]")
                                 pipelineOccupancy += 1
+                                logging.info(this, s"processing $topic[$partition][$offset ($count)][pipelineOccupancy=${pipelineOccupancy} (${pipelineFillThreshold})]")
                                 handler(topic, bytes)
                         }
                 } recover {
@@ -101,8 +101,12 @@ protected class ActivationFeed(
                 fill()
             } else logging.debug(this, "dropping fill request until feed is drained")
 
-        case _: ActivationNotification =>
+        case n: ActivationNotification =>
             pipelineOccupancy -= 1
+            logging.info(this, s"received ActivationNotification: $n / pipelineOccupancy=$pipelineOccupancy / pipelineFillThreshold=$pipelineFillThreshold")
+            if (pipelineOccupancy < 0) {
+                logging.error(this, "pipelineOccupancy<0")
+            }
             fill()
     }
 

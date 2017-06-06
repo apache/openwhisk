@@ -106,12 +106,12 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
     behavior of "ContainerPool"
 
-    it should "indicate free resources to the feed only if a warm container responds" in within(timeout) {
+    it should "indicate free resources to the feed once activations finish" in within(timeout) {
         val (containers, factory) = testContainers(1)
         val feed = TestProbe()
 
         val pool = system.actorOf(ContainerPool.props(factory, 0, feed.ref))
-        containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
     }
 
@@ -156,6 +156,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
         pool ! runMessageDifferentEverything
         containers(0).expectMsg(Remove)
@@ -171,6 +172,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
         pool ! runMessageDifferentNamespace
         containers(0).expectMsg(Remove)
@@ -186,6 +188,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
         pool ! runMessage
         containers(0).expectMsg(runMessage)

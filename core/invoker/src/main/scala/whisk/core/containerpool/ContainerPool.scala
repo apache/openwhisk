@@ -51,7 +51,7 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * Prewarm containers are only used, if they have matching arguments
  * (kind, memory) and there is space in the pool.
  *
- * @param childFactory method to create new containers
+ * @param childFactory method to create new container proxy actors
  * @param maxPoolSize maximum size of containers allowed in the pool
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
@@ -95,7 +95,7 @@ class ContainerPool(
                     pool.get(actor) match {
                         case Some(w) =>
                             pool.update(actor, WorkerData(w.data, Busy))
-                            actor ! r
+                            actor ! r // forwards the run request to the container
                         case None =>
                             logging.error(this, "actor data not found")
                             self ! r
@@ -106,17 +106,16 @@ class ContainerPool(
             }
 
         // Container is free to take more work
-        case NeedWork(data: WarmedData) =>
-            pool.update(sender(), WorkerData(data, Free))
-            feed ! ContainerReleased
+        case NeedWork(data: WarmedData)    => pool.update(sender(), WorkerData(data, Free))
 
         // Container is prewarmed and ready to take work
-        case NeedWork(data: PreWarmedData) =>
-            prewarmedPool.update(sender(), WorkerData(data, Free))
+        case NeedWork(data: PreWarmedData) => prewarmedPool.update(sender(), WorkerData(data, Free))
 
         // Container got removed
-        case ContainerRemoved =>
-            pool.remove(sender())
+        case ContainerRemoved              => pool.remove(sender())
+
+        // Activation completed
+        case ActivationCompleted           => feed ! ContainerReleased
     }
 
     /** Creates a new container and updates state accordingly. */

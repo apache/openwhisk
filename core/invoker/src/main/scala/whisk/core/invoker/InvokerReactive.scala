@@ -42,11 +42,11 @@ import whisk.core.containerpool.Run
 import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
+import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
-import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.containerpool.ContainerPool
 import whisk.core.database.NoDocumentException
 import whisk.http.Messages
@@ -192,7 +192,7 @@ class InvokerReactive(
                         Parameters("path", msg.action.toString.toJson) ++ causedBy
                     })
 
-                activationFeed ! ContainerReleased
+                activationFeed ! FailedActivation(msg.transid)
                 ack(msg.transid, activation)
                 store(msg.transid, activation)
         }
