@@ -17,14 +17,10 @@
 
 package whisk.http
 
-import akka.actor.Actor
-import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.japi.Creator
 import spray.httpx.SprayJsonSupport._
 import whisk.common.Logging
 import whisk.common.TransactionId
-import scala.concurrent.duration.FiniteDuration
 
 /**
  * This trait extends the BasicHttpService with a standard "ping" endpoint which
@@ -44,30 +40,5 @@ trait BasicRasService extends BasicHttpService {
 
     val ping = path("ping") {
         get { complete("pong") }
-    }
-}
-
-/**
- * Singleton which provides a factory for instances of the BasicRasService.
- */
-object BasicRasService {
-
-    def startService(system: ActorSystem, name: String, interface: String, port: Integer, instance: Int, numberOfInstances: Int, delay: FiniteDuration)(implicit logging: Logging) = {
-        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder(instance, numberOfInstances), delay)
-    }
-
-    /**
-     * In spray, we send messages to an Akka Actor. A RasService represents an Actor
-     * which extends the BasicRasService trait.
-     */
-    private class RasService(override val instance: Int, override val numberOfInstances: Int)(implicit val logging: Logging) extends BasicRasService with Actor {
-        override def actorRefFactory = context
-    }
-
-    /**
-     * Akka-style factory for RasService.
-     */
-    private class ServiceBuilder(instance: Int, numberOfInstances: Int)(implicit logging: Logging) extends Creator[RasService] {
-        def create = new RasService(instance, numberOfInstances)
     }
 }
