@@ -132,12 +132,16 @@ object WhiskConfig {
                 else null
             } else null
 
-        val dir = sys.props.get("user.dir")
-        if (dir.isDefined) {
-            propfile(dir.get, true)
-        } else {
-            null
+        def propfileFromDir(dir: Option[String]): File = {
+            dir.map { propfile(_, true) } getOrElse null
         }
+
+        var dir = sys.props.get("user.dir")
+        val file = propfileFromDir(dir)
+        if (file == null) {
+            dir = sys.env.get("OPENWHISK_HOME")
+            propfileFromDir(dir)
+        } else file
     }
 
     /**
