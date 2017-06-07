@@ -18,6 +18,11 @@
 package whisk.core.entity
 
 import java.time.Instant
+
+import scala.concurrent.Future
+import scala.language.postfixOps
+import scala.util.Try
+
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
@@ -38,15 +43,13 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-import scala.concurrent.Future
-import scala.language.postfixOps
-import scala.util.Try
+import whisk.core.database.WhiskCache
 import whisk.spi.SpiLoader
 
 package object types {
-    type AuthStore = ArtifactStore[WhiskAuth]
-    type EntityStore = ArtifactStore[WhiskEntity]
-    type ActivationStore = ArtifactStore[WhiskActivation]
+    type AuthStore = ArtifactStore[WhiskAuth, Identity]
+    type EntityStore = ArtifactStore[WhiskEntity, WhiskEntity]
+    type ActivationStore = ArtifactStore[WhiskActivation, WhiskActivation]
 }
 protected[core] trait WhiskDocument
     extends DocumentSerializer
@@ -94,8 +97,12 @@ object WhiskAuthStore {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskAuth](config, _.dbAuths)
+    def datastore(config: WhiskConfig, cache: Option[WhiskCache[Identity, DocInfo]])(implicit system: ActorSystem, logging: Logging) =
+        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskAuth, Identity](config, _.dbAuths, cache)
+
+    def cache() = {
+        Some(SpiLoader.get[ArtifactStoreProvider]().makeCache[Identity])
+    }
 }
 
 object WhiskEntityStore {
@@ -108,9 +115,12 @@ object WhiskEntityStore {
             dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+    def datastore(config: WhiskConfig, cache: Option[WhiskCache[WhiskEntity, DocInfo]])(implicit system: ActorSystem, logging: Logging) =
+        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity, WhiskEntity](config, _.dbWhisk, cache)(WhiskEntityJsonFormat, system, logging)
 
+    def cache() = {
+        Some(SpiLoader.get[ArtifactStoreProvider]().makeCache[WhiskEntity])
+    }
 }
 
 object WhiskActivationStore {
@@ -124,9 +134,8 @@ object WhiskActivationStore {
             dbActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskActivation](config, _.dbActivations)
+        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskActivation, WhiskActivation](config, _.dbActivations, None)
 }
-
 
 /**
  * This object provides some utilities that query the whisk datastore.
@@ -181,7 +190,7 @@ object WhiskEntityQueries {
      * to a map that collects the entities by their type.
      */
     def listAllInNamespace[A <: WhiskEntity](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         namespace: EntityPath,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
@@ -203,7 +212,7 @@ object WhiskEntityQueries {
      * to a map that collects the entities by their type.
      */
     def listEntitiesInNamespace[A <: WhiskEntity](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         namespace: EntityPath,
         includeDocs: Boolean)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
@@ -221,7 +230,7 @@ object WhiskEntityQueries {
     }
 
     def listCollectionInAnyNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         collection: String,
         skip: Int,
         limit: Int,
@@ -236,7 +245,7 @@ object WhiskEntityQueries {
     }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         collection: String,
         namespace: EntityPath,
         skip: Int,
@@ -251,7 +260,7 @@ object WhiskEntityQueries {
     }
 
     def listCollectionByName[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         collection: String,
         namespace: EntityPath,
         name: EntityName,
@@ -267,7 +276,7 @@ object WhiskEntityQueries {
     }
 
     private def query[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         view: String,
         startKey: List[Any],
         endKey: List[Any],
@@ -304,7 +313,7 @@ trait WhiskEntityQueries[T] {
     val serdes: RootJsonFormat[T]
 
     def listCollectionInAnyNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         skip: Int,
         limit: Int,
         docs: Boolean = false,
@@ -317,7 +326,7 @@ trait WhiskEntityQueries[T] {
     }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         namespace: EntityPath,
         skip: Int,
         limit: Int,
@@ -330,7 +339,7 @@ trait WhiskEntityQueries[T] {
     }
 
     def listCollectionByName[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
+        db: ArtifactStore[A, A],
         namespace: EntityPath,
         name: EntityName,
         skip: Int,
