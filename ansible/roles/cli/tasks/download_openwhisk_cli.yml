@@ -55,13 +55,14 @@
     headers: "{{ headers }}"
     mode: 0755
 
-- name: "unarchive cli ({{ os }}) {{ arc }}"
+- name: "unarchive cli ({{ os }}) {{ arc }} for not linux"
   unarchive:
     src: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/{{ dest_name }}"
     dest: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/"
     remote_src: True
   when: os != "linux"
 
-- name: "unarchive cli ({{ os }}) {{ arc }}"
-  local_action: shell "tar" "-zxvf" "{{ dest_name }}" chdir="{{ cli.nginxdir }}/{{ os }}/{{ arc }}"
+- name: "unarchive cli ({{ os }}) {{ arc }} for linux only"
+  shell: "tar -zxvf {{ dest_name }}"
+    chdir: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}"
   when: os == "linux" 
