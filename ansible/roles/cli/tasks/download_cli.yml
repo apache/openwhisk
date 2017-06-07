@@ -9,6 +9,7 @@
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
+    force=True
   when: "'environments/mac' not in inventory_dir"
 
 - name: "download cli (mac) to openwhisk home at {{ openwhisk_home }}"
@@ -18,4 +19,5 @@
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
+    force=True
   when: "'environments/mac' in inventory_dir"
