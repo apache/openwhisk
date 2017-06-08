@@ -43,6 +43,7 @@ moment@2.17.0 \
 mongodb@2.2.11 \
 mustache@2.3.0 \
 nano@6.2.0 \
+node-jq@0.5.2 \
 node-uuid@1.4.7 \
 nodemailer@2.6.4 \
 oauth2-server@2.4.1 \
