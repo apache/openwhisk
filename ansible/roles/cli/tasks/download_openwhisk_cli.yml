@@ -55,7 +55,15 @@
     headers: "{{ headers }}"
     mode: 0755
 
-- name: "unarchive cli ({{ os }}) {{ arc }}"
+- name: "unarchive cli for Mac and Windows"
   unarchive:
     src: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/{{ dest_name }}"
     dest: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/"
+    remote_src: True
+  when: os != "linux"
+
+- name: "unarchive cli for Linux"
+  command: tar -zxvf {{ dest_name }}
+  args:
+    chdir: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/"
+  when: os == "linux"
