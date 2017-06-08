@@ -48,7 +48,7 @@
     path: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}"
     state: directory
 
-- name: "download cli ({{ os }}) {{ arc }} to openwhisk cli directory"
+- name: "download cli ({{ os }}) {{ arc }} to Nginx cli directory"
   get_url:
     url: "{{ openwhisk_cli.location }}/{{ source_name }}"
     dest: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/{{ dest_name }}"
@@ -59,9 +59,3 @@
   unarchive:
     src: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/{{ dest_name }}"
     dest: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/"
-    remote_src: True
-  when: os != "linux"
-
-- name: "unarchive cli ({{ os }}) {{ arc }}"
-  local_action: shell "tar" "-zxvf" "{{ dest_name }}" chdir="{{ cli.nginxdir }}/{{ os }}/{{ arc }}"
-  when: os == "linux" 
