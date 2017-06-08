@@ -137,7 +137,7 @@ Here is an example of a synchronous action.
 // an action in which each path results in a synchronous activation
 function main(params) {
   if (params.payload == 0) {
-     return;
+     return {};
   } else if (params.payload == 1) {
      return {payload: 'Hello, World!'};
   } else if (params.payload == 2) {
