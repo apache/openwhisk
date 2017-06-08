@@ -1,0 +1,126 @@
+[
+  {
+    "id": "Unable to add route options '{{.options}}'",
+    "translation": "Unable to add route options: {{.options}}"
+  },
+  {
+    "id": "Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
+    "translation": "Unable to create HTTP request for PUT '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create HTTP request for GET '{{.route}}': {{.err}}",
+    "translation": "Unable to create HTTP request for GET '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
+    "translation": "Unable to create HTTP request for DELETE '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create HTTP request for POST '{{.route}}': {{.err}}",
+    "translation": "Unable to create HTTP request for POST '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}",
+    "translation": "Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create request URL '{{.url}}': {{.err}}",
+    "translation": "Unable to create request URL '{{.url}}': {{.err}}"
+  },
+  {
+    "id": "Invalid request URL '{{.url}}': {{.err}}",
+    "translation": "Invalid request URL '{{.url}}': {{.err}}"
+  },
+  {
+    "id": "Error encoding request body: {{.err}}",
+    "translation": "Error encoding request body: {{.err}}"
+  },
+  {
+    "id": "Error initializing request: {{.err}}",
+    "translation": "Error initializing request: {{.err}}"
+  },
+  {
+    "id": "Unable to add the HTTP authentication header: {{.err}}",
+    "translation": "Unable to add the HTTP authentication header: {{.err}}"
+  },
+  {
+    "id": "Authorization key is not configured (--auth is required)",
+    "translation": "Authorization key is not configured (--auth is required)"
+  },
+  {
+    "id": "Command failed due to an HTTP failure",
+    "translation": "Command failed due to an HTTP failure"
+  },
+  {
+    "id": "No interface provided; no HTTP response body expected",
+    "translation": "No interface provided; no HTTP response body expected"
+  },
+  {
+    "id": "Command failed due to an internal failure",
+    "translation": "Command failed due to an internal failure"
+  },
+  {
+    "id": "The following application error was received: {{.err}}",
+    "translation": "The following application error was received: {{.err}}"
+  },
+  {
+    "id": "Invalid request URL '{{.url}}': {{.err}}",
+    "translation": "Invalid request URL '{{.url}}': {{.err}}"
+  },
+  {
+    "id": "Unable to add the HTTP authentication header: {{.err}}",
+    "translation": "Unable to add the HTTP authentication header: {{.err}}"
+  },
+  {
+    "id": "Unable to URL parse '{{.version}}': {{.err}}",
+    "translation": "Unable to URL parse '{{.version}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create HTTP request for GET '{{.url}}': {{.err}}",
+    "translation": "Unable to create HTTP request for GET '{{.url}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create HTTP request for GET: {{.err}}",
+    "translation": "Unable to create HTTP request for GET: {{.err}}"
+  },
+  {
+    "id": "Unable to build request URL: {{.err}}",
+    "translation": "Unable to build request URL: {{.err}}"
+  },
+  {
+    "id": "Unable to create GET HTTP request for '{{.route}}': {{.err}}",
+    "translation": "Unable to create GET HTTP request for '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
+    "translation": "Unable to create PUT HTTP request for '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
+    "translation": "Unable to create DELETE HTTP request for '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to create POST HTTP request for '{{.route}}': {{.err}}",
+    "translation": "Unable to create POST HTTP request for '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Internal error. Invalid state option '{{.state}}'. Valid options are \"active\" and \"inactive\".",
+    "translation": "Internal error. Invalid state option '{{.state}}'. Valid options are \"active\" and \"inactive\"."
+  },
+  {
+    "id": "Unable to parse URL '{{.route}}': {{.err}}",
+    "translation": "Unable to parse URL '{{.route}}': {{.err}}"
+  },
+  {
+    "id": "Unable to process URL query options '{{.options}}': {{.err}}",
+    "translation": "Unable to process URL query options '{{.options}}': {{.err}}"
+  },
+  {
+    "id": "{{.msg}} (code {{.code}})",
+    "translation": "{{.msg}} (code {{.code}})"
+  },
+  {
+    "id": "The connection failed, or timed out. (HTTP status code {{.code}})",
+    "translation": "The connection failed, or timed out. (HTTP status code {{.code}})"
+  }
+]
