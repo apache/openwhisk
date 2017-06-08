@@ -27,7 +27,9 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
 
-protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege])
+protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege]) {
+    def uuid = authkey.uuid
+}
 
 object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
 

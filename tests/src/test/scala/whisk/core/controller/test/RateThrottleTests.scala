@@ -27,6 +27,7 @@ import common.StreamLogging
 import whisk.common.TransactionId
 import whisk.core.entitlement._
 import whisk.core.entity.Subject
+import whisk.core.entity.AuthKey
 
 /**
  * Tests rate throttle.
@@ -41,7 +42,7 @@ class RateThrottleTests
     with StreamLogging {
 
     implicit val transid = TransactionId.testing
-    val subject = Subject()
+    val subject = Subject().toIdentity(AuthKey())
 
     behavior of "Rate Throttle"
 

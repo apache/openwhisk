@@ -119,20 +119,20 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     protected def entitled(subject: Subject, right: Privilege, resource: Resource)(implicit transid: TransactionId): Future[Boolean]
 
     /**
-     * Checks action activation rate throttles for subject.
+     * Checks action activation rate throttles for an identity.
      *
-     * @param user the subject to check rate throttles for
-     * @return a promise that completes with success iff the subject is within their activation quota
+     * @param user the identity to check rate throttles for
+     * @return a promise that completes with success iff the user is within their activation quota
      */
     protected[core] def checkThrottles(user: Identity)(
         implicit transid: TransactionId): Future[Unit] = {
-        val subject = user.subject
-        logging.info(this, s"checking user '$subject' has not exceeded activation quota")
+
+        logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
 
         checkSystemOverload(ACTIVATE) orElse {
-            checkThrottleOverload(!invokeRateThrottler.check(subject), tooManyRequests)
+            checkThrottleOverload(!invokeRateThrottler.check(user), tooManyRequests)
         } orElse {
-            checkThrottleOverload(!concurrentInvokeThrottler.check(subject), tooManyConcurrentRequests)
+            checkThrottleOverload(!concurrentInvokeThrottler.check(user), tooManyConcurrentRequests)
         } map {
             Future.failed(_)
         } getOrElse Future.successful({})
@@ -163,7 +163,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * resource for example, or explicit. The implicit check is computed here. The explicit check
      * is delegated to the service implementing this interface.
      *
-     * @param user the subject to check rights for
+     * @param user the subject identity to check rights for
      * @param right the privilege the subject is requesting (applies to the entire set of resources)
      * @param resources the set of resources the subject requests access to
      * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
@@ -176,9 +176,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
             if (resources.nonEmpty) {
                 logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
                 checkSystemOverload(right) orElse {
-                    checkUserThrottle(subject, right, resources)
+                    checkUserThrottle(user, right, resources)
                 } orElse {
-                    checkConcurrentUserThrottle(subject, right, resources)
+                    checkConcurrentUserThrottle(user, right, resources)
                 } map {
                     Future.failed(_)
                 } getOrElse checkPrivilege(user, right, resources)
@@ -247,17 +247,17 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * While it is possible for the set of resources to contain more than one action or trigger, the plurality is ignored and treated
      * as one activation since these should originate from a single macro resources (e.g., a sequence).
      *
-     * @param subject the subject to check quota for
+     * @param user the subject identity to check rights for
      * @param right the privilege, if ACTIVATE then check quota else return None
      * @param resource the set of resources must contain at least one resource that can be activated else return None
      * @return None if subject is not throttled else a rejection
      */
-    private def checkUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(
+    private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Option[RejectRequest] = {
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
             val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
-            (isInvocation && !invokeRateThrottler.check(subject)) || (isTrigger && !triggerRateThrottler.check(subject))
+            (isInvocation && !invokeRateThrottler.check(user)) || (isTrigger && !triggerRateThrottler.check(user))
         }
 
         checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyRequests)
@@ -269,16 +269,16 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
      * While it is possible for the set of resources to contain more than one action, the plurality is ignored and treated
      * as one activation since these should originate from a single macro resources (e.g., a sequence).
      *
-     * @param subject the subject to check quota for
+     * @param user the subject identity to check rights for
      * @param right the privilege, if ACTIVATE then check quota else return None
      * @param resource the set of resources must contain at least one resource that can be activated else return None
      * @return None if subject is not throttled else a rejection
      */
-    private def checkConcurrentUserThrottle(subject: Subject, right: Privilege, resources: Set[Resource])(
+    private def checkConcurrentUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
         implicit transid: TransactionId): Option[RejectRequest] = {
         def userThrottled = {
             val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-            (isInvocation && !concurrentInvokeThrottler.check(subject))
+            (isInvocation && !concurrentInvokeThrottler.check(user))
         }
 
         checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyConcurrentRequests)

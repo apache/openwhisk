@@ -26,7 +26,7 @@ import whisk.common.ConsulClient
 import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
-import whisk.core.entity.Subject
+import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
 
 /**
@@ -58,7 +58,7 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0) < concurrencyLimit
+    def check(user: Identity): Boolean = userActivationCounter.getOrElse(user.uuid.asString, 0) < concurrencyLimit
 
     /**
      * Checks whether the system is in a generally overloaded state.
