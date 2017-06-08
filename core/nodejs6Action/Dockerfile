@@ -29,6 +29,7 @@ commander@2.9.0 \
 consul@0.27.0 \
 cookie-parser@1.4.3 \
 cradle@0.7.1 \
+cron@1.2.1 \
 errorhandler@1.5.0 \
 express@4.14.0 \
 express-session@1.14.2 \
