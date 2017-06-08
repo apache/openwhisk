@@ -5,14 +5,9 @@ set -e
 
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
-HOMEDIR="$SCRIPTDIR/../../../"
 
-# clone utilities repo.
-cd $HOMEDIR
-git clone https://github.com/apache/incubator-openwhisk-utilities.git
-
-# run scancode against project source code
-incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR
+cd $ROOTDIR
+tools/build/scanCode.py .
 
 cd $ROOTDIR/ansible
 
@@ -28,6 +23,7 @@ $ANSIBLE_CMD apigateway.yml
 cd $ROOTDIR
 
 TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
+ 
 
 cd $ROOTDIR/ansible
 

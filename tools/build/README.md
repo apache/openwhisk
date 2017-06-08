@@ -1,8 +1,10 @@
 # Build helper scripts
 
 This directory contains the following utilities.
+- `scanCode.py`: checks all code for conformance with respect to certain conventions,
 - `redo`: a wrapper around Ansible and Gradle commands, for which examples are given below,
 - `citool`: allows for command line monitoring of Jenkins and Travis CI builds.
+
 
 ## How to use `redo`
 
@@ -28,7 +30,7 @@ For example, the following is handy to run a subset of all tests from the comman
 
   * `redo tests -a '--tests package.name.TestClass.evenMethodName'`
 
-## How to use `citool`
+## How to use `citool` 
 
 This script allows for monitoring of ongoing Jenkins and Travis builds.
 The script assumes by default that the monitored job is a Travis CI build hosted here `https://api.travis-ci.org/`.
