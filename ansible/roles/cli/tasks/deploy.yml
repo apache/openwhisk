@@ -19,7 +19,7 @@
   when: cli_installation_mode == "remote"
 
 - name: "generate content.json for Nginx CLI directory"
-  local_action: shell "./createContentJson.sh" "{{ cli.nginxdir }}" "{{ openwhisk_cli_tag }}" "{{ cli_os | join(" ") }}" "{{ openwhisk_cli.dest_name }}" chdir="{{ openwhisk_home }}/ansible/roles/cli/files"
+  command: sh {{ openwhisk_home }}/ansible/roles/cli/files/createContentJson.sh {{ cli.nginxdir }} {{ openwhisk_cli_tag }} {{ cli_os | join(" ") }} {{ openwhisk_cli.dest_name }}
   when: cli_installation_mode == "remote"
 
 - name: "copy the binaries from a local directory to Nginx"
