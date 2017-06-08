@@ -38,3 +38,10 @@
     path: "{{ whisk_logs_dir }}/invoker{{play_hosts.index(inventory_hostname)}}"
     state: absent
   become: true
+
+- name: unregister invoker with consul
+  consul:
+    service_name: invoker
+    service_id: invoker{{play_hosts.index(inventory_hostname)}}
+    state: absent
+  ignore_errors: True

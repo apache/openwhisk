@@ -13,3 +13,9 @@
     path: "{{ whisk_logs_dir }}/controller"
     state: absent
   become: true
+
+- name: unregister controller with consul
+  consul:
+    service_name: controller
+    state: absent
+  ignore_errors: True

@@ -21,6 +21,13 @@
   retries: 36
   delay: 5
 
+- name: register zookeeper with consul
+  consul:
+    service_name: zookeeper
+    service_address: "{{ inventory_hostname }}"
+    service_port: "{{ zookeeper.port }}"
+    host: "{{ groups['consul_servers']|first }}"
+
 - name: "pull the ches/kafka:{{ kafka.version }} image"
   shell: "docker pull ches/kafka:{{ kafka.version }}"
 
@@ -44,6 +51,13 @@
   until: ('[Kafka Server 0], started' in result.stdout)
   retries: 10
   delay: 5
+
+- name: register kafka with consul
+  consul:
+    service_name: kafka
+    service_address: "{{ inventory_hostname }}"
+    service_port: "{{ kafka.port }}"
+    host: "{{ groups['consul_servers']|first }}"
 
 - name: create the active-ack and health topic
   shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"

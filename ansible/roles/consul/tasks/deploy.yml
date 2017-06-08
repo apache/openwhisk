@@ -74,17 +74,3 @@
   command: "true"
   notify: fill consul kv
   when: "'consul_servers' in group_names"
-
-- name: start registrator using docker cli
-  shell: >
-        docker run -d
-        --name registrator
-        --hostname registrator
-        --restart {{ docker.restart.policy }}
-        --log-driver syslog
-        -v {{ whisk_logs_dir }}/registrator:/logs
-        -v {{ docker_sock | default('/var/run/docker.sock') }}:/tmp/docker.sock
-        --userns host
-        gliderlabs/registrator -ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}
-
-# todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved

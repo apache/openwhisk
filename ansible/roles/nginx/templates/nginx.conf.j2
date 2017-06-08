@@ -37,6 +37,10 @@ http {
         ssl_prefer_server_ciphers on;
         proxy_ssl_session_reuse off;
 
+        location /ping {
+            return 200 'pong';
+        }
+
         # proxy to the web action path
         location / {
             if ($namespace) {

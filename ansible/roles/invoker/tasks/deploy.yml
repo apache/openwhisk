@@ -41,14 +41,10 @@
         --name invoker{{play_hosts.index(inventory_hostname)}}
         --hostname invoker{{play_hosts.index(inventory_hostname)}}
         --restart {{ docker.restart.policy }}
-        -e COMPONENT_NAME=invoker{{play_hosts.index(inventory_hostname)}}
         -e CONSULSERVER_HOST={{ groups['consul_servers'] | first }}
         -e CONSUL_HOST_PORT4={{ consul.port.http }}
         -e PORT=8080
         -e SELF_DOCKER_ENDPOINT=localhost
-        -e SERVICE_CHECK_HTTP=/ping
-        -e SERVICE_CHECK_TIMEOUT=2s
-        -e SERVICE_CHECK_INTERVAL=15s
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
         -e INVOKER_OPTS={{ invoker.arguments }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
@@ -70,3 +66,13 @@
   until: result.status == 200
   retries: 12
   delay: 5
+
+- name: register invoker with consul
+  consul:
+    service_name: invoker
+    service_id: invoker{{play_hosts.index(inventory_hostname)}}
+    service_port: "{{invoker.port + play_hosts.index(inventory_hostname)}}"
+    service_address: "{{ inventory_hostname }}"
+    host: "{{ groups['consul_servers'] | first }}"
+    interval: 15s
+    http: "http://{{ inventory_hostname }}:{{invoker.port + play_hosts.index(inventory_hostname)}}/ping"

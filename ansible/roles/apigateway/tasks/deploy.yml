@@ -25,7 +25,7 @@
 
 - name: wait until the API Gateway in this host is up and running
   uri:
-    url: "http://{{ groups['apigateway'] | first }}:{{ apigateway.port.api }}/v1/apis"
+    url: "http://{{ inventory_hostname }}:{{ apigateway.port.api }}/v1/apis"
   register: result
   until: result.status == 200
   retries: 12

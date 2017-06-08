@@ -23,7 +23,6 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: controller
     env:
-      "COMPONENT_NAME": "controller"
       "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
@@ -31,9 +30,6 @@
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker_image_tag }}"
       "KAFKA_NUMPARTITIONS": 2
-      "SERVICE_CHECK_HTTP": "/ping"
-      "SERVICE_CHECK_TIMEOUT": "2s"
-      "SERVICE_CHECK_INTERVAL": "15s"
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
     volumes:
@@ -48,3 +44,12 @@
   until: result.status == 200
   retries: 12
   delay: 5
+
+- name: register controller with consul
+  consul:
+    service_name: controller
+    service_port: "{{ controller.port }}"
+    service_address: "{{ inventory_hostname }}"
+    host: "{{ groups['consul_servers'] | first }}"
+    interval: 15s
+    http: "http://{{ inventory_hostname }}:{{ controller.port }}/ping"
