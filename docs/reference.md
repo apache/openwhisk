@@ -227,6 +227,7 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - mongodb v2.2.11
 - mustache v2.3.0
 - nano v6.2.0
+- node-rdkafka v0.6.4
 - node-uuid v1.4.7
 - nodemailer v2.6.4
 - oauth2-server v2.4.1
