@@ -28,7 +28,6 @@ import common.TestUtils._
 import common.TestUtils
 import common.WhiskProperties
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskPropsV2
 import common.WskTestHelpers
@@ -44,7 +43,9 @@ class ApiGwTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
-    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
+
+    // Get the namespace associated with the auth used for testing. The test auth may vary by environment
+    val clinamespace = wsk.namespace.list().stdout.split(s"\n")(1).trim
 
     // This test suite makes enough CLI invocations in 60 seconds to trigger the OpenWhisk
     // throttling restriction.  To avoid CLI failures due to being throttled, track the
@@ -228,7 +229,7 @@ class ApiGwTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             println("api create: " + rr.stdout)
@@ -258,7 +259,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -433,7 +434,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"a-c@t ion"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -611,7 +612,7 @@ class ApiGwTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
@@ -645,7 +646,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
@@ -853,7 +854,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"a-c@t ion"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
