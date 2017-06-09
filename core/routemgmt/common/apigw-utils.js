@@ -166,8 +166,8 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     request.get(options, function(error, response, body) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('getApis: response status: '+ statusCode);
-      if (response.headers) console.log('getApis: response headers: '+makeJsonString(response.headers));
       if (error) console.error('Warning: getApis request failed: '+makeJsonString(error));
+      if (response && response.headers) console.log('getApis: response headers: '+makeJsonString(response.headers));
       console.log('getApis: body type = '+typeof body);
       if (body) console.log('getApis: response JSON.stringify(body): '+makeJsonString(body));
       if (error) {
