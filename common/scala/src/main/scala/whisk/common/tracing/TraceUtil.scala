@@ -51,10 +51,10 @@ object TraceUtil{
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  def startTrace(serviceName: String, transactionId: TransactionId): Unit = {
+  def startTrace(serviceName: String, spanName: String, transactionId: TransactionId): Unit = {
     var tracedRequest: TracedRequest = traceMap.get(transactionId.meta.id)
     if(tracedRequest == null){
-      var tracedRequest = createTracedRequest(serviceName)
+      var tracedRequest = createTracedRequest(spanName)
       var metadata = trace.sample(tracedRequest.getRequest(), serviceName)
       if(metadata != None){
         trace.start(tracedRequest.getRequest(), serviceName)
@@ -63,7 +63,7 @@ object TraceUtil{
       }
     }
     else
-      startChildTrace(serviceName, tracedRequest, transactionId)
+      startChildTrace(serviceName, spanName, tracedRequest, transactionId)
   }
 
   /**
@@ -73,8 +73,8 @@ object TraceUtil{
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  def startChildTrace(serviceName: String, parent: TracedRequest, transactionId: TransactionId): Unit = {
-    val request: TracedRequest = createTracedRequest(serviceName)
+  def startChildTrace(serviceName: String, spanName: String, parent: TracedRequest, transactionId: TransactionId): Unit = {
+    val request: TracedRequest = createTracedRequest(spanName)
     var metadata =  trace.sample(request.getRequest(), serviceName)
     if(metadata != None){
       trace.createChild(request.getRequest(), parent.getRequest())
@@ -107,13 +107,13 @@ object TraceUtil{
     }
   }
 
-  private def createTracedRequest(serviceName: String, metadata: Option[SpanMetadata] = None) : TracedRequest = {
+  private def createTracedRequest(spanName: String, metadata: Option[SpanMetadata] = None) : TracedRequest = {
     val headers: Map[String, Integer] = new HashMap[String, Integer]
     headers.put("id", requestCounter.getAndIncrement())
-    val req: BasicTraceRequest = new BasicTraceRequest(headers, serviceName)
+    val req: BasicTraceRequest = new BasicTraceRequest(headers, spanName)
 
     if(metadata != None)
-      trace.importMetadata(req, metadata.get, serviceName)
+      trace.importMetadata(req, metadata.get, spanName)
 
     return new TracedRequest(req, null, metadata)
   }
@@ -125,6 +125,6 @@ object TraceUtil{
   def setTracedRequestForTrasactionId(transactionId: TransactionId, metadata: Option[SpanMetadata]) = {
 
     if(metadata != None)
-      traceMap.put(transactionId.meta.id, TraceUtil.createTracedRequest(LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING.getServiceName(), metadata))
+      traceMap.put(transactionId.meta.id, TraceUtil.createTracedRequest(LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING.action, metadata))
   }
 }

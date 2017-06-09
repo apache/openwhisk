@@ -156,7 +156,7 @@ class ZipkinLogging (logger: Logging) extends Logging {
         logMarker.token.state match {
 
             case LoggingMarkers.start => {
-                TraceUtil.startTrace(logMarker.token.getServiceName(), id)
+                TraceUtil.startTrace(logMarker.token.component, logMarker.token.action, id)
             }
 
             case LoggingMarkers.finish => {
@@ -226,10 +226,6 @@ case class LogMarkerToken(component: String, action: String, state: String) {
 
     def asFinish = copy(state = LoggingMarkers.finish)
     def asError = copy(state = LoggingMarkers.error)
-
-    def getServiceName(): String = {
-        component + "_" + action
-    }
 }
 
 object LogMarkerToken {

@@ -24,6 +24,9 @@ import java.util._
   */
 class BasicTraceRequest(val headers: Map[String, Integer], val payload: String) extends TracingSupport with Serializable{
 
+  override def spanName: String =
+    payload
+
   def getHeaders: Map[String, Integer] = {
     return headers
   }
