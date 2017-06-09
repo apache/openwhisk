@@ -177,8 +177,8 @@ class ExecManifestTests
             }
     }
 
-    it should "throw an error when configured manifest is invalid" in {
-        val config_manifest = "{\"nodejs\":[{\"kind\":\"nodejs\",\"image\":{\"name\":\"nodejsaction\"},\"deprecated\":true},{\"kind\":\"nodejs:6\",\"default\":true,\"image\":{\"name\":\"nodejs6action\"}}]}"
+    it should "throw an error when configured manifest is a valid JSON, but with a missing key" in {
+        val config_manifest = """{"nodejs":[{"kind":"nodejs:6","default":true,"image":{"name":"nodejs6action"}}]}"""
         val file = File.createTempFile("cxt", ".txt")
         file.deleteOnExit()
 
@@ -188,7 +188,7 @@ class ExecManifestTests
 
         val result = ExecManifest.initialize(new WhiskConfig(Map("runtimes.manifest" -> null), Set(), file), true)
 
-        result.isSuccess should be (false)
+        result should be a 'failure
 
         the [NoSuchElementException] thrownBy {
             result.get
