@@ -13,7 +13,7 @@ You can install the mobile SDK by using CocoaPods, Carthage, or from the source 
 
 The OpenWhisk SDK for mobile is available for public distribution through CocoaPods. Assuming CocoaPods is installed, put the following lines into a file called 'Podfile' inside the starter app project directory.
 
-```
+```ruby
 install! 'cocoapods', :deterministic_uuids => false
 use_frameworks!
 
@@ -32,7 +32,7 @@ After installation, open your project workspace.  You may get the following warn
 `Use Legacy Swift Language Version” (SWIFT_VERSION) is required to be configured correctly for targets which use Swift. Use the [Edit > Convert > To Current Swift Syntax…] menu to choose a Swift version or use the Build Settings editor to configure the build setting directly.`
 This is caused if Cocoapods does not update the Swift version in the Pods project.  To fix, select the Pods project and the OpenWhisk target.  Go to Build Settings and change the setting `Use Legacy Swift Language Version` to `no`. Alternatively, you can add the following post installation instructions at the end of you Podfile:
 
-```
+```ruby
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
@@ -66,14 +66,14 @@ You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk
 
 To install the starter app example, enter the following command:
 ```
-$ wsk sdk install iOS
+wsk sdk install iOS
 ```
 
 This command downloads a compressed file that contains the starter app. Inside the project directory is a podfile. 
 
 To install the SDK, enter the following command:
 ```
-$ pod install
+pod install
 ```
 
 ## Getting started with the SDK
@@ -90,7 +90,7 @@ let whisk = Whisk(credentials: credentialsConfiguration!)
 In previous example, you pass in the `myKey` and `myToken` that you get from OpenWhisk. You can retrieve the key and token with the following CLI command:
 
 ```
-$ wsk property get --auth
+wsk property get --auth
 ```
 ```
 whisk auth        kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkkk:tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt
