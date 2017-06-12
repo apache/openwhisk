@@ -124,6 +124,7 @@ invoker:
   arguments: "{{ invoker_arguments | default('') }}"
   numcore: 2
   coreshare: 2
+  busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
   serializeDockerOp: true
   serializeDockerPull: true
   useRunc: false
