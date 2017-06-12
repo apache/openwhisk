@@ -83,7 +83,7 @@ class WhiskConfig(
     val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
     val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
-    val loadbalancerActivationCountBeforeNextInvoker = this.getAsInt(WhiskConfig.loadbalancerActivationCountBeforeNextInvoker, 10)
+    val loadbalancerInvokerBusyThreshold = this.getAsInt(WhiskConfig.loadbalancerInvokerBusyThreshold, 16)
 
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
@@ -251,7 +251,7 @@ object WhiskConfig {
     private val controllerHostPort = "controller.host.port"
     private val controllerBlackboxFraction = "controller.blackboxFraction"
 
-    val loadbalancerActivationCountBeforeNextInvoker = "loadbalancer.activationCountBeforeNextInvoker"
+    val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
     val kafkaHostName = "kafka.host"
     val loadbalancerHostName = "loadbalancer.host"
