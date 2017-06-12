@@ -183,11 +183,11 @@ object Controller {
             logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
+            sys.exit(1)
         }
 
         if (!config.isValid) {
             abort()
-            return
         }
 
         ExecManifest.initialize(config) match {

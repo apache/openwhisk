@@ -435,18 +435,17 @@ object Invoker {
             logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
+            sys.exit(1)
         }
 
         if (!config.isValid) {
             abort()
-            return
         }
 
         val execManifest = ExecManifest.initialize(config)
         if (execManifest.isFailure) {
             logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
             abort()
-            return
         }
 
         val topic = s"invoker$instance"
