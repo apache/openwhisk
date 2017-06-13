@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+set -x
+
 export DEBIAN_FRONTEND=noninteractive
 
 echo "Etc/UTC" | sudo tee /etc/timezone
