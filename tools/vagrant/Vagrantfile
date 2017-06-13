@@ -137,7 +137,6 @@ $script_end = <<SCRIPT
   source /etc/environment
   # Build OpenWhisk using gradle
   cd ${OPENWHISK_HOME}
-  su vagrant -c './gradlew  tools:cli:distDocker -PdockerImagePrefix=openwhisk'
 
   echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
   # Deploy OpenWhisk using ansible
