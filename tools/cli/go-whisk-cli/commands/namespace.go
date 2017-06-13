@@ -119,8 +119,10 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
+    listCmd.Flags().BoolVarP(&flags.namespace.date, "sort", "t", false, wski18n.T("sort by date"))
     namespaceCmd.AddCommand(
         namespaceListCmd,
         namespaceGetCmd,
     )
+
 }
