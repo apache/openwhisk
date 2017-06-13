@@ -6,23 +6,17 @@
     path: "{{ cli.nginxdir  }}"
     state: directory
 
+- set_fact:
+    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+
 - include: docker_login.yml
 
-- name: "pull the {{ docker_image_tag }} image of cli"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-  when: docker_registry != ""
+- name: "download the binaries for the remote mode"
+  include: cli_remote_mode.yml
+  when: cli_installation_mode == "remote"
 
-- name: "run Docker"
-  shell: "docker run --name cli {{ docker_registry }}{{ docker_image_prefix }}/cli:{{ docker_image_tag }}"
-
-- name: "copy all the cli binaries into nginx"
-  shell: "docker cp cli:/src/github.com/go-whisk-cli/build/. '{{ cli.nginxdir }}'"
-  ignore_errors: yes
-
-- name: "stop Docker"
-  shell: "docker stop cli"
-
-- name: "remove cli container after publishing"
-  shell: "docker rm cli"
+- name: "copy the binaries from a local directory to Nginx directory"
+  copy: src={{ openwhisk_cli.location }}/ dest={{ cli.nginxdir }}/
+  when: cli_installation_mode == "local"
 
 - include: download_cli.yml
