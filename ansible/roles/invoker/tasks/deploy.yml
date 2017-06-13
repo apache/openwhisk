@@ -31,6 +31,19 @@
     linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: whisk_version_name != "mac"
 
+- name: get running invoker information
+  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}" return_content=yes
+  register: invokerInfo
+
+- name: determine if more than one invoker is running
+  fail: msg="more than one invoker is running"
+  when: invokerInfo.json|length > 1
+
+- name: determine if index of invoker is same with index of inventory host
+  fail: 'msg="invoker index is invalid. expected: /invoker{{play_hosts.index(inventory_hostname)}} found: {{item.Names[0]}}"'
+  with_items: "{{ invokerInfo.json }}"
+  when: item.Names[0] != "/invoker{{play_hosts.index(inventory_hostname)}}"'
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
@@ -59,7 +72,7 @@
         -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
         {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
         /bin/sh -c "exec /invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
-
+  when: invokerInfo.json|length == 0
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 
