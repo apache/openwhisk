@@ -19,8 +19,8 @@ import PackageDescription
 let package = Package(
     name: "Action",
         dependencies: [
-    .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.0.1"),
-            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "14.2.0"),
-            .Package(url: "https://github.com/IBM-Swift/swift-watson-sdk.git", "0.4.1")
+            .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.7"),
+            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
+            .Package(url: "https://github.com/watson-developer-cloud/swift-sdk.git", "0.16.0")
         ]
 )
