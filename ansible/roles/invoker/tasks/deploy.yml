@@ -42,7 +42,7 @@
 - name: determine if index of invoker is same with index of inventory host
   fail: 'msg="invoker index is invalid. expected: /invoker{{play_hosts.index(inventory_hostname)}} found: {{item.Names[0]}}"'
   with_items: "{{ invokerInfo.json }}"
-  when: item.Names[0] != "/invoker{{play_hosts.index(inventory_hostname)}}"'
+  when: item.Names[0] != "/invoker{{play_hosts.index(inventory_hostname)}}"
 
 - name: start invoker using docker cli
   shell: >
