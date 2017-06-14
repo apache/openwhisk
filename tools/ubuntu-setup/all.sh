@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 set -x
+SOURCE="${BASH_SOURCE[0]}"
+SCRIPTDIR="$( dirname "$SOURCE" )"
 
 echo "*** installing basics"
 "$SCRIPTDIR/misc.sh"
