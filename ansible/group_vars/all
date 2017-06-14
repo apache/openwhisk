@@ -117,6 +117,19 @@ kafka:
   port: 9092
   ras:
     port: 9093
+  topics:
+    completed:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    health:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    invoker:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
+      retentionMS: 172800000
 
 zookeeper:
   version: 3.4
