@@ -373,8 +373,8 @@ Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
 
 Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a
 `web-custom-options` annotation with a value of `true` to a web action. When this feature is enabled, CORS headers will
-not automatically be added to the request response. Instead, it is the developer's responsibility to append his or her
-desired headers programmatically. Below is an example of creating custom resposnes to OPTIONS requests.
+not automatically be added to the request response. Instead, it is the developer's responsibility to append their
+desired headers programmatically. Below is an example of creating custom responses to OPTIONS requests.
 
 ```
 function main(params) {
