@@ -431,42 +431,53 @@ object Invoker {
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
-        // if configuration is valid, initialize the runtimes manifest
-        if (config.isValid && ExecManifest.initialize(config)) {
-            val topic = s"invoker$instance"
-            val groupid = "invokers"
-            val maxdepth = ContainerPool.getDefaultMaxActive(config)
-            val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
-
-            val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
-                new InvokerReactive(config, instance, dispatcher.activationFeed, producer)
-            } else {
-                new Invoker(config, instance, dispatcher.activationFeed, producer)
-            }
-            logger.info(this, s"using $invoker")
-
-            dispatcher.addHandler(invoker, true)
-            dispatcher.start()
-
-            Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-                producer.send("health", PingMessage(s"invoker$instance")).andThen {
-                    case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
-                }
-            })
-
-            val port = config.servicePort.toInt
-            BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-                def create = new InvokerServer {
-                    override implicit val logging = logger
-                }
-            })
-        } else {
+        def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
+            sys.exit(1)
         }
+
+        if (!config.isValid) {
+            abort()
+        }
+
+        val execManifest = ExecManifest.initialize(config)
+        if (execManifest.isFailure) {
+            logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
+            abort()
+        }
+
+        val topic = s"invoker$instance"
+        val groupid = "invokers"
+        val maxdepth = ContainerPool.getDefaultMaxActive(config)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+        val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+        val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
+
+        val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
+            new InvokerReactive(config, instance, dispatcher.activationFeed, producer)
+        } else {
+            new Invoker(config, instance, dispatcher.activationFeed, producer)
+        }
+        logger.info(this, s"using $invoker")
+
+        dispatcher.addHandler(invoker, true)
+        dispatcher.start()
+
+        Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+            producer.send("health", PingMessage(s"invoker$instance")).andThen {
+                case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+            }
+        })
+
+        val port = config.servicePort.toInt
+        BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
+            def create = new InvokerServer {
+                override implicit val logging = logger
+            }
+        })
+
     }
 }
 
