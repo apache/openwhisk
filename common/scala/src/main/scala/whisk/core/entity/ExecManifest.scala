@@ -16,9 +16,7 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-import scala.util.Failure
-
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
@@ -43,15 +41,14 @@ protected[core] object ExecManifest {
      *
      * @param config a valid configuration
      * @param reinit re-initialize singleton iff true
-     * @return true if initialized successfully, or if previously initialized
+     * @return the manifest if initialized successfully, or if previously initialized
      */
-    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Boolean = {
+    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[Runtimes] = {
         if (manifest.isEmpty || reinit) {
-            Try(config.runtimesManifest.parseJson.asJsObject)
-                .flatMap(runtimes(_))
-                .map(m => manifest = Some(m))
-                .isSuccess
-        } else true
+            val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_))
+            mf.foreach(m => manifest = Some(m))
+            mf
+        } else Success(manifest.get)
     }
 
     /**
