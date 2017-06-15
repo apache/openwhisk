@@ -1,6 +1,8 @@
 # Build helper scripts
 
 This directory contains the following utilities.
+- `scanCode.py`: checks all code for conformance with respect to certain conventions.
+   - Please note that this utility has been moved to the incubator-openwhisk-utilities repository so that all Apache OpenWhisk repositories may more easily reference it. This version will be removed once all other repositories in the project correctly reference it in its new location.
 - `redo`: a wrapper around Ansible and Gradle commands, for which examples are given below,
 - `citool`: allows for command line monitoring of Jenkins and Travis CI builds.
 
