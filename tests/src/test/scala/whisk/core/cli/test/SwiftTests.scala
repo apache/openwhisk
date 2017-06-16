@@ -93,7 +93,7 @@ class SwiftTests
 
     behavior of "Swift 3 Whisk SDK tests"
 
-    it should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
+    ignore should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // use CLI to create action from dat/actions/invokeAction.swift
             val file = TestUtils.getTestActionFilename("invoke.swift")
@@ -117,7 +117,7 @@ class SwiftTests
             }
     }
 
-    it should "allow Swift actions to invoke other actions and not block" in withAssetCleaner(wskprops) {
+    ignore should "allow Swift actions to invoke other actions and not block" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // use CLI to create action from dat/actions/invokeNonBlocking.swift
             val file = TestUtils.getTestActionFilename("invokeNonBlocking.swift")
@@ -138,7 +138,7 @@ class SwiftTests
             }
     }
 
-    it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
+    ignore should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             // create a trigger
             val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
