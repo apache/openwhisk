@@ -302,6 +302,11 @@ Components = [
                   yaml = False,
                   gradle = 'core:javaAction'),
 
+    makeComponent('action-php-v7.1',
+                  'build PHP v7.1 action container',
+                  yaml = False,
+                  gradle = 'core:php7.1Action'),
+
     makeComponent('dockersdk',
                   'build docker action SDK (to deploy, use edge component)',
                   yaml = False,
