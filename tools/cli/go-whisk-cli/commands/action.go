@@ -57,10 +57,10 @@ var actionCreateCmd = &cobra.Command{
 
         if whiskErr := checkArgs(
             args,
-            2,
+            1,
             2,
             "Action create",
-            wski18n.T("An action name and action are required.")); whiskErr != nil {
+            wski18n.T("An action name and code artifact are required.")); whiskErr != nil {
                 return whiskErr
         }
 
@@ -93,11 +93,11 @@ var actionUpdateCmd = &cobra.Command{
             1,
             2,
             "Action update",
-            wski18n.T("An action name is required. An action is optional.")); whiskErr != nil {
+            wski18n.T("An action name is required. A code artifact is optional.")); whiskErr != nil {
                 return whiskErr
         }
 
-        if action, err = parseAction(cmd, args, false); err != nil {
+        if action, err = parseAction(cmd, args, true); err != nil {
             return actionParseError(cmd, args, err)
         }
 
@@ -319,7 +319,6 @@ var actionListCmd = &cobra.Command{
 
 func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action, error) {
     var err error
-    var artifact string
     var existingAction *whisk.Action
     var paramArgs []string
     var annotArgs []string
@@ -330,10 +329,6 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
 
     if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
         return nil, parseQualifiedNameError(args[0], err)
-    }
-
-    if len(args) == 2 {
-        artifact = args[1]
     }
 
     client.Namespace = qualifiedName.namespace
@@ -385,11 +380,20 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         action.Parameters = append(action.Parameters, existingAction.Parameters...)
         action.Annotations = append(action.Annotations, existingAction.Annotations...)
     } else if flags.action.sequence {
-        action.Exec = new(whisk.Exec)
-        action.Exec.Kind = "sequence"
-        action.Exec.Components = csvToQualifiedActions(artifact)
-    } else if len(artifact) > 0 {
-        action.Exec, err = getExec(args[1], flags.action.kind, flags.action.docker, flags.action.main)
+        if len(args) == 2 {
+            action.Exec = new(whisk.Exec)
+            action.Exec.Kind = "sequence"
+            action.Exec.Components = csvToQualifiedActions(args[1])
+        } else {
+            return nil, noArtifactError()
+        }
+    } else if len(args) > 1 || len(flags.action.docker) > 0 {
+        action.Exec, err = getExec(args, flags.action)
+        if err != nil {
+            return nil, err
+        }
+    } else if !update {
+        return nil, noArtifactError()
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
@@ -401,39 +405,48 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     return action, err
 }
 
-func getExec(artifact string, kind string, isDocker bool, mainEntry string) (*whisk.Exec, error) {
+func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     var err error
     var code string
     var exec *whisk.Exec
 
-    ext := filepath.Ext(artifact)
     exec = new(whisk.Exec)
+    kind := params.kind
+    isNative := params.native
+    docker := params.docker
+    mainEntry := params.main
+    ext := ""
 
-    if !isDocker || ext == ".zip" {
+    if len(args) == 2 {
+        artifact := args[1]
+        ext = filepath.Ext(artifact)
         code, err = readFile(artifact)
-
-        if ext == ".zip" || ext == ".jar" {
-            // Base64 encode the file
-            code = base64.StdEncoding.EncodeToString([]byte(code))
-            exec.Code = &code
-        } else {
-            exec.Code = &code
-        }
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", artifact, err)
             return nil, err
         }
+
+        if ext == ".zip" || ext == ".jar" {
+            // Base64 encode the file
+            code = base64.StdEncoding.EncodeToString([]byte(code))
+        }
+
+        exec.Code = &code
+    } else if len(args) == 1 && len(docker) == 0 {
+        return nil, noArtifactError()
+    } else if len(args) > 1 {
+        return nil, noArtifactError()
     }
 
     if len(kind) > 0 {
         exec.Kind = kind
-    } else if isDocker {
+    } else if len(docker) > 0 || isNative {
         exec.Kind = "blackbox"
-        if ext != ".zip" {
-            exec.Image = artifact
-        } else {
+        if isNative {
             exec.Image = "openwhisk/dockerskeleton"
+        } else {
+            exec.Image = docker
         }
     } else if ext == ".swift" {
         exec.Kind = "swift:default"
@@ -572,7 +585,7 @@ func nestedError(errorMessage string, err error) (error) {
 func nonNestedError(errorMessage string) (error) {
     return whisk.MakeWskError(
         errors.New(errorMessage),
-        whisk.EXITCODE_ERR_GENERAL,
+        whisk.EXITCODE_ERR_USAGE,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -581,9 +594,9 @@ func actionParseError(cmd *cobra.Command, args []string, err error) (error) {
     whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
 
     errMsg := wski18n.T(
-        "Unable to parse action command arguments: {{.err}}",
+        "Invalid argument(s). {{.required}}",
         map[string]interface{}{
-            "err": err,
+            "required": err,
         })
 
     return nestedError(errMsg, err)
@@ -720,6 +733,12 @@ func webInputError(arg string) (error) {
 
 func zipKindError() (error) {
     errMsg := wski18n.T("creating an action from a .zip artifact requires specifying the action kind explicitly")
+
+    return nonNestedError(errMsg)
+}
+
+func noArtifactError() (error) {
+    errMsg := wski18n.T("An action name and code artifact are required.")
 
     return nonNestedError(errMsg)
 }
@@ -873,7 +892,8 @@ func isWebAction(client *whisk.Client, qname QualifiedName) error {
 }
 
 func init() {
-    actionCreateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.native, "native", false, wski18n.T("treat ACTION as native action (zip file provides a compatible executable to run)"))
+    actionCreateCmd.Flags().StringVar(&flags.action.docker, "docker", "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
@@ -887,7 +907,8 @@ func init() {
     actionCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
     actionCreateCmd.Flags().StringVar(&flags.action.web, "web", "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
-    actionUpdateCmd.Flags().BoolVar(&flags.action.docker, "docker", false, wski18n.T("treat ACTION as docker image path on dockerhub"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.native, "native", false, wski18n.T("treat ACTION as native action (zip file provides a compatible executable to run)"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.docker, "docker", "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))

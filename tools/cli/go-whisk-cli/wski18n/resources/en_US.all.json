@@ -688,10 +688,6 @@
     "translation": "Arguments must be comma separated, and must be quoted if they contain spaces."
   },
   {
-    "id": "Invalid arguments: {{.err}}",
-    "translation": "Invalid arguments: {{.err}}"
-  },
-  {
     "id": "The argument `{{.arg}}` is invalid: {{.err}}",
     "translation": "The argument `{{.arg}}` is invalid: {{.err}}"
   },
@@ -872,8 +868,12 @@
     "translation": "Java actions require --main to specify the fully-qualified name of the main class"
   },
   {
-    "id": "treat ACTION as docker image path on dockerhub",
-    "translation": "treat ACTION as docker image path on dockerhub"
+    "id": "treat ACTION as native action (zip file provides a compatible executable to run)",
+    "translation": "treat ACTION as native action (zip file provides a compatible executable to run)"
+  },
+  {
+    "id": "use provided docker image (a path on DockerHub) to run the action",
+    "translation": "use provided docker image (a path on DockerHub) to run the action"
   },
   {
     "id": "treat ACTION as the name of an existing action",
@@ -1048,16 +1048,16 @@
     "translation": "The annotation arguments are invalid: {{.err}}"
   },
   {
-    "id": "An action name and action are required.",
-    "translation": "An action name and action are required."
+    "id": "An action name and code artifact are required.",
+    "translation": "An action name and code artifact are required."
   },
   {
     "id": "An action name is required.",
     "translation": "An action name is required."
   },
   {
-    "id": "An action name is required. An action is optional.",
-    "translation": "An action name is required. An action is optional."
+    "id": "An action name is required. A code artifact is optional.",
+    "translation": "An action name is required. A code artifact is optional."
   },
   {
     "id": "An activation ID is required.",
