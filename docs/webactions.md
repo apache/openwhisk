@@ -360,6 +360,48 @@ $ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${API
   "body": "Decoded body"
 }
 ```
+## Options Requests
+
+By default, an OPTIONS request made to a web action will result in CORS headers being automatically added to the
+response headers. These headers allow all origins and the options, get, delete, post, put, head, and patch HTTP verbs.
+The headers are shown below:
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
+```
+
+Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a
+`web-custom-options` annotation with a value of `true` to a web action. When this feature is enabled, CORS headers will
+not automatically be added to the request response. Instead, it is the developer's responsibility to append their
+desired headers programmatically. Below is an example of creating custom responses to OPTIONS requests.
+
+```
+function main(params) {
+  if (params.__ow_method == "options") {
+    return {
+      headers: {
+        'Access-Control-Allow-Methods': 'OPTIONS, GET',
+        'Access-Control-Allow-Origin': 'example.com'
+      },
+      statusCode: 200
+    }
+  }
+}
+```
+
+Save the above function to `custom-options.js` and execute the following commands:
+
+```
+$ wsk action create custom-option custom-options.js --web true -a web-custom-options true
+$ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTIONS
+< HTTP/1.1 200 OK
+< Server: nginx/1.11.13
+< Content-Length: 0
+< Connection: keep-alive
+< Access-Control-Allow-Methods: OPTIONS, GET
+< Access-Control-Allow-Origin: example.com
+```
 
 ## Error Handling
 
