@@ -79,7 +79,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         Identity(Subject(), invocationNamespace, AuthKey(), Set()),
         ActivationId(),
         invocationNamespace.toPath,
-        0,
+        InstanceId(0),
         None)
 
     /*
@@ -131,7 +131,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     }
 
     /** Creates an inspectable version of the ack method, which records all calls in a buffer */
-    def createAcker = LoggedFunction { (_: TransactionId, _: WhiskActivation, _: Int) => Future.successful(()) }
+    def createAcker = LoggedFunction { (_: TransactionId, _: WhiskActivation, _: InstanceId) => Future.successful(()) }
 
     /** Creates an inspectable factory */
     def createFactory(response: Future[Container]) = LoggedFunction {

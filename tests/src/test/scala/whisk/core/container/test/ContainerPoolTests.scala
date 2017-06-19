@@ -41,6 +41,7 @@ import whisk.core.container.ContainerPool
 import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
@@ -72,7 +73,7 @@ class ContainerPoolTests extends FlatSpec
 
     assert(config.isValid)
 
-    val pool = new ContainerPool(config, 0, true, true)
+    val pool = new ContainerPool(config, InstanceId(0), true, true)
     pool.logDir = "/tmp"
 
     val datastore = WhiskEntityStore.datastore(config)

@@ -96,7 +96,7 @@ case object ActivationCompleted
  */
 class ContainerProxy(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-    sendActiveAck: (TransactionId, WhiskActivation, Int) => Future[Any],
+    sendActiveAck: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
     unusedTimeout: FiniteDuration,
     pauseGrace: FiniteDuration) extends FSM[ContainerState, ContainerData] with Stash {
@@ -380,7 +380,7 @@ class ContainerProxy(
 
 object ContainerProxy {
     def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-              ack: (TransactionId, WhiskActivation, Int) => Future[Any],
+              ack: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
               store: (TransactionId, WhiskActivation) => Future[Any],
               unusedTimeout: FiniteDuration = 10.minutes,
               pauseGrace: FiniteDuration = 50.milliseconds) = Props(new ContainerProxy(factory, ack, store, unusedTimeout, pauseGrace))

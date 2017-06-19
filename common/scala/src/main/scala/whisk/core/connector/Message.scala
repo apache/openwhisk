@@ -26,6 +26,7 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
@@ -53,7 +54,7 @@ case class ActivationMessage(
     user: Identity,
     activationId: ActivationId,
     activationNamespace: EntityPath,
-    rootControllerIndex: Int,
+    rootControllerIndex: InstanceId,
     content: Option[JsObject],
     cause: Option[ActivationId] = None)
     extends Message {

@@ -37,27 +37,27 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageProducer
 import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.container.Interval
+import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
 import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
+import whisk.core.database.NoDocumentException
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
-import whisk.core.containerpool.ContainerPool
-import whisk.core.database.NoDocumentException
 import whisk.http.Messages
 
 class InvokerReactive(
     config: WhiskConfig,
-    instance: Int,
+    instance: InstanceId,
     activationFeed: ActorRef,
     producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker$instance") {
+    extends MessageHandler(s"invoker${instance.toInt}") {
 
     implicit val ec = actorSystem.dispatcher
 
@@ -107,9 +107,9 @@ class InvokerReactive(
     }
 
     /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activation: WhiskActivation, controllerInstance: Int) => {
+    val ack = (tid: TransactionId, activation: WhiskActivation, controllerInstance: InstanceId) => {
         implicit val transid = tid
-        producer.send(s"completed$controllerInstance", CompletionMessage(tid, activation, s"invoker$instance")).andThen {
+        producer.send(s"completed${controllerInstance.toInt}", CompletionMessage(tid, activation, s"invoker${instance.toInt}")).andThen {
             case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
         }
     }

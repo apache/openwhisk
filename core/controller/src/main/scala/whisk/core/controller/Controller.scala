@@ -32,17 +32,17 @@ import spray.routing.Directive.pimpApply
 import spray.routing.Route
 import whisk.common.AkkaLogging
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entity._
-import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import whisk.common.LoggingMarkers
 
 import scala.util.{ Failure, Success }
 
@@ -62,7 +62,7 @@ import scala.util.{ Failure, Success }
  * @param executionContext Scala runtime support for concurrent operations
  */
 class Controller(
-    override val instance: Int,
+    override val instance: InstanceId,
     runtimes: Runtimes,
     implicit val whiskConfig: WhiskConfig,
     implicit val logging: Logging)
@@ -98,7 +98,7 @@ class Controller(
         }
     }
 
-    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance), s"starting controller instance ${instance}")
+    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
     // initialize datastores
     private implicit val actorSystem = context.system
@@ -168,7 +168,7 @@ object Controller {
         "runtimes" -> runtimes.toJson)
 
     // akka-style factory to create a Controller object
-    private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {
+    private class ServiceBuilder(config: WhiskConfig, instance: InstanceId, logging: Logging) extends Creator[Controller] {
         // this method is not reached unless ExecManifest was initialized successfully
         def create = new Controller(instance, ExecManifest.runtimesManifest, config, logging)
     }
@@ -198,7 +198,7 @@ object Controller {
         ExecManifest.initialize(config) match {
             case Success(_) =>
                 val port = config.servicePort.toInt
-                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger), 30.seconds)
+                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, InstanceId(instance), logger))
 
             case Failure(t) =>
                 logger.error(this, s"Invalid runtimes manifest: $t")

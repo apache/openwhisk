@@ -77,7 +77,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
             Identity(Subject(), invocationNamespace, AuthKey(), Set()),
             ActivationId(),
             invocationNamespace.toPath,
-            0,
+            InstanceId(0),
             None)
         Run(action, message)
     }

@@ -38,15 +38,16 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.CouchDbRestClient
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
+import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntityQueries
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
-import whisk.core.entity.AuthKey
 
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
@@ -57,7 +58,7 @@ import whisk.core.entity.AuthKey
 trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
     override val numberOfInstances = 1
-    override val instance = 0
+    override val instance = InstanceId(0)
     val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
     case class RetryOp() extends Throwable
 

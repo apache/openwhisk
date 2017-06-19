@@ -56,6 +56,7 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
@@ -190,7 +191,7 @@ object InvokerPool {
  * This finite state-machine represents an Invoker in its possible
  * states "Healthy" and "Offline".
  */
-class InvokerActor(controllerInstance: Int) extends FSM[InvokerState, InvokerInfo] {
+class InvokerActor(controllerInstance: InstanceId) extends FSM[InvokerState, InvokerInfo] {
     implicit val transid = TransactionId.invokerHealth
     implicit val logging = new AkkaLogging(context.system.log)
     def name = self.path.name
@@ -329,7 +330,7 @@ class InvokerActor(controllerInstance: Int) extends FSM[InvokerState, InvokerInf
 }
 
 object InvokerActor {
-    def props(controllerInstance: Int) = Props(new InvokerActor(controllerInstance))
+    def props(controllerInstance: InstanceId) = Props(new InvokerActor(controllerInstance))
 
     val bufferSize = 10
     val bufferErrorTolerance = 3

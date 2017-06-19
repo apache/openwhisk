@@ -18,7 +18,6 @@
 package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
-
 import java.time.{ Clock, Instant }
 
 import scala.concurrent.{ Await, ExecutionContext, Future }
@@ -26,6 +25,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
 import scala.util.{ Failure, Success }
+import scala.util.Try
 
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.japi.Creator
@@ -33,10 +33,13 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
+import whisk.common.Scheduler
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.MessageProducer
+import whisk.core.connector.PingMessage
 import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
@@ -44,10 +47,6 @@ import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
-import whisk.common.Scheduler
-import whisk.core.connector.PingMessage
-import scala.util.Try
-import whisk.core.connector.MessageProducer
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -59,16 +58,16 @@ import whisk.core.connector.MessageProducer
  */
 class Invoker(
     config: WhiskConfig,
-    instance: Int,
+    instance: InstanceId,
     activationFeed: ActorRef,
     producer: MessageProducer,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker$instance")
+    extends MessageHandler(s"invoker${instance.toInt}")
     with ActionLogDriver {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
+    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance.toInt), s"starting invoker instance ${instance.toInt}")
 
     /**
      * This is the handler for the kafka message
@@ -257,7 +256,7 @@ class Invoker(
         val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
         val completeMsg = CompletionMessage(transid, activationResult, this.name)
 
-        producer.send(s"completed${msg.rootControllerIndex}", completeMsg) map { status =>
+        producer.send(s"completed${msg.rootControllerIndex.toInt}", completeMsg) map { status =>
             logging.info(this, s"posted completion of activation ${msg.activationId}")
         }
 
@@ -422,7 +421,7 @@ object Invoker {
 
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
-        val invokerInstance = args(0).toInt
+        val invokerInstance = InstanceId(args(0).toInt)
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val actorSystem: ActorSystem = ActorSystem(
@@ -450,7 +449,7 @@ object Invoker {
             abort()
         }
 
-        val topic = s"invoker$invokerInstance"
+        val topic = s"invoker${invokerInstance.toInt}"
         val groupid = "invokers"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
         val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
@@ -468,20 +467,15 @@ object Invoker {
         dispatcher.start()
 
         Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-            producer.send("health", PingMessage(s"invoker$invokerInstance")).andThen {
+            producer.send("health", PingMessage(s"invoker${invokerInstance.toInt}")).andThen {
                 case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
             }
         })
 
         val port = config.servicePort.toInt
         BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-            def create = new InvokerServer {
-                override implicit val logging = logger
-                override val instance = invokerInstance
-                override val numberOfInstances = config.invokerInstances.toInt
-            }
-        }, 30.seconds)
-
+            def create = new InvokerServer(invokerInstance, config.invokerInstances.toInt)
+        })
     }
 }
 

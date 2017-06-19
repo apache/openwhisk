@@ -65,7 +65,7 @@ class DispatcherTests
         val content = JsObject("payload" -> JsNumber(count))
         val user = WhiskAuth(Subject(), AuthKey()).toIdentity
         val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), Some(SemVer()))
-        val msg = Message(TransactionId.testing, path, DocRevision.empty, user, ActivationId(), EntityPath(user.subject.asString), 0, Some(content))
+        val msg = Message(TransactionId.testing, path, DocRevision.empty, user, ActivationId(), EntityPath(user.subject.asString), InstanceId(0), Some(content))
         connector.send(msg)
     }
 

@@ -29,8 +29,8 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.WhiskServices
 import whisk.core.controller.WhiskActionsApi
+import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
@@ -49,7 +49,7 @@ protected[actions] trait PrimitiveActions {
     protected implicit val logging: Logging
 
     /** The index of the active ack topic, this controller is listening for. Typically this is also the instance number of the controller */
-    protected val activeAckTopicIndex: Int
+    protected val activeAckTopicIndex: InstanceId
 
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore

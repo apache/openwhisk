@@ -17,9 +17,7 @@
 
 package whisk.http
 
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 import akka.actor.Actor
@@ -29,7 +27,6 @@ import akka.actor.Props
 import akka.event.Logging
 import akka.io.IO
 import akka.japi.Creator
-import akka.pattern.after
 import akka.pattern.ask
 import akka.util.Timeout
 import spray.can.Http
@@ -143,14 +140,11 @@ trait BasicHttpService extends HttpService with TransactionCounter {
 }
 
 object BasicHttpService extends Directives {
-    def startService[T <: Actor](system: ActorSystem, name: String, interface: String, port: Integer, service: Creator[T], delay: FiniteDuration) = {
+    def startService[T <: Actor](system: ActorSystem, name: String, interface: String, port: Integer, service: Creator[T]) = {
         val actor = system.actorOf(Props.create(service), s"$name-service")
-        implicit val ec = system.dispatcher
 
-        after(delay, system.scheduler) {
-            implicit val timeout = Timeout(5 seconds)
-            Future { IO(Http)(system) ? Http.Bind(actor, interface, port) }
-        }.flatMap(identity)
+        implicit val timeout = Timeout(5 seconds)
+        IO(Http)(system) ? Http.Bind(actor, interface, port)
     }
 
     /** Rejection handler to terminate connection on a bad request. Delegates to Spray handler. */
