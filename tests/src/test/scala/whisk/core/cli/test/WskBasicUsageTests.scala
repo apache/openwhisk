@@ -634,11 +634,12 @@ class WskBasicUsageTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val annots = Map("someKey" -> JsString("someValue"))
+            val key = "someKey"
+            val value = JsString("someValue")
+            val annots = Map(key -> value)
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, annotations = annots)
-
             }
 
             wsk.action.create(name, file, web = Some("true"), update = true)
@@ -656,8 +657,8 @@ class WskBasicUsageTests
                     "key" -> JsString("final"),
                     "value" -> JsBoolean(true)),
                 JsObject(
-                    "key" -> JsString("someKey"),
-                    "value" -> JsString("someValue")),
+                    "key" -> JsString(key),
+                    "value" -> value),
                 JsObject(
                     "key" -> JsString("exec"),
                     "value" -> JsString("nodejs:6")))
