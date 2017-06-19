@@ -388,9 +388,9 @@ protected[actions] case class SequenceAccounting(
             newCnt = newCnt,
             shortcircuit = shortcircuit,
             incrDuration = activation.duration,
-            previousResponse = activation.response,
-            previousActivationId = activation.activationId,
-            previousMemoryLimit = activation.annotations.get("limits") map {
+            newResponse = activation.response,
+            newActivationId = activation.activationId,
+            newMemoryLimit = activation.annotations.get("limits") map {
                 limitsAnnotation => // we have a limits annotation
                     limitsAnnotation.asJsObject.getFields("memory") match {
                         case Seq(JsNumber(memory)) => Some(memory.toInt) // we have a numerical "memory" field in the "limits" annotation
@@ -400,6 +400,7 @@ protected[actions] case class SequenceAccounting(
 
     /** the previous activation failed */
     def fail(failureResponse: ActivationResponse) = {
+        require(!failureResponse.isSuccess)
         copy(previousResponse = new AtomicReference(failureResponse), shortcircuit = true)
     }
 
@@ -413,17 +414,24 @@ protected[actions] case class SequenceAccounting(
                 val outputPayload = activation.response.result.map(_.asJsObject)
                 val payloadContent = outputPayload getOrElse JsObject.empty
                 val errorField = payloadContent.fields.get(ActivationResponse.ERROR_FIELD)
+                val withinSeqLimit = newCnt <= maxSequenceCnt
 
-                if (newCnt > maxSequenceCnt) {
-                    // oops, the dynamic count of actions exceeds the threshold
-                    fail(ActivationResponse.applicationError(sequenceIsTooLong))
-                } else if (errorField.isEmpty) {
-                    // all good with this action invocation!
+                if (withinSeqLimit && errorField.isEmpty) {
+                    // all good with this action invocation
                     success(activation, newCnt)
                 } else {
+                    val nextActivation = if (!withinSeqLimit) {
+                        // no error in the activation but the dynamic count of actions exceeds the threshold
+                        val newResponse = ActivationResponse.applicationError(sequenceIsTooLong)
+                        activation.copy(response = newResponse)
+                    } else {
+                        assert(errorField.isDefined)
+                        activation
+                    }
+
                     // there is an error field in the activation response. here, we treat this like success,
                     // in the sense of tallying up the accounting fields, but terminate the sequence early
-                    success(activation, newCnt, shortcircuit = true)
+                    success(nextActivation, newCnt, shortcircuit = true)
                 }
             case Left(response) =>
                 // utter failure somewhere downstream
@@ -439,31 +447,34 @@ protected[actions] case class SequenceAccounting(
  *     - one to initialize things
  */
 protected[actions] object SequenceAccounting {
+
+    def maxMemory(prevMemoryLimit: Option[Int], newMemoryLimit: Option[Int]): Option[Int] = {
+        prevMemoryLimit.map { prevMax =>
+            newMemoryLimit
+                .map(currentMax => Some(Math.max(prevMax, currentMax)))
+                .getOrElse(prevMemoryLimit)
+        }.getOrElse(newMemoryLimit)
+    }
+
     // constructor for successful invocations, or error'ing ones (where shortcircuit = true)
     def apply(
         prev: SequenceAccounting,
         newCnt: Int,
         incrDuration: Option[Long],
-        previousResponse: ActivationResponse,
-        previousActivationId: ActivationId,
-        previousMemoryLimit: Option[Int],
+        newResponse: ActivationResponse,
+        newActivationId: ActivationId,
+        newMemoryLimit: Option[Int],
         shortcircuit: Boolean): SequenceAccounting = {
 
         // compute the new max memory
-        val newMaxMemory = prev.maxMemory map {
-            currentMax => // currentMax is Some
-                previousMemoryLimit map {
-                    previousLimit => // previousMemoryLimit is Some
-                        Some(Math.max(currentMax, previousLimit)) // so take the max of them
-                } getOrElse { prev.maxMemory } // currentMax is Some, previousMemoryLimit is None
-        } getOrElse { previousMemoryLimit } // currentMax is None
+        val newMaxMemory = maxMemory(prev.maxMemory, newMemoryLimit)
 
         // append log entry
-        prev.logs += previousActivationId
+        prev.logs += newActivationId
 
         SequenceAccounting(
             atomicActionCnt = newCnt,
-            previousResponse = new AtomicReference(previousResponse),
+            previousResponse = new AtomicReference(newResponse),
             logs = prev.logs,
             duration = incrDuration map { prev.duration + _ } getOrElse { prev.duration },
             maxMemory = newMaxMemory,

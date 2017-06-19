@@ -219,8 +219,7 @@ class WskSequenceTests
                     withActivation(wsk.activation, getInnerSeq, totalWait = allowedActionDuration) {
                         innerSeqActivation =>
                             innerSeqActivation.logs.get.size shouldBe (limit - 1)
-                            innerSeqActivation.cause shouldBe defined
-                            innerSeqActivation.cause.get shouldBe (activation.activationId)
+                            innerSeqActivation.cause shouldBe Some(activation.activationId)
                     }
             }
     }
