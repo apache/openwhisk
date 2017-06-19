@@ -40,6 +40,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.routing.Directives
 import spray.routing.RequestContext
 import spray.routing.Route
+import spray.http.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH }
 import whisk.common.TransactionId
 import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
@@ -317,6 +318,9 @@ trait WhiskWebActionsApi
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
 
+    private val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
+    private val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
+
     /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
     private val requestMethodParamsAndPath = {
         extract { ctx =>
@@ -407,7 +411,17 @@ trait WhiskWebActionsApi
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                                     case Success((actionOwnerIdentity, action)) =>
-                                        extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                                        context.method match {
+                                            // if options method and action opted into default response, send standard response
+                                            case OPTIONS if !action.annotations.asBool("web-custom-options").exists(identity) =>
+                                                respondWithHeaders(allowOrigin, allowMethods) {
+                                                    complete(OK, HttpEntity.Empty)
+                                                }
+
+                                            // otherwise not an options method, or action will respond to options verb
+                                            case _ =>
+                                                extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                                        }
 
                                     case Failure(t: RejectRequest) =>
                                         terminate(t.code, t.message)
