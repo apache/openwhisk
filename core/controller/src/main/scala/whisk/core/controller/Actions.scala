@@ -54,13 +54,13 @@ import whisk.http.Messages._
  * in order to implement the actions API.
  */
 object WhiskActionsApi {
-    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null)
+    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null,
+        WhiskConfig.actionInvokeBlockingTimeoutDefaultLimit -> null)
+
+    def optionalProperties = Set(WhiskConfig.actionInvokeBlockingTimeoutLimit)
 
     /** Grace period after action timeout limit to poll for result. */
     protected[core] val blockingInvokeGrace = 5 seconds
-
-    /** Max duration to wait for a blocking activation. */
-    protected[core] val maxWaitForBlockingActivation = 60 seconds
 }
 
 /** A trait implementing the actions API. */
@@ -212,7 +212,7 @@ trait WhiskActionsApi
      * - 500 Internal Server Error
      */
     override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        parameter('blocking ? false, 'result ? false, 'timeout ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
+        parameter('blocking ? false, 'result ? false, 'timeout ? actionInvokeBlockingTimeoutLimit) { (blocking, result, waitOverride) =>
             entity(as[Option[JsObject]]) { payload =>
                 getEntity(WhiskAction, entityStore, entityName.toDocId, Some {
                     act: WhiskAction =>
@@ -625,14 +625,16 @@ trait WhiskActionsApi
     /** Max atomic action count allowed for sequences */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
+    private lazy val actionInvokeBlockingTimeoutLimit = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds
+
     /** Custom deserializer for timeout query parameter. */
     private implicit val stringToTimeoutDeserializer = new FromStringDeserializer[FiniteDuration] {
-        val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
+        val max = actionInvokeBlockingTimeoutLimit.toMillis
         def apply(msecs: String): Either[DeserializationError, FiniteDuration] = {
             Try { msecs.toInt } match {
                 case Success(i) if i > 0 && i <= max => Right(i.milliseconds)
                 case _ => Left {
-                    MalformedContent(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                    MalformedContent(Messages.invalidTimeout(actionInvokeBlockingTimeoutLimit))
                 }
             }
         }

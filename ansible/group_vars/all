@@ -81,6 +81,7 @@ defaultLimits:
       perMinute: 120
       concurrent: 100
       concurrentInSystem: 5000
+      blockingTimeout: 60
     sequence:
       maxLength: 50
   triggers:

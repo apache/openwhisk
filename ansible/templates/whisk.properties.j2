@@ -38,12 +38,14 @@ defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concur
 defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
 defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
 defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
+defaultLimits.actions.invokes.blockingTimeout={{ defaultLimits.actions.invokes.blockingTimeout }}
 
 {% if limits is defined %}
 limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
 limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
 limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentInSystem }}
 limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
+limits.actions.invokes.blockingTimeout={{ limits.actions.invokes.blockingTimeout }}
 {% endif %}
 
 consulserver.host={{ groups["consul_servers"]|first }}

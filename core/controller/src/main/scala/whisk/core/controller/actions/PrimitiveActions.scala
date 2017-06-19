@@ -30,7 +30,6 @@ import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
-import whisk.core.controller.WhiskActionsApi
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
@@ -55,7 +54,7 @@ protected[actions] trait PrimitiveActions {
     protected val activationStore: ActivationStore
 
     /** Max duration for active ack. */
-    protected val activeAckTimeout = WhiskActionsApi.maxWaitForBlockingActivation
+    protected val activeAckTimeout = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds
 
     /**
      * Gets document from datastore to confirm a valid action activation then posts request to loadbalancer.

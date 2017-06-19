@@ -25,6 +25,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.concurrent.duration._
 
 import WhiskWebActionsApi.MediaExtension
 import spray.http._
@@ -43,6 +44,7 @@ import spray.routing.RequestContext
 import spray.routing.Route
 import spray.http.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH }
 import whisk.common.TransactionId
+import whisk.core.WhiskConfig
 import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
@@ -69,6 +71,12 @@ protected[controller] sealed class WebApiDirectives private (prefix: String) {
 
     lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
     protected final def fields(f: String) = s"$prefix$f"
+
+    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null,
+        WhiskConfig.actionInvokeBlockingTimeoutDefaultLimit -> null)
+
+    def optionalProperties = Set(WhiskConfig.actionInvokeBlockingTimeoutLimit)
+
 }
 
 // field names for /web with raw-http action
@@ -322,6 +330,8 @@ trait WhiskWebActionsApi
     private val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
     private val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
 
+    private lazy val actionInvokeBlockingTimeoutLimit = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds
+
     /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
     private val requestMethodParamsAndPath = {
         extract { ctx =>
@@ -540,7 +550,7 @@ trait WhiskWebActionsApi
             // they will be overwritten
             if (isRawHttpAction || context.overrides(webApiDirectives.reservedProperties ++ action.immutableParameters).isEmpty) {
                 val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-                val waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation)
+                val waitOverride = Some(actionInvokeBlockingTimeoutLimit)
                 invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), blocking = true, waitOverride)
             } else {
                 Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
