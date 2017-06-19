@@ -222,7 +222,7 @@ protected[actions] trait SequenceActions {
      * @param user the user invoking the sequence
      * @param seqAction the sequence invoked
      * @param seqActivationId the id of the sequence
-     * @param payload the payload passed to the first component in the sequence
+     * @param inputPayload the payload passed to the first component in the sequence
      * @param components the components in the sequence
      * @param cause the activation id of the sequence that lead to invoking this sequence or None if this sequence is topmost
      * @param atomicActionCnt the dynamic atomic action count observed so far since the start of the execution of the topmost sequence
@@ -260,10 +260,17 @@ protected[actions] trait SequenceActions {
             (accountingFuture, futureAction) =>
                 accountingFuture.flatMap { accounting =>
                     if (accounting.atomicActionCnt < actionSequenceLimit) {
-                        invokeNextAction(user, futureAction, accounting, cause)
+                        invokeNextAction(user, futureAction, accounting, cause).flatMap { accounting =>
+                            if (!accounting.shortcircuit) {
+                                Future.successful(accounting)
+                            } else {
+                                // this is to short circuit the fold
+                                Future.failed(FailedSequenceActivation(accounting)) // terminates the fold
+                            }
+                        }
                     } else {
                         val updatedAccount = accounting.fail(ActivationResponse.applicationError(sequenceIsTooLong), None)
-                        Future.failed(FailedSequenceActivation(updatedAccount))
+                        Future.failed(FailedSequenceActivation(updatedAccount)) // terminates the fold
                     }
                 }
         }.recoverWith {
@@ -282,11 +289,10 @@ protected[actions] trait SequenceActions {
      *
      * The method distinguishes between invoking a sequence or an atomic action.
      * @param user the user executing the sequence
-     * @param action the action to be invoked
-     * @param payload the payload for the action
-     * @param cause the activation id of the first sequence containing this action
-     * @param atomicActionCount the number of activations
-     * @return future with the result of the invocation and the dynamic atomic action count so far
+     * @param futureAction the future which fetches the action to be invoked from the db
+     * @param accounting the state of the sequence activation, contains the dynamic activation count, logs and payload for the next action
+     * @param cause the activation id of the first sequence containing this activations
+     * @return a future which resolves with updated accounting for a sequence, including the last result, duration, and activation ids
      */
     private def invokeNextAction(
         user: Identity,
@@ -332,13 +338,6 @@ protected[actions] trait SequenceActions {
                 case t: Throwable =>
                     logging.error(this, s"component activation failed: $t")
                     accounting.fail(ActivationResponse.whiskError(sequenceActivationFailure), None)
-            }.flatMap { accounting =>
-                if (!accounting.shortcircuit) {
-                    Future.successful(accounting)
-                } else {
-                    // this is to short circuit the fold
-                    Future.failed(FailedSequenceActivation(accounting))
-                }
             }
         }
     }
@@ -377,7 +376,7 @@ protected[actions] case class SequenceAccounting(
     /** @return the ActivationLogs data structure for this sequence invocation */
     def finalLogs = ActivationLogs(logs.map(id => id.asString).toVector)
 
-    /** the previous activation was successful */
+    /** The previous activation was successful. */
     private def success(activation: WhiskActivation, newCnt: Int, shortcircuit: Boolean = false) = {
         previousResponse.set(null)
         SequenceAccounting(
@@ -395,14 +394,14 @@ protected[actions] case class SequenceAccounting(
             } getOrElse { None })
     }
 
-    /** the previous activation failed */
+    /** The previous activation failed (this is used when there is no activation record or an internal error. */
     def fail(failureResponse: ActivationResponse, activationId: Option[ActivationId]) = {
         require(!failureResponse.isSuccess)
         activationId.foreach(logs += _)
         copy(previousResponse = new AtomicReference(failureResponse), shortcircuit = true)
     }
 
-    /** determine whether the previous activation succeeded or failed */
+    /** Determines whether the previous activation succeeded or failed. */
     def maybe(activation: WhiskActivation, newCnt: Int, maxSequenceCnt: Int) = {
         // check conditions on payload that may lead to interrupting the execution of the sequence
         //     short-circuit the execution of the sequence iff the payload contains an error field
