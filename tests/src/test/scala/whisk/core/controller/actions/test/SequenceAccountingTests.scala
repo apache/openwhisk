@@ -81,7 +81,7 @@ class SequenceAccountingTests extends FlatSpec with Matchers with WskActorSystem
 
     it should "resolve maybe to success and update accounting object" in {
         val p = SequenceAccounting(2, okRes1)
-        val n1 = p.maybe(Right(okActivation), 3, 5)
+        val n1 = p.maybe(okActivation, 3, 5)
         n1.atomicActionCnt shouldBe 3
         n1.previousResponse.get shouldBe okRes2
         n1.logs.length shouldBe 1
@@ -93,8 +93,8 @@ class SequenceAccountingTests extends FlatSpec with Matchers with WskActorSystem
 
     it should "resolve maybe and enable short circuit" in {
         val p = SequenceAccounting(2, okRes1)
-        val n1 = p.maybe(Right(okActivation), 3, 5)
-        val n2 = n1.maybe(Right(notOkActivation), 4, 5)
+        val n1 = p.maybe(okActivation, 3, 5)
+        val n2 = n1.maybe(notOkActivation, 4, 5)
         n2.atomicActionCnt shouldBe 4
         n2.previousResponse.get shouldBe failedRes
         n2.logs.length shouldBe 2
@@ -107,7 +107,7 @@ class SequenceAccountingTests extends FlatSpec with Matchers with WskActorSystem
 
     it should "record an activation that exceeds allowed limit but also short circuit" in {
         val p = SequenceAccounting(2, okRes1)
-        val n = p.maybe(Right(okActivation), 3, 2)
+        val n = p.maybe(okActivation, 3, 2)
         n.atomicActionCnt shouldBe 3
         n.previousResponse.get shouldBe ActivationResponse.applicationError(Messages.sequenceIsTooLong)
         n.logs.length shouldBe 1
@@ -119,8 +119,8 @@ class SequenceAccountingTests extends FlatSpec with Matchers with WskActorSystem
 
     it should "set failed response and short circuit on failure" in {
         val p = SequenceAccounting(2, okRes1)
-        val n = p.maybe(Right(okActivation), 3, 3)
-        val f = n.fail(failedRes)
+        val n = p.maybe(okActivation, 3, 3)
+        val f = n.fail(failedRes, None)
         f.atomicActionCnt shouldBe 3
         f.previousResponse.get shouldBe failedRes
         f.logs.length shouldBe 1

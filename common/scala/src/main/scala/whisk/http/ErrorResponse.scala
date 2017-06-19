@@ -35,6 +35,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
 import whisk.core.entity.Exec
+import whisk.core.entity.ActivationId
 
 object Messages {
     /** Standard message for reporting resource conflicts. */
@@ -95,7 +96,7 @@ object Messages {
     val notAllowedOnBinding = "Operation not permitted on package binding."
 
     /** Error messages for sequence activations. */
-    val sequenceRetrieveActivationTimeout = "Timeout reached when retrieving activation for sequence component."
+    def sequenceRetrieveActivationTimeout(id: ActivationId) = s"Timeout reached when retrieving activation $id for sequence component."
     val sequenceActivationFailure = "Sequence failed."
 
     /** Error messages for bad requests where parameters do not conform. */

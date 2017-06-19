@@ -39,7 +39,7 @@ import whisk.http.Messages
  *
  * @param id the activation id, required not null
  */
-protected[core] class ActivationId private (private val id: java.util.UUID) extends AnyVal {
+protected[whisk] class ActivationId private (private val id: java.util.UUID) extends AnyVal {
     def asString = toString
     override def toString = id.toString.replaceAll("-", "")
     def toJsObject = JsObject("activationId" -> toString.toJson)

@@ -20,8 +20,6 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.Left
-import scala.Right
 import scala.collection._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -261,29 +259,11 @@ protected[actions] trait SequenceActions {
         resolvedFutureActions.foldLeft(initialAccounting) {
             (accountingFuture, futureAction) =>
                 accountingFuture.flatMap { accounting =>
-                    futureAction.flatMap { action =>
-                        // the previous response becomes input for the next action in the sequence;
-                        // the accounting no longer needs to hold a reference to it once the action is
-                        // invoked, so previousResponse.getAndSet(null) drops the reference at this point
-                        // which prevents dragging the previous response for the lifetime of the next activation
-                        val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
-                        invokeSeqOneComponent(user, action, inputPayload, cause, accounting.atomicActionCnt).map {
-                            // disambiguate result and updated accounting
-                            case (response, newCnt) => accounting.maybe(response, newCnt, actionSequenceLimit)
-                        }.recover {
-                            // check any failure here and generate an activation response to encapsulate
-                            // the failure mode; consider this failure a whisk error
-                            case t: Throwable =>
-                                logging.error(this, s"component activation failed: $t")
-                                accounting.fail(ActivationResponse.whiskError(sequenceActivationFailure))
-                        }.flatMap { accounting =>
-                            if (!accounting.shortcircuit) {
-                                Future.successful(accounting)
-                            } else {
-                                // this is to short circuit the fold
-                                Future.failed(FailedSequenceActivation(accounting))
-                            }
-                        }
+                    if (accounting.atomicActionCnt < actionSequenceLimit) {
+                        invokeNextAction(user, futureAction, accounting, cause)
+                    } else {
+                        val updatedAccount = accounting.fail(ActivationResponse.applicationError(sequenceIsTooLong), None)
+                        Future.failed(FailedSequenceActivation(updatedAccount))
                     }
                 }
         }.recoverWith {
@@ -308,41 +288,58 @@ protected[actions] trait SequenceActions {
      * @param atomicActionCount the number of activations
      * @return future with the result of the invocation and the dynamic atomic action count so far
      */
-    private def invokeSeqOneComponent(
+    private def invokeNextAction(
         user: Identity,
-        action: WhiskAction,
-        payload: Option[JsObject],
-        cause: Option[ActivationId],
-        atomicActionCount: Int)(
-            implicit transid: TransactionId): Future[(Either[ActivationResponse, WhiskActivation], Int)] = {
-        // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
-        // the tuple contains activationId, wskActivation, atomicActionCount (up till this point in execution)
-        val futureWhiskActivationTuple = action.exec match {
-            case SequenceExec(components) =>
-                // invoke a sequence
-                logging.info(this, s"sequence invoking an enclosed sequence $action")
-                // call invokeSequence to invoke the inner sequence
-                // true for blocking; false for topmost
-                invokeSequence(user, action, payload, blocking = true, topmost = false, components, cause, atomicActionCount)
-            case _ =>
-                // this is an invoke for an atomic action
-                logging.info(this, s"sequence invoking an enclosed atomic action $action")
-                val timeout = action.limits.timeout.duration + blockingInvokeGrace
-                invokeSingleAction(user, action, payload, timeout, blocking = true, cause) map {
-                    case (activationId, wskActivation) => (activationId, wskActivation, atomicActionCount + 1)
-                }
-        }
+        futureAction: Future[WhiskAction],
+        accounting: SequenceAccounting,
+        cause: Option[ActivationId])(
+            implicit transid: TransactionId): Future[SequenceAccounting] = {
+        futureAction.flatMap { action =>
+            // the previous response becomes input for the next action in the sequence;
+            // the accounting no longer needs to hold a reference to it once the action is
+            // invoked, so previousResponse.getAndSet(null) drops the reference at this point
+            // which prevents dragging the previous response for the lifetime of the next activation
+            val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
 
-        futureWhiskActivationTuple map {
-            case (activationId, wskActivation, atomicActionCountSoFar) =>
-                // the activation is None only if the activation could not be retrieved either from active ack or from db
-                wskActivation match {
-                    case Some(activation) => (Right(activation), atomicActionCountSoFar)
-                    case None => {
-                        val activationResponse = ActivationResponse.whiskError(s"$sequenceRetrieveActivationTimeout Activation id '$activationId'.")
-                        (Left(activationResponse), atomicActionCountSoFar) // dynamic count doesn't matter, sequence will be interrupted
+            // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
+            val futureWhiskActivationTuple = action.exec match {
+                case SequenceExec(components) =>
+                    logging.info(this, s"sequence invoking an enclosed sequence $action")
+                    // call invokeSequence to invoke the inner sequence
+                    invokeSequence(user, action, inputPayload, blocking = true, topmost = false, components, cause, accounting.atomicActionCnt)
+                case _ =>
+                    // this is an invoke for an atomic action
+                    logging.info(this, s"sequence invoking an enclosed atomic action $action")
+                    val timeout = action.limits.timeout.duration + blockingInvokeGrace
+                    invokeSingleAction(user, action, inputPayload, timeout, blocking = true, cause) map {
+                        case (activationId, wskActivation) => (activationId, wskActivation, accounting.atomicActionCnt + 1)
                     }
+            }
+
+            futureWhiskActivationTuple.map {
+                case (activationId, wskActivation, atomicActionCountSoFar) =>
+                    wskActivation.map {
+                        activation => accounting.maybe(activation, atomicActionCountSoFar, actionSequenceLimit)
+                    }.getOrElse {
+                        // the wskActivation is None only if the result could not be retrieved in time either from active ack or from db
+                        logging.error(this, s"component activation timedout for $activationId")
+                        val activationResponse = ActivationResponse.whiskError(sequenceRetrieveActivationTimeout(activationId))
+                        accounting.fail(activationResponse, Some(activationId))
+                    }
+            }.recover {
+                // check any failure here and generate an activation response to encapsulate
+                // the failure mode; consider this failure a whisk error
+                case t: Throwable =>
+                    logging.error(this, s"component activation failed: $t")
+                    accounting.fail(ActivationResponse.whiskError(sequenceActivationFailure), None)
+            }.flatMap { accounting =>
+                if (!accounting.shortcircuit) {
+                    Future.successful(accounting)
+                } else {
+                    // this is to short circuit the fold
+                    Future.failed(FailedSequenceActivation(accounting))
                 }
+            }
         }
     }
 
@@ -399,43 +396,40 @@ protected[actions] case class SequenceAccounting(
     }
 
     /** the previous activation failed */
-    def fail(failureResponse: ActivationResponse) = {
+    def fail(failureResponse: ActivationResponse, activationId: Option[ActivationId]) = {
         require(!failureResponse.isSuccess)
+        activationId.foreach(logs += _)
         copy(previousResponse = new AtomicReference(failureResponse), shortcircuit = true)
     }
 
     /** determine whether the previous activation succeeded or failed */
-    def maybe(response: Either[ActivationResponse, WhiskActivation], newCnt: Int, maxSequenceCnt: Int) = {
-        response match {
-            case Right(activation) =>
-                // check conditions on payload that may lead to interrupting the execution of the sequence
-                //     short-circuit the execution of the sequence iff the payload contains an error field
-                //     and is the result of an action return, not the initial payload
-                val outputPayload = activation.response.result.map(_.asJsObject)
-                val payloadContent = outputPayload getOrElse JsObject.empty
-                val errorField = payloadContent.fields.get(ActivationResponse.ERROR_FIELD)
-                val withinSeqLimit = newCnt <= maxSequenceCnt
+    def maybe(activation: WhiskActivation, newCnt: Int, maxSequenceCnt: Int) = {
+        // check conditions on payload that may lead to interrupting the execution of the sequence
+        //     short-circuit the execution of the sequence iff the payload contains an error field
+        //     and is the result of an action return, not the initial payload
+        val outputPayload = activation.response.result.map(_.asJsObject)
+        val payloadContent = outputPayload getOrElse JsObject.empty
+        val errorField = payloadContent.fields.get(ActivationResponse.ERROR_FIELD)
+        val withinSeqLimit = newCnt <= maxSequenceCnt
 
-                if (withinSeqLimit && errorField.isEmpty) {
-                    // all good with this action invocation
-                    success(activation, newCnt)
-                } else {
-                    val nextActivation = if (!withinSeqLimit) {
-                        // no error in the activation but the dynamic count of actions exceeds the threshold
-                        val newResponse = ActivationResponse.applicationError(sequenceIsTooLong)
-                        activation.copy(response = newResponse)
-                    } else {
-                        assert(errorField.isDefined)
-                        activation
-                    }
+        if (withinSeqLimit && errorField.isEmpty) {
+            // all good with this action invocation
+            success(activation, newCnt)
+        } else {
+            val nextActivation = if (!withinSeqLimit) {
+                // no error in the activation but the dynamic count of actions exceeds the threshold
+                // this is here as defensive code; the activation should not occur if its takes the
+                // count above its limit
+                val newResponse = ActivationResponse.applicationError(sequenceIsTooLong)
+                activation.copy(response = newResponse)
+            } else {
+                assert(errorField.isDefined)
+                activation
+            }
 
-                    // there is an error field in the activation response. here, we treat this like success,
-                    // in the sense of tallying up the accounting fields, but terminate the sequence early
-                    success(nextActivation, newCnt, shortcircuit = true)
-                }
-            case Left(response) =>
-                // utter failure somewhere downstream
-                fail(response)
+            // there is an error field in the activation response. here, we treat this like success,
+            // in the sense of tallying up the accounting fields, but terminate the sequence early
+            success(nextActivation, newCnt, shortcircuit = true)
         }
     }
 }
