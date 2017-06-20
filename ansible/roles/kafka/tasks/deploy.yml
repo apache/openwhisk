@@ -3,6 +3,7 @@
 
 - name: "pull the zookeeper:{{ zookeeper.version }} image"
   shell: "docker pull zookeeper:{{ zookeeper.version }}"
+  retries: 3
 
 - name: (re)start zookeeper
   docker_container:
@@ -23,6 +24,7 @@
 
 - name: "pull the ches/kafka:{{ kafka.version }} image"
   shell: "docker pull ches/kafka:{{ kafka.version }}"
+  retries: 3
 
 - name: (re)start kafka
   docker_container:

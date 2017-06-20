@@ -34,6 +34,7 @@
 
 - name: "pull the nginx:{{ nginx.version }} image"
   shell: "docker pull nginx:{{ nginx.version }}"
+  retries: 3
 
 - name: (re)start nginx
   docker_container:

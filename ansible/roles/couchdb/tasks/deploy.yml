@@ -17,6 +17,7 @@
 
 - name: "pull the couchdb:{{ couchdb.version }} image"
   shell: "docker pull couchdb:{{ couchdb.version }}"
+  retries: 3
 
 - name: (re)start CouchDB
   docker_container:
