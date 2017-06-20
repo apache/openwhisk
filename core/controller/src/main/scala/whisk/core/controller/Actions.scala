@@ -625,7 +625,7 @@ trait WhiskActionsApi
     /** Max atomic action count allowed for sequences */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-    private lazy val actionInvokeBlockingTimeoutLimit = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds
+    lazy val actionInvokeBlockingTimeoutLimit = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds
 
     /** Custom deserializer for timeout query parameter. */
     private implicit val stringToTimeoutDeserializer = new FromStringDeserializer[FiniteDuration] {

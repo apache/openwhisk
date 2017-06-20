@@ -661,12 +661,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
             Post(s"$collectionPath/${action.name}?blocking=true&timeout=0") ~> sealRoute(routes(creds)) ~> check {
                 status shouldBe BadRequest
-                responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                responseAs[String] should include(Messages.invalidTimeout(actionInvokeBlockingTimeoutLimit))
             }
 
             Post(s"$collectionPath/${action.name}?blocking=true&timeout=65000") ~> sealRoute(routes(creds)) ~> check {
                 status shouldBe BadRequest
-                responseAs[String] should include(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                responseAs[String] should include(Messages.invalidTimeout(actionInvokeBlockingTimeoutLimit))
             }
 
             // will not wait long enough should get accepted status
