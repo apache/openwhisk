@@ -368,7 +368,7 @@ protected[actions] trait SequenceActions {
 protected[actions] case class SequenceAccounting(
     atomicActionCnt: Int,
     previousResponse: AtomicReference[ActivationResponse],
-    logs: mutable.ArrayBuffer[ActivationId],
+    logs: mutable.Buffer[ActivationId],
     duration: Long = 0,
     maxMemory: Option[Int] = None,
     shortcircuit: Boolean = false) {
@@ -397,7 +397,7 @@ protected[actions] case class SequenceAccounting(
     /** The previous activation failed (this is used when there is no activation record or an internal error. */
     def fail(failureResponse: ActivationResponse, activationId: Option[ActivationId]) = {
         require(!failureResponse.isSuccess)
-        activationId.foreach(logs += _)
+        logs.appendAll(activationId)
         copy(previousResponse = new AtomicReference(failureResponse), shortcircuit = true)
     }
 
@@ -442,11 +442,7 @@ protected[actions] case class SequenceAccounting(
 protected[actions] object SequenceAccounting {
 
     def maxMemory(prevMemoryLimit: Option[Int], newMemoryLimit: Option[Int]): Option[Int] = {
-        prevMemoryLimit.map { prevMax =>
-            newMemoryLimit
-                .map(currentMax => Some(Math.max(prevMax, currentMax)))
-                .getOrElse(prevMemoryLimit)
-        }.getOrElse(newMemoryLimit)
+        (prevMemoryLimit ++ newMemoryLimit).reduceOption(Math.max)
     }
 
     // constructor for successful invocations, or error'ing ones (where shortcircuit = true)
@@ -476,7 +472,7 @@ protected[actions] object SequenceAccounting {
 
     // constructor for initial payload
     def apply(atomicActionCnt: Int, initialPayload: ActivationResponse): SequenceAccounting = {
-        SequenceAccounting(atomicActionCnt, new AtomicReference(initialPayload), mutable.ArrayBuffer.empty)
+        SequenceAccounting(atomicActionCnt, new AtomicReference(initialPayload), mutable.Buffer.empty)
     }
 }
 
