@@ -832,8 +832,8 @@
     "translation": "{{.ok}} deleted action {{.name}}\n"
   },
   {
-    "id": "list all actions",
-    "translation": "list all actions"
+    "id": "list all actions in a namespace or actions contained in a package",
+    "translation": "list all actions in a namespace or actions contained in a package"
   },
   {
     "id": "Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}",
@@ -1462,5 +1462,9 @@
   {
     "id": "Invalid format type: {{.type}}",
     "translation": "Invalid format type: {{.type}}"
+  },
+  {
+    "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
+    "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
   }
 ]

@@ -50,35 +50,26 @@ var activationListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        qName := QualifiedName{}
+        var qualifiedName QualifiedName
+
+        if whiskErr := checkArgs(args, 0, 1, "Activation list",
+            wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
+            return whiskErr
+        }
 
         // Specifying an activation item name filter is optional
         if len(args) == 1 {
             whisk.Debug(whisk.DbgInfo, "Activation item name filter '%s' provided\n", args[0])
-            qName, err = parseQualifiedName(args[0])
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errStr := wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
-            ns := qName.namespace
-            if len(ns) == 0 {
-                whisk.Debug(whisk.DbgError, "Namespace '%s' is invalid\n", ns)
-                errStr := wski18n.T("Namespace '{{.name}}' is invalid", map[string]interface{}{"name": ns})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-                return werr
+
+            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
+                return parseQualifiedNameError(args[0], err)
             }
 
-            client.Namespace = ns
-        } else if whiskErr := checkArgs(args, 0, 1, "Activation list",
-                wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
-            return whiskErr
+            client.Namespace = qualifiedName.namespace
         }
 
         options := &whisk.ActivationListOptions{
-            Name:  qName.entityName,
+            Name:  qualifiedName.entityName,
             Limit: flags.common.limit,
             Skip:  flags.common.skip,
             Upto:  flags.activation.upto,

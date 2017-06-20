@@ -277,8 +277,8 @@ var actionDeleteCmd = &cobra.Command{
 }
 
 var actionListCmd = &cobra.Command{
-    Use:           "list [NAMESPACE]",
-    Short:         wski18n.T("list all actions"),
+    Use:           "list [ NAMESPACE | PACKAGE_NAME ]",
+    Short:         wski18n.T("list all actions in a namespace or actions contained in a package"),
     SilenceUsage:  true,
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
@@ -287,19 +287,21 @@ var actionListCmd = &cobra.Command{
         var actions []whisk.Action
         var err error
 
-        if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
-            }
-
-            client.Namespace = qualifiedName.namespace
-        } else if whiskErr := checkArgs(
+        if whiskErr := checkArgs(
             args,
             0,
             1,
             "Action list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
+        }
+
+        if len(args) == 1 {
+            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
+                return parseQualifiedNameError(args[0], err)
+            }
+
+            client.Namespace = qualifiedName.namespace
         }
 
         options := &whisk.ActionListOptions{
@@ -609,19 +611,6 @@ func actionInsertError(action *whisk.Action, err error) (error) {
         "Unable to create action '{{.name}}': {{.err}}",
         map[string]interface{}{
             "name": action.Name,
-            "err": err,
-        })
-
-    return nestedError(errMsg, err)
-}
-
-func parseQualifiedNameError(entityName string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", entityName, err)
-
-    errMsg := wski18n.T(
-        "'{{.name}}' is not a valid qualified name: {{.err}}",
-        map[string]interface{}{
-            "name": entityName,
             "err": err,
         })
 

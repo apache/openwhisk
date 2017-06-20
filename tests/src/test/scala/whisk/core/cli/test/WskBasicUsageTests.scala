@@ -245,7 +245,7 @@ class WskBasicUsageTests
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
-                ("", NOT_ALLOWED),
+                ("", ERROR_EXIT),
                 (" ", BAD_REQUEST),
                 ("hi+there", BAD_REQUEST),
                 ("$hola", BAD_REQUEST),
@@ -1194,6 +1194,7 @@ class WskBasicUsageTests
         val apiDeleteReqMsg = "An API base path or API name is required.  An optional API relative path and operation may also be provided."
         val apiListReqMsg = "Optional parameters are: API base path (or API name), API relative path and operation."
         val invalidShared = s"Cannot use value '$invalidArg' for shared"
+        val entityNameMsg = s"An entity name, '$invalidArg', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
         val invalidArgs = Seq(
             (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
             (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
@@ -1241,10 +1242,12 @@ class WskBasicUsageTests
             (Seq("package", "bind", "packageName", "bindingName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "list", "namespace", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "list", invalidArg), entityNameMsg),
             (Seq("package", "delete"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "delete", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "refresh", "namespace", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "refresh", invalidArg), entityNameMsg),
             (Seq("rule", "enable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "enable", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "disable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
@@ -1266,6 +1269,7 @@ class WskBasicUsageTests
             (Seq("rule", "delete"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "delete", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("rule", "list", invalidArg), entityNameMsg),
             (Seq("trigger", "fire"), s"${tooFewArgsMsg} ${triggerNameReqMsg} ${optPayloadMsg}"),
             (Seq("trigger", "fire", "triggerName", "triggerPayload", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${triggerNameReqMsg} ${optPayloadMsg}"),
@@ -1277,7 +1281,8 @@ class WskBasicUsageTests
             (Seq("trigger", "get", "triggerName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "delete"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "delete", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
-            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"))
+            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("trigger", "list", invalidArg), entityNameMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
