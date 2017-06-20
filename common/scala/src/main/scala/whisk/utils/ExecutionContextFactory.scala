@@ -22,16 +22,32 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 import akka.actor.ActorSystem
 import akka.pattern.{ after => expire }
 
 object ExecutionContextFactory {
 
+    // Future.firstCompletedOf has a memory drag bug
+    // https://stackoverflow.com/questions/36420697/about-future-firstcompletedof-and-garbage-collect-mechanism
+    def firstCompletedOf[T](futures: TraversableOnce[Future[T]])(implicit executor: ExecutionContext): Future[T] = {
+        val p = Promise[T]()
+        val pref = new java.util.concurrent.atomic.AtomicReference(p)
+        val completeFirst: Try[T] => Unit = { result: Try[T] =>
+            val promise = pref.getAndSet(null)
+            if (promise != null) {
+                promise.tryComplete(result)
+            }
+        }
+        futures foreach { _ onComplete completeFirst }
+        p.future
+    }
+
     implicit class FutureExtensions[T](f: Future[T]) {
         def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem): Future[T] = {
             implicit val ec = system.dispatcher
-            Future firstCompletedOf Seq(f, expire(timeout, system.scheduler)(Future.failed(msg)))
+            firstCompletedOf(Seq(f, expire(timeout, system.scheduler)(Future.failed(msg))))
         }
     }
 
