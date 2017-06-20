@@ -22,6 +22,7 @@ db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_
 limits:
   actions:
     invokes:
+      blockingTimeout: 60
       concurrent: 30
       concurrentInSystem: 5000
       perMinute: 60
