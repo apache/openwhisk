@@ -273,7 +273,8 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             implicit override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
             override val executionContext: ExecutionContext,
-            override val logging: Logging)
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig)
         extends WhiskActivationsApi
 
     class PackagesApi(

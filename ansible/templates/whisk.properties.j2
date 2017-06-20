@@ -33,19 +33,21 @@ whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_na
 whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
-defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
-defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
-defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
-defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
-defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
 defaultLimits.actions.invokes.blockingTimeout={{ defaultLimits.actions.invokes.blockingTimeout }}
+defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
+defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
+defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
+defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
+defaultLimits.activations.polls.maxRecords={{ defaultLimits.activations.polls.maxRecords }}
+defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
 
 {% if limits is defined %}
-limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
+limits.actions.invokes.blockingTimeout={{ limits.actions.invokes.blockingTimeout }}
 limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
 limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentInSystem }}
+limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
+limits.activations.polls.maxRecords={{ limits.activations.polls.maxRecords }}
 limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
-limits.actions.invokes.blockingTimeout={{ limits.actions.invokes.blockingTimeout }}
 {% endif %}
 
 consulserver.host={{ groups["consul_servers"]|first }}

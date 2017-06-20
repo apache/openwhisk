@@ -72,11 +72,9 @@ protected[controller] sealed class WebApiDirectives private (prefix: String) {
     lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
     protected final def fields(f: String) = s"$prefix$f"
 
-    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null,
-        WhiskConfig.actionInvokeBlockingTimeoutDefaultLimit -> null)
+    def requiredProperties = Map(WhiskConfig.actionInvokeBlockingTimeoutDefaultLimit -> null)
 
     def optionalProperties = Set(WhiskConfig.actionInvokeBlockingTimeoutLimit)
-
 }
 
 // field names for /web with raw-http action
