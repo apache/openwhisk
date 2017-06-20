@@ -14,6 +14,7 @@
     - '{{ docker_image_prefix }}/swift3action'
     - '{{ docker_image_prefix }}/java8action'
   when: docker_registry != ""
+  retries: 3
 
 - name: determine docker root dir
   uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
