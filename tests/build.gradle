@@ -61,7 +61,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
 }
 
-def keystorePath = new File(buildDir, 'classes/test/keystore')
+def keystorePath = new File(sourceSets.test.scala.outputDir, 'keystore')
 task deleteKeystore(type: Delete) {
     delete keystorePath
 }
