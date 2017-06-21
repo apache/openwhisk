@@ -146,10 +146,7 @@ object Controller {
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
         ExecManifest.requiredProperties ++
         RestApiCommons.requiredProperties ++
-        LoadBalancerService.requiredProperties ++
-        EntitlementProvider.requiredProperties ++
-        WhiskActionsApi.requiredProperties ++
-        WhiskActivationsApi.requiredProperties
+        LoadBalancerService.requiredProperties
 
     def optionalProperties = EntitlementProvider.optionalProperties
 

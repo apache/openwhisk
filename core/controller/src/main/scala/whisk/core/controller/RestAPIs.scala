@@ -95,7 +95,8 @@ protected[controller] object RestApiCommons {
             EntitlementProvider.requiredProperties ++
             WhiskActionsApi.requiredProperties ++
             Authenticate.requiredProperties ++
-            Collection.requiredProperties
+            Collection.requiredProperties ++
+            WhiskActivationsApi.requiredProperties
 
     /**
      * The web actions API is available in both v1 and v2.
