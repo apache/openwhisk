@@ -279,7 +279,7 @@ public class WhiskProperties {
     }
 
     public static int getTriggerFiresPerMinute() {
-        return getPropertyLimit("imits.triggers.fires.perMinute", "defaultLimits.triggers.fires.perMinute");
+        return getPropertyLimit("limits.triggers.fires.perMinute", "defaultLimits.triggers.fires.perMinute");
     }
 
     private static int getPropertyLimit(String property, String defaultProperty) {
