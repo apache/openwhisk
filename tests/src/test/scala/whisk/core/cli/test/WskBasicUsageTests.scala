@@ -631,6 +631,40 @@ class WskBasicUsageTests
                 }
     }
 
+    it should "ensure --web flag does not remove existing annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val key = "someKey"
+            val value = JsString("someValue")
+            val annots = Map(key -> value)
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, annotations = annots)
+            }
+
+            wsk.action.create(name, file, web = Some("true"), update = true)
+
+            val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(key),
+                    "value" -> value),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+    }
+
     it should "reject action create and update with invalid web flag input" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
