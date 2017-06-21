@@ -254,10 +254,38 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
     }
 
+    public static int getActionInvokeBlockingTimeout() {
+        return getPropertyLimit("limits.actions.invokes.blockingTimeout", "defaultLimits.actions.invokes.blockingTimeout");
+    }
+
+    public static int getActionInvokeConcurent() {
+        return getPropertyLimit("limits.actions.invokes.concurrent", "defaultLimits.actions.invokes.concurrent");
+    }
+
+    public static int getActionInvokeConcurentInSystem() {
+        return getPropertyLimit("limits.actions.invokes.concurrentInSystem", "defaultLimits.actions.invokes.concurrentInSystem");
+    }
+
     public static int getMaxActionInvokesPerMinute() {
-        String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
+        return getPropertyLimit("limits.actions.invokes.perMinute", "defaultLimits.actions.invokes.perMinute");
+    }
+
+    public static int getActionSequenceMaxLength() {
+        return getPropertyLimit("limits.actions.sequence.maxLength", "defaultLimits.actions.sequence.maxLength");
+    }
+
+    public static int getActivationPollMaxRecords() {
+        return getPropertyLimit("limits.activations.polls.maxRecords", "defaultLimits.activations.polls.maxRecords");
+    }
+
+    public static int getTriggerFiresPerMinute() {
+        return getPropertyLimit("imits.triggers.fires.perMinute", "defaultLimits.triggers.fires.perMinute");
+    }
+
+    private static int getPropertyLimit(String property, String defaultProperty) {
+        String valStr = whiskProperties.getProperty(property);
         if (null == valStr) {
-            valStr = whiskProperties.getProperty("defaultLimits.actions.invokes.perMinute");
+            valStr = whiskProperties.getProperty(defaultProperty);
         }
         return Integer.parseInt(valStr);
     }

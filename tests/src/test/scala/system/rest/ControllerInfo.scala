@@ -23,15 +23,32 @@ import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
 
+import common.WhiskProperties
+
+import spray.json._
+
 @RunWith(classOf[JUnitRunner])
 class ControllerInfo extends FlatSpec with Matchers with RestUtil {
 
     it should "get info route from controller" in {
         val response = RestAssured.given.config(sslconfig).get(getServiceURL)
+
         response.statusCode shouldBe 200
         response.body.asString.contains("\"support\":") shouldBe true
         response.body.asString.contains("\"description\":") shouldBe true
         response.body.asString.contains("\"runtimes\":") shouldBe true
         response.body.asString.contains("\"limits\":") shouldBe true
+
+        val limits = response.body.asString.parseJson.asJsObject.fields("limits").asJsObject
+        val expectedLimits = JsObject(
+            "action_blocking_timeout" -> JsNumber(WhiskProperties.getActionInvokeBlockingTimeout),
+            "concurrent_actions" -> JsNumber(WhiskProperties.getActionInvokeConcurent),
+            //"concurrent_actions_in_system" -> JsNumber(WhiskProperties.getActionInvokeConcurentInSystem),
+            "actions_per_minute" -> JsNumber(WhiskProperties.getMaxActionInvokesPerMinute),
+            //"action_sequence_max" -> JsNumber(WhiskProperties.getActionSequenceMaxLength),
+            "activation_poll_record_limit" -> JsNumber(WhiskProperties.getActivationPollMaxRecords),
+            "triggers_per_minute" -> JsNumber(WhiskProperties.getTriggerFiresPerMinute))
+
+        limits shouldBe expectedLimits
     }
 }
