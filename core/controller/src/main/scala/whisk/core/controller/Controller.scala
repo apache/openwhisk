@@ -53,6 +53,15 @@ import scala.util.{ Failure, Success }
  *
  * Spray sends messages to akka Actors -- the Controller is an Actor, ready to receive messages.
  *
+ * It is possible to deploy a hot-standby controller. Each controller needs its own instance. This instance is a
+ * consecutive numbering, starting with 0.
+ * The state and cache of each controller is not shared to the other controllers.
+ * If the base controller crashes, the hot-standby controller will be used. After the base controller is up again,
+ * it will be used again. Because of the empty cache after restart, there are no problems with inconsistency.
+ * The only problem that could occur is, that the base controller is not reachable, but does not restart. After switching
+ * back to the base controller, there could be an inconsistency in the cache (e.g. if a user has updated an action). This
+ * inconsistency will be resolved by its own after removing the cached item, 5 minutes after it has been generated.
+ *
  * @Idioglossia uses the spray-routing DSL
  * http://spray.io/documentation/1.1.3/spray-routing/advanced-topics/understanding-dsl-structure/
  *

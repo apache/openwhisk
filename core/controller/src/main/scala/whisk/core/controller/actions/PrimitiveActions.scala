@@ -48,7 +48,10 @@ protected[actions] trait PrimitiveActions {
 
     protected implicit val logging: Logging
 
-    /** The index of the active ack topic, this controller is listening for. Typically this is also the instance number of the controller */
+    /**
+     *  The index of the active ack topic, this controller is listening for.
+     *  Typically this is also the instance number of the controller
+     */
     protected val activeAckTopicIndex: InstanceId
 
     /** Database service to CRUD actions. */

@@ -246,6 +246,14 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
     }
 
+    public static String getBaseControllerHost() {
+    	return getControllerHosts().split(",")[0];
+    }
+
+    public static String getBaseControllerAddress() {
+    	return getBaseControllerHost() + ":" + getControllerBasePort();
+    }
+
     public static int getMaxActionInvokesPerMinute() {
         String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
         if (null == valStr) {

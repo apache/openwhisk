@@ -75,7 +75,7 @@ class HeadersTests extends FlatSpec
     val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
     val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
 
-    val url = Uri(s"http://${WhiskProperties.getControllerHosts.split(",")(0)}:${WhiskProperties.getControllerBasePort}")
+    val url = Uri(s"http://${WhiskProperties.getBaseControllerAddress()}")
     val pipeline: HttpRequest => Future[HttpResponse] = (
         sendReceive
         ~> unmarshal[HttpResponse])
