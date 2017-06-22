@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,20 +52,23 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * Prewarm containers are only used, if they have matching arguments
  * (kind, memory) and there is space in the pool.
  *
- * @param childFactory method to create new container proxy actors
+ * @param childFactory method to create new container proxy actor
+ * @param maxActiveContainers maximum amount of containers doing work
  * @param maxPoolSize maximum size of containers allowed in the pool
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  */
 class ContainerPool(
     childFactory: ActorRefFactory => ActorRef,
+    maxActiveContainers: Int,
     maxPoolSize: Int,
     feed: ActorRef,
     prewarmConfig: Option[PrewarmingConfig] = None) extends Actor {
-    val logging = new AkkaLogging(context.system.log)
+    implicit val logging = new AkkaLogging(context.system.log)
 
-    val pool = new mutable.HashMap[ActorRef, WorkerData]
-    val prewarmedPool = new mutable.HashMap[ActorRef, WorkerData]
+    val freePool = mutable.Map[ActorRef, ContainerData]()
+    val busyPool = mutable.Map[ActorRef, ContainerData]()
+    val prewarmedPool = mutable.Map[ActorRef, ContainerData]()
 
     prewarmConfig.foreach { config =>
         logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")
@@ -76,58 +80,65 @@ class ContainerPool(
     def receive: Receive = {
         // A job to run on a container
         case r: Run =>
-            // Schedule a job to a warm container
-            ContainerPool.schedule(r.action, r.msg.user.namespace, pool.toMap).orElse {
-                // Create a cold container iff there's space in the pool
-                if (pool.size < maxPoolSize) {
-                    takePrewarmContainer(r.action).orElse {
-                        Some(createContainer())
+            val container = if (busyPool.size < maxActiveContainers) {
+                // Schedule a job to a warm container
+                ContainerPool.schedule(r.action, r.msg.user.namespace, freePool.toMap).orElse {
+                    if (busyPool.size + freePool.size < maxPoolSize) {
+                        takePrewarmContainer(r.action).orElse {
+                            Some(createContainer())
+                        }
+                    } else None
+                }.orElse {
+                    // Remove a container and create a new one for the given job
+                    ContainerPool.remove(r.action, r.msg.user.namespace, freePool.toMap).map { toDelete =>
+                        removeContainer(toDelete)
+                        takePrewarmContainer(r.action).getOrElse {
+                            createContainer()
+                        }
                     }
-                } else None
-            }.orElse {
-                // Remove a container and create a new one for the given job
-                ContainerPool.remove(r.action, r.msg.user.namespace, pool.toMap).map { toDelete =>
-                    removeContainer(toDelete)
-                    createContainer()
                 }
-            } match {
-                case Some(actor) =>
-                    pool.get(actor) match {
-                        case Some(w) =>
-                            pool.update(actor, WorkerData(w.data, Busy))
-                            actor ! r // forwards the run request to the container
-                        case None =>
-                            logging.error(this, "actor data not found")
-                            self ! r
-                    }
+            } else None
+
+            container match {
+                case Some((actor, data)) =>
+                    busyPool.update(actor, data)
+                    freePool.remove(actor)
+                    actor ! r // forwards the run request to the container
                 case None =>
-                    // "reenqueue" the request to find a container at a later point in time
                     self ! r
             }
 
         // Container is free to take more work
-        case NeedWork(data: WarmedData)    => pool.update(sender(), WorkerData(data, Free))
+        case NeedWork(data: WarmedData) =>
+            freePool.update(sender(), data)
+            busyPool.remove(sender())
 
         // Container is prewarmed and ready to take work
-        case NeedWork(data: PreWarmedData) => prewarmedPool.update(sender(), WorkerData(data, Free))
+        case NeedWork(data: PreWarmedData) =>
+            prewarmedPool.update(sender(), data)
 
         // Container got removed
-        case ContainerRemoved              => pool.remove(sender())
+        case ContainerRemoved =>
+            freePool.remove(sender())
+            busyPool.remove(sender())
 
         // Activation completed
-        case ActivationCompleted           => feed ! ContainerReleased
+        case ActivationCompleted =>
+            feed ! ContainerReleased
     }
 
     /** Creates a new container and updates state accordingly. */
-    def createContainer() = {
+    def createContainer(): (ActorRef, ContainerData) = {
         val ref = childFactory(context)
-        pool.update(ref, WorkerData(NoData(), Free))
-        ref
+        val data = NoData()
+        freePool.update(ref, data)
+
+        (ref, data)
     }
 
     /** Creates a new prewarmed container */
     def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize) =
-        prewarmConfig.foreach(config => childFactory(context) ! Start(exec, memoryLimit))
+        childFactory(context) ! Start(exec, memoryLimit)
 
     /**
      * Takes a prewarm container out of the prewarmed pool
@@ -136,28 +147,30 @@ class ContainerPool(
      * @param kind the kind you want to invoke
      * @return the container iff found
      */
-    def takePrewarmContainer(action: ExecutableWhiskAction) = prewarmConfig.flatMap { config =>
-        val kind = action.exec.kind
-        val memory = action.limits.memory.megabytes.MB
-        prewarmedPool.find {
-            case (_, WorkerData(PreWarmedData(_, `kind`, `memory`), _)) => true
-            case _ => false
-        }.map {
-            case (ref, data) =>
-                // Move the container to the usual pool
-                pool.update(ref, data)
-                prewarmedPool.remove(ref)
-                // Create a new prewarm container
-                prewarmContainer(config.exec, config.memoryLimit)
+    def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] =
+        prewarmConfig.flatMap { config =>
+            val kind = action.exec.kind
+            val memory = action.limits.memory.megabytes.MB
+            prewarmedPool.find {
+                case (_, PreWarmedData(_, `kind`, `memory`)) => true
+                case _                                       => false
+            }.map {
+                case (ref, data) =>
+                    // Move the container to the usual pool
+                    freePool.update(ref, data)
+                    prewarmedPool.remove(ref)
+                    // Create a new prewarm container
+                    prewarmContainer(config.exec, config.memoryLimit)
 
-                ref
+                    (ref, data)
+            }
         }
-    }
 
     /** Removes a container and updates state accordingly. */
     def removeContainer(toDelete: ActorRef) = {
         toDelete ! Remove
-        pool.remove(toDelete)
+        freePool.remove(toDelete)
+        busyPool.remove(toDelete)
     }
 }
 
@@ -177,44 +190,40 @@ object ContainerPool {
      * @param idles a map of idle containers, awaiting work
      * @return a container if one found
      */
-    def schedule[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, idles: Map[A, WorkerData]): Option[A] = {
+    def schedule[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
         idles.find {
-            case (_, WorkerData(WarmedData(_, `invocationNamespace`, `action`, _), Free)) => true
+            case (_, WarmedData(_, `invocationNamespace`, `action`, _)) => true
             case _ => false
-        }.map(_._1)
+        }
     }
 
     /**
      * Finds the best container to remove to make space for the job passed to run.
      *
-     * Determines which namespace consumes most resources in the current pool and
-     * takes away one of their containers iff the namespace placing the new job is
-     * not already the most consuming one.
+     * Determines the least recently used Free container in the pool.
      *
      * @param action the action that wants to get a container
      * @param invocationNamespace the namespace, that wants to run the action
-     * @param pool a map of all containers in the pool
+     * @param pool a map of all free containers in the pool
      * @return a container to be removed iff found
      */
-    def remove[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, pool: Map[A, WorkerData]): Option[A] = {
-        //try to find a Free container that is initialized with any OTHER action
-        val grouped = pool.collect {
-            case (ref, WorkerData(w: WarmedData, _)) if (w.action != action || w.invocationNamespace != invocationNamespace) => ref -> w
-        }.groupBy {
-            case (ref, data) => data.invocationNamespace
+    def remove[A](action: ExecutableWhiskAction, invocationNamespace: EntityName, pool: Map[A, ContainerData]): Option[A] = {
+        // Try to find a Free container that is initialized with any OTHER action
+        val freeContainers = pool.collect {
+            case (ref, w: WarmedData) if (w.action != action || w.invocationNamespace != invocationNamespace) => ref -> w
         }
 
-        if (!grouped.isEmpty) {
-            val (maxConsumer, containersToDelete) = grouped.maxBy(_._2.size)
-            val (ref, _) = containersToDelete.minBy(_._2.lastUsed)
+        if (freeContainers.nonEmpty) {
+            val (ref, _) = freeContainers.minBy(_._2.lastUsed)
             Some(ref)
         } else None
     }
 
     def props(factory: ActorRefFactory => ActorRef,
+              maxActive: Int,
               size: Int,
               feed: ActorRef,
-              prewarmConfig: Option[PrewarmingConfig] = None) = Props(new ContainerPool(factory, size, feed, prewarmConfig))
+              prewarmConfig: Option[PrewarmingConfig] = None) = Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig))
 }
 
 /** Contains settings needed to perform container prewarming */

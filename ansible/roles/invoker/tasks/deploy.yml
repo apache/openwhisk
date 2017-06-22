@@ -3,8 +3,8 @@
 
 - include: docker_login.yml
 
-- name: "pull action images with tag {{docker_image_tag}}"
-  shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
+- name: "pull action images with tag {{ docker_image_tag }}"
+  shell: "docker pull {{ docker_registry }}{{ item }}:{{ docker_image_tag }}"
   with_items:
     - '{{ docker_image_prefix }}/invoker'
     - '{{ docker_image_prefix }}/dockerskeleton'
@@ -14,6 +14,7 @@
     - '{{ docker_image_prefix }}/swift3action'
     - '{{ docker_image_prefix }}/java8action'
   when: docker_registry != ""
+  retries: 3
 
 - name: determine docker root dir
   uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
@@ -21,7 +22,7 @@
 
 - name: ensure invoker log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/invoker{{play_hosts.index(inventory_hostname)}}"
+    path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
   become: true
@@ -40,9 +41,10 @@
   when: invokerInfo.json|length > 1
 
 - name: determine if index of invoker is same with index of inventory host
-  fail: 'msg="invoker index is invalid. expected: /invoker{{play_hosts.index(inventory_hostname)}} found: {{item.Names[0]}}"'
+  fail:
+    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
   with_items: "{{ invokerInfo.json }}"
-  when: item.Names[0] != "/invoker{{play_hosts.index(inventory_hostname)}}"
+  when: item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
 - name: start invoker using docker cli
   shell: >
@@ -51,10 +53,10 @@
         --pid=host
         --privileged
         {{ linuxOptions | default('') }}
-        --name invoker{{play_hosts.index(inventory_hostname)}}
-        --hostname invoker{{play_hosts.index(inventory_hostname)}}
+        --name invoker{{ groups['invokers'].index(inventory_hostname) }}
+        --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
         --restart {{ docker.restart.policy }}
-        -e COMPONENT_NAME=invoker{{play_hosts.index(inventory_hostname)}}
+        -e COMPONENT_NAME=invoker{{ groups['invokers'].index(inventory_hostname) }}
         -e CONSULSERVER_HOST={{ groups['consul_servers'] | first }}
         -e CONSUL_HOST_PORT4={{ consul.port.http }}
         -e PORT=8080
@@ -66,19 +68,19 @@
         -e INVOKER_OPTS={{ invoker.arguments }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
-        -v {{whisk_logs_dir}}/invoker{{play_hosts.index(inventory_hostname)}}:/logs
-        -v {{dockerInfo["json"]["DockerRootDir"]}}/containers/:/containers
+        -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
+        -v {{ dockerInfo["json"]["DockerRootDir"] }}/containers/:/containers
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
-        -p {{invoker.port + play_hosts.index(inventory_hostname)}}:8080
-        {{docker_registry}}{{ docker_image_prefix }}/invoker:{{docker_image_tag}}
-        /bin/sh -c "exec /invoker/bin/invoker {{play_hosts.index(inventory_hostname)}} >> /logs/invoker{{play_hosts.index(inventory_hostname)}}_logs.log 2>&1"
+        -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
+        {{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}
+        /bin/sh -c "exec /invoker/bin/invoker {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
   when: invokerInfo.json|length == 0
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 
 - name: wait until Invoker is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{invoker.port + play_hosts.index(inventory_hostname)}}/ping"
+    url: "http://{{ inventory_hostname }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

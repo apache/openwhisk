@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,8 +29,8 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.WhiskServices
 import whisk.core.controller.WhiskActionsApi
+import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
@@ -46,6 +47,12 @@ protected[actions] trait PrimitiveActions {
     protected implicit val executionContext: ExecutionContext
 
     protected implicit val logging: Logging
+
+    /**
+     *  The index of the active ack topic, this controller is listening for.
+     *  Typically this is also the instance number of the controller
+     */
+    protected val activeAckTopicIndex: InstanceId
 
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
@@ -98,6 +105,7 @@ protected[actions] trait PrimitiveActions {
             user,
             activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
+            activeAckTopicIndex,
             args,
             cause = cause)
 

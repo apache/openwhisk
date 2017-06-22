@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -55,6 +56,7 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
@@ -189,7 +191,7 @@ object InvokerPool {
  * This finite state-machine represents an Invoker in its possible
  * states "Healthy" and "Offline".
  */
-class InvokerActor extends FSM[InvokerState, InvokerInfo] {
+class InvokerActor(controllerInstance: InstanceId) extends FSM[InvokerState, InvokerInfo] {
     implicit val transid = TransactionId.invokerHealth
     implicit val logging = new AkkaLogging(context.system.log)
     def name = self.path.name
@@ -310,6 +312,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
                 // Create a new Activation ID for this activation
                 activationId = new ActivationIdGenerator {}.make(),
                 activationNamespace = action.namespace,
+                rootControllerIndex = controllerInstance,
                 content = None)
 
             context.parent ! ActivationRequest(activationMessage, name)
@@ -327,7 +330,7 @@ class InvokerActor extends FSM[InvokerState, InvokerInfo] {
 }
 
 object InvokerActor {
-    def props() = Props[InvokerActor]
+    def props(controllerInstance: InstanceId) = Props(new InvokerActor(controllerInstance))
 
     val bufferSize = 10
     val bufferErrorTolerance = 3

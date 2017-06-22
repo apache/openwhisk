@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,27 +37,27 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageProducer
 import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.container.Interval
+import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
 import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
+import whisk.core.database.NoDocumentException
 import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
-import whisk.core.containerpool.ContainerPool
-import whisk.core.database.NoDocumentException
 import whisk.http.Messages
 
 class InvokerReactive(
     config: WhiskConfig,
-    instance: Int,
+    instance: InstanceId,
     activationFeed: ActorRef,
     producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker$instance") {
+    extends MessageHandler(s"invoker${instance.toInt}") {
 
     implicit val ec = actorSystem.dispatcher
 
@@ -106,9 +107,9 @@ class InvokerReactive(
     }
 
     /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activation: WhiskActivation) => {
+    val ack = (tid: TransactionId, activation: WhiskActivation, controllerInstance: InstanceId) => {
         implicit val transid = tid
-        producer.send("completed", CompletionMessage(tid, activation, s"invoker$instance")).andThen {
+        producer.send(s"completed${controllerInstance.toInt}", CompletionMessage(tid, activation, s"invoker${instance.toInt}")).andThen {
             case Success(_) => logging.info(this, s"posted completion of activation ${activation.activationId}")
         }
     }
@@ -133,6 +134,7 @@ class InvokerReactive(
 
     val pool = actorSystem.actorOf(ContainerPool.props(
         childFactory,
+        OldContainerPool.getDefaultMaxActive(config),
         OldContainerPool.getDefaultMaxActive(config),
         activationFeed,
         Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
@@ -193,7 +195,7 @@ class InvokerReactive(
                     })
 
                 activationFeed ! FailedActivation(msg.transid)
-                ack(msg.transid, activation)
+                ack(msg.transid, activation, msg.rootControllerIndex)
                 store(msg.transid, activation)
         }
     }

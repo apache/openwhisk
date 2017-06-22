@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -273,7 +274,7 @@ class WskBasicTests
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
                 // this docker image will be need to be pulled from dockerhub and hence has to be published there first
-                (action, _) => action.create(name, Some("openwhisk/example"), kind = Some("docker"))
+                (action, _) => action.create(name, None, docker = Some("openwhisk/example"))
             }
 
             val args = Map("payload" -> "test".toJson)
@@ -291,7 +292,7 @@ class WskBasicTests
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
                 // this docker image will be need to be pulled from dockerhub and hence has to be published there first
-                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("blackbox.zip")), kind = Some("docker"))
+                (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("blackbox.zip")), kind = Some("native"))
             }
 
             val run = wsk.action.invoke(name, Map())
@@ -348,7 +349,7 @@ class WskBasicTests
             wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\s+\\{\\s+"key":\\s+"exec",\\s+"value":\\s+"nodejs:6"\\s+\\}\\s+\\]""")
             wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
             wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
-            wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = ERROR_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
+            wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = MISUSE_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
             wsk.action.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
     }
 
@@ -485,7 +486,7 @@ class WskBasicTests
         val name = "dockerContainer"
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some("fake-container"), kind = Some("docker"))
+                (action, _) => action.create(name, None, docker = Some("fake-container"))
             }
 
             wsk.action.get(name).stdout should not include (""""code"""")

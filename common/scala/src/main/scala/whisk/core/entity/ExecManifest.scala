@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,9 +17,7 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-import scala.util.Failure
-
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
@@ -43,15 +42,14 @@ protected[core] object ExecManifest {
      *
      * @param config a valid configuration
      * @param reinit re-initialize singleton iff true
-     * @return true if initialized successfully, or if previously initialized
+     * @return the manifest if initialized successfully, or if previously initialized
      */
-    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Boolean = {
+    protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[Runtimes] = {
         if (manifest.isEmpty || reinit) {
-            Try(config.runtimesManifest.parseJson.asJsObject)
-                .flatMap(runtimes(_))
-                .map(m => manifest = Some(m))
-                .isSuccess
-        } else true
+            val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_))
+            mf.foreach(m => manifest = Some(m))
+            mf
+        } else Success(manifest.get)
     }
 
     /**

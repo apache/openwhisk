@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +19,6 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 import java.time.{Clock, Instant}
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
@@ -40,14 +40,16 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker}
+import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ActivationId, CodeExec, WhiskAction, WhiskActivation}
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
+import scala.annotation.tailrec
 
 trait LoadBalancer {
 
@@ -72,7 +74,7 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
+class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -80,10 +82,6 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
     logging.info(this, s"blackboxFraction = $blackboxFraction")
-
-    /** We run this often on an invoker before going onto the next. */
-    private val activationCountBeforeNextInvoker = Math.max(1, config.loadbalancerActivationCountBeforeNextInvoker)
-    logging.info(this, s"activationCountBeforeNextInvoker = $activationCountBeforeNextInvoker")
 
     override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
@@ -219,8 +217,8 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
         }
 
         val consul = new ConsulClient(config.consulServer)
-        val pingConsumer = MessagingProvider(actorSystem).getConsumer("health")
-        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
+        val pingConsumer = MessagingProvider(actorSystem).getConsumer(s"health${instance.toInt}", "health")
+        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props(instance), name)
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
             clearInvokerState(invoker)
@@ -229,7 +227,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     }
 
     /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer("completed")
+    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer("completions", s"completed${instance.toInt}")
     /** Registers a handler for received active acks from invokers. */
     activeAckConsumer.onMessage((topic, _, _, bytes) => {
         val raw = new String(bytes, StandardCharsets.UTF_8)
@@ -272,18 +270,19 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
             case _              => false
         }
         val invokers = if (isBlackbox) blackboxInvokers else managedInvokers
-        val (hash, count) = hashAndCountSubjectAction(msg)
+        val hash = hashSubjectAction(msg)
 
         invokers.flatMap { invokers =>
-            val numInvokers = invokers.length
-            if (numInvokers > 0) {
-                val hashCount = math.abs(hash + count / activationCountBeforeNextInvoker)
-                val invokerIndex = hashCount % numInvokers
-                Future.successful(invokers(invokerIndex))
-            } else {
-                logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
-                Future.failed(new LoadBalancerException("no invokers available"))
-            }
+            LoadBalancerService.schedule(
+                invokers,
+                activationByInvoker.mapValues(_.size),
+                config.loadbalancerInvokerBusyThreshold,
+                hash) match {
+                    case Some(invoker) => Future.successful(invoker)
+                    case None =>
+                        logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
+                        Future.failed(new LoadBalancerException("no invokers available"))
+                }
         }
     }
 
@@ -294,26 +293,90 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
      * Invoker is currently using and which is better avoid if/until
      * these are moved to some common place (like a subclass of Message?)
      */
-    private val activationCountMap = TrieMap[(String, String), AtomicInteger]()
-    private def hashAndCountSubjectAction(msg: ActivationMessage): (Int, Int) = {
+    private def hashSubjectAction(msg: ActivationMessage): Int = {
         val subject = msg.user.subject.asString
         val path = msg.action.toString
-        val hash = subject.hashCode() ^ path.hashCode()
-        val key = (subject, path)
-        val count = activationCountMap.get(key) match {
-            case Some(counter) => counter.getAndIncrement()
-            case None => {
-                activationCountMap.put(key, new AtomicInteger(0))
-                0
-            }
-        }
-        return (hash, count)
+        (subject.hashCode() ^ path.hashCode()).abs
     }
 }
 
 object LoadBalancerService {
     def requiredProperties = kafkaHost ++ consulServer ++
-        Map(loadbalancerActivationCountBeforeNextInvoker -> null)
+        Map(loadbalancerInvokerBusyThreshold -> null)
+
+    /** Memoizes the result of `f` for later use. */
+    def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {
+        override def apply(key: I) = getOrElseUpdate(key, f(key))
+    }
+
+    /** Euclidean algorithm to determine the greatest-common-divisor */
+    @tailrec
+    def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
+    /** Returns pairwise coprime numbers until x. Result is memoized. */
+    val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = LoadBalancerService.memoize {
+        case x =>
+            (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
+                if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
+                    primes :+ cur
+                } else primes
+            })
+    }
+
+    /**
+     * Scans through all invokers and searches for an invoker, that has a queue length
+     * below the defined threshold. Iff no "underloaded" invoker was found it will
+     * default to the least loaded invoker in the list.
+     *
+     * @param availableInvokers a list of available (healthy) invokers to search in
+     * @param activationsPerInvoker a map of the number of outstanding activations per invoker
+     * @param invokerBusyThreshold defines when an invoker is considered overloaded
+     * @param hash stable identifier of the entity to be scheduled
+     * @return an invoker to schedule to or None of no invoker is available
+     */
+    def schedule[A](
+        availableInvokers: Seq[A],
+        activationsPerInvoker: collection.Map[A, Int],
+        invokerBusyThreshold: Int,
+        hash: Int): Option[A] = {
+
+        val numInvokers = availableInvokers.length
+        if (numInvokers > 0) {
+            val homeInvoker = hash % numInvokers
+
+            val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
+            val step = stepSizes(hash % stepSizes.size)
+
+            @tailrec
+            def search(targetInvoker: Int, seenInvokers: Int): A = {
+                // map the computed index to the actual invoker index
+                val invokerName = availableInvokers(targetInvoker)
+
+                // send the request to the target invoker if it has capacity...
+                if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold) {
+                    invokerName
+                } else {
+                    // ... otherwise look for a less loaded invoker by stepping through a pre computed
+                    // list of invokers; there are two possible outcomes:
+                    // 1. the search lands on a new invoker that has capacity, choose it
+                    // 2. walked through the entire list and found no better invoker than the
+                    //    "home invoker", choose the least loaded invoker
+                    val newTarget = (targetInvoker + step) % numInvokers
+                    if (newTarget == homeInvoker || seenInvokers > numInvokers) {
+                        // fall back to the invoker with the least load.
+                        activationsPerInvoker.minBy(_._2)._1
+                    } else {
+                        search(newTarget, seenInvokers + 1)
+                    }
+                }
+            }
+
+            Some(search(homeInvoker, 0))
+        } else {
+            None
+        }
+    }
+
 }
 
 private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException

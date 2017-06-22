@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -153,11 +154,12 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
     behavior of "Web actions API"
 
-    var failActionLookup = false // toggle to cause action lookup to fail
-    var failActivation = 0 // toggle to cause action to fail
-    var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
+    var failActionLookup = false                        // toggle to cause action lookup to fail
+    var failActivation = 0                              // toggle to cause action to fail
+    var failThrottleForSubject: Option[Subject] = None  // toggle to cause throttle to fail for subject
     var actionResult: Option[JsObject] = None
-    var requireAuthentication = false // toggle require-whisk-auth annotation on action
+    var requireAuthentication = false                   // toggle require-whisk-auth annotation on action
+    var customOptions = true                            // toogle web-custom-options annotation on action
     var invocationCount = 0
     var invocationsAllowed = 0
 
@@ -172,6 +174,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         failThrottleForSubject = None
         actionResult = None
         requireAuthentication = false
+        customOptions = true
         assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
     }
 
@@ -215,6 +218,10 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                                 if (requireAuthentication) {
                                     Parameters("require-whisk-auth", JsBoolean(true))
                                 } else Parameters()
+                            } ++ {
+                                if (customOptions) {
+                                    Parameters("web-custom-options", JsBoolean(true))
+                                } else Parameters()
                             }
                     } else if (actionName.name.asString.startsWith("raw_export_")) {
                         annotations ++
@@ -222,6 +229,10 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                             Parameters("raw-http", JsBoolean(true)) ++ {
                                 if (requireAuthentication) {
                                     Parameters("require-whisk-auth", JsBoolean(true))
+                                } else Parameters()
+                            } ++ {
+                                if (customOptions) {
+                                    Parameters("web-custom-options", JsBoolean(true))
                                 } else Parameters()
                             }
                     } else annotations
@@ -1093,7 +1104,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
-        it should s"invoke action with options verb (auth? ${creds.isDefined})" in {
+        it should s"invoke action with options verb with custom options (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
             Seq(s"$systemId/proxy/export_c.http").
@@ -1102,10 +1113,24 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                     actionResult = Some(
                         JsObject(
                             "headers" -> JsObject(
-                                "allow" -> "options, head, get, post, put".toJson)))
+                                "Access-Control-Allow-Methods" -> "OPTIONS, GET, PATCH".toJson)))
 
                     Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        header("allow").get.toString shouldBe "allow: options, head, get, post, put"
+                        header("Access-Control-Allow-Origin") shouldBe None
+                        header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, PATCH"
+                    }
+                }
+        }
+
+        it should s"invoke action with options verb without custom options (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            customOptions = false
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                        header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
                     }
                 }
         }

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,8 +37,8 @@ import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.WhiskServices
 import whisk.core.controller.RestApiCommons
+import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
@@ -57,6 +58,10 @@ protected trait ControllerTestCommon
     with WhiskServices
     with HttpService
     with StreamLogging {
+
+    override val instance = InstanceId(0)
+    override val numberOfInstances = 1
+    val activeAckTopicIndex = InstanceId(0)
 
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)

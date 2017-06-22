@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -237,20 +238,20 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("edge.host.apiport"));
     }
 
-    public static String getLoadbalancerHost() {
-        return whiskProperties.getProperty("loadbalancer.host");
+    public static String getControllerHosts() {
+        return whiskProperties.getProperty("controller.hosts");
     }
 
-    public static int getLoadbalancerPort() {
-        return Integer.parseInt(whiskProperties.getProperty("loadbalancer.host.port"));
+    public static int getControllerBasePort() {
+        return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
     }
 
-    public static String getControllerHost() {
-        return whiskProperties.getProperty("controller.host");
+    public static String getBaseControllerHost() {
+    	return getControllerHosts().split(",")[0];
     }
 
-    public static int getControllerPort() {
-        return Integer.parseInt(whiskProperties.getProperty("controller.host.port"));
+    public static String getBaseControllerAddress() {
+    	return getBaseControllerHost() + ":" + getControllerBasePort();
     }
 
     public static int getMaxActionInvokesPerMinute() {
