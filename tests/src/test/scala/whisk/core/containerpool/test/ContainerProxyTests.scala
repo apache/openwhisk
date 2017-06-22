@@ -148,7 +148,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val container = new TestContainer
         val factory = createFactory(Future.successful(container))
 
-        val machine = childActorOf(ContainerProxy.props(factory, createAcker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, createAcker, store, pauseGrace = timeout))
         registerCallback(machine)
         preWarm(machine)
 
@@ -164,7 +164,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
 
         preWarm(machine)
@@ -196,7 +196,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         preWarm(machine)
 
@@ -220,7 +220,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         preWarm(machine)
 
@@ -246,7 +246,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         run(machine, Uninitialized)
 
@@ -268,7 +268,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.failed(new Exception()))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
@@ -297,7 +297,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
@@ -326,7 +326,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         machine ! Run(action, message)
         expectMsg(Transition(machine, Uninitialized, Running))
@@ -355,7 +355,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         run(machine, Uninitialized) // first run an activation
         timeout(machine) // times out Ready state so container suspends
@@ -387,7 +387,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         run(machine, Uninitialized)
         timeout(machine) // times out Ready state so container suspends
@@ -418,7 +418,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
 
         // Start running the action
@@ -466,7 +466,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         val factory = createFactory(Future.successful(container))
         val acker = createAcker
 
-        val machine = childActorOf(ContainerProxy.props(factory, acker, store))
+        val machine = childActorOf(ContainerProxy.props(factory, acker, store, pauseGrace = timeout))
         registerCallback(machine)
         run(machine, Uninitialized)
         timeout(machine)
