@@ -17,27 +17,26 @@
 
 package whisk.core.container
 
-import java.time.{Clock, Instant}
+import java.time.Clock
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling._
-import akka.stream.ActorMaterializer
 import io.opentracing.contrib.tracerresolver.TracerResolver
 import io.opentracing.tag.Tags
 import io.opentracing.util.GlobalTracer
-import io.opentracing.{Span, Tracer}
+import io.opentracing.Span
 import spray.json._
-import whisk.common.{Logging, LoggingMarkers, TransactionId}
+import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
+import whisk.core.entity._
+import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationResponse._
-import whisk.core.entity.{ActionLimits, _}
 
 /**
  * Reifies a whisk container - one that respects the whisk container API.
@@ -90,22 +89,14 @@ class WhiskContainer(
     }
 
     /**
-      * Sends a run command to action container to run once.
-      */
-    def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
-        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
+     * Starts the tracing.
+     */
+    private def startSpan(msg: ActivationMessage): Option[Span] = {
+        val tracerOption = Option(GlobalTracer.isRegistered).filter(identity).flatMap(_ => Option(TracerResolver.resolveTracer))
+        tracerOption foreach GlobalTracer.register
 
-        var tracer: Tracer = null
-        if (!GlobalTracer.isRegistered) {
-            tracer = TracerResolver.resolveTracer
-            if (null != tracer) {
-                GlobalTracer.register(tracer)
-            }
-        }
-
-        var span: Span = null
-        if (null != tracer) {
-            span = tracer.buildSpan(msg.action.asString).start
+        tracerOption.map(tracer => {
+            val span = tracer.buildSpan(msg.action.asString).start
             Tags.COMPONENT.set(span, "openwhisk")
 
             // general message data
@@ -116,17 +107,34 @@ class WhiskContainer(
             span.setTag("action", msg.action.name.asString)
             span.setTag("version", msg.action.version.get.toString)
             span.setTag("path", msg.action.path.asString)
-        }
+            span
+        });
+    }
+
+    /**
+     * Ends the tracing.
+     */
+    private def endSpan(spanOption: Option[Span]): Unit = {
+        spanOption.foreach(_.close)
+    }
+
+    /**
+     * Sends a run command to action container to run once.
+     */
+    def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
+        val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
+
+        // start the span
+        val spanOption = startSpan(msg)
 
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry = false)
+
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
         transid.finished("Invoker", startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
 
         // finish the span
-        if (null != span) {
-            span.close()
-        }
+        endSpan(spanOption)
 
         result
     }
