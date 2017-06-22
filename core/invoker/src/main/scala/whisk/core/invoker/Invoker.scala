@@ -17,36 +17,58 @@
 package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
+import java.time.Clock
+import java.time.Instant
 
-import java.time.{ Clock, Instant }
-
-import scala.concurrent.{ Await, ExecutionContext, Future }
-import scala.concurrent.Promise
-import scala.concurrent.duration.{ Duration, DurationInt }
-import scala.language.postfixOps
-import scala.util.{ Failure, Success }
-
-import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.actorRef2Scala
 import akka.japi.Creator
-import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
+import spray.json._
 import whisk.common.AkkaLogging
-import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
+import whisk.common.Counter
+import whisk.common.Logging
+import whisk.common.LoggingMarkers
+import whisk.common.Scheduler
+import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.WhiskConfig.consulServer
+import whisk.core.WhiskConfig.dockerImagePrefix
+import whisk.core.WhiskConfig.dockerRegistry
+import whisk.core.WhiskConfig.invokerUseReactivePool
+import whisk.core.WhiskConfig.kafkaHost
+import whisk.core.WhiskConfig.logsDir
+import whisk.core.WhiskConfig.servicePort
+import whisk.core.WhiskConfig.whiskVersion
+import whisk.core.connector.ActivationMessage
+import whisk.core.connector.CompletionMessage
+import whisk.core.connector.MessageProducer
+import whisk.core.connector.MessagingProvider
+import whisk.core.connector.PingMessage
 import whisk.core.container._
-import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
-import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
+import whisk.core.dispatcher.ActivationFeed.ActivationNotification
+import whisk.core.dispatcher.ActivationFeed.ContainerReleased
+import whisk.core.dispatcher.ActivationFeed.FailedActivation
+import whisk.core.dispatcher.Dispatcher
+import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
+import whisk.spi.SharedModule
+import whisk.spi.SharedModules
 import whisk.utils.ExecutionContextFactory
-import whisk.common.Scheduler
-import whisk.core.connector.PingMessage
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
-import whisk.core.connector.MessageProducer
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -433,11 +455,16 @@ object Invoker {
 
         // if configuration is valid, initialize the runtimes manifest
         if (config.isValid && ExecManifest.initialize(config)) {
-            val topic = s"invoker$instance"
-            val groupid = "invokers"
+
             val maxdepth = ContainerPool.getDefaultMaxActive(config)
-            val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+            // setup shared injectables
+            SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logger)))
+
+            val topic = s"invoker$instance"
+            val msgProvider = MessagingProvider(actorSystem)
+            val consumer = msgProvider.getConsumer(topic, maxdepth)//new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+            val producer = msgProvider.getProducer()//new KafkaProducerConnector(config.kafkaHost, ec)
+
             val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
             val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {

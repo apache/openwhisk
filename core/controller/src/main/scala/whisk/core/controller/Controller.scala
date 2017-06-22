@@ -16,35 +16,35 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
-
 import akka.actor.Actor
 import akka.actor.ActorContext
 import akka.actor.ActorSystem
 import akka.japi.Creator
-
 import spray.http.StatusCodes._
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport._
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing.Route
-
 import whisk.common.AkkaLogging
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
-import whisk.core.entity._
-import whisk.core.entity.ExecManifest.Runtimes
+import whisk.core.entitlement._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.ExecManifest.Runtimes
+import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import whisk.common.LoggingMarkers
+import whisk.spi.SharedModule
+import whisk.spi.SharedModules
+
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -175,6 +175,9 @@ object Controller {
 
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
+
+        // setup shared injectables
+        SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logger)))
 
         // if deploying multiple instances (scale out), must pass the instance number as the
         // second argument.  (TODO .. seems fragile)

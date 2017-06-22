@@ -18,10 +18,6 @@ package whisk.core.entity
 
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.language.postfixOps
-import scala.util.Try
-
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
@@ -39,9 +35,13 @@ import whisk.core.WhiskConfig.dbProvider
 import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
-import whisk.core.database.CouchDbRestStore
+import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
+
+import scala.concurrent.Future
+import scala.language.postfixOps
+import scala.util.Try
 
 package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
@@ -85,18 +85,18 @@ protected[core] trait WhiskDocument
     }
 }
 
-protected[core] object Util {
-    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
-        implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem,
-        logging: Logging): ArtifactStore[D] = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
-        assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
-
-        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-    }
-}
+//protected[core] object Util {
+//    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+//        implicit jsonFormat: RootJsonFormat[D],
+//        actorSystem: ActorSystem,
+//        logging: Logging): ArtifactStore[D] = {
+//        require(config != null && config.isValid, "config is undefined or not valid")
+//        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
+//        assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
+//
+//        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+//    }
+//}
 
 object WhiskAuthStore {
     def requiredProperties =
@@ -109,7 +109,7 @@ object WhiskAuthStore {
             dbAuths -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        Util.makeStore[WhiskAuth](config, _.dbAuths)
+        ArtifactStoreProvider(system).makeStore[WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskAuthV2Store {
@@ -123,7 +123,7 @@ object WhiskAuthV2Store {
             dbAuths -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        Util.makeStore[WhiskAuthV2](config, _.dbAuths)
+        ArtifactStoreProvider(system).makeStore[WhiskAuthV2](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -137,7 +137,8 @@ object WhiskEntityStore {
             dbWhisk -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        Util.makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+        ArtifactStoreProvider(system).makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+
 }
 
 object WhiskActivationStore {
@@ -151,8 +152,9 @@ object WhiskActivationStore {
             dbActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        Util.makeStore[WhiskActivation](config, _.dbActivations)
+        ArtifactStoreProvider(system).makeStore[WhiskActivation](config, _.dbActivations)
 }
+
 
 /**
  * This object provides some utilities that query the whisk datastore.

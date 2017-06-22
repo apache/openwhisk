@@ -18,7 +18,6 @@ package whisk.core.database
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString

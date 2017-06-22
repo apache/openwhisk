@@ -17,8 +17,7 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
-import java.time.{ Clock, Instant }
+import java.time.{Clock, Instant}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
@@ -31,9 +30,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.pattern.ask
@@ -42,14 +39,13 @@ import whisk.common.ConsulClient
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.WhiskConfig.{consulServer, kafkaHost, loadbalancerActivationCountBeforeNextInvoker}
+import whisk.core.connector.MessagingProvider
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
+import whisk.core.entity.{ActivationId, CodeExec, WhiskAction, WhiskActivation}
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 
@@ -200,7 +196,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val messageProducer = MessagingProvider(actorSystem).getProducer()
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -223,7 +219,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
         }
 
         val consul = new ConsulClient(config.consulServer)
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, "health", "health")
+        val pingConsumer = MessagingProvider(actorSystem).getConsumer("health")
         val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props, name)
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
@@ -233,8 +229,7 @@ class LoadBalancerService(config: WhiskConfig, entityStore: EntityStore)(implici
     }
 
     /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", "completed")
-
+    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer("completed")
     /** Registers a handler for received active acks from invokers. */
     activeAckConsumer.onMessage((topic, _, _, bytes) => {
         val raw = new String(bytes, StandardCharsets.UTF_8)

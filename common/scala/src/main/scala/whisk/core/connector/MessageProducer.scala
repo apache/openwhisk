@@ -17,10 +17,9 @@
 package whisk.core.connector
 
 import scala.concurrent.Future
-
 import org.apache.kafka.clients.producer.RecordMetadata
 
-trait MessageProducer {
+trait MessageProducer{
     /** Count of messages sent. */
     def sentCount(): Long
 

@@ -21,12 +21,12 @@ import java.time.Instant
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActivationsApi
+import whisk.core.database.ArtifactStoreProvider
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.ErrorResponse
@@ -338,7 +338,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
 
     it should "report proper error when record is corrupted on get" in {
-        val activationStore = Util.makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging)
+        val activationStore = ArtifactStoreProvider(system).makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging)
         implicit val tid = transid()
         val entity = BadEntity(namespace, EntityName(ActivationId().toString))
         put(activationStore, entity)

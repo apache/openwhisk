@@ -19,21 +19,20 @@ package whisk.connector.kafka
 import java.util.Properties
 import java.util.UUID
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.StringSerializer
-
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.core.connector.Message
 import whisk.core.connector.MessageProducer
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Success
 
 class KafkaProducerConnector(
     kafkahost: String,
