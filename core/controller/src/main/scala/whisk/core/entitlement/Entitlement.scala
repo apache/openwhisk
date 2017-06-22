@@ -28,7 +28,6 @@ import Privilege.REJECT
 import akka.actor.ActorSystem
 import spray.http.StatusCodes.Forbidden
 import spray.http.StatusCodes.TooManyRequests
-import whisk.common.ConsulClient
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -86,8 +85,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     private val invokeRateThrottler = new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt)
     private val triggerRateThrottler = new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt)
     private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
-
-    private val consul = new ConsulClient(config.consulServer)
 
     /**
      * Grants a subject the right to access a resources.

@@ -31,6 +31,7 @@ import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import whisk.core.entity.InstanceId
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -175,9 +176,12 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-    def transid(): TransactionId = {
-        TransactionId(cnt.incrementAndGet())
-    }
+    val numberOfInstances: Int
+    val instance: InstanceId
 
-    private val cnt = new AtomicInteger(1)
+    private lazy val cnt = new AtomicInteger(numberOfInstances + instance.toInt)
+
+    def transid(): TransactionId = {
+        TransactionId(cnt.addAndGet(numberOfInstances))
+    }
 }
