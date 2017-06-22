@@ -30,6 +30,11 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -64,6 +69,7 @@ public class TestUtils {
     public static final int CONFLICT        = 153;      // 409 - 256 = 153
     public static final int TOO_LARGE       = 157;      // 413 - 256 = 157
     public static final int THROTTLED       = 173;      // 429 (TOO_MANY_REQUESTS) - 256 = 173
+    public static final int APP_ERROR       = 246;      // 502 - 256 = 246
     public static final int TIMEOUT         = 246;      // 502 (GATEWAY_TIMEOUT) - 256 = 246
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
@@ -94,7 +100,9 @@ public class TestUtils {
      * @param name the filename of the test action
      * @return
      */
-    public static String getTestActionFilename(String name) { return new File(testActionsDir, name).toString(); }
+    public static String getTestActionFilename(String name) {
+        return new File(testActionsDir, name).toString();
+    }
 
     /**
      * Gets path to test apigw file relative to test catalog directory.
@@ -102,7 +110,9 @@ public class TestUtils {
      * @param name the filename of the test action
      * @return
      */
-    public static String getTestApiGwFilename(String name) { return new File(testApiGwDir, name).toString(); }
+    public static String getTestApiGwFilename(String name) {
+        return new File(testApiGwDir, name).toString();
+    }
 
     /**
      * Gets the value of VCAP_SERVICES.
@@ -125,8 +135,8 @@ public class TestUtils {
     /**
      * Gets a VCAP_SERVICES credentials.
      *
-     * @return VCAP credentials as a <String, String> map for each <property,
-     * value> pair in credentials
+     * @return VCAP credentials as a <String, String> map for each
+     *         <property, value> pair in credentials
      */
     public static Map<String, String> getVCAPcredentials(String vcapService) {
         try {
@@ -191,9 +201,9 @@ public class TestUtils {
 
     /**
      * Encapsulates the result of running a native command, providing:
-     * exitCode the exit code of the process
-     * stdout the messages printed to standard out
-     * stderr the messages printed to standard error
+     *   exitCode the exit code of the process
+     *   stdout the messages printed to standard out
+     *   stderr the messages printed to standard error
      */
     public static class RunResult {
         public final int exitCode;
@@ -276,13 +286,36 @@ public class TestUtils {
         if (env != null) {
             pb.environment().putAll(env);
         }
-        if (fileStdin != null ) {
+
+        if (fileStdin != null) {
             pb.redirectInput(fileStdin);
         }
         Process p = pb.start();
 
-        String stdout = inputStreamToString(p.getInputStream());
-        String stderr = inputStreamToString(p.getErrorStream());
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        Future<String> stdoutFuture = executor.submit(new Callable<String>() {
+            public String call() throws IOException {
+                return inputStreamToString(p.getInputStream());
+            }
+        });
+
+        Future<String> stderrFuture = executor.submit(new Callable<String>() {
+            public String call() throws IOException {
+                return inputStreamToString(p.getErrorStream());
+            }
+        });
+
+        String stdout = "";
+        String stderr = "";
+        try {
+            stdout = stdoutFuture.get();
+            stderr = stderrFuture.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
 
         try {
             p.waitFor();
