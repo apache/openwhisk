@@ -111,7 +111,7 @@ protected[actions] trait SequenceActions {
         if (topmost) { // need to deal with blocking and closing connection
             if (blocking) {
                 logging.info(this, s"invoke sequence blocking topmost!")
-                val timeout = maxWaitForBlockingActivation + blockingInvokeGrace
+                val timeout = whiskConfig.actionInvokeBlockingTimeoutLimit.toInt.seconds + blockingInvokeGrace
                 // if the future fails with a timeout, the failure is dealt with at the caller level
                 futureSeqResult.withTimeout(timeout, new BlockingInvokeTimeout(seqActivationId))
             } else {

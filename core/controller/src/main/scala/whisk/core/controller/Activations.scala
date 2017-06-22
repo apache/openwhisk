@@ -39,7 +39,14 @@ import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
+import whisk.core.WhiskConfig
 import whisk.http.Messages
+
+object WhiskActivationsApi {
+    def requiredProperties = Map(WhiskConfig.activationPollMaxRecordDefaultLimit -> null)
+
+    def optionalProperties = Set(WhiskConfig.activationPollMaxRecordLimit)
+}
 
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi
@@ -62,6 +69,10 @@ trait WhiskActivationsApi
 
     /** Only GET is supported in this API. */
     protected override lazy val entityOps = get
+
+    protected val whiskConfig: WhiskConfig
+
+    private lazy val activationPollMaxRecordLimit = whiskConfig.activationPollMaxRecordLimit.toInt
 
     /** Validated entity name as an ActivationId from the matched path segment. */
     protected override def entityname(n: String) = {
@@ -111,7 +122,7 @@ trait WhiskActivationsApi
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false, 'docs ? false, 'name.as[EntityName]?, 'since.as[Instant]?, 'upto.as[Instant]?) {
             (skip, limit, count, docs, name, since, upto) =>
                 // regardless of limit, cap at 200 records, client must paginate
-                val cappedLimit = if (limit == 0 || limit > 200) 200 else limit
+                val cappedLimit = if (limit == 0 || limit > activationPollMaxRecordLimit) activationPollMaxRecordLimit else limit
                 val activations = name match {
                     case Some(action) =>
                         WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)

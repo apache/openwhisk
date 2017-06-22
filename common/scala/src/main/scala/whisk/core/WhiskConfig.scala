@@ -112,11 +112,13 @@ class WhiskConfig(
 
     val runtimesManifest = this(WhiskConfig.runtimesManifest)
 
-    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
+    val actionInvokeBlockingTimeoutLimit = this(WhiskConfig.actionInvokeBlockingTimeoutDefaultLimit, WhiskConfig.actionInvokeBlockingTimeoutLimit)
     val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
-    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
     val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
+    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
     val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
+    val activationPollMaxRecordLimit = this(WhiskConfig.activationPollMaxRecordDefaultLimit, WhiskConfig.activationPollMaxRecordLimit)
+    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
 }
 
 object WhiskConfig {
@@ -275,13 +277,18 @@ object WhiskConfig {
 
     val runtimesManifest = "runtimes.manifest"
 
-    val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
-    val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
-    val actionInvokeSystemOverloadDefaultLimit = "defaultLimits.actions.invokes.concurrentInSystem"
-    val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
-    val actionSequenceDefaultLimit = "defaultLimits.actions.sequence.maxLength"
-    val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
+    val actionInvokeBlockingTimeoutLimit = "limits.actions.invokes.blockingTimeout"
+    val actionInvokeBlockingTimeoutDefaultLimit = "defaultLimits.actions.invokes.blockingTimeout"
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
+    val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
+    val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
+    val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
+    val actionInvokeSystemOverloadDefaultLimit = "defaultLimits.actions.invokes.concurrentInSystem"
+    val actionSequenceDefaultLimit = "defaultLimits.actions.sequence.maxLength"
+    val activationPollMaxRecordLimit = "limits.activations.polls.maxRecords"
+    val activationPollMaxRecordDefaultLimit = "defaultLimits.activations.polls.maxRecords"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
+    val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
+
 }

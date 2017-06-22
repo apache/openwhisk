@@ -146,8 +146,7 @@ object Controller {
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
         ExecManifest.requiredProperties ++
         RestApiCommons.requiredProperties ++
-        LoadBalancerService.requiredProperties ++
-        EntitlementProvider.requiredProperties
+        LoadBalancerService.requiredProperties
 
     def optionalProperties = EntitlementProvider.optionalProperties
 
@@ -160,7 +159,9 @@ object Controller {
         "limits" -> JsObject(
             "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
             "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
-            "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
+            "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson,
+            "action_blocking_timeout" -> config.actionInvokeBlockingTimeoutLimit.toInt.toJson,
+            "activation_poll_record_limit" -> config.activationPollMaxRecordLimit.toInt.toJson),
         "runtimes" -> runtimes.toJson)
 
     // akka-style factory to create a Controller object

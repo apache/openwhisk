@@ -78,11 +78,15 @@ runtimesManifest:
 defaultLimits:
   actions:
     invokes:
-      perMinute: 120
+      blockingTimeout: 60
       concurrent: 100
       concurrentInSystem: 5000
+      perMinute: 120
     sequence:
       maxLength: 50
+  activations:
+    polls:
+      maxRecords: 200
   triggers:
     fires:
       perMinute: 60
