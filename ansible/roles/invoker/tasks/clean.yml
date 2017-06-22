@@ -3,7 +3,7 @@
 
 - name: remove invoker
   docker_container:
-    name: "invoker{{play_hosts.index(inventory_hostname)}}"
+    name: "invoker{{ groups['invokers'].index(inventory_hostname) }}"
     image: "{{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}"
     state: absent
     stop_timeout: 60
@@ -35,6 +35,6 @@
 
 - name: remove invoker log directory
   file:
-    path: "{{ whisk_logs_dir }}/invoker{{play_hosts.index(inventory_hostname)}}"
+    path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: absent
   become: true
