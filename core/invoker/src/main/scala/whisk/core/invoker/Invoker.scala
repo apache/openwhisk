@@ -458,7 +458,7 @@ object Invoker {
         val groupid = "invokers"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
         val msgProvider = MessagingProvider(actorSystem)
-        val consumer = msgProvider.getConsumer(topic, maxdepth)
+        val consumer = msgProvider.getConsumer(groupid, topic, maxdepth)
         val producer = msgProvider.getProducer()
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
