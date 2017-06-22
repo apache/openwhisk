@@ -120,6 +120,7 @@ class WhiskContainer(
             WhiskAuth(Subject(), AuthKey()).toIdentity,
             ActivationId(),
             EntityPath("no_namespace"),
+            InstanceId(0),
             None)
         run(msg, params, 30000.milliseconds)(system, TransactionId.testing)
     }

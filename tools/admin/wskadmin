@@ -121,7 +121,7 @@ def parseArgs():
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
 
     subcmd = subparser.add_parser('get', help='get logs')
-    subcmd.add_argument('components', help='components, one or more of [controller, invokerN] where N is invoker index', nargs='*', default=['controller', 'invoker0'])
+    subcmd.add_argument('components', help='components, one or more of [controllerN, invokerN] where N is the instance', nargs='*', default=['controller0', 'invoker0'])
     subcmd.add_argument('-t', '--tid', help='retrieve logs for the transaction id')
     subcmd.add_argument('-g', '--grep', help='retrieve logs that match grep expression')
 

@@ -26,6 +26,7 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
@@ -53,6 +54,7 @@ case class ActivationMessage(
     user: Identity,
     activationId: ActivationId,
     activationNamespace: EntityPath,
+    rootControllerIndex: InstanceId,
     content: Option[JsObject],
     cause: Option[ActivationId] = None)
     extends Message {
@@ -80,7 +82,7 @@ object ActivationMessage extends DefaultJsonProtocol {
     def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
     private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat8(ActivationMessage.apply)
+    implicit val serdes = jsonFormat9(ActivationMessage.apply)
 }
 
 /**

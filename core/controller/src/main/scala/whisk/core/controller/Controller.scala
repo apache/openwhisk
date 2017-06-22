@@ -32,19 +32,19 @@ import spray.routing.Directive.pimpApply
 import spray.routing.Route
 import whisk.common.AkkaLogging
 import whisk.common.Logging
+import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entity._
-import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import whisk.common.LoggingMarkers
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -52,6 +52,15 @@ import scala.util.{Failure, Success}
  * It extends the BasicRasService so it includes a ping endpoint for monitoring.
  *
  * Spray sends messages to akka Actors -- the Controller is an Actor, ready to receive messages.
+ *
+ * It is possible to deploy a hot-standby controller. Each controller needs its own instance. This instance is a
+ * consecutive numbering, starting with 0.
+ * The state and cache of each controller is not shared to the other controllers.
+ * If the base controller crashes, the hot-standby controller will be used. After the base controller is up again,
+ * it will be used again. Because of the empty cache after restart, there are no problems with inconsistency.
+ * The only problem that could occur is, that the base controller is not reachable, but does not restart. After switching
+ * back to the base controller, there could be an inconsistency in the cache (e.g. if a user has updated an action). This
+ * inconsistency will be resolved by its own after removing the cached item, 5 minutes after it has been generated.
  *
  * @Idioglossia uses the spray-routing DSL
  * http://spray.io/documentation/1.1.3/spray-routing/advanced-topics/understanding-dsl-structure/
@@ -62,7 +71,7 @@ import scala.util.{Failure, Success}
  * @param executionContext Scala runtime support for concurrent operations
  */
 class Controller(
-    instance: Int,
+    override val instance: InstanceId,
     runtimes: Runtimes,
     implicit val whiskConfig: WhiskConfig,
     implicit val logging: Logging)
@@ -71,6 +80,8 @@ class Controller(
 
     // each akka Actor has an implicit context
     override def actorRefFactory: ActorContext = context
+
+    override val numberOfInstances = whiskConfig.controllerInstances.toInt
 
     /**
      * A Route in spray is technically a function taking a RequestContext as a parameter.
@@ -96,7 +107,7 @@ class Controller(
         }
     }
 
-    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance), s"starting controller instance ${instance}")
+    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
     // initialize datastores
     private implicit val actorSystem = context.system
@@ -106,7 +117,7 @@ class Controller(
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services
-    private implicit val loadBalancer = new LoadBalancerService(whiskConfig, entityStore)
+    private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
     private implicit val consulServer = whiskConfig.consulServer
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
@@ -115,6 +126,7 @@ class Controller(
     Collection.initialize(entityStore)
 
     /** The REST APIs. */
+    implicit val controllerInstance = instance
     private val apiv1 = new RestAPIVersion("api", "v1")
     private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
@@ -144,6 +156,7 @@ object Controller {
     // a value, and whose values are default values.   A null value in the Map means there is
     // no default value specified, so it must appear in the properties file
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
+        Map(WhiskConfig.controllerInstances -> 1.toString) ++
         ExecManifest.requiredProperties ++
         RestApiCommons.requiredProperties ++
         LoadBalancerService.requiredProperties ++
@@ -164,7 +177,7 @@ object Controller {
         "runtimes" -> runtimes.toJson)
 
     // akka-style factory to create a Controller object
-    private class ServiceBuilder(config: WhiskConfig, instance: Int, logging: Logging) extends Creator[Controller] {
+    private class ServiceBuilder(config: WhiskConfig, instance: InstanceId, logging: Logging) extends Creator[Controller] {
         // this method is not reached unless ExecManifest was initialized successfully
         def create = new Controller(instance, ExecManifest.runtimesManifest, config, logging)
     }
@@ -177,8 +190,8 @@ object Controller {
         val config = new WhiskConfig(requiredProperties, optionalProperties)
 
         // if deploying multiple instances (scale out), must pass the instance number as the
-        // second argument.  (TODO .. seems fragile)
-        val instance = if (args.length > 0) args(1).toInt else 0
+        require(args.length >= 1, "controller instance required")
+        val instance = args(0).toInt
 
         def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
@@ -194,7 +207,7 @@ object Controller {
         ExecManifest.initialize(config) match {
             case Success(_) =>
                 val port = config.servicePort.toInt
-                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, instance, logger))
+                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", port, new ServiceBuilder(config, InstanceId(instance), logger))
 
             case Failure(t) =>
                 logger.error(this, s"Invalid runtimes manifest: $t")

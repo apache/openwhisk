@@ -52,7 +52,7 @@ import whisk.core.entity._
  */
 class ContainerPool(
     config: WhiskConfig,
-    invokerInstance: Integer = 0,
+    invokerInstance: InstanceId = InstanceId(0),
     standalone: Boolean = false,
     saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem, val logging: Logging)
     extends ContainerUtils {
@@ -429,7 +429,7 @@ class ContainerPool(
 
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
     private def makeContainerName(localName: String): ContainerName =
-        ContainerCounter.containerName(invokerInstance.toString(), localName)
+        ContainerCounter.containerName(invokerInstance.toInt.toString, localName)
 
     private def makeContainerName(action: WhiskAction): ContainerName =
         makeContainerName(action.fullyQualifiedName(true).toString)

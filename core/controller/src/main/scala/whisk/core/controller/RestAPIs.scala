@@ -19,8 +19,8 @@ package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
 
+import RestApiCommons._
 import akka.actor.ActorSystem
-
 import spray.http.AllOrigins
 import spray.http.HttpHeaders._
 import spray.http.StatusCodes._
@@ -31,7 +31,6 @@ import spray.json.DefaultJsonProtocol._
 import spray.routing.Directive.pimpApply
 import spray.routing.Directives
 import spray.routing.Route
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -42,7 +41,6 @@ import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerService
-import RestApiCommons._
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -106,6 +104,7 @@ protected[controller] object RestApiCommons {
         override val webApiDirectives: WebApiDirectives)(
             implicit override val authStore: AuthStore,
             implicit val entityStore: EntityStore,
+            override val activeAckTopicIndex: InstanceId,
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
@@ -133,6 +132,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
  * An object which creates the Routes that define v1 of the whisk REST API.
  */
 protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
+    implicit val activeAckTopicIndex: InstanceId,
     implicit val authStore: AuthStore,
     implicit val entityStore: EntityStore,
     implicit val activationStore: ActivationStore,
@@ -224,6 +224,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
         val apipath: String,
         val apiversion: String)(
             implicit override val actorSystem: ActorSystem,
+            override val activeAckTopicIndex: InstanceId,
             override val entityStore: EntityStore,
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,

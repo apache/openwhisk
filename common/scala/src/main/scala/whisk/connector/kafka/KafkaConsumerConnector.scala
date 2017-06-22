@@ -33,7 +33,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import whisk.common.Logging
-import whisk.common.TransactionCounter
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(
@@ -45,8 +44,7 @@ class KafkaConsumerConnector(
     sessionTimeout: FiniteDuration = 30 seconds,
     autoCommitInterval: FiniteDuration = 10 seconds)(
         implicit logging: Logging)
-    extends MessageConsumer
-    with TransactionCounter {
+    extends MessageConsumer {
 
     /**
      * Long poll for messages. Method returns once message are available but no later than given

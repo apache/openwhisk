@@ -37,8 +37,8 @@ import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
-import whisk.core.controller.WhiskServices
 import whisk.core.controller.RestApiCommons
+import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
@@ -58,6 +58,10 @@ protected trait ControllerTestCommon
     with WhiskServices
     with HttpService
     with StreamLogging {
+
+    override val instance = InstanceId(0)
+    override val numberOfInstances = 1
+    val activeAckTopicIndex = InstanceId(0)
 
     override val actorRefFactory = null
     implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
