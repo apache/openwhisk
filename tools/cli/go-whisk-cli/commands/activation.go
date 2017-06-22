@@ -217,8 +217,8 @@ var activationResultCmd = &cobra.Command{
 }
 
 var activationPollCmd = &cobra.Command{
-    Use:   "poll [ NAMESPACE | ACTION_NAME | TRIGGER_NAME | RULE_NAME ]",
-    Short: wski18n.T("poll continuously for log messages from currently running actions, triggers, or rules"),
+    Use:   "poll [ NAMESPACE | ACTION_NAME ]",
+    Short: wski18n.T("poll continuously for log messages from currently running actions"),
     SilenceUsage:   true,
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
