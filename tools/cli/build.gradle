@@ -38,9 +38,12 @@ task copyCLIShortcut(type: Copy, dependsOn: [distBinary, dumpOSInfo]) {
     String go_osarch     = mapOsArchToGoArch(getOsArch())
     String from_path_wsk = "${projectDir}/../../bin/${go_osname}/${go_osarch}/wsk"
     String to_path_dir   = "${projectDir}/../../bin"
-
-    from from_path_wsk
-    into to_path_dir
+    if (file(from_path_wsk).exists()) {
+      exec {
+          executable "cp"
+          args "${from_path_wsk}","${to_path_dir}"
+      }
+    }
 }
 
 pushImage.finalizedBy copyCLIShortcut
