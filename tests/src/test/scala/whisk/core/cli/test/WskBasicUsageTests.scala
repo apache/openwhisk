@@ -112,6 +112,41 @@ class WskBasicUsageTests
         }
     }
 
+    // If client certificate verification is off, should ingore run below tests.
+    if (!WhiskProperties.getProperty("whisk.ssl.client.verification").equals("off")){
+        it should "set valid cert key to get expected success result for client certificate verification" in {
+            val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+            try {
+                val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+                val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+                // Send request to https://<apihost>/api/v1/namespaces, wsk client passes client certificate to nginx, nginx will
+                // verify it by client ca's openwhisk-client-ca-cert.pem
+                val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                    "--cert", wskprops.cert, "--key", wskprops.key, "--namespace", namespace), env = env).stdout
+                stdout should include(s"ok: client cert set")
+                stdout should include(s"ok: client key set")
+                stdout should include(s"ok: whisk auth set")
+                stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
+                stdout should include(s"ok: whisk namespace set to ${namespace}")
+            } finally {
+                tmpwskprops.delete()
+            }
+        }
+
+        it should "set invalid cert key to get expected exception result for client certificate verification" in {
+            val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+            try {
+                val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+                val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+                val thrown = the [Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                    "--cert", "invalid-cert.pem", "--key", "invalid-key.pem", "--namespace", namespace), env = env)
+                thrown.getMessage should include ("cannot validate certificate")
+            } finally {
+                tmpwskprops.delete()
+            }
+        }
+    }
+
     it should "ensure default namespace is used when a blank namespace is set" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
@@ -169,15 +204,21 @@ class WskBasicUsageTests
     it should "validate default property values" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
+        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--cert", "--key", "--apihost", "--apiversion", "--namespace"), env = env).stdout
         try {
             stdout should include regex ("ok: whisk auth unset")
+            stdout should include regex ("ok: client cert unset")
+            stdout should include regex ("ok: client key unset")
             stdout should include regex ("ok: whisk API host unset")
             stdout should include regex ("ok: whisk API version unset")
             stdout should include regex ("ok: whisk namespace unset")
 
             wsk.cli(Seq("property", "get", "--auth"), env = env).
                 stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--cert"), env = env).
+              stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--key"), env = env).
+              stdout should include regex ("""(?i)client key\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--apihost"), env = env).
                 stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--namespace"), env = env).
@@ -202,9 +243,11 @@ class WskBasicUsageTests
     it should "set multiple property values with single command" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
+        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--cert", "cert.pem", "--key", "key.pem", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
         try {
             stdout should include regex ("ok: whisk auth set")
+            stdout should include regex ("ok: client cert set")
+            stdout should include regex ("ok: client key set")
             stdout should include regex ("ok: whisk API host set")
             stdout should include regex ("ok: whisk API version set")
             val fileContent = FileUtils.readFileToString(tmpwskprops)

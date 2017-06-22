@@ -71,6 +71,8 @@ import whisk.utils.retry
 
 case class WskProps(
     authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
+    cert: String = WhiskProperties.getFileRelativeToWhiskHome("ansible/roles/nginx/files/openwhisk-client-cert.pem").getAbsolutePath,
+    key: String = WhiskProperties.getFileRelativeToWhiskHome("ansible/roles/nginx/files/openwhisk-client-key.pem").getAbsolutePath ,
     namespace: String = "_",
     apiversion: String = "v1",
     apihost: String = WhiskProperties.getEdgeHost) {
