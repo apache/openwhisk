@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 
+/**
+ * router.php
+ *
+ * This file is the API client for the action. The controller POSTs to the end points /init and
+ * /run in order to create and then invoke an action.
+ */
+
 // set up an output buffer to redirect any script output to stdout, rather than the default
 // php://output, so that it goes to the logs, not the HTTP client
 ob_start(function ($data) {
@@ -77,7 +84,7 @@ function main()
 
 function init()
 {
-    // data is POSTed to us a JSON string
+    // data is POSTed to us as a JSON string
     $post = file_get_contents('php://input');
     $data = json_decode($post, true)['value'] ?? [];
 

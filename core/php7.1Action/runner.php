@@ -16,6 +16,18 @@
  * limitations under the License.
  */
 
+/**
+ * runner.php
+ *
+ * This file runs the action code provided by the user. It is executed in the PHP CLI environment
+ * by router.php and will require the index.php file and call the main() function (or whatever has
+ * been configured).
+ *
+ * The configuration information is passed in as a JSON object as the first argument to this script
+ * and the OpenWhisk action argumentsare passed in as a JSON object via stdin.
+ */
+
+
 // read config from argv[1] and assign
 if ($argc != 2) {
     file_put_contents("php://stderr", 'Expected a single config parameter');
