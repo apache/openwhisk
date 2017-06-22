@@ -91,20 +91,17 @@ case object ActivationCompleted
  * @param factory a function generating a Container
  * @param sendActiveAck a function sending the activation via active ack
  * @param storeActivation a function storing the activation in a persistent store
+ * @param unusedTimeout time after which the container is automatically thrown away
+ * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
     sendActiveAck: (TransactionId, WhiskActivation) => Future[Any],
-    storeActivation: (TransactionId, WhiskActivation) => Future[Any]) extends FSM[ContainerState, ContainerData] with Stash {
+    storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+    unusedTimeout: FiniteDuration,
+    pauseGrace: FiniteDuration) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
     val logging = new AkkaLogging(context.system.log)
-
-    // The container is destroyed after this period of time
-    val unusedTimeout = 10.minutes
-
-    // The container is not paused for this period of time
-    // after an activation has finished successfully
-    val pauseGrace = 1.second
 
     startWith(Uninitialized, NoData())
 
@@ -384,7 +381,9 @@ class ContainerProxy(
 object ContainerProxy {
     def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
               ack: (TransactionId, WhiskActivation) => Future[Any],
-              store: (TransactionId, WhiskActivation) => Future[Any]) = Props(new ContainerProxy(factory, ack, store))
+              store: (TransactionId, WhiskActivation) => Future[Any],
+              unusedTimeout: FiniteDuration = 10.minutes,
+              pauseGrace: FiniteDuration = 50.milliseconds) = Props(new ContainerProxy(factory, ack, store, unusedTimeout, pauseGrace))
 
     // Needs to be thread-safe as it's used by multiple proxies concurrently.
     private val containerCount = new Counter
