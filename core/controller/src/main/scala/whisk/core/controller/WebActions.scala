@@ -43,7 +43,6 @@ import spray.routing.RequestContext
 import spray.routing.Route
 import spray.http.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH }
 import whisk.common.TransactionId
-import whisk.core.controller.actions.BlockingInvokeTimeout
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
 import whisk.core.entity._
@@ -336,6 +335,8 @@ trait WhiskWebActionsApi
     def routes(user: Identity)(implicit transid: TransactionId): Route = routes(Some(user))
     def routes()(implicit transid: TransactionId): Route = routes(None)
 
+    private val maxWaitForWebActionResult = Some(WhiskActionsApi.maxWaitForBlockingActivation)
+
     /**
      * Adds route to web based activations. Actions invoked this way are anonymous in that the
      * caller is not authenticated. The intended action must be named in the path as a fully qualified
@@ -540,8 +541,7 @@ trait WhiskWebActionsApi
             // they will be overwritten
             if (isRawHttpAction || context.overrides(webApiDirectives.reservedProperties ++ action.immutableParameters).isEmpty) {
                 val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
-                val waitOverride = Some(WhiskActionsApi.maxWaitForBlockingActivation)
-                invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), blocking = true, waitOverride)
+                invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
             } else {
                 Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
             }
@@ -551,12 +551,12 @@ trait WhiskWebActionsApi
     }
 
     private def completeRequest(
-        queuedActivation: Future[(ActivationId, Option[WhiskActivation])],
+        queuedActivation: Future[Either[ActivationId, WhiskActivation]],
         projectResultField: => List[String],
         responseType: MediaExtension)(
             implicit transid: TransactionId) = {
         onComplete(queuedActivation) {
-            case Success((activationId, Some(activation))) =>
+            case Success(Right(activation)) =>
                 val result = activation.resultAsJson
 
                 if (activation.response.isSuccess || activation.response.isApplicationError) {
@@ -583,14 +583,9 @@ trait WhiskWebActionsApi
                     terminate(BadRequest, Messages.errorProcessingRequest)
                 }
 
-            case Success((activationId, None)) =>
+            case Success(Left(activationId)) =>
                 // blocking invoke which got queued instead
                 // this should not happen, instead it should be a blocking invoke timeout
-                logging.warn(this, "activation returned an id, expecting timeout error instead")
-                terminate(Accepted, Messages.responseNotReady)
-
-            case Failure(t: BlockingInvokeTimeout) =>
-                // blocking invoke which timed out waiting on response
                 logging.info(this, "activation waiting period expired")
                 terminate(Accepted, Messages.responseNotReady)
 

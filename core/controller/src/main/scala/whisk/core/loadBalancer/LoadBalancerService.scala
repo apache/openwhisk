@@ -25,9 +25,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.TimeoutException
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 
@@ -56,6 +54,8 @@ import scala.annotation.tailrec
 
 trait LoadBalancer {
 
+    val activeAckTimeoutGrace = 1.minute
+
     /**
      * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
      *
@@ -64,16 +64,18 @@ trait LoadBalancer {
     def getActiveUserActivationCounts: Map[String, Int]
 
     /**
-     * Publishes activation message on internal bus for the invoker to pick up.
+     * Publishes activation message on internal bus for an invoker to pick up.
      *
+     * @param action the action to invoke
      * @param msg the activation message to publish on an invoker topic
-     * @param timeout the desired active ack timeout
      * @param transid the transaction id for the request
      * @return result a nested Future the outer indicating completion of publishing and
      *         the inner the completion of the action (i.e., the result)
-     *         if it is ready before timeout otherwise the future fails with ActiveAckTimeout
+     *         if it is ready before timeout (Right) otherwise the activation id (Left).
+     *         The future is guaranteed to complete within the declared action time limit
+     *         plus a grace period (see activeAckTimeoutGrace).
      */
-    def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Future[WhiskActivation]]
+    def publish(action: WhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
 }
 
@@ -88,11 +90,11 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
-    override def publish(action: WhiskAction, msg: ActivationMessage, timeout: FiniteDuration)(
-        implicit transid: TransactionId): Future[Future[WhiskActivation]] = {
+    override def publish(action: WhiskAction, msg: ActivationMessage)(
+        implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
         chooseInvoker(action, msg).flatMap { invokerName =>
             val subject = msg.user.subject.asString
-            val entry = setupActivation(msg.activationId, subject, invokerName, timeout, transid)
+            val entry = setupActivation(action, msg.activationId, subject, invokerName, transid)
             sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
             }
@@ -105,7 +107,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
      * A map storing current activations based on ActivationId.
      * The promise value represents the obligation of writing the answer back.
      */
-    case class ActivationEntry(id: ActivationId, subject: String, invokerName: String, created: Instant, promise: Promise[WhiskActivation])
+    case class ActivationEntry(id: ActivationId, subject: String, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
     type TrieSet[T] = TrieMap[T, Unit]
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
     private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
@@ -117,42 +119,44 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
      *
      * @param msg is the kafka message payload as Json
      */
-    private def processCompletion(msg: CompletionMessage) = {
-        implicit val tid = msg.transid
-        val aid = msg.response.activationId
-        logging.info(this, s"received active ack for '$aid'")
-        val response = msg.response
+    private def processCompletion(response: Either[ActivationId, WhiskActivation], tid: TransactionId, forced: Boolean): Unit = {
+        val aid = response.fold(l => l, r => r.activationId)
         activationById.remove(aid) match {
             case Some(entry @ ActivationEntry(_, subject, invokerIndex, _, p)) =>
+                logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
                 activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
                 activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).remove(entry)
-                p.trySuccess(response)
-                logging.info(this, s"processed active response for '$aid'")
+                if (!forced) {
+                    p.trySuccess(response)
+                } else {
+                    p.tryFailure(new Throwable("no active ack received"))
+                }
+
             case None =>
-                logging.warn(this, s"processed active response for '$aid' which has no entry")
+                // the entry was already removed
+                logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
         }
     }
 
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(activationId: ActivationId, subject: String, invokerName: String, timeout: FiniteDuration, transid: TransactionId): ActivationEntry = {
+    private def setupActivation(action: WhiskAction, activationId: ActivationId, subject: String, invokerName: String, transid: TransactionId): ActivationEntry = {
         // either create a new promise or reuse a previous one for this activation if it exists
+        val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         val entry = activationById.getOrElseUpdate(activationId, {
+            val promiseRef = new java.lang.ref.WeakReference(Promise[Either[ActivationId, WhiskActivation]])
 
-            // install a timeout handler; this is the handler for "the action took longer than ActiveAckTimeout"
-            // note the use of WeakReferences; this is to avoid the handler's closure holding on to the
-            // WhiskActivation, which in turn holds on to the full JsObject of the response
-            // NOTE: we do not remove the entry from the maps, as this is done only by processCompletion
-            val promiseRef = new java.lang.ref.WeakReference(Promise[WhiskActivation])
+            // Install a timeout handler for the catastrophic case where an active ack is not received at all
+            // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
+            // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
+            // in this case, if the activation handler is still registered, remove it and update the books.
+            // Note the use of WeakReferences; this is to avoid the handler's closure holding on to the
+            // WhiskActivation, which in turn holds on to the full JsObject of the response.
             actorSystem.scheduler.scheduleOnce(timeout) {
-                activationById.get(activationId).foreach { _ =>
-                    val p = promiseRef.get
-                    if (p != null && p.tryFailure(new ActiveAckTimeout(activationId))) {
-                        logging.info(this, "active response timed out")(transid)
-                    }
-                }
+                processCompletion(Left(activationId), transid, forced = true)
             }
+
             ActivationEntry(activationId, subject, invokerName, Instant.now(Clock.systemUTC()), promiseRef.get)
         })
 
@@ -238,8 +242,10 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         val raw = new String(bytes, StandardCharsets.UTF_8)
         CompletionMessage.parse(raw) match {
             case Success(m: CompletionMessage) =>
-                processCompletion(m)
-                invokerPool ! InvocationFinishedMessage(m.invoker, !m.response.response.isWhiskError)
+                processCompletion(m.response, m.transid, false)
+                // treat left as success (as it is the result a the message exceeding the bus limit)
+                val isSuccess = m.response.fold(l => true, r => !r.response.isWhiskError)
+                invokerPool ! InvocationFinishedMessage(m.invoker, isSuccess)
 
             case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
         }
@@ -384,5 +390,4 @@ object LoadBalancerService {
 
 }
 
-private case class ActiveAckTimeout(activationId: ActivationId) extends TimeoutException
 private case class LoadBalancerException(msg: String) extends Throwable(msg)
