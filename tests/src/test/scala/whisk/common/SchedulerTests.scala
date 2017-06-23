@@ -117,6 +117,21 @@ class SchedulerTests
         callCount shouldBe 1
     }
 
+    it should "log scheduler halt message with tid" in {
+        implicit val transid = TransactionId.testing
+        val msg = "test threw an exception"
+
+        stream.reset()
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
+            throw new Exception(msg)
+        }
+
+        waitForCalls()
+        stream.toString.split(" ").drop(1).mkString(" ") shouldBe {
+            s"[ERROR] [#sid_1] [Scheduler] halted because $msg\n"
+        }
+    }
+
     it should "not stop the scheduler if the future from the closure is failed" in {
         var callCount = 0
 
@@ -146,7 +161,51 @@ class SchedulerTests
 
         val differences = calculateDifferences(calls)
         withClue(s"expecting all $differences to be <= $timeBetweenCalls") {
+            differences should not be 'empty
             differences.forall(_ <= timeBetweenCalls + schedulerSlack)
+        }
+    }
+
+    it should "delay initial schedule by given duration" in {
+        val timeBetweenCalls = 200 milliseconds
+        val initialDelay = 1.second
+        var callCount = 0
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls, initialDelay) { () =>
+            callCount += 1
+            Future successful true
+        }
+
+        try {
+            Thread.sleep(initialDelay.toMillis)
+            callCount should be <= 1
+
+            Thread.sleep(2 * timeBetweenCalls.toMillis)
+            callCount should be > 1
+        } finally {
+            scheduled ! PoisonPill
+        }
+    }
+
+    it should "perform work immediately when requested" in {
+        val timeBetweenCalls = 200 milliseconds
+        val initialDelay = 1.second
+        var callCount = 0
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls, initialDelay) { () =>
+            callCount += 1
+            Future successful true
+        }
+
+        try {
+            Thread.sleep(2 * timeBetweenCalls.toMillis)
+            callCount should be(0)
+
+            scheduled ! Scheduler.WorkOnceNow
+            Thread.sleep(timeBetweenCalls.toMillis)
+            callCount should be(1)
+        } finally {
+            scheduled ! PoisonPill
         }
     }
 
@@ -165,6 +224,7 @@ class SchedulerTests
 
         val differences = calculateDifferences(calls)
         withClue(s"expecting all $differences to be <= $computationTime") {
+            differences should not be 'empty
             differences.forall(_ <= computationTime + schedulerSlack)
         }
     }
