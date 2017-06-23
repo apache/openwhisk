@@ -19,8 +19,8 @@
 /**
  * router.php
  *
- * This file is the API client for the action. The controller POSTs to the end points /init and
- * /run in order to create and then invoke an action.
+ * This file is the API client for the action. The controller POSTs /init to set up the action and
+ * then POSTs to /run to invoke it.
  */
 
 // set up an output buffer to redirect any script output to stdout, rather than the default
@@ -30,7 +30,6 @@ ob_start(function ($data) {
     return '';
 }, 1, PHP_OUTPUT_HANDLER_CLEANABLE | PHP_OUTPUT_HANDLER_FLUSHABLE | PHP_OUTPUT_HANDLER_REMOVABLE);
 
-
 const ACTION_SRC_FILENAME = 'index.php';
 const SRC_DIR  = __DIR__ . '/src';
 const ACTION_CONFIG_FILE = __DIR__. '/config.json';
@@ -38,32 +37,32 @@ const ACTION_SRC_FILE = SRC_DIR . '/' . ACTION_SRC_FILENAME;
 const ACTION_RUNNER_FILE = __DIR__. '/runner.php';
 const TMP_ZIP_FILE = '/action.zip';
 
-main();
+// execute the revelant endpoint
+$result = route($_SERVER['REQUEST_URI']);
+
+// send response
+$body = json_encode((object)$result);
+header('Content-Type: application/json');
+header("Content-Length: " . mb_strlen($body));
+ob_end_clean();
+echo $body;
 exit;
 
-function main()
+/**
+ * executes the relevant method for a given URL and return an array of data to send to the client
+ */
+function route(string $uri) : array
 {
-    $output = '';
     try {
-        switch ($_SERVER['REQUEST_URI']) {
+        switch ($uri) {
             case '/init':
-                // this end point is called once per container creation. It gives us the code we need
-                // to run and the name of the function within that code that's the entry point. As PHP
-                // has a setup/teardown model, we store the function name to a config file for retrieval
-                // in the /run end point.
-                $output = init();
-                break;
+                return init();
 
             case '/run':
-                // this end point is called once per action invocation. We load the function name from
-                // the config file and then invoke it. Note that as PHP writes to php://output, we
-                // capture in an output buffer and write the buffer to stdout for the OpenWhisk logs.
-                $output = run();
-                writeSentinels();
-                break;
+                return run();
 
             default:
-                throw new RuntimeException('Unexpected call to ' . $_SERVER["REQUEST_URIp"]);
+                throw new RuntimeException('Unexpected call to ' . $_SERVER["REQUEST_URI"], 500);
         }
     } catch (Throwable $e) {
         $code = $e->getCode() < 400 ? 500 : $e->getCode();
@@ -72,17 +71,23 @@ function main()
         writeSentinels();
 
         http_response_code($code);
-        $output = json_encode(['error' => $e->getMessage()]);
+        return ['error' => $e->getMessage()];
     }
 
-    // send response
-    header('Content-Type: application/json');
-    header("Content-Length: " . mb_strlen($output));
-    ob_end_clean();
-    echo $output;
+    return '';
 }
 
-function init()
+/**
+ * Handle the /init endpoint
+ *
+ * This end point is called once per container creation. It gives us the code we need
+ * to run and the name of the function within that code that's the entry point. As PHP
+ * has a setup/teardown model, we store the function name to a config file for retrieval
+ * in the /run end point.
+ *
+ * @return array Data to return to the client
+ */
+function init() : array
 {
     // data is POSTed to us as a JSON string
     $post = file_get_contents('php://input');
@@ -99,7 +104,7 @@ function init()
 
     if ($binary) {
         // binary code is a zip file that's been base64 encoded, so unzip it
-        unzip($code, SRC_DIR);
+        unzipString($code, SRC_DIR);
 
         // check that we have the expected action source file
         if (! file_exists(ACTION_SRC_FILE)) {
@@ -135,36 +140,19 @@ function init()
     ];
     file_put_contents(ACTION_CONFIG_FILE, json_encode($config));
 
-    return json_encode(["OK" => true]);
+    return ["OK" => true];
 }
 
-function unzip(string $b64Data, $to)
-{
-    file_put_contents(TMP_ZIP_FILE, base64_decode($b64Data));
-
-    $zip = new ZipArchive();
-    $res = $zip->open(TMP_ZIP_FILE);
-    if ($res !== true) {
-        $reasons = [
-            ZipArchive::ER_EXISTS => "File already exists.",
-            ZipArchive::ER_INCONS => "Zip archive inconsistent.",
-            ZipArchive::ER_INVAL => "Invalid argument.",
-            ZipArchive::ER_MEMORY => "Malloc failure.",
-            ZipArchive::ER_NOENT => "No such file.",
-            ZipArchive::ER_NOZIP => "Not a zip archive.",
-            ZipArchive::ER_OPEN => "Can't open file.",
-            ZipArchive::ER_READ => "Read error.",
-            ZipArchive::ER_SEEK => "Seek error.",
-        ];
-        $reason = $reasons[$res] ?? "Unknown error: $res.";
-        throw new RuntimeException("Failed to open zip file: $reason", 500);
-    }
-
-    $res = $zip->extractTo($to . '/');
-    $zip->close();
-}
-
-function run()
+/**
+ * Handle the /run endpoint
+ *
+ * This end point is called once per action invocation. We load the function name from
+ * the config file and then invoke it. Note that as PHP writes to php://output, we
+ * capture in an output buffer and write the buffer to stdout for the OpenWhisk logs.
+ *
+ * @return array Data to return to the client
+ */
+function run() : array
 {
     if (! file_exists(ACTION_SRC_FILE)) {
         error_log('NO ACTION FILE: ' . ACTION_SRC_FILE);
@@ -214,11 +202,11 @@ function run()
     $pos = strrpos($stdout, PHP_EOL);
     if ($pos == false) {
         // just one line of output
-        $output = $stdout;
+        $lastLine = $stdout;
         $stdout = '';
     } else {
         $pos++;
-        $output = substr($stdout, $pos);
+        $lastLine = substr($stdout, $pos);
         $stdout = substr($stdout, 0, $pos);
     }
 
@@ -226,28 +214,77 @@ function run()
     file_put_contents("php://stderr", $stderr . PHP_EOL);
     file_put_contents("php://stdout", $stdout);
 
-    if ($returnCode != 0 || !is_array(json_decode($output, true))) {
+    $output = json_decode($lastLine, true);
+    if ($returnCode != 0 || !is_array($output)) {
         // an error occurred while running the action
         // the return code will be 1 if the stdout is printable to the user
         if ($returnCode != 1) {
-            // otherwise put out a generic message and send $output to stdout
-            file_put_contents("php://stdout", $output);
-            $output = 'An error occurred running the action.';
+            // otherwise put out a generic message and send $lastLine to stdout
+            file_put_contents("php://stdout", $lastLine);
+            $lastLine = 'An error occurred running the action.';
         }
-        throw new RuntimeException($output, 502);
+        throw new RuntimeException($lastLine, 502);
     }
+
+    // write sentinels as action is completed
+    writeSentinels();
 
     return $output;
 }
 
-function writeSentinels()
+/**
+ * Unzip a base64 encoded string to a directory
+ */
+function unzipString(string $b64Data, $dir): void
+{
+    file_put_contents(TMP_ZIP_FILE, base64_decode($b64Data));
+
+    $zip = new ZipArchive();
+    $res = $zip->open(TMP_ZIP_FILE);
+    if ($res !== true) {
+        $reasons = [
+            ZipArchive::ER_EXISTS => "File already exists.",
+            ZipArchive::ER_INCONS => "Zip archive inconsistent.",
+            ZipArchive::ER_INVAL => "Invalid argument.",
+            ZipArchive::ER_MEMORY => "Malloc failure.",
+            ZipArchive::ER_NOENT => "No such file.",
+            ZipArchive::ER_NOZIP => "Not a zip archive.",
+            ZipArchive::ER_OPEN => "Can't open file.",
+            ZipArchive::ER_READ => "Read error.",
+            ZipArchive::ER_SEEK => "Seek error.",
+        ];
+        $reason = $reasons[$res] ?? "Unknown error: $res.";
+        throw new RuntimeException("Failed to open zip file: $reason", 500);
+    }
+
+    $res = $zip->extractTo($dir . '/');
+    $zip->close();
+}
+
+/**
+ * Write the OpenWhisk sentinels to stdout and stderr so that it knows that we've finished
+ * writing data to them.
+ *
+ * @return void
+ */
+function writeSentinels() : void
 {
     // write out sentinels as we've finished all log output
     file_put_contents("php://stderr", "\nXXX_THE_END_OF_A_WHISK_ACTIVATION_XXX\n");
     file_put_contents("php://stdout", "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX\n");
 }
 
-function runPHP(array $args, string $stdin = '', array $env = [])
+/**
+ * Run the PHP command in a separate process
+ *
+ * This ensures that if the action causes a fatal error, we can handle it.
+ *
+ * @param  array  $args  arguments to the PHP executable
+ * @param  string $stdin stdin to pass to the process
+ * @param  array  $env   environment variables to set for the process
+ * @return array         array containing [int return code, string stdout string stderr]
+ */
+function runPHP(array $args, string $stdin = '', array $env = []) : array
 {
     $cmd = '/usr/local/bin/php ' . implode(' ', array_map('escapeshellarg', $args));
 
