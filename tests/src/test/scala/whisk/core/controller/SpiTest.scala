@@ -26,6 +26,7 @@ import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entity.DocId
 import whisk.core.entity.DocRevision
 import whisk.core.entity.ExecManifest
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.loadBalancer.LoadBalancerService
@@ -77,4 +78,7 @@ object SpiTest extends TransactionCounter {
 
 
   }
+
+  override val numberOfInstances: Int = 1
+  override val instance: InstanceId = new InstanceId(0)
 }
