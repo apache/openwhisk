@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -78,15 +79,15 @@ class WhiskConfig(
     val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
     val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
     val invokerUseReactivePool = this(WhiskConfig.invokerUseReactivePool)
+    val invokerInstances = this(WhiskConfig.invokerInstances)
 
     val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
-    val controllerHost = this(WhiskConfig.controllerHostName) + ":" + this(WhiskConfig.controllerHostPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
-    val loadbalancerActivationCountBeforeNextInvoker = this.getAsInt(WhiskConfig.loadbalancerActivationCountBeforeNextInvoker, 10)
+    val loadbalancerInvokerBusyThreshold = this.getAsInt(WhiskConfig.loadbalancerInvokerBusyThreshold, 16)
+    val controllerInstances = this(WhiskConfig.controllerInstances)
 
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
     val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
-    val loadbalancerHost = this(WhiskConfig.loadbalancerHostName) + ":" + this(WhiskConfig.loadbalancerHostPort)
 
     val edgeHostName = this(WhiskConfig.edgeHostName)
 
@@ -236,6 +237,7 @@ object WhiskConfig {
     val invokerSerializeDockerPull = "invoker.serializeDockerPull"
     val invokerUseRunc = "invoker.useRunc"
     val invokerUseReactivePool = "invoker.useReactivePool"
+    val invokerInstances = "invoker.instances"
 
     val wskApiProtocol = "whisk.api.host.proto"
     val wskApiPort = "whisk.api.host.port"
@@ -246,19 +248,16 @@ object WhiskConfig {
     val kafkaDockerEndpoint = "kafka.docker.endpoint"
     val mainDockerEndpoint = "main.docker.endpoint"
 
-    private val controllerHostName = "controller.host"
-    private val controllerHostPort = "controller.host.port"
     private val controllerBlackboxFraction = "controller.blackboxFraction"
+    val controllerInstances = "controller.instances"
 
-    val loadbalancerActivationCountBeforeNextInvoker = "loadbalancer.activationCountBeforeNextInvoker"
+    val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
     val kafkaHostName = "kafka.host"
-    val loadbalancerHostName = "loadbalancer.host"
     private val zookeeperHostName = "zookeeper.host"
 
     private val edgeHostApiPort = "edge.host.apiport"
     val kafkaHostPort = "kafka.host.port"
-    private val loadbalancerHostPort = "loadbalancer.host.port"
     private val zookeeperHostPort = "zookeeper.host.port"
 
     val consulServerHost = "consulserver.host"
@@ -269,8 +268,6 @@ object WhiskConfig {
     val consulServer = Map(consulServerHost -> null, consulPort -> null)
     val invokerHosts = Map(invokerHostsList -> null)
     val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
-    val controllerHost = Map(controllerHostName -> null, controllerHostPort -> null)
-    val loadbalancerHost = Map(loadbalancerHostName -> null, loadbalancerHostPort -> null)
 
     val runtimesManifest = "runtimes.manifest"
 

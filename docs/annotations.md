@@ -41,10 +41,11 @@ The annotations are _not_ checked. So while it is conceivable to use the annotat
 
 # Annotations specific to web actions
 
-We recently extended the core API with new features. To enable packages and actions to participate in these features, we introduced the following new annotations that are semantically meaningful. These annotations must be explicitly set to `true` to have affect. Changing the value from `true` to `false` will exclude the attached asset from the new API. The annotations have no meaning otherwise in the system. The annotations are:
+Web actions are enabled with explicit annotations which decorate individual actions. The annotations only apply to the [web actions](webactions.md) API,
+and must be present and explicitly set to `true` to have an affect. The annotations have no meaning otherwise in the system. The annotations are:
 
-1. `final`: Applies only to an action. It makes all of the action parameters that are already defined immutable. A parameter of an action carrying the annotation may not be overridden by invoke-time parameters once the parameter has a value defined through its enclosing package or the action definition.
-2. `web-export`: Applies only to an action. If present, it makes its corresponding action accessible to REST calls _without_ authentication. We call these [_web actions_](webactions.md) because they allow one to use OpenWhisk actions from a browser for example. It is important to note that the _owner_ of the web action incurs the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
-3. `require-whisk-auth`: Applies onto to an action. If an action carries the `web-export` annotation, and this annotation is also `true`, the route is only accessible to an authenticated subject. It is important to note that the _owner_ of the web action incurs the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
-4. `raw-http`: Applies only to an action in the presence of a `web-export` annotation. If present, the HTTP request query and body parameters are passed to the action as reserved properties.
-
+1. `web-export`: Makes its corresponding action accessible to REST calls _without_ authentication. We call these [_web actions_](webactions.md) because they allow one to use OpenWhisk actions from a browser for example. It is important to note that the _owner_ of the web action incurs the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record). The rest of the annotations described below have no effect on the action unless this annotation is also set.
+2. `final`: Makes all of the action parameters that are already defined immutable. A parameter of an action carrying the annotation may not be overridden by invoke-time parameters once the parameter has a value defined through its enclosing package or the action definition.
+3. `raw-http`: When set, the HTTP request query and body parameters are passed to the action as reserved properties.
+4. `web-custom-options`: When set, this annotation enables a web action to respond to OPTIONS requests with customized headers, otherwise a [default CORS response](webactions.md#options-requests) applies.
+5. `require-whisk-auth`: This annotation protects the web action so that it is only accessible to an authenticated subject. It is important to note that the _owner_ of the web action will still incur the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,6 +31,7 @@ import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import whisk.core.entity.InstanceId
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -174,9 +176,12 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-    def transid(): TransactionId = {
-        TransactionId(cnt.incrementAndGet())
-    }
+    val numberOfInstances: Int
+    val instance: InstanceId
 
-    private val cnt = new AtomicInteger(1)
+    private lazy val cnt = new AtomicInteger(numberOfInstances + instance.toInt)
+
+    def transid(): TransactionId = {
+        TransactionId(cnt.addAndGet(numberOfInstances))
+    }
 }

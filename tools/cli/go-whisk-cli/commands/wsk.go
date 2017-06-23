@@ -30,8 +30,14 @@ var WskCmd = &cobra.Command{
     PersistentPreRunE:parseConfigFlags,
 }
 
-
-
+var listCmd = &cobra.Command{
+    Use:   "list",
+    Short: wski18n.T("list entities in the current namespace"),
+    SilenceUsage:   true,
+    SilenceErrors:  true,
+    PreRunE: setupClientConfig,
+    RunE:   namespaceGetCmd.RunE,
+}
 
 func init() {
     WskCmd.SetHelpTemplate(`{{with or .Long .Short }}{{.}}

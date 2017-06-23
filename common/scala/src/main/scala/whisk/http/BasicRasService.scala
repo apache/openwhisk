@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,10 +17,7 @@
 
 package whisk.http
 
-import akka.actor.Actor
-import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.japi.Creator
 import spray.httpx.SprayJsonSupport._
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -42,30 +40,5 @@ trait BasicRasService extends BasicHttpService {
 
     val ping = path("ping") {
         get { complete("pong") }
-    }
-}
-
-/**
- * Singleton which provides a factory for instances of the BasicRasService.
- */
-object BasicRasService {
-
-    def startService(system: ActorSystem, name: String, interface: String, port: Integer)(implicit logging: Logging) = {
-        BasicHttpService.startService(system, name, interface, port, new ServiceBuilder)
-    }
-
-    /**
-     * In spray, we send messages to an Akka Actor. A RasService represents an Actor
-     * which extends the BasicRasService trait.
-     */
-    private class RasService(implicit val logging: Logging) extends BasicRasService with Actor {
-        override def actorRefFactory = context
-    }
-
-    /**
-     * Akka-style factory for RasService.
-     */
-    private class ServiceBuilder(implicit logging: Logging) extends Creator[RasService] {
-        def create = new RasService
     }
 }
