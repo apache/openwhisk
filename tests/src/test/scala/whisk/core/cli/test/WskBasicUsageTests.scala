@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -150,7 +151,7 @@ class WskBasicUsageTests
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val apihost = s"http://${WhiskProperties.getControllerHost}:${WhiskProperties.getControllerPort}"
+            val apihost = s"http://${WhiskProperties.getBaseControllerAddress()}"
             wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
             val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env)
             rr.stdout should not include regex("""whisk API build\s*Unknown""")
@@ -245,7 +246,7 @@ class WskBasicUsageTests
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val names = Seq(
-                ("", NOT_ALLOWED),
+                ("", ERROR_EXIT),
                 (" ", BAD_REQUEST),
                 ("hi+there", BAD_REQUEST),
                 ("$hola", BAD_REQUEST),
@@ -273,7 +274,15 @@ class WskBasicUsageTests
             val file = Some(TestUtils.getTestActionFilename("hello.js"))
             assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
             // Update it with a missing file
-            wsk.action.create("updateMissingFile", Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+            wsk.action.create(name, Some("notfound"), update = true, expectedExitCode = MISUSE_EXIT)
+    }
+
+    it should "reject action update for sequence with no components" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "updateMissingComponents"
+            val file = Some(TestUtils.getTestActionFilename("hello.js"))
+            assetHelper.withCleaner(wsk.action, name) { (action, name) => action.create(name, file) }
+            wsk.action.create(name, None, update = true, kind = Some("sequence"), expectedExitCode = MISUSE_EXIT)
     }
 
     it should "create, and get an action to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
@@ -467,13 +476,13 @@ class WskBasicUsageTests
     }
 
     it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(wskprops) {
-        val name = "invalid dockerContainer"
+        val name = "invalidDockerContainer"
         val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
 
         (wp, assetHelper) =>
             assetHelper.withCleaner(wsk.action, name) {
                 // docker name is a randomly generate string
-                (action, _) => action.create(name, Some(containerName), kind = Some("docker"))
+                (action, _) => action.create(name, None, docker = Some(containerName))
             }
 
             val run = wsk.action.invoke(name)
@@ -608,6 +617,9 @@ class WskBasicUsageTests
                     assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
                     removeCLIHeader(stdout).parseJson shouldBe JsArray(
                         JsObject(
+                            "key" -> JsString("exec"),
+                            "value" -> JsString("nodejs:6")),
+                        JsObject(
                             "key" -> JsString("web-export"),
                             "value" -> JsBoolean(webEnabled || rawEnabled)),
                         JsObject(
@@ -615,11 +627,42 @@ class WskBasicUsageTests
                             "value" -> JsBoolean(rawEnabled)),
                         JsObject(
                             "key" -> JsString("final"),
-                            "value" -> JsBoolean(webEnabled || rawEnabled)),
-                        JsObject(
-                            "key" -> JsString("exec"),
-                            "value" -> JsString("nodejs:6")))
+                            "value" -> JsBoolean(webEnabled || rawEnabled)))
                 }
+    }
+
+    it should "ensure --web flag does not remove existing annotations" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val key = "someKey"
+            val value = JsString("someValue")
+            val annots = Map(key -> value)
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, annotations = annots)
+            }
+
+            wsk.action.create(name, file, web = Some("true"), update = true)
+
+            val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(key),
+                    "value" -> value),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
     }
 
     it should "reject action create and update with invalid web flag input" in withAssetCleaner(wskprops) {
@@ -628,8 +671,8 @@ class WskBasicUsageTests
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             val invalidInput = "bogus"
             val errorMsg = s"Invalid argument '$invalidInput' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
-            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
-            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = ERROR_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), expectedExitCode = MISUSE_EXIT).stderr should include(errorMsg)
+            wsk.action.create(name, file, web = Some(invalidInput), update = true, expectedExitCode = MISUSE_EXIT).stderr should include(errorMsg)
     }
 
     it should "invoke action while not encoding &, <, > characters" in withAssetCleaner(wskprops) {
@@ -1168,9 +1211,9 @@ class WskBasicUsageTests
         val invalidArgsMsg = "error: Invalid argument(s)"
         val tooFewArgsMsg = invalidArgsMsg + "."
         val tooManyArgsMsg = invalidArgsMsg + ": "
-        val actionNameActionReqMsg = "An action name and action are required."
+        val actionNameActionReqMsg = "An action name and code artifact are required."
         val actionNameReqMsg = "An action name is required."
-        val actionOptMsg = "An action is optional."
+        val actionOptMsg = "A code artifact is optional."
         val packageNameReqMsg = "A package name is required."
         val packageNameBindingReqMsg = "A package name and binding name are required."
         val ruleNameReqMsg = "A rule name is required."
@@ -1186,6 +1229,7 @@ class WskBasicUsageTests
         val apiDeleteReqMsg = "An API base path or API name is required.  An optional API relative path and operation may also be provided."
         val apiListReqMsg = "Optional parameters are: API base path (or API name), API relative path and operation."
         val invalidShared = s"Cannot use value '$invalidArg' for shared"
+        val entityNameMsg = s"An entity name, '$invalidArg', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
         val invalidArgs = Seq(
             (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
             (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
@@ -1233,10 +1277,12 @@ class WskBasicUsageTests
             (Seq("package", "bind", "packageName", "bindingName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "list", "namespace", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "list", invalidArg), entityNameMsg),
             (Seq("package", "delete"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
             (Seq("package", "delete", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("package", "refresh", "namespace", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("package", "refresh", invalidArg), entityNameMsg),
             (Seq("rule", "enable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "enable", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "disable"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
@@ -1258,6 +1304,7 @@ class WskBasicUsageTests
             (Seq("rule", "delete"), s"${tooFewArgsMsg} ${ruleNameReqMsg}"),
             (Seq("rule", "delete", "ruleName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("rule", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("rule", "list", invalidArg), entityNameMsg),
             (Seq("trigger", "fire"), s"${tooFewArgsMsg} ${triggerNameReqMsg} ${optPayloadMsg}"),
             (Seq("trigger", "fire", "triggerName", "triggerPayload", invalidArg),
                 s"${tooManyArgsMsg}${invalidArg}. ${triggerNameReqMsg} ${optPayloadMsg}"),
@@ -1269,13 +1316,17 @@ class WskBasicUsageTests
             (Seq("trigger", "get", "triggerName", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
             (Seq("trigger", "delete"), s"${tooFewArgsMsg} ${triggerNameReqMsg}"),
             (Seq("trigger", "delete", "triggerName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
-            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"))
+            (Seq("trigger", "list", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+            (Seq("trigger", "list", invalidArg), entityNameMsg))
 
         invalidArgs foreach {
             case (cmd, err) =>
-                val stderr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ERROR_EXIT).stderr
-                stderr should include(err)
-                stderr should include("Run 'wsk --help' for usage.")
+                withClue(cmd) {
+                    val rr = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+                    rr.exitCode should (be(ERROR_EXIT) or be(MISUSE_EXIT))
+                    rr.stderr should include(err)
+                    rr.stderr should include("Run 'wsk --help' for usage.")
+                }
         }
     }
 

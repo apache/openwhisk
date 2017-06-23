@@ -6,44 +6,45 @@
 - name: "pull the {{ docker_image_tag }} image of controller"
   shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
   when: docker_registry != ""
+  retries: 3
 
 - name: ensure controller log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/controller"
+    path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
   become: true
 
 - name: (re)start controller
   docker_container:
-    name: controller
+    name: controller{{ groups['controllers'].index(inventory_hostname) }}
     image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: controller
+    hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
-      "COMPONENT_NAME": "controller"
+      "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
       "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker_image_tag }}"
-      "KAFKA_NUMPARTITIONS": 2
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
     volumes:
-      - "{{ whisk_logs_dir }}/controller:/logs"
+      - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
-      - "{{ controller.port }}:8080"
+      - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
+    command: /bin/sh -c "controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.port }}/ping"
+    url: "http://{{ inventory_hostname }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

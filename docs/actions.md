@@ -827,7 +827,7 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
 
 
   ```
-  wsk action create --docker example janesmith/blackboxdemo
+  wsk action create example --docker janesmith/blackboxdemo
   ```
 
   Notice the use of `--docker` when creating an action. Currently all Docker images are assumed to be hosted on Docker Hub.
@@ -853,10 +853,29 @@ For the instructions that follow, assume that the Docker user ID is `janesmith` 
   ./buildAndPush.sh janesmith/blackboxdemo
   ```
   ```
-  wsk action update --docker example janesmith/blackboxdemo
+  wsk action update example --docker janesmith/blackboxdemo
   ```
 
   You can find more information about creating Docker actions in the [References](./reference.md#docker-actions) section.
+
+  *Note:* Previous version of the CLI supported `--docker` without a parameter and the image name was a positional argument.
+  In order to allow Docker actions to accept initialization data via a (zip) file, similar to other actions kinds, we have
+  normalized the user experience for Docker actions so that a positional argument if present must be a file (e.g., a zip file)
+  instead. The image name must be specified following the `--docker` option. Furthermore, due to user feedback, we have added
+  `--native` as shorthand for `--docker openwhisk/dockerskeleton` so that executables that run inside the standard Docker action
+  SDK are more convenient to create and deploy.
+
+  For example, the tutorial above created a binary executable inside the container locate at `/action/exec`. If you copy this file
+  to your local file system and zip it into `exec.zip` then you can use the following commands to create a docker action which receives
+  the executable as initialization data.
+
+  ```bash
+  wsk action create example exec.zip --native
+  ```
+  which is equivalent to the following command.
+  ```bash
+  wsk action create example exec.zip --docker openwhisk/dockerskeleton
+  ```
 
 ## Watching action output
 

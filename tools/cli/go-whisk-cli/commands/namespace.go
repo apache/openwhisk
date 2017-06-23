@@ -66,7 +66,7 @@ var namespaceGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qName QualifiedName
+        var qualifiedName QualifiedName
         var err error
 
         if whiskErr := checkArgs(args, 0, 1, "Namespace get",
@@ -76,18 +76,16 @@ var namespaceGetCmd = &cobra.Command{
 
         // Namespace argument is optional; defaults to configured property namespace
         if len(args) == 1 {
-            qName, err = parseQualifiedName(args[0])
-            if err != nil {
-                whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[0], err)
-                errMsg := wski18n.T("'{{.name}}' is not a valid qualified name: {{.err}}",
-                        map[string]interface{}{"name": args[0], "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
-                    whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
+            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
+                return parseQualifiedNameError(args[0], err)
+            }
+
+            if len(qualifiedName.entityName) > 0 {
+                return entityNameError(qualifiedName.entityName)
             }
         }
 
-        namespace, _, err := client.Namespaces.Get(qName.namespace)
+        namespace, _, err := client.Namespaces.Get(qualifiedName.namespace)
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
@@ -107,15 +105,6 @@ var namespaceGetCmd = &cobra.Command{
 
         return nil
     },
-}
-
-var listCmd = &cobra.Command{
-    Use:   "list",
-    Short: wski18n.T("list entities in the current namespace"),
-    SilenceUsage:   true,
-    SilenceErrors:  true,
-    PreRunE: setupClientConfig,
-    RunE:   namespaceGetCmd.RunE,
 }
 
 func init() {

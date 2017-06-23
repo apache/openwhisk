@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,12 +21,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 import akka.actor.ActorSystem
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import whisk.common.ConsulClient
-import whisk.common.ConsulKV.ControllerKeys
 import whisk.common.Logging
 import whisk.common.Scheduler
+import whisk.common.TransactionId
 import whisk.core.entity.Subject
 import whisk.core.loadBalancer.LoadBalancer
 
@@ -53,34 +51,27 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
     private var userActivationCounter = Map.empty[String, Int]
 
     private val healthCheckInterval = 5.seconds
-    private val consul = new ConsulClient(consulServer)
 
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject): Boolean = userActivationCounter.getOrElse(subject.asString, 0) < concurrencyLimit
+    def check(subject: Subject)(implicit tid: TransactionId): Boolean = {
+        val concurrentActivations = userActivationCounter.getOrElse(subject.asString, 0)
+        logging.info(this, s"subject = ${subject.toString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
+        concurrentActivations < concurrencyLimit
+    }
 
     /**
      * Checks whether the system is in a generally overloaded state.
      */
-    def isOverloaded = userActivationCounter.values.sum > systemOverloadLimit
-
-    /**
-     * Publish into Consul KV values showing the controller's view
-     * of concurrent activations on a per-user basis.
-     */
-    private def publishUserConcurrentActivation() = {
-        // Any sort of partitioning will be ok for monitoring
-        Future.sequence(userActivationCounter.groupBy(_._1.take(1)).map {
-            case (prefix, items) =>
-                val key = ControllerKeys.userActivationCountKey + "/" + prefix
-                consul.kv.put(key, items.toJson.compactPrint)
-        })
+    def isOverloaded()(implicit tid: TransactionId): Boolean = {
+        val concurrentActivations = userActivationCounter.values.sum
+        logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+        concurrentActivations > systemOverloadLimit
     }
 
     Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
         userActivationCounter = loadBalancer.getActiveUserActivationCounts
-        publishUserConcurrentActivation()
+        Future.successful(Unit)
     }
-
 }

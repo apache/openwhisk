@@ -1,3 +1,7 @@
+#!/bin/bash
+set -e
+set -x
+
 sudo apt-get install -y software-properties-common
 sudo add-apt-repository -y ppa:webupd8team/java
 sudo apt-get update -y
