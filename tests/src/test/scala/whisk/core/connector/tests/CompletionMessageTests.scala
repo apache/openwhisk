@@ -60,7 +60,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
         val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), "xyz")
         m.serialize shouldBe JsObject(
             "transid" -> m.transid.toJson,
-            "activationId" -> m.response.left.get.toJson,
+            "response" -> m.response.left.get.toJson,
             "invoker" -> m.invoker.toJson).compactPrint
     }
 
