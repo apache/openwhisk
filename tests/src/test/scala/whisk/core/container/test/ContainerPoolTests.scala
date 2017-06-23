@@ -46,6 +46,8 @@ import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.test.ExecHelpers
+import whisk.spi.SharedModule
+import whisk.spi.SharedModules
 import whisk.utils.retry
 
 /**
@@ -71,6 +73,8 @@ class ContainerPoolTests extends FlatSpec
                 invokerSerializeDockerOp -> "true",
                 invokerSerializeDockerPull -> "true"))
 
+
+    SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logging)))
     assert(config.isValid)
 
     val pool = new ContainerPool(config, InstanceId(0), true, true)
