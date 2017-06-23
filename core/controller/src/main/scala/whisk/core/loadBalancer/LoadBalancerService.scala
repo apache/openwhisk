@@ -367,7 +367,7 @@ object LoadBalancerService {
                 if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold) {
                     invokerName
                 } else {
-                    // ... otherwise look for a less loaded invoker by stepping through a pre computed
+                    // ... otherwise look for a less loaded invoker by stepping through a pre-computed
                     // list of invokers; there are two possible outcomes:
                     // 1. the search lands on a new invoker that has capacity, choose it
                     // 2. walked through the entire list and found no better invoker than the
@@ -375,7 +375,10 @@ object LoadBalancerService {
                     val newTarget = (targetInvoker + step) % numInvokers
                     if (newTarget == homeInvoker || seenInvokers > numInvokers) {
                         // fall back to the invoker with the least load.
-                        activationsPerInvoker.minBy(_._2)._1
+                        availableInvokers.reduce { (a, b) =>
+                            if (activationsPerInvoker.get(a).getOrElse(0) < activationsPerInvoker.get(b).getOrElse(0)) a
+                            else b
+                        }
                     } else {
                         search(newTarget, seenInvokers + 1)
                     }

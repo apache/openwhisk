@@ -123,4 +123,17 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
             1,
             hash) shouldBe Some("invoker2")
     }
+
+    it should "not choose an invoker from the map which is not in the passed in invoker list when falling back to the least loaded invoker" in {
+        val invokerCount = 3
+        val invs = invokers(invokerCount)
+        val hash = 1
+
+        LoadBalancerService.schedule(
+            invs,
+            // Note that invoker3 is not in the list provided above (which ranges from 0-2)
+            Map("invoker0" -> 3, "invoker1" -> 3, "invoker2" -> 2, "invoker3" -> 0),
+            1,
+            hash) shouldBe Some("invoker2")
+    }
 }
