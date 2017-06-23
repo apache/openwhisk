@@ -189,6 +189,7 @@ function run()
         // only pass OpenWhisk environment variables to the action
         return stripos($k, '__OW_') === 0;
     }, ARRAY_FILTER_USE_KEY);
+    $env['PHP_VERSION'] = $_ENV['PHP_VERSION'];
     foreach (['api_key', 'namespace', 'action_name', 'activation_id', 'deadline'] as $param) {
         if (array_key_exists($param, $post)) {
             $env['__OW_' . strtoupper($param)] = $post[$param];
@@ -196,15 +197,16 @@ function run()
     }
 
     // extract the function arguments from the posted data's "value" field
-    $args = [];
+    $args = '{}';
     if (array_key_exists('value', $post) && is_array($post['value'])) {
-        $args = $post['value'];
+        $args = json_encode($post['value']);
     }
+    $env['WHISK_INPUT'] = $args;
 
     // run the action
     list($returnCode, $stdout, $stderr) = runPHP(
         ['-d', 'error_reporting=E_ALL', '-f', ACTION_RUNNER_FILE, '--', $config],
-        json_encode((object)$args),
+        $args,
         $env
     );
 
