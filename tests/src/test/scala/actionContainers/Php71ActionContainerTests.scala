@@ -192,6 +192,7 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
             runRes shouldBe defined
             runRes.get.fields.get("error") shouldBe defined
+            runRes.get.fields("error").toString should include("An error occurred running the action.")
         }
 
         // Somewhere, the logs should be the error text

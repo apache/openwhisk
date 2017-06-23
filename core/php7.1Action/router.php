@@ -219,15 +219,20 @@ function run()
         $output = substr($stdout, $pos);
         $stdout = substr($stdout, 0, $pos);
     }
+
     // write out the action's stderr and stdout
     file_put_contents("php://stderr", $stderr . PHP_EOL);
     file_put_contents("php://stdout", $stdout);
 
     if ($returnCode != 0 || !is_array(json_decode($output, true))) {
-        // an error occurred while running the action as either the return code is non-zero
-        // or we didn't get JSON back
-        $message = $output ?? 'An error occurred running the action';
-        throw new RuntimeException($message, 502);
+        // an error occurred while running the action
+        // the return code will be 1 if the stdout is printable to the user
+        if ($returnCode != 1) {
+            // otherwise put out a generic message and send $output to stdout
+            file_put_contents("php://stdout", $output);
+            $output = 'An error occurred running the action.';
+        }
+        throw new RuntimeException($output, 502);
     }
 
     return $output;
