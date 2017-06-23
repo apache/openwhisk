@@ -17,6 +17,7 @@
 
 package whisk.core.controller.actions
 
+import scala.collection.mutable.Buffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -24,11 +25,11 @@ import scala.concurrent.duration._
 import scala.util.Failure
 
 import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.Cancellable
 import akka.actor.Props
-
 import spray.json._
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
@@ -40,8 +41,6 @@ import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.utils.ExecutionContextFactory.FutureExtensions
-import scala.collection.mutable.Buffer
-import akka.actor.Cancellable
 
 protected[actions] trait PrimitiveActions {
     /** The core collections require backend services to be injected in this trait. */
@@ -156,15 +155,17 @@ protected[actions] trait PrimitiveActions {
         // 2. failing active ack (due to active ack timeout), fall over to db polling
         // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
         // 4. internal error message
-        val promise = Promise[Either[ActivationId, WhiskActivation]] // this is strictly completed by the finishing actor
-        val finisher = actorSystem.actorOf(Props(new ActivationFinisher(user, activationId, promise)))
+        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
+        val (promise, finisher) = ActivationFinisher.props({
+            () => WhiskActivation.get(activationStore, docid)
+        })
 
         logging.info(this, s"action activation will block for result upto $totalWaitTime")
 
         activeAckResponse map {
             case result @ Right(_) =>
                 // activation complete, result is available
-                finisher ! Finish(result)
+                finisher ! ActivationFinisher.Finish(result)
 
             case _ =>
                 // active ack received but it does not carry the response,
@@ -176,67 +177,98 @@ protected[actions] trait PrimitiveActions {
         // return the promise which is either fulfilled by active ack, polling from the database,
         // or the timeout alternative when the allowed duration expires (i.e., the action took
         // longer than the permitted, per totalWaitTime).
-        promise.future.withAlternativeAfterTimeout(totalWaitTime, {
+        promise.withAlternativeAfterTimeout(totalWaitTime, {
             Future.successful(Left(activationId)).andThen {
                 // result no longer interesting; terminate the finisher/shut down db polling if necessary
                 case _ => actorSystem.stop(finisher)
             }
         })
     }
+}
+
+/** Companion to the ActivationFinisher. */
+protected[actions] object ActivationFinisher {
+    case class Finish(activation: Right[ActivationId, WhiskActivation])
+
+    private type ActivationLookup = () => Future[WhiskActivation]
 
     /** Periodically polls the db to cover missing active acks. */
-    val datastorePollPeriodForActivation = 15.seconds
-    val datastorePreemptivePolling = Seq(1.second, 3.seconds, 5.seconds, 7.seconds)
+    private val datastorePollPeriodForActivation = 15.seconds
 
-    protected case class Finish(activation: Right[ActivationId, WhiskActivation])
+    /**
+     * In case of a partial active ack where it is know an activation completed
+     * but the result could not be sent over the bus, use this periodicity to poll
+     * for a result.
+     */
+    private val datastorePreemptivePolling = Seq(1.second, 3.seconds, 5.seconds, 7.seconds)
 
-    protected class ActivationFinisher(
-        user: Identity,
-        activationId: ActivationId,
+    def props(activationLookup: ActivationLookup)(
+        implicit transid: TransactionId,
+        actorSystem: ActorSystem,
+        executionContext: ExecutionContext,
+        logging: Logging): (Future[Either[ActivationId, WhiskActivation]], ActorRef) = {
+
+        val (p, _, f) = props(activationLookup, datastorePollPeriodForActivation, datastorePreemptivePolling)
+        (p.future, f) // hides the polling actor
+    }
+
+    /**
+     * Creates the finishing actor.
+     * This is factored for testing.
+     */
+    protected[actions] def props(
+        activationLookup: ActivationLookup,
+        slowPoll: FiniteDuration,
+        fastPolls: Seq[FiniteDuration])(
+            implicit transid: TransactionId,
+            actorSystem: ActorSystem,
+            executionContext: ExecutionContext,
+            logging: Logging): (Promise[Either[ActivationId, WhiskActivation]], ActorRef, ActorRef) = {
+
+        // this is strictly completed by the finishing actor
+        val promise = Promise[Either[ActivationId, WhiskActivation]]
+        val dbpoller = poller(slowPoll, promise, activationLookup)
+        val finisher = Props(new ActivationFinisher(dbpoller, fastPolls, promise))
+
+        (promise, dbpoller, actorSystem.actorOf(finisher))
+    }
+
+    /**
+     * An actor to complete a blocking activation request. It encapsulates a promise
+     * to be completed when the result is ready. This may happen in one of two ways.
+     * An active ack message is relayed to this actor to complete the promise when
+     * the active ack is received. Or in case of a partial/missing active ack, an
+     * explicitly scheduled datastore poll of the activation record, if found, will
+     * complete the transaction. When the promise is fulfilled, the actor self destructs.
+     */
+    private class ActivationFinisher(
+        poller: ActorRef, // the activation poller
+        fastPollPeriods: Seq[FiniteDuration],
         promise: Promise[Either[ActivationId, WhiskActivation]])(
-            implicit transid: TransactionId) extends Actor {
+            implicit transid: TransactionId,
+            actorSystem: ActorSystem,
+            executionContext: ExecutionContext,
+            logging: Logging) extends Actor {
 
         // when the future completes, self-destruct
         promise.future.andThen { case _ => shutdown() }
 
-        val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
         val preemptiveMsgs: Buffer[Cancellable] = Buffer.empty
 
-        val poller = {
-            Scheduler.scheduleWaitAtMost(
-                datastorePollPeriodForActivation,
-                initialDelay = datastorePollPeriodForActivation,
-                name = "dbpoll")(() => {
-                    if (!promise.isCompleted) {
-                        WhiskActivation.get(activationStore, docid) map {
-                            // complete the future, which in turn will poison pill this scheduler
-                            activation =>
-                                promise.trySuccess(Right(activation.withoutLogs)) // Logs always not provided on blocking call
-                        } andThen {
-                            case Failure(e: NoDocumentException) => // do nothing, scheduler will reschedule another poll
-                            case Failure(t: Throwable) => // something went wrong, abort
-                                logging.error(this, s"failed while waiting on result: ${t.getMessage}")
-                                promise.tryFailure(t) // complete the future, which in turn will poison pill this scheduler
-                        }
-                    } else Future.successful({}) // the scheduler will be halted because the promise is now resolved
-                })
-        }
-
         def receive = {
-            case Finish(activation) =>
+            case ActivationFinisher.Finish(activation) =>
                 promise.trySuccess(activation)
 
             case msg @ Scheduler.WorkOnceNow =>
                 // try up to three times when pre-emptying the schedule
-                datastorePreemptivePolling.foreach {
+                fastPollPeriods.foreach {
                     s => preemptiveMsgs += context.system.scheduler.scheduleOnce(s, poller, msg)
                 }
-
-            case msg =>
-                poller ! msg
         }
 
         def shutdown(): Unit = {
+            preemptiveMsgs.foreach(_.cancel())
+            preemptiveMsgs.clear()
             context.stop(poller)
             context.stop(self)
         }
@@ -244,7 +276,37 @@ protected[actions] trait PrimitiveActions {
         override def postStop() = {
             logging.info(this, "finisher shutdown")
             preemptiveMsgs.foreach(_.cancel())
+            preemptiveMsgs.clear()
             context.stop(poller)
         }
+    }
+
+    /**
+     * This creates the inner datastore poller for the completed activation.
+     * It is a factory method to facilitate testing.
+     */
+    private def poller(
+        slowPollPeriod: FiniteDuration,
+        promise: Promise[Either[ActivationId, WhiskActivation]],
+        activationLookup: ActivationLookup)(
+            implicit actorSystem: ActorSystem,
+            executionContext: ExecutionContext,
+            logging: Logging): ActorRef = {
+        Scheduler.scheduleWaitAtMost(
+            slowPollPeriod,
+            initialDelay = slowPollPeriod,
+            name = "dbpoll")(() => {
+                if (!promise.isCompleted) {
+                    activationLookup() map {
+                        // complete the future, which in turn will poison pill this scheduler
+                        activation => promise.trySuccess(Right(activation.withoutLogs)) // logs excluded on blocking calls
+                    } andThen {
+                        case Failure(e: NoDocumentException) => // do nothing, scheduler will reschedule another poll
+                        case Failure(t: Throwable) => // something went wrong, abort
+                            logging.error(this, s"failed while waiting on result: ${t.getMessage}")
+                            promise.tryFailure(t) // complete the future, which in turn will poison pill this scheduler
+                    }
+                } else Future.successful({}) // the scheduler will be halted because the promise is now resolved
+            })
     }
 }
