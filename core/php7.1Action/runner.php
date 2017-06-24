@@ -27,7 +27,6 @@
  * and the OpenWhisk action argumentsare passed in as a JSON object via stdin.
  */
 
-
 // read config from argv[1] and assign
 if ($argc != 2) {
     file_put_contents("php://stderr", 'Expected a single config parameter');

@@ -24,7 +24,7 @@
  */
 
 // set up an output buffer to redirect any script output to stdout, rather than the default
-// php://output, so that it goes to the logs, not the HTTP client
+// php://output, so that it goes to the logs, not the HTTP client.
 ob_start(function ($data) {
     file_put_contents("php://stdout", $data);
     return '';
@@ -67,7 +67,9 @@ function route(string $uri) : array
     } catch (Throwable $e) {
         $code = $e->getCode() < 400 ? 500 : $e->getCode();
 
-        file_put_contents("php://stdout", 'Error: ' . $e->getMessage() . "\n");
+        if ($code != 502) {
+            writeTo("php://stdout", 'Error: ' . $e->getMessage());
+        }
         writeSentinels();
 
         http_response_code($code);
@@ -118,8 +120,8 @@ function init() : array
     // is action file valid PHP? run `php -l` to find out
     list($returnCode, $stdout, $stderr) = runPHP(['-l', '-f', ACTION_SRC_FILE]);
     if ($returnCode != 0) {
-        file_put_contents("php://stderr", $stderr . PHP_EOL);
-        file_put_contents("php://stdout", $stdout);
+        writeTo("php://stderr", $stderr);
+        writeTo("php://stdout", $stdout);
 
         $message = 'PHP syntax error in ' . ($binary ? ACTION_SRC_FILENAME : 'action.');
         throw new RuntimeException($message, 500);
@@ -206,13 +208,13 @@ function run() : array
         $stdout = '';
     } else {
         $pos++;
-        $lastLine = substr($stdout, $pos);
-        $stdout = substr($stdout, 0, $pos);
+        $lastLine = trim(substr($stdout, $pos));
+        $stdout = trim(substr($stdout, 0, $pos));
     }
 
     // write out the action's stderr and stdout
-    file_put_contents("php://stderr", $stderr . PHP_EOL);
-    file_put_contents("php://stdout", $stdout);
+    writeTo("php://stderr", $stderr);
+    writeTo("php://stdout", $stdout);
 
     $output = json_decode($lastLine, true);
     if ($returnCode != 0 || !is_array($output)) {
@@ -220,7 +222,7 @@ function run() : array
         // the return code will be 1 if the stdout is printable to the user
         if ($returnCode != 1) {
             // otherwise put out a generic message and send $lastLine to stdout
-            file_put_contents("php://stdout", $lastLine);
+            writeTo("php://stdout", $lastLine);
             $lastLine = 'An error occurred running the action.';
         }
         throw new RuntimeException($lastLine, 502);
@@ -270,8 +272,8 @@ function unzipString(string $b64Data, $dir): void
 function writeSentinels() : void
 {
     // write out sentinels as we've finished all log output
-    file_put_contents("php://stderr", "\nXXX_THE_END_OF_A_WHISK_ACTIVATION_XXX\n");
-    file_put_contents("php://stdout", "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX\n");
+    writeTo("php://stderr", "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
+    writeTo("php://stdout", "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX");
 }
 
 /**
@@ -320,4 +322,11 @@ function runPHP(array $args, string $stdin = '', array $env = []) : array
     $stdout = str_replace(__DIR__ . '/', '', trim($stdout));
 
     return [$returnCode, $stdout, $stderr];
+}
+
+function writeTo($pipe, $text)
+{
+    if ($text) {
+        file_put_contents($pipe, $text . PHP_EOL);
+    }
 }
