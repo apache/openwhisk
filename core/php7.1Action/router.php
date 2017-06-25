@@ -131,6 +131,8 @@ function init() : array
     $testCode = 'require "' . ACTION_SRC_FILENAME . '"; exit((int)(! function_exists("' . $main .'")));';
     list($returnCode, $stdout, $stderr) = runPHP(['-r', $testCode]);
     if ($returnCode != 0) {
+        writeTo("php://stderr", $stderr);
+        writeTo("php://stdout", $stdout);
         throw new RuntimeException("The function $main is missing.");
     }
 
