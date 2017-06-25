@@ -2,8 +2,6 @@
 # This Dockerfile is partially based on: https://github.com/IBM-Swift/swift-ubuntu-docker/blob/master/swift-development/Dockerfile
 FROM ibmcom/swift-ubuntu:3.1.1
 
-ENV SWIFT_LOCATION /root/swift-3.1.1-RELEASE-ubuntu14.04
-
 # Set WORKDIR
 WORKDIR /
 
@@ -25,7 +23,7 @@ ADD spm-build /swift3Action/spm-build
 
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN python /swift3Action/buildandrecord.py; rm /swift3Action/spm-build/.build/release/Action
+RUN python /swift3Action/buildandrecord.py && rm /swift3Action/spm-build/.build/release/Action
 #RUN cd /swift3Action/spm-build; swift build -v -c release; rm /swift3Action/spm-build/.build/release/Action
 ENV FLASK_PROXY_PORT 8080
 
