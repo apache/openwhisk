@@ -111,7 +111,8 @@ class ActivationFinisherTests
         testProbePoller.watch(poller)
         testProbeFinisher.watch(finisher)
 
-        Thread.sleep(slowPoll.toMillis)
+        val slowPollWorkWindow = (slowPoll * 2) + (slowPoll / 1)
+        Thread.sleep(slowPollWorkWindow.toMillis)
         activationLookupCounter should be(1)
 
         testProbePoller.expectTerminated(poller, 1.second)

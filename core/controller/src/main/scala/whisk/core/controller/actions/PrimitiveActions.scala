@@ -289,7 +289,8 @@ protected[actions] object ActivationFinisher {
         slowPollPeriod: FiniteDuration,
         promise: Promise[Either[ActivationId, WhiskActivation]],
         activationLookup: ActivationLookup)(
-            implicit actorSystem: ActorSystem,
+            implicit transid: TransactionId,
+            actorSystem: ActorSystem,
             executionContext: ExecutionContext,
             logging: Logging): ActorRef = {
         Scheduler.scheduleWaitAtMost(
