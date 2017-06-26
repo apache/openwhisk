@@ -62,7 +62,9 @@ class SchedulerTests
      */
     def waitForCalls(calls: Int = callsToProduce, interval: FiniteDuration = timeBetweenCalls) = Thread.sleep((calls + 1) * interval toMillis)
 
-    "A WaitAtLeast Scheduler" should "be killable by sending it a poison pill" in {
+    behavior of "A WaitAtLeast Scheduler"
+
+    ignore should "be killable by sending it a poison pill" in {
         var callCount = 0
         val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
