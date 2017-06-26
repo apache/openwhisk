@@ -112,28 +112,30 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
             1, hash) shouldBe Some(hashInto(invs, hash + step + step))
     }
 
-    it should "choose the least loaded invoker if all invokers are overloaded to begin with" in {
+    it should "multiply its threshold in 3 iterations to find an invoker with a good warm-chance" in {
         val invokerCount = 3
         val invs = invokers(invokerCount)
-        val hash = 1
+        val hash = 0 // home is 0, stepsize is 1
 
+        // even though invoker1 is not the home invoker in this case, it gets chosen over
+        // the others because it's the first one encountered by the iteration mechanism to be below
+        // the threshold of 3 * 16 invocations
         LoadBalancerService.schedule(
             invs,
-            Map("invoker0" -> 3, "invoker1" -> 3, "invoker2" -> 2),
-            1,
-            hash) shouldBe Some("invoker2")
+            Map("invoker0" -> 33, "invoker1" -> 36, "invoker2" -> 33),
+            16,
+            hash) shouldBe Some("invoker0")
     }
 
-    it should "not choose an invoker from the map which is not in the passed in invoker list when falling back to the least loaded invoker" in {
+    it should "choose the home invoker if all invokers are overloaded even above the muliplied threshold" in {
         val invokerCount = 3
         val invs = invokers(invokerCount)
-        val hash = 1
+        val hash = 0 // home is 0, stepsize is 1
 
         LoadBalancerService.schedule(
             invs,
-            // Note that invoker3 is not in the list provided above (which ranges from 0-2)
-            Map("invoker0" -> 3, "invoker1" -> 3, "invoker2" -> 2, "invoker3" -> 0),
-            1,
-            hash) shouldBe Some("invoker2")
+            Map("invoker0" -> 51, "invoker1" -> 50, "invoker2" -> 49),
+            16,
+            hash) shouldBe Some("invoker0")
     }
 }
