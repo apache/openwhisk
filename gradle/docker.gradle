@@ -24,6 +24,18 @@ import groovy.time.*
  *       file to be applied to the Dockerfile to create the new architecture.
  */
 
+def detectDockerArch() {
+  def stdout = new ByteArrayOutputStream()
+  exec {
+    executable '/bin/bash'
+    args '-c', "docker info 2>/dev/null | sed -n 's/Architecture: \\(.*\\)/\\1/p'"
+    standardOutput = stdout;
+  }
+  def arch = stdout.toString().trim()
+  // println "Docker architecture ${arch} detected"
+  return arch
+}
+
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
     dockerImageTag = project.hasProperty('dockerImageTag') ? dockerImageTag : 'latest'
@@ -32,7 +44,7 @@ ext {
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
-    dockerArch = project.hasProperty('dockerArch') ? dockerArch : null
+    dockerArch = project.hasProperty('dockerArch') ? dockerArch : detectDockerArch()
 }
 ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
 
@@ -46,20 +58,51 @@ if(project.hasProperty('dockerBuildArgs')) {
     }
 }
 
+task m4Dockerfile (type: Exec) {
+  def m4_args = [
+    '-D', dockerArch.toUpperCase(),
+    '-D', "m4_dockerarch=${dockerArch}"
+  ]
+  executable '/bin/sh'
+  def m4_cmd = "m4 ${m4_args.join(' ')} -P Dockerfile.m4 >Dockerfile"
+  args '-c', m4_cmd
+  doLast {
+    println m4_cmd
+  }
+}
+
+task rmDockerfile(type: Delete) {
+    delete 'Dockerfile'
+}
+
 task distDocker {
     doLast {
         def start = new Date()
         def directory = project.buildscript.sourceFile.getParentFile()
         def cmd = dockerBinary + dockerBuildArg
         if (dockerArch) {
-            def f = new File(directory.getAbsolutePath(), "Dockerfile."+dockerArch);
-            if (f.exists()) { cmd += ['-f', f.getAbsolutePath()] }
+          //  See whether there's an architecture-specific Dockerfile in place
+          def f = new File(directory.getAbsolutePath(), "Dockerfile."+dockerArch);
+          if (f.exists()) {
+            cmd += ['-f', f.getAbsolutePath()]
+          } else {
+            def diff = new File(directory.getAbsolutePath(), "Dockerfile.patch."+dockerArch);
+            if (f.exists()) {
+              //  Copy Dockerfile to temp directory, patch it, and run from patched Dockerfile
+            }
+          }
         }
         cmd += ['-t', dockerImageName, directory.getAbsolutePath()]
         retry(cmd, dockerRetries, dockerTimeout)
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
+
+if (file("Dockerfile.m4").exists()) {
+  distDocker.dependsOn 'm4Dockerfile'
+  distDocker.finalizedBy 'rmDockerfile'
+}
+
 task tagImage {
     doLast {
         def versionString = (dockerBinary + ['-v']).execute().text

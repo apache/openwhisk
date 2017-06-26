@@ -1,5 +1,5 @@
 # Dockerfile for docker skeleton (useful for running blackbox binaries, scripts, or Python 3 actions) .
-FROM python:3.6.1-alpine
+FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:python3',`python:3.6.1-alpine')
 
 # Upgrade and install basic Python dependencies.
 RUN apk add --no-cache bash \
