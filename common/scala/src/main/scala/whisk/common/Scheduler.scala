@@ -53,10 +53,15 @@ object Scheduler {
             transid: TransactionId) extends Actor {
         implicit val ec = context.dispatcher
 
-        var lastSchedule: Option[Cancellable] = {
-            Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
-        }
+        var lastSchedule: Option[Cancellable] = None
 
+        override def preStart() = {
+            if (initialDelay != Duration.Zero) {
+                lastSchedule = Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
+            } else {
+                self ! ScheduledWork
+            }
+        }
         override def postStop() = {
             logging.info(this, s"$name shutdown")
             lastSchedule.foreach(_.cancel())
