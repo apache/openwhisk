@@ -118,7 +118,7 @@ class ActivationFinisherTests
         testProbePoller.expectTerminated(poller, 1.second)
         testProbeFinisher.expectTerminated(finisher, 1.second)
 
-        promise.isCompleted shouldBe true
+        promise shouldBe 'completed
     }
 
     it should "finish when receiving corresponding message" in {
@@ -140,7 +140,7 @@ class ActivationFinisherTests
         testProbePoller.expectTerminated(poller, 1.second)
         testProbeFinisher.expectTerminated(finisher, 1.second)
 
-        promise.isCompleted shouldBe true
+        promise shouldBe 'completed
     }
 
     it should "poll pre-emptively" in {
