@@ -1,5 +1,5 @@
 # Dockerfile for Python 2 actions, similar to the Python 3-based core/pythonAction
-FROM python:2.7.12-alpine
+FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:python2',`python:2.7.12-alpine')
 
 # Upgrade and install basic Python dependencies
 RUN apk add --no-cache \

@@ -2,12 +2,11 @@ FROM nodejsactionbase
 
 # based on https://github.com/nodejs/docker-node
 ENV NODE_VERSION 6.9.1
-ENV ARCH s390x
-
-RUN export ARCHIVE="node-v${NODE_VERSION}-linux-${ARCH}.tar.gz" \
-  && curl -SLO "https://nodejs.org/dist/v${NODE_VERSION}/${ARCHIVE}" \
-  && tar -xzf "${ARCHIVE}" -C /usr/local --strip-components=1 \
-  && rm "${ARCHIVE}"
+ENV ARCH m4_ifdef(`S390X',`s390x',`x64')
+RUN ARCHIVE="node-v${NODE_VERSION}-linux-${ARCH}.tar.gz" \
+  && curl -sSLO "https://nodejs.org/dist/v$NODE_VERSION/$ARCHIVE" \
+  && tar -xzf "$ARCHIVE" -C /usr/local --strip-components=1 \
+  && rm "$ARCHIVE"
 
 # workaround for this: https://github.com/npm/npm/issues/9863
 RUN cd $(npm root -g)/npm \

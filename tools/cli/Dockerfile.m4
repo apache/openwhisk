@@ -1,8 +1,9 @@
-FROM golang:1.8
+FROM m4_ifdef(`S390X',`s390x/golang:1.8',`golang:1.8')
 
 # Install zip
-RUN apt-get -y update && \
-    apt-get -y install zip
+RUN apt-get -y update \
+ && apt-get -y install zip \
+ && apt-get clean && rm -rf /var/lib/apt/lists/
 
 ENV GOPATH=/
 
