@@ -178,11 +178,11 @@ object ActionContainer {
         val f = for (
             entity <- Marshal(content).to[MessageEntity];
             request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-            response <- AkkaHttpUtils.singleRequest(request, 60.seconds, retryOnTCPErrors = true);
+            response <- AkkaHttpUtils.singleRequest(request, 90.seconds, retryOnTCPErrors = true);
             responseBody <- Unmarshal(response.entity).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 
-        Await.result(f, 1.minute)
+        Await.result(f, 90.seconds)
     }
 
     private class ActionContainerImpl() extends ActionContainer {

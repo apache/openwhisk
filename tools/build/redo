@@ -291,6 +291,11 @@ Components = [
                   yaml = False,
                   gradle = 'core:swift3Action'),
 
+    makeComponent('action-swift-v3.1.1',
+                  'build swift v3.1.1 action container',
+                  yaml = False,
+                  gradle = 'core:swift3.1.1Action'),
+
     makeComponent('java8action',
                   'build java action container',
                   yaml = False,

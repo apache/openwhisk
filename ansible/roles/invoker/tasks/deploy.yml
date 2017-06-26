@@ -12,6 +12,7 @@
     - '{{ docker_image_prefix }}/python2action'
     - '{{ docker_image_prefix }}/python3action'
     - '{{ docker_image_prefix }}/swift3action'
+    - '{{ docker_image_prefix }}/action-swift-v3.1.1'
     - '{{ docker_image_prefix }}/java8action'
   when: docker_registry != ""
   retries: 3
