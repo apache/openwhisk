@@ -111,7 +111,7 @@ trait FullyQualifiedNames {
      */
     def fqn(name: String)(implicit wp: WskProps) = {
         val sep = "/" // Namespace.PATHSEP
-        if (name.startsWith(sep)) name
+        if (name.startsWith(sep) || name.count(_ == sep(0)) == 2) name
         else s"$sep${wp.namespace}$sep$name"
     }
 

@@ -42,18 +42,18 @@ var ruleEnableCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule enable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         _, _, err = client.Rules.SetState(ruleName, "active")
         if err != nil {
@@ -79,18 +79,18 @@ var ruleDisableCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule disable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         _, _, err = client.Rules.SetState(ruleName, "inactive")
         if err != nil {
@@ -116,18 +116,18 @@ var ruleStatusCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule status", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
@@ -153,19 +153,19 @@ var ruleCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 3, 3, "Rule create",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
         triggerName := getQualifiedName(args[1], Properties.Namespace)
         actionName := getQualifiedName(args[2], Properties.Namespace)
 
@@ -202,19 +202,19 @@ var ruleUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 3, 3, "Rule update",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
         triggerName := getQualifiedName(args[1], Properties.Namespace)
         actionName := getQualifiedName(args[2], Properties.Namespace)
 
@@ -249,7 +249,7 @@ var ruleGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var field string
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 2, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
@@ -266,12 +266,12 @@ var ruleGetCmd = &cobra.Command{
             }
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
@@ -309,18 +309,18 @@ var ruleDeleteCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule delete", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         if flags.rule.disable {
             _, _, err := client.Rules.SetState(ruleName, "inactive")
@@ -357,7 +357,7 @@ var ruleListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 0, 1, "Rule list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -365,15 +365,15 @@ var ruleListCmd = &cobra.Command{
         }
 
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            if len(qualifiedName.entityName) > 0 {
-                return entityNameError(qualifiedName.entityName)
+            if len(qualifiedName.GetEntityName()) > 0 {
+                return entityNameError(qualifiedName.GetEntityName())
             }
 
-            client.Namespace = qualifiedName.namespace
+            client.Namespace = qualifiedName.GetNamespace()
         }
 
         ruleListOptions := &whisk.RuleListOptions{

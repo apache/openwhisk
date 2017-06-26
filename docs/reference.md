@@ -19,7 +19,10 @@ You can create your own namespaces if you're entitled to do so. The `/whisk.syst
 ### Fully qualified names
 
 The fully qualified name of an entity is
-`/namespaceName[/packageName]/entityName`. Notice that `/` is used to delimit namespaces, packages, and entities. Also, namespaces must be prefixed with a `/`.
+`/namespaceName[/packageName]/entityName`. Notice that `/` is used to delimit namespaces, packages, and entities.
+
+If the fully qualified name has three parts:
+`/namespaceName/packageName/entityName`, then the namespace can be entered without a prefixed `/`; otherwise, namespaces must be prefixed with a `/`.
 
 For convenience, the namespace can be left off if it is the user's *default namespace*.
 
@@ -219,23 +222,23 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - [glob v7.1.1](https://www.npmjs.com/package/glob) - Match files using the patterns the shell uses, like stars and stuff.
 - [gm v1.23.0](https://www.npmjs.com/package/gm) - GraphicsMagick and ImageMagick for Node.
 - [lodash v4.17.2](https://www.npmjs.com/package/lodash) - The Lodash library exported as Node.js modules.
-- [log4js v0.6.38](https://www.npmjs.com/package/log4js) - This is a conversion of the log4js framework to work with Node. 
+- [log4js v0.6.38](https://www.npmjs.com/package/log4js) - This is a conversion of the log4js framework to work with Node.
 - [iconv-lite v0.4.15](https://www.npmjs.com/package/iconv-lite) - Pure JS character encoding conversion
 - [marked v0.3.6](https://www.npmjs.com/package/marked) - A full-featured markdown parser and compiler, written in JavaScript. Built for speed.
-- [merge v1.2.0](https://www.npmjs.com/package/merge) - Merge multiple objects into one, optionally creating a new cloned object. 
+- [merge v1.2.0](https://www.npmjs.com/package/merge) - Merge multiple objects into one, optionally creating a new cloned object.
 - [moment v2.17.0](https://www.npmjs.com/package/moment) - A lightweight JavaScript date library for parsing, validating, manipulating, and formatting dates.
 - [mongodb v2.2.11](https://www.npmjs.com/package/mongodb) - The official MongoDB driver for Node.js.
 - [mustache v2.3.0](https://www.npmjs.com/package/mustache) - mustache.js is an implementation of the mustache template system in JavaScript.
 - [nano v6.2.0](https://www.npmjs.com/package/nano) - minimalistic couchdb driver for Node.js.
-- [node-uuid v1.4.7](https://www.npmjs.com/package/node-uuid) - Deprecated UUID packaged. 
+- [node-uuid v1.4.7](https://www.npmjs.com/package/node-uuid) - Deprecated UUID packaged.
 - [nodemailer v2.6.4](https://www.npmjs.com/package/nodemailer) - Send e-mails from Node.js – easy as cake!
 - [oauth2-server v2.4.1](https://www.npmjs.com/package/oauth2-server) - Complete, compliant and well tested module for implementing an OAuth2 Server/Provider with express in Node.js.
 - [openwhisk v3.3.2](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 - [pkgcloud v1.4.0](https://www.npmjs.com/package/pkgcloud) - pkgcloud is a standard library for Node.js that abstracts away differences among multiple cloud providers.
 - [process v0.11.9](https://www.npmjs.com/package/process) - require('process'); just like any other module.
 - [pug v2.0.0-beta6](https://www.npmjs.com/package/pug) - Implements the Pug templating language.
-- [redis v2.6.3](https://www.npmjs.com/package/redis) - This is a complete and feature rich Redis client for Node.js. 
-- [request v2.79.0](https://www.npmjs.com/package/request) - Request is designed to be the simplest way possible to make HTTP calls. 
+- [redis v2.6.3](https://www.npmjs.com/package/redis) - This is a complete and feature rich Redis client for Node.js.
+- [request v2.79.0](https://www.npmjs.com/package/request) - Request is designed to be the simplest way possible to make HTTP calls.
 - [request-promise v4.1.1](https://www.npmjs.com/package/request-promise) - The simplified HTTP request client 'request' with Promise support. Powered by Bluebird.
 - [rimraf v2.5.4](https://www.npmjs.com/package/rimraf) - The UNIX command rm -rf for node.
 - [semver v5.3.0](https://www.npmjs.com/package/semver) - Supports semantic versioning.
@@ -251,10 +254,10 @@ The following packages are available to be used in the Node.js 6.9.1 environment
 - [uuid v3.0.0](https://www.npmjs.com/package/uuid) - Simple, fast generation of RFC4122 UUIDS.
 - [validator v6.1.0](https://www.npmjs.com/package/validator) - A library of string validators and sanitizers.
 - [watson-developer-cloud v2.29.0](https://www.npmjs.com/package/watson-developer-cloud) - Node.js client library to use the Watson Developer Cloud services, a collection of APIs that use cognitive computing to solve complex problems.
-- [when v3.7.7](https://www.npmjs.com/package/when) - When.js is a rock solid, battle-tested Promises/A+ and when() implementation, including a complete ES6 Promise shim. 
+- [when v3.7.7](https://www.npmjs.com/package/when) - When.js is a rock solid, battle-tested Promises/A+ and when() implementation, including a complete ES6 Promise shim.
 - [winston v2.3.0](https://www.npmjs.com/package/winston) - A multi-transport async logging library for node.js. "CHILL WINSTON! ... I put it in the logs."
 - [ws v1.1.1](https://www.npmjs.com/package/ws) - ws is a simple to use, blazing fast, and thoroughly tested WebSocket client and server implementation.
-- [xml2js v0.4.17](https://www.npmjs.com/package/xml2js) - Simple XML to JavaScript object converter. It supports bi-directional conversion. 
+- [xml2js v0.4.17](https://www.npmjs.com/package/xml2js) - Simple XML to JavaScript object converter. It supports bi-directional conversion.
 - [xmlhttprequest v1.8.0](https://www.npmjs.com/package/xmlhttprequest) - node-XMLHttpRequest is a wrapper for the built-in http client to emulate the browser XMLHttpRequest object.
 - [yauzl v2.7.0](https://www.npmjs.com/package/yauzl) - yet another unzip library for node. For zipping.
 

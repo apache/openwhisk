@@ -121,7 +121,7 @@ var actionInvokeCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var parameters interface{}
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var paramArgs []string
 
         if whiskErr := checkArgs(
@@ -133,11 +133,11 @@ var actionInvokeCmd = &cobra.Command{
                 return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        client.Namespace = qualifiedName.GetNamespace()
         paramArgs = flags.common.param
 
         if len(paramArgs) > 0 {
@@ -148,12 +148,12 @@ var actionInvokeCmd = &cobra.Command{
         if flags.action.result {flags.common.blocking = true}
 
         res, _, err := client.Actions.Invoke(
-            qualifiedName.entityName,
+            qualifiedName.GetEntityName(),
             parameters,
             flags.common.blocking,
             flags.action.result)
 
-        return handleInvocationResponse(qualifiedName, parameters, res, err)
+        return handleInvocationResponse(*qualifiedName, parameters, res, err)
     },
 }
 
@@ -164,29 +164,29 @@ func handleInvocationResponse(
     err error) (error) {
         if err == nil {
             printInvocationMsg(
-                qualifiedName.namespace,
-                qualifiedName.entityName,
+                qualifiedName.GetNamespace(),
+                qualifiedName.GetEntityName(),
                 getValueFromJSONResponse(ACTIVATION_ID, result),
                 result,
                 color.Output)
         } else {
             if !flags.common.blocking {
-                return handleInvocationError(err, qualifiedName.entityName, parameters)
+                return handleInvocationError(err, qualifiedName.GetEntityName(), parameters)
             } else {
                 if isBlockingTimeout(err) {
                     printBlockingTimeoutMsg(
-                        qualifiedName.namespace,
-                        qualifiedName.entityName,
+                        qualifiedName.GetNamespace(),
+                        qualifiedName.GetEntityName(),
                         getValueFromJSONResponse(ACTIVATION_ID, result))
                 } else if isApplicationError(err) {
                     printInvocationMsg(
-                        qualifiedName.namespace,
-                        qualifiedName.entityName,
+                        qualifiedName.GetNamespace(),
+                        qualifiedName.GetEntityName(),
                         getValueFromJSONResponse(ACTIVATION_ID, result),
                         result,
                         colorable.NewColorableStderr())
                 } else {
-                    return handleInvocationError(err, qualifiedName.entityName, parameters)
+                    return handleInvocationError(err, qualifiedName.GetEntityName(), parameters)
                 }
             }
         }
@@ -204,7 +204,7 @@ var actionGetCmd = &cobra.Command{
         var err error
         var field string
         var action *whisk.Action
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 2, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
             return whiskErr
@@ -218,29 +218,29 @@ var actionGetCmd = &cobra.Command{
             }
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        client.Namespace = qualifiedName.GetNamespace()
 
-        if action, _, err = client.Actions.Get(qualifiedName.entityName); err != nil {
-            return actionGetError(qualifiedName.entityName, err)
+        if action, _, err = client.Actions.Get(qualifiedName.GetEntityName()); err != nil {
+            return actionGetError(qualifiedName.GetEntityName(), err)
         }
 
         if flags.action.url {
             actionURL := action.ActionURL(Properties.APIHost,
                 DefaultOpenWhiskApiPath,
                 Properties.APIVersion,
-                qualifiedName.packageName)
-            printActionGetWithURL(qualifiedName.entity, actionURL)
+                qualifiedName.GetPackageName())
+            printActionGetWithURL(qualifiedName.GetEntity(), actionURL)
         } else if flags.common.summary {
             printSummary(action)
         } else {
             if len(field) > 0 {
-                printActionGetWithField(qualifiedName.entityName, field, action)
+                printActionGetWithField(qualifiedName.GetEntityName(), field, action)
             } else {
-                printActionGet(qualifiedName.entityName, action)
+                printActionGet(qualifiedName.GetEntityName(), action)
             }
         }
 
@@ -255,7 +255,7 @@ var actionDeleteCmd = &cobra.Command{
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var err error
 
         if whiskErr := checkArgs(
@@ -267,17 +267,17 @@ var actionDeleteCmd = &cobra.Command{
                 return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        client.Namespace = qualifiedName.GetNamespace()
 
-        if _, err = client.Actions.Delete(qualifiedName.entityName); err != nil {
-            return actionDeleteError(qualifiedName.entityName, err)
+        if _, err = client.Actions.Delete(qualifiedName.GetEntityName()); err != nil {
+            return actionDeleteError(qualifiedName.GetEntityName(), err)
         }
 
-        printActionDeleted(qualifiedName.entityName)
+        printActionDeleted(qualifiedName.GetEntityName())
 
         return nil
     },
@@ -290,7 +290,7 @@ var actionListCmd = &cobra.Command{
     SilenceErrors: true,
     PreRunE:       setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var actions []whisk.Action
         var err error
 
@@ -304,11 +304,11 @@ var actionListCmd = &cobra.Command{
         }
 
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            client.Namespace = qualifiedName.namespace
+            client.Namespace = qualifiedName.GetNamespace()
         }
 
         options := &whisk.ActionListOptions{
@@ -316,8 +316,8 @@ var actionListCmd = &cobra.Command{
             Limit: flags.common.limit,
         }
 
-        if actions, _, err = client.Actions.List(qualifiedName.entityName, options); err != nil {
-            return actionListError(qualifiedName.entityName, options, err)
+        if actions, _, err = client.Actions.List(qualifiedName.GetEntityName(), options); err != nil {
+            return actionListError(qualifiedName.GetEntityName(), options, err)
         }
 
         printList(actions)
@@ -334,16 +334,16 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     var parameters interface{}
     var annotations interface{}
 
-    qualifiedName := QualifiedName{}
+    var qualifiedName = new(QualifiedName)
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-        return nil, parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+        return nil, NewQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
+    client.Namespace = qualifiedName.GetNamespace()
     action := new(whisk.Action)
-    action.Name = qualifiedName.entityName
-    action.Namespace = qualifiedName.namespace
+    action.Name = qualifiedName.GetEntityName()
+    action.Namespace = qualifiedName.GetNamespace()
     action.Limits = getLimits(
         cmd.LocalFlags().Changed(MEMORY_FLAG),
         cmd.LocalFlags().Changed(LOG_SIZE_FLAG),
@@ -372,19 +372,19 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if flags.action.copy {
-        copiedQualifiedName := QualifiedName{}
+        var copiedQualifiedName = new(QualifiedName)
 
-        if copiedQualifiedName, err = parseQualifiedName(args[1]); err != nil {
-            return nil, parseQualifiedNameError(args[1], err)
+        if copiedQualifiedName, err = NewQualifiedName(args[1]); err != nil {
+            return nil, NewQualifiedNameError(args[1], err)
         }
 
-        client.Namespace = copiedQualifiedName.namespace
+        client.Namespace = copiedQualifiedName.GetNamespace()
 
-        if existingAction, _, err = client.Actions.Get(copiedQualifiedName.entityName); err != nil {
-            return nil, actionGetError(copiedQualifiedName.entityName, err)
+        if existingAction, _, err = client.Actions.Get(copiedQualifiedName.GetEntityName()); err != nil {
+            return nil, actionGetError(copiedQualifiedName.GetEntityName(), err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        client.Namespace = qualifiedName.GetNamespace()
         action.Exec = existingAction.Exec
         action.Parameters = append(action.Parameters, existingAction.Parameters...)
         action.Annotations = append(action.Annotations, existingAction.Annotations...)
@@ -407,7 +407,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
         preserveAnnotations := action.Annotations == nil
-        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, preserveAnnotations)
+        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.GetEntityName(), preserveAnnotations)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
@@ -874,10 +874,10 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
     var err error = nil
 
     savedNs := client.Namespace
-    client.Namespace = qname.namespace
-    fullActionName := "/" + qname.namespace + "/" + qname.entityName
+    client.Namespace = qname.GetNamespace()
+    fullActionName := "/" + qname.GetNamespace() + "/" + qname.GetEntityName()
 
-    action, _, err := client.Actions.Get(qname.entityName)
+    action, _, err := client.Actions.Get(qname.GetEntityName())
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)

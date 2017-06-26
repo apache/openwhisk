@@ -42,7 +42,8 @@ var packageBindCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var pkgQualifiedName, bindQualifiedName QualifiedName
+    var pkgQualifiedName = new(QualifiedName)
+    var bindQualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 2, 2, "Package bind",
             wski18n.T("A package name and binding name are required.")); whiskErr != nil {
@@ -50,16 +51,16 @@ var packageBindCmd = &cobra.Command{
     }
 
     packageName := args[0]
-    if pkgQualifiedName, err = parseQualifiedName(packageName); err != nil {
-      return parseQualifiedNameError(packageName, err)
+    if pkgQualifiedName, err = NewQualifiedName(packageName); err != nil {
+      return NewQualifiedNameError(packageName, err)
     }
 
     bindingName := args[1]
-    if bindQualifiedName, err = parseQualifiedName(bindingName); err != nil {
-      return parseQualifiedNameError(bindingName, err)
+    if bindQualifiedName, err = NewQualifiedName(bindingName); err != nil {
+      return NewQualifiedNameError(bindingName, err)
     }
 
-    client.Namespace = bindQualifiedName.namespace
+    client.Namespace = bindQualifiedName.GetNamespace()
 
     // Convert the binding's list of default parameters from a string into []KeyValue
     // The 1 or more --param arguments have all been combined into a single []string
@@ -91,12 +92,12 @@ var packageBindCmd = &cobra.Command{
     }
 
     binding := whisk.Binding{
-      Name:      pkgQualifiedName.entityName,
-      Namespace: pkgQualifiedName.namespace,
+      Name:      pkgQualifiedName.GetEntityName(),
+      Namespace: pkgQualifiedName.GetNamespace(),
     }
 
     p := &whisk.BindingPackage{
-      Name:        bindQualifiedName.entityName,
+      Name:        bindQualifiedName.GetEntityName(),
       Annotations: annotations.(whisk.KeyValueArr),
       Parameters:  parameters.(whisk.KeyValueArr),
       Binding:     binding,
@@ -125,17 +126,17 @@ var packageCreateCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var shared, sharedSet bool
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 1, 1, "Package create", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-      return parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+      return NewQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
+    client.Namespace = qualifiedName.GetNamespace()
 
     if shared, sharedSet, err = parseShared(flags.common.shared); err != nil {
       whisk.Debug(whisk.DbgError, "parseShared(%s) failed: %s\n", flags.common.shared, err)
@@ -165,8 +166,8 @@ var packageCreateCmd = &cobra.Command{
     }
 
     p := &whisk.Package{
-      Name:        qualifiedName.entityName,
-      Namespace:   qualifiedName.namespace,
+      Name:        qualifiedName.GetEntityName(),
+      Namespace:   qualifiedName.GetNamespace(),
       Annotations: annotations.(whisk.KeyValueArr),
       Parameters:  parameters.(whisk.KeyValueArr),
     }
@@ -181,7 +182,7 @@ var packageCreateCmd = &cobra.Command{
       errStr := wski18n.T(
         "Unable to create package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qualifiedName.entityName,
+          "name": qualifiedName.GetEntityName(),
           "err": err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -189,7 +190,7 @@ var packageCreateCmd = &cobra.Command{
     }
 
     fmt.Fprintf(color.Output, wski18n.T("{{.ok}} created package {{.name}}\n",
-      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qualifiedName.entityName)}))
+      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qualifiedName.GetEntityName())}))
     return nil
   },
 }
@@ -203,17 +204,17 @@ var packageUpdateCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var shared, sharedSet bool
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 1, 1, "Package update", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-      return parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+      return NewQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
+    client.Namespace = qualifiedName.GetNamespace()
 
     if shared, sharedSet, err = parseShared(flags.common.shared); err != nil {
       whisk.Debug(whisk.DbgError, "parseShared(%s) failed: %s\n", flags.common.shared, err)
@@ -242,8 +243,8 @@ var packageUpdateCmd = &cobra.Command{
     }
 
     p := &whisk.Package{
-      Name:        qualifiedName.entityName,
-      Namespace:   qualifiedName.namespace,
+      Name:        qualifiedName.GetEntityName(),
+      Namespace:   qualifiedName.GetNamespace(),
       Annotations: annotations.(whisk.KeyValueArr),
       Parameters:  parameters.(whisk.KeyValueArr),
     }
@@ -261,7 +262,7 @@ var packageUpdateCmd = &cobra.Command{
     }
 
     fmt.Fprintf(color.Output, wski18n.T("{{.ok}} updated package {{.name}}\n",
-      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qualifiedName.entityName)}))
+      map[string]interface{}{"ok": color.GreenString(wski18n.T("ok:")), "name":boldString(qualifiedName.GetEntityName())}))
     return nil
   },
 }
@@ -275,7 +276,7 @@ var packageGetCmd = &cobra.Command{
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
     var field string
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 1, 2, "Package get", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
@@ -292,18 +293,18 @@ var packageGetCmd = &cobra.Command{
       }
     }
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-      return parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+      return NewQualifiedNameError(args[0], err)
     }
-    client.Namespace = qualifiedName.namespace
+    client.Namespace = qualifiedName.GetNamespace()
 
-    xPackage, _, err := client.Packages.Get(qualifiedName.entityName)
+    xPackage, _, err := client.Packages.Get(qualifiedName.GetEntityName())
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Packages.Get(%s) failed: %s\n", qualifiedName.entityName, err)
+      whisk.Debug(whisk.DbgError, "client.Packages.Get(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
       errStr := wski18n.T(
         "Unable to get package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qualifiedName.entityName,
+          "name": qualifiedName.GetEntityName(),
           "err":err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -316,12 +317,12 @@ var packageGetCmd = &cobra.Command{
 
       if len(field) > 0 {
         fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got package {{.name}}, displaying field {{.field}}\n",
-          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.entityName),
+          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName()),
           "field": boldString(field)}))
         printField(xPackage, field)
       } else {
         fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got package {{.name}}\n",
-          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.entityName)}))
+          map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName())}))
         printJSON(xPackage)
       }
     }
@@ -338,25 +339,25 @@ var packageDeleteCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 1, 1, "Package delete", wski18n.T("A package name is required.")); whiskErr != nil {
       return whiskErr
     }
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-      return parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+      return NewQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
+    client.Namespace = qualifiedName.GetNamespace()
 
-    _, err = client.Packages.Delete(qualifiedName.entityName)
+    _, err = client.Packages.Delete(qualifiedName.GetEntityName())
     if err != nil {
-      whisk.Debug(whisk.DbgError, "client.Packages.Delete(%s) failed: %s\n", qualifiedName.entityName, err)
+      whisk.Debug(whisk.DbgError, "client.Packages.Delete(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
       errStr := wski18n.T(
         "Unable to delete package '{{.name}}': {{.err}}",
         map[string]interface{}{
-          "name": qualifiedName.entityName,
+          "name": qualifiedName.GetEntityName(),
           "err": err,
         })
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -365,7 +366,7 @@ var packageDeleteCmd = &cobra.Command{
 
     fmt.Fprintf(color.Output,
       wski18n.T("{{.ok}} deleted package {{.name}}\n",
-        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.entityName)}))
+        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName())}))
     return nil
   },
 }
@@ -378,7 +379,7 @@ var packageListCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 0, 1, "Package list",
       wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -386,15 +387,15 @@ var packageListCmd = &cobra.Command{
     }
 
     if len(args) == 1 {
-      if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-        return parseQualifiedNameError(args[0], err)
+      if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+        return NewQualifiedNameError(args[0], err)
       }
 
-      if len(qualifiedName.entityName) > 0 {
-        return entityNameError(qualifiedName.entityName)
+      if len(qualifiedName.GetEntityName()) > 0 {
+        return entityNameError(qualifiedName.GetEntityName())
       }
 
-      client.Namespace = qualifiedName.namespace
+      client.Namespace = qualifiedName.GetNamespace()
     }
 
     options := &whisk.PackageListOptions{
@@ -425,7 +426,7 @@ var packageRefreshCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var qualifiedName QualifiedName
+    var qualifiedName = new(QualifiedName)
 
     if whiskErr := checkArgs(args, 0, 1, "Package refresh",
         wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -433,19 +434,19 @@ var packageRefreshCmd = &cobra.Command{
     }
 
     if len(args) == 0 {
-      qualifiedName.namespace = getNamespace()
+      qualifiedName.namespace = getNamespaceFromProp()
     } else {
-      if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-        return parseQualifiedNameError(args[0], err)
+      if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+        return NewQualifiedNameError(args[0], err)
       }
 
-      if len(qualifiedName.entityName) > 0 {
-        return entityNameError(qualifiedName.entityName)
+      if len(qualifiedName.GetEntityName()) > 0 {
+        return entityNameError(qualifiedName.GetEntityName())
       }
     }
 
     currentNamespace := client.Config.Namespace
-    client.Config.Namespace = qualifiedName.namespace
+    client.Config.Namespace = qualifiedName.GetNamespace()
 
     defer func() {
       client.Config.Namespace = currentNamespace

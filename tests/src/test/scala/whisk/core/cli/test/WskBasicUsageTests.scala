@@ -91,6 +91,35 @@ class WskBasicUsageTests
         result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
     }
 
+    it should "allow a 3 part Fully Qualified Name (FQN) without a leading '/'" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val guestNamespace = wsk.namespace.whois()
+            val packageName = "packageName3ptFQN"
+            val actionName = "actionName3ptFQN"
+            val triggerName = "triggerName3ptFQN"
+            val ruleName = "ruleName3ptFQN"
+            val fullQualifiedName = s"${guestNamespace}/${packageName}/${actionName}"
+            // Used for action and rule creation below
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName)
+            }
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, _) => trigger.create(triggerName)
+            }
+            // Test action and rule creation where action name is 3 part FQN w/out leading slash
+            assetHelper.withCleaner(wsk.action, fullQualifiedName) {
+                (action, _) => action.create(fullQualifiedName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, _) =>
+                    rule.create(ruleName, trigger = triggerName, action = fullQualifiedName)
+            }
+
+            wsk.action.invoke(fullQualifiedName).stdout should include(s"ok: invoked /$fullQualifiedName")
+            wsk.action.get(fullQualifiedName).stdout should include(s"ok: got action ${packageName}/${actionName}")
+    }
+
+
     behavior of "Wsk actions"
 
     it should "reject creating entities with invalid names" in withAssetCleaner(wskprops) {
