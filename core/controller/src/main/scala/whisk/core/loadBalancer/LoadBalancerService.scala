@@ -336,8 +336,8 @@ object LoadBalancerService {
 
     /**
      * Scans through all invokers and searches for an invoker, that has a queue length
-     * below the defined threshold. Iff no "underloaded" invoker was found it will
-     * default to the least loaded invoker in the list.
+     * below the defined threshold. The threshold is subject to a 3 times back off. Iff
+     * no "underloaded" invoker was found it will default to the home invoker.
      *
      * @param availableInvokers a list of available (healthy) invokers to search in
      * @param activationsPerInvoker a map of the number of outstanding activations per invoker
@@ -359,30 +359,33 @@ object LoadBalancerService {
             val step = stepSizes(hash % stepSizes.size)
 
             @tailrec
-            def search(targetInvoker: Int, seenInvokers: Int): A = {
+            def search(targetInvoker: Int, iteration: Int = 1): A = {
                 // map the computed index to the actual invoker index
                 val invokerName = availableInvokers(targetInvoker)
 
                 // send the request to the target invoker if it has capacity...
-                if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold) {
+                if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold * iteration) {
                     invokerName
                 } else {
-                    // ... otherwise look for a less loaded invoker by stepping through a pre computed
+                    // ... otherwise look for a less loaded invoker by stepping through a pre-computed
                     // list of invokers; there are two possible outcomes:
                     // 1. the search lands on a new invoker that has capacity, choose it
                     // 2. walked through the entire list and found no better invoker than the
-                    //    "home invoker", choose the least loaded invoker
+                    //    "home invoker", force the home invoker
                     val newTarget = (targetInvoker + step) % numInvokers
-                    if (newTarget == homeInvoker || seenInvokers > numInvokers) {
-                        // fall back to the invoker with the least load.
-                        activationsPerInvoker.minBy(_._2)._1
+                    if (newTarget == homeInvoker) {
+                        if (iteration < 3) {
+                            search(newTarget, iteration + 1)
+                        } else {
+                            availableInvokers(homeInvoker)
+                        }
                     } else {
-                        search(newTarget, seenInvokers + 1)
+                        search(newTarget, iteration)
                     }
                 }
             }
 
-            Some(search(homeInvoker, 0))
+            Some(search(homeInvoker))
         } else {
             None
         }
