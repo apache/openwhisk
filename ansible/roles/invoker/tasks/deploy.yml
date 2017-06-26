@@ -64,6 +64,11 @@
         -e SERVICE_CHECK_HTTP=/ping
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
+        -e JAEGER_AGENT_HOST={{ groups['jaeger_agent'] | first }}
+        -e JAEGER_SERVICE_NAME=openwhisk
+        -e JAEGER_REPORTER_LOG_SPANS=true
+        -e JAEGER_SAMPLER_TYPE=const
+        -e JAEGER_SAMPLER_PARAM=1
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
         -e INVOKER_OPTS={{ invoker.arguments }}
         -v /sys/fs/cgroup:/sys/fs/cgroup

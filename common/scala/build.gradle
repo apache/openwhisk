@@ -34,6 +34,14 @@ dependencies {
     compile 'org.apache.httpcomponents:httpclient:4.4.1'
     compile 'com.github.ben-manes.caffeine:caffeine:2.4.0'
     compile 'com.google.code.findbugs:jsr305:3.0.2'
+
+    compile 'io.opentracing:opentracing-api:0.22.0'
+    compile 'io.opentracing:opentracing-noop:0.22.0'
+    compile 'io.opentracing:opentracing-util:0.22.0'
+    compile 'io.opentracing.contrib:opentracing-globaltracer:0.1.2'
+    compile 'io.opentracing.contrib:opentracing-tracerresolver:0.1.0'
+    compile 'com.uber.jaeger:jaeger-core:0.19.0'
+    compile 'com.uber.jaeger:jaeger-tracerresolver:0.19.0'
 }
 
 tasks.withType(ScalaCompile) {
