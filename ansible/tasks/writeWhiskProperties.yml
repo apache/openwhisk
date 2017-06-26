@@ -6,3 +6,6 @@
   template:
     src: whisk.properties.j2
     dest: "{{ openwhisk_home }}/whisk.properties"
+
+- name: write whisk.env environment file for docker
+  shell: cat {{ openwhisk_home }}/whisk.properties | awk -F= '!/^($|#)/{ gsub(/\./,"_", $1); print toupper($1)  "=" $2}' > {{ openwhisk_home }}/whisk.env

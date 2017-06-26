@@ -67,6 +67,23 @@
         -e SERVICE_CHECK_INTERVAL=15s
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
         -e INVOKER_OPTS={{ invoker.arguments }}
+        -e WHISK_LOGS_DIR={{ whisk_logs_dir }}
+        -e DB_PREFIX={{ db_prefix }}
+        -e DB_WHISK_ACTIONS={{ db.whisk.actions }}
+        -e DB_WHISK_AUTHS={{ db.whisk.auth }}
+        -e DB_WHISK_ACTIVATIONS={{ db.whisk.activations }}
+        -e DEFAULTLIMITS_ACTIONS_INVOKES_PERMINUTE={{ defaultLimits.actions.invokes.perMinute }}
+        -e DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENT={{ defaultLimits.actions.invokes.concurrent }}
+        -e DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE={{ defaultLimits.triggers.fires.perMinute }}
+        -e DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM={{ defaultLimits.actions.invokes.concurrentInSystem }}
+        -e DEFAULTLIMITS_ACTIONS_SEQUENCE_MAXLENGTH={{ defaultLimits.actions.sequence.maxLength }}
+        -e LIMITS_ACTIONS_INVOKES_PERMINUTE={{ limits.actions.invokes.perMinute }}
+        -e LIMITS_ACTIONS_INVOKES_CONCURRENT={{ limits.actions.invokes.concurrent }}
+        -e LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM={{ limits.actions.invokes.concurrentInSystem }}
+        -e LIMITS_TRIGGERS_FIRES_PERMINUTE={{ limits.triggers.fires.perMinute }}
+        -e LOADBALANCER_ACTIVATIONCOUNTBEFORENEXTINVOKER={{ loadbalancer_activation_count_before_next_invoker }}
+        -e WHISK_SYSTEM_KEY=whisk.system
+        -e RUNTIMES_MANIFEST={{ runtimesManifest | to_json }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
