@@ -108,15 +108,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
     behavior of "ContainerPool"
 
-    it should "indicate free resources to the feed once activations finish" in within(timeout) {
-        val (containers, factory) = testContainers(1)
-        val feed = TestProbe()
-
-        val pool = system.actorOf(ContainerPool.props(factory, 0, 0, feed.ref))
-        containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(MessageFeed.Processed)
-    }
-
     /*
      * CONTAINER SCHEDULING
      *
@@ -158,7 +149,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
-        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(MessageFeed.Processed)
         pool ! runMessageDifferentEverything
         containers(0).expectMsg(Remove)
@@ -176,16 +166,13 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData(lastUsed = Instant.EPOCH)))
-        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(MessageFeed.Processed)
 
         // Run the second container, don't remove the first one
         pool ! runMessageDifferentEverything
         containers(1).expectMsg(runMessageDifferentEverything)
         containers(1).send(pool, NeedWork(warmedData(lastUsed = Instant.now)))
-        containers(1).send(pool, ActivationCompleted)
         feed.expectMsg(MessageFeed.Processed)
-
         pool ! runMessageDifferentNamespace
         containers(2).expectMsg(runMessageDifferentNamespace)
 
@@ -202,7 +189,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
-        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(MessageFeed.Processed)
         pool ! runMessageDifferentNamespace
         containers(0).expectMsg(Remove)
@@ -218,7 +204,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
-        containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(MessageFeed.Processed)
         pool ! runMessage
         containers(0).expectMsg(runMessage)
