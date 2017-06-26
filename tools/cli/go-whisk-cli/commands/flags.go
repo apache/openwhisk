@@ -38,6 +38,8 @@ type Flags struct {
     global struct {
         verbose     bool
         debug       bool
+        cert        string
+        key         string
         auth        string
         apihost     string
         apiversion  string
@@ -61,6 +63,8 @@ type Flags struct {
     }
 
     property struct {
+        cert            bool
+        key             bool
         auth            bool
         apihost         bool
         apiversion      bool
