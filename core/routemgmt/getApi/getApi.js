@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
- /*
+ /**
   * Retrieve API configuration from the API Gateway:
   *
   * Parameters (all as fields in the message JSON object)

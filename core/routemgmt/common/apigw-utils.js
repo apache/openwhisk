@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
- /*
-  * Route management action common API GW utilities
-  */
+/**
+ * Route management action common API GW utilities
+ */
 var request = require('request');
 var _ = require('lodash');
 
-/*
+/**
  * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
  * will be invoked by the API Gateway when the API route is accessed.
  *
@@ -86,7 +86,7 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
   });
 }
 
-/*
+/**
  * Removes an API route from the API Gateway.
  *
  * @param gwInfo     Required.
@@ -133,7 +133,7 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   });
 }
 
-/*
+/**
  * Return an array of APIs
  */
 function getApis(gwInfo, spaceGuid, bpOrApiName) {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
- /*
+ /**
   * Delete an API Gateway to action mapping document from the database:
   * https://docs.cloudant.com/document.html#delete
   *
