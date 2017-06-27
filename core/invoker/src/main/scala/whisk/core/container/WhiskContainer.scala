@@ -92,9 +92,15 @@ class WhiskContainer(
      * Starts the tracing.
      */
     private def startSpan(msg: ActivationMessage): Option[Span] = {
-        val tracerOption = Option(GlobalTracer.isRegistered).filter(identity).flatMap(_ => Option(TracerResolver.resolveTracer))
-        tracerOption foreach GlobalTracer.register
 
+        // get and register the tracer if the global tracer hasn't been registered
+        val existingTracerOption = Option(!GlobalTracer.isRegistered)
+          .filter(identity)
+          .flatMap(_ => Option(TracerResolver.resolveTracer))
+        existingTracerOption foreach GlobalTracer.register
+
+        // if the previous option is empty, get the global tracer as fallback method
+        val tracerOption = Option(existingTracerOption.getOrElse(GlobalTracer.get))
         tracerOption.map(tracer => {
             val span = tracer.buildSpan(msg.action.asString).start
             Tags.COMPONENT.set(span, "openwhisk")
