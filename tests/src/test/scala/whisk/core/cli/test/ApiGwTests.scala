@@ -640,7 +640,7 @@ class ApiGwTests
     it should "verify successful creation and deletion of a new API" in {
         val testName = "CLI_APIGWTEST1"
         val testbasepath = "/"+testName+"_bp"
-        val testrelpath = "/path"
+        val testrelpath = "/path/with/sub_paths/in/it"
         val testnewrelpath = "/path_new"
         val testurlop = "get"
         val testapiname = testName+" API Name"
@@ -658,6 +658,8 @@ class ApiGwTests
             rr.stdout should include("ok: APIs")
             rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
+            rr = apiGet(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include regex (s""""operationId":\\s+"getPathWithSub_pathsInIt"""")
             val deleteresult = apiDelete(basepathOrApiName = testbasepath)
             deleteresult.stdout should include("ok: deleted API")
         }
