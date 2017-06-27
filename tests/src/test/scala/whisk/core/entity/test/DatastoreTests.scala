@@ -47,7 +47,7 @@ class DatastoreTests extends FlatSpec
 
     val namespace = EntityPath("test namespace")
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
-    SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logging)))
+    SharedModules.addSharedModules(new SharedModule(actorSystem, config, logging))
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
 

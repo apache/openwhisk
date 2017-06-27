@@ -55,7 +55,7 @@ class SequenceMigrationTests
     val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
     // handle on the entity datastore
 
-    SharedModules.initSharedModules(List(new SharedModule(actorSystem, whiskConfig, logging)))
+    SharedModules.addSharedModules(new SharedModule(actorSystem, whiskConfig, logging))
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val (user, namespace) = WskAdmin.getUser(wskprops.authKey)

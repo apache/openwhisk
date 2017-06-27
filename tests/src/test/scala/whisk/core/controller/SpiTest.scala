@@ -18,20 +18,26 @@
 package whisk.core.controller
 
 import akka.actor.ActorSystem
+import scaldi.Injector
 import whisk.common.AkkaLogging
 import whisk.common.TransactionCounter
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessagingProvider
+import whisk.core.database.ArtifactStore
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entity.DocId
 import whisk.core.entity.DocRevision
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.spi.SharedModule
 import whisk.spi.SharedModules
+import whisk.spi.Spi
+import whisk.spi.SpiFactoryModule
+import whisk.spi.SpiProvider
 
 import scala.util.Failure
 import scala.util.Success
@@ -54,10 +60,16 @@ object SpiTest extends TransactionCounter {
 
     val whiskConfig = new WhiskConfig(requiredProperties)//, propertiesFile = new File("./whisk.properties"))
 
-    SharedModules.initSharedModules(List(new SharedModule(actorSystem, whiskConfig, logger)))
+    SharedModules.addSharedModules(new SharedModule(actorSystem, whiskConfig, logger))
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
+
+    SharedModules.bind[ArtifactStore[WhiskEntity]](entityStore)
     println("entityStore:" + entityStore)
+
+    val testSpi:TestSpi = TestSpi(actorSystem)
+
+    println(s"store for testSpi: ${testSpi.store}")
     implicit val transactionId = transid()
     implicit val ec = actorSystem.dispatcher
     WhiskAction.get(entityStore, DocId("123-abc"), DocRevision("456"), fromCache = false) onComplete {
@@ -81,4 +93,20 @@ object SpiTest extends TransactionCounter {
 
   override val numberOfInstances: Int = 1
   override val instance: InstanceId = new InstanceId(0)
+}
+
+trait TestSpi extends Spi {
+  val name:String
+  val store:ArtifactStore[WhiskEntity]
+}
+class TestSpiImpl(val name: String, val store: ArtifactStore[WhiskEntity]) extends TestSpi {
+}
+
+object TestSpi extends SpiProvider[TestSpi]("test.spi.impl")
+
+
+class TestSpiProviderModule extends SpiFactoryModule[TestSpi]{
+  def getInstance(implicit injector: Injector): TestSpi = {
+    new TestSpiImpl("this is a test", inject[ArtifactStore[WhiskEntity]])
+  }
 }

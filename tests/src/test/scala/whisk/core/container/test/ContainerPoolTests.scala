@@ -74,7 +74,7 @@ class ContainerPoolTests extends FlatSpec
                 invokerSerializeDockerPull -> "true"))
 
 
-    SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logging)))
+    SharedModules.addSharedModules(new SharedModule(actorSystem, config, logging))
     assert(config.isValid)
 
     val pool = new ContainerPool(config, InstanceId(0), true, true)

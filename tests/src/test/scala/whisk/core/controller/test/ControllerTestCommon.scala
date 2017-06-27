@@ -86,7 +86,7 @@ protected trait ControllerTestCommon
     }
 
     override val consulServer = "???"
-    SharedModules.initSharedModules(List(new SharedModule(actorSystem, whiskConfig, logging)))
+    SharedModules.addSharedModules(new SharedModule(actorSystem, whiskConfig, logging))
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)

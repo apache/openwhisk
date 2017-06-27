@@ -193,7 +193,7 @@ object Controller {
         val config = new WhiskConfig(requiredProperties, optionalProperties)
 
         // setup shared injectables
-        SharedModules.initSharedModules(List(new SharedModule(actorSystem, config, logger)))
+        SharedModules.addSharedModules(new SharedModule(actorSystem, config, logger))
 
         // if deploying multiple instances (scale out), must pass the instance number as the
         require(args.length >= 1, "controller instance required")
