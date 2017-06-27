@@ -5,6 +5,7 @@
     catalog_location={{ item.value.location }}
     catalog_repo_url={{ item.value.url }}
     api_host={{ groups['edge'] | first }}
+    whisk_host_name={{ whisk_api_host_name | default(groups['edge'] | first) }}
     version="HEAD"
     repo_update="yes"
 
@@ -29,6 +30,6 @@
     version: "{{ version }}"
 
 - name: install the catalog from the catalog location
-  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ catalog_namespace }} {{ cli.path }} chdir="{{ catalog_location }}/packages"
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ catalog_namespace }} {{ cli.path }} chdir="{{ catalog_location }}/packages" {{ whisk_host_name }}
   environment:
     OPENWHISK_HOME: "{{ openwhisk_home }}"
