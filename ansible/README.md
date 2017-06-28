@@ -27,19 +27,6 @@ You need to depends on the workarounds until Docker provides official methods.
 
 If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
 
-##### Enable Docker remote API
-
-During the deployment steps, each component communicates with Docker via Docker remote API.
-Currently however, Docker for Mac does not support such a feature.
-
-There are many workarounds for this.
-One way is to use `socat` command to setup proxy for the UNIX socket.
-
-```
-docker run -d -v /var/run/docker.sock:/var/run/docker.sock -p 4243:2375 bobrik/socat TCP4-LISTEN:2375,fork,reuseaddr UNIX-CONNECT:/var/run/docker.sock
-```
-
-If you want to deploy OpenWhisk in distributed environment, you are required to enable Docker remote API in all Mac hosts.
 
 ##### Activate docker0 network
 This is an optional step for local deployment.
