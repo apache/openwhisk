@@ -46,7 +46,6 @@ import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerR
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
-import whisk.spi.SharedModule
 import whisk.spi.SharedModules
 import whisk.utils.ExecutionContextFactory
 
@@ -452,7 +451,9 @@ object Invoker {
         }
 
         // setup shared injectables
-        SharedModules.addSharedModules(new SharedModule(actorSystem, config, logger))
+        SharedModules.bind(actorSystem)
+        SharedModules.bind(config)
+        SharedModules.bind(logger)
 
         val topic = s"invoker${invokerInstance.toInt}"
         val groupid = "invokers"

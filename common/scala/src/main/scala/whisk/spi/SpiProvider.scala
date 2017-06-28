@@ -30,10 +30,7 @@ import scaldi.Identifier
 import scaldi.ImmutableWrapper
 import scaldi.Injectable
 import scaldi.Injector
-import scaldi.Module
 import scaldi.MutableInjector
-import whisk.common.Logging
-import whisk.core.WhiskConfig
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -155,18 +152,6 @@ object SharedModules {
     })
     modules += dynModule
   }
-}
-
-/**
-  * Convenience Module - common bindings that all apps would typically use
-  * @param actorSystem
-  * @param config
-  * @param logging
-  */
-class SharedModule(actorSystem:ActorSystem, config:WhiskConfig, logging:Logging) extends Module {
-  bind [ActorSystem] to actorSystem
-  bind [WhiskConfig] to config
-  bind [Logging] to logging
 }
 
 private class ModuleLoaderImpl(actorSystem:ActorSystem) extends Extension{

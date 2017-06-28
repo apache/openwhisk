@@ -20,6 +20,7 @@ package whisk.core.controller
 import akka.actor.ActorSystem
 import scaldi.Injector
 import whisk.common.AkkaLogging
+import whisk.common.Logging
 import whisk.common.TransactionCounter
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessagingProvider
@@ -33,7 +34,6 @@ import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskEntity
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.loadBalancer.LoadBalancerService
-import whisk.spi.SharedModule
 import whisk.spi.SharedModules
 import whisk.spi.Spi
 import whisk.spi.SpiFactoryModule
@@ -57,7 +57,9 @@ object SpiTest extends TransactionCounter {
 
     val whiskConfig = new WhiskConfig(requiredProperties)//, propertiesFile = new File("./whisk.properties"))
 
-    SharedModules.addSharedModules(new SharedModule(actorSystem, whiskConfig, logger))
+    SharedModules.bind(actorSystem)
+    SharedModules.bind(whiskConfig)
+    SharedModules.bind(logger)
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
 
