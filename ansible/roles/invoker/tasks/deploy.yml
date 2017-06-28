@@ -23,14 +23,23 @@
   when: docker_registry != ""
   retries: 3
 
-#- name: determine docker root dir
-#  uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
-#  register: dockerInfo
+- name: "determine docker root dir on docker-machine"
+  uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
+  register: dockerInfo_output
+  when: "'environments/docker-machine' in inventory_dir"
+
+- set_fact:
+    dockerInfo: "{{ dockerInfo_output['json'] }}"
+  when: "'environments/docker-machine' in inventory_dir"
+
 - name: "determine docker root dir"
   shell: curl --unix-socket /var/run/docker.sock http:/v1.24/info
   register: dockerInfo_output
+  when: "'environments/docker-machine' not in inventory_dir"
+
 - set_fact:
     dockerInfo: "{{ dockerInfo_output.stdout|from_json }}"
+  when: "'environments/docker-machine' not in inventory_dir"
 
 - name: ensure invoker log directory is created with permissions
   file:
@@ -44,19 +53,33 @@
     linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
   when: whisk_version_name != "mac"
 
-#- name: get running invoker information
-#  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}" return_content=yes
-#  register: invokerInfo
+- name: get running invoker information
+  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}" return_content=yes
+  register: invokerInfo_output
+  when: "'environments/docker-machine' in inventory_dir"
 
-#- name: determine if more than one invoker is running
-#  fail: msg="more than one invoker is running"
-#  when: invokerInfo.json|length > 1
+- set_fact:
+    invokerInfo: "{{ invokerInfo_output['json'] }}"
+  when: "'environments/docker-machine' in inventory_dir"
 
-#- name: determine if index of invoker is same with index of inventory host
-#  fail:
-#    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
-#  with_items: "{{ invokerInfo.json }}"
-#  when: item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+- name: "get invoker info"
+  shell: curl --unix-socket /var/run/docker.sock http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}
+  register: invokerInfo_output
+  when: "'environments/docker-machine' not in inventory_dir"
+
+- set_fact:
+    invokerInfo: "{{ invokerInfo_output.stdout|from_json }}"
+  when: "'environments/docker-machine' not in inventory_dir"
+
+- name: determine if more than one invoker is running
+  fail: msg="more than one invoker is running"
+  when: invokerInfo|length > 1
+
+- name: determine if index of invoker is same with index of inventory host
+  fail:
+    msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
+  with_items: "{{ invokerInfo }}"
+  when: item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
 - name: start invoker using docker cli
   shell: >
@@ -86,7 +109,7 @@
         -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
         {{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}
         /bin/sh -c "exec /invoker/bin/invoker {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
-  #when: invokerInfo.json|length == 0
+  when: invokerInfo|length == 0
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 

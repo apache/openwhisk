@@ -25,10 +25,10 @@
 - hosts: shared,core,invokers
   tasks:
   - name: get all docker containers
-    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
+    local_action: shell docker ps -a --format="{% raw %}{{.Names}}{% endraw %}"
     register: container_names
   - name: get logs from all containers
-    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
+    local_action: shell docker logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
     with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
     when: "'docker' not in exclude_logs_from"
   - name: workaround to make synchronize work
