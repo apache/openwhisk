@@ -120,7 +120,7 @@ class WhiskContainer(
      * Tear down the container and retrieve the logs.
      */
     def teardown()(implicit transid: TransactionId): String = {
-        connection.foreach(_.close)
+        connection.foreach(_.close())
         getContainerLogs(containerName).toOption.getOrElse("none")
     }
 
