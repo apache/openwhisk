@@ -161,12 +161,10 @@ object ActionContainer {
 
     private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
         implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
-        import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-        import akka.http.scaladsl.marshalling._
         import akka.http.scaladsl.model._
         import akka.http.scaladsl.unmarshalling._
         import akka.stream.ActorMaterializer
-        import whisk.core.container.AkkaHttpUtils
+        import common.AkkaHttpUtils
 
         implicit val materializer = ActorMaterializer()
 
@@ -176,10 +174,8 @@ object ActionContainer {
             path = Uri.Path(endPoint))
 
         val f = for (
-            entity <- Marshal(content).to[MessageEntity];
-            request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-            response <- AkkaHttpUtils.singleRequest(request, 90.seconds, retryOnTCPErrors = true);
-            responseBody <- Unmarshal(response.entity).to[String]
+            response <- AkkaHttpUtils.singleRequest(uri.toString(), content, 90.seconds, retryOnTCPErrors = true);
+            responseBody <- Unmarshal(response.body).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 
         Await.result(f, 90.seconds)
