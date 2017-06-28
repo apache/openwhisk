@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,18 +21,9 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.Await
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling._
-import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -119,6 +111,7 @@ class WhiskContainer(
             WhiskAuth(Subject(), AuthKey()).toIdentity,
             ActivationId(),
             EntityPath("no_namespace"),
+            InstanceId(0),
             None)
         run(msg, params, 30000.milliseconds)(system, TransactionId.testing)
     }
@@ -140,60 +133,6 @@ class WhiskContainer(
      */
     private def sendPayload(endpoint: String, msg: JsObject, timeout: FiniteDuration, retry: Boolean)(implicit system: ActorSystem): RunResult = {
         sendPayloadApache(endpoint, msg, timeout, retry)
-    }
-
-    private def sendPayloadAkka(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): RunResult = {
-        import system.dispatcher
-
-        val start = ContainerCounter.now()
-
-        val f = sendPayloadAsync(endpoint, msg, timeout)
-
-        f.onFailure {
-            case t: Throwable =>
-                logging.warn(this, s"Exception while posting to action container ${t.getMessage}")
-        }
-
-        // Should never timeout because the future has a built-in timeout.
-        // Keeping a finite duration for safety.
-        Await.ready(f, timeout + 1.minute)
-
-        val end = ContainerCounter.now()
-
-        val r = f.value.get.toOption.flatten
-        RunResult(Interval(start, end), ???)
-    }
-
-    /**
-     * Asynchronously posts a message to the container.
-     *
-     *  @param msg the message to post
-     *  @return response from the container if any
-     */
-    private def sendPayloadAsync(endpoint: String, msg: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem): Future[Option[(Int, String)]] = {
-        implicit val ec = system.dispatcher
-        implicit val materializer = ActorMaterializer()
-
-        containerHostAndPort map { hp =>
-
-            val flow = Http().outgoingConnection(hp.host, hp.port)
-
-            val uri = Uri(
-                scheme = "http",
-                authority = Uri.Authority(host = Uri.Host(hp.host), port = hp.port),
-                path = Uri.Path(endpoint))
-
-            for (
-                entity <- Marshal(msg).to[MessageEntity];
-                request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-                response <- AkkaHttpUtils.singleRequest(request, timeout, retryOnTCPErrors = true, retryInterval = 100.milliseconds);
-                responseBody <- Unmarshal(response.entity).to[String]
-            ) yield {
-                Some((response.status.intValue, responseBody))
-            }
-        } getOrElse {
-            Future.successful(None)
-        }
     }
 
     private def sendPayloadApache(endpoint: String, msg: JsObject, timeout: FiniteDuration, retry: Boolean): RunResult = {

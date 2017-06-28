@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,7 +52,7 @@ import whisk.core.entity._
  */
 class ContainerPool(
     config: WhiskConfig,
-    invokerInstance: Integer = 0,
+    invokerInstance: InstanceId = InstanceId(0),
     standalone: Boolean = false,
     saveContainerLog: Boolean = false)(implicit actorSystem: ActorSystem, val logging: Logging)
     extends ContainerUtils {
@@ -428,7 +429,7 @@ class ContainerPool(
 
     // Sample container name: wsk1_1_joeibmcomhelloWorldDemo_20150901T202701852Z
     private def makeContainerName(localName: String): ContainerName =
-        ContainerCounter.containerName(invokerInstance.toString(), localName)
+        ContainerCounter.containerName(invokerInstance.toInt.toString, localName)
 
     private def makeContainerName(action: WhiskAction): ContainerName =
         makeContainerName(action.fullyQualifiedName(true).toString)

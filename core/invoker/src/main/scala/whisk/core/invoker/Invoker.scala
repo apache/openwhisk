@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +18,6 @@
 package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
-
 import java.time.{ Clock, Instant }
 
 import scala.concurrent.{ Await, ExecutionContext, Future }
@@ -25,6 +25,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.{ Duration, DurationInt }
 import scala.language.postfixOps
 import scala.util.{ Failure, Success }
+import scala.util.Try
 
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.japi.Creator
@@ -33,10 +34,14 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
 import whisk.common.AkkaLogging
 import whisk.common.ZipkinLogging
+import whisk.common.tracing.TraceUtil
+import whisk.common.Scheduler
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.MessageProducer
+import whisk.core.connector.PingMessage
 import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
 import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
@@ -48,7 +53,7 @@ import whisk.common.Scheduler
 import whisk.core.connector.PingMessage
 import scala.util.Try
 import whisk.core.connector.MessageProducer
-import whisk.common.tracing.TraceUtil
+import org.apache.kafka.common.errors.RecordTooLargeException
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -60,16 +65,16 @@ import whisk.common.tracing.TraceUtil
  */
 class Invoker(
     config: WhiskConfig,
-    instance: Int,
+    instance: InstanceId,
     activationFeed: ActorRef,
     producer: MessageProducer,
     runningInContainer: Boolean = true)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker$instance")
+    extends MessageHandler(s"invoker${instance.toInt}")
     with ActionLogDriver {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance), s"starting invoker instance ${instance}")
+    TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance.toInt), s"starting invoker instance ${instance.toInt}")
 
     /**
      * This is the handler for the kafka message
@@ -97,7 +102,7 @@ class Invoker(
         // hence when the transaction is fully processed, this method will complete a promise with the datastore
         // future writing back the activation record and for which there are three cases:
         // 1. success: there were no exceptions and hence the invoke path operated normally,
-        // 2. error during invocation: an exception occurred while trying to run the action,
+        // 2. error during invocation: an exception occurred while trying to run the action (failed to bring up a container for example),
         // 3. error fetching action: an exception occurred reading from the db, didn't get to run.
         val transactionPromise = Promise[DocInfo]
 
@@ -107,6 +112,7 @@ class Invoker(
         if (actionid.rev == DocRevision.empty) {
             logging.error(this, s"revision was not provided for ${actionid.id}")
         }
+
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty) onComplete {
             case Success(action) =>
                 // only Exec instances that are subtypes of CodeExec reach the invoker
@@ -148,8 +154,12 @@ class Invoker(
         implicit transid: TransactionId): Future[DocInfo] = {
         val msg = tran.msg
         val interval = computeActivationInterval(tran)
-        val activation = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, limits)
-        completeTransaction(tran, activation, FailedActivation(transid))
+        val activationResult = makeWhiskActivation(msg, EntityPath(name.id), version, response, interval, limits)
+
+        // send activate ack for failed activations
+        sendActiveAck(tran, activationResult)
+
+        completeTransaction(tran, activationResult, FailedActivation(transid))
     }
 
     /*
@@ -194,7 +204,8 @@ class Invoker(
         } map {
             case (failedInit, con, result) =>
                 // process the result and send active ack message
-                val activationResult = sendActiveAck(tran, action, failedInit, result)
+                val activationResult = makeActivationResultForSuccess(tran, action, failedInit, result)
+                sendActiveAck(tran, activationResult)
 
                 // after sending active ack, drain logs and return container
                 val contents = getContainerLogs(con, action.exec.asInstanceOf[CodeExec[_]].sentinelledLogs, action.limits.logs)
@@ -246,26 +257,40 @@ class Invoker(
     }
 
     /**
-     * Creates WhiskActivation for the "run result" (which could be a failed initialization) and send
-     * ActiveAck message.
+     * Creates WhiskActivation for the "run result" (which could be a failed initialization); this
+     * method is only reached if the action actually ran with no invoker exceptions).
      *
      * @return WhiskActivation
      */
-    private def sendActiveAck(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
+    private def makeActivationResultForSuccess(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
         implicit transid: TransactionId): WhiskActivation = {
         if (!failedInit) tran.runInterval = Some(result.interval)
 
         val msg = tran.msg
         val activationInterval = computeActivationInterval(tran)
         val activationResponse = getActivationResponse(activationInterval, action.limits.timeout.duration, result, failedInit)
-        val activationResult = makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
-        val completeMsg = CompletionMessage(transid, activationResult, this.name)
+        makeWhiskActivation(msg, EntityPath(action.fullyQualifiedName(false).toString), action.version, activationResponse, activationInterval, Some(action.limits))
+    }
 
-        producer.send("completed", completeMsg) map { status =>
-            logging.info(this, s"posted completion of activation ${msg.activationId}")
+    /**
+     * Sends ActiveAck message for a completed activation.
+     * If for some reason posting to the message bus fails, an active ack may not be sent.
+     */
+    private def sendActiveAck(tran: Transaction, activationResult: WhiskActivation)(
+        implicit transid: TransactionId): Unit = {
+
+        def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
+            val msg = CompletionMessage(transid, res, this.name)
+            producer.send(s"completed${tran.msg.rootControllerIndex.toInt}", msg).andThen {
+                case Success(_) =>
+                    logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
+            }
         }
 
-        activationResult
+        send(Right(activationResult)).onFailure {
+            case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
+                send(Left(activationResult.activationId), recovery = true)
+        }
     }
 
     // The nodeJsAction runner inserts this line in the logs at the end
@@ -413,7 +438,8 @@ object Invoker {
         logsDir -> null,
         dockerRegistry -> null,
         dockerImagePrefix -> null,
-        invokerUseReactivePool -> false.toString) ++
+        invokerUseReactivePool -> false.toString,
+        WhiskConfig.invokerInstances -> null) ++
         ExecManifest.requiredProperties ++
         WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
@@ -425,7 +451,7 @@ object Invoker {
 
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
-        val instance = args(0).toInt
+        val invokerInstance = InstanceId(args(0).toInt)
 
         implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
         implicit val actorSystem: ActorSystem = ActorSystem(
@@ -437,42 +463,50 @@ object Invoker {
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
 
-        // if configuration is valid, initialize the runtimes manifest
-        if (config.isValid && ExecManifest.initialize(config)) {
-            val topic = s"invoker$instance"
-            val groupid = "invokers"
-            val maxdepth = ContainerPool.getDefaultMaxActive(config)
-            val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
-            val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-            val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
-
-            val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
-                new InvokerReactive(config, instance, dispatcher.activationFeed, producer)
-            } else {
-                new Invoker(config, instance, dispatcher.activationFeed, producer)
-            }
-            logger.info(this, s"using $invoker")
-
-            dispatcher.addHandler(invoker, true)
-            dispatcher.start()
-
-            Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-                producer.send("health", PingMessage(s"invoker$instance")).andThen {
-                    case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
-                }
-            })
-
-            val port = config.servicePort.toInt
-            BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-                def create = new InvokerServer {
-                    override implicit val logging = logger
-                }
-            })
-        } else {
+        def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
+            sys.exit(1)
         }
+
+        if (!config.isValid) {
+            abort()
+        }
+
+        val execManifest = ExecManifest.initialize(config)
+        if (execManifest.isFailure) {
+            logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
+            abort()
+        }
+
+        val topic = s"invoker${invokerInstance.toInt}"
+        val groupid = "invokers"
+        val maxdepth = ContainerPool.getDefaultMaxActive(config)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+        val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+        val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
+
+        val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
+            new InvokerReactive(config, invokerInstance, dispatcher.activationFeed, producer)
+        } else {
+            new Invoker(config, invokerInstance, dispatcher.activationFeed, producer)
+        }
+        logger.info(this, s"using $invoker")
+
+        dispatcher.addHandler(invoker, true)
+        dispatcher.start()
+
+        Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+            producer.send("health", PingMessage(s"invoker${invokerInstance.toInt}")).andThen {
+                case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+            }
+        })
+
+        val port = config.servicePort.toInt
+        BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
+            def create = new InvokerServer(invokerInstance, config.invokerInstances.toInt)
+        })
     }
 }
 

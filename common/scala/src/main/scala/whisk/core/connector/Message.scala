@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +27,7 @@ import whisk.core.entity.DocRevision
 import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
@@ -53,6 +55,7 @@ case class ActivationMessage(
     user: Identity,
     activationId: ActivationId,
     activationNamespace: EntityPath,
+    rootControllerIndex: InstanceId,
     content: Option[JsObject],
     cause: Option[ActivationId] = None,
     traceMetadata: Option[SpanMetadata] = None)
@@ -82,7 +85,7 @@ object ActivationMessage extends DefaultJsonProtocol {
 
     private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
     private implicit val spanMetaSerdes = jsonFormat4(SpanMetadata.apply)
-    implicit val serdes = jsonFormat9(ActivationMessage.apply)
+    implicit val serdes = jsonFormat10(ActivationMessage.apply)
 }
 
 /**
@@ -91,20 +94,22 @@ object ActivationMessage extends DefaultJsonProtocol {
  */
 case class CompletionMessage(
     override val transid: TransactionId,
-    response: WhiskActivation,
+    response: Either[ActivationId, WhiskActivation],
     invoker: String)
     extends Message {
 
-    override def serialize = CompletionMessage.serdes.write(this).compactPrint
+    override def serialize: String = {
+        CompletionMessage.serdes.write(this).compactPrint
+    }
 
     override def toString = {
-        s"${response.activationId}"
+        response.fold(l => l, r => r.activationId).asString
     }
 }
 
 object CompletionMessage extends DefaultJsonProtocol {
-    def parse(msg: String) = Try(serdes.read(msg.parseJson))
-    implicit val serdes = jsonFormat3(CompletionMessage.apply)
+    def parse(msg: String): Try[CompletionMessage] = Try(serdes.read(msg.parseJson))
+    private val serdes = jsonFormat3(CompletionMessage.apply)
 }
 
 case class PingMessage(name: String) extends Message {

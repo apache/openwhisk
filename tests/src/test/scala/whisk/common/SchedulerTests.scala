@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -61,7 +62,9 @@ class SchedulerTests
      */
     def waitForCalls(calls: Int = callsToProduce, interval: FiniteDuration = timeBetweenCalls) = Thread.sleep((calls + 1) * interval toMillis)
 
-    "A WaitAtLeast Scheduler" should "be killable by sending it a poison pill" in {
+    behavior of "A WaitAtLeast Scheduler"
+
+    ignore should "be killable by sending it a poison pill" in {
         var callCount = 0
         val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
             callCount += 1
@@ -116,6 +119,21 @@ class SchedulerTests
         callCount shouldBe 1
     }
 
+    it should "log scheduler halt message with tid" in {
+        implicit val transid = TransactionId.testing
+        val msg = "test threw an exception"
+
+        stream.reset()
+        val scheduled = Scheduler.scheduleWaitAtLeast(timeBetweenCalls) { () =>
+            throw new Exception(msg)
+        }
+
+        waitForCalls()
+        stream.toString.split(" ").drop(1).mkString(" ") shouldBe {
+            s"[ERROR] [#sid_1] [Scheduler] halted because $msg\n"
+        }
+    }
+
     it should "not stop the scheduler if the future from the closure is failed" in {
         var callCount = 0
 
@@ -145,7 +163,51 @@ class SchedulerTests
 
         val differences = calculateDifferences(calls)
         withClue(s"expecting all $differences to be <= $timeBetweenCalls") {
+            differences should not be 'empty
             differences.forall(_ <= timeBetweenCalls + schedulerSlack)
+        }
+    }
+
+    it should "delay initial schedule by given duration" in {
+        val timeBetweenCalls = 200 milliseconds
+        val initialDelay = 1.second
+        var callCount = 0
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls, initialDelay) { () =>
+            callCount += 1
+            Future successful true
+        }
+
+        try {
+            Thread.sleep(initialDelay.toMillis)
+            callCount should be <= 1
+
+            Thread.sleep(2 * timeBetweenCalls.toMillis)
+            callCount should be > 1
+        } finally {
+            scheduled ! PoisonPill
+        }
+    }
+
+    it should "perform work immediately when requested" in {
+        val timeBetweenCalls = 200 milliseconds
+        val initialDelay = 1.second
+        var callCount = 0
+
+        val scheduled = Scheduler.scheduleWaitAtMost(timeBetweenCalls, initialDelay) { () =>
+            callCount += 1
+            Future successful true
+        }
+
+        try {
+            Thread.sleep(2 * timeBetweenCalls.toMillis)
+            callCount should be(0)
+
+            scheduled ! Scheduler.WorkOnceNow
+            Thread.sleep(timeBetweenCalls.toMillis)
+            callCount should be(1)
+        } finally {
+            scheduled ! PoisonPill
         }
     }
 
@@ -164,6 +226,7 @@ class SchedulerTests
 
         val differences = calculateDifferences(calls)
         withClue(s"expecting all $differences to be <= $computationTime") {
+            differences should not be 'empty
             differences.forall(_ <= computationTime + schedulerSlack)
         }
     }

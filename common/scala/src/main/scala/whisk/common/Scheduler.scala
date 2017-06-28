@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,6 +25,7 @@ import scala.util.Try
 
 import akka.actor.Actor
 import akka.actor.ActorSystem
+import akka.actor.Cancellable
 import akka.actor.Props
 
 /**
@@ -31,7 +33,8 @@ import akka.actor.Props
  * even for asynchronous tasks.
  */
 object Scheduler {
-    private case object Work
+    case object WorkOnceNow
+    private case object ScheduledWork
 
     /**
      * Sets up an Actor to send itself a message to mimic schedulers behavior in a more controllable way.
@@ -40,24 +43,45 @@ object Scheduler {
      * @param alwaysWait always wait for the given amount of time or calculate elapsed time to wait
      * @param closure the closure to be executed
      */
-    private class Worker(interval: FiniteDuration, alwaysWait: Boolean, closure: () => Future[Any])(implicit logging: Logging) extends Actor {
+    private class Worker(
+        initialDelay: FiniteDuration,
+        interval: FiniteDuration,
+        alwaysWait: Boolean,
+        name: String,
+        closure: () => Future[Any])(
+            implicit logging: Logging,
+            transid: TransactionId) extends Actor {
         implicit val ec = context.dispatcher
 
+        var lastSchedule: Option[Cancellable] = None
+
         override def preStart() = {
-            self ! Work
+            if (initialDelay != Duration.Zero) {
+                lastSchedule = Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
+            } else {
+                self ! ScheduledWork
+            }
+        }
+        override def postStop() = {
+            logging.info(this, s"$name shutdown")
+            lastSchedule.foreach(_.cancel())
         }
 
         def receive = {
-            case Work =>
+            case WorkOnceNow => Try(closure())
+
+            case ScheduledWork =>
                 val deadline = interval.fromNow
                 Try(closure()) match {
                     case Success(result) =>
                         result onComplete { _ =>
                             val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
                             // context might be null here if a PoisonPill is sent while doing computations
-                            Option(context) foreach { _.system.scheduler.scheduleOnce(timeToWait, self, Work) }
+                            lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
                         }
-                    case Failure(e) => logging.error(this, s"next iteration could not be scheduled because of ${e.getMessage}. Scheduler is halted")
+
+                    case Failure(e) =>
+                        logging.error(name, s"halted because ${e.getMessage}")
                 }
         }
     }
@@ -69,11 +93,19 @@ object Scheduler {
      * is immediately fired.
      *
      * @param interval the time to wait at most between two runs of the closure
+     * @param initialDelay optionally delay the first scheduled iteration by given duration
      * @param f the function to run
      */
-    def scheduleWaitAtMost(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem, logging: Logging) = {
+    def scheduleWaitAtMost(
+        interval: FiniteDuration,
+        initialDelay: FiniteDuration = Duration.Zero,
+        name: String = "Scheduler")(
+            f: () => Future[Any])(
+                implicit system: ActorSystem,
+                logging: Logging,
+                transid: TransactionId = TransactionId.unknown) = {
         require(interval > Duration.Zero)
-        system.actorOf(Props(new Worker(interval, false, f)))
+        system.actorOf(Props(new Worker(initialDelay, interval, false, name, f)))
     }
 
     /**
@@ -82,10 +114,18 @@ object Scheduler {
      * given interval.
      *
      * @param interval the time to wait between two runs of the closure
+     * @param initialDelay optionally delay the first scheduled iteration by given duration
      * @param f the function to run
      */
-    def scheduleWaitAtLeast(interval: FiniteDuration)(f: () => Future[Any])(implicit system: ActorSystem, logging: Logging) = {
+    def scheduleWaitAtLeast(
+        interval: FiniteDuration,
+        initialDelay: FiniteDuration = Duration.Zero,
+        name: String = "Scheduler")(
+            f: () => Future[Any])(
+                implicit system: ActorSystem,
+                logging: Logging,
+                transid: TransactionId = TransactionId.unknown) = {
         require(interval > Duration.Zero)
-        system.actorOf(Props(new Worker(interval, true, f)))
+        system.actorOf(Props(new Worker(initialDelay, interval, true, name, f)))
     }
 }

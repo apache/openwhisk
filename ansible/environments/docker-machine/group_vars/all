@@ -1,0 +1,40 @@
+whisk_version_name: mac
+config_root_dir: /Users/Shared
+whisk_logs_dir: /Users/Shared/wsklogs
+docker_registry: ""
+docker_dns: ""
+
+# The whisk_api_localhost_name is used to configure nginx to permit vanity URLs for web actions.
+# It is also used for the SSL certificate generation. For a local deployment, this is typically
+# a hostname that is resolved on the client, via /etc/hosts for example.
+whisk_api_localhost_name: "openwhisk"
+
+db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
+
+# Auto lookup to find the db credentials
+db_provider: "{{ lookup('ini', 'db_provider section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_username: "{{ lookup('ini', 'db_username section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_password: "{{ lookup('ini', 'db_password section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_protocol: "{{ lookup('ini', 'db_protocol section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_host: "{{ lookup('ini', 'db_host section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+db_port: "{{ lookup('ini', 'db_port section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
+
+limits:
+  actions:
+    invokes:
+      perMinute: 60
+      concurrent: 30
+      concurrentInSystem: 5000
+  triggers:
+    fires:
+      perMinute: 60
+
+# API GW connection configuration
+apigw_auth_user: ""
+apigw_auth_pwd: ""
+apigw_host: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v1"
+apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"
+
+# RunC enablement
+invoker_use_runc: true
+invoker_use_reactive_pool: false

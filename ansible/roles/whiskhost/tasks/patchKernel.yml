@@ -24,9 +24,11 @@
     state: present
     force: yes
   become: true
+  register: patchKernel_apt
 
 - name: restart host to load new kernel
   shell: shutdown -r now
+  when: patchKernel_apt.changed
   ignore_errors: true
   become: true
 

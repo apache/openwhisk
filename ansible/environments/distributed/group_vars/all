@@ -8,11 +8,8 @@ db_host: "{{ groups['db'] | first }}"
 db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
 
 whisk_version_name: local
-nginx_conf_dir: /tmp/nginx
-consul_conf_dir: /tmp/consul
+config_root_dir: /tmp
 whisk_logs_dir: /tmp/wsklogs
-cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
-registry_conf_dir: /tmp/registry
 registry_storage_dir: "/"
 docker_registry: "{{ groups['registry'] | first }}:5000/"
 docker_dns: ""

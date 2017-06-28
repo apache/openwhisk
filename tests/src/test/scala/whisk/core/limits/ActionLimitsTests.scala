@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -98,20 +99,22 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     it should "succeed but truncate logs, if log size exceeds its limit" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val allowedSize = 2 megabytes
+            val bytesPerLine = 16
+            val allowedSize = 1 megabytes
             val name = "TestActionCausingExceededLogs"
             assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
                 val actionName = TestUtils.getTestActionFilename("dosLogs.js")
                 (action, _) => action.create(name, Some(actionName), logsize = Some(allowedSize))
             }
 
-            val attemptedSize = allowedSize + 1.megabytes
+            // Add 10% to allowed size to exceed limit
+            val attemptedSize = (allowedSize.toBytes * 1.1).toLong.bytes
 
             val run = wsk.action.invoke(name, Map("payload" -> attemptedSize.toBytes.toJson))
             withActivation(wsk.activation, run) { response =>
                 val lines = response.logs.get
                 lines.last shouldBe Messages.truncateLogs(allowedSize)
-                (lines.length - 1) shouldBe (allowedSize.toBytes / 16)
+                (lines.length - 1) shouldBe (allowedSize.toBytes / bytesPerLine)
                 // dropping 39 characters (timestamp + stream name)
                 // then reform total string adding back newlines
                 val actual = lines.dropRight(1).map(_.drop(39)).mkString("", "\n", "\n").sizeInBytes.toBytes
@@ -119,27 +122,39 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
     }
 
-    it should "succeed but truncate result, if result exceeds its limit" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "TestActionCausingExcessiveResult"
-            assetHelper.withCleaner(wsk.action, name) {
-                val actionName = TestUtils.getTestActionFilename("sizedResult.js")
-                (action, _) => action.create(name, Some(actionName))
-            }
-
-            val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
-            val run = wsk.action.invoke(name, Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson))
-            withActivation(wsk.activation, run) { activation =>
-                val response = activation.response
-                response.success shouldBe false
-                response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
-                val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
-                val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
-                withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
-                    msg.startsWith(expected) shouldBe true
+    Seq(true, false).foreach { blocking =>
+        it should s"succeed but truncate result, if result exceeds its limit (blocking: $blocking)" in withAssetCleaner(wskprops) {
+            (wp, assetHelper) =>
+                val name = "TestActionCausingExcessiveResult"
+                assetHelper.withCleaner(wsk.action, name) {
+                    val actionName = TestUtils.getTestActionFilename("sizedResult.js")
+                    (action, _) => action.create(name, Some(actionName), timeout = Some(15.seconds))
                 }
-                msg.endsWith("a") shouldBe true
-            }
+
+                val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+
+                def checkResponse(activation: CliActivation) = {
+                    val response = activation.response
+                    response.success shouldBe false
+                    response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
+                    val msg = response.result.get.fields(ActivationResponse.ERROR_FIELD).convertTo[String]
+                    val expected = Messages.truncatedResponse((allowedSize + 10).B, allowedSize.B)
+                    withClue(s"is: ${msg.take(expected.length)}\nexpected: $expected") {
+                        msg.startsWith(expected) shouldBe true
+                    }
+                    msg.endsWith("a") shouldBe true
+                }
+
+                // this tests an active ack failure to post from invoker
+                val args = Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson)
+                val code = if (blocking) TestUtils.APP_ERROR else TestUtils.SUCCESS_EXIT
+                val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
+                if (blocking) {
+                    checkResponse(wsk.parseJsonString(rr.stderr).convertTo[CliActivation])
+                } else {
+                    withActivation(wsk.activation, rr) { checkResponse(_) }
+                }
+        }
     }
 
     it should "succeed with one log line" in withAssetCleaner(wskprops) {
@@ -244,7 +259,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 (action, _) => action.create(name, Some(actionName), memory = Some(allowedMemory))
             }
 
-            for( a <- 1 to 10){
+            for (a <- 1 to 10) {
                 val run = wsk.action.invoke(name, Map("payload" -> "128".toJson))
                 withActivation(wsk.activation, run) { response =>
                     response.response.status shouldBe "success"

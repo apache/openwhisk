@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,7 +31,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
-class SwiftTests
+class Swift3Tests
     extends TestHelpers
     with WskTestHelpers
     with Matchers {
@@ -40,12 +41,14 @@ class SwiftTests
     val expectedDuration = 45 seconds
     val activationPollDuration = 60 seconds
 
+    lazy val runtimeContainer = "swift:3"
+
     behavior of "Swift Actions"
 
     /**
      * Test the Swift "hello world" demo sequence
      */
-    it should "invoke a swift action" in withAssetCleaner(wskprops) {
+    it should "invoke a swift 3 action" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "helloSwift"
             assetHelper.withCleaner(wsk.action, name) {
@@ -67,30 +70,6 @@ class SwiftTests
             }
     }
 
-    /**
-     * Test the Swift 3 example
-     *
-     * It is ignored because Swift3 is experimental. The test is failed sometimes and breaks the CI pipeline. This was agreed.
-     */
-    ignore should "invoke a swift:3 action" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloSwift3"
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(
-                        name,
-                        Some(TestUtils.getTestActionFilename("httpGet.swift")),
-                        kind = Some("swift:3"))
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
-                activation =>
-                    val result = activation.response.result.get
-                    result.toString should include(""""url":"https://httpbin.org/get"""")
-                    result.toString should not include ("Error")
-            }
-    }
-
     behavior of "Swift 3 Whisk SDK tests"
 
     it should "allow Swift actions to invoke other actions" in withAssetCleaner(wskprops) {
@@ -99,7 +78,7 @@ class SwiftTests
             val file = TestUtils.getTestActionFilename("invoke.swift")
             val actionName = "invokeAction"
             assetHelper.withCleaner(wsk.action, actionName) {
-                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some(runtimeContainer))
             }
 
             // invoke the action
@@ -123,7 +102,7 @@ class SwiftTests
             val file = TestUtils.getTestActionFilename("invokeNonBlocking.swift")
             val actionName = "invokeNonBlockingAction"
             assetHelper.withCleaner(wsk.action, actionName) {
-                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some(runtimeContainer))
             }
 
             // invoke the action
@@ -150,7 +129,7 @@ class SwiftTests
             val file = TestUtils.getTestActionFilename("trigger.swift")
             val actionName = "ActionThatTriggers"
             assetHelper.withCleaner(wsk.action, actionName) {
-                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+                (action, _) => action.create(name = actionName, artifact = Some(file), kind = Some(runtimeContainer))
             }
 
             // invoke the action

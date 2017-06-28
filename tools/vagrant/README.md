@@ -8,7 +8,7 @@ The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LT
  
 ### Clone the repository and change directory to `tools/vagrant`
 ```
-git clone --depth=1 https://github.com/apache/incubator-openwhisk.git
+git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
 cd openwhisk/tools/vagrant
 ```
 

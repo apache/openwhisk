@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +20,7 @@ package common
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
+import java.time.Instant
 
 import scala.Left
 import scala.Right
@@ -31,15 +33,15 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import org.scalatest.Matchers
+
 import TestUtils._
 import common.TestUtils.RunResult
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.pimpString
-import whisk.utils.retry
-import java.time.Instant
 import whisk.core.entity.ByteSize
-import org.scalatest.Matchers
+import whisk.utils.retry
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -284,6 +286,7 @@ class WskAction()
         artifact: Option[String],
         kind: Option[String] = None, // one of docker, copy, sequence or none for autoselect else an explicit type
         main: Option[String] = None,
+        docker: Option[String] = None,
         parameters: Map[String, JsValue] = Map(),
         annotations: Map[String, JsValue] = Map(),
         parameterFile: Option[String] = None,
@@ -300,11 +303,12 @@ class WskAction()
             { artifact map { Seq(_) } getOrElse Seq() } ++
             {
                 kind map { k =>
-                    if (k == "docker" || k == "sequence" || k == "copy") Seq(s"--$k")
+                    if (k == "sequence" || k == "copy" || k == "native") Seq(s"--$k")
                     else Seq("--kind", k)
                 } getOrElse Seq()
             } ++
             { main.toSeq flatMap { p => Seq("--main", p) } } ++
+            { docker.toSeq flatMap { p => Seq("--docker", p) } } ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } } ++
             { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
@@ -869,7 +873,7 @@ class WskApi()
             { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
             { swagger map { s => Seq("--config-file", s) } getOrElse Seq() } ++
             { responsetype map { t => Seq("--response-type", t) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -895,7 +899,7 @@ class WskApi()
             { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
             { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() } ++
             { full map { r => Seq("--full") } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -916,7 +920,7 @@ class WskApi()
             { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
             { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() } ++
             { format map { ft => Seq("--format", ft) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
     /**
@@ -935,7 +939,7 @@ class WskApi()
         val params = Seq(noun, "delete", "--auth", wp.authKey, basepathOrApiName) ++
             { relpath map { r => Seq(r) } getOrElse Seq() } ++
             { operation map { o => Seq(o) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env=Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
+        cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 }
 
@@ -1003,11 +1007,12 @@ trait RunWskCmd extends Matchers {
             verbose: Boolean = false,
             env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
             workingDir: File = new File("."),
+            stdinFile: Option[File] = None,
             showCmd: Boolean = false): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
         if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, args ++ params: _*)
+        val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, stdinFile.getOrElse(null), args ++ params: _*)
 
         withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
             if (expectedExitCode != TestUtils.DONTCARE_EXIT) {

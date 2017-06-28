@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -60,6 +61,7 @@ import whisk.core.entity.EntityPath
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.Secret
 import whisk.core.entity.Subject
 import whisk.core.entity.UUID
@@ -223,6 +225,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             user = Identity(Subject("unhealthyInvokerCheck"), EntityName("unhealthyInvokerCheck"), AuthKey(UUID(), Secret()), Set[Privilege]()),
             activationId = new ActivationIdGenerator {}.make(),
             activationNamespace = EntityPath("guest"),
+            rootControllerIndex = InstanceId(0),
             content = None)
         val msg = ActivationRequest(activationMessage, invokerName)
 
@@ -240,7 +243,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "start unhealthy, go offline if the state times out and goes unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -256,7 +259,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // unhealthy -> healthy
     it should "goto healthy again, if unhealthy and error buffer has enough successful invocations" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -279,7 +282,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "go offline when unhealthy, if the state times out and go unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props)
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -294,7 +297,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     }
 
     it should "start timer to send testactions when unhealthy" in {
-        val invoker = TestFSMRef(new InvokerActor)
+        val invoker = TestFSMRef(new InvokerActor(InstanceId(0)))
         invoker.stateName shouldBe UnHealthy
 
         invoker.isTimerActive(InvokerActor.timerName) shouldBe true

@@ -42,17 +42,21 @@ runtimesManifest:
       default: true
       image:
         name: "nodejs6action"
+      deprecated: false
     python:
     - kind: "python"
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:2"
       default: true
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:3"
       image:
         name: "python3action"
+      deprecated: false
     swift:
     - kind: "swift"
       image:
@@ -62,16 +66,22 @@ runtimesManifest:
       default: true
       image:
         name: "swift3action"
+      deprecated: false
+    - kind: "swift:3.1.1"
+      image:
+        name: "action-swift-v3.1.1"
+      deprecated: false
     java:
     - kind: "java"
+      default: true
+      image:
+        name: "java8action"
+      deprecated: false
       attached:
         attachmentName: "jarfile"
         attachmentType: "application/java-archive"
       sentinelledLogs: false
       requireMain: true
-      image:
-        name: "java8action"
-      default: true
   blackboxes:
     - name: "dockerskeleton"
 
@@ -89,12 +99,14 @@ defaultLimits:
 
 # port means outer port
 controller:
-  port: 10001
+  basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10
+  instances: "{{ groups['controllers'] | length }}"
 
 consul:
+  confdir: "{{ config_root_dir }}/consul"
   version: 0.7.0
   port:
     server: 8300
@@ -103,6 +115,9 @@ consul:
     rpc: 8400
     http: 8500
     dns: 8600
+
+registry:
+  confdir: "{{ config_root_dir }}/registry"
 
 kafka:
   version: 0.10.0.1
@@ -120,12 +135,15 @@ invoker:
   arguments: "{{ invoker_arguments | default('') }}"
   numcore: 2
   coreshare: 2
+  busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
   serializeDockerOp: true
   serializeDockerPull: true
   useRunc: false
   useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
+  instances: "{{ groups['invokers'] | length }}"
 
 nginx:
+  confdir: "{{ config_root_dir }}/nginx"
   version: 1.11
   port:
     http: 80
@@ -159,6 +177,7 @@ apigateway:
     api: 9000
     api_secure: 443
     mgmt: 9001
+  version: 0.7.0
 
 redis:
   version: 3.2
@@ -182,7 +201,9 @@ docker:
   restart:
     policy: always
 
-cli_path: "{{ openwhisk_home }}/bin/wsk"
+cli:
+  path: "{{ openwhisk_home }}/bin/wsk"
+  nginxdir: "{{ nginx.confdir }}/cli/go/download"
 
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"

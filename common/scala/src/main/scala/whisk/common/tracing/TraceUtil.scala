@@ -29,21 +29,21 @@ import whisk.common.{LoggingMarkers, TransactionId}
   */
 object TraceUtil{
 
-    private lazy val trace: TracingExtensionImpl = traceVar;
+  private lazy val trace: TracingExtensionImpl = traceVar;
 
-    private var traceVar: TracingExtensionImpl = null;
+  private var traceVar: TracingExtensionImpl = null;
 
-    private val traceMap : Map[Long, TracedRequest] = new util.HashMap[Long, TracedRequest]()
+  private val traceMap : Map[Long, TracedRequest] = new util.HashMap[Long, TracedRequest]()
 
-    var requestCounter: AtomicInteger = new AtomicInteger(1);
+  var requestCounter: AtomicInteger = new AtomicInteger(1);
 
-    def init (actorSystem: ActorSystem): TracingExtensionImpl = {
+  def init (actorSystem: ActorSystem): TracingExtensionImpl = {
 
-      if(traceVar == null)
-        traceVar = TracingExtension.apply(actorSystem);
+    if(traceVar == null)
+      traceVar = TracingExtension.apply(actorSystem);
 
-      return trace;
-    }
+    return trace;
+  }
 
   /**
     * Start a Trace for given service.
@@ -55,10 +55,10 @@ object TraceUtil{
     var tracedRequest: TracedRequest = traceMap.get(transactionId.meta.id)
     if(tracedRequest == null){
       var tracedRequest = createTracedRequest(spanName)
-      var metadata = trace.sample(tracedRequest.getRequest(), serviceName)
+      var metadata = trace.sample(tracedRequest.request, serviceName)
       if(metadata != None){
-        trace.start(tracedRequest.getRequest(), serviceName)
-        tracedRequest = new TracedRequest(tracedRequest.getRequest(), null, metadata)
+        trace.start(tracedRequest.request, serviceName)
+        tracedRequest = new TracedRequest(tracedRequest.request, null, metadata)
         traceMap.put(transactionId.meta.id, tracedRequest)
       }
     }
@@ -74,12 +74,12 @@ object TraceUtil{
     * @return TracedRequest which provides details about current service being traced.
     */
   def startChildTrace(serviceName: String, spanName: String, parent: TracedRequest, transactionId: TransactionId): Unit = {
-    val request: TracedRequest = createTracedRequest(spanName)
-    var metadata =  trace.sample(request.getRequest(), serviceName)
+    val tracedReq: TracedRequest = createTracedRequest(spanName)
+    var metadata =  trace.sample(tracedReq.request, serviceName)
     if(metadata != None){
-      trace.createChild(request.getRequest(), parent.getRequest())
-      trace.start(request.getRequest(), serviceName)
-      val tracedRequest = new TracedRequest(request.getRequest(), parent, metadata)
+      trace.createChild(tracedReq.request, parent.request)
+      trace.start(tracedReq.request, serviceName)
+      val tracedRequest = new TracedRequest(tracedReq.request, parent, metadata)
       traceMap.put(transactionId.meta.id, tracedRequest)
     }
 
@@ -90,20 +90,20 @@ object TraceUtil{
     * @param transactionId
     */
   def finish(transactionId: TransactionId): Unit = {
-    val request: TracedRequest = traceMap.get(transactionId.meta.id)
-    if(request != null){
-      trace.record(request.getRequest(), TracingAnnotations.ServerSend)
-      if(request.getParent() == null)
+    val tracedRequest: TracedRequest = traceMap.get(transactionId.meta.id)
+    if(tracedRequest != null){
+      trace.record(tracedRequest.request, TracingAnnotations.ServerSend)
+      if(tracedRequest.request == null)
         traceMap.remove(transactionId.meta.id)
       else
-        traceMap.put(transactionId.meta.id, request.getParent())
+        traceMap.put(transactionId.meta.id, tracedRequest.parent)
     }
   }
 
   def error(transactionId: TransactionId, t: Throwable) : Unit = {
-    val request: TracedRequest = traceMap.get(transactionId.meta.id)
-    if(request != null){
-      trace.record(request.getRequest(), t)
+    val tracedRequest: TracedRequest = traceMap.get(transactionId.meta.id)
+    if(tracedRequest != null){
+      trace.record(tracedRequest.request, t)
     }
   }
 
@@ -128,3 +128,7 @@ object TraceUtil{
       traceMap.put(transactionId.meta.id, TraceUtil.createTracedRequest(LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING.action, metadata))
   }
 }
+
+
+
+

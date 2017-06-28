@@ -61,7 +61,7 @@ ADD spm-build /swift3Action/spm-build
 
 # Build kitura net
 RUN touch /swift3Action/spm-build/main.swift
-RUN python /swift3Action/buildandrecord.py; rm /swift3Action/spm-build/.build/release/Action
+RUN python /swift3Action/buildandrecord.py && rm /swift3Action/spm-build/.build/release/Action
 #RUN cd /swift3Action/spm-build; swift build -c release; rm /swift3Action/spm-build/.build/release/Action
 ENV FLASK_PROXY_PORT 8080
 

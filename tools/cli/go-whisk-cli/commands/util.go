@@ -47,16 +47,16 @@ type QualifiedName struct {
     entityName  string  // pkg+entity
 }
 
-func (qName QualifiedName) String() string {
+func (qualifiedName QualifiedName) String() string {
     output := []string{}
 
-    if len(qName.namespace) > 0 {
-        output = append(output, "/", qName.namespace, "/")
+    if len(qualifiedName.namespace) > 0 {
+        output = append(output, "/", qualifiedName.namespace, "/")
     }
-    if len(qName.packageName) > 0 {
-        output = append(output, qName.packageName, "/")
+    if len(qualifiedName.packageName) > 0 {
+        output = append(output, qualifiedName.packageName, "/")
     }
-    output = append(output, qName.entityName)
+    output = append(output, qualifiedName.entityName)
 
     return strings.Join(output, "")
 }
@@ -69,10 +69,10 @@ name, the namespace is also resolved from the property file.
 Return a qualifiedName struct
 
 Examples:
-      foo => qName {namespace: "_", entityName: foo}
-      pkg/foo => qName {namespace: "_", entityName: pkg/foo}
-      /ns/foo => qName {namespace: ns, entityName: foo}
-      /ns/pkg/foo => qName {namespace: ns, entityName: pkg/foo}
+      foo => qualifiedName {namespace: "_", entityName: foo}
+      pkg/foo => qualifiedName {namespace: "_", entityName: pkg/foo}
+      /ns/foo => qualifiedName {namespace: ns, entityName: foo}
+      /ns/pkg/foo => qualifiedName {namespace: ns, entityName: pkg/foo}
 */
 func parseQualifiedName(name string) (QualifiedName, error) {
     var qualifiedName QualifiedName

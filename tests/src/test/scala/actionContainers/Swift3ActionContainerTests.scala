@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +29,7 @@ import spray.json.JsString
 import common.TestUtils
 
 @RunWith(classOf[JUnitRunner])
-class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
+class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
     // note: "out" will likely not be empty in some swift build as the compiler
     // prints status messages and there doesn't seem to be a way to quiet them
@@ -77,6 +78,16 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |     return [ "divBy0": div(x:5, y:0) ]
                 | }
             """.stripMargin
+    lazy val watsonCode ="""
+                | import RestKit
+                | import WeatherCompanyData
+                | import AlchemyVision
+                |
+                | func main(args: [String:Any]) -> [String:Any] {
+                |     return ["message": "I compiled and was able to import Watson SDKs"]
+                | }
+            """.stripMargin
+    lazy val swiftBinaryName = "helloSwift3.zip"
 
     // Helpers specific to swift actions
     override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
@@ -237,7 +248,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
     }
 
     it should "support pre-compiled binary in a zip file" in {
-        val zip = new File(TestUtils.getTestActionFilename("helloSwift.zip")).toPath
+        val zip = new File(TestUtils.getTestActionFilename(swiftBinaryName)).toPath
         val code = ResourceHelpers.readAsBase64(zip)
 
         val (out, err) = withActionContainer() { c =>
@@ -330,15 +341,7 @@ class SwiftActionContainerTests extends BasicActionRunnerTests with WskActorSyst
 
     it should "make Watson SDKs available to action authors" in {
         val (out, err) = withActionContainer() { c =>
-            val code = """
-                | import RestKit
-                | import WeatherCompanyData
-                | import AlchemyVision
-                |
-                | func main(args: [String:Any]) -> [String:Any] {
-                |     return ["message": "I compiled and was able to import Watson SDKs"]
-                | }
-            """.stripMargin
+            val code = watsonCode
 
             val (initCode, _) = c.init(initPayload(code))
 

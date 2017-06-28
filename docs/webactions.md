@@ -114,7 +114,7 @@ The `__ow_user` is only present when the web action is [annotated to require aut
 Web actions bring some additional features that include:
 
 1. `Content extensions`: the request must specify its desired content type as one of `.json`, `.html`, `.http`, `.svg` or `.text`. This is done by adding an extension to the action name in the URI, so that an action `/guest/demo/hello` is referenced as `/guest/demo/hello.http` for example to receive an HTTP response back. For convenience, the `.http` extension is assumed when no extension is detected.
-2. `Projecting fields from the result`: the path that follows the action name is used to project out one or more levels of the response. For example, 
+2. `Projecting fields from the result`: When used with content extensions other than `.http`, the path that follows the action name is used to project out one or more levels of the response. For example, 
 `/guest/demo/hello.html/body`. This allows an action which returns a dictionary `{body: "..." }` to project the `body` property and directly return its string value instead. The projected path follows an absolute path model (as in XPath).
 3. `Query and body parameters as input`: the action receives query parameters as well as parameters in the request body. The precedence order for merging parameters is: package parameters, action parameters, query parameter, body parameters with each of these overriding any previous values in case of overlap . As an example `/guest/demo/hello.http?name=Jane` will pass the argument `{name: "Jane"}` to the action.
 4. `Form data`: in addition to the standard `application/json`, web actions may receive URL encoded from data `application/x-www-form-urlencoded data` as input.
@@ -236,7 +236,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: tex
 
 ## Content extensions
 
-A content extension is generally required when invoking a web action; the absence of an extension assumes `.http` as the default. The `.json` and `.http` extensions do not require a projection path. The `.html`, `.svg` and `.text` extensions do, however for convenience, the default path is assumed to match the extension name. So to invoke a web action and receive an `.html` response, the action must respond with a JSON object that contains a top level property called `html` (or the response must be in the explicitly given path). In other words, `/guest/demo/hello.html` is equivalent to projecting the `html` property explicitly, as in `/guest/demo/hello.html/html`. The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.
+A content extension is generally required when invoking a web action; the absence of an extension assumes `.http` as the default. The `.json` extension does not require a projection path, and the `.http` extension does not support a projection path. However, `.html`, `.svg` and `.text` extensions require a projection path. For convenience, the default path is assumed to match the extension name. So to invoke a web action and receive an `.html` response, the action must respond with a JSON object that contains a top level property called `html` (or the response must be in the explicitly given path). In other words, `/guest/demo/hello.html` is equivalent to projecting the `html` property explicitly, as in `/guest/demo/hello.html/html`. The fully qualified name of the action must include its package name, which is `default` if the action is not in a named package.
 
 
 ## Protected parameters
@@ -359,6 +359,48 @@ $ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${API
 {
   "body": "Decoded body"
 }
+```
+## Options Requests
+
+By default, an OPTIONS request made to a web action will result in CORS headers being automatically added to the
+response headers. These headers allow all origins and the options, get, delete, post, put, head, and patch HTTP verbs.
+The headers are shown below:
+
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
+```
+
+Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a
+`web-custom-options` annotation with a value of `true` to a web action. When this feature is enabled, CORS headers will
+not automatically be added to the request response. Instead, it is the developer's responsibility to append their
+desired headers programmatically. Below is an example of creating custom responses to OPTIONS requests.
+
+```
+function main(params) {
+  if (params.__ow_method == "options") {
+    return {
+      headers: {
+        'Access-Control-Allow-Methods': 'OPTIONS, GET',
+        'Access-Control-Allow-Origin': 'example.com'
+      },
+      statusCode: 200
+    }
+  }
+}
+```
+
+Save the above function to `custom-options.js` and execute the following commands:
+
+```
+$ wsk action create custom-option custom-options.js --web true -a web-custom-options true
+$ curl https://${APIHOST}/api/v1/web/guest/default/custom-options.http -kvX OPTIONS
+< HTTP/1.1 200 OK
+< Server: nginx/1.11.13
+< Content-Length: 0
+< Connection: keep-alive
+< Access-Control-Allow-Methods: OPTIONS, GET
+< Access-Control-Allow-Origin: example.com
 ```
 
 ## Error Handling

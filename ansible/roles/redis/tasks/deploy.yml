@@ -3,6 +3,7 @@
 
 - name: "pull the redis:{{ redis.version }} image"
   shell: "docker pull redis:{{ redis.version }}"
+  retries: 3
 
 - name: (re)start redis
   docker_container:

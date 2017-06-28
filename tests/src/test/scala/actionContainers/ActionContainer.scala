@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package actionContainers
 
 import java.io.ByteArrayOutputStream
@@ -159,12 +161,10 @@ object ActionContainer {
 
     private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
         implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
-        import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-        import akka.http.scaladsl.marshalling._
         import akka.http.scaladsl.model._
         import akka.http.scaladsl.unmarshalling._
         import akka.stream.ActorMaterializer
-        import whisk.core.container.AkkaHttpUtils
+        import common.AkkaHttpUtils
 
         implicit val materializer = ActorMaterializer()
 
@@ -174,13 +174,11 @@ object ActionContainer {
             path = Uri.Path(endPoint))
 
         val f = for (
-            entity <- Marshal(content).to[MessageEntity];
-            request = HttpRequest(method = HttpMethods.POST, uri = uri, entity = entity);
-            response <- AkkaHttpUtils.singleRequest(request, 60.seconds, retryOnTCPErrors = true);
-            responseBody <- Unmarshal(response.entity).to[String]
+            response <- AkkaHttpUtils.singleRequest(uri.toString(), content, 90.seconds, retryOnTCPErrors = true);
+            responseBody <- Unmarshal(response.body).to[String]
         ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
 
-        Await.result(f, 1.minute)
+        Await.result(f, 90.seconds)
     }
 
     private class ActionContainerImpl() extends ActionContainer {

@@ -1,8 +1,6 @@
 whisk_version_name: local
-nginx_conf_dir: /tmp/nginx
-consul_conf_dir: /tmp/consul
+config_root_dir: /tmp
 whisk_logs_dir: /tmp/wsklogs
-cli_nginx_dir: "{{ nginx_conf_dir }}/cli/go/download"
 docker_registry: ""
 docker_dns: ""
 
@@ -34,4 +32,7 @@ apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/
 
 # RunC enablement
 invoker_use_runc: true
-invoker_use_reactive_pool: true
+invoker_use_reactive_pool: false
+
+controller_arguments: '-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=1098'
+invoker_arguments: "{{ controller_arguments }}"

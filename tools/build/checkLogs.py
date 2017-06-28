@@ -91,7 +91,7 @@ if __name__ == "__main__":
         ("db-rules.log", [ partial(database_has_at_most_x_entries, 0) ]),
         ("db-triggers.log", [ partial(database_has_at_most_x_entries, 0) ]),
         # Assert that stdout of the container is correctly piped and empty
-        ("controller.log", [ partial(file_has_at_most_x_bytes, 0) ]),
+        ("controller0.log", [ partial(file_has_at_most_x_bytes, 0) ]),
         ("invoker0.log", [ partial(file_has_at_most_x_bytes, 0) ])
     ]
 

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -206,7 +207,7 @@ class ApiGwTests
 
     behavior of "Wsk api-experimental"
 
-    it should "reject an api commands with an invalid path parameter" in {
+    it should "reject api commands having an invalid path parameter" in {
         val badpath = "badpath"
 
         var rr = apiCreateExperimental(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
@@ -580,6 +581,13 @@ class ApiGwTests
         }
     }
 
+    it should "reject deletion of a non-existent api" in {
+        val nonexistentApi = "/not-there"
+
+        var rr = apiDeleteExperimental(basepathOrApiName = nonexistentApi, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"API '${nonexistentApi}' does not exist")
+    }
+
     behavior of "Wsk api"
 
     it should "reject an api commands with an invalid path parameter" in {
@@ -632,7 +640,7 @@ class ApiGwTests
     it should "verify successful creation and deletion of a new API" in {
         val testName = "CLI_APIGWTEST1"
         val testbasepath = "/"+testName+"_bp"
-        val testrelpath = "/path"
+        val testrelpath = "/path/with/sub_paths/in/it"
         val testnewrelpath = "/path_new"
         val testurlop = "get"
         val testapiname = testName+" API Name"
@@ -650,6 +658,8 @@ class ApiGwTests
             rr.stdout should include("ok: APIs")
             rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
+            rr = apiGet(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include regex (s""""operationId":\\s+"getPathWithSub_pathsInIt"""")
             val deleteresult = apiDelete(basepathOrApiName = testbasepath)
             deleteresult.stdout should include("ok: deleted API")
         }
@@ -797,6 +807,7 @@ class ApiGwTests
         val testnewrelpath = "/path_new"
         val testurlop = "get"
         val testapiname = testName+" API Name"
+        val testapiname2 = testName+" API Name 2"
         val actionName = testName+"_action"
         val newEndpoint = "/newEndpoint"
         try {
@@ -806,7 +817,7 @@ class ApiGwTests
 
             var rr = apiCreate(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
-            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname2))
             rr.stdout should include("ok: created API")
 
             // Update both APIs - each with a new endpoint
@@ -978,6 +989,7 @@ class ApiGwTests
         val testnewrelpath = "/path_new"
         val testurlop = "get"
         val testapiname = testName + " API Name"
+        val testapiname2 = testName + " API Name 2"
         val actionName = testName + "_action"
         try {
             // Create the action for the API.  It must be a "web-action" action.
@@ -990,7 +1002,7 @@ class ApiGwTests
             rr.stdout should include("ok: APIs")
             rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
-            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
+            rr = apiCreate(basepath = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname2))
             rr.stdout should include("ok: created API")
             rr = apiList(basepathOrApiName = Some(testbasepath2), relpath = Some(testrelpath), operation = Some(testurlop))
             rr.stdout should include("ok: APIs")
@@ -1031,7 +1043,6 @@ class ApiGwTests
     it should "reject an API created with an action that is not a web action" in {
         val testName = "CLI_APIGWTEST16"
         val testbasepath = "/" + testName + "_bp"
-        val testbasepath2 = "/" + testName + "_bp2"
         val testrelpath = "/path"
         val testnewrelpath = "/path_new"
         val testurlop = "get"
@@ -1193,5 +1204,12 @@ class ApiGwTests
         } finally {
             val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
+    }
+
+    it should "reject deletion of a non-existent api" in {
+        val nonexistentApi = "/not-there"
+
+        var rr = apiDelete(basepathOrApiName = nonexistentApi, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include (s"API '${nonexistentApi}' does not exist")
     }
 }
