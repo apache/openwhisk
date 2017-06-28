@@ -38,7 +38,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"url.Parse(%s) error: %s\n", route, err)
         errStr := wski18n.T("Unable to parse URL '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -52,7 +52,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"query.Values(%#v) error: %s\n", options, err)
         errStr := wski18n.T("Unable to process URL query options '{{.options}}': {{.err}}",
             map[string]interface{}{"options": fmt.Sprintf("%#v", options), "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 

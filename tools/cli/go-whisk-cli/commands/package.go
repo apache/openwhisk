@@ -72,7 +72,7 @@ var packageBindCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -86,7 +86,7 @@ var packageBindCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -106,7 +106,7 @@ var packageBindCmd = &cobra.Command{
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, false) failed: %s\n", p, err)
       errStr := wski18n.T("Binding creation failed: {{.err}}", map[string]interface{}{"err":err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -149,7 +149,7 @@ var packageCreateCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -160,7 +160,7 @@ var packageCreateCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -184,7 +184,7 @@ var packageCreateCmd = &cobra.Command{
           "name": qualifiedName.entityName,
           "err": err,
         })
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -227,7 +227,7 @@ var packageUpdateCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
       errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -237,7 +237,7 @@ var packageUpdateCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
       errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
     }
 
@@ -256,7 +256,7 @@ var packageUpdateCmd = &cobra.Command{
     if err != nil {
       whisk.Debug(whisk.DbgError, "client.Packages.Insert(%#v, true) failed: %s\n", p, err)
       errStr := wski18n.T("Package update failed: {{.err}}", map[string]interface{}{"err":err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -286,7 +286,7 @@ var packageGetCmd = &cobra.Command{
 
       if !fieldExists(&whisk.Package{}, field) {
         errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
           whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return whiskErr
       }
@@ -306,7 +306,7 @@ var packageGetCmd = &cobra.Command{
           "name": qualifiedName.entityName,
           "err":err,
         })
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -359,7 +359,7 @@ var packageDeleteCmd = &cobra.Command{
           "name": qualifiedName.entityName,
           "err": err,
         })
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -407,7 +407,7 @@ var packageListCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "client.Packages.List(%+v) failed: %s\n", options, err)
       errStr := wski18n.T("Unable to obtain the list of packages for namespace '{{.name}}': {{.err}}",
           map[string]interface{}{"name": getClientNamespace(), "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 
@@ -456,7 +456,7 @@ var packageRefreshCmd = &cobra.Command{
       whisk.Debug(whisk.DbgError, "client.Packages.Refresh() of namespace '%s' failed: %s\n", client.Config.Namespace, err)
       errStr := wski18n.T("Package refresh for namespace '{{.name}}' failed: {{.err}}",
           map[string]interface{}{"name": client.Config.Namespace, "err": err})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
     whisk.Debug(whisk.DbgInfo, "Refresh updates received: %#v\n", updates)
@@ -487,13 +487,13 @@ var packageRefreshCmd = &cobra.Command{
     case http.StatusNotImplemented:
       whisk.Debug(whisk.DbgError, "client.Packages.Refresh() for namespace '%s' returned 'Not Implemented' HTTP status code: %d\n", client.Config.Namespace, resp.StatusCode)
       errStr := wski18n.T("The package refresh feature is not implemented in the target deployment")
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     default:
       whisk.Debug(whisk.DbgError, "client.Packages.Refresh() for namespace '%s' returned an unexpected HTTP status code: %d\n", client.Config.Namespace, resp.StatusCode)
       errStr := wski18n.T("Package refresh for namespace '{{.name}}' failed due to unexpected HTTP status code: {{.code}}",
           map[string]interface{}{"name": client.Config.Namespace, "code": resp.StatusCode})
-      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+      werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
 

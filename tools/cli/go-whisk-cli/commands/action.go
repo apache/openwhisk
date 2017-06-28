@@ -514,15 +514,19 @@ func webActionAnnotations(
         var action *whisk.Action
         var err error
 
-        if annotations != nil || !fetchAnnotations {
-            annotations = webActionAnnotationMethod(annotations)
-        } else {
+        if fetchAnnotations {
             if action, _, err = client.Actions.Get(entityName); err != nil {
-                return nil, actionGetError(entityName, err)
+                whiskErr, isWhiskError := err.(*whisk.WskError)
+
+                if (isWhiskError && whiskErr.ExitCode != whisk.EXIT_CODE_NOT_FOUND) || !isWhiskError {
+                    return nil, actionGetError(entityName, err)
+                }
             } else {
-                annotations = webActionAnnotationMethod(action.Annotations)
+                annotations = append(annotations, action.Annotations...)
             }
         }
+
+        annotations = webActionAnnotationMethod(annotations)
 
         return annotations, nil
 }
@@ -588,7 +592,7 @@ func nestedError(errorMessage string, err error) (error) {
     return whisk.MakeWskErrorFromWskError(
         errors.New(errorMessage),
         err,
-        whisk.EXITCODE_ERR_GENERAL,
+        whisk.EXIT_CODE_ERR_GENERAL,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -596,7 +600,7 @@ func nestedError(errorMessage string, err error) (error) {
 func nonNestedError(errorMessage string) (error) {
     return whisk.MakeWskError(
         errors.New(errorMessage),
-        whisk.EXITCODE_ERR_USAGE,
+        whisk.EXIT_CODE_ERR_USAGE,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }

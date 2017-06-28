@@ -128,7 +128,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -139,7 +139,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -165,7 +165,7 @@ func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.R
         Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, action)
         errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -191,7 +191,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -218,7 +218,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -247,7 +247,7 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }

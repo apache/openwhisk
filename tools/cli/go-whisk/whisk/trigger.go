@@ -54,7 +54,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Res
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := wski18n.T("Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}",
             map[string]interface{}{"options": fmt.Sprintf("%#v", options), "route": route, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -63,7 +63,7 @@ func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Res
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -88,7 +88,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *ht
         Debug(DbgError, "url.Parse(%s) error: %s\n", route, err)
         errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
             map[string]interface{}{"url": route, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -97,7 +97,7 @@ func (s *TriggerService) Insert(trigger *Trigger, overwrite bool) (*Trigger, *ht
         Debug(DbgError, "http.NewRequestUrl(PUT, %s, %+v, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired); error: '%s'\n", routeUrl, trigger, err)
         errStr := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -123,7 +123,7 @@ func (s *TriggerService) Get(triggerName string) (*Trigger, *http.Response, erro
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -149,7 +149,7 @@ func (s *TriggerService) Delete(triggerName string) (*Trigger, *http.Response, e
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -174,7 +174,7 @@ func (s *TriggerService) Fire(triggerName string, payload interface{}) (*Trigger
         Debug(DbgError," http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 

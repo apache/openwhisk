@@ -609,7 +609,7 @@ func unpackGzip(inpath string, outpath string) error {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' exists\n", outpath)
         errStr := wski18n.T("The file {{.name}} already exists.  Delete it and retry.",
             map[string]interface{}{"name": outpath})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -617,7 +617,7 @@ func unpackGzip(inpath string, outpath string) error {
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
         errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -626,7 +626,7 @@ func unpackGzip(inpath string, outpath string) error {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", outpath, err)
         errStr := wski18n.T("Error creating unGzip file '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": outpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
     defer unGzFile.Close()
@@ -636,7 +636,7 @@ func unpackGzip(inpath string, outpath string) error {
         whisk.Debug(whisk.DbgError, "os.Open(%s) failed: %s\n", inpath, err)
         errStr := wski18n.T("Error opening Gzip file '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": inpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
     defer gzFile.Close()
@@ -646,7 +646,7 @@ func unpackGzip(inpath string, outpath string) error {
         whisk.Debug(whisk.DbgError, "gzip.NewReader() failed: %s\n", err)
         errStr := wski18n.T("Unable to unzip file '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": inpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -655,7 +655,7 @@ func unpackGzip(inpath string, outpath string) error {
         whisk.Debug(whisk.DbgError, "io.Copy() failed: %s\n", err)
         errStr := wski18n.T("Unable to unzip file '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": inpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -667,7 +667,7 @@ func unpackZip(inpath string) error {
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
         errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -676,7 +676,7 @@ func unpackZip(inpath string) error {
         whisk.Debug(whisk.DbgError, "zip.OpenReader(%s) failed: %s\n", inpath, err)
         errStr := wski18n.T("Unable to opens '{{.name}}' for unzipping: {{.err}}",
             map[string]interface{}{"name": inpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
     defer zipFileReader.Close()
@@ -693,7 +693,7 @@ func unpackZip(inpath string) error {
                 whisk.Debug(whisk.DbgError, "os.MkdirAll(%s, %d) failed: %s\n", item.Name, item.Mode(), err)
                 errStr := wski18n.T("Unable to create directory '{{.dir}}' while unzipping '{{.name}}': {{.err}}",
                         map[string]interface{}{"dir": item.Name, "name": inpath, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }
@@ -705,7 +705,7 @@ func unpackZip(inpath string) error {
                 whisk.Debug(whisk.DbgError, "'%s' Open() failed: %s\n", item.Name, err)
                 errStr := wski18n.T("Unable to open zipped file '{{.file}}' while unzipping '{{.name}}': {{.err}}",
                         map[string]interface{}{"file": item.Name, "name": inpath, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
             targetFile, err := os.Create(itemName)
@@ -713,14 +713,14 @@ func unpackZip(inpath string) error {
                 whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", itemName, err)
                 errStr := wski18n.T("Unable to create file '{{.file}}' while unzipping '{{.name}}': {{.err}}",
                         map[string]interface{}{"file": item.Name, "name": inpath, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
             if _, err := io.Copy(targetFile, unzipFile); err != nil {
                 whisk.Debug(whisk.DbgError, "io.Copy() of '%s' failed: %s\n", itemName, err)
                 errStr := wski18n.T("Unable to unzip file '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": itemName, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }
@@ -735,7 +735,7 @@ func unpackTar(inpath string) error {
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
         errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -744,7 +744,7 @@ func unpackTar(inpath string) error {
         whisk.Debug(whisk.DbgError, "os.Open(%s) failed: %s\n", inpath, err)
         errStr := wski18n.T("Error opening tar file '{{.name}}': {{.err}}",
             map[string]interface{}{"name": inpath, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
     defer tarFileReader.Close()
@@ -761,7 +761,7 @@ func unpackTar(inpath string) error {
             whisk.Debug(whisk.DbgError, "tReader.Next() failed: %s\n", err)
             errStr := wski18n.T("Error reading tar file '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": inpath, "err": err})
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -772,7 +772,7 @@ func unpackTar(inpath string) error {
                 whisk.Debug(whisk.DbgError, "os.MkdirAll(%s, %d) failed: %s\n", item.Name, item.Mode, err)
                 errStr := wski18n.T("Unable to create directory '{{.dir}}' while untarring '{{.name}}': {{.err}}",
                         map[string]interface{}{"dir": item.Name, "name": inpath, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         case tar.TypeReg:
@@ -782,21 +782,21 @@ func unpackTar(inpath string) error {
                 whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", item.Name, err)
                 errStr := wski18n.T("Unable to create file '{{.file}}' while untarring '{{.name}}': {{.err}}",
                         map[string]interface{}{"file": item.Name, "name": inpath, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
             if _, err := io.Copy(untarFile, tReader); err != nil {
                 whisk.Debug(whisk.DbgError, "io.Copy() of '%s' failed: %s\n", item.Name, err)
                 errStr := wski18n.T("Unable to untar file '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": item.Name, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         default:
             whisk.Debug(whisk.DbgError, "Unexpected tar file type of %q\n", item.Typeflag)
             errStr := wski18n.T("Unable to untar '{{.name}}' due to unexpected tar file type\n",
                     map[string]interface{}{"name": item.Name})
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
     }
@@ -817,7 +817,7 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
         whisk.Debug(whisk.DbgError, fmt.Sprintf("%s command must have %s %d argument(s)\n", commandName,
             exactlyOrAtLeast, minimumArgNumber))
         errMsg := wski18n.T("Invalid argument(s). {{.required}}", map[string]interface{}{"required": requiredArgMsg})
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
     } else if len(args) > maximumArgNumber {
@@ -825,7 +825,7 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
             exactlyOrNoMoreThan, maximumArgNumber))
         errMsg := wski18n.T("Invalid argument(s): {{.args}}. {{.required}}",
             map[string]interface{}{"args": strings.Join(args[maximumArgNumber:], ", "), "required": requiredArgMsg})
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
     } else {
@@ -836,7 +836,7 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
 func getURLBase(host string, path string) (*url.URL, error)  {
     if len(host) == 0 {
         errMsg := wski18n.T("An API host must be provided.")
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -870,7 +870,7 @@ func readFile(filename string) (string, error) {
         whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", filename, err)
         errMsg := wski18n.T("File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
                 map[string]interface{}{"name": filename, "err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_USAGE,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_USAGE,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 
         return "", whiskErr
@@ -881,7 +881,7 @@ func readFile(filename string) (string, error) {
         whisk.Debug(whisk.DbgError, "os.ioutil.ReadFile(%s) error: %s\n", filename, err)
         errMsg := wski18n.T("Unable to read '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": filename, "err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return "", whiskErr
     }
@@ -926,7 +926,7 @@ func parseShared(shared string) (bool, bool, error) {
     } else {
         whisk.Debug(whisk.DbgError, "Cannot use value '%s' for shared.\n", shared)
         errMsg := wski18n.T("Cannot use value '{{.arg}}' for shared.", map[string]interface{}{"arg": shared})
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG,
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG,
             whisk.DISPLAY_USAGE)
         return false, false, whiskErr
     }
@@ -988,7 +988,7 @@ func WriteProps(path string, props map[string]string) error {
     if err != nil {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failed: %s\n", path, err)
         errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
     defer file.Close()
@@ -1001,7 +1001,7 @@ func WriteProps(path string, props map[string]string) error {
         if err != nil {
             whisk.Debug(whisk.DbgError, "fmt.Fprintln() write to '%s' failed: %s\n", path, err)
             errStr := wski18n.T("Whisk properties file write failure: {{.err}}", map[string]interface{}{"err": err})
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
     }
@@ -1014,7 +1014,7 @@ func getSpaceGuid() (string, error) {
     if err != nil {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
         errStr := wski18n.T("Unable to obtain the `auth` property value: {{.err}}", map[string]interface{}{"err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return "", werr
     }
 
@@ -1026,7 +1026,7 @@ func getSpaceGuid() (string, error) {
 
     whisk.Debug(whisk.DbgError, "auth not found in properties: %#q\n", props)
     errStr := wski18n.T("Auth key property value is not set")
-    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
     return "", werr
 }
 

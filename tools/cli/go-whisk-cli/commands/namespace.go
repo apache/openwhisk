@@ -52,7 +52,7 @@ var namespaceListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
             errStr := wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
                 map[string]interface{}{"err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
         printList(namespaces)
@@ -92,7 +92,7 @@ var namespaceGetCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
             errStr := wski18n.T("Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}",
                     map[string]interface{}{"namespace": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK,
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }

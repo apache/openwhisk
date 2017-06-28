@@ -47,7 +47,7 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: %s\n", urlStr, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.url}}': {{.err}}",
             map[string]interface{}{"url": urlStr, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 

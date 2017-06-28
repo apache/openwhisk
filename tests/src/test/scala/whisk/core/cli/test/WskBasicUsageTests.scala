@@ -514,15 +514,50 @@ class WskBasicUsageTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val key = "someKey"
-            val value = JsString("someValue")
-            val annots = Map(key -> value)
+            val origKey = "origKey"
+            val origValue = JsString("origValue")
+            val updatedKey = "updatedKey"
+            val updatedValue = JsString("updateValue")
+            val origAnnots = Map(origKey -> origValue)
+            val updatedAnnots = Map(updatedKey -> updatedValue)
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, file, annotations = annots)
+                (action, _) => action.create(name, file, annotations = origAnnots)
             }
 
-            wsk.action.create(name, file, web = Some("true"), update = true)
+            wsk.action.create(name, file, web = Some("true"), update = true, annotations = updatedAnnots)
+
+            val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(stdout).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(origKey),
+                    "value" -> origValue),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(updatedKey),
+                    "value" -> updatedValue),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+    }
+
+    it should "ensure action update creates an action with --web flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"), update = true)
+            }
 
             val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
             assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
@@ -536,9 +571,6 @@ class WskBasicUsageTests
                 JsObject(
                     "key" -> JsString("final"),
                     "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString(key),
-                    "value" -> value),
                 JsObject(
                     "key" -> JsString("exec"),
                     "value" -> JsString("nodejs:6")))

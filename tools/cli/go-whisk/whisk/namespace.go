@@ -51,7 +51,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}",
             map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -89,7 +89,7 @@ func (s *NamespaceService) Get(namespace string) (*Namespace, *http.Response, er
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resNamespace, nil, werr
     }
 

@@ -44,7 +44,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
         errStr := wski18n.T("Unable to URL parse '{{.version}}': {{.err}}",
             map[string]interface{}{"version": urlStr, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -53,7 +53,7 @@ func (s *InfoService) Get() (*Info, *http.Response, error) {
         Debug(DbgError, "http.NewRequest(GET, %s) error: %s\n", u.String(), err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.url}}': {{.err}}",
             map[string]interface{}{"url": u.String(), "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
