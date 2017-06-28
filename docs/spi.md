@@ -34,6 +34,24 @@ class YourImplModule extends SpiModule[YourSpi]{
 }
 ```
 
+To use scaldi injectors to bind dependencies, use:
+```scala
+class YourImplModule extends SpiFactoryModule[YourSpi]{
+  def getInstance(implicit injector:Injector) = new YourImpl(inject[SomeDependencyType])
+}
+```
+
+Note: To bind dependencies (must be done before first access of the Spi):
+```scala
+//bind config
+SharedModules.bind[WhiskConfig](whiskConfig)
+//bind an Spi instance
+SharedModules.bind[YourSpi](yourSpi)
+
+```
+
+
+
 `SpiModule`s are loaded via ServiceLoader at runtime, so you need to add the module to the list at
 `META-INF/services/whisk.spi.SpiModule` :
 ```text
@@ -47,6 +65,20 @@ The configKey indicates which config (in application.conf) is used to determine 
 ```scala
 object YourSpi  extends SpiProvider[YourSpi](configKey = "whisk.spi.yourspi.impl")
 ```
+
+## Load and use the Spi
+
+In the application, to use the Spi:
+```scala
+
+//setup any injectable dependencies (if your Spi impl requires it):
+val config = WhiskConfig(Map())
+SharedModules.bind[WhiskConfig](config)
+//access your Spi using Akka Extension system:
+val yourSpi = YourSpi(actorSystem)
+
+```
+
 
 # Runtime
 
