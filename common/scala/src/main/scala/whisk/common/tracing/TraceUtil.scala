@@ -129,6 +129,6 @@ object TraceUtil{
   }
 }
 
+case class BasicTraceRequest(val headers: Map[String, Integer], override val spanName: String) extends TracingSupport with Serializable
 
-
-
+case class TracedRequest(val request: BasicTraceRequest, val parent: TracedRequest, val metadata: Option[SpanMetadata])

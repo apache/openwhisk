@@ -115,7 +115,7 @@ protected[actions] trait PrimitiveActions {
             activeAckTopicIndex,
             args,
             cause = cause,
-            traceMetadata = if (req != null) req.getMetadata() else None)
+            traceMetadata = if (req != null) req.metadata else None)
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
