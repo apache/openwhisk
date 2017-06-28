@@ -114,7 +114,7 @@ protected[actions] trait PrimitiveActions {
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
-        val postedFuture = loadBalancer.publish(action.toWhiskAction, message)
+        val postedFuture = loadBalancer.publish(action, message)
 
         postedFuture.flatMap { activeAckResponse =>
             // successfully posted activation request to the message bus

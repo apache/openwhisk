@@ -42,7 +42,6 @@ import whisk.core.entity.AuthKey
 import whisk.core.entity.EntityName
 import whisk.core.entity.EntityPath
 import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.test.ExecHelpers
