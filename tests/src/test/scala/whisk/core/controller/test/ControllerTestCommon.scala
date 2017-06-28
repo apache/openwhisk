@@ -17,14 +17,16 @@
 
 package whisk.core.controller.test
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.language.postfixOps
+
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+
 import common.StreamLogging
 import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
@@ -43,8 +45,6 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.loadBalancer.LoadBalancer
-import whisk.spi.SharedModule
-import whisk.spi.SharedModules
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -86,7 +86,6 @@ protected trait ControllerTestCommon
     }
 
     override val consulServer = "???"
-    SharedModules.addSharedModules(new SharedModule(actorSystem, whiskConfig, logging))
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)

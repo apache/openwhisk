@@ -24,7 +24,7 @@ import whisk.core.WhiskConfig
 import whisk.spi.SpiModule
 
 /**
-  * Created by tnorris on 6/20/17.
+  * A CouchDB implementation of ArtifactStoreProvider
   */
 class CouchDBStoreProvider extends ArtifactStoreProvider{
   def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(

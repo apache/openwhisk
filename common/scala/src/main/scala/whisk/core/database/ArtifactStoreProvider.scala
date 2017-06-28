@@ -25,7 +25,7 @@ import whisk.spi.Spi
 import whisk.spi.SpiProvider
 
 /**
-  * Created by tnorris on 6/20/17.
+  * An Spi for providing ArtifactStore implementations
   */
 
 trait ArtifactStoreProvider extends Spi {

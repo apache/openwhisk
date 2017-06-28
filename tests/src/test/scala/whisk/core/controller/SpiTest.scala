@@ -42,9 +42,6 @@ import whisk.spi.SpiProvider
 import scala.util.Failure
 import scala.util.Success
 
-/**
-  * Created by tnorris on 6/22/17.
-  */
 object SpiTest extends TransactionCounter {
   //    import scaldi.Injectable._
   def main(args: Array[String]): Unit = {

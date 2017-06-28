@@ -26,7 +26,7 @@ import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.spi.SpiFactoryModule
 /**
-  * Created by tnorris on 6/20/17.
+  * A Kafka based implementation of MessagingProvider
   */
 class KafkaMessagingProvider(actorSystem:ActorSystem, config:WhiskConfig)(implicit logging:Logging) extends MessagingProvider {
   def getConsumer(groupId:String, topic: String, maxdepth:Int): MessageConsumer = {

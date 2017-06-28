@@ -41,11 +41,6 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 /**
-  * Created by tnorris on 6/8/17.
-  */
-
-
-/**
   * An Spi (Service Provider Interface) is an extension point.
   * At runtime, multiple Spi implementations may exist in the classpath, but only a single implementation
   * will be available for consumers to use. The specific implementation available at runtime is governed by the
