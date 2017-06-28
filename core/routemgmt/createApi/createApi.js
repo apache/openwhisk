@@ -58,7 +58,7 @@ function main(message) {
   //console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
-    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
+    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method !== undefined)));
   }
 
   var gwInfo = {
@@ -95,7 +95,7 @@ function main(message) {
   var tenantInstance = message.tenantInstance || 'openwhisk';
 
   // This can be invoked as either a standard web action or as a normal action
-  var calledAsWebAction = message.__ow_method != undefined;
+  var calledAsWebAction = message.__ow_method !== undefined;
 
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
@@ -133,7 +133,7 @@ function main(message) {
     .then(function(endpointDocs) {
       console.log('Got '+endpointDocs.length+' APIs');
       if (endpointDocs.length === 0) {
-        console.log('No API found for namespace '+doc.namespace + ' with basePath '+ basepath)
+        console.log('No API found for namespace '+doc.namespace + ' with basePath '+ basepath);
         return Promise.resolve(utils2.generateBaseSwaggerApi(basepath, doc.apiName));
       } else {
         apiDocId = endpointDocs[0].artifact_id;
