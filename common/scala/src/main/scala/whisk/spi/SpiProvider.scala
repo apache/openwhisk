@@ -163,19 +163,23 @@ private class ModuleLoaderImpl(actorSystem:ActorSystem) extends Extension{
     * @return
     */
   def getInstance[SpiImpl <: Spi](impl:String)(implicit tag:ClassTag[SpiImpl]):SpiModule[SpiImpl] = {
-    val spiImpls = (ServiceLoader load classOf[SpiModule[SpiImpl]]).asScala
+    val modules = (ServiceLoader load classOf[SpiModule[SpiImpl]]).asScala
     //filter the modules by spi type first, then use instance to filter by impl type
     //(this way the impl is constructed lazily, even though the module is loaded)
-    val filtered = spiImpls
+    val filteredModules = modules
       .filter(_.spiTypeName == tag.runtimeClass.getName)
-      .filter(_.spiImplInstance.getClass.getName == impl)
-    if (filtered.size == 0){
+    if (filteredModules.size == 0){
       throw new IllegalArgumentException(s"no SpiModule implemented for type ${tag.runtimeClass}")
     }
-    if (filtered.size > 1) {
+    val spiModules = filteredModules
+      .filter(_.spiImplInstance.getClass.getName == impl)
+    if (spiModules.size == 0){
+      throw new IllegalArgumentException(s"no SpiModule for requested impl ${impl} for type ${tag.runtimeClass}; check configured impls for detected modules: ${filteredModules.map(_.getClass)} ")
+    }
+    if (spiModules.size > 1) {
       actorSystem.log.warning(s"multiple SpiModules loaded for type ${tag.runtimeClass}")
     }
-    filtered.head.asInstanceOf[SpiModule[SpiImpl]]
+    spiModules.head
   }
 }
 private object ModuleLoader

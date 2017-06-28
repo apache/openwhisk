@@ -1,1 +1,4 @@
-whisk.core.controller.TestSpiProviderModule
+whisk.spi.TestSpiProviderModule
+whisk.spi.DepSpiProviderModule
+whisk.spi.SimpleSpiProviderModule
+whisk.spi.MissingSpiProviderModule
