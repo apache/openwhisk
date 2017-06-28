@@ -4,6 +4,8 @@ whisk_logs_dir: /Users/Shared/wsklogs
 docker_registry: ""
 docker_dns: ""
 
+ansible_python_interpreter: "/usr/local/bin/python"
+
 db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
 
 # Auto lookup to find the db credentials

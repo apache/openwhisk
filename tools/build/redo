@@ -264,6 +264,10 @@ Components = [
                   'install catalog',
                   yaml = 'postdeploy.yml'),
 
+    makeComponent('apigateway',
+                  'install apigateway',
+                  yaml = 'apigateway.yml'),
+
     # the following (re)build images via gradle
 
     makeComponent('nodejs6action',
