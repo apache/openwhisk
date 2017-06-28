@@ -175,14 +175,14 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         // Run the first container
         pool ! runMessage
         containers(0).expectMsg(runMessage)
-        containers(0).send(pool, NeedWork(warmedData()))
+        containers(0).send(pool, NeedWork(warmedData(lastUsed = Instant.EPOCH)))
         containers(0).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
 
         // Run the second container, don't remove the first one
         pool ! runMessageDifferentEverything
         containers(1).expectMsg(runMessageDifferentEverything)
-        containers(1).send(pool, NeedWork(warmedData()))
+        containers(1).send(pool, NeedWork(warmedData(lastUsed = Instant.now)))
         containers(1).send(pool, ActivationCompleted)
         feed.expectMsg(ContainerReleased)
 
