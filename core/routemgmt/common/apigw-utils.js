@@ -39,6 +39,7 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
   console.log('addApiToGateway: ');
   try {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
     json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
   };
@@ -98,6 +99,7 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
  */
 function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis/'+encodeURIComponent(apiId),
     agentOptions: {rejectUnauthorized: false},
     headers: {
@@ -150,6 +152,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     }
   }
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis',
     headers: {
       'Accept': 'application/json'

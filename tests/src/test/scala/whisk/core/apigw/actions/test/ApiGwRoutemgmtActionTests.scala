@@ -427,10 +427,10 @@ class ApiGwRoutemgmtActionTests
     it should "reject routemgmt actions that are invoked with not enough parameters" in {
         val invalidArgs = Seq(
             //getApi
-            ("/whisk.system/routemgmt/getApi", ANY_ERROR_EXIT, "__ow_user is required", Seq()),
+            ("/whisk.system/routemgmt/getApi", ANY_ERROR_EXIT, "Invalid authentication.", Seq()),
 
             //deleteApi
-            ("/whisk.system/routemgmt/deleteApi", ANY_ERROR_EXIT, "__ow_user is required", Seq("-p", "basepath", "/ApiGwRoutemgmtActionTests_bp")),
+            ("/whisk.system/routemgmt/deleteApi", ANY_ERROR_EXIT, "Invalid authentication.", Seq("-p", "basepath", "/ApiGwRoutemgmtActionTests_bp")),
             ("/whisk.system/routemgmt/deleteApi", ANY_ERROR_EXIT, "basepath is required", Seq("-p", "__ow_user", "_")),
             ("/whisk.system/routemgmt/deleteApi", ANY_ERROR_EXIT, "When specifying an operation, the path is required",
                 Seq("-p", "__ow_user", "_", "-p", "basepath", "/ApiGwRoutemgmtActionTests_bp", "-p", "operation", "get")),
@@ -560,10 +560,10 @@ class ApiGwRoutemgmtActionTests
     it should "reject apimgmt actions that are invoked with not enough parameters" in {
         val invalidArgs = Seq(
             //getApi
-            ("/whisk.system/apimgmt/getApi", ANY_ERROR_EXIT, "__ow_user is required", Seq()),
+            ("/whisk.system/apimgmt/getApi", ANY_ERROR_EXIT, "Invalid authentication.", Seq()),
 
             //deleteApi
-            ("/whisk.system/apimgmt/deleteApi", ANY_ERROR_EXIT, "__ow_user is required", Seq("-p", "basepath", "/ApiGwRoutemgmtActionTests_bp")),
+            ("/whisk.system/apimgmt/deleteApi", ANY_ERROR_EXIT, "Invalid authentication.", Seq("-p", "basepath", "/ApiGwRoutemgmtActionTests_bp")),
             ("/whisk.system/apimgmt/deleteApi", ANY_ERROR_EXIT, "basepath is required", Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN")),
             ("/whisk.system/apimgmt/deleteApi", ANY_ERROR_EXIT, "When specifying an operation, the path is required",
               Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN", "-p", "basepath", "/ApiGwRoutemgmtActionTests_bp", "-p", "operation", "get")),

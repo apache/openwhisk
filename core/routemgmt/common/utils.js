@@ -37,6 +37,7 @@ var utils2 = require('./apigw-utils.js');
 function createTenant(gwInfo, namespace, tenantInstance) {
   var instance = tenantInstance || 'openwhisk';  // Default to a fixed instance so all openwhisk tenants have a common instance
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants',
     headers: {
       'Accept': 'application/json'
@@ -93,6 +94,7 @@ function getTenants(gwInfo, ns, tenantInstance) {
   var qs = qsNsOnly;
   if (tenantInstance) qs = qsNsAndInstance;
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants',
     qs: qs,
     headers: {
@@ -174,6 +176,7 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
   gwApi.tenantId = tenantId;
 
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/apis',
     headers: {
       'Accept': 'application/json'
@@ -232,6 +235,7 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
  */
 function deleteApiFromGateway(gwInfo, gwApiId) {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/apis/'+gwApiId,
     agentOptions: {rejectUnauthorized: false},
     headers: {
@@ -285,6 +289,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
     }
   }
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants/'+tenantId+'/apis',
     headers: {
       'Accept': 'application/json'

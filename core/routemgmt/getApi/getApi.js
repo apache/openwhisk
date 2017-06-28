@@ -15,33 +15,33 @@
  * limitations under the License.
  */
 
- /**
-  * Retrieve API configuration from the API Gateway:
-  *
-  * Parameters (all as fields in the message JSON object)
-  *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
-  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
-  *   gwUser               Optional. The API Gateway authentication
-  *   gwPwd                Optional. The API Gateway authentication
-  *   namespace            Optional. Input value is now overwritten by __ow_user.  Namespace of API author
-  *   __ow_user            Required. Namespace of API author
-  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
-  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
-  *   spaceguid            Optional. Namespace unique id.
-  *   basepath             Optional. Base path or API name of the API.
-  *                                  If not provided, all APIs for the namespace are returned
-  *   relpath              Optional. Must be defined with 'operation'.  Filters API result to path/operation
-  *   operation            Optional. Must be defined with 'relpath'.  Filters API result to path/operation
-  *   outputFormat         Optional. Defaults to 'swagger'.  Possible values:
-  *                                  'apigw' = return API as obtained from the API Gateway
-  *                                  'swagger' = return API as swagger compliant JSON
-  *
-  * NOTE: The package containing this action will be bound to the following values:
-  *         gwUrl, gwAuth
-  *       As such, the caller to this action should normally avoid explicitly setting
-  *       these values
-  */
-var request = require('request');
+/**
+ *
+ * Retrieve API configuration from the API Gateway:
+ *
+ * Parameters (all as fields in the message JSON object)
+ *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
+ *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
+ *   gwUser               Optional. The API Gateway authentication
+ *   gwPwd                Optional. The API Gateway authentication
+ *   __ow_user            Optional. Set to the authenticated API authors's namespace when valid authentication is supplied.
+ *   namespace            Required if __ow_user not specified.  Namespace of API author
+ *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
+ *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
+ *   spaceguid            Optional. Namespace unique id.
+ *   basepath             Optional. Base path or API name of the API.
+ *                                  If not provided, all APIs for the namespace are returned
+ *   relpath              Optional. Must be defined with 'operation'.  Filters API result to path/operation
+ *   operation            Optional. Must be defined with 'relpath'.  Filters API result to path/operation
+ *   outputFormat         Optional. Defaults to 'swagger'.  Possible values:
+ *                                  'apigw' = return API as obtained from the API Gateway
+ *                                  'swagger' = return API as swagger compliant JSON
+ *
+ * NOTE: The package containing this action will be bound to the following values:
+ *         gwUrl, gwAuth
+ *       As such, the caller to this action should normally avoid explicitly setting
+ *       these values
+ **/
 var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 
@@ -154,12 +154,12 @@ function validateArgs(message) {
     return 'Internal error. A message parameter was not supplied.';
   }
 
-  if (!message.__ow_user) {
-    return '__ow_user is required.';
+  if (!message.gwUrl && !message.gwUrlV2) {
+    return 'gwUrl is required.';
   }
 
-  if (!message.gwUrl) {
-    return 'gwUrl is required.';
+  if (!message.__ow_user && !message.namespace) {
+    return 'Invalid authentication.';
   }
 
   if (message.outputFormat && !(message.outputFormat.toLowerCase() === 'apigw' || message.outputFormat.toLowerCase() === 'swagger')) {
