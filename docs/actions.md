@@ -607,7 +607,7 @@ You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift
+wsk action create helloSwift hello.swift --kind swift:3.1.1
 ```
 
 When you use the command line and a `.swift` source file, you do not need to
@@ -652,6 +652,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   echo '_run_main(mainFunction:main)' >> /swift3Action/spm-build/main.swift
   ```
   Copy any additional source files to `/swift3Action/spm-build/`
+
 
 - (Optional) Create the `Package.swift` file to add dependencies.
   ```swift
