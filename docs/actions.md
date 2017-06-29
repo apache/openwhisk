@@ -607,7 +607,7 @@ You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift --kind
+wsk action create helloSwift hello.swift
 ```
 
 When you use the command line and a `.swift` source file, you do not need to
