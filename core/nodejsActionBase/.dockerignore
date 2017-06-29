@@ -1,2 +1,8 @@
 Dockerfile
 build.gradle
+.project 
+.settings 
+build.xml
+README 
+node_modules 
+logs
