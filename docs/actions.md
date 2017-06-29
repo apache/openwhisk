@@ -607,7 +607,7 @@ You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift --kind swift:3.1.1
+wsk action create helloSwift hello.swift
 ```
 
 When you use the command line and a `.swift` source file, you do not need to
@@ -641,7 +641,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   ```
   This puts you in a bash shell within the Docker container. 
 
-- Copy the source code and prepare to build it
+- Copy the source code and prepare to build it.
   ```
   cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
   ```
@@ -653,8 +653,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   ```
   Copy any additional source files to `/swift3Action/spm-build/`
 
-- (Optional) Create Package.swift
-  If you need to add dependencies create a Package.swift file like the following:
+- (Optional) Create the `Package.swift` file to add dependencies.
   ```swift
   import PackageDescription
   
@@ -670,28 +669,30 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   )
   ```
   As you can see this example adds `swift-watson-sdk` and `example-package-deckofplayingcards` dependencies.
-  Notice that `CCurl`, `Kitura-net` and `SwiftyJSON.git` are the minimum required dependencies to include.
-  Copy Package.swift to spm-build directory
+  Notice that `CCurl`, `Kitura-net` and `SwiftyJSON` are provided in the standard Swift action
+and so you should include them in your own `Package.swift`.
+
+- Copy Package.swift to spm-build directory
   ```
   cp /owexec/Package.swift /swift3Action/spm-build/Package.swift
   ```
 
-- Change to the spm-build directory
+- Change to the spm-build directory.
   ```
   cd /swift3Action/spm-build
   ```
 
-- Compile your Swift Action
+- Compile your Swift Action.
   ```
   swift build -c release
   ```
 
-- Create the zip archive
+- Create the zip archive.
   ```
   zip /owexec/hello.zip .build/release/Action
   ```
 
-- Exit the Docker container
+- Exit the Docker container.
   ```
   exit
   ```
