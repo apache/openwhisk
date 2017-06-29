@@ -60,7 +60,7 @@ trait ExecHelpers
     }
 
     protected def swift3(code: String, main: Option[String] = None) = {
-        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = Some(true)), trim(code), main.map(_.trim))
+        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = Some(true), deprecated = Some(false)), trim(code), main.map(_.trim))
     }
 
     protected def sequence(components: Vector[FullyQualifiedEntityName]) = SequenceExec(components)
