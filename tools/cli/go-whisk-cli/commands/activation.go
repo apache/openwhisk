@@ -31,8 +31,12 @@ import (
     "github.com/spf13/cobra"
 )
 
-const MAX_ACTIVATION_LIMIT = 200
-const DEFAULT_ACTIVATION_LIMIT = 30
+const (
+    PollInterval = time.Second * 2
+    Delay        = time.Second * 5
+    MAX_ACTIVATION_LIMIT = 200
+    DEFAULT_ACTIVATION_LIMIT = 30
+)
 
 var activationCmd = &cobra.Command{
     Use:   "activation",

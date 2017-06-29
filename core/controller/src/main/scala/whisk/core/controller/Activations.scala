@@ -43,6 +43,10 @@ import whisk.core.entity.types.ActivationStore
 import whisk.http.Messages
 import whisk.http.ErrorResponse.terminate
 
+object WhiskActivationsApi {
+    protected[core] val maxActivationLimit = 200
+}
+
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi
     extends Directives
@@ -64,8 +68,6 @@ trait WhiskActivationsApi
 
     /** Only GET is supported in this API. */
     protected override lazy val entityOps = get
-
-    protected val maxActivationLimit = 200
 
     /** Validated entity name as an ActivationId from the matched path segment. */
     protected override def entityname(n: String) = {
@@ -114,10 +116,10 @@ trait WhiskActivationsApi
     private def list(namespace: EntityPath)(implicit transid: TransactionId) = {
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false, 'docs ? false, 'name.as[EntityName]?, 'since.as[Instant]?, 'upto.as[Instant]?) {
             (skip, limit, count, docs, name, since, upto) =>
-                val cappedLimit = if (limit == 0) maxActivationLimit else limit
+                val cappedLimit = if (limit == 0) WhiskActivationsApi.maxActivationLimit else limit
 
                 // regardless of limit, cap at maxActivationLimit (200) records, client must paginate
-                if (cappedLimit <= maxActivationLimit) {
+                if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
                     val activations = name match {
                         case Some(action) =>
                             WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)
@@ -133,7 +135,7 @@ trait WhiskActivationsApi
                         }
                     }
                 } else {
-                    terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, maxActivationLimit))
+                    terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))
                 }
         }
     }

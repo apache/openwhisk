@@ -1466,9 +1466,5 @@
   {
     "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
     "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
-  },
-  {
-    "id": "Activation limit of {{.limit}} exceeds maximum limit of {{.max}}",
-    "translation": "Activation limit of {{.limit}} exceeds maximum limit of {{.max}}"
   }
 ]
