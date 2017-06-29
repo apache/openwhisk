@@ -1,8 +1,7 @@
 Dockerfile
 build.gradle
 .project 
-.settings 
-build.xml
+.settings
 README 
 node_modules 
 logs
