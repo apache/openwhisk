@@ -559,6 +559,7 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation
      */
     def get(
         activationId: Option[String] = None,
@@ -579,6 +580,7 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation
      */
     def logs(
         activationId: Option[String] = None,
@@ -597,6 +599,7 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation 
      */
     def result(
         activationId: Option[String] = None,

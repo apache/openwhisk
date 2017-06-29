@@ -249,7 +249,7 @@ var activationResultCmd = &cobra.Command{
 func lastFlag(args []string) ([]string, error) {
   // Checks to see if there is an ID sent with the --last
   // If an ID is given with --last then an error will be thrown
-  if  flags.activation.last &&  len(args) < 3{
+  if  flags.activation.last {
     options := &whisk.ActivationListOptions {
       Limit: 1,
       Skip: 0,

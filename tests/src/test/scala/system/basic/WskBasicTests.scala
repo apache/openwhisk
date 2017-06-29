@@ -883,114 +883,53 @@ class WskBasicTests
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
-    it should "invoke an action and get the last activation" in withAssetCleaner(wskprops) {
-        (wp,assetHelper) =>
-        val name = "activationLast"
-        val file = Some(TestUtils.getTestActionFilename("echo.js"))
+    it should "retrieve the last activation using --last flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+            val includeStr = "hello, undefined!"
 
-        assetHelper.withCleaner(wsk.action, name) {
-          (action,_) => action.create(name, file)
+            assetHelper.withCleaner(wsk.action, "lastName") {
+                (action, _) => wsk.action.create("lastName", defaultAction)
+            }
+            val lastInvoke = wsk.action.invoke("lastName")
+            val includeID = wsk.activation.extractActivationId(lastInvoke).get
+            Thread.sleep(1000)
+
+            var  lastFlag = Seq (
+                (Seq("activation", "get", "publish", "--last"),includeID),
+                (Seq("activation", "get", "--last"), includeID),
+                (Seq("activation", "logs", "--last"), includeStr),
+                (Seq("activation", "result", "--last"), includeStr))
+
+            lastFlag foreach {
+                case (cmd, output) =>
+                    val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
+                    stdout should include(output)
+            }
         }
 
-        val ar = wsk.action.invoke(name)
-        Thread.sleep(1000)
-        val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
-        wsk.activation.extractActivationId(ar) shouldBe lastID
-    }
 
-    it should "invoke an action and get the logs of the last activation" in withAssetCleaner(wskprops) {
-        (wp,assetHelper) =>
-        val name = "activationLast"
-        val file = Some(TestUtils.getTestActionFilename("hello.js"))
-        val params = Map("payload" -> "World".toJson)
+    it should "reject activation request when using activation ID with --last Flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val tooManyArgsMsg = "When specifying an activation ID, do not use the --last flag"
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
 
-        assetHelper.withCleaner(wsk.action, name) {
-          (action,_) => action.create(name, file, parameters = params)
+            assetHelper.withCleaner(wsk.action, "lastName") {
+                (action, _) => wsk.action.create("lastName", defaultAction)
+            }
+            val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
+
+            var  invalidCmd = Seq (
+                (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),
+                (Seq("activation", "get", s"$lastId", "--last"), tooManyArgsMsg),
+                (Seq("activation", "logs", s"$lastId", "--last"), tooManyArgsMsg),
+                (Seq("activation", "result", s"$lastId", "--last"), tooManyArgsMsg))
+
+            invalidCmd foreach {
+                case (cmd, err) =>
+                    val stderr = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr
+                    stderr should include(err)
+                    stderr should include("Run 'wsk --help' for usage.")
+            }
         }
-
-        val rr = wsk.action.invoke(name)
-        Thread.sleep(1000)
-        val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
-        (wsk.activation.logs(wsk.activation.extractActivationId(rr))).toString shouldBe (wsk.activation.logs(lastID)).toString
-    }
-
-    it should "invoke an action and get the results of the last activation" in withAssetCleaner(wskprops) {
-      (wp, assetHelper) =>
-      val name = "activationLast"
-      val file = Some(TestUtils.getTestActionFilename("hello.js"))
-      val params = Map("payload" -> "World".toJson)
-
-      assetHelper.withCleaner(wsk.action,name) {
-        (action,_) => action.create(name, file, parameters =params)
-      }
-
-      val ar = wsk.action.invoke(name)
-      Thread.sleep(1000)
-      val lastID = wsk.activation.extractActivationId(wsk.activation.get(last = Some(true)))
-      (wsk.activation.result(wsk.activation.extractActivationId(ar))).toString shouldBe (wsk.activation.result(lastID)).toString
-    }
-
-    it should "reject get when using activation ID and --last" in withAssetCleaner(wskprops) {
-      (wp, assetHelper) =>
-      val name = "activationLast"
-      val file = Some(TestUtils.getTestActionFilename("echo.js"))
-      val errormsg = "error: Unable to get activation: When specifying an activation ID, do not use the --last flag"
-
-      assetHelper.withCleaner(wsk.action, name) {
-        (action,_) => action.create(name, file)
-      }
-
-      val ar = wsk.action.invoke(name)
-      Thread.sleep(1000)
-      val arID = wsk.activation.extractActivationId(ar)
-      wsk.activation.get(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
-    }
-
-    it should "reject logs when using activation ID and --last" in withAssetCleaner(wskprops) {
-      (wp, assetHelper) =>
-      val name = "activationLast"
-      val file = Some(TestUtils.getTestActionFilename("echo.js"))
-      val errormsg = "error: Unable to get logs for activation: When specifying an activation ID, do not use the --last flag"
-
-      assetHelper.withCleaner(wsk.action, name) {
-        (action,_) => action.create(name, file)
-      }
-
-      val ar = wsk.action.invoke(name)
-      Thread.sleep(1000)
-      val arID = wsk.activation.extractActivationId(ar)
-      wsk.activation.logs(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
-    }
-
-    it should "reject result when using activation ID and --last" in withAssetCleaner(wskprops) {
-      (wp, assetHelper) =>
-      val name = "activationLast"
-      val file = Some(TestUtils.getTestActionFilename("echo.js"))
-      val errormsg = "error: Unable to get result for activation: When specifying an activation ID, do not use the --last flag"
-
-      assetHelper.withCleaner(wsk.action, name) {
-        (action,_) => action.create(name, file)
-      }
-
-      val ar = wsk.action.invoke(name)
-      Thread.sleep(1000)
-      val arID = wsk.activation.extractActivationId(ar)
-      wsk.activation.result(arID, last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
-    }
-
-    it should "reject get when using activation ID, filter field and --last" in withAssetCleaner(wskprops) {
-      (wp, assetHelper) =>
-      val name = "activationLast"
-      val file = Some(TestUtils.getTestActionFilename("echo.js"))
-      val errormsg = "error: Unable to get activation: When specifying an activation ID, do not use the --last flag"
-
-      assetHelper.withCleaner(wsk.action, name) {
-        (action,_) => action.create(name, file)
-      }
-
-      val ar = wsk.action.invoke(name)
-      Thread.sleep(1000)
-      val arID = wsk.activation.extractActivationId(ar)
-      wsk.activation.get(arID, fieldFilter = Some("publish") , last = Some(true), expectedExitCode = ERROR_EXIT).stderr should include(errormsg)
-    }
 }
