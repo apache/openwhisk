@@ -413,24 +413,16 @@ trait WhiskWebActionsApi
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                                     case Success((actionOwnerIdentity, action)) =>
-                                        context.method match {
-                                            // if options method and action opted into default response, send standard response
-                                            case OPTIONS if !action.annotations.asBool("web-custom-options").exists(identity) =>
-                                                respondWithHeaders(allowOrigin, allowMethods) {
+                                        if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                                            respondWithHeaders(allowOrigin, allowMethods) {
+                                                if (context.method == OPTIONS) {
                                                     complete(OK, HttpEntity.Empty)
-                                                }
-
-                                            // otherwise not an options method, or action will respond to options verb
-                                            case _ =>
-                                                val response = extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
-
-                                                if (!action.annotations.asBool("web-custom-options").exists(identity)) {
-                                                    respondWithHeaders(allowOrigin, allowMethods) {
-                                                        response
-                                                    }
                                                 } else {
-                                                    response
+                                                    extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                                                 }
+                                            }
+                                        } else {
+                                            extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                                         }
 
                                     case Failure(t: RejectRequest) =>
