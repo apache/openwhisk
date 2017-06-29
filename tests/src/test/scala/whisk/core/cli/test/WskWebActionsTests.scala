@@ -215,14 +215,14 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, web = Some("true"), annotations = Map("web-custom-options" -> true.toJson))
             }
 
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().config(sslconfig).options(url)
 
             response.statusCode shouldBe 200
@@ -233,46 +233,28 @@ trait WskWebActionsTests
             response.header("Set-Cookie") shouldBe "cookie-cookie-cookie"
     }
 
-    it should "ensure that CORS header is preserved for non-custom options" in withAssetCleaner(wskprops) {
+    it should "ensure that default CORS header is preserved" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, web = Some("true"))
             }
 
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
-            val response = RestAssured.given().config(sslconfig).options(url)
+            val responses = Seq(RestAssured.given().config(sslconfig).options(s"$url.http"),
+                RestAssured.given().config(sslconfig).get(s"$url.json"))
 
-            response.statusCode shouldBe 200
-            response.header("Access-Control-Allow-Origin") shouldBe "*"
-            response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-            response.header("Location") shouldBe null
-            response.header("Set-Cookie") shouldBe null
-    }
-
-    it should "ensure that CORS header is received for non-option requests" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "webaction"
-            val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+            responses.foreach { response =>
+                response.statusCode shouldBe 200
+                response.header("Access-Control-Allow-Origin") shouldBe "*"
+                response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                response.header("Location") shouldBe null
+                response.header("Set-Cookie") shouldBe null
             }
-
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.json"
-            val response = RestAssured.given().config(sslconfig).get(url)
-
-            response.statusCode shouldBe 200
-            response.header("Access-Control-Allow-Origin") shouldBe "*"
-            response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-            response.header("Location") shouldBe null
-            response.header("Set-Cookie") shouldBe null
     }
 
     it should "invoke web action to ensure the returned body argument is correct" in withAssetCleaner(wskprops) {
