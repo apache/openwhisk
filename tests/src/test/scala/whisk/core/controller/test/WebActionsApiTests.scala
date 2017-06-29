@@ -1131,7 +1131,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             implicit val tid = transid()
             customOptions = false
 
-            Seq(s"$systemId/proxy/export_c.http").
+            Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json?a=b&c=d").
                 foreach { path =>
                     allowedMethods.foreach { m =>
                         invocationsAllowed += 1
@@ -1142,7 +1142,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                     }
                 }
 
-            invocationsAllowed -= 1 // Options request does not cause invocation of an action
+            invocationsAllowed -= 2 // Options request does not cause invocation of an action
         }
 
         it should s"invoke action with head verb (auth? ${creds.isDefined})" in {
