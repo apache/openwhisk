@@ -230,6 +230,25 @@ trait WskWebActionsTests
             response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
     }
 
+    it should "ensure that CORS header is preserved for non-custom options" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("true"))
+            }
+
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
+
+            val response = RestAssured.given().config(sslconfig).options(url)
+            response.statusCode shouldBe 200
+            response.header("Access-Control-Allow-Origin") shouldBe "*"
+            response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+    }
+
     it should "invoke web action to ensure the returned body argument is correct" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"

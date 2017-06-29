@@ -1133,11 +1133,16 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
             Seq(s"$systemId/proxy/export_c.http").
                 foreach { path =>
-                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
-                        header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                            header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                        }
                     }
                 }
+
+            invocationsAllowed -= 1 // Options request does not cause invocation of an action
         }
 
         it should s"invoke action with head verb (auth? ${creds.isDefined})" in {

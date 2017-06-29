@@ -422,7 +422,15 @@ trait WhiskWebActionsApi
 
                                             // otherwise not an options method, or action will respond to options verb
                                             case _ =>
-                                                extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                                                val response = extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+
+                                                if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                                                    respondWithHeaders(allowOrigin, allowMethods) {
+                                                        response
+                                                    }
+                                                } else {
+                                                    response
+                                                }
                                         }
 
                                     case Failure(t: RejectRequest) =>
