@@ -639,31 +639,21 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   ```
   docker run --rm -it -v "$(pwd):/owexec" openwhisk/swift3action bash
   ```
-
   This puts you in a bash shell within the Docker container. 
-
-  Execute the following commands within it:
-- Install zip for convenience, to package the binary
-  ```
-  apt-get install -y zip
-  ```
 
 - Copy the source code and prepare to build it
   ```
   cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
   ```
-
   ```
   cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
   ```
-
   ```
   echo '_run_main(mainFunction:main)' >> /swift3Action/spm-build/main.swift
   ```
-
   Copy any additional source files to `/swift3Action/spm-build/`
 
-- Create Package.swift
+- (Optional) Create Package.swift
   If you need to add dependencies create a Package.swift file like the following:
   ```swift
   import PackageDescription
@@ -671,42 +661,31 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   let package = Package(
     name: "Action",
         dependencies: [
-            .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.0.1"),
-            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "14.2.0"),
-            .Package(url: "https://github.com/IBM-Swift/swift-watson-sdk.git", "0.4.1"),
-            .Package(url: "https://github.com/apple/example-package-deckofplayingcards.git", majorVersion: 3)
+            .Package(url: "https://github.com/IBM-Swift/CCurl.git", "0.2.3"),
+            .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.10"),
+            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
+            .Package(url: "https://github.com/watson-developer-cloud/swift-sdk.git", "0.16.0")
         ]
   )
   ```
-
-As you can see this example adds `swift-watson-sdk` and `example-package-deckofplayingcards` dependencies.
-Notice that `Kitura-net` and `SwiftyJSON.git` are the minimum required dependencies to include.
-
-- Copy Package.swift
+  As you can see this example adds `swift-watson-sdk` and `example-package-deckofplayingcards` dependencies.
+  Notice that `CCurl`, `Kitura-net` and `SwiftyJSON.git` are the minimum required dependencies to include.
+  Copy Package.swift to spm-build directory
   ```
-  cp -f /owexec/Package.swift /swift3Action/spm-build/Package.swift
+  cp /owexec/Package.swift /swift3Action/spm-build/Package.swift
   ```
 
-- Remove .build directory
-  ```
-  rm -rf /swift3Action/spm-build/.build/
-  ```
-
-- Generate a new swiftbuildandlink.sh
-  ```
-  python /swift3Action/buildandrecord.py
-  ```
-
-- Build and link
-  ```
-  /swift3Action/spm-build/swiftbuildandlink.sh
-  ```
-
-- Create the zip archive
+- Change to the spm-build directory
   ```
   cd /swift3Action/spm-build
   ```
 
+- Compile your Swift Action
+  ```
+  swift build -c release
+  ```
+
+- Create the zip archive
   ```
   zip /owexec/hello.zip .build/release/Action
   ```
