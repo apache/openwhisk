@@ -607,7 +607,7 @@ You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift
+wsk action create helloSwift hello.swift --kind swift:3.1.1
 ```
 
 When you use the command line and a `.swift` source file, you do not need to
@@ -637,7 +637,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
 
 - Run an interactive Swift action container.
   ```
-  docker run --rm -it -v "$(pwd):/owexec" openwhisk/swift3action bash
+  docker run --rm -it -v "$(pwd):/owexec" openwhisk/action-swift-v3.1.1 bash
   ```
   This puts you in a bash shell within the Docker container. 
 
@@ -661,6 +661,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   let package = Package(
     name: "Action",
         dependencies: [
+            .Package(url: "https://github.com/apple/example-package-deckofplayingcards.git", majorVersion: 3),
             .Package(url: "https://github.com/IBM-Swift/CCurl.git", "0.2.3"),
             .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.10"),
             .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
