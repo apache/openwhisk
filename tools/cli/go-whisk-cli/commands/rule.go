@@ -396,7 +396,7 @@ var ruleListCmd = &cobra.Command{
                     errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": rule.Name, "err": err})
                     fmt.Println(errStr)
-                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                     return werr
                 }
                 rules[index].Status = ruleStatus.Status

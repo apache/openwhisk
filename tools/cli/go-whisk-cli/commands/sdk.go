@@ -79,7 +79,7 @@ var sdkInstallCmd = &cobra.Command{
                     whisk.Debug(whisk.DbgError, "GenBashCompletion error: %s\n", err)
                     errStr := wski18n.T("Unable to output bash command completion {{.err}}",
                             map[string]interface{}{"err": err})
-                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                     return werr
                 }
              } else {
@@ -88,7 +88,7 @@ var sdkInstallCmd = &cobra.Command{
                         whisk.Debug(whisk.DbgError, "GenBashCompletionFile('%s`) error: \n", BASH_AUTOCOMPLETE_FILENAME, err)
                         errStr := wski18n.T("Unable to generate '{{.name}}': {{.err}}",
                                 map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME, "err": err})
-                        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                         return werr
                     }
                     fmt.Printf(

@@ -406,7 +406,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
-        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, update)
+        fetch := action.Annotations == nil
+        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, fetch)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
@@ -522,7 +523,7 @@ func webActionAnnotations(
                     return nil, actionGetError(entityName, err)
                 }
             } else {
-                annotations = append(annotations, action.Annotations...)
+                annotations = appendKeyValueArr(annotations, action.Annotations)
             }
         }
 
@@ -883,7 +884,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
         errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
             map[string]interface{}{"name": fullActionName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
+        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)
     } else {
         err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",

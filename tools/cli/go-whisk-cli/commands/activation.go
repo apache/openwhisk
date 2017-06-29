@@ -114,7 +114,7 @@ var activationGetCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 2, "Activation get",
@@ -184,7 +184,7 @@ var activationLogsCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get logs for activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 1, "Activation logs",
@@ -220,7 +220,7 @@ var activationResultCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get result for activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 1, "Activation result",
@@ -260,7 +260,7 @@ func lastFlag(args []string) ([]string, error) {
         if len(activations) == 0 {    // Checks to to see if there are activations available
             whisk.Debug(whisk.DbgError, "No activations found in activation list\n")
             errStr := wski18n.T("Activation list does not contain any activations.")
-            whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return args, whiskErr
         }
         if len(args) == 0 {

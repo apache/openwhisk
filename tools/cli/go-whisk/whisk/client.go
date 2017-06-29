@@ -231,7 +231,7 @@ func bodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
     data, err := ioutil.ReadAll(body)
     if err != nil {
         Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
-        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return "", body, werr
     }
 

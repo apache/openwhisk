@@ -474,6 +474,26 @@ func addKeyValue(key string, value interface{}, keyValueArr whisk.KeyValueArr) (
     return append(keyValueArr, keyValue)
 }
 
+func findKeyValue(keyValueArr whisk.KeyValueArr, key string) (int) {
+    for i := 0; i < len(keyValueArr); i++ {
+        if strings.ToLower(keyValueArr[i].Key) == strings.ToLower(key) {
+            return i
+        }
+    }
+
+    return -1
+}
+
+func appendKeyValueArr(origKeyValueArr whisk.KeyValueArr, appKeyValueArr whisk.KeyValueArr) (whisk.KeyValueArr) {
+    for i := 0; i < len(appKeyValueArr); i++ {
+        if findKeyValue(origKeyValueArr, appKeyValueArr[i].Key) == -1 {
+            origKeyValueArr = append(origKeyValueArr, appKeyValueArr[i])
+        }
+    }
+
+    return origKeyValueArr
+}
+
 func getKeys(keyValueArr whisk.KeyValueArr) ([]string) {
     var res []string
 
