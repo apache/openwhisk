@@ -85,9 +85,10 @@ runtimesManifest:
       requireMain: true
     php:
     - kind: "php:7.1"
+      default: true
+      deprecated: false
       image:
         name: "action-php-v7.1"
-      default: true
   blackboxes:
     - name: "dockerskeleton"
 
