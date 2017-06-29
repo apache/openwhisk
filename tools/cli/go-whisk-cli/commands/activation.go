@@ -111,7 +111,7 @@ var activationGetCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Get failed: %s\n", err)
+          whisk.Debug(whisk.DbgError, "client.Activation.Get(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -181,7 +181,7 @@ var activationLogsCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Logs failed: %s\n", err)
+          whisk.Debug(whisk.DbgError, "client.Activation.Logs(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get logs for activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -217,7 +217,7 @@ var activationResultCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Result failed: %s\n", err)
+          whisk.Debug(whisk.DbgError, "client.Activation.Result(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get result for activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -247,40 +247,38 @@ var activationResultCmd = &cobra.Command{
 // Param: Brings in []strings from args
 // Return: Returns a []string with the latest ID or the original args and any errors
 func lastFlag(args []string) ([]string, error) {
-  // Checks to see if there is an ID sent with the --last
-  // If an ID is given with --last then an error will be thrown
-  if  flags.activation.last {
-    options := &whisk.ActivationListOptions {
-      Limit: 1,
-      Skip: 0,
-    }
-    activations,_, err := client.Activations.List(options)
-    if err != nil {   // Checks Activations.List for errors when retrieving latest activaiton
-      whisk.Debug(whisk.DbgError, "client.Activations.List() error for flag --last: %s\n", err)
-      return args, err
-    }
-    if len(activations) == 0 {    // Checks to to see if there are activations available
-      whisk.Debug(whisk.DbgError, "No activations found in activation list\n")
-      errStr := wski18n.T("Activation list contains no activations")
-      whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-      return args, whiskErr
-    } else {
-      if len(args) == 0 {
-        whisk.Debug(whisk.DbgInfo, "Appending most recent activation ID into args\n")
-        args = append(args, activations[0].ActivationID)
-      } else if _,_,err := client.Activations.Get(args[0]); len(args) == 1 && err != nil{   // Checks to see if filter field is given and not ID
-          whisk.Debug(whisk.DbgInfo, "Appending most recent activation ID into args\n")
-          args = append(args, activations[0].ActivationID)
-          whisk.Debug(whisk.DbgInfo, "Allocating appended ID to correct position in args\n")
-          args[0], args[1] = args[1], args[0]   // IDs should be located at args[0], if a filter field is given it has to be moved to args[0]
-      } else if _,_,err := client.Activations.Get(args[0]);  len(args) >= 1 && err == nil {    // Checks conflict between ID, field filter and --last
-          whisk.Debug(whisk.DbgError,"Could not use activation ID with --last flag ")
-          errStr := wski18n.T("When specifying an activation ID, do not use the --last flag")
-          whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-          return args, whiskErr
+    if flags.activation.last {
+        options := &whisk.ActivationListOptions {
+            Limit: 1,
+            Skip: 0,
         }
-      }
-  }
+        activations,_, err := client.Activations.List(options)
+        if err != nil {    // Checks Activations.List for errors when retrieving latest activaiton
+            whisk.Debug(whisk.DbgError, "client.Activations.List(%#v) error during lastFlag: %s\n", options, err)
+            return args, err
+        }
+        if len(activations) == 0 {    // Checks to to see if there are activations available
+            whisk.Debug(whisk.DbgError, "No activations found in activation list\n")
+            errStr := wski18n.T("Activation list does not contain any activations.")
+            whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return args, whiskErr
+        } else {
+            if len(args) == 0 {
+                whisk.Debug(whisk.DbgInfo, "Appending most recent activation ID(%s) into args\n", activations[0].ActivationID)
+                args = append(args, activations[0].ActivationID)
+            } else if len(args) == 1 && len(args[0]) != 32 {    // Checks to see if filter field is given and not ID
+                  whisk.Debug(whisk.DbgInfo, "Appending most recent activation ID(%s) into args\n", activations[0].ActivationID)
+                  args = append(args, activations[0].ActivationID)
+                  whisk.Debug(whisk.DbgInfo, "Allocating appended ID to correct position in args\n")
+                  args[0], args[1] = args[1], args[0]    // IDs should be located at args[0], if a filter field is given it has to be moved to args[0]
+            } else if len(args[0]) == 32 {    // Checks conflict between ID and --last
+                  whisk.Debug(whisk.DbgError,"Could not use activation ID with --last flag\n")
+                  errStr := wski18n.T("When specifying an activation ID, do not use the --last flag.")
+                  whiskErr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+                  return args, whiskErr
+            }
+        }
+    }
   return args, nil
 }
 

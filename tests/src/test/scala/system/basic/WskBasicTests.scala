@@ -918,6 +918,7 @@ class WskBasicTests
                 (action, _) => wsk.action.create("lastName", defaultAction)
             }
             val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
+            Thread.sleep(1000)
 
             var  invalidCmd = Seq (
                 (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),

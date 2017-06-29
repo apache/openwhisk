@@ -921,7 +921,9 @@ You can use the OpenWhisk CLI to watch the output of actions as they are invoked
   ```
   wsk activation poll
   ```
-  
+
+This command starts a polling loop that continuously checks for logs from activations.
+
 2. Switch to another window and invoke an action:
 
   ```

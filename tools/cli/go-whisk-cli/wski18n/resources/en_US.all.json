@@ -1004,12 +1004,12 @@
     "translation": "\nActivation: {{.name}} ({{.id}})\n"
   },
   {
-    "id": "Activation list contains no activations",
-    "translation": "Activation list contains no activations"
+    "id": "Activation list does not contain any activations.",
+    "translation": "Activation list does not contain any activations."
   },
   {
-    "id": "When specifying an activation ID, do not use the --last flag",
-    "translation": "When specifying an activation ID, do not use the --last flag"
+    "id": "When specifying an activation ID, do not use the --last flag.",
+    "translation": "When specifying an activation ID, do not use the --last flag."
   },
   {
     "id": "exclude the first `SKIP` number of activations from the result",
