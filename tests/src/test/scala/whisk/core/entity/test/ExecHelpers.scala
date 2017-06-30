@@ -60,10 +60,7 @@ trait ExecHelpers
     }
 
     protected def swift3(code: String, main: Option[String] = None) = {
-        val default = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT3).map { manifest =>
-           manifest.default
-        }.last
-
+        val default = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT3).flatMap(_.default)
         CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = default, deprecated = Some(false)), trim(code), main.map(_.trim))
     }
 
