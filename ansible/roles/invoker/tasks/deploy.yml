@@ -33,7 +33,7 @@
   when: whisk_version_name == "mac"
 
 - name: "determine docker root dir"
-  shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock
+  shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
   register: dockerInfo_output
   when: whisk_version_name != "mac"
 
@@ -63,7 +63,7 @@
   when: whisk_version_name == "mac"
 
 - name: "get invoker info"
-  shell: echo -e "GET http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock
+  shell: echo -e "GET http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
   register: invokerInfo_output
   when: whisk_version_name != "mac"
 
