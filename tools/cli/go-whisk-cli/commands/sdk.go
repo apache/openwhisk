@@ -22,6 +22,8 @@ import (
     "fmt"
     "io"
     "os"
+    "os/user"
+    "io/ioutil"
     "strings"
 
     "github.com/spf13/cobra"
@@ -50,7 +52,6 @@ type sdkInfo struct {
 var sdkMap map[string]*sdkInfo
 const SDK_DOCKER_COMPONENT_NAME string = "docker"
 const SDK_IOS_COMPONENT_NAME string = "ios"
-const BASH_AUTOCOMPLETE_FILENAME string = "wsk_cli_bash_completion.sh"
 
 var sdkInstallCmd = &cobra.Command{
     Use:   "install COMPONENT",
@@ -74,17 +75,23 @@ var sdkInstallCmd = &cobra.Command{
         case "ios":
             err = iOSInstall()
         case "bashauto":
-            err = WskCmd.GenBashCompletionFile(BASH_AUTOCOMPLETE_FILENAME)
-            if (err != nil) {
-                whisk.Debug(whisk.DbgError, "GenBashCompletionFile('%s`) error: \n", BASH_AUTOCOMPLETE_FILENAME, err)
-                errStr := wski18n.T("Unable to generate '{{.name}}': {{.err}}",
-                        map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME, "err": err})
+            whisk.Debug(whisk.DbgInfo, "Running bashauto script\n")
+            if err = WskCmd.GenBashCompletion(os.Stdout); err != nil {
+                whisk.Debug(whisk.DbgError, "GenBashCompletion error: %s\n", err)
+                errStr := wski18n.T("Unable to generate bashauto-completion {{.err}}",
+                        map[string]interface{}{"err": err})
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
-            fmt.Printf(
-                wski18n.T("bash_completion_msg",
-                    map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME}))
+            if flags.sdk.bashrc {
+                if err := addToBash(); err != nil {
+                    whisk.Debug(whisk.DbgError, "Flag --bashrc failed: %s\n", err)
+                    errStr := wski18n.T("Unable to append .bashrc: {{.err}}",
+                        map[string]interface{}{"err": err})
+                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    return werr
+                }
+            }
         default:
             whisk.Debug(whisk.DbgError, "Invalid component argument '%s'\n", component)
             errStr := wski18n.T("The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
@@ -97,6 +104,58 @@ var sdkInstallCmd = &cobra.Command{
         }
         return nil
     },
+}
+
+// addToBash() attempts to find user's .bashrc and append the line
+// "eval \"`wsk sdk install bashauto`\"" to it unless the line already exists
+func addToBash() error {
+    var usr *user.User
+    var bash *os.File
+    var exists bool
+    var err error
+
+    bashCheck := "wsk sdk install bashauto"
+    bashCmd := "eval \"`wsk sdk install bashauto`\""
+
+    if usr, err = user.Current(); err != nil {
+        whisk.Debug(whisk.DbgError, "Couldn't find User Directory: %s\n", err)
+        return err
+    }
+    whisk.Debug(whisk.DbgInfo, "Found current user %s\n", usr.HomeDir)
+    bashLoc := fmt.Sprintf("%s/%s", usr.HomeDir, ".bashrc")
+    if bash, err = os.OpenFile(bashLoc, os.O_APPEND|os.O_WRONLY, 0600); err != nil {
+        whisk.Debug(whisk.DbgError, "Could not find .bashrc: %s\n", err)
+        return err
+    }
+    defer bash.Close()
+    if exists, err = lineExists(bashLoc, bashCheck); err != nil {
+        return err
+    }
+    if exists == false {
+        whisk.Debug(whisk.DbgInfo, "Attempting to append .bashrc\n")
+        if _, err :=  bash.WriteString(bashCmd); err != nil {
+            whisk.Debug(whisk.DbgError, "Could not append .bashrc: %s\n", err)
+            return err
+        }
+        whisk.Debug(whisk.DbgInfo, "Successfully appended .bashrc\n")
+    }
+
+    return nil
+}
+
+// lineExists(string, string) checks to see if a string is contained in a specified file
+// Returns a boolean (true meaning the line exists) and any errors
+func lineExists(fileLoc string , text string) (bool, error) {
+	if read, err := ioutil.ReadFile(fileLoc); err != nil {
+		whisk.Debug(whisk.DbgError, "Could not find %s due to: %s\n", fileLoc, err)
+		return false, err
+	} else if strings.Contains(string(read), text) {
+		whisk.Debug(whisk.DbgInfo, "String '%s' was found in %s\n", text, fileLoc)
+		return true, nil
+	}
+	whisk.Debug(whisk.DbgInfo, "Did not find string '%s' in %s\n", text, fileLoc)
+
+	return false, nil
 }
 
 func dockerInstall() error {
@@ -238,6 +297,8 @@ func sdkInstall(componentName string) error {
 }
 
 func init() {
+	sdkInstallCmd.Flags().BoolVarP(&flags.sdk.bashrc, "bashrc", "b", false, wski18n.T("adds bashauto-completion install command to .bashrc"))
+
     sdkCmd.AddCommand(sdkInstallCmd)
 
     sdkMap = make(map[string]*sdkInfo)

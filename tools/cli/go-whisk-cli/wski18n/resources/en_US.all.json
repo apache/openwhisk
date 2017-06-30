@@ -554,14 +554,6 @@
     "translation": "The SDK component argument is missing. One component (docker, ios, or bashauto) must be specified"
   },
   {
-    "id": "Unable to generate '{{.name}}': {{.err}}",
-    "translation": "Unable to generate '{{.name}}': {{.err}}"
-  },
-  {
-    "id": "bash_completion_msg",
-    "translation": "The bash auto-completion script ({{.name}}) is installed in the current directory.\nTo enable command line completion of wsk commands, source the auto completion script into your bash environment\n"
-  },
-  {
     "id": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
     "translation": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto"
   },
@@ -1518,5 +1510,17 @@
   {
     "id": "get action url",
     "translation": "get action url"
+  },
+  {
+    "id": "adds bashauto-completion install command to .bashrc",
+    "translation": "adds bashauto-completion install command to .bashrc"
+  },
+  {
+    "id": "Unable to append .bashrc: {{.err}}",
+    "translation": "Unable to append .bashrc: {{.err}}"
+  },
+  {
+    "id": "Unable to generate bashauto-completion {{.err}}",
+    "translation": "Unable to generate bashauto-completion {{.err}}"
   }
 ]

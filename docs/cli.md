@@ -2,7 +2,7 @@
 
 OpenWhisk offers a powerful command line interface that allows complete management of all aspects of the system.
 
-## Setting up the OpenWhisk CLI 
+## Setting up the OpenWhisk CLI
 
 - Building OpenWhisk from a cloned repository results in the generation of the command line interface. The generated CLIs are located in `openwhisk/bin/`. The main CLI is located in `openwhisk/bin/wsk` that runs on the operating system, and CPU architecture on which it was built. Executables for other operating system, and CPU architectures are located in the following directories: `openwhisk/bin/mac/`, `openwhisk/bin/linux/`, `openwhisk/bin/windows/`.
 
@@ -37,6 +37,32 @@ you can run the following command from your `openwhisk` directory:
 **Tip:** The OpenWhisk CLI stores the properties set in `~/.wskprops` by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
+
+### Configure auto-completion for Openwhisk CLI
+
+For most bash users, running the following command will be sufficient to install auto-completion for Openwhisk CLI:
+
+```
+eval "`wsk sdk install bashauto --bashrc`"
+```
+
+**Note:** `--bashrc` flag will attempt to locate your `.bashrc` and append the previous command, without `--bashrc`, to it.
+
+If this doesn't work, you can run a temporary installation using the following command:
+
+```
+eval "`wsk sdk install bashauto`"
+```
+
+**Note:** Every time a new terminal is opened this command will have to be ran in order to use auto-completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
+
+For those who wish to do a custom installation, you can simply print to the terminal and manipulate the output by using the following command:
+
+```
+wsk sdk install bashauto
+```
+
+**Note:** This will NOT install anything but simply print the Cobra auto-completion script to the terminal. Adding `--bashrc` will ONLY attempt to append the `.bashrc` and still not run the install script.
 
 ## Using the OpenWhisk CLI
 

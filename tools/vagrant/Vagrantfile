@@ -155,7 +155,6 @@ $script_end = <<SCRIPT
   chmod +x ${HOME}/bin/wsk
   chown vagrant:vagrant ${HOME}/bin/wsk
   PATH=${PATH}:${HOME}/bin
-  echo 'pushd "$(mktemp -d)" > /dev/null && wsk sdk install bashauto > /dev/null && source wsk_cli_bash_completion.sh && popd > /dev/null' >> $HOME/.bashrc
 
   # Run OpenWhisk CLI
   touch $HOME/.wskprops
