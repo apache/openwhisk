@@ -17,12 +17,13 @@
 
 package whisk.core.loadBalancer
 
-import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
+import whisk.core.entity.{ ActivationId, UUID, WhiskActivation }
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Promise
+import whisk.core.entity.InstanceId
 
 /** Encapsulates data relevant for a single activation */
-case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, promise: Promise[Either[ActivationId, WhiskActivation]])
+case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: InstanceId, promise: Promise[Either[ActivationId, WhiskActivation]])
 
 /**
  * Encapsulates data used for loadbalancer and active-ack bookkeeping.
@@ -34,7 +35,7 @@ class LoadBalancerData() {
 
     type TrieSet[T] = TrieMap[T, Unit]
 
-    private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
+    private val activationByInvoker = new TrieMap[InstanceId, TrieSet[ActivationEntry]]
     private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
     private val activationsById = new TrieMap[ActivationId, ActivationEntry]
 
@@ -52,18 +53,8 @@ class LoadBalancerData() {
      *
      * @return a map (invoker -> number of activations queued for the invoker)
      */
-    def activationCountByInvoker: Map[String, Int] = {
+    def activationCountByInvoker: Map[InstanceId, Int] = {
         activationByInvoker.toMap.mapValues(_.size)
-    }
-
-    /**
-     * Get all active activations for a specific invoker.
-     *
-     * @param invokerName the invoker to get activations for
-     * @return all active activations for the given invoker
-     */
-    def activationsByInvoker(invokerName: String): TrieSet[ActivationEntry] = {
-        activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
     }
 
     /**

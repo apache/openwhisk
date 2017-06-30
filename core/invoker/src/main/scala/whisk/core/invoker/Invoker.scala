@@ -281,7 +281,7 @@ class Invoker(
         implicit transid: TransactionId): Unit = {
 
         def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-            val msg = CompletionMessage(transid, res, this.name)
+            val msg = CompletionMessage(transid, res, instance)
             producer.send(s"completed${tran.msg.rootControllerIndex.toInt}", msg).andThen {
                 case Success(_) =>
                     logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
@@ -497,7 +497,7 @@ object Invoker {
         dispatcher.start()
 
         Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-            producer.send("health", PingMessage(s"invoker${invokerInstance.toInt}")).andThen {
+            producer.send("health", PingMessage(invokerInstance)).andThen {
                 case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
             }
         })
