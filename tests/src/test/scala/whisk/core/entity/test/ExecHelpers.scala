@@ -60,7 +60,11 @@ trait ExecHelpers
     }
 
     protected def swift3(code: String, main: Option[String] = None) = {
-        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), deprecated = Some(false)), trim(code), main.map(_.trim))
+        val default = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT3).map { manifest =>
+           manifest.default
+        }.last
+
+        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = default, deprecated = Some(false)), trim(code), main.map(_.trim))
     }
 
     protected def sequence(components: Vector[FullyQualifiedEntityName]) = SequenceExec(components)
