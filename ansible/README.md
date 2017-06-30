@@ -59,8 +59,9 @@ systemProp.http.proxyPort=3128
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
-In all instructions, replace `<environment>` with your target environment. e.g. `mac`if you want to deploy using a local mac setup.
+In all instructions, replace `<environment>` with your target environment. e.g. `docker-machine`if you want to deploy using a local docker-machine setup.
 By default, if you omit the `-i` parameter, the `local` environment will be used.
+If using Docker for Mac use the `local` environment.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 

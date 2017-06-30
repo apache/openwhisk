@@ -26,20 +26,20 @@
 - name: "determine docker root dir on docker-machine"
   uri:  url="http://{{ inventory_hostname }}:{{ docker.port }}/info" return_content=yes
   register: dockerInfo_output
-  when: "'environments/docker-machine' in inventory_dir"
+  when: whisk_version_name == "mac"
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output['json'] }}"
-  when: "'environments/docker-machine' in inventory_dir"
+  when: whisk_version_name == "mac"
 
 - name: "determine docker root dir"
-  shell: curl --unix-socket /var/run/docker.sock http:/v1.24/info
+  shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock
   register: dockerInfo_output
-  when: "'environments/docker-machine' not in inventory_dir"
+  when: whisk_version_name != "mac"
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output.stdout|from_json }}"
-  when: "'environments/docker-machine' not in inventory_dir"
+  when: whisk_version_name != "mac"
 
 - name: ensure invoker log directory is created with permissions
   file:
@@ -51,25 +51,25 @@
 - name: define options when deploying invoker on Ubuntu
   set_fact:
     linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
-  when: whisk_version_name != "mac"
+  when: ansible_distribution == "Ubuntu"
 
 - name: get running invoker information
   uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
-  when: "'environments/docker-machine' in inventory_dir"
+  when: whisk_version_name == "mac"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output['json'] }}"
-  when: "'environments/docker-machine' in inventory_dir"
+  when: whisk_version_name == "mac"
 
 - name: "get invoker info"
-  shell: curl --unix-socket /var/run/docker.sock http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}
+  shell: echo -e "GET http:/v1.24/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }} HTTP/1.0\r\n" | nc -U /var/run/docker.sock
   register: invokerInfo_output
-  when: "'environments/docker-machine' not in inventory_dir"
+  when: whisk_version_name != "mac"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output.stdout|from_json }}"
-  when: "'environments/docker-machine' not in inventory_dir"
+  when: whisk_version_name != "mac"
 
 - name: determine if more than one invoker is running
   fail: msg="more than one invoker is running"
