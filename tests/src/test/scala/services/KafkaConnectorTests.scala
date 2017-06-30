@@ -154,7 +154,7 @@ class TestKafkaConsumerConnector(
 
     override def commit() = {
         if (commitFails) {
-            throw new CommitFailedException("commit failed")
+            throw new CommitFailedException()
         } else {
             super.commit()
         }
