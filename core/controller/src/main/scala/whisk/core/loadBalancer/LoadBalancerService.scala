@@ -18,7 +18,7 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-import java.time.{Clock, Instant}
+import java.time.{ Clock, Instant }
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
@@ -43,7 +43,7 @@ import whisk.core.connector.MessagingProvider
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ActivationId, WhiskAction, WhiskActivation}
+import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.types.EntityStore
