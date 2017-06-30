@@ -27,7 +27,7 @@ get_binary_path() {
     if [ $os = "linux" ]; then
         comp_name="$comp_name.tgz"
     else
-    		comp_name="$comp_name.zip"
+        comp_name="$comp_name.zip"
     fi
     echo $os/$arch/$comp_name;
 };
