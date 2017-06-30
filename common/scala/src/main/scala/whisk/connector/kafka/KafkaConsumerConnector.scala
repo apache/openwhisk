@@ -103,6 +103,10 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
 
+        // We allow for 5 minutes of execution time so there should be at most 5 minutes of
+        // no polling happening if the queues are fully loaded.
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 6.minutes.toMillis.toString)
+
         // This value controls the server-side wait time which affects polling latency.
         // A low value improves latency performance but it is important to not set it too low
         // as that will cause excessive busy-waiting.

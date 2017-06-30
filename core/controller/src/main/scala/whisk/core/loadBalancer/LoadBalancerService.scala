@@ -235,7 +235,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
 
     /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}")
+    val activeAckTopic = s"completed${instance.toInt}"
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, activeAckTopic, activeAckTopic)
 
     /** Registers a handler for received active acks from invokers. */
     activeAckConsumer.onMessage((topic, _, _, bytes) => {
