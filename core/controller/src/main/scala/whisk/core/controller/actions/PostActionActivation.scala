@@ -28,6 +28,7 @@ import whisk.core.controller.WhiskServices
 import whisk.core.entity._
 import whisk.http.Messages
 
+
 protected[core] trait PostActionActivation extends PrimitiveActions with SequenceActions {
     /** The core collections require backend services to be injected in this trait. */
     services: WhiskServices =>
@@ -47,16 +48,18 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
         action: WhiskAction,
         payload: Option[JsObject],
         waitForResponse: Option[FiniteDuration],
-        cause: Option[ActivationId])(
+        cause: Option[ActivationId],
+        tracingMetadata: Option[Map[String, String]] = None)(
             implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
         action.toExecutableWhiskAction match {
             // this is a topmost sequence
             case None =>
                 val SequenceExec(components) = action.exec
-                invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
+                invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, atomicActionsCount = 0, parentSpanMetadata = None)
+                  .map(r => r._1)
             // a non-deprecated ExecutableWhiskAction
             case Some(executable) if !executable.exec.deprecated =>
-                invokeSingleAction(user, executable, payload, waitForResponse, cause)
+                invokeSingleAction(user, executable, payload, waitForResponse, cause, tracingMetadata = None)
             // a deprecated exec
             case _ =>
                 Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(action.exec)))

@@ -25,13 +25,10 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
 import akka.actor.ActorSystem
-import io.opentracing.contrib.tracerresolver.TracerResolver
-import io.opentracing.tag.Tags
-import io.opentracing.util.GlobalTracer
-import io.opentracing.Span
 import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
+import whisk.common.Tracing
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.entity._
@@ -89,50 +86,18 @@ class WhiskContainer(
     }
 
     /**
-     * Starts the tracing.
-     */
-    private def startSpan(msg: ActivationMessage): Option[Span] = {
-
-        // get and register the tracer if the global tracer hasn't been registered
-        val existingTracerOption = Option(!GlobalTracer.isRegistered)
-          .filter(identity)
-          .flatMap(_ => Option(TracerResolver.resolveTracer))
-        existingTracerOption foreach GlobalTracer.register
-
-        // if the previous option is empty, get the global tracer as fallback method
-        val tracerOption = Option(existingTracerOption.getOrElse(GlobalTracer.get))
-        tracerOption.map(tracer => {
-            val span = tracer.buildSpan(msg.action.asString).start
-            Tags.COMPONENT.set(span, "openwhisk")
-
-            // general message data
-            span.setTag("user", msg.user.subject.asString)
-            span.setTag("revision", msg.revision.asString)
-
-            // action data
-            span.setTag("action", msg.action.name.asString)
-            span.setTag("version", msg.action.version.get.toString)
-            span.setTag("path", msg.action.path.asString)
-            span
-        });
-    }
-
-    /**
-     * Ends the tracing.
-     */
-    private def endSpan(spanOption: Option[Span]): Unit = {
-        spanOption.foreach(_.close)
-    }
-
-    /**
      * Sends a run command to action container to run once.
      */
     def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
 
         // start the span
-        val spanOption = startSpan(msg)
-
+        val spanMetadata = Tracing.SpanMetadata(msg.action.asString,
+                                                msg.action.path.asString,
+                                                msg.user.subject.asString,
+                                                msg.revision.asString,
+                                                msg.action.version.get.toString)
+        val spanOption = Tracing.startSpan(spanMetadata, msg.tracingMetadata)
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry = false)
 
         // Use start and end time of the activation
@@ -140,7 +105,7 @@ class WhiskContainer(
         transid.finished("Invoker", startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
 
         // finish the span
-        endSpan(spanOption)
+        Tracing.endSpan(spanOption)
 
         result
     }

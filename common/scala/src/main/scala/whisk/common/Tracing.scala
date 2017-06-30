@@ -74,12 +74,11 @@ object Tracing {
         tracer.inject(span.context, Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier))
       })
 
-      Tags.COMPONENT.set(span, spanMetadata.action)
+      Tags.COMPONENT.set(span, "openwhisk")
 
       // general message data
       span.setTag("user", spanMetadata.user)
       span.setTag("revision", spanMetadata.revision)
-      span.setTag("system", "OpenWhisk")
 
       // action data
       span.setTag("action", spanMetadata.action)

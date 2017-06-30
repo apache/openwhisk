@@ -18,6 +18,7 @@
 package whisk.core.controller.actions
 
 import scala.collection.mutable.Buffer
+import scala.collection.immutable.Map
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -96,7 +97,8 @@ protected[actions] trait PrimitiveActions {
         action: ExecutableWhiskAction,
         payload: Option[JsObject],
         waitForResponse: Option[FiniteDuration],
-        cause: Option[ActivationId])(
+        cause: Option[ActivationId],
+        tracingMetadata: Option[Map[String, String]])(
             implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
         // merge package parameters with action (action parameters supersede), then merge in payload
@@ -110,7 +112,8 @@ protected[actions] trait PrimitiveActions {
             activationNamespace = user.namespace.toPath,
             activeAckTopicIndex,
             args,
-            cause = cause)
+            cause = cause,
+            tracingMetadata = tracingMetadata)
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
