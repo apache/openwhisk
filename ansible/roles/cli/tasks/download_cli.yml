@@ -9,6 +9,7 @@
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
+    force=True
   when: "'environments/docker-machine' not in inventory_dir"
 
 - name: "download cli (docker-machine) to openwhisk home at {{ openwhisk_home }}"
@@ -18,4 +19,5 @@
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
+    force=True
   when: "'environments/docker-machine' in inventory_dir"
