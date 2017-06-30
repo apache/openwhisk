@@ -25,21 +25,23 @@ import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.spi.SpiFactoryModule
+
 /**
-  * A Kafka based implementation of MessagingProvider
-  */
-class KafkaMessagingProvider(actorSystem:ActorSystem, config:WhiskConfig)(implicit logging:Logging) extends MessagingProvider {
-  def getConsumer(groupId:String, topic: String, maxdepth:Int): MessageConsumer = {
-    new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxdepth)(logging)
-  }
-  def getProducer(): MessageProducer = new KafkaProducerConnector(config.kafkaHost, actorSystem.dispatcher)
+ * A Kafka based implementation of MessagingProvider
+ */
+class KafkaMessagingProvider(actorSystem: ActorSystem, config: WhiskConfig)(implicit logging: Logging) extends MessagingProvider {
+    def getConsumer(groupId: String, topic: String, maxdepth: Int): MessageConsumer = {
+        new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxdepth)(logging)
+    }
+
+    def getProducer(): MessageProducer = new KafkaProducerConnector(config.kafkaHost, actorSystem.dispatcher)
 }
 
-class KafkaMessagingProviderModule extends SpiFactoryModule[MessagingProvider]{
-  def getInstance(implicit injector:Injector):MessagingProvider = {
-    val actorSystem = inject[ActorSystem]
-    val config = inject[WhiskConfig]
-    implicit val logging = inject[Logging]
-    new KafkaMessagingProvider(actorSystem, config)
-  }
+class KafkaMessagingProviderModule extends SpiFactoryModule[MessagingProvider] {
+    def getInstance(implicit injector: Injector): MessagingProvider = {
+        val actorSystem = inject[ActorSystem]
+        val config = inject[WhiskConfig]
+        implicit val logging = inject[Logging]
+        new KafkaMessagingProvider(actorSystem, config)
+    }
 }

@@ -21,10 +21,10 @@ import whisk.spi.Spi
 import whisk.spi.SpiProvider
 
 /**
-  * An Spi for providing Messaging implementations.
-  */
+ * An Spi for providing Messaging implementations.
+ */
 trait MessagingProvider extends Spi {
-  def getConsumer(groupId:String, topic:String, maxdepth:Int = Int.MaxValue):MessageConsumer
-  def getProducer():MessageProducer
+    def getConsumer(groupId: String, topic: String, maxdepth: Int = Int.MaxValue): MessageConsumer
+    def getProducer(): MessageProducer
 }
 object MessagingProvider extends SpiProvider[MessagingProvider]("whisk.spi.messaging.impl")
