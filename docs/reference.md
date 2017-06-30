@@ -357,7 +357,11 @@ Python 2 actions are executed using Python 2.7.12. This is the default runtime f
 ## Swift actions
 
 ### Swift 3
-Swift 3 actions are executed using Swift 3.0.2  `--kind swift:3` or Swift 3.1.1 `--kind swift:3.1.1`, respectively.  The default `--kind swift:default` is Swift 3.0.2.
+Swift 3 actions are executed using Swift 3.1.1  `--kind swift:3.1.1` or Swift 3.0.2 `--kind swift:3`, respectively.  
+The default `--kind swift:default` is Swift 3.1.1.
+
+**Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`.
+
 
 Swift 3.0.2 actions can use the following packages:
 - KituraNet version 1.0.1, https://github.com/IBM-Swift/Kitura-net
