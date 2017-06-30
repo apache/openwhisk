@@ -96,7 +96,7 @@ class WhiskContainer(
                                                 msg.action.path.asString,
                                                 msg.user.subject.asString,
                                                 msg.revision.asString,
-                                                msg.action.version.get.toString)
+                                                msg.action.version.getOrElse(SemVer()).toString)
         val spanOption = Tracing.startSpan(spanMetadata, msg.tracingMetadata)
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry = false)
 
