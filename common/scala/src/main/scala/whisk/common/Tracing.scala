@@ -76,7 +76,7 @@ object Tracing {
     *          4. combination of (2) and (3) i.e. starting a sequence that is itself part of another sequence. In this case
     *             pass both parentOption (as reference for the parent) and carrierOption (for the future use by children)
     *
-    *  NOTE: make sure, you close the span with the endSpan method once the encapsulating action is done
+    *  NOTE: make sure, you end the span with the endSpan method once the encapsulating action is done
     *
     * @param spanMetadata metadata needed for creating the span, they will be used as tags on that new span
     * @param parentOption if the parent option is not empty the new span will be started as a child span of the parent one
@@ -101,8 +101,7 @@ object Tracing {
       val span = parentOption.map(parent => {
         val parentSpan = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(parent))
         spanBuilder.asChildOf(parentSpan)
-      }).getOrElse(spanBuilder).start
-      //todo: new api has startManual
+      }).getOrElse(spanBuilder).startManual
 
       // inject the context in case it's the child of high-lvl action (sequence)
       carrierOption.map(carrier => {
@@ -126,10 +125,10 @@ object Tracing {
   /**
     * Closes the passed span, this method is basically dual to the startSpan method
     *
-    * @param spanOption span that is to be ended/closed
+    * @param spanOption span that is to be ended/finished
     */
   def endSpan(spanOption: Option[Span]): Unit = {
-    spanOption.foreach(_.close)
+    spanOption.foreach(_.finish)
   }
 
 }
