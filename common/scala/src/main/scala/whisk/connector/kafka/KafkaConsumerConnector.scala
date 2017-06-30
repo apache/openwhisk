@@ -24,7 +24,6 @@ import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
 import scala.util.Try
 
 import org.apache.kafka.clients.consumer.CommitFailedException
@@ -41,8 +40,9 @@ class KafkaConsumerConnector(
     topic: String,
     override val maxPeek: Int = Int.MaxValue,
     readeos: Boolean = true,
-    sessionTimeout: FiniteDuration = 30 seconds,
-    autoCommitInterval: FiniteDuration = 10 seconds)(
+    sessionTimeout: FiniteDuration = 30.seconds,
+    autoCommitInterval: FiniteDuration = 10.seconds,
+    maxPollInterval: FiniteDuration = 5.minutes)(
         implicit logging: Logging)
     extends MessageConsumer {
 
@@ -52,7 +52,7 @@ class KafkaConsumerConnector(
      *
      * @param duration the maximum duration for the long poll
      */
-    override def peek(duration: Duration = 500 milliseconds) = {
+    override def peek(duration: Duration = 500.milliseconds) = {
         val records = consumer.poll(duration.toMillis)
         records map { r => (r.topic, r.partition, r.offset, r.value) }
     }
@@ -102,10 +102,7 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, autoCommitInterval.toMillis.toString)
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
-
-        // We allow for 5 minutes of execution time so there should be at most 5 minutes of
-        // no polling happening if the queues are fully loaded.
-        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 6.minutes.toMillis.toString)
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval.toMillis.toString)
 
         // This value controls the server-side wait time which affects polling latency.
         // A low value improves latency performance but it is important to not set it too low
@@ -120,7 +117,7 @@ class KafkaConsumerConnector(
         val keyDeserializer = new ByteArrayDeserializer
         val valueDeserializer = new ByteArrayDeserializer
         val consumer = new KafkaConsumer(props, keyDeserializer, valueDeserializer)
-        topics map { consumer.subscribe(_) }
+        topics foreach { consumer.subscribe(_) }
         consumer
     }
 

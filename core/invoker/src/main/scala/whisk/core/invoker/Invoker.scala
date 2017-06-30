@@ -52,6 +52,7 @@ import whisk.core.connector.PingMessage
 import scala.util.Try
 import whisk.core.connector.MessageProducer
 import org.apache.kafka.common.errors.RecordTooLargeException
+import whisk.core.entity.TimeLimit
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -485,7 +486,7 @@ object Invoker {
 
         val topic = s"invoker${invokerInstance.toInt}"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val consumer = new KafkaConsumerConnector(config.kafkaHost, topic, topic, maxdepth)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, topic, topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
         val producer = new KafkaProducerConnector(config.kafkaHost, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
