@@ -225,8 +225,8 @@ trait WskWebActionsTests
 
             response.statusCode shouldBe 200
             response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
-            response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
             response.header("Access-Control-Allow-Methods") shouldBe "Methods set from Web Action"
+            response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
             response.header("Location") shouldBe "openwhisk.org"
             response.header("Set-Cookie") shouldBe "cookie-cookie-cookie"
     }
@@ -250,6 +250,7 @@ trait WskWebActionsTests
                 response.statusCode shouldBe 200
                 response.header("Access-Control-Allow-Origin") shouldBe "*"
                 response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                response.header("Access-Control-Allow-Headers") shouldBe "Authorization, Content-Type"
                 response.header("Location") shouldBe null
                 response.header("Set-Cookie") shouldBe null
             }

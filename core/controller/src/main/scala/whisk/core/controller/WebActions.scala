@@ -318,8 +318,10 @@ trait WhiskWebActionsApi
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
 
-    private val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
-    private val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
+    private val defaultCorsResponse = List(
+        `Access-Control-Allow-Origin`(AllOrigins),
+        `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH),
+        `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name))
 
     /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
     private val requestMethodParamsAndPath = {
@@ -414,7 +416,7 @@ trait WhiskWebActionsApi
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                                     case Success((actionOwnerIdentity, action)) =>
                                         if (!action.annotations.asBool("web-custom-options").exists(identity)) {
-                                            respondWithHeaders(allowOrigin, allowMethods) {
+                                            respondWithHeaders(defaultCorsResponse) {
                                                 if (context.method == OPTIONS) {
                                                     complete(OK, HttpEntity.Empty)
                                                 } else {
