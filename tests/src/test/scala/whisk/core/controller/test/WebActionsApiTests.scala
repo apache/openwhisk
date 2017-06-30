@@ -1131,7 +1131,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             implicit val tid = transid()
             customOptions = false
 
-            Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json?a=b&c=d").
+            Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json").
                 foreach { path =>
                     allowedMethods.foreach { m =>
                         invocationsAllowed += 1

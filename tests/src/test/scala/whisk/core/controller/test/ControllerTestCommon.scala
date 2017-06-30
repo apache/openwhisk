@@ -199,7 +199,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
     // unit tests that need an activation via active ack/fast path should set this to value expected
     var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
-    override def getActiveUserActivationCounts: Map[String, Int] = Map()
+    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = Map.empty
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
         Future.successful {

@@ -49,6 +49,8 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
+import whisk.core.entity.UUID
+import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 
@@ -57,11 +59,11 @@ trait LoadBalancer {
     val activeAckTimeoutGrace = 1.minute
 
     /**
-     * Retrieves a per subject map of counts representing in-flight activations as seen by the load balancer
+     * Retrieves a per namespace id map of counts representing in-flight activations as seen by the load balancer
      *
-     * @return a map where the key is the subject and the long is total issued activations by that user
+     * @return a map where the key is the namespace id and the long is total issued activations by that namespace
      */
-    def getActiveUserActivationCounts: Map[String, Int]
+    def getActiveNamespaceActivationCounts: Map[UUID, Int]
 
     /**
      * Publishes activation message on internal bus for an invoker to pick up.
@@ -88,13 +90,12 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
     logging.info(this, s"blackboxFraction = $blackboxFraction")
 
-    override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
+    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = activationByNamespaceId.toMap mapValues { _.size }
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
         chooseInvoker(action, msg).flatMap { invokerName =>
-            val subject = msg.user.subject.asString
-            val entry = setupActivation(action, msg.activationId, subject, invokerName, transid)
+            val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
             sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
             }
@@ -107,11 +108,11 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
      * A map storing current activations based on ActivationId.
      * The promise value represents the obligation of writing the answer back.
      */
-    case class ActivationEntry(id: ActivationId, subject: String, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
+    case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
     type TrieSet[T] = TrieMap[T, Unit]
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
     private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
-    private val activationBySubject = new TrieMap[String, TrieSet[ActivationEntry]]
+    private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -122,10 +123,10 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     private def processCompletion(response: Either[ActivationId, WhiskActivation], tid: TransactionId, forced: Boolean): Unit = {
         val aid = response.fold(l => l, r => r.activationId)
         activationById.remove(aid) match {
-            case Some(entry @ ActivationEntry(_, subject, invokerIndex, _, p)) =>
+            case Some(entry @ ActivationEntry(_, namespaceId, invokerIndex, _, p)) =>
                 logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
                 activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
-                activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).remove(entry)
+                activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).remove(entry)
                 if (!forced) {
                     p.trySuccess(response)
                 } else {
@@ -141,7 +142,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, subject: String, invokerName: String, transid: TransactionId): ActivationEntry = {
+    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: String, transid: TransactionId): ActivationEntry = {
         // either create a new promise or reuse a previous one for this activation if it exists
         val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         val entry = activationById.getOrElseUpdate(activationId, {
@@ -157,12 +158,12 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                 processCompletion(Left(activationId), transid, forced = true)
             }
 
-            ActivationEntry(activationId, subject, invokerName, Instant.now(Clock.systemUTC()), promiseRef.get)
+            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), promiseRef.get)
         })
 
         // add the entry to our maps, for bookkeeping
         activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry]).put(entry, {})
-        activationBySubject.getOrElseUpdate(subject, new TrieSet[ActivationEntry]).put(entry, {})
+        activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
         entry
     }
 
@@ -172,10 +173,10 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     private def clearInvokerState(invokerName: String) = {
         val actSet = activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
         actSet.keySet map {
-            case actEntry @ ActivationEntry(activationId, subject, invokerIndex, _, promise) =>
+            case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, _, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
                 activationById.remove(activationId)
-                activationBySubject.get(subject) map { _.remove(actEntry) }
+                activationByNamespaceId.get(namespaceId) map { _.remove(actEntry) }
         }
         actSet.clear()
     }

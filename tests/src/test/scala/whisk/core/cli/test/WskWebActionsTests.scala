@@ -89,8 +89,7 @@ class WskWebActionsTestsV2 extends WskWebActionsTests with BeforeAndAfterAll {
 
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             assetHelper.withCleaner(wsk.action, actionName) {
-                (action, _) =>
-                    action.create(actionName, file, web = Some(true.toString))(wp)
+                (action, _) => action.create(actionName, file, web = Some(true.toString))(wp)
             }
 
             val url = getServiceApiHost(vanitySubdomain, true) + s"/default/$actionName.text/a?a=A"
@@ -148,8 +147,7 @@ trait WskWebActionsTests
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()
@@ -241,11 +239,11 @@ trait WskWebActionsTests
             val url = host + s"$testRoutePath/$namespace/default/webaction"
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
-            val responses = Seq(RestAssured.given().config(sslconfig).options(s"$url.http"),
+            val responses = Seq(
+                RestAssured.given().config(sslconfig).options(s"$url.http"),
                 RestAssured.given().config(sslconfig).get(s"$url.json"))
 
             responses.foreach { response =>
@@ -264,8 +262,7 @@ trait WskWebActionsTests
             val bodyContent = "This is the body"
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()
@@ -290,8 +287,7 @@ trait WskWebActionsTests
             val file = Some(TestUtils.getTestActionFilename("textBody.js"))
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
             val host = getServiceURL()
