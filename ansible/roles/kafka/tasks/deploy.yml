@@ -37,6 +37,7 @@
       - "zookeeper:zookeeper"
     env:
       "KAFKA_ADVERTISED_HOST_NAME": "{{ inventory_hostname }}"
+      "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
     ports:
       - "{{ kafka.port }}:9092"
 
