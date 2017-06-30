@@ -636,51 +636,73 @@ When you create an OpenWhisk Swift action with a Swift source file, it has to be
 To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in. These are the steps:
 
 - Run an interactive Swift action container.
-```
-docker run --rm -it -v "$(pwd):/owexec" openwhisk/swift3action bash
-```
-   This puts you in a bash shell within the Docker container. Execute the following commands within it:
-
-- Install zip for convenience, to package the binary
   ```
-  apt-get install -y zip
+  docker run --rm -it -v "$(pwd):/owexec" openwhisk/action-swift-v3.1.1 bash
   ```
+  This puts you in a bash shell within the Docker container. 
 
-- Copy the source code and prepare to build it
+- Copy the source code and prepare to build it.
   ```
   cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
   ```
-
   ```
   cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
   ```
-
   ```
   echo '_run_main(mainFunction:main)' >> /swift3Action/spm-build/main.swift
   ```
+  Copy any additional source files to `/swift3Action/spm-build/`
 
-- Build and link
+
+- (Optional) Create the `Package.swift` file to add dependencies.
+  ```swift
+  import PackageDescription
+  
+  let package = Package(
+    name: "Action",
+        dependencies: [
+            .Package(url: "https://github.com/apple/example-package-deckofplayingcards.git", majorVersion: 3),
+            .Package(url: "https://github.com/IBM-Swift/CCurl.git", "0.2.3"),
+            .Package(url: "https://github.com/IBM-Swift/Kitura-net.git", "1.7.10"),
+            .Package(url: "https://github.com/IBM-Swift/SwiftyJSON.git", "15.0.1"),
+            .Package(url: "https://github.com/watson-developer-cloud/swift-sdk.git", "0.16.0")
+        ]
+  )
   ```
-  /swift3Action/spm-build/swiftbuildandlink.sh
+  As you can see this example adds `swift-watson-sdk` and `example-package-deckofplayingcards` dependencies.
+  Notice that `CCurl`, `Kitura-net` and `SwiftyJSON` are provided in the standard Swift action
+and so you should include them in your own `Package.swift`.
+
+- Copy Package.swift to spm-build directory
+  ```
+  cp /owexec/Package.swift /swift3Action/spm-build/Package.swift
   ```
 
-- Create the zip archive
+- Change to the spm-build directory.
   ```
   cd /swift3Action/spm-build
   ```
 
+- Compile your Swift Action.
+  ```
+  swift build -c release
+  ```
+
+- Create the zip archive.
   ```
   zip /owexec/hello.zip .build/release/Action
   ```
-- Exit the Docker container
+
+- Exit the Docker container.
   ```
   exit
   ```
 
-This has created hello.zip in the same directory as hello.swift. 
--Upload it to OpenWhisk with the action name helloSwifty:
+  This has created hello.zip in the same directory as hello.swift. 
+
+- Upload it to OpenWhisk with the action name helloSwifty:
   ```
-  wsk action update helloSwiftly hello.zip --kind swift:3
+  wsk action update helloSwiftly hello.zip --kind swift:3.1.1
   ```
 
 - To check how much faster it is, run 

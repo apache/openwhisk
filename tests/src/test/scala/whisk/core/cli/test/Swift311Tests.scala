@@ -15,21 +15,14 @@
  * limitations under the License.
  */
 
-package system.basic
+package whisk.core.cli.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
-import common.WskTestHelpers
-
 @RunWith(classOf[JUnitRunner])
-class WskUnicodeSwiftTests
-    extends WskUnicodeTests
-    with WskTestHelpers
-    with JsHelpers {
+class Swift311Tests
+    extends Swift3Tests {
 
-    override lazy val actionKind = "swift:3"
-    override lazy val actionSource = "unicode.swift"
-
+    override lazy val runtimeContainer = "swift:3.1.1"
 }

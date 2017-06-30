@@ -74,7 +74,7 @@ def getArgs():
         if osname == 'Linux':
             return 'local'
         elif osname == 'Darwin':
-            return 'mac'
+            return 'docker-machine'
         else:
             return None
 
@@ -82,7 +82,7 @@ def getArgs():
     parser.add_argument('-b', '--build', help='build component', action='store_const', const=True, default=False)
     parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
-    parser.add_argument('-t', '--target', help='deploy target (one of [mac, local])', default=detectDeployTarget())
+    parser.add_argument('-t', '--target', help='deploy target (one of [mac, docker-machine, local])', default=detectDeployTarget())
     parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
@@ -290,6 +290,11 @@ Components = [
                   'build swift v3 action container',
                   yaml = False,
                   gradle = 'core:swift3Action'),
+
+    makeComponent('action-swift-v3.1.1',
+                  'build swift v3.1.1 action container',
+                  yaml = False,
+                  gradle = 'core:swift3.1.1Action'),
 
     makeComponent('java8action',
                   'build java action container',

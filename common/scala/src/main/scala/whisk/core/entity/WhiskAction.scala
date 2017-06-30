@@ -72,6 +72,32 @@ case class WhiskActionPut(
     }
 }
 
+abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name) {
+    def exec: Exec
+    def parameters: Parameters
+    def limits: ActionLimits
+
+    /** @return true iff action has appropriate annotation. */
+    def hasFinalParamsAnnotation = {
+        annotations.asBool(WhiskAction.finalParamsAnnotationName) getOrElse false
+    }
+
+    /** @return a Set of immutable parameternames */
+    def immutableParameters = if (hasFinalParamsAnnotation) {
+        parameters.definedParameters
+    } else Set.empty[String]
+
+    def toJson = JsObject(
+        "namespace" -> namespace.toJson,
+        "name" -> name.toJson,
+        "exec" -> exec.toJson,
+        "parameters" -> parameters.toJson,
+        "limits" -> limits.toJson,
+        "version" -> version.toJson,
+        "publish" -> publish.toJson,
+        "annotations" -> annotations.toJson)
+}
+
 /**
  * A WhiskAction provides an abstraction of the meta-data
  * for a whisk action.
@@ -99,42 +125,16 @@ case class WhiskAction(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
+    extends WhiskActionLike(name) {
 
     require(exec != null, "exec undefined")
     require(limits != null, "limits undefined")
-
-    /** @return true iff action has appropriate annotation. */
-    def hasFinalParamsAnnotation = {
-        annotations.asBool(WhiskAction.finalParamsAnnotationName) getOrElse false
-    }
-
-    /** @return a Set of immutable parameternames */
-    def immutableParameters = if (hasFinalParamsAnnotation) {
-        parameters.definedParameters
-    } else Set.empty[String]
 
     /**
      * Merges parameters (usually from package) with existing action parameters.
      * Existing parameters supersede those in p.
      */
     def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskAction](rev)
-
-    /**
-     * Gets initializer for action if it is supported. This typically includes
-     * the code to execute, or a zip file containing the executable artifacts.
-     * Some actions (i.e., sequences) have no initializers since they are not executed
-     * explicitly inside containers.
-     */
-    def containerInitializer: Option[JsObject] = {
-        exec match {
-            case c: CodeExec[_] =>
-                val code = Option(c.codeAsJson).filter(_ != JsNull).map("code" -> _)
-                val base = Map("name" -> name.toJson, "binary" -> c.binary.toJson, "main" -> c.entryPoint.getOrElse("main").toJson)
-                Some(JsObject(base ++ code))
-            case _ => None
-        }
-    }
 
     /**
      * Resolves sequence components if they contain default namespace.
@@ -150,11 +150,11 @@ case class WhiskAction(
         }
     }
 
-    def toJson = WhiskAction.serdes.write(this).asJsObject
-
     def toExecutableWhiskAction = exec match {
-        case codeExec: CodeExec[_] => Some(ExecutableWhiskAction(namespace, name, codeExec, limits, version, rev))
-        case _                     => None
+        case codeExec: CodeExec[_] =>
+            Some(ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations).revision[ExecutableWhiskAction](rev))
+        case _ =>
+            None
     }
 }
 
@@ -164,25 +164,30 @@ case class WhiskAction(
  *
  * exec is typed to CodeExec to guarantee executability by an Invoker.
  *
- * rev is stored as part of the case-class to make action-matching as
- * narrow as possible. version is not enough, because a user might delete
- * an action and recreate it later, effectively resetting the version
- * counter and thus producing "duplicates".
- *
  * @param namespace the namespace for the action
  * @param name the name of the action
  * @param exec the action executable details
+ * @param parameters the set of parameters to bind to the action environment
  * @param limits the limits to impose on the action
  * @param version the semantic version
- * @param rev the revision of the document
+ * @param publish true to share the action or false otherwise
+ * @param annotation the set of annotations to attribute to the action
+ * @throws IllegalArgumentException if any argument is undefined
  */
+@throws[IllegalArgumentException]
 case class ExecutableWhiskAction(
     namespace: EntityPath,
-    name: EntityName,
+    override val name: EntityName,
     exec: CodeExec[_],
+    parameters: Parameters = Parameters(),
     limits: ActionLimits = ActionLimits(),
     version: SemVer = SemVer(),
-    rev: DocRevision = DocRevision.empty) {
+    publish: Boolean = false,
+    annotations: Parameters = Parameters())
+    extends WhiskActionLike(name) {
+
+    require(exec != null, "exec undefined")
+    require(limits != null, "limits undefined")
 
     /**
      * Gets initializer for action. This typically includes the code to execute,
@@ -194,11 +199,7 @@ case class ExecutableWhiskAction(
         JsObject(base ++ code)
     }
 
-    /**
-     * The name of the entity qualified with its namespace and version for
-     * creating unique keys in backend services.
-     */
-    final def fullyQualifiedName(withVersion: Boolean) = FullyQualifiedEntityName(namespace, name, if (withVersion) Some(version) else None)
+    def toWhiskAction = WhiskAction(namespace, name, exec, parameters, limits, version, publish, annotations).revision[WhiskAction](rev)
 }
 
 object WhiskAction
@@ -211,7 +212,7 @@ object WhiskAction
 
     override val collectionName = "actions"
 
-    override implicit val serdes = jsonFormat8(WhiskAction.apply)
+    override implicit val serdes = jsonFormat(WhiskAction.apply, "namespace", "name", "exec", "parameters", "limits", "version", "publish", "annotations")
 
     override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo

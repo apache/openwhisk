@@ -1,0 +1,41 @@
+ext.dockerImageName = 'action-swift-v3.1.1'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn 'copyProxy'
+distDocker.dependsOn 'copyEpilogue'
+distDocker.dependsOn 'copySwiftRunner'
+distDocker.dependsOn 'copyWhisk'
+distDocker.dependsOn 'copyWhiskJsonUtils'
+distDocker.finalizedBy('cleanup')
+
+task copyProxy(type: Copy) {
+    from '../actionProxy/actionproxy.py'
+    into './actionproxy.py'
+}
+
+task copyEpilogue(type: Copy) {
+    from '../swift3Action/epilogue.swift'
+    into '.'
+}
+
+task copySwiftRunner(type: Copy) {
+    from '../swift3Action/swift3runner.py'
+    into '.'
+}
+
+task copyWhisk(type: Copy) {
+    from '../swift3Action/spm-build/_Whisk.swift'
+    into './spm-build'
+}
+
+task copyWhiskJsonUtils(type: Copy) {
+    from '../swift3Action/spm-build/_WhiskJSONUtils.swift'
+    into './spm-build'
+}
+
+task cleanup(type: Delete) {
+    delete 'actionproxy.py'
+    delete 'epilogue.swift'
+    delete 'swift3runner.py'
+    delete 'spm-build/_Whisk.swift'
+    delete 'spm-build/_WhiskJSONUtils.swift'
+}

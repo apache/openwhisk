@@ -354,6 +354,22 @@ Python 2 actions are executed using Python 2.7.12. This is the default runtime f
 - Werkzeug v0.12
 - zope.interface v4.3.3
 
+## Swift actions
+
+### Swift 3
+Swift 3 actions are executed using Swift 3.0.2  `--kind swift:3` or Swift 3.1.1 `--kind swift:3.1.1`, respectively.  The default `--kind swift:default` is Swift 3.0.2.
+
+Swift 3.0.2 actions can use the following packages:
+- KituraNet version 1.0.1, https://github.com/IBM-Swift/Kitura-net
+- SwiftyJSON version 14.2.0, https://github.com/IBM-Swift/SwiftyJSON
+- IBM Swift Watson SDK version 0.4.1, https://github.com/IBM-Swift/swift-watson-sdk
+
+Swift 3.1.1 actions can use the following packages:
+- KituraNet version 1.7.6, https://github.com/IBM-Swift/Kitura-net
+- SwiftyJSON version 15.0.1, https://github.com/IBM-Swift/SwiftyJSON
+- Watson Developer Cloud SDK version 0.16.0, https://github.com/watson-developer-cloud/swift-sdk
+
+
 ## Docker actions
 
 Docker actions run a user-supplied binary in a Docker container. The binary runs in a Docker image based on [python:3.6.1-alpine](https://hub.docker.com/r/library/python), so the binary must be compatible with this distribution.

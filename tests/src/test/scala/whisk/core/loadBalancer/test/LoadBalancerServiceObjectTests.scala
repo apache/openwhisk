@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -111,15 +112,30 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
             1, hash) shouldBe Some(hashInto(invs, hash + step + step))
     }
 
-    it should "choose the least loaded invoker if all invokers are overloaded to begin with" in {
+    it should "multiply its threshold in 3 iterations to find an invoker with a good warm-chance" in {
         val invokerCount = 3
         val invs = invokers(invokerCount)
-        val hash = 1
+        val hash = 0 // home is 0, stepsize is 1
+
+        // even though invoker1 is not the home invoker in this case, it gets chosen over
+        // the others because it's the first one encountered by the iteration mechanism to be below
+        // the threshold of 3 * 16 invocations
+        LoadBalancerService.schedule(
+            invs,
+            Map("invoker0" -> 33, "invoker1" -> 36, "invoker2" -> 33),
+            16,
+            hash) shouldBe Some("invoker0")
+    }
+
+    it should "choose the home invoker if all invokers are overloaded even above the muliplied threshold" in {
+        val invokerCount = 3
+        val invs = invokers(invokerCount)
+        val hash = 0 // home is 0, stepsize is 1
 
         LoadBalancerService.schedule(
             invs,
-            Map("invoker0" -> 3, "invoker1" -> 3, "invoker2" -> 2),
-            1,
-            hash) shouldBe Some("invoker2")
+            Map("invoker0" -> 51, "invoker1" -> 50, "invoker2" -> 49),
+            16,
+            hash) shouldBe Some("invoker0")
     }
 }

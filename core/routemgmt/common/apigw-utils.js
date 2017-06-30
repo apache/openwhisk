@@ -369,7 +369,7 @@ function generateBaseSwaggerApi(basepath, apiname) {
  */
 function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
   var operation = endpoint.gatewayMethod.toLowerCase();
-  var operationId = operation + '_' + endpoint.gatewayPath;
+  var operationId = makeOperationId(operation, endpoint.gatewayPath);
   var responsetype = responsetype || 'json';
   console.log('addEndpointToSwaggerApi: operationid = '+operationId);
   try {
@@ -473,7 +473,7 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
       console.log('removeEndpointFromSwaggerApi: No operation; removing entire relpath '+relpath);
       if (swaggerApi.paths[relpath]) {
           for (var operation in swaggerApi.paths[relpath]) {
-            var operationId = operation + '_' + relpath;
+            var operationId = makeOperationId(operation, relpath);
             deleteActionOperationInvocationDetails(swaggerApi, operationId);
           }
           delete swaggerApi.paths[relpath];
@@ -482,7 +482,7 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
           return 'path \''+relpath+'\' does not exist in the API';
       }
   } else { // relpath and operation are specified, just delete the specific operation
-      var operationId = operation + '_' + relpath;
+      var operationId = makeOperationId(operation, relpath);
       if (swaggerApi.paths[relpath] && swaggerApi.paths[relpath][operation]) {
           delete swaggerApi.paths[relpath][operation];
           if (Object.keys(swaggerApi.paths[relpath]).length === 0) {
@@ -840,6 +840,27 @@ function makeJsonString(x) {
   }
   return 'Unexpected JSON parsing failure';
 }
+
+/*
+ * Generate and return a swagger OperationId value
+ *
+ * Parameters
+ *   operation  - String. HTTP method (i.e. get, post, etc)
+ *   repath     - String. Swagger path value. The path relative to the base path
+ */
+function makeOperationId(operation, relpath) {
+   // Concatenate operation + relpath, stripping '/' and camelCasing after each '/' delimiter
+   // relpath special character handling in each path segment:
+   //   . ~ ! $ & ' ( ) * + , ; = : @ are removed and the following characters in the same path segment are camel cased
+   //   - _  are retained and the following characters in the same path segment are lower cased
+  return operation.toLowerCase() +
+         relpath.replace(/[^0-9a-z_-]/gi, ' ').replace(/\w\S*/g, function(word) {return makeCamelCase(word);}).replace(/\s/g, '');
+}
+
+function makeCamelCase(str) {
+  return str.charAt(0).toUpperCase() + str.substr(1).toLowerCase();
+}
+
 
 module.exports.getApis = getApis;
 module.exports.addApiToGateway = addApiToGateway;

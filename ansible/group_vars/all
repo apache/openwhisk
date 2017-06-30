@@ -42,17 +42,21 @@ runtimesManifest:
       default: true
       image:
         name: "nodejs6action"
+      deprecated: false
     python:
     - kind: "python"
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:2"
       default: true
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:3"
       image:
         name: "python3action"
+      deprecated: false
     swift:
     - kind: "swift"
       image:
@@ -62,16 +66,22 @@ runtimesManifest:
       default: true
       image:
         name: "swift3action"
+      deprecated: false
+    - kind: "swift:3.1.1"
+      image:
+        name: "action-swift-v3.1.1"
+      deprecated: false
     java:
     - kind: "java"
+      default: true
+      image:
+        name: "java8action"
+      deprecated: false
       attached:
         attachmentName: "jarfile"
         attachmentType: "application/java-archive"
       sentinelledLogs: false
       requireMain: true
-      image:
-        name: "java8action"
-      default: true
   blackboxes:
     - name: "dockerskeleton"
 
@@ -114,6 +124,20 @@ kafka:
   port: 9092
   ras:
     port: 9093
+  heap: "{{ kafka_heap | default('1g') }}"
+  topics:
+    completed:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    health:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    invoker:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
+      retentionMS: 172800000
 
 zookeeper:
   version: 3.4
