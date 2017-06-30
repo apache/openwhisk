@@ -32,6 +32,12 @@ object Tracing {
   val tracerOption: Option[Tracer] = initTracer()
   val LOGGING_ENABLED = false
 
+  /**
+    * There is no need to call this method explicitly, using Tracing.startSpan and Tracing.endSpan
+    * directly will just work.
+    *
+    * @return the tracer implementation that is the entry point to the open-tracing api
+    */
   def initTracer(): Option[Tracer] = {
     // get and register the tracer if the global tracer hasn't been registered
     val existingTracerOption = Option(!GlobalTracer.isRegistered)
@@ -43,12 +49,41 @@ object Tracing {
     Option(existingTracerOption.getOrElse(GlobalTracer.get))
   }
 
+  /**
+    * Metadata used for the span creation.
+    *
+    * @param action name of the span (most prominent piece of information)
+    * @param path path of the package
+    * @param user name of the current user who invokes the action
+    * @param revision revision of the action
+    * @param version version of the action
+    */
   case class SpanMetadata(action: String, path: String, user: String, revision: String, version: String) {
     override def toString: String = {
       s"SPAN[action=$action, path=$path, user=$user, revision=$revision, version=$version]"
     }
   }
 
+  /**
+    * Starts the tracing and returns the span that can be later on closed by Tracing.endSpan(spanOption).
+    *
+    * Semantics is as follows:
+    *          1. when starting a primitive action/span don't care about parentOption and carrierOption
+    *          2. when starting a primitive action/span that is child of another action/span, pass the parentOption
+    *             with the hash map of ids and the implementation will make the child-parent relationship
+    *          3. when starting an action/span that can have children, pass the empty mutable Map [String, String]
+    *             in the carrierOption argument and later on continue with point (2), but use this map as a parentOption
+    *          4. combination of (2) and (3) i.e. starting a sequence that is itself part of another sequence. In this case
+    *             pass both parentOption (as reference for the parent) and carrierOption (for the future use by children)
+    *
+    *  NOTE: make sure, you close the span with the endSpan method once the encapsulating action is done
+    *
+    * @param spanMetadata metadata needed for creating the span, they will be used as tags on that new span
+    * @param parentOption if the parent option is not empty the new span will be started as a child span of the parent one
+    * @param carrierOption if the carrier option is not empty, but it contains the empty mutable map, the tracer implementation
+    *                      fills (Tracer.inject) the set of specific ids using text map method so that later on it can be extracted.
+    * @return the created span
+    */
   def startSpan(spanMetadata: SpanMetadata,
                 parentOption: Option[Map[String, String]] = None,
                 carrierOption: Option[scala.collection.mutable.HashMap[String, String]] = None)(implicit logging: Logging): Option[Span] = {
@@ -88,6 +123,11 @@ object Tracing {
     });
   }
 
+  /**
+    * Closes the passed span, this method is basically dual to the startSpan method
+    *
+    * @param spanOption span that is to be ended/closed
+    */
   def endSpan(spanOption: Option[Span]): Unit = {
     spanOption.foreach(_.close)
   }
