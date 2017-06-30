@@ -41,6 +41,7 @@ node_modules
 
 # IntelliJ
 .idea
+*.class
 
 # Ansible
 ansible/environments/docker-machine/hosts

@@ -310,12 +310,13 @@ protected[actions] trait SequenceActions {
             val inputPayload = accounting.previousResponse.getAndSet(null).result.map(_.asJsObject)
 
             // invoke the action by calling the right method depending on whether it's an atomic action or a sequence
-            val futureWhiskActivationTuple = action.exec match {
-                case SequenceExec(components) =>
+            val futureWhiskActivationTuple = action.toExecutableWhiskAction match {
+                case None =>
+                    val SequenceExec(components) = action.exec
                     logging.info(this, s"sequence invoking an enclosed sequence $action")
                     // call invokeSequence to invoke the inner sequence; this is a blocking activation by definition
                     invokeSequence(user, action, components, inputPayload, None, cause, topmost = false, accounting.atomicActionCnt)
-                case _ =>
+                case Some(executable) =>
                     // this is an invoke for an atomic action
                     logging.info(this, s"sequence invoking an enclosed atomic action $action")
                     val timeout = action.limits.timeout.duration + 1.minute

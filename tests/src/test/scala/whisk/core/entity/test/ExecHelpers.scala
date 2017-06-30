@@ -43,11 +43,11 @@ trait ExecHelpers
 
     protected def imagename(name: String) = ExecManifest.ImageName(s"${name}action".replace(":", ""), Some("openwhisk"), Some("latest"))
 
-    protected def js(code: String, main: Option[String] = None): Exec = {
+    protected def js(code: String, main: Option[String] = None) = {
         CodeExecAsString(RuntimeManifest(NODEJS, imagename(NODEJS), deprecated = Some(true)), trim(code), main.map(_.trim))
     }
 
-    protected def js6(code: String, main: Option[String] = None): Exec = {
+    protected def js6(code: String, main: Option[String] = None) = {
         CodeExecAsString(RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)), trim(code), main.map(_.trim))
     }
 
@@ -55,19 +55,19 @@ trait ExecHelpers
         js6(code, main)
     }
 
-    protected def swift(code: String, main: Option[String] = None): Exec = {
+    protected def swift(code: String, main: Option[String] = None) = {
         CodeExecAsString(RuntimeManifest(SWIFT, imagename(SWIFT), deprecated = Some(true)), trim(code), main.map(_.trim))
     }
 
-    protected def swift3(code: String, main: Option[String] = None): Exec = {
-        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = Some(true), deprecated = Some(false)),  trim(code), main.map(_.trim))
+    protected def swift3(code: String, main: Option[String] = None) = {
+        CodeExecAsString(RuntimeManifest(SWIFT3, imagename(SWIFT3), default = Some(true), deprecated = Some(false)), trim(code), main.map(_.trim))
     }
 
-    protected def sequence(components: Vector[FullyQualifiedEntityName]): Exec = SequenceExec(components)
+    protected def sequence(components: Vector[FullyQualifiedEntityName]) = SequenceExec(components)
 
-    protected def bb(image: String): Exec = BlackBoxExec(ExecManifest.ImageName(trim(image)), None, None, false)
+    protected def bb(image: String) = BlackBoxExec(ExecManifest.ImageName(trim(image)), None, None, false)
 
-    protected def bb(image: String, code: String, main: Option[String] = None): Exec = {
+    protected def bb(image: String, code: String, main: Option[String] = None) = {
         BlackBoxExec(ExecManifest.ImageName(trim(image)), Some(trim(code)).filter(_.nonEmpty), main, false)
     }
 }

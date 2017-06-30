@@ -201,7 +201,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
 
     override def getActiveUserActivationCounts: Map[String, Int] = Map()
 
-    override def publish(action: WhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
+    override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
         Future.successful {
             whiskActivationStub map {
                 case (timeout, activation) => Future {

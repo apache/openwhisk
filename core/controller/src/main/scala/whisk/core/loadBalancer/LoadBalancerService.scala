@@ -46,9 +46,9 @@ import whisk.core.WhiskConfig._
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, CodeExec, WhiskAction, WhiskActivation }
+import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
 import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskAction
+import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 
@@ -75,7 +75,7 @@ trait LoadBalancer {
      *         The future is guaranteed to complete within the declared action time limit
      *         plus a grace period (see activeAckTimeoutGrace).
      */
-    def publish(action: WhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
+    def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
 }
 
@@ -90,7 +90,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     override def getActiveUserActivationCounts: Map[String, Int] = activationBySubject.toMap mapValues { _.size }
 
-    override def publish(action: WhiskAction, msg: ActivationMessage)(
+    override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
         chooseInvoker(action, msg).flatMap { invokerName =>
             val subject = msg.user.subject.asString
@@ -141,7 +141,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(action: WhiskAction, activationId: ActivationId, subject: String, invokerName: String, transid: TransactionId): ActivationEntry = {
+    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, subject: String, invokerName: String, transid: TransactionId): ActivationEntry = {
         // either create a new promise or reuse a previous one for this activation if it exists
         val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         val entry = activationById.getOrElseUpdate(activationId, {
@@ -275,12 +275,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: WhiskAction, msg: ActivationMessage): Future[String] = {
-        val isBlackbox = action.exec match {
-            case e: CodeExec[_] => e.pull
-            case _              => false
-        }
-        val invokers = if (isBlackbox) blackboxInvokers else managedInvokers
+    private def chooseInvoker(action: ExecutableWhiskAction, msg: ActivationMessage): Future[String] = {
+        val invokers = if (action.exec.pull) blackboxInvokers else managedInvokers
         val hash = hashSubjectAction(msg)
 
         invokers.flatMap { invokers =>
