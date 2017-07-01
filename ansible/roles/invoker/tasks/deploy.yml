@@ -66,16 +66,38 @@
         --name invoker{{ groups['invokers'].index(inventory_hostname) }}
         --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
         --restart {{ docker.restart.policy }}
-        -e COMPONENT_NAME=invoker{{ groups['invokers'].index(inventory_hostname) }}
-        -e CONSULSERVER_HOST={{ groups['consul_servers'] | first }}
-        -e CONSUL_HOST_PORT4={{ consul.port.http }}
-        -e PORT=8080
-        -e SELF_DOCKER_ENDPOINT=localhost
-        -e SERVICE_CHECK_HTTP=/ping
-        -e SERVICE_CHECK_TIMEOUT=2s
-        -e SERVICE_CHECK_INTERVAL=15s
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
         -e INVOKER_OPTS='{{ invoker.arguments }}'
+        -e COMPONENT_NAME=invoker{{ groups['invokers'].index(inventory_hostname) }}
+        -e PORT=8080
+        -e KAFKA_HOST={{ groups['kafka']|first }}
+        -e KAFKA_HOST_PORT={{ kafka.port }}
+        -e DB_PROTOCOL={{ db_protocol }}
+        -e DB_PROVIDER={{ db_provider }}
+        -e DB_HOST={{ db_host }}
+        -e DB_PORT={{ db_port }}
+        -e DB_USERNAME={{ db_username }}
+        -e DB_PASSWORD={{ db_password }}
+        -e DB_WHISK_ACTIONS={{ db.whisk.actions }}
+        -e DB_WHISK_ACTIVATIONS={{ db.whisk.activations }}
+        -e WHISK_API_HOST_PROTO={{ whisk_api_host_proto | default('https') }}
+        -e WHISK_API_HOST_PORT={{ whisk_api_host_port | default('443') }}
+        -e WHISK_API_HOST_NAME={{ whisk_api_host_name | default(groups['edge'] | first) }}
+        -e RUNTIMES_MANIFEST='{{ runtimesManifest | to_json }}'
+        -e SELF_DOCKER_ENDPOINT=localhost
+        -e DOCKER_REGISTRY={{ docker_registry }}
+        -e DOCKER_IMAGE_PREFIX={{ docker.image.prefix }}
+        -e DOCKER_IMAGE_TAG={{ docker.image.tag }}
+        -e INVOKER_CONTAINER_NETWORK={{ invoker_container_network_name | default("bridge") }}
+        -e INVOKER_CONTAINER_POLICY={{ invoker_container_policy_name | default()}}
+        -e INVOKER_CONTAINER_DNS={{ invoker_container_network_dns_servers | default()}}
+        -e INVOKER_NUMCORE={{ invoker.numcore }}
+        -e INVOKER_CORESHARE={{ invoker.coreshare }}
+        -e INVOKER_SERIALIZEDOCKEROP={{ invoker.serializeDockerOp }}
+        -e INVOKER_SERIALIZEDOCKERPULL={{ invoker.serializeDockerPull }}
+        -e INVOKER_USERUNC={{ invoker_use_runc | default(invoker.useRunc) }}
+        -e INVOKER_USEREACTIVEPOOL={{ invoker.useReactivePool }}
+        -e WHISK_LOGS_DIR={{ whisk_logs_dir }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

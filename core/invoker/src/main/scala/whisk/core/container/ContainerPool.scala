@@ -59,10 +59,6 @@ class ContainerPool(
 
     implicit val executionContext = actorSystem.dispatcher
 
-    // These must be defined before verbosity is set
-    private val datastore = WhiskEntityStore.datastore(config)
-    private val authStore = WhiskAuthStore.datastore(config)
-
     val mounted = !standalone
     val dockerhost = config.selfDockerEndpoint
     val serializeDockerOp = config.invokerSerializeDockerOp.toBoolean

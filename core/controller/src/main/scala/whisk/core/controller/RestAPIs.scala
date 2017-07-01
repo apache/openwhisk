@@ -89,7 +89,6 @@ protected[controller] object RestApiCommons {
             WhiskAuthStore.requiredProperties ++
             WhiskEntityStore.requiredProperties ++
             WhiskActivationStore.requiredProperties ++
-            WhiskConfig.consulServer ++
             EntitlementProvider.requiredProperties ++
             WhiskActionsApi.requiredProperties ++
             Authenticate.requiredProperties ++
@@ -109,7 +108,6 @@ protected[controller] object RestApiCommons {
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
-            override val consulServer: String,
             override val actorSystem: ActorSystem,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
@@ -139,7 +137,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
     implicit val entitlementProvider: EntitlementProvider,
     implicit val activationIdFactory: ActivationIdGenerator,
     implicit val loadBalancer: LoadBalancerService,
-    implicit val consulServer: String,
     implicit val actorSystem: ActorSystem,
     implicit val executionContext: ExecutionContext,
     implicit val logging: Logging,
@@ -230,7 +227,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
-            override val consulServer: String,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -248,7 +244,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val activationStore: ActivationStore,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
-            override val consulServer: String,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -262,7 +257,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
-            override val consulServer: String,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -284,7 +278,6 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
             override val loadBalancer: LoadBalancerService,
-            override val consulServer: String,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)

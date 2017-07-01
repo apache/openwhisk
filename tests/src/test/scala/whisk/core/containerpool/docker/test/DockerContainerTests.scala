@@ -144,7 +144,7 @@ class DockerContainerTests extends FlatSpec
         args should contain inOrder ("--name", name)
 
         // Assert proper environment passing
-        args should contain allOf ("-e", "test=hi", "SERVICE_IGNORE=true")
+        args should contain allOf ("-e", "test=hi")
     }
 
     it should "pull a user provided image before creating the container" in {

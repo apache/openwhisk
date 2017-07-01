@@ -45,8 +45,6 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.Timeout
 import common.StreamLogging
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.KeyValueStore
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -118,10 +116,8 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val children = mutable.Queue(invoker5.ref, invoker2.ref)
         val childFactory = (f: ActorRefFactory, instance: InstanceId) => children.dequeue()
 
-        val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
-
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, sendActivationToInvoker, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // create first invoker
@@ -154,45 +150,14 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         }
     }
 
-    it should "publish state changes via kv and call the provided callback if an invoker goes offline" in {
-        val invoker = TestProbe()
-        val invokerInstance = InstanceId(0)
-        val invokerName = s"invoker${invokerInstance.toInt}"
-        val childFactory = (f: ActorRefFactory, instance: InstanceId) => invoker.ref
-
-        val kv = stub[KeyValueStore]
-        val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, sendActivationToInvoker, pC))
-
-        within(timeout.duration) {
-            // create first invoker
-            val ping0 = PingMessage(invokerInstance)
-            supervisor ! ping0
-            invoker.expectMsgType[SubscribeTransitionCallBack] // subscribe to the actor
-            invoker.expectMsg(ping0)
-
-            // triggers kv.put
-            invoker.send(supervisor, CurrentState(invoker.ref, Healthy))
-            // triggers kv.put and callback
-            invoker.send(supervisor, Transition(invoker.ref, Healthy, Offline))
-            // triggers another kv.put
-            invoker.send(supervisor, Transition(invoker.ref, Offline, Healthy))
-        }
-
-        retry({
-            (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).repeated(3)
-        }, N = 3, waitBeforeRetry = Some(500.milliseconds))
-    }
-
     it should "forward the ActivationResult to the appropriate invoker" in {
         val invoker = TestProbe()
         val invokerInstance = InstanceId(0)
         val invokerName = s"invoker${invokerInstance.toInt}"
         val childFactory = (f: ActorRefFactory, instance: InstanceId) => invoker.ref
-        val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, sendActivationToInvoker, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // Create one invoker
@@ -216,10 +181,9 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val invokerName = s"invoker${invokerInstance.toInt}"
         val childFactory = (f: ActorRefFactory, instance: InstanceId) => invoker.ref
 
-        val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, sendActivationToInvoker, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         // Send ActivationMessage to InvokerPool
         val activationMessage = ActivationMessage(

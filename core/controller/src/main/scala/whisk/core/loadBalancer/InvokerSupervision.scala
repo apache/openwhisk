@@ -38,12 +38,7 @@ import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
 
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-
 import whisk.common.AkkaLogging
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.KeyValueStore
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
@@ -82,7 +77,6 @@ final case class InvokerInfo(buffer: RingBuffer[Boolean])
  */
 class InvokerPool(
     childFactory: (ActorRefFactory, InstanceId) => ActorRef,
-    kv: KeyValueStore,
     sendActivationToInvoker: (ActivationMessage, InstanceId) => Future[RecordMetadata],
     pingConsumer: MessageConsumer) extends Actor {
 
@@ -123,22 +117,19 @@ class InvokerPool(
             refToInstance.get(invoker).foreach { instance =>
                 status = status.updated(instance.toInt, (instance, currentState))
             }
-            publishStatus()
+            logStatus()
 
         case Transition(invoker, oldState: InvokerState, newState: InvokerState) =>
             refToInstance.get(invoker).foreach {
                 instance => status = status.updated(instance.toInt, (instance, newState))
             }
-            publishStatus()
+            logStatus()
 
         // this is only used for the internal test action which enabled an invoker to become healthy again
         case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
     }
 
-    def publishStatus() = {
-        val json = status.map { case (instance, state) => s"invoker${instance.toInt}" -> state.asString }.toMap.toJson
-        kv.put(LoadBalancerKeys.invokerHealth, json.compactPrint)
-
+    def logStatus() = {
         val pretty = status.map { case (instance, state) => s"${instance.toInt} -> $state" }
         logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
     }
@@ -169,10 +160,9 @@ class InvokerPool(
 object InvokerPool {
     def props(
         f: (ActorRefFactory, InstanceId) => ActorRef,
-        kv: KeyValueStore,
         p: (ActivationMessage, InstanceId) => Future[RecordMetadata],
         pc: MessageConsumer) = {
-        Props(new InvokerPool(f, kv, p, pc))
+        Props(new InvokerPool(f, p, pc))
     }
 
     /** A stub identity for invoking the test action. This does not need to be a valid identity. */
