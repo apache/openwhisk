@@ -168,12 +168,14 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT,
         summary: Boolean = false,
-        fieldFilter: Option[String] = None)(
+        fieldFilter: Option[String] = None,
+        url: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
             Seq(fqn(name)) ++
             { if (summary) Seq("--summary") else Seq() } ++
-            { fieldFilter map { f => Seq(f) } getOrElse Seq() }
+            { fieldFilter map { f => Seq(f) } getOrElse Seq() } ++
+            { url map { u => Seq("--url") } getOrElse Seq() }
 
         cli(wp.overrides ++ params, expectedExitCode)
     }

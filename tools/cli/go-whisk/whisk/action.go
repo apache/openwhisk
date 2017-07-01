@@ -22,6 +22,8 @@ import (
     "net/http"
     "errors"
     "net/url"
+    "strings"
+
     "../wski18n"
 )
 
@@ -55,6 +57,46 @@ type ActionListOptions struct {
     Limit       int         `url:"limit"`
     Skip        int         `url:"skip"`
     Docs        bool        `url:"docs,omitempty"`
+}
+
+func (action Action) WebAction() (bool) {
+    var webExportValue, isBool bool
+
+    webExport := action.Annotations.GetValue("web-export")
+
+    if webExportValue, isBool = webExport.(bool); isBool {
+        return webExportValue
+    } else {
+        return false
+    }
+}
+
+func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (string) {
+    var actionURL string
+
+    webActionPath := "https://%s%s/%s/web/%s/%s/%s"
+    actionPath := "https://%s%s/%s/namespaces/%s/actions/%s"
+    packagedActionPath := actionPath + "/%s"
+    namespace := strings.Split(action.Namespace, "/")[0]
+    namespace = strings.Replace(url.QueryEscape(namespace), "+", "%20", -1)
+    name := strings.Replace(url.QueryEscape(action.Name), "+", "%20", -1)
+    pkg = strings.Replace(url.QueryEscape(pkg), "+", "%20", -1)
+
+    if action.WebAction() {
+        if len(pkg) == 0 {
+            pkg = "default"
+        }
+
+        actionURL = fmt.Sprintf(webActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+    } else {
+        if len(pkg) == 0 {
+            actionURL = fmt.Sprintf(actionPath, apiHost, apiPath, apiVersion, namespace, name)
+        } else {
+            actionURL = fmt.Sprintf(packagedActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+        }
+    }
+
+    return actionURL
 }
 
 ////////////////////

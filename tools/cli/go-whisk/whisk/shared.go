@@ -26,6 +26,21 @@ type KeyValue struct {
 
 type KeyValueArr []KeyValue
 
+func (keyValueArr KeyValueArr) GetValue(key string) (interface{}) {
+    var res interface{}
+
+    for i := 0; i < len(keyValueArr); i++ {
+        if keyValueArr[i].Key == key {
+            res = keyValueArr[i].Value
+            break;
+        }
+    }
+
+    Debug(DbgInfo, "Got value '%v' from '%v' for key '%s'\n", res, keyValueArr, key)
+
+    return res
+}
+
 type Annotations []map[string]interface{}
 
 type Parameters *json.RawMessage

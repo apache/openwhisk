@@ -1470,5 +1470,13 @@
   {
     "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
     "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
+  },
+  {
+    "id": "{{.ok}} got action {{.name}}, displaying url\n",
+    "translation": "{{.ok}} got action {{.name}}, displaying url\n"
+  },
+  {
+    "id": "get action url",
+    "translation": "get action url"
   }
 ]
