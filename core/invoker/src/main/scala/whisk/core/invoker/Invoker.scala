@@ -486,7 +486,7 @@ object Invoker {
 
         val topic = s"invoker${invokerInstance.toInt}"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val consumer = new KafkaConsumerConnector(config.kafkaHost, topic, topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
         val producer = new KafkaProducerConnector(config.kafkaHost, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
