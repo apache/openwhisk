@@ -106,6 +106,7 @@ class ContainerPool(
                     freePool.remove(actor)
                     actor ! r // forwards the run request to the container
                 case None =>
+                    logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
                     self ! r
             }
 
