@@ -44,3 +44,5 @@ kafka:
     docker_image: "jpspring/s390x-openwhisk:kafka"
 nginx:
     docker_image: "jpspring/s390x-openwhisk:nginx"
+couchdb:
+    docker_image: "jpspring/s390x-openwhisk:couchdb"

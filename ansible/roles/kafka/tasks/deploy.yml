@@ -1,17 +1,9 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-<<<<<<< HEAD
-# - name: "pull the zookeeper:{{ zookeeper.version }} image"
-#   shell: "docker pull zookeeper:{{ zookeeper.version }}"
-#   retries: 3
 
 - name: "pull the {{ zookeeper.docker_image }} image"
   shell: "docker pull {{ zookeeper.docker_image }}"
-=======
-- name: "pull the zookeeper:{{ zookeeper.version }} image"
-  shell: "docker pull zookeeper:{{ zookeeper.version }}"
->>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
   retries: 3
 
 - name: (re)start zookeeper
@@ -37,21 +29,9 @@
   retries: 36
   delay: 5
 
-<<<<<<< HEAD
-# - name: "pull the ches/kafka:{{ kafka.version }} image"
-#   shell: "docker pull ches/kafka:{{ kafka.version }}"
-#   retries: 3
-
 - name: "pull the {{ kafka.docker_image }} image"
   shell: "docker pull {{ kafka.docker_image }}"
   retries: 3
-
-- debug: var=zookeeper_ip
-=======
-- name: "pull the ches/kafka:{{ kafka.version }} image"
-  shell: "docker pull ches/kafka:{{ kafka.version }}"
-  retries: 3
->>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
 
 - name: (re)start kafka
   docker_container:
@@ -78,11 +58,7 @@
   delay: 5
 
 - name: create the health topic
-<<<<<<< HEAD
   shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item }} --replication-factor 1 --partitions 1 --zookeeper {{ zookeeper_ip }}:{{ zookeeper.port }}'"
-=======
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"
->>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
   with_items:
     - health
   register: command_result
@@ -90,22 +66,14 @@
   changed_when: "'Created topic' in command_result.stdout"
 
 - name: create the active-ack topics
-<<<<<<< HEAD
   shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic health{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ zookeeper_ip }}:{{ zookeeper.port }}'"
-=======
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic health{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"
->>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
   with_indexed_items: "{{ groups['controllers'] }}"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
 
 - name: create the invoker topics
-<<<<<<< HEAD
   shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoker{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ zookeeper_ip }}:{{ zookeeper.port }}'"
-=======
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoker{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }}'"
->>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
   with_indexed_items: "{{ groups['invokers'] }}"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
