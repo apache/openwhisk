@@ -95,6 +95,8 @@ controller:
   blackboxFraction: 0.10
   instances: "{{ groups['controllers'] | length }}"
 
+#TODO:  Add default docker images to this YAML file here.  Overrides are in
+#       environments...
 consul:
   confdir: "{{ config_root_dir }}/consul"
   version: 0.7.0
@@ -105,6 +107,7 @@ consul:
     rpc: 8400
     http: 8500
     dns: 8600
+#  docker_image: "consul:0.7.0"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -114,10 +117,12 @@ kafka:
   port: 9092
   ras:
     port: 9093
+#  docker_image: "ches/kafka:0.10.0.1"
 
 zookeeper:
   version: 3.4
   port: 2181
+#  docker_image: "zookeeper:3.4"
 
 invoker:
   port: 12001
