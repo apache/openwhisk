@@ -216,7 +216,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     private val invokerPool = {
         // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
-        InvokerPool.healthAction.map {
+        InvokerPool.healthAction(instance).map {
             // Await the creation of the test action; on failure, this will abort the constructor which should
             // in turn abort the startup of the controller.
             a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)

@@ -177,10 +177,10 @@ object InvokerPool {
     }
 
     /** An action to use for monitoring invoker health. */
-    val healthAction = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
+    def healthAction(i: InstanceId) = ExecManifest.runtimesManifest.resolveDefaultRuntime("nodejs:6").map { manifest =>
         new WhiskAction(
             namespace = healthActionIdentity.namespace.toPath,
-            name = EntityName("invokerHealthTestAction"),
+            name = EntityName(s"invokerHealthTestAction${i.toInt}"),
             exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
     }
 }
@@ -301,7 +301,7 @@ class InvokerActor(controllerInstance: InstanceId) extends FSM[InvokerState, Inv
      * The InvokerPool redirects it to the invoker which is represented by this InvokerActor.
      */
     private def invokeTestAction() = {
-        InvokerPool.healthAction.map { action =>
+        InvokerPool.healthAction(controllerInstance).map { action =>
             val activationMessage = ActivationMessage(
                 // Use the sid of the InvokerSupervisor as tid
                 transid = transid,
