@@ -112,6 +112,9 @@ consul:
 registry:
   confdir: "{{ config_root_dir }}/registry"
 
+registry:
+  confdir: "{{ config_root_dir }}/registry"
+
 kafka:
   version: 0.10.0.1
   port: 9092

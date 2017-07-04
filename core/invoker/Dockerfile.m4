@@ -14,6 +14,7 @@ tar --strip-components 1 -xvzf docker-${DOCKER_VERSION}.tgz -C /usr/bin docker/d
 rm -f docker-${DOCKER_VERSION}.tgz && \
 chmod +x /usr/bin/docker && \
 chmod +x /usr/bin/docker-runc
+<<<<<<< HEAD:core/invoker/Dockerfile.m4
 ')
 
 COPY build/distributions/invoker.tar ./

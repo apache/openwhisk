@@ -59,4 +59,8 @@ ansible/roles/nginx/files/*cert.pem
 !tests/dat/actions/python3_virtualenv.zip
 !tests/dat/actions/python_virtualenv_dir.zip
 !tests/dat/actions/python_virtualenv_name.zip
+<<<<<<< HEAD
 !tests/dat/actions/zippedaction.zip
+=======
+!tests/dat/actions/zippedaction.zip
+>>>>>>> 4e3ec3f075b94e07dc2bc51e9d8fec565a6f0603
