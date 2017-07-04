@@ -19,7 +19,7 @@
   shell: "docker pull couchdb:{{ couchdb.version }}"
   retries: 3
 
-- name: (re)start CouchDB
+- name: "(re)start CouchDB"
   docker_container:
     name: couchdb
     image: couchdb:{{ couchdb.version }}

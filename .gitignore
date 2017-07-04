@@ -38,6 +38,7 @@ node_modules
 
 # Vagrant
 .vagrant*
+tools/vagrant/*.log
 
 # IntelliJ
 .idea

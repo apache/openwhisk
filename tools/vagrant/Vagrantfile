@@ -8,8 +8,8 @@
 # Don't use vagrant resume, it will run the provisioning a second producing errors
 # Use vagrant suspend and vagrant up (using up it skips provisioning)
 
-BOX = "ubuntu/trusty64-2"
-BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
+BOX = "ubuntu/xenial64-2"
+BOX_URL =  "https://cloud-images.ubuntu.com/xenial/current/xenial-server-cloudimg-amd64-vagrant.box"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
 BOX_CPUS = ENV['BOX_CPUS'] || '4'
 MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.13'
@@ -36,7 +36,7 @@ Vagrant.configure('2') do |config|
   end
 
   # Shared root of repository; do not use symlinks
-  config.vm.synced_folder '../../', '/home/vagrant/openwhisk'
+  config.vm.synced_folder '../../', '/home/ubuntu/openwhisk'
 
   # Prevents "stdin: is not a tty" on Ubuntu (https://github.com/mitchellh/vagrant/issues/1673)
   config.vm.provision "fix-no-tty", type: "shell" do |s|
@@ -62,7 +62,7 @@ $script_common = <<SCRIPT
   swapon /swapfile
   echo '/swapfile none swap defaults 0 0' >> /etc/fstab
 
-  HOME=/home/vagrant
+  HOME=/home/ubuntu
   OPENWHISK_HOME=${HOME}/openwhisk
   ANSIBLE_HOME=${OPENWHISK_HOME}/ansible
   ANSIBLE_REMOTE_TEMP=${ANSIBLE_HOME}/tmp
@@ -73,9 +73,9 @@ $script_common = <<SCRIPT
   echo OPENWHISK_HOME=${OPENWHISK_HOME} >> /etc/environment
   echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
 
-  cd /home/vagrant/openwhisk
+  cd /home/ubuntu/openwhisk
   cd tools/ubuntu-setup
-  su vagrant -c 'source all.sh'
+  su ubuntu -c 'source all.sh'
   echo "`date`: ubuntu-setup-end" >> /tmp/vagrant-times.txt
 SCRIPT
 
@@ -83,7 +83,7 @@ SCRIPT
 
   # Configure Custom Database
 $script_db = <<SCRIPT
-export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
+export ANSIBLE_REMOTE_TEMP=/home/ubuntu/openwhisk/ansible/tmp
 export OW_DB=#{ENV['OW_DB']}
 export OW_DB_USERNAME=#{ENV['OW_DB_USERNAME']}
 export OW_DB_PASSWORD=#{ENV['OW_DB_PASSWORD']}
@@ -99,26 +99,26 @@ else
   export OW_DB_PORT=#{ENV['OW_DB_PORT']}
 fi
 
-cd /home/vagrant/openwhisk/ansible
-su vagrant -c 'ansible-playbook -i environments/local setup.yml'
-su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
+cd /home/ubuntu/openwhisk/ansible
+su ubuntu -c 'ansible-playbook -i environments/local setup.yml'
+su ubuntu -c 'ansible-playbook -i environments/local prereq.yml'
 SCRIPT
 
   # Configure Default CouchDB
 $couch_db = <<COUCH_DB
 echo "`date`: couchdb-setup-start" >> /tmp/vagrant-times.txt
-export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
-cd /home/vagrant/openwhisk/ansible
-su vagrant -c 'ansible-playbook -i environments/local setup.yml'
-su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
-su vagrant -c 'ansible-playbook -i environments/local couchdb.yml'
+export ANSIBLE_REMOTE_TEMP=/home/ubuntu/openwhisk/ansible/tmp
+cd /home/ubuntu/openwhisk/ansible
+su ubuntu -c 'ansible-playbook -i environments/local setup.yml'
+su ubuntu -c 'ansible-playbook -i environments/local prereq.yml'
+su ubuntu -c 'ansible-playbook -i environments/local couchdb.yml'
 echo "`date`: couchdb-setup-end" >> /tmp/vagrant-times.txt
 COUCH_DB
 
 $init_db = <<INIT_DB
-export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
-cd /home/vagrant/openwhisk/ansible
-su vagrant -c 'ansible-playbook -i environments/local initdb.yml'
+export ANSIBLE_REMOTE_TEMP=/home/ubuntu/openwhisk/ansible/tmp
+cd /home/ubuntu/openwhisk/ansible
+su ubuntu -c 'ansible-playbook -i environments/local initdb.yml'
 INIT_DB
 
   if OW_DB
@@ -133,33 +133,34 @@ $script_end = <<SCRIPT
   set -e
   set -x
   echo "`date`: build-start" >> /tmp/vagrant-times.txt
-  HOME=/home/vagrant
+  HOME=/home/ubuntu
   source /etc/environment
   # Build OpenWhisk using gradle
   cd ${OPENWHISK_HOME}
-  su vagrant -c './gradlew  tools:cli:distDocker -PdockerImagePrefix=openwhisk'
+  apt-get install -y m4
+  su ubuntu -c './gradlew  tools:cli:distDocker -PdockerImagePrefix=openwhisk'
 
   echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
   # Deploy OpenWhisk using ansible
   cd ${ANSIBLE_HOME}
-  su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
-  su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
-  su vagrant -c 'ansible-playbook -i environments/local -e docker_image_prefix=openwhisk openwhisk.yml'
-  su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
+  su ubuntu -c 'ansible-playbook -i environments/local wipe.yml'
+  su ubuntu -c 'ansible-playbook -i environments/local apigateway.yml'
+  su ubuntu -c 'ansible-playbook -i environments/local -e docker_image_prefix=openwhisk openwhisk.yml'
+  su ubuntu -c 'ansible-playbook -i environments/local postdeploy.yml'
 
   # Setup OpenWhisk CLI
-  su vagrant -c 'mkdir ${HOME}/bin'
-  su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/admin/wskadmin ${HOME}/bin/wskadmin'
-  su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/build/redo ${HOME}/bin/wskdev'
+  su ubuntu -c 'mkdir ${HOME}/bin'
+  su ubuntu -c 'ln -s ${OPENWHISK_HOME}/tools/admin/wskadmin ${HOME}/bin/wskadmin'
+  su ubuntu -c 'ln -s ${OPENWHISK_HOME}/tools/build/redo ${HOME}/bin/wskdev'
   echo ${OPENWHISK_HOME}/bin/linux/amd64/wsk -i '"$@"' > ${HOME}/bin/wsk
   chmod +x ${HOME}/bin/wsk
-  chown vagrant:vagrant ${HOME}/bin/wsk
+  chown ubuntu:ubuntu ${HOME}/bin/wsk
   PATH=${PATH}:${HOME}/bin
   echo 'pushd "$(mktemp -d)" > /dev/null && wsk sdk install bashauto > /dev/null && source wsk_cli_bash_completion.sh && popd > /dev/null' >> $HOME/.bashrc
 
   # Run OpenWhisk CLI
   touch $HOME/.wskprops
-  chown -R vagrant:vagrant $HOME
+  chown -R ubuntu:ubuntu $HOME
   # This allows user to see how to configure the wsk cli outside the VM
   wsk property set --apihost ${WHISK_IP} --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   wsk action invoke /whisk.system/utils/echo -p message hello --result
