@@ -24,14 +24,14 @@
     mode: 0777
   become: true
 
-- name: "pull the consul:{{ consul.version }} image"
-  shell: "docker pull consul:{{ consul.version }}"
+- name: "pull the {{ consul.docker_image }} image"
+  shell: "docker pull {{ consul.docker_image }}"
   retries: 3
 
 - name: (re)start consul server/agent
   docker_container:
     name: consul
-    image: consul:{{ consul.version }}
+    image: "{{ consul.docker_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
@@ -86,6 +86,6 @@
         -v {{ whisk_logs_dir }}/registrator:/logs
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/tmp/docker.sock
         --userns host
-        gliderlabs/registrator -ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}
+        {{ consul.registrator_image }} -ip {{ ansible_host | default(inventory_hostname) }} -resync 2 consul://{{ groups['consul_servers'] | first }}:{{ consul.port.http }}
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved

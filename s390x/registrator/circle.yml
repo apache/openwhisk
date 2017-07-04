@@ -1,0 +1,25 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - make circleci
+  override:
+    - make build
+  post:
+    - cp build/* $CIRCLE_ARTIFACTS
+
+test:
+  override:
+    - /bin/true
+
+deployment:
+  master:
+    branch: master
+    commands:
+      - eval $(docker run gliderlabs/pagebuilder circleci-cmd)
+  release:
+    branch: release
+    commands:
+      - make release

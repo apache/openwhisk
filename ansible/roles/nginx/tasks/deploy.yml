@@ -32,14 +32,15 @@
     mode: 0777
   become: true
 
-- name: "pull the nginx:{{ nginx.version }} image"
-  shell: "docker pull nginx:{{ nginx.version }}"
+- name: "pull the {{ nginx.docker_image }} image"
+  shell: "docker pull {{ nginx.docker_image }}"
   retries: 3
 
 - name: (re)start nginx
   docker_container:
     name: nginx
-    image: nginx:{{ nginx.version }}
+    image: "{{ nginx.docker_image }}"
+    # image: nginx:{{ nginx.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

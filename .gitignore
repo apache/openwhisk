@@ -23,6 +23,7 @@ bin/
 
 # Mac
 .DS_Store
+._*
 
 # Gradle
 .gradle

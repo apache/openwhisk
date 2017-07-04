@@ -1,0 +1,17 @@
+site_name: Registrator
+site_url: https://gliderlabs.com/registrator
+repo_url: https://github.com/gliderlabs/registrator
+dev_addr: 0.0.0.0:8000
+theme_dir: /pagebuilder/theme
+google_analytics: ['UA-58928488-1', 'auto']
+pages:
+  - 'Readme': index.md
+  - 'User Guide':
+    - 'Quickstart': user/quickstart.md
+    - 'Run Reference': user/run.md
+    - 'Service Model': user/services.md
+    - 'Registry Backends': user/backends.md
+    - 'FAQ': user/faq.md
+  - 'Developer Guide':
+    - 'Contributing Backends': dev/backends.md
+    - 'Staging Releases': dev/releases.md

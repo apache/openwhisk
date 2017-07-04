@@ -1,0 +1,7 @@
+# Change logic to manage images in s390xopenwhisk user on Docker Hub.
+
+# Create image documentation for Docker Hub for these images.
+
+# Consider how to keep some in sync with their corresponding x86 images/repositories.
+
+# Improve security of the CouchDB image.
