@@ -545,21 +545,15 @@ func validateApiPath(path map[string]*ApiSwaggerOperationV2) error {
 }
 
 func validateApiOperation(opName string, op *ApiSwaggerOperationV2) error {
-    if len(op.OperationId) == 0 {
-        Debug(DbgError, "validateApiResponse: No operationId field in operation %v\n", op)
+    if (op.XOpenWhisk != nil && len(op.OperationId) == 0) {
+        Debug(DbgError, "validateApiOperation: No operationId field in operation %v\n", op)
         errMsg := wski18n.T("Missing operationId field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
         whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
-    if op.XOpenWhisk == nil {
-        Debug(DbgError, "validateApiResponse: No x-openwhisk stanza in operation %v\n", op)
-        errMsg := wski18n.T("Missing x-openwhisk stanza in API configuration for operation {{.op}}",
-            map[string]interface{}{"op": opName})
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return whiskErr
-    }
-    if len(op.XOpenWhisk.Namespace) == 0 {
+
+    if (op.XOpenWhisk != nil && len(op.XOpenWhisk.Namespace) == 0) {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.namespace stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.namespace field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
@@ -569,14 +563,14 @@ func validateApiOperation(opName string, op *ApiSwaggerOperationV2) error {
 
     // Note: The op.XOpenWhisk.Package field can have a value of "", so don't enforce a value
 
-    if len(op.XOpenWhisk.ActionName) == 0 {
+    if (op.XOpenWhisk != nil && len(op.XOpenWhisk.ActionName) == 0) {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.action stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.action field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
         whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
-    if len(op.XOpenWhisk.ApiUrl) == 0 {
+    if (op.XOpenWhisk != nil && len(op.XOpenWhisk.ApiUrl) == 0) {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.url stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.url field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
