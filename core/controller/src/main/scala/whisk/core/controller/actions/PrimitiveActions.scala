@@ -34,7 +34,7 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
-import whisk.common.tracing.{TraceUtil, TracedRequest}
+import whisk.common.tracing.TraceUtil
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
@@ -103,7 +103,6 @@ protected[actions] trait PrimitiveActions {
 
         // merge package parameters with action (action parameters supersede), then merge in payload
         val args = action.parameters merge payload
-        val req: TracedRequest = TraceUtil.getTracedRequestForTrasactionId(transid)
 
         val message = ActivationMessage(
             transid,
@@ -115,7 +114,7 @@ protected[actions] trait PrimitiveActions {
             activeAckTopicIndex,
             args,
             cause = cause,
-            traceMetadata = if (req != null) req.metadata else None)
+            traceMetadata = TraceUtil.getTraceMetadata(transid))
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")

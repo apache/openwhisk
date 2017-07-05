@@ -161,15 +161,11 @@ class ZipkinLogging (logger: Logging) extends Logging {
             }
 
             case LoggingMarkers.finish => {
-                var req = TraceUtil.getTracedRequestForTrasactionId(id)
-                if (req != null)
-                    TraceUtil.finish(id)
+                TraceUtil.finish(id)
             }
 
             case LoggingMarkers.error => {
-                var req = TraceUtil.getTracedRequestForTrasactionId(id)
-                if (req != null)
-                    TraceUtil.finish(id)
+                TraceUtil.finish(id)
             }
 
             case _ =>
