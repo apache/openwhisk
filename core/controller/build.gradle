@@ -11,6 +11,9 @@ repositories {
 }
 
 dependencies {
+    compile 'com.typesafe.akka:akka-distributed-data_2.11:2.5.3'
+    compile 'com.typesafe.akka:akka-cluster-metrics_2.11:2.5.3'
+    compile 'org.scalatest:scalatest_2.11:3.0.1'
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 }

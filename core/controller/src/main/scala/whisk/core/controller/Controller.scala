@@ -20,8 +20,6 @@ package whisk.core.controller
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
-
-import akka.actor._
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
@@ -41,7 +39,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.{LoadBalancerService, SharedDataService}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 
@@ -154,7 +152,8 @@ object Controller {
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       LoadBalancerService.requiredProperties ++
-      EntitlementProvider.requiredProperties
+      EntitlementProvider.requiredProperties ++
+      SharedDataService.requiredProperties
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
     JsObject(
@@ -170,11 +169,13 @@ object Controller {
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {
-    implicit val actorSystem = ActorSystem("controller-actor-system")
-    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
     // extract configuration data from the environment
     val config = new WhiskConfig(requiredProperties)
+
+    implicit val actorSystem = ActorSystem("controller-actor-system", SharedDataService.addAkkaSeedNodesToConf(config))
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+
     val port = config.servicePort.toInt
 
     // if deploying multiple instances (scale out), must pass the instance number as the
