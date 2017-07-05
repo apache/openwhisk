@@ -99,7 +99,9 @@ class LoadBalancerService(
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
     logging.info(this, s"blackboxFraction = $blackboxFraction")
 
-    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = activationByNamespaceId.toMap mapValues { _.size }
+    val LoadBalancerData = new LoadBalancerDataWithLocalMap()
+
+    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = LoadBalancerData.getActivationCountByNamespace()
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -117,11 +119,8 @@ class LoadBalancerService(
      * A map storing current activations based on ActivationId.
      * The promise value represents the obligation of writing the answer back.
      */
-    case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
     type TrieSet[T] = TrieMap[T, Unit]
     private val activationById = new TrieMap[ActivationId, ActivationEntry]
-    private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
-    private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -134,8 +133,8 @@ class LoadBalancerService(
         activationById.remove(aid) match {
             case Some(entry @ ActivationEntry(_, namespaceId, invokerIndex, _, p)) =>
                 logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
-                activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
-                activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).remove(entry)
+                LoadBalancerData.removeActivationByInvoker(invokerIndex, entry)
+                LoadBalancerData.removeActivationByNamespaceId(namespaceId, entry)
                 if (!forced) {
                     p.trySuccess(response)
                 } else {
@@ -167,27 +166,28 @@ class LoadBalancerService(
         })
 
         // add the entry to our maps, for bookkeeping
-        activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry]).put(entry, {})
-        activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
+        LoadBalancerData.putActivationbyInvoker(invokerName, entry)
+        LoadBalancerData.putActivationByNamespaceId(namespaceId, entry)
         entry
     }
 
     /**
-     * When invoker health detects a new invoker has come up, this callback is called.
-     */
+      * When invoker health detects a new invoker has come up, this callback is called.
+      */
     private def clearInvokerState(invokerName: String) = {
-        val actSet = activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
+        val actSet = LoadBalancerData.getActivationsByInvoker(invokerName)
         actSet.keySet map {
             case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, _, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
                 activationById.remove(activationId)
-                activationByNamespaceId.get(namespaceId) map { _.remove(actEntry) }
+                LoadBalancerData.removeActivationByNamespaceIdWithResponse(namespaceId, actEntry)
         }
         actSet.clear()
     }
 
+
     /** Make a new immutable map so caller cannot mess up the state */
-    private def getActiveCountByInvoker(): Map[String, Int] = activationByInvoker.toMap mapValues { _.size }
+    private def getActiveCountByInvoker(): Map[String, Int] = LoadBalancerData.getActivationCountByInvoker()
 
     /**
      * Creates or updates a health test action by updating the entity store.
@@ -300,7 +300,7 @@ class LoadBalancerService(
         invokers.flatMap { invokers =>
             LoadBalancerService.schedule(
                 invokers,
-                activationByInvoker.mapValues(_.size),
+                LoadBalancerData.activationsByInvokerSize(),
                 config.loadbalancerInvokerBusyThreshold,
                 hash) match {
                     case Some(invoker) => Future.successful(invoker)
