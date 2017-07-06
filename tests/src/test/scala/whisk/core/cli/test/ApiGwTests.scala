@@ -1233,6 +1233,14 @@ class ApiGwTests
                 rr.stdout should include regex (s"\\s+${testurlop}\\s+${testapiname}\\s+")
             }
             rr.stdout should include(testbasepath + testrelpath)
+
+            rr = apiList(basepathOrApiName = Some(testbasepath), full = Some(true))
+            println("api full list:\n" + rr.stdout)
+            testops foreach { testurlop =>
+                rr.stdout should include regex (s"Verb:\\s+${testurlop}")
+            }
+            rr.stdout should include(testbasepath + testrelpath)
+
         } finally {
             val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
