@@ -69,7 +69,7 @@ class KafkaConsumerConnector(
                 while (!disconnect) {
                     Try {
                         // Grab next batch of messages and commit offsets immediately
-                        // It won't be processed twice (tested in "KafkaConnectorTest")
+                        // It won't be processed twice (tested in "KafkaConnectorTests")
                         val messages = peek()
                         commit()
                         messages
