@@ -111,7 +111,7 @@ var activationGetCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Get(%#v) failed: %s\n", args, err)
+          whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -181,7 +181,7 @@ var activationLogsCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Logs(%#v) failed: %s\n", args, err)
+          whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get logs for activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -217,7 +217,7 @@ var activationResultCmd = &cobra.Command{
         var err error
 
         if args, err = lastFlag(args); err != nil {  // Checks if any errors occured in lastFlag(args)
-          whisk.Debug(whisk.DbgError, "client.Activation.Result(%#v) failed: %s\n", args, err)
+          whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get result for activation: {{.err}}",
             map[string]interface{}{"err": err})
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
