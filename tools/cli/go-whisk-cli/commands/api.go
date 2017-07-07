@@ -864,21 +864,34 @@ var apiCreateCmdV2 = &cobra.Command{
                 for op, opv  := range retApi.Swagger.Paths[path] {
                     whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
                     var fqActionName string
-                    if (len(opv.XOpenWhisk.Package) > 0) {
+                    if (opv.XOpenWhisk == nil) {
+                        fqActionName = ""
+                    } else if (len(opv.XOpenWhisk.Package) > 0) {
                         fqActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.Package+"/"+opv.XOpenWhisk.ActionName
                     } else {
                         fqActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
                     }
                     whisk.Debug(whisk.DbgInfo, "baseUrl %s  Path %s  Path obj %+v\n", baseUrl, path, opv)
-                    fmt.Fprintf(color.Output,
-                        wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
-                            map[string]interface{}{
-                                "ok": color.GreenString("ok:"),
-                                "path": strings.TrimSuffix(retApi.Swagger.BasePath, "/") + path,
-                                "verb": op,
-                                "name": boldString(fqActionName),
-                                "fullpath": managedUrl,
-                            }))
+                    if len(fqActionName) > 0 {
+                        fmt.Fprintf(color.Output,
+                            wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
+                                map[string]interface{}{
+                                    "ok": color.GreenString("ok:"),
+                                    "path": strings.TrimSuffix(retApi.Swagger.BasePath, "/") + path,
+                                    "verb": op,
+                                    "name": boldString(fqActionName),
+                                    "fullpath": managedUrl,
+                                }))
+                    } else {
+                        fmt.Fprintf(color.Output,
+                            wski18n.T("{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n",
+                                map[string]interface{}{
+                                    "ok": color.GreenString("ok:"),
+                                    "path": strings.TrimSuffix(retApi.Swagger.BasePath, "/") + path,
+                                    "verb": op,
+                                    "fullpath": managedUrl,
+                                }))
+                    }
                 }
             }
         }
@@ -1218,7 +1231,9 @@ func printFilteredListApiV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb s
                     if ( len(apiVerb) == 0 || strings.ToLower(op) == strings.ToLower(apiVerb)) {
                         whisk.Debug(whisk.DbgInfo, "printFilteredListApiV2: operation matches: %#v\n", opv)
                         var actionName string
-                        if (len(opv.XOpenWhisk.Package) > 0) {
+                        if (opv.XOpenWhisk == nil) {
+                            actionName = ""
+                        } else if (len(opv.XOpenWhisk.Package) > 0) {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.Package+"/"+opv.XOpenWhisk.ActionName
                         } else {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
@@ -1256,7 +1271,9 @@ func printFilteredListRowV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb s
                     if ( len(apiVerb) == 0 || strings.ToLower(op) == strings.ToLower(apiVerb)) {
                         whisk.Debug(whisk.DbgInfo, "printFilteredListRowV2: operation matches: %#v\n", opv)
                         var actionName string
-                        if (len(opv.XOpenWhisk.Package) > 0) {
+                        if (opv.XOpenWhisk == nil) {
+                            actionName = ""
+                        } else if (len(opv.XOpenWhisk.Package) > 0) {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.Package+"/"+opv.XOpenWhisk.ActionName
                         } else {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
@@ -1287,7 +1304,9 @@ func getLargestActionNameSizeV2(retApiArray *whisk.RetApiArrayV2, apiPath string
                         if ( len(apiVerb) == 0 || strings.ToLower(op) == strings.ToLower(apiVerb)) {
                             whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: operation matches: %#v\n", opv)
                             var fullActionName string
-                            if (len(opv.XOpenWhisk.Package) > 0) {
+                            if (opv.XOpenWhisk == nil) {
+                                fullActionName = ""
+                            } else if (len(opv.XOpenWhisk.Package) > 0) {
                                 fullActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.Package+"/"+opv.XOpenWhisk.ActionName
                             } else {
                                 fullActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName

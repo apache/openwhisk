@@ -1188,6 +1188,10 @@
     "translation": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
   },
   {
+    "id": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n"
+  },
+  {
     "id": "Unable to parse api command arguments: {{.err}}",
     "translation": "Unable to parse api command arguments: {{.err}}"
   },
