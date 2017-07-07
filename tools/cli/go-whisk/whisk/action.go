@@ -59,21 +59,25 @@ type ActionListOptions struct {
     Docs        bool        `url:"docs,omitempty"`
 }
 
-func (action Action) WebAction() (bool) {
-    var webExportValue, isBool bool
-
+/*
+Determines if an action is a web action by examining the action's annotations. A value of true is returned if the
+action's annotations contains a "web-export" key and its associated value is a boolean value of "true". Otherwise, false
+is returned.
+ */
+func (action Action) WebAction() (webExportValue bool) {
     webExport := action.Annotations.GetValue("web-export")
+    webExportValue, _ = webExport.(bool)
 
-    if webExportValue, isBool = webExport.(bool); isBool {
-        return webExportValue
-    } else {
-        return false
-    }
+    Debug(DbgInfo, "Web export value is '%t'\n", webExportValue)
+
+    return webExportValue
 }
 
-func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (string) {
-    var actionURL string
-
+/*
+Returns the URL of an action as a string. A valid API host, path and version must be passed. A package that contains the
+action must be passed as well. An empty string must be passed if the action is not packaged.
+ */
+func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (actionURL string) {
     webActionPath := "https://%s%s/%s/web/%s/%s/%s"
     actionPath := "https://%s%s/%s/namespaces/%s/actions/%s"
     packagedActionPath := actionPath + "/%s"
@@ -88,11 +92,14 @@ func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string
         }
 
         actionURL = fmt.Sprintf(webActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+        Debug(DbgInfo, "Web action URL: %s\n", actionURL)
     } else {
         if len(pkg) == 0 {
             actionURL = fmt.Sprintf(actionPath, apiHost, apiPath, apiVersion, namespace, name)
+            Debug(DbgInfo, "Packaged action URL: %s\n", actionURL)
         } else {
             actionURL = fmt.Sprintf(packagedActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+            Debug(DbgInfo, "Action URL: %s\n", actionURL)
         }
     }
 

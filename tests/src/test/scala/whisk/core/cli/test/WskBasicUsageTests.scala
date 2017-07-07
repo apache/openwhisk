@@ -698,10 +698,10 @@ class WskBasicUsageTests
 
     it should "get an action URL" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val actionName = "action name"
-            val packageName = "package name"
+            val actionName = "action name@_-."
+            val packageName = "package name@_-."
             val defaultPackageName = "default"
-            val webActionName = "web action name"
+            val webActionName = "web action name@_-."
             val nonExistentActionName = "non-existence action"
             val packagedAction = s"$packageName/$actionName"
             val packagedWebAction = s"$packageName/$webActionName"
@@ -735,6 +735,10 @@ class WskBasicUsageTests
             }
 
             wsk.action.get(actionName, url = Some(true)).
+                stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+
+            // Ensure url flag works when a field filter and summary flag are specified
+            wsk.action.get(actionName, url = Some(true), fieldFilter = Some("field"), summary = true).
                 stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
 
             wsk.action.get(webActionName, url = Some(true)).

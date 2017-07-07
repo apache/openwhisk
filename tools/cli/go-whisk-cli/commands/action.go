@@ -33,13 +33,13 @@ import (
     "github.com/mattn/go-colorable"
 )
 
-const MEMORY_LIMIT = 256
-const TIMEOUT_LIMIT = 60000
-const LOGSIZE_LIMIT = 10
-const ACTIVATION_ID = "activationId"
-const WEB_EXPORT_ANNOT = "web-export"
-const RAW_HTTP_ANNOT = "raw-http"
-const FINAL_ANNOT = "final"
+const MEMORY_LIMIT      = 256
+const TIMEOUT_LIMIT     = 60000
+const LOGSIZE_LIMIT     = 10
+const ACTIVATION_ID     = "activationId"
+const WEB_EXPORT_ANNOT  = "web-export"
+const RAW_HTTP_ANNOT    = "raw-http"
+const FINAL_ANNOT       = "final"
 
 var actionCmd = &cobra.Command{
     Use:   "action",
@@ -195,7 +195,7 @@ func handleInvocationResponse(
 }
 
 var actionGetCmd = &cobra.Command{
-    Use:           "get ACTION_NAME [FIELD_FILTER]",
+    Use:           "get ACTION_NAME [FIELD_FILTER | --summary | --url]",
     Short:         wski18n.T("get action"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -210,7 +210,7 @@ var actionGetCmd = &cobra.Command{
             return whiskErr
         }
 
-        if len(args) > 1 {
+        if !flags.action.url && !flags.common.summary && len(args) > 1 {
             field = args[1]
 
             if !fieldExists(&whisk.Action{}, field) {
@@ -229,7 +229,10 @@ var actionGetCmd = &cobra.Command{
         }
 
         if flags.action.url {
-            actionURL := action.ActionURL(Properties.APIHost, DefaultOpenWhiskApiPath, Properties.APIVersion, qualifiedName.packageName)
+            actionURL := action.ActionURL(Properties.APIHost,
+                DefaultOpenWhiskApiPath,
+                Properties.APIVersion,
+                qualifiedName.packageName)
             printActionGetWithURL(qualifiedName.entity, actionURL)
         } else if flags.common.summary {
             printSummary(action)
@@ -828,8 +831,7 @@ func printActionGetWithField(entityName string, field string, action *whisk.Acti
 func printActionGetWithURL(entityName string, actionURL string) {
     fmt.Fprintf(
         color.Output,
-        wski18n.T(
-            "{{.ok}} got action {{.name}}, displaying url\n",
+        wski18n.T("{{.ok}} got action {{.name}}\n",
             map[string]interface{}{
                 "ok": color.GreenString("ok:"),
                 "name": boldString(entityName),
@@ -873,9 +875,8 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
-        err = errors.New(wski18n.T("API action '{{.name}}' does not exist", map[string]interface{}{"name": fullActionName})) // wrong need 404
+        err = errors.New(wski18n.T("API action '{{.name}}' does not exist", map[string]interface{}{"name": fullActionName}))
     } else {
-        // wrong error messages
         err = errors.New(wski18n.T("API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
             map[string]interface{}{"name": fullActionName}))
 

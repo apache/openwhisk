@@ -20,15 +20,17 @@ package whisk
 import "encoding/json"
 
 type KeyValue struct {
-    Key  string         `json:"key"`
-    Value interface{}   `json:"value"`
+    Key     string          `json:"key"`
+    Value   interface{}     `json:"value"`
 }
 
 type KeyValueArr []KeyValue
 
-func (keyValueArr KeyValueArr) GetValue(key string) (interface{}) {
-    var res interface{}
-
+/*
+Retrieves a value associated with a given key from a KeyValueArr. A key of type string must be passed to the method.
+An interface will be returned containing the found value. If a key could not be found, a nil value will be returned.
+ */
+func (keyValueArr KeyValueArr) GetValue(key string) (res interface{}) {
     for i := 0; i < len(keyValueArr); i++ {
         if keyValueArr[i].Key == key {
             res = keyValueArr[i].Value
@@ -36,7 +38,7 @@ func (keyValueArr KeyValueArr) GetValue(key string) (interface{}) {
         }
     }
 
-    Debug(DbgInfo, "Got value '%v' from '%v' for key '%s'\n", res, keyValueArr, key)
+    Debug(DbgInfo, "Got value '%v' for key '%s' from '%v'\n", res, key, keyValueArr)
 
     return res
 }
