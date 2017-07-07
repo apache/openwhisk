@@ -43,7 +43,6 @@ type Activation struct {
     Logs            []string    `json:"logs"`
     Annotations     KeyValueArr `json:"annotations"`
     Publish         *bool       `json:"publish,omitempty"`
-
 }
 
 type Response struct {
