@@ -1,14 +1,14 @@
 ---
 # This role will install redis
 
-- name: "pull the redis:{{ redis.version }} image"
-  shell: "docker pull redis:{{ redis.version }}"
+- name: "pull the {{ redis.docker_image }} image"
+  shell: "docker pull {{ redis.docker_image }}"
   retries: 3
 
 - name: (re)start redis
   docker_container:
     name: redis
-    image: redis:{{ redis.version }}
+    image: "{{ redis.docker_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

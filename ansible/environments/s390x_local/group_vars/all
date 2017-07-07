@@ -35,6 +35,11 @@ invoker_use_runc: true
 invoker_use_reactive_pool: false
 
 # Docker images to pull for S390X docker
+
+# TODO:  Set up defaults for the affected roles so these
+#        serve as overrides.  Consider moving other settings
+#        from ${ANSIBLE_HOME}/group_vars/all to those
+#        defaults.
 consul:
     docker_image: "jpspring/s390x-openwhisk:consul"
     registrator_image: "jpspring/s390x-openwhisk:registrator"
@@ -46,3 +51,7 @@ nginx:
     docker_image: "jpspring/s390x-openwhisk:nginx"
 couchdb:
     docker_image: "jpspring/s390x-openwhisk:couchdb"
+redis:
+    docker_image: "s390x/redis:3.2"
+apigateway:
+    docker_image: "jpspring/s390x-openwhisk:apigateway"

@@ -1,0 +1,3 @@
+[submodule "s390x/openwhisk-apigateway"]
+	path = s390x/openwhisk-apigateway
+	url = git@github.com:jonpspri/openwhisk-apigateway.git

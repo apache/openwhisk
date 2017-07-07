@@ -28,7 +28,7 @@ process_dockerfile() {
 }
 
 if [ "$#" -eq 0 ]; then
-  for i in */Dockerfile; do process_dockerfile "$i"; done
+  for i in */Dockerfile?(.m4); do process_dockerfile "$i"; done
 else
   while [ "$#" -ne 0 ]; do process_dockerfile "$1/Dockerfile"; shift; done
 fi
