@@ -4,11 +4,6 @@ whisk_logs_dir: /Users/Shared/wsklogs
 docker_registry: ""
 docker_dns: ""
 
-# The whisk_api_localhost_name is used to configure nginx to permit vanity URLs for web actions.
-# It is also used for the SSL certificate generation. For a local deployment, this is typically
-# a hostname that is resolved on the client, via /etc/hosts for example.
-whisk_api_localhost_name: "openwhisk"
-
 db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
 
 # Auto lookup to find the db credentials
@@ -38,3 +33,6 @@ apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/
 # RunC enablement
 invoker_use_runc: true
 invoker_use_reactive_pool: false
+
+controller_arguments: '-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=1098'
+invoker_arguments: "{{ controller_arguments }}"

@@ -47,6 +47,7 @@
       "KAFKA_ADVERTISED_HOST_NAME": "{{ inventory_hostname }}"
       "ZOOKEEPER_IP": "{{ zookeeper_ip }}"
       "ZOOKEEPER_PORT": "{{ zookeeper.port }}"
+      "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
     ports:
       - "{{ kafka.port }}:9092"
 
@@ -78,3 +79,4 @@
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
+

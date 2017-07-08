@@ -640,7 +640,7 @@ class ApiGwTests
     it should "verify successful creation and deletion of a new API" in {
         val testName = "CLI_APIGWTEST1"
         val testbasepath = "/"+testName+"_bp"
-        val testrelpath = "/path"
+        val testrelpath = "/path/with/sub_paths/in/it"
         val testnewrelpath = "/path_new"
         val testurlop = "get"
         val testapiname = testName+" API Name"
@@ -658,6 +658,8 @@ class ApiGwTests
             rr.stdout should include("ok: APIs")
             rr.stdout should include regex (s"/${clinamespace}/${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
             rr.stdout should include(testbasepath + testrelpath)
+            rr = apiGet(basepathOrApiName = Some(testbasepath))
+            rr.stdout should include regex (s""""operationId":\\s+"getPathWithSub_pathsInIt"""")
             val deleteresult = apiDelete(basepathOrApiName = testbasepath)
             deleteresult.stdout should include("ok: deleted API")
         }
@@ -1209,5 +1211,38 @@ class ApiGwTests
 
         var rr = apiDelete(basepathOrApiName = nonexistentApi, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include (s"API '${nonexistentApi}' does not exist")
+    }
+
+    it should "successfully list an API whose endpoints are not mapped to actions" in {
+        val testName = "CLI_APIGWTEST23"
+        var testapiname = "A descriptive name"
+        val testbasepath = "/NoActions"
+        val testrelpath = "/"
+        val testops: Seq[String] = Seq("put", "delete", "get", "head", "options", "patch", "post")
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"endpoints.without.action.swagger.json")
+
+        try {
+            var rr = apiCreate(swagger = Some(swaggerPath))
+            println("api create stdout: " + rr.stdout)
+            println("api create stderror: " + rr.stderr)
+            rr.stdout should include("ok: created API")
+
+            rr = apiList(basepathOrApiName = Some(testbasepath))
+            println("api list:\n" + rr.stdout)
+            testops foreach { testurlop =>
+                rr.stdout should include regex (s"\\s+${testurlop}\\s+${testapiname}\\s+")
+            }
+            rr.stdout should include(testbasepath + testrelpath)
+
+            rr = apiList(basepathOrApiName = Some(testbasepath), full = Some(true))
+            println("api full list:\n" + rr.stdout)
+            testops foreach { testurlop =>
+                rr.stdout should include regex (s"Verb:\\s+${testurlop}")
+            }
+            rr.stdout should include(testbasepath + testrelpath)
+
+        } finally {
+            val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
     }
 }

@@ -318,8 +318,10 @@ trait WhiskWebActionsApi
     private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
     private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
 
-    private val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
-    private val allowMethods = `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH)
+    private val defaultCorsResponse = List(
+        `Access-Control-Allow-Origin`(AllOrigins),
+        `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH),
+        `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name))
 
     /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
     private val requestMethodParamsAndPath = {
@@ -413,16 +415,16 @@ trait WhiskWebActionsApi
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                                     case Success((actionOwnerIdentity, action)) =>
-                                        context.method match {
-                                            // if options method and action opted into default response, send standard response
-                                            case OPTIONS if !action.annotations.asBool("web-custom-options").exists(identity) =>
-                                                respondWithHeaders(allowOrigin, allowMethods) {
+                                        if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                                            respondWithHeaders(defaultCorsResponse) {
+                                                if (context.method == OPTIONS) {
                                                     complete(OK, HttpEntity.Empty)
+                                                } else {
+                                                    extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                                                 }
-
-                                            // otherwise not an options method, or action will respond to options verb
-                                            case _ =>
-                                                extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
+                                            }
+                                        } else {
+                                            extractEntityAndProcessRequest(actionOwnerIdentity, action, extension, onBehalfOf, context, e)
                                         }
 
                                     case Failure(t: RejectRequest) =>

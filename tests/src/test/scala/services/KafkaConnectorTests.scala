@@ -59,8 +59,9 @@ class KafkaConnectorTests
     val groupid = "kafkatest"
     val topic = "Dinosaurs"
     val sessionTimeout = 10 seconds
+    val maxPollInterval = 10 seconds
     val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-    val consumer = new TestKafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout)
+    val consumer = new TestKafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout, maxPollInterval = maxPollInterval)
 
     override def afterAll() {
         producer.close()
@@ -108,7 +109,7 @@ class KafkaConnectorTests
             received.last should be(message.serialize)
 
             if (i < 2) {
-                Thread.sleep((sessionTimeout + 1.second).toMillis)
+                Thread.sleep((maxPollInterval + 1.second).toMillis)
                 a[CommitFailedException] should be thrownBy {
                     consumer.commit() // sleep should cause commit to fail
                 }
@@ -130,9 +131,9 @@ class KafkaConnectorTests
 
         // Send message while commit throws exception -> Message will not be processed
         consumer.commitFails = true
-        retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
+        retry(stream.toString should include("failed to commit to kafka:"), 50, Some(100 millisecond))
         Await.result(producer.send(topic, message), 10 seconds)
-        retry(stream.toString should include("failed to commit to kafka: commit failed"), 50, Some(100 millisecond))
+        retry(stream.toString should include("failed to commit to kafka:"), 50, Some(100 millisecond))
 
         // Send message again -> No commit exception -> Should work again
         consumer.commitFails = false
@@ -150,11 +151,13 @@ class TestKafkaConsumerConnector(
     kafkahost: String,
     groupid: String,
     topic: String,
-    sessionTimeout: FiniteDuration)(implicit logging: Logging) extends KafkaConsumerConnector(kafkahost, groupid, topic, sessionTimeout = sessionTimeout) {
+    sessionTimeout: FiniteDuration,
+    maxPollInterval: FiniteDuration)(implicit logging: Logging) extends KafkaConsumerConnector(
+    kafkahost, groupid, topic, sessionTimeout = sessionTimeout, maxPollInterval = maxPollInterval) {
 
     override def commit() = {
         if (commitFails) {
-            throw new CommitFailedException("commit failed")
+            throw new CommitFailedException()
         } else {
             super.commit()
         }

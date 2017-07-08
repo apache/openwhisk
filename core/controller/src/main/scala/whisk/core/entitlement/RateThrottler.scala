@@ -21,7 +21,8 @@ import scala.collection.concurrent.TrieMap
 
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
+import whisk.core.entity.Identity
+import whisk.core.entity.UUID
 
 /**
  * A class tracking the rate of invocation (or any operation) by subject (any key really).
@@ -33,21 +34,22 @@ class RateThrottler(description: String, maxPerMinute: Int)(implicit logging: Lo
     logging.info(this, s"$description: maxPerMinute = $maxPerMinute")(TransactionId.controller)
 
     /**
-     * Maintains map of subject to operations rates.
+     * Maintains map of subject namespace to operations rates.
      */
-    private val rateMap = new TrieMap[Subject, RateInfo]
+    private val rateMap = new TrieMap[UUID, RateInfo]
 
     /**
      * Checks whether the operation should be allowed to proceed.
-     * Every `check` operation charges the subject for one operation.
+     * Every `check` operation charges the subject namespace for one operation.
      *
-     * @param subject the subject to check
-     * @return true iff subject is below allowed limit
+     * @param user the identity to check
+     * @return true iff subject namespace is below allowed limit
      */
-    def check(subject: Subject)(implicit transid: TransactionId): Boolean = {
-        val rate = rateMap.getOrElseUpdate(subject, new RateInfo(maxPerMinute))
+    def check(user: Identity)(implicit transid: TransactionId): Boolean = {
+        val uuid = user.uuid // this is namespace identifier
+        val rate = rateMap.getOrElseUpdate(uuid, new RateInfo(maxPerMinute))
         val belowLimit = rate.check()
-        logging.info(this, s"subject = ${subject.toString}, rate = ${rate.count()}, below limit = $belowLimit")
+        logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count()}, below limit = $belowLimit")
         belowLimit
     }
 }

@@ -43,9 +43,10 @@ tools/vagrant/*.log
 
 # IntelliJ
 .idea
+*.class
 
 # Ansible
-ansible/environments/mac/hosts
+ansible/environments/docker-machine/hosts
 ansible/db_local.ini*
 ansible/tmp/*
 ansible/roles/nginx/files/*.csr

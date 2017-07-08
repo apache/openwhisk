@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,9 +35,10 @@ import (
 const (
     PollInterval = time.Second * 2
     Delay        = time.Second * 5
+    MAX_ACTIVATION_LIMIT = 200
+    DEFAULT_ACTIVATION_LIMIT = 30
 )
 
-// activationCmd represents the activation command
 var activationCmd = &cobra.Command{
     Use:   "activation",
     Short: wski18n.T("work with activations"),
@@ -76,6 +78,7 @@ var activationListCmd = &cobra.Command{
             Since: flags.activation.since,
             Docs:  flags.common.full,
         }
+
         activations, _, err := client.Activations.List(options)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Activations.List() error: %s\n", err)
@@ -331,7 +334,8 @@ var activationPollCmd = &cobra.Command{
 
 func init() {
     activationListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of activations from the result"))
-    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of activations from the collection"))
+    activationListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", DEFAULT_ACTIVATION_LIMIT, wski18n.T("only return `LIMIT` number of activations from the collection with a maximum LIMIT of {{.max}} activations",
+        map[string]interface{}{"max": MAX_ACTIVATION_LIMIT}))
     activationListCmd.Flags().BoolVarP(&flags.common.full, "full", "f", false, wski18n.T("include full activation description"))
     activationListCmd.Flags().Int64Var(&flags.activation.upto, "upto", 0, wski18n.T("return activations with timestamps earlier than `UPTO`; measured in milliseconds since Th, 01, Jan 1970"))
     activationListCmd.Flags().Int64Var(&flags.activation.since, "since", 0, wski18n.T("return activations with timestamps later than `SINCE`; measured in milliseconds since Th, 01, Jan 1970"))

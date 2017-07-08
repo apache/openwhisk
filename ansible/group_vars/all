@@ -1,6 +1,7 @@
 mode: deploy
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
+openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home, true) }}"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -42,36 +43,46 @@ runtimesManifest:
       default: true
       image:
         name: "nodejs6action"
+      deprecated: false
     python:
     - kind: "python"
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:2"
       default: true
       image:
         name: "python2action"
+      deprecated: false
     - kind: "python:3"
       image:
         name: "python3action"
+      deprecated: false
     swift:
     - kind: "swift"
       image:
         name: "swiftaction"
       deprecated: true
     - kind: "swift:3"
-      default: true
       image:
         name: "swift3action"
+      deprecated: false
+    - kind: "swift:3.1.1"
+      default: true
+      image:
+        name: "action-swift-v3.1.1"
+      deprecated: false
     java:
     - kind: "java"
+      default: true
+      image:
+        name: "java8action"
+      deprecated: false
       attached:
         attachmentName: "jarfile"
         attachmentType: "application/java-archive"
       sentinelledLogs: false
       requireMain: true
-      image:
-        name: "java8action"
-      default: true
   blackboxes:
     - name: "dockerskeleton"
 
@@ -113,11 +124,24 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
-  version: 0.10.0.1
+  version: 0.10.2.1
   port: 9092
   ras:
     port: 9093
-#  docker_image: "ches/kafka:0.10.0.1"
+  heap: "{{ kafka_heap | default('1g') }}"
+  topics:
+    completed:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    health:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
+      retentionMS: 3600000
+    invoker:
+      segmentBytes: 536870912
+      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
+      retentionMS: 172800000
 
 zookeeper:
   version: 3.4
@@ -172,7 +196,7 @@ apigateway:
     api: 9000
     api_secure: 443
     mgmt: 9001
-  version: 0.7.0
+  version: 0.8.2
 
 redis:
   version: 3.2
@@ -236,3 +260,44 @@ catalog_repos:
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
     version: "HEAD"
     repo_update: "no"
+
+openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
+
+# The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
+# installation_mode can be specified into two modes: remote and local.
+# The mode remote means to download the available binaries from the releases page
+# of the official openwhisk cli repository. The mode local means to build the binaries
+# locally in a directory and get them from the local directory. The default value
+# for openwhisk is local.
+#
+# The name specifies the package name of the binaries in remote mode.
+#
+# The dest_name specifies the package name of the binaries in Nginx in remote mode.
+#
+# The location specifies the official website where Openwhisk CLI is hosted in
+# remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
+#
+
+openwhisk_cli:
+  installation_mode: local
+  local:
+    location: "{{ openwhisk_cli_home }}/bin"
+
+# If you would like to use the remote mode, you can uncomment the following section.
+#  remote:
+#    name: OpenWhisk_CLI
+#    dest_name: OpenWhisk_CLI
+#    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+
+# The list of operating systems for which openwhisk cli binaries are downloaded,
+# if the installation_mode is remote.
+cli_os:
+  - linux
+  - mac
+  - windows
+
+# The list of architectures for which openwhisk cli binaries are downloaded,
+# if the installation_mode is remote.
+cli_arch:
+  - amd64
+  - 386

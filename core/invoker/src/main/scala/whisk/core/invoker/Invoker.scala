@@ -52,6 +52,7 @@ import whisk.core.connector.PingMessage
 import scala.util.Try
 import whisk.core.connector.MessageProducer
 import org.apache.kafka.common.errors.RecordTooLargeException
+import whisk.core.entity.TimeLimit
 
 /**
  * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
@@ -99,6 +100,7 @@ class Invoker(
         // 1. success: there were no exceptions and hence the invoke path operated normally,
         // 2. error during invocation: an exception occurred while trying to run the action (failed to bring up a container for example),
         // 3. error fetching action: an exception occurred reading from the db, didn't get to run.
+        // 4. internal error: the controller passed a wrong action to the invoker.
         val transactionPromise = Promise[DocInfo]
 
         // caching is enabled since actions have revision id and an updated
@@ -111,21 +113,29 @@ class Invoker(
         WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty) onComplete {
             case Success(action) =>
                 // only Exec instances that are subtypes of CodeExec reach the invoker
-                assume(action.exec.isInstanceOf[CodeExec[_]])
+                action.toExecutableWhiskAction match {
+                    case Some(executable) =>
+                        invokeAction(tran, executable) onComplete {
+                            case Success(activation) =>
+                                transactionPromise.completeWith {
+                                    // this completes the successful activation case (1)
+                                    completeTransaction(tran, activation, ContainerReleased)
+                                }
 
-                invokeAction(tran, action) onComplete {
-                    case Success(activation) =>
-                        transactionPromise.completeWith {
-                            // this completes the successful activation case (1)
-                            completeTransaction(tran, activation, ContainerReleased)
+                            case Failure(t) =>
+                                logging.info(this, s"activation failed")
+                                val failure = disambiguateActivationException(t, executable)
+                                transactionPromise.completeWith {
+                                    // this completes the failed activation case (2)
+                                    completeTransactionWithError(action.docid, action.version, tran, failure.activationResponse, Some(action.limits))
+                                }
                         }
-
-                    case Failure(t) =>
-                        logging.info(this, s"activation failed")
-                        val failure = disambiguateActivationException(t, action)
+                    case None =>
+                        logging.error(this, s"non-primitive action reached the invoker: $action")
+                        val failureResponse = ActivationResponse.whiskError(s"Invalid action.")
                         transactionPromise.completeWith {
-                            // this completes the failed activation case (2)
-                            completeTransactionWithError(action.docid, action.version, tran, failure.activationResponse, Some(action.limits))
+                            // this completes the wrong action case (4)
+                            completeTransactionWithError(actionid.id, msg.action.version.get, tran, failureResponse, None)
                         }
                 }
 
@@ -192,7 +202,7 @@ class Invoker(
      *
      * @return WhiskActivation
      */
-    protected def invokeAction(tran: Transaction, action: WhiskAction)(
+    protected def invokeAction(tran: Transaction, action: ExecutableWhiskAction)(
         implicit transid: TransactionId): Future[WhiskActivation] = {
         Future { pool.getAction(action, tran.msg.user.authkey) } map {
             case (con, initResultOpt) => runAction(tran, action, con, initResultOpt)
@@ -224,7 +234,7 @@ class Invoker(
      * Runs the action in the container if the initialization succeeded and returns a triple
      * (initialization failed?, the container, the init result if initialization failed else the run result)
      */
-    private def runAction(tran: Transaction, action: WhiskAction, con: WhiskContainer, initResultOpt: Option[RunResult])(
+    private def runAction(tran: Transaction, action: ExecutableWhiskAction, con: WhiskContainer, initResultOpt: Option[RunResult])(
         implicit transid: TransactionId): (Boolean, WhiskContainer, RunResult) = {
         def run() = {
             val msg = tran.msg
@@ -257,7 +267,7 @@ class Invoker(
      *
      * @return WhiskActivation
      */
-    private def makeActivationResultForSuccess(tran: Transaction, action: WhiskAction, failedInit: Boolean, result: RunResult)(
+    private def makeActivationResultForSuccess(tran: Transaction, action: ExecutableWhiskAction, failedInit: Boolean, result: RunResult)(
         implicit transid: TransactionId): WhiskActivation = {
         if (!failedInit) tran.runInterval = Some(result.interval)
 
@@ -405,7 +415,7 @@ class Invoker(
     /**
      * Rewrites exceptions during invocation into new exceptions.
      */
-    private def disambiguateActivationException(t: Throwable, action: WhiskAction)(
+    private def disambiguateActivationException(t: Throwable, action: ExecutableWhiskAction)(
         implicit transid: TransactionId): ActivationException = {
         t match {
             // in case of container pull/run operations that fail to execute, assign an appropriate error response
@@ -475,9 +485,8 @@ object Invoker {
         }
 
         val topic = s"invoker${invokerInstance.toInt}"
-        val groupid = "invokers"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, maxdepth)
+        val consumer = new KafkaConsumerConnector(config.kafkaHost, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
         val producer = new KafkaProducerConnector(config.kafkaHost, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 

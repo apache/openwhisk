@@ -1,41 +1,43 @@
-/**
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Copyright 2015-2016 IBM Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Delete an API Gateway to action mapping document from the database:
- * https://docs.cloudant.com/document.html#delete
- *
- * Parameters (all as fields in the message JSON object)
- *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
- *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
- *   gwUser               Optional. The API Gateway authentication
- *   gwPwd                Optional. The API Gateway authentication
- *   namespace            Required if __ow_user not specified.  Namespace of API author
- *   __ow_user            Required. Namespace of API author
- *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
- *   spaceguid            Optional. Namespace unique id.
- *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
- *   basepath             Required. Base path or API name of the API
- *   relpath              Optional. Delete just this relative path from the API.  Required if operation is specified
- *   operation            Optional. Delete just this relpath's operation from the API.
- *
- * NOTE: The package containing this action will be bound to the following values:
- *         gwUrl, gwAuth
- *       As such, the caller to this action should normally avoid explicitly setting
- *       these values
- **/
+ */
+
+ /**
+  * Delete an API Gateway to action mapping document from the database:
+  * https://docs.cloudant.com/document.html#delete
+  *
+  * Parameters (all as fields in the message JSON object)
+  *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
+  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
+  *   gwUser               Optional. The API Gateway authentication
+  *   gwPwd                Optional. The API Gateway authentication
+  *   namespace            Required if __ow_user not specified.  Namespace of API author
+  *   __ow_user            Required. Namespace of API author
+  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
+  *   spaceguid            Optional. Namespace unique id.
+  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
+  *   basepath             Required. Base path or API name of the API
+  *   relpath              Optional. Delete just this relative path from the API.  Required if operation is specified
+  *   operation            Optional. Delete just this relpath's operation from the API.
+  *
+  * NOTE: The package containing this action will be bound to the following values:
+  *         gwUrl, gwAuth
+  *       As such, the caller to this action should normally avoid explicitly setting
+  *       these values
+  */
 var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 var _ = require('lodash');

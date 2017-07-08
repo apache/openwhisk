@@ -3,16 +3,23 @@
 
 - include: docker_login.yml
 
-- name: "pull action images with tag {{ docker_image_tag }}"
-  shell: "docker pull {{ docker_registry }}{{ item }}:{{ docker_image_tag }}"
+- name: "pull invoker image with tag {{docker_image_tag}}"
+  shell: "docker pull {{docker_registry}}{{item}}:{{docker_image_tag}}"
   with_items:
     - '{{ docker_image_prefix }}/invoker'
-    - '{{ docker_image_prefix }}/dockerskeleton'
-    - '{{ docker_image_prefix }}/nodejs6action'
-    - '{{ docker_image_prefix }}/python2action'
-    - '{{ docker_image_prefix }}/python3action'
-    - '{{ docker_image_prefix }}/swift3action'
-    - '{{ docker_image_prefix }}/java8action'
+  when: docker_registry != ""
+  retries: 3
+
+- name: "pull runtime action images with tag {{docker_image_tag}}"
+  shell: "docker pull {{docker_registry}}{{docker_image_prefix}}/{{item}}:{{docker_image_tag}}"
+  with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image.name') | list | unique }}"
+  when: docker_registry != ""
+  retries: 3
+
+- name: "pull blackboxes action images with tag {{docker_image_tag}}"
+  shell: "docker pull {{docker_registry}}{{docker_image_prefix}}/{{item.name}}:{{docker_image_tag}}"
+  with_items:
+    - "{{ runtimesManifest.blackboxes }}"
   when: docker_registry != ""
   retries: 3
 
@@ -65,7 +72,7 @@
         -e SERVICE_CHECK_TIMEOUT=2s
         -e SERVICE_CHECK_INTERVAL=15s
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
-        -e INVOKER_OPTS={{ invoker.arguments }}
+        -e INVOKER_OPTS='{{ invoker.arguments }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
