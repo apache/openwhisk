@@ -1,16 +1,8 @@
 #!/bin/bash
 
-#
-#  Note, the Dockerfile is expected to have a label in the form of
-#  "#LABEL mylabel" to set the label
-#
-#  TODO:  Re-write this to take advantage of the "LABEL" dockerfile
-#         directive to embed intended label in image metadata.  Use
-#         'jq' to extract it.
-#
-#  TODO:  Add syntax validation of label before docker has to choke on it.
+shopt -s lastpipe
 
-REPOSITORY=${REPOSITORY:-jpspring/s390x-openwhisk}
+DOCKER_REGISTRY=${DOCKER_REGISTRY:-docker.xanophis.com}
 
 cd "$( dirname "${BASH_SOURCE[0]}" )" || exit
 
@@ -18,7 +10,7 @@ arch=$(docker info 2>/dev/null | sed -n 's/Architecture: \(.*\)/\1/p')
 echo "Processing for $arch"
 
 process_dockerfile() {
-  local tmpfile, dockerfile
+  local tmpfile dockerfile
 
   if [ -f "$1/Dockerfile.$arch" ]; then dockerfile="$1/Dockerfile.$arch"
   elif [ -f "$1/Dockerfile.m4" ]; then
@@ -34,17 +26,29 @@ process_dockerfile() {
 
   echo "...Processing $dockerfile"
 
-  label=$(grep '^#LABEL ' "$dockerfile" | sed -n 's/^#LABEL \(.*\)$/\1/p')
-  [ -d "./$label" ] && dir="./$label" || dir="$1"
-  docker build -t "$REPOSITORY:$label" -f "$dockerfile" "$dir" || {
+  #label=$(grep '^#LABEL ' "$dockerfile" | sed -n 's/^#LABEL \(.*\)$/\1/p')
+  docker build -t "t_$$" -f "$dockerfile" "$1" || {
     echo Failure building $1; exit 1
   }
-  docker push "$REPOSITORY:$label"
+
+  #  TODO:  Fail gracefully if the LABELs weren't set up properly
+  docker inspect "t_$$" \
+    | jq -r '.[].Config.Labels.image_name,.[].Config.Labels.tags' \
+    | { read image_name; IFS=',' read -a tags; }
+
+  echo "image_name=" $image_name
+  echo "tags=" "${tags[@]}"
 
   for i in "$(dirname $1)"/test_*; do
     if [[ -x "$i" ]]; then eval "$i"; fi
   done
 
+  for tag in "${tags[@]}"; do
+    docker tag "t_$$" "$DOCKER_REGISTRY/$arch/$image_name:$tag"
+    docker push "$DOCKER_REGISTRY/$arch/$image_name:$tag"
+  done
+
+  docker rmi "t_$$"  # Remove the temporary tag
   [ -n "$tmpfile" ] && rm "$tmpfile"
 }
 

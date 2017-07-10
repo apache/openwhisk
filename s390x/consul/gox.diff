@@ -1,0 +1,20 @@
+diff --git a/platform.go b/platform.go
+index 89401fc..d35ce93 100644
+--- a/platform.go
++++ b/platform.go
+@@ -42,6 +42,7 @@ var (
+ 		"arm64",
+ 		"ppc64",
+ 		"ppc64le",
++		"s390x",
+ 	}
+ 
+ 	Platforms_1_0 = []Platform{
+@@ -86,6 +87,7 @@ var (
+ 		{"linux", "arm64", false},
+ 		{"linux", "ppc64", false},
+ 		{"linux", "ppc64le", false},
++		{"linux", "s390x", true},
+ 	}...)
+ )
+ 

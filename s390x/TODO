@@ -1,7 +1,9 @@
-# Change logic to manage images in s390xopenwhisk user on Docker Hub.
-
-# Create image documentation for Docker Hub for these images.
-
 # Consider how to keep some in sync with their corresponding x86 images/repositories.
+# ... or at least label with the source of the original Dockerfile and some sort of
+#     change detection (git commit, expected diff, etc.)
+
+# Why didn't I use "official" s390x python2 and python3 images?
 
 # Improve security of the CouchDB image.
+
+# Sould I be using Gradle to do these builds?

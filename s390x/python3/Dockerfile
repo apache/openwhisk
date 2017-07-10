@@ -1,7 +1,6 @@
-#LABEL python3
-
-
 FROM s390x/alpine:3.6
+
+LABEL image_name=python3 tags=3.6.1,3.6,latest
 
 # ensure local python is preferred over distribution python
 ENV PATH /usr/local/bin:$PATH

@@ -1,11 +1,40 @@
-#LABEL consul
-
 FROM s390x/alpine:3.6
+
+LABEL image_name=consul tags=0.8.5,0.8,latest
 
 RUN addgroup consul && \
     adduser -S -G consul consul
 
-RUN apk add --no-cache ca-certificates curl libcap openssl dumb-init gnupg \
+ENV GOPATH=/build/go \
+    CONSUL_VERSION=0.8.5
+
+RUN apk --no-cache add ca-certificates dumb-init openssl
+
+COPY gox.diff /
+
+RUN : \
+ && apk --no-cache add --virtual build-deps bash git go make musl-dev \
+#  The gox package needs to be patched to support S390X builds
+ && go get github.com/mitchellh/gox \
+ && cd $GOPATH/src/github.com/mitchellh/gox \
+ && patch -p1 </gox.diff \
+ && go build \
+ && go install \
+#  Here's where we get the actual Consul repository and switch versions
+ && mkdir -p $GOPATH/src/github.com/hashicorp \
+ && cd $GOPATH/src/github.com/hashicorp \
+ && git clone https://github.com/hashicorp/consul.git \
+ && cd consul \
+ && git checkout -b v${CONSUL_VERSION} tags/v${CONSUL_VERSION}  \
+#  This little change is needed to keep Make from over-writing our patched gox
+ && sed -i -e 's/go get -u -v/go get -v/' GNUmakefile \
+ && CONSUL_DEV=1 PATH=$PATH:$GOPATH/bin make \
+ && mv ./bin/consul /bin/consul \
+ && apk del build-deps \
+ && rm -rf /gox.diff /build \
+ && :
+
+RUN apk add --no-cache libcap gnupg \
  && wget -O/bin/gosu "https://github.com/tianon/gosu/releases/download/1.10/gosu-s390x" \
  && wget -O/tmp/gosu.asc "https://github.com/tianon/gosu/releases/download/1.10/gosu-s390x.asc" \
  && gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
@@ -13,9 +42,6 @@ RUN apk add --no-cache ca-certificates curl libcap openssl dumb-init gnupg \
  && chmod +x /bin/gosu \
  && rm /tmp/gosu.asc \
  && apk del openssl gnupg
-
-# TODO:  Move this image to a more supported storage location
-COPY consul /bin/consul
 
 # The /consul/data dir is used by Consul to store state. The agent will be started
 # with /consul/config as the configuration directory so you can add additional

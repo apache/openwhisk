@@ -1,6 +1,8 @@
 #LABEL python2
 FROM s390x/alpine:3.6
 
+LABEL image_name=python2 tags="2.7.13,2.7,latest"
+
 # ensure local python is preferred over distribution python
 ENV PATH /usr/local/bin:$PATH
 

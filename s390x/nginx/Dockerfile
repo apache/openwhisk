@@ -1,6 +1,7 @@
 FROM s390x/alpine:3.6
 MAINTAINER NGINX Docker Maintainers "docker-maint@nginx.com"
-#LABEL nginx
+
+LABEL image_name=nginx tags=1.13.2,1.13,latest
 
 ENV NGINX_VERSION 1.13.2
 

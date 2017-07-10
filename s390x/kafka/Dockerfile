@@ -1,30 +1,20 @@
 # Builds an image for Apache Kafka from binary distribution.
 #
-# TODO:  This note is no longer accurate; we are using OpenJDK.  We may
-#        choose to use the IBM Java Distro -- one more TBD.
-#
-# The netflixoss/java base image runs IBM Java 8 installed atop the
+# The s390x/ibmjava:sfj base image runs IBM Java 8 installed atop the
 # ubuntu:trusty (14.04) official image.  IBM Java 8 currently does not
 # execute (or fail) cleanly with Alpine.
 
-#LABEL kafka
+# TODO:  Consider integrating into the Kafka project?
 
 FROM s390x/ibmjava:sfj
+
+LABEL image_name=kafka tags=0.11,latest
 
 # The Scala 2.12 build is currently recommended by the project.
 ENV KAFKA_VERSION=0.11.0.0 KAFKA_SCALA_VERSION=2.11 JMX_PORT=7203
 ENV KAFKA_RELEASE_ARCHIVE kafka_${KAFKA_SCALA_VERSION}-${KAFKA_VERSION}.tgz
 
 RUN mkdir -p /kafka /data /logs
-
-# RUN apt-get update \
-#   && DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates \
-#   && apt-get clean \
-#   && rm -rf /var/lib/apt/lists/*
-
-# Download Kafka binary distribution
-#ADD http://www.us.apache.org/dist/kafka/${KAFKA_VERSION}/${KAFKA_RELEASE_ARCHIVE} /tmp/
-#ADD https://dist.apache.org/repos/dist/release/kafka/${KAFKA_VERSION}/${KAFKA_RELEASE_ARCHIVE}.md5 /tmp/
 
 WORKDIR /tmp
 

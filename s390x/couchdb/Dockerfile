@@ -1,5 +1,6 @@
 FROM s390x/ubuntu:xenial
-#LABEL couchdb
+
+LABEL image_name=couchdb tags=latest
 
 RUN apt-get -y update \
  && apt-get -y install couchdb \
