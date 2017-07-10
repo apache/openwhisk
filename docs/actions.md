@@ -117,6 +117,8 @@ Review the following steps and examples to create your first JavaScript action.
   }
   ```
 
+  Note that you should not use an activation ID with the flag `--last`.
+
 7. If you forget to record the activation ID, you can get a list of activations ordered from the most recent to the oldest. Run the following command to get a list of your activations:
 
   ```
@@ -621,7 +623,7 @@ follows:
 wsk action create helloSwift hello.swift
 ```
 
-The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1. 
+The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1.
 
 **Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`. Support for Swift 3.0 is deprecated and will be removed soon.
 

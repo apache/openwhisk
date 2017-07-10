@@ -896,7 +896,7 @@ class WskBasicTests
             Thread.sleep(1000)
 
             var  lastFlag = Seq (
-                (Seq("activation", "get", "publish", "--last"),includeID),
+                (Seq("activation", "get", "publish", "--last"), includeID),
                 (Seq("activation", "get", "--last"), includeID),
                 (Seq("activation", "logs", "--last"), includeStr),
                 (Seq("activation", "result", "--last"), includeStr))
@@ -906,23 +906,23 @@ class WskBasicTests
                     val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
                     stdout should include(output)
             }
-        }
-
+    }
 
     it should "reject activation request when using activation ID with --last Flag" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val tooManyArgsMsg = "When specifying an activation ID, do not use the --last flag"
             val auth: Seq[String] = Seq("--auth", wskprops.authKey)
 
-            assetHelper.withCleaner(wsk.action, "lastName") {
-                (action, _) => wsk.action.create("lastName", defaultAction)
-            }
+             assetHelper.withCleaner(wsk.action, "lastName") {
+                 (action, _) => wsk.action.create("lastName", defaultAction)
+             }
             val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
+            val tooManyArgsMsg = s"${lastId}. An activation ID is required."
+            val invalidField = s"Invalid field filter '${lastId}'."
             Thread.sleep(1000)
 
             var  invalidCmd = Seq (
                 (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),
-                (Seq("activation", "get", s"$lastId", "--last"), tooManyArgsMsg),
+                (Seq("activation", "get", s"$lastId", "--last"), invalidField),
                 (Seq("activation", "logs", s"$lastId", "--last"), tooManyArgsMsg),
                 (Seq("activation", "result", s"$lastId", "--last"), tooManyArgsMsg))
 
@@ -930,7 +930,6 @@ class WskBasicTests
                 case (cmd, err) =>
                     val stderr = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr
                     stderr should include(err)
-                    stderr should include("Run 'wsk --help' for usage.")
             }
-        }
+     }
 }
