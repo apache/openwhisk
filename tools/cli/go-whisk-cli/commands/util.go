@@ -818,6 +818,10 @@ func getURLBase(host string, path string) (*url.URL, error)  {
         return nil, whiskErr
     }
 
+    if !strings.HasPrefix(host, "http") {
+        host = "https://" + host
+    }
+
     urlBase := fmt.Sprintf("%s%s", host, path)
     url, err := url.Parse(urlBase)
 
