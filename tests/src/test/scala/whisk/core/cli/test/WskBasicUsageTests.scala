@@ -297,7 +297,7 @@ class WskBasicUsageTests
             withActivation(wsk.activation, run) {
                 activation =>
                     activation.start should be > Instant.EPOCH
-                    activation.end should be > Instant.EPOCH
+                    activation.end.get should be > Instant.EPOCH
                     activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
                     activation.response.success shouldBe true
                     activation.response.result shouldBe Some(JsObject())

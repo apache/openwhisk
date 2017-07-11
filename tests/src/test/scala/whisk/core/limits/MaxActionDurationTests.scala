@@ -64,7 +64,7 @@ class MaxActionDurationTests
                         activation =>
                             activation.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
                             activation.response.result shouldBe Some(JsObject("error" -> Messages.timedoutActivation(TimeLimit.MAX_DURATION, false).toJson))
-                            activation.duration.toInt should be >= TimeLimit.MAX_DURATION.toMillis.toInt
+                            activation.duration.get.toInt should be >= TimeLimit.MAX_DURATION.toMillis.toInt
 
                     }
             }

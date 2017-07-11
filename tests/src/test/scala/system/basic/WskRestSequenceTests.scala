@@ -30,8 +30,8 @@ import org.scalatest.junit.JUnitRunner
 import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils._
-import common.Wsk
+import common.rest.RestResult
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import common.CliActivation
@@ -46,14 +46,14 @@ import whisk.http.Messages.sequenceIsTooLong
  */
 
 @RunWith(classOf[JUnitRunner])
-class WskSequenceTests
+class WskRestSequenceTests
     extends TestHelpers
     with ScalatestRouteTest
     with WskTestHelpers
     with StreamLogging {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk
+    val wsk = new WskRest
     val allowedActionDuration = 120 seconds
     val shortDuration = 10 seconds
 
@@ -195,7 +195,7 @@ class WskSequenceTests
             val args = Array("what time is it?", now)
             val argsJson = args.mkString("\n").toJson
             val run = wsk.action.invoke(sName, Map("payload" -> argsJson))
-            println(s"RUN: ${run.stdout}")
+            println(s"RUN: ${run.respData}")
             withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 3) // 3 activations in this sequence
@@ -217,7 +217,7 @@ class WskSequenceTests
                     result.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
                     // check that inner sequence had only (limit - 1) activations
                     val innerSeq = activation.logs.get(1) // the id of the inner sequence activation
-                    val getInnerSeq = wsk.activation.get(Some(innerSeq))
+                    val getInnerSeq = wsk.activation.getActivation(innerSeq)
                     withActivation(wsk.activation, getInnerSeq, totalWait = allowedActionDuration) {
                         innerSeqActivation =>
                             innerSeqActivation.logs.get.size shouldBe (limit - 1)
@@ -398,7 +398,7 @@ class WskSequenceTests
             }
             // run sequence s with sleep equal to payload
             val payload = 65000
-            val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true, expectedExitCode = ACCEPTED)
+            val run = wsk.action.invoke(sName, parameters = Map("payload" -> JsNumber(payload)), blocking = true)
             withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) {
                 activation =>
                     checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
@@ -443,6 +443,7 @@ class WskSequenceTests
             assetHelper.withCleaner(wsk.rule, ruleName) {
                 (rule, name) => rule.create(name, triggerName, seqName)
             }
+            println(wsk.trigger.get(triggerName))
             // fire trigger
             val run = wsk.trigger.fire(triggerName)
             // check that the sequence was invoked and that the echo action produced the expected result
@@ -454,13 +455,7 @@ class WskSequenceTests
             checkEchoSeqRuleResult(newRun, seqName, JsObject(newPayload))
     }
 
-    /**
-     * checks the result of an echo sequence connected to a trigger through a rule
-     * @param triggerFireRun the run result of firing the trigger
-     * @param seqName the sequence name
-     * @param triggerPayload the payload used for the trigger (that should be reflected in the sequence result)
-     */
-    private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
+    private def checkEchoSeqRuleResult(triggerFireRun: RestResult, seqName: String, triggerPayload: JsObject) = {
         withActivation(wsk.activation, triggerFireRun) {
             triggerActivation =>
                 withActivationsFromEntity(wsk.activation, seqName, since = Some(triggerActivation.start)) { activationList =>
@@ -499,7 +494,7 @@ class WskSequenceTests
             }
         }
         // extract duration
-        activation.duration shouldBe (totalTime)
+        activation.duration.get shouldBe (totalTime)
         // extract memory
         activation.annotations shouldBe defined
         val memory = extractMemoryAnnotation(activation)
@@ -507,11 +502,11 @@ class WskSequenceTests
     }
 
     /** checks that the logs of the idx-th atomic action from a sequence contains logsStr */
-    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RunResult, regex: Regex) {
+    private def checkLogsAtomicAction(atomicActionIdx: Int, run: RestResult, regex: Regex) {
         withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
             checkSequenceLogsAndAnnotations(activation, 1)
             val componentId = activation.logs.get(atomicActionIdx)
-            val getComponentActivation = wsk.activation.get(Some(componentId))
+            val getComponentActivation = wsk.activation.getActivation(componentId)
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
                 println(componentActivation)
                 componentActivation.logs shouldBe defined

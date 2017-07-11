@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,7 +53,7 @@ import junit.runner.Version;
  * Miscellaneous utilities used in whisk test suite
  */
 public class TestUtils {
-    protected static final Logger logger = Logger.getLogger("basic");
+    public static final Logger logger = Logger.getLogger("basic");
 
     public static final int SUCCESS_EXIT    = 0;
     public static final int ERROR_EXIT      = 1;
@@ -212,7 +213,7 @@ public class TestUtils {
         public final String stdout;
         public final String stderr;
 
-        private RunResult(int exitCode, String stdout, String stderr) {
+        public RunResult(int exitCode, String stdout, String stderr) {
             this.exitCode = exitCode;
             this.stdout = stdout;
             this.stderr = stderr;

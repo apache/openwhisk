@@ -33,6 +33,7 @@ import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
+import common.CliActivation
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.ActivationEntityLimit
