@@ -862,7 +862,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) error {
         err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)
     } else {
-        err = errors.New(wski18n.T("API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+        err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
             map[string]interface{}{"name": fullActionName}))
         weVal := getValue(action.Annotations, "web-export")
         if (weVal == nil) {
