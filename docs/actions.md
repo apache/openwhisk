@@ -484,12 +484,18 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
   ```
   ```
   package /whisk.system/utils: Building blocks that format and assemble data
-   action /whisk.system/utils/head: Extract prefix of an array
-   action /whisk.system/utils/split: Split a string into an array
-   action /whisk.system/utils/sort: Sorts an array
-   action /whisk.system/utils/echo: Returns the input
-   action /whisk.system/utils/date: Current date and time
-   action /whisk.system/utils/cat: Concatenates input into a string
+   (parameters: none defined)
+     action /whisk.system/utils/namespace: Returns namespace for the authorization key used to invoke this action
+       (parameters: none defined)
+     action /whisk.system/utils/date: Current date and time
+       (parameters: none defined)
+     action /whisk.system/utils/sort: Sorts an array
+       (parameters: lines)
+     action /whisk.system/utils/split: Split a string into an array
+       (parameters: payload, separator)
+     action /whisk.system/utils/hosturl: Returns the URL to activation an action or trigger
+       (parameters: ext, path, trigger, web)
+     ...
   ```
 
   You will be using the `split` and `sort` actions in this example.

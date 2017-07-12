@@ -514,7 +514,7 @@ func init() {
   packageUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
   packageUpdateCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("package visibility `SCOPE`; yes = shared, no = private"))
 
-  packageGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize package details"))
+  packageGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize package details; parameters with prefix \"*\" are bound"))
 
   packageBindCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
   packageBindCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))

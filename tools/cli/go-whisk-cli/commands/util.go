@@ -386,14 +386,15 @@ func printArrayContents(arrStr []string) {
 func printPackageSummary(pkg *whisk.Package) {
     printEntitySummary(fmt.Sprintf("%7s", "package"), getFullName(pkg.Namespace, pkg.Name, ""),
         getValueString(pkg.Annotations, "description"),
-        strings.Join(getChildValueStrings(pkg.Annotations, "parameters", "name"), ", "))
+        strings.Join(getParamUnion(pkg.Annotations, pkg.Parameters, "name"), ", "))
 
 
     if pkg.Actions != nil {
         for _, action := range pkg.Actions {
+            paramUnion := getParamUnion(action.Annotations, action.Parameters, "name")
             printEntitySummary(fmt.Sprintf("%7s", "action"), getFullName(pkg.Namespace, pkg.Name, action.Name),
                 getValueString(action.Annotations, "description"),
-                strings.Join(getChildValueStrings(action.Annotations, "parameters", "name"), ", "))
+                strings.Join(paramUnion, ", "))
         }
     }
 
@@ -401,23 +402,24 @@ func printPackageSummary(pkg *whisk.Package) {
         for _, feed := range pkg.Feeds {
             printEntitySummary(fmt.Sprintf("%7s", "feed  "), getFullName(pkg.Namespace, pkg.Name, feed.Name),
                 getValueString(feed.Annotations, "description"),
-                strings.Join(getChildValueStrings(feed.Annotations, "parameters", "name"), ", "))
+                strings.Join(getParamUnion(feed.Annotations, feed.Parameters, "name"), ", "))
         }
     }
 }
 
 func printActionSummary(action *whisk.Action) {
+    paramUnion := getParamUnion(action.Annotations, action.Parameters, "name")
     printEntitySummary(fmt.Sprintf("%6s", "action"),
         getFullName(action.Namespace, "", action.Name),
         getValueString(action.Annotations, "description"),
-        strings.Join(getChildValueStrings(action.Annotations, "parameters", "name"), ", "))
+        strings.Join(paramUnion, ", "))
 }
 
 func printTriggerSummary(trigger *whisk.Trigger) {
     printEntitySummary(fmt.Sprintf("%7s", "trigger"),
         getFullName(trigger.Namespace, "", trigger.Name),
         getValueString(trigger.Annotations, "description"),
-        strings.Join(getChildValueStrings(trigger.Annotations, "parameters", "name"), ", "))
+        strings.Join(getParamUnion(trigger.Annotations, trigger.Parameters, "name"), ", "))
 }
 
 func printRuleSummary(rule *whisk.Rule) {
@@ -427,15 +429,74 @@ func printRuleSummary(rule *whisk.Rule) {
 }
 
 func printEntitySummary(entityType string, fullName string, description string, params string) {
+    emptyParams := "none defined"
+    if len(params) <= 0 {
+        params = emptyParams
+    }
     if len(description) > 0 {
         fmt.Fprintf(color.Output, "%s %s: %s\n", boldString(entityType), fullName, description)
+    } else if params != emptyParams {
+        descriptionFromParams := buildParamDescription(params)
+        fmt.Fprintf(color.Output, "%s %s: %s\n", boldString(entityType), fullName, descriptionFromParams)
     } else {
         fmt.Fprintf(color.Output, "%s %s\n", boldString(entityType), fullName)
     }
+    fmt.Fprintf(color.Output, "   (%s: %s)\n", boldString(wski18n.T("parameters")), params)
+}
 
-    if len(params) > 0 {
-        fmt.Fprintf(color.Output, "   (%s: %s)\n", boldString(wski18n.T("parameters")), params)
+//  getParamUnion(keyValArrAnnots, keyValArrParams, key) returns the union
+//      of parameters listed under annotations (keyValArrAnnots, using key) and
+//      bound parameters (keyValArrParams). Bound parameters will be denoted with
+//      a prefixed "*", and finalized bound parameters (can't be changed by
+//      user) will be denoted by a prefixed "**".
+func getParamUnion(keyValArrAnnots whisk.KeyValueArr, keyValArrParams whisk.KeyValueArr, key string) []string {
+    var res []string
+    tag := "*"
+    if getValueBool(keyValArrAnnots, "final") {
+        tag = "**"
     }
+    boundParams := getKeys(keyValArrParams)
+    annotatedParams := getChildValueStrings(keyValArrAnnots, "parameters", key)
+    res = append(boundParams, annotatedParams...)       // Create union of boundParams and annotatedParams with duplication
+    for i := 0; i < len(res); i++ {
+        for j := i + 1; j < len(res); j++ {
+            if res[i] == res[j] {
+                res = append(res[:j], res[j+1:]...)     // Remove duplicate entry
+            }
+        }
+    }
+    sort.Strings(res)
+    res = tagBoundParams(boundParams, res, tag)
+    return res
+}
+
+//  tagBoundParams(boundParams, paramUnion, tag) returns the list paramUnion with
+//      all strings listed under boundParams set with a prefix tag.
+func tagBoundParams(boundParams []string, paramUnion []string, tag string) []string {
+    res := paramUnion
+    for i := 0; i < len(boundParams); i++ {
+        for j := 0; j < len(res); j++ {
+            if boundParams[i] == res[j] {
+                res[j] = fmt.Sprintf("%s%s", tag, res[j])
+            }
+        }
+    }
+    return res
+}
+
+//  buildParamDescription(params) returns a default entity description for
+//      `$ wsk [ENTITY] get [ENTITY_NAME] --summary` when parameters are defined,
+//      but the entity description under annotations is not.
+func buildParamDescription(params string) string {
+    preamble := "Returns a result based on parameter"
+    params = strings.Replace(params, "*", "", -1)
+    temp := strings.Split(params, ",")
+    if len(temp) > 1 {
+        lastParam := temp[len(temp) - 1]
+        newParams := strings.Replace(params, fmt.Sprintf(",%s", lastParam), fmt.Sprintf(" and%s", lastParam), 1)
+        return fmt.Sprintf("%ss %s", preamble, newParams)
+    }
+    return fmt.Sprintf("%s %s", preamble, params)
 }
 
 func getFullName(namespace string, packageName string, entityName string) (string) {
@@ -499,6 +560,22 @@ func getValueString(keyValueArr whisk.KeyValueArr, key string) (string) {
     }
 
     whisk.Debug(whisk.DbgInfo, "Got string value '%v' for key '%s'\n", res, key)
+
+    return res
+}
+
+func getValueBool(keyValueArr whisk.KeyValueArr, key string) (bool) {
+    var value interface{}
+    var res bool
+
+    value = keyValueArr.GetValue(key)
+    castedValue, canCast := value.(bool)
+
+    if (canCast) {
+        res = castedValue
+    }
+
+    whisk.Debug(whisk.DbgInfo, "Got bool value '%v' for key '%s'\n", res, key)
 
     return res
 }
