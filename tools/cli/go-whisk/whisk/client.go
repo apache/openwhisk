@@ -67,6 +67,7 @@ type Client struct {
 
 type Config struct {
     Namespace 	string // NOTE :: Default is "_"
+    NamespaceHeader string //Pass namespace by header when using client certificate auth.
     Cert        string
     Key         string
     AuthToken 	string
@@ -90,6 +91,7 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
                     Certificates: []tls.Certificate{cert},
                     InsecureSkipVerify: true,
                 }
+                config.NamespaceHeader = config.Namespace
             }
         }else{
             tlsConfig = &tls.Config{
@@ -214,10 +216,15 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
         Debug(DbgInfo, "Adding basic auth header; using authkey\n")
     } else {
         if authRequired {
-            Debug(DbgError, "The required authorization key is not configured - neither set as a property nor set via the --auth CLI argument\n")
-            errStr := wski18n.T("Authorization key is not configured (--auth is required)")
-            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
-            return werr
+            if c.Config.Cert == "" || c.Config.Key == "" {
+                Debug(DbgError, "The required authorization key or client certificate is not configured - neither set as a property nor set via the --auth or (--cert and --key)CLI argument\n")
+                errStr := wski18n.T("Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)")
+                werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
+                return werr
+            }else{
+                //Pass namespace by header when using client certificate auth.
+                req.Header.Add("namespace", c.Config.NamespaceHeader)
+            }
         }
     }
     return nil

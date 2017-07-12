@@ -100,6 +100,7 @@ class WhiskConfig(
     val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
     val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
     val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
+    val sslClientVerification = this(WhiskConfig.sslClientVerification)
 }
 
 object WhiskConfig {
@@ -219,4 +220,5 @@ object WhiskConfig {
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
     val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
+    val sslClientVerification = "whisk.ssl.client.verification"
 }

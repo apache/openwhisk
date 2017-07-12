@@ -74,6 +74,53 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         })
     }
 
+    /**
+      * Many subjects can be belonged to only one namespace
+      * Retrieves a key for namespace + subject.
+      *
+      */
+    def get(datastore: AuthStore, namespace: EntityName, subject: Subject)(
+      implicit transid: TransactionId): Future[Identity] = {
+        implicit val logger: Logging = datastore.logging
+        implicit val ec = datastore.executionContext
+        val ns = namespace.asString
+        val sbj = subject.asString
+
+        cacheLookup(ns + sbj, {
+            //Because under one namespace can have more than one subject, so should query all subjects under this namespace.
+            list(datastore, List(ns), -1) map { list =>
+                list.length match {
+                    case 0 =>
+                        logger.info(this, s"$viewName:subject:[$subject] doesn't exist on namespace:[$namespace]")
+                        throw new NoDocumentException(s"$viewName:subject:[$subject] doesn't exist on namespace:[$namespace]")
+                    case _ =>
+                        list.find { obj =>
+                            val Seq(JsString(id)) = obj.getFields("id")
+                            id == sbj
+                        } match {
+                            case Some(row) => {
+                                row.getFields("id", "value") match {
+                                    case Seq(JsString(id), JsObject(value)) =>
+                                        val subject = Subject(id)
+                                        val JsString(uuid) = value("uuid")
+                                        val JsString(secret) = value("key")
+                                        val JsString(namespace) = value("namespace")
+                                        Identity(subject, EntityName(namespace), AuthKey(UUID(uuid), Secret(secret)), Privilege.ALL)
+                                    case _ =>
+                                        logger.error(this, s"$viewName[$ns] has malformed view '${row.compactPrint}'")
+                                        throw new IllegalStateException("identities view malformed")
+                                }
+                            }
+                            case None => {
+                                logger.info(this, s"$viewName:subject:[$subject] doesn't exist on namespace:[$namespace]")
+                                throw new NoDocumentException(s"$viewName:subject:[$subject] doesn't exist on namespace:[$namespace]")
+                            }
+                        }
+                }
+            }
+        })
+    }
+
     def get(datastore: AuthStore, authkey: AuthKey)(
         implicit transid: TransactionId): Future[Identity] = {
         implicit val logger: Logging = datastore.logging

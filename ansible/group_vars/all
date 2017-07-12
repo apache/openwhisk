@@ -221,6 +221,10 @@ catalog_namespace: "/whisk.system"
 # By default, we take the key from {{ openwhisk_home }}/ansible/files/auth.whisk.system.
 catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
 
+# The catalog_cert_file and catalog_key_file is used to authenticate the openwhisk service when nginx ssl configuration is opened.
+catalog_cert_file: "{{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-client-cert-whisk-system.pem"
+catalog_key_file: "{{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-client-key-whisk-system.pem"
+
 # The catalog_repos is used to specify all the catalog names and repository URLs,
 # so that openwhisk knows where to download the catalog and install them. The key
 # specifies the catalog name and the url saves the URL of the repository. The location

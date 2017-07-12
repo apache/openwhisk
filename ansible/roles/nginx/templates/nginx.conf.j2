@@ -58,6 +58,7 @@ http {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
             proxy_pass http://controllers;
+            proxy_set_header X-SSL-Subject $ssl_client_s_dn;
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
 

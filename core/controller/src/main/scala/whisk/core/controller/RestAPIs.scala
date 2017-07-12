@@ -162,7 +162,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     def routes(implicit transid: TransactionId): Route = {
         prefix {
             sendCorsHeaders {
-                info ~ basicAuth(validateCredentials) { user =>
+                info ~ authenticate(transid) { user =>
                     namespaces.routes(user) ~
                     pathPrefix(Collection.NAMESPACES) {
                         actions.routes(user) ~
@@ -177,7 +177,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
             } ~ {
                 // web actions are distinct to separate the cors header
                 // and allow the actions themselves to respond to options
-                basicAuth(validateCredentials) { user =>
+                authenticate(transid) { user =>
                     web.routes(user) ~ webexp.routes(user)
                 } ~ {
                     web.routes() ~ webexp.routes()

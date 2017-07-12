@@ -4,7 +4,7 @@
 # automatically
 #
 # To run this command
-# ./installRouteMgmt.sh  <AUTH> <APIHOST> <NAMESPACE> <WSK_CLI>
+# ./installRouteMgmt.sh <SSL_SWITCH> <AUTH> <CERT_FILE> <KEY_FILE> <APIHOST> <NAMESPACE> <WSK_CLI>
 # AUTH, APIHOST and NAMESPACE are found in $HOME/.wskprops
 # WSK_CLI="$OPENWHISK_HOME/bin/wsk"
 
@@ -13,18 +13,26 @@ set -x
 
 if [ $# -eq 0 ]
 then
-echo "Usage: ./uninstallRouteMgmt.sh AUTHKEY APIHOST NAMESPACE PATH_TO_WSK_CLI"
+echo "Usage: ./uninstallRouteMgmt.sh SSL_SWITCH AUTHKEY CERT_FILE KEY_FILE APIHOST NAMESPACE PATH_TO_WSK_CLI"
 fi
 
-AUTH="$1"
-APIHOST="$2"
-NAMESPACE="$3"
-WSK_CLI="$4"
+SSL_SWITCH="$1"
+AUTH="$2"
+CERT_FILE="$3"
+KEY_FILE="$4"
+APIHOST="$5"
+NAMESPACE="$6"
+WSK_CLI="$7"
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
 # first argument as the key itself.
 if [ -f "$AUTH" ]; then
     AUTH=`cat $AUTH`
+fi
+
+AUTH="--auth $AUTH"
+if [ "$SSL_SWITCH" != "off" ]; then
+    AUTH="--cert $CERT_FILE --key $KEY_FILE"
 fi
 
 export WSK_CONFIG_FILE= # override local property file to avoid namespace clashes
@@ -33,12 +41,12 @@ function deleteAction
 {
   # The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
   set +e
-  $WSK_CLI -i --apihost "$APIHOST" action get --auth "$AUTH" "$1"
+  $WSK_CLI -i --apihost "$APIHOST" action get $AUTH "$1"
   RC=$?
   if [ $RC -eq 0 ]
   then
     set -e
-    $WSK_CLI -i --apihost "$APIHOST" action delete --auth "$AUTH" "$1"
+    $WSK_CLI -i --apihost "$APIHOST" action delete $AUTH "$1"
   fi
   set -e
 }
@@ -47,12 +55,12 @@ function deletePackage
 {
   # The "get" command will fail if the resource does not exist, so use "set +e" to avoid exiting the script
   set +e
-  $WSK_CLI -i --apihost "$APIHOST" package get --auth "$AUTH" "$1" -s
+  $WSK_CLI -i --apihost "$APIHOST" package get $AUTH "$1" -s
   RC=$?
   if [ $RC -eq 0 ]
   then
     set -e
-    $WSK_CLI -i --apihost "$APIHOST" package delete --auth "$AUTH" "$1"
+    $WSK_CLI -i --apihost "$APIHOST" package delete $AUTH "$1"
   fi
 }
 

@@ -57,6 +57,7 @@
       "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "WHISK_SSL_CLIENT_VERIFICATION": "{{ nginx.ssl.verify_client }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

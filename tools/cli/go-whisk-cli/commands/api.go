@@ -925,9 +925,11 @@ func getUserContextId() (string, error) {
         if len(props["AUTH"]) > 0 {
             guid = strings.Split(props["AUTH"], ":")[0]
         } else {
-            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: %s\n", Properties.PropsFile)
-            errStr := wski18n.T("Authorization key is not configured (--auth is required)")
-            err = whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            if len(props["CERT"]) == 0 || len(props["KEY"]) == 0 {
+                whisk.Debug(whisk.DbgError, "AUTH property or CERT/KEY property also not set in properties file: %s\n", Properties.PropsFile)
+                errStr := wski18n.T("Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)")
+                err = whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            }
         }
     } else {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
