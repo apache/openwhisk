@@ -126,6 +126,7 @@ type ActionFlags struct {
     result      bool
     kind        string
     main        string
+    url         bool
 }
 
 func IsVerbose() bool {
