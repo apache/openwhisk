@@ -50,7 +50,7 @@ if (! file_exists($_actionFile)) {
 }
 
 // run the action with arguments from stdin
-require '/action/vendor/autoload.php';
+require __DIR__ . '/src/vendor/autoload.php';
 require $_actionFile;
 
 $result = $_functionName(json_decode(file_get_contents('php://stdin') ?? [], true));

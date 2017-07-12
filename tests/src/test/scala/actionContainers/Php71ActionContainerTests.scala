@@ -369,6 +369,31 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
         }
     }
 
+    it should "support replacing vendor in zip-encoded packages " in {
+        val srcs = Seq(
+            Seq("vendor/autoload.php") -> exampleOutputDotPhp,
+            Seq("index.php") -> """
+                | <?php
+                | function main(array $args) {
+                |     $name = $args['name'] ?? 'stranger';
+                |     return output($name);
+                | }
+            """.stripMargin)
+
+        val code = ZipBuilder.mkBase64Zip(srcs)
+
+        val (out, err) = withPhp71Container { c =>
+
+            c.init(initPayload(code))._1 should be(200)
+
+            val (runCode, runRes) = c.run(runPayload(JsObject()))
+
+            runCode should be(200)
+            runRes.get.fields.get("result") shouldBe defined
+            runRes.get.fields.get("result") shouldBe Some(JsString("stranger"))
+        }
+    }
+
     it should "fail gracefully on invalid zip files" in {
         // Some text-file encoded to base64.
         val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="

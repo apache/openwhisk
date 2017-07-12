@@ -108,6 +108,11 @@ function init() : array
         // binary code is a zip file that's been base64 encoded, so unzip it
         unzipString($code, SRC_DIR);
 
+        // if the zip file didn't contain a vendor directory, move our vendor into the src folder
+        if (! file_exists(SRC_DIR . '/vendor/autoload.php')) {
+            exec('mv ' . escapeshellarg(__DIR__ . '/vendor') . ' ' . escapeshellarg(SRC_DIR . '/vendor'));
+        }
+
         // check that we have the expected action source file
         if (! file_exists(ACTION_SRC_FILE)) {
             throw new RuntimeException('Zipped actions must contain ' . ACTION_SRC_FILENAME . ' at the root.', 500);
@@ -115,6 +120,9 @@ function init() : array
     } else {
         // non-binary code is a text string, so save to disk
         file_put_contents(ACTION_SRC_FILE, $code);
+
+        // move vendor folder into the src folder
+        exec('mv ' . escapeshellarg(__DIR__ . '/vendor') . ' ' . escapeshellarg(SRC_DIR . '/vendor'));
     }
 
     // is action file valid PHP? run `php -l` to find out
