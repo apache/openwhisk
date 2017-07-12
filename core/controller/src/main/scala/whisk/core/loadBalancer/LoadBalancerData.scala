@@ -18,62 +18,54 @@
 package whisk.core.loadBalancer
 
 import java.time.Instant
-
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
-
 import scala.collection.concurrent.TrieMap
-
 import scala.concurrent.Promise
-
-
 
 case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
 
+class LoadBalancerData(){
 
-class LoadBalancerDataWithLocalMap {
+    type TrieSet[T] = TrieMap[T, Unit]
 
- type TrieSet[T] = TrieMap[T, Unit]
+    private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
+    private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
+    private val activationsById = new TrieMap[ActivationId, ActivationEntry]
 
- private val activationByInvoker = new TrieMap[String, TrieSet[ActivationEntry]]
- private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
+    def activationCountByNamespace = {
+        activationByNamespaceId.toMap mapValues { _.size }
+    }
 
+    def activationCountByInvoker = {
+        activationByInvoker.toMap mapValues { _.size }
+    }
 
- def getActivationCountByNamespace() = {
-  activationByNamespaceId.toMap mapValues { _.size }
- }
+    def activationsByInvoker(invokerName: String) = {
+        activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
+    }
 
- def getActivationCountByInvoker() = {
-  activationByInvoker.toMap mapValues { _.size }
- }
+    def activationById(activationId: ActivationId) = {
+        activationsById.get(activationId)
+    }
 
- def activationsByInvokerSize() = {
-  activationByInvoker.mapValues(_.size)
- }
+    def activationsByNamespaceId(namespaceId: UUID) = {
+        activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry])
+    }
 
+    def putActivation(entry: ActivationEntry): Any= {
+        activationsById.put(entry.id, entry)
+        activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
+        activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
+    }
 
- def removeActivationByNamespaceId(namespaceId :UUID, entry :ActivationEntry) = {
-  activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).remove(entry)
- }
+    def removeActivation(entry: ActivationEntry): ActivationEntry = {
+        activationsById.remove(entry.id)
+        activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).remove(entry)
+        activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).remove(entry)
+        entry
+    }
 
- def removeActivationByNamespaceIdWithResponse(namespaceId :UUID, entry :ActivationEntry) = {
-  activationByNamespaceId.get(namespaceId) map { _.remove(entry) }
- }
-
-
- def putActivationByNamespaceId(namespaceId :UUID, entry :ActivationEntry) = {
-  activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
- }
-
- def putActivationbyInvoker(invokerName :String, entry :ActivationEntry) = {
-  activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry]).put(entry, {})
- }
-
- def removeActivationByInvoker(invokerIndex :String, entry :ActivationEntry) = {
-  activationByInvoker.getOrElseUpdate(invokerIndex, new TrieSet[ActivationEntry]).remove(entry)
- }
-
- def getActivationsByInvoker(invokerName :String) ={
-  activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
- }
-
+    def removeActivation(aid: ActivationId): Option[ActivationEntry]= {
+        activationsById.get(aid).map(removeActivation)
+    }
 }

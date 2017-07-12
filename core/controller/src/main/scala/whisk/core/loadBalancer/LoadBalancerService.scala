@@ -20,7 +20,6 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 import java.time.{ Clock, Instant }
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -49,7 +48,7 @@ import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
+import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.UUID
@@ -99,9 +98,9 @@ class LoadBalancerService(
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
     logging.info(this, s"blackboxFraction = $blackboxFraction")
 
-    val LoadBalancerData = new LoadBalancerDataWithLocalMap()
+    private val loadBalancerData = new LoadBalancerData()
 
-    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = LoadBalancerData.getActivationCountByNamespace()
+    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = loadBalancerData.activationCountByNamespace
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -116,13 +115,6 @@ class LoadBalancerService(
     def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
 
     /**
-     * A map storing current activations based on ActivationId.
-     * The promise value represents the obligation of writing the answer back.
-     */
-    type TrieSet[T] = TrieMap[T, Unit]
-    private val activationById = new TrieMap[ActivationId, ActivationEntry]
-
-    /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
      * The promise is removed form the map when the result arrives or upon timeout.
      *
@@ -130,17 +122,14 @@ class LoadBalancerService(
      */
     private def processCompletion(response: Either[ActivationId, WhiskActivation], tid: TransactionId, forced: Boolean): Unit = {
         val aid = response.fold(l => l, r => r.activationId)
-        activationById.remove(aid) match {
-            case Some(entry @ ActivationEntry(_, namespaceId, invokerIndex, _, p)) =>
+        loadBalancerData.removeActivation(aid) match {
+            case Some(entry @ ActivationEntry(_, _, _, _, p)) =>
                 logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
-                LoadBalancerData.removeActivationByInvoker(invokerIndex, entry)
-                LoadBalancerData.removeActivationByNamespaceId(namespaceId, entry)
                 if (!forced) {
                     p.trySuccess(response)
                 } else {
                     p.tryFailure(new Throwable("no active ack received"))
                 }
-
             case None =>
                 // the entry was already removed
                 logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
@@ -151,23 +140,22 @@ class LoadBalancerService(
      * Creates an activation entry and insert into various maps.
      */
     private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: String, transid: TransactionId): ActivationEntry = {
-        // either create a new promise or reuse a previous one for this activation if it exists
-        val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
-        val entry = activationById.getOrElseUpdate(activationId, {
-            // Install a timeout handler for the catastrophic case where an active ack is not received at all
-            // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
-            // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
-            // in this case, if the activation handler is still registered, remove it and update the books.
-            actorSystem.scheduler.scheduleOnce(timeout) {
-                processCompletion(Left(activationId), transid, forced = true)
-            }
 
-            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), Promise[Either[ActivationId, WhiskActivation]]())
-        })
+        val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+        // Install a timeout handler for the catastrophic case where an active ack is not received at all
+        // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
+        // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
+        // in this case, if the activation handler is still registered, remove it and update the books.
+
+        actorSystem.scheduler.scheduleOnce(timeout) {
+            processCompletion(Left(activationId), transid, forced = true)
+        }
+
+        val entry = ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()),
+            Promise[Either[ActivationId, WhiskActivation]]())
 
         // add the entry to our maps, for bookkeeping
-        LoadBalancerData.putActivationbyInvoker(invokerName, entry)
-        LoadBalancerData.putActivationByNamespaceId(namespaceId, entry)
+        loadBalancerData.putActivation(entry)
         entry
     }
 
@@ -175,19 +163,14 @@ class LoadBalancerService(
       * When invoker health detects a new invoker has come up, this callback is called.
       */
     private def clearInvokerState(invokerName: String) = {
-        val actSet = LoadBalancerData.getActivationsByInvoker(invokerName)
+        val actSet = loadBalancerData.activationsByInvoker(invokerName)
         actSet.keySet map {
             case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, _, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
-                activationById.remove(activationId)
-                LoadBalancerData.removeActivationByNamespaceIdWithResponse(namespaceId, actEntry)
+                loadBalancerData.removeActivation(actEntry)
         }
         actSet.clear()
     }
-
-
-    /** Make a new immutable map so caller cannot mess up the state */
-    private def getActiveCountByInvoker(): Map[String, Int] = LoadBalancerData.getActivationCountByInvoker()
 
     /**
      * Creates or updates a health test action by updating the entity store.
@@ -300,7 +283,7 @@ class LoadBalancerService(
         invokers.flatMap { invokers =>
             LoadBalancerService.schedule(
                 invokers,
-                LoadBalancerData.activationsByInvokerSize(),
+                loadBalancerData.activationCountByInvoker,
                 config.loadbalancerInvokerBusyThreshold,
                 hash) match {
                     case Some(invoker) => Future.successful(invoker)
