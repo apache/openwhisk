@@ -115,7 +115,7 @@ func dockerInstall() error {
         whisk.Debug(whisk.DbgError, "sdkInstall(%s) failed: %s\n", SDK_DOCKER_COMPONENT_NAME, err)
         errStr := wski18n.T("The {{.component}} SDK installation failed: {{.err}}",
                 map[string]interface{}{"component": SDK_DOCKER_COMPONENT_NAME, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -130,7 +130,7 @@ func iOSInstall() error {
         whisk.Debug(whisk.DbgError, "sdkInstall(%s) failed: %s\n", SDK_IOS_COMPONENT_NAME, err)
         errStr := wski18n.T("The {{.component}} SDK installation failed: {{.err}}",
                 map[string]interface{}{"component": SDK_IOS_COMPONENT_NAME, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -155,7 +155,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "client.Sdks.Install(%s) failed: %s\n", sdkMap[componentName].UrlPath, err)
         errStr := wski18n.T("Unable to retrieve '{{.urlpath}}' SDK: {{.err}}",
                 map[string]interface{}{"urlpath": sdkMap[componentName].UrlPath, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -173,7 +173,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failure: %s\n", targetFile, err)
         errStr := wski18n.T("Error creating SDK file {{.name}}: {{.err}}",
                 map[string]interface{}{"name": targetFile, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -184,7 +184,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "io.Copy() of resp.Body into sdkfile failure: %s\n", err)
         errStr := wski18n.T("Error copying server response into file: {{.err}}",
                 map[string]interface{}{"err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         sdkfile.Close()
         return werr
 

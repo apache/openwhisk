@@ -45,7 +45,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
     if err != nil && !apiHostRequired {
         whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) error: %s\n", Properties.APIHost, DefaultOpenWhiskApiPath, err)
         errMsg := wski18n.T("The API host is not valid: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return whiskErr
     }
@@ -65,7 +65,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
     if err != nil {
         whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)
         errMsg := wski18n.T("Unable to initialize server connection: {{.err}}", map[string]interface{}{"err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
     }
@@ -198,7 +198,7 @@ func Execute() error {
     if err != nil {
         whisk.Debug(whisk.DbgError, "parseParams(%s) failed: %s\n", os.Args, err)
         errMsg := wski18n.T("Failed to parse arguments: {{.err}}", map[string]interface{}{"err":err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
     }
@@ -207,7 +207,7 @@ func Execute() error {
     if err != nil {
         whisk.Debug(whisk.DbgError, "loadProperties() error: %s\n", err)
         errMsg := wski18n.T("Unable to access configuration properties: {{.err}}", map[string]interface{}{"err":err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
     }

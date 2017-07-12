@@ -66,11 +66,11 @@ var actionCreateCmd = &cobra.Command{
         }
 
         if action, err = parseAction(cmd, args, false); err != nil {
-            return actionParseError(cmd, args, err)
+            return actionParseError(cmd, args, &err)
         }
 
         if _, _, err = client.Actions.Insert(action, false); err != nil {
-            return actionInsertError(action, err)
+            return actionInsertError(action, &err)
         }
 
         printActionCreated(action.Name)
@@ -99,11 +99,11 @@ var actionUpdateCmd = &cobra.Command{
         }
 
         if action, err = parseAction(cmd, args, true); err != nil {
-            return actionParseError(cmd, args, err)
+            return actionParseError(cmd, args, &err)
         }
 
         if _, _, err = client.Actions.Insert(action, true); err != nil {
-            return actionInsertError(action, err)
+            return actionInsertError(action, &err)
         }
 
         printActionUpdated(action.Name)
@@ -142,7 +142,7 @@ var actionInvokeCmd = &cobra.Command{
 
         if len(paramArgs) > 0 {
             if parameters, err = getJSONFromStrings(paramArgs, false); err != nil {
-                return getJSONFromStringsParamError(paramArgs, false, err)
+                return getJSONFromStringsParamError(paramArgs, false, &err)
             }
         }
         if flags.action.result {flags.common.blocking = true}
@@ -171,7 +171,7 @@ func handleInvocationResponse(
                 color.Output)
         } else {
             if !flags.common.blocking {
-                return handleInvocationError(err, qualifiedName.entityName, parameters)
+                return handleInvocationError(&err, qualifiedName.entityName, parameters)
             } else {
                 if isBlockingTimeout(err) {
                     printBlockingTimeoutMsg(
@@ -186,7 +186,7 @@ func handleInvocationResponse(
                         result,
                         colorable.NewColorableStderr())
                 } else {
-                    return handleInvocationError(err, qualifiedName.entityName, parameters)
+                    return handleInvocationError(&err, qualifiedName.entityName, parameters)
                 }
             }
         }
@@ -225,7 +225,7 @@ var actionGetCmd = &cobra.Command{
         client.Namespace = qualifiedName.namespace
 
         if action, _, err = client.Actions.Get(qualifiedName.entityName); err != nil {
-            return actionGetError(qualifiedName.entityName, err)
+            return actionGetError(qualifiedName.entityName, &err)
         }
 
         if flags.action.url {
@@ -274,7 +274,7 @@ var actionDeleteCmd = &cobra.Command{
         client.Namespace = qualifiedName.namespace
 
         if _, err = client.Actions.Delete(qualifiedName.entityName); err != nil {
-            return actionDeleteError(qualifiedName.entityName, err)
+            return actionDeleteError(qualifiedName.entityName, &err)
         }
 
         printActionDeleted(qualifiedName.entityName)
@@ -317,7 +317,7 @@ var actionListCmd = &cobra.Command{
         }
 
         if actions, _, err = client.Actions.List(qualifiedName.entityName, options); err != nil {
-            return actionListError(qualifiedName.entityName, options, err)
+            return actionListError(qualifiedName.entityName, options, &err)
         }
 
         printList(actions)
@@ -357,7 +357,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
 
     if len(paramArgs) > 0 {
         if parameters, err = getJSONFromStrings(paramArgs, true); err != nil {
-            return nil, getJSONFromStringsParamError(paramArgs, true, err)
+            return nil, getJSONFromStringsParamError(paramArgs, true, &err)
         }
 
         action.Parameters = parameters.(whisk.KeyValueArr)
@@ -365,7 +365,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
 
     if len(annotArgs) > 0 {
         if annotations, err = getJSONFromStrings(annotArgs, true); err != nil {
-            return nil, getJSONFromStringsAnnotError(annotArgs, true, err)
+            return nil, getJSONFromStringsAnnotError(annotArgs, true, &err)
         }
 
         action.Annotations = annotations.(whisk.KeyValueArr)
@@ -381,7 +381,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         client.Namespace = copiedQualifiedName.namespace
 
         if existingAction, _, err = client.Actions.Get(copiedQualifiedName.entityName); err != nil {
-            return nil, actionGetError(copiedQualifiedName.entityName, err)
+            return nil, actionGetError(copiedQualifiedName.entityName, &err)
         }
 
         client.Namespace = qualifiedName.namespace
@@ -516,7 +516,7 @@ func webActionAnnotations(
             annotations = webActionAnnotationMethod(annotations)
         } else {
             if action, _, err = client.Actions.Get(entityName); err != nil {
-                return nil, actionGetError(entityName, err)
+                return nil, actionGetError(entityName, &err)
             } else {
                 annotations = webActionAnnotationMethod(action.Annotations)
             }
@@ -582,25 +582,25 @@ func getLimits(memorySet bool, logSizeSet bool, timeoutSet bool, memory int, log
     return limits
 }
 
-func nestedError(errorMessage string, err error) (error) {
+func nestedError(errorMessage *string, err *error) (error) {
     return whisk.MakeWskErrorFromWskError(
-        errors.New(errorMessage),
+        errors.New(*errorMessage),
         err,
         whisk.EXITCODE_ERR_GENERAL,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
 
-func nonNestedError(errorMessage string) (error) {
+func nonNestedError(errorMessage *string) (error) {
     return whisk.MakeWskError(
-        errors.New(errorMessage),
+        errors.New(*errorMessage),
         whisk.EXITCODE_ERR_USAGE,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
 
-func actionParseError(cmd *cobra.Command, args []string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
+func actionParseError(cmd *cobra.Command, args []string, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, *err)
 
     errMsg := wski18n.T(
         "Invalid argument(s). {{.required}}",
@@ -608,11 +608,11 @@ func actionParseError(cmd *cobra.Command, args []string, err error) (error) {
             "required": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func actionInsertError(action *whisk.Action, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
+func actionInsertError(action *whisk.Action, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, *err)
 
     errMsg := wski18n.T(
         "Unable to create action '{{.name}}': {{.err}}",
@@ -621,11 +621,11 @@ func actionInsertError(action *whisk.Action, err error) (error) {
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func getJSONFromStringsParamError(params []string, keyValueFormat bool, err error) (error) {
-    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", params, keyValueFormat, err)
+func getJSONFromStringsParamError(params []string, keyValueFormat bool, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", params, keyValueFormat, *err)
 
     errMsg := wski18n.T(
         "Invalid parameter argument '{{.param}}': {{.err}}",
@@ -634,11 +634,11 @@ func getJSONFromStringsParamError(params []string, keyValueFormat bool, err erro
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func getJSONFromStringsAnnotError(annots []string, keyValueFormat bool, err error) (error) {
-    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", annots, keyValueFormat, err)
+func getJSONFromStringsAnnotError(annots []string, keyValueFormat bool, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", annots, keyValueFormat, *err)
 
     errMsg := wski18n.T(
         "Invalid annotation argument '{{.annotation}}': {{.err}}",
@@ -647,7 +647,7 @@ func getJSONFromStringsAnnotError(annots []string, keyValueFormat bool, err erro
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
 func invalidFieldFilterError(field string) (error) {
@@ -657,12 +657,11 @@ func invalidFieldFilterError(field string) (error) {
             "arg": field,
         })
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
-func actionDeleteError(entityName string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Delete(%s) error: %s\n", entityName, err)
-
+func actionDeleteError(entityName string, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "client.Actions.Delete(%s) error: %s\n", entityName, *err)
     errMsg := wski18n.T(
         "Unable to delete action '{{.name}}': {{.err}}",
         map[string]interface{}{
@@ -670,11 +669,11 @@ func actionDeleteError(entityName string, err error) (error) {
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func actionGetError(entityName string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", entityName, err)
+func actionGetError(entityName string, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", entityName, *err)
 
     errMsg := wski18n.T(
         "Unable to get action '{{.name}}': {{.err}}",
@@ -683,16 +682,16 @@ func actionGetError(entityName string, err error) (error) {
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func handleInvocationError(err error, entityName string, parameters interface{}) (error) {
+func handleInvocationError(err *error, entityName string, parameters interface{}) (error) {
     whisk.Debug(
         whisk.DbgError,
         "client.Actions.Invoke(%s, %s, %t) error: %s\n",
         entityName, parameters,
         flags.common.blocking,
-        err)
+        *err)
 
     errMsg := wski18n.T(
         "Unable to invoke action '{{.name}}': {{.err}}",
@@ -701,11 +700,11 @@ func handleInvocationError(err error, entityName string, parameters interface{})
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
-func actionListError(entityName string, options *whisk.ActionListOptions, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.List(%s, %#v) error: %s\n", entityName, options, err)
+func actionListError(entityName string, options *whisk.ActionListOptions, err *error) (error) {
+    whisk.Debug(whisk.DbgError, "client.Actions.List(%s, %#v) error: %s\n", entityName, options, *err)
 
     errMsg := wski18n.T(
         "Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}",
@@ -714,7 +713,7 @@ func actionListError(entityName string, options *whisk.ActionListOptions, err er
             "err": err,
         })
 
-    return nestedError(errMsg, err)
+    return nestedError(&errMsg, err)
 }
 
 func webInputError(arg string) (error) {
@@ -724,19 +723,19 @@ func webInputError(arg string) (error) {
             "arg": arg,
         })
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
 func zipKindError() (error) {
     errMsg := wski18n.T("creating an action from a .zip artifact requires specifying the action kind explicitly")
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
 func noArtifactError() (error) {
     errMsg := wski18n.T("An action name and code artifact are required.")
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
 func extensionError(extension string) (error) {
@@ -746,13 +745,13 @@ func extensionError(extension string) (error) {
             "name": extension,
         })
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
 func javaEntryError() (error) {
     errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
 
-    return nonNestedError(errMsg)
+    return nonNestedError(&errMsg)
 }
 
 func printActionCreated(entityName string) {
@@ -877,7 +876,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
         errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
             map[string]interface{}{"name": fullActionName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
+        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)
     } else {
         err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",

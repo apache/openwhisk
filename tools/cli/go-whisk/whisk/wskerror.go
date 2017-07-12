@@ -102,19 +102,18 @@ Parameters:
     bool        - ApplicationError. If true, the error is a result of an application error
     bool        - TimedOut. If true, the error resulted from a timeout
 */
-func MakeWskErrorFromWskError (baseError error, whiskError error, exitCode int, flags ...bool) (resWhiskError *WskError) {
+func MakeWskErrorFromWskError (baseError error, whiskError *error, exitCode int, flags ...bool) (resWhiskError *WskError) {
 
     // Get the exit code, and flags from the existing Whisk error
     if whiskError != nil {
 
         // Ensure the Whisk error is a pointer
-        switch errorType := whiskError.(type) {
+        switch errorType := (*whiskError).(type) {
             case *WskError:
                 resWhiskError = errorType
             case WskError:
                 resWhiskError = &errorType
         }
-
         if resWhiskError != nil {
             exitCode, flags = getWhiskErrorProperties(resWhiskError, flags...)
         }
