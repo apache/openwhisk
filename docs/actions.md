@@ -281,8 +281,9 @@ ok: got action actionName
 https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 ```
 
-**Note:** Authentication must be provided when invoking an action via HTTPS request.
-
+**Note:** Authentication must be provided when invoking an action via an HTTPS request. For more information regarding
+action invocations using the REST interface, see
+[Using REST APIs with OpenWhisk](rest_api.md#actions).
 
 ### Creating asynchronous actions
 
