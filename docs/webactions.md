@@ -19,7 +19,18 @@ function main({name}) {
 You may create a _web action_ `hello` in the package `demo` for the namespace `guest` using the CLI's `--web` flag with a value of `true` or `yes`:
 ```bash
 $ wsk package create demo
+ok: created package demo
+```
+
+```
 $ wsk action create /guest/demo/hello hello.js --web true
+ok: created action /guest/demo/hello
+```
+
+```
+$ wsk action get /guest/demo/hello --url
+ok: got action hello
+https://${APIHOST}/api/v1/web/guest/demo/hello
 ```
 
 Using the `--web` flag with a value of `true` or `yes` allows an action to be accessible via REST interface without the
