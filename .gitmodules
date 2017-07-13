@@ -1,6 +1,0 @@
-[submodule "s390x/openwhisk-apigateway"]
-	path = s390x/apigateway
-	url = git@github.com:jonpspri/openwhisk-apigateway.git
-[submodule "s390x/gnucobol"]
-	path = s390x/gnucobol
-	url = git@github.com:jonpspri/gnu-cobol-docker.git
