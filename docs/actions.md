@@ -106,7 +106,20 @@ Review the following steps and examples to create your first JavaScript action.
   }
   ```
 
-6. If you forget to record the activation ID, you can get a list of activations ordered from the most recent to the oldest. Run the following command to get a list of your activations:
+6. To access the most recent activation record, activation results or activation logs, use the `--last` or `-l` flag. Run the following command to get your last activation result.
+
+  ```
+  wsk activation result --last
+  ```
+  ```json
+  {
+      "payload": "Hello world"
+  }
+  ```
+
+  Note that you should not use an activation ID with the flag `--last`.
+
+7. If you forget to record the activation ID, you can get a list of activations ordered from the most recent to the oldest. Run the following command to get a list of your activations:
 
   ```
   wsk activation list
@@ -610,7 +623,7 @@ follows:
 wsk action create helloSwift hello.swift
 ```
 
-The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1. 
+The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1.
 
 **Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`. Support for Swift 3.0 is deprecated and will be removed soon.
 
@@ -644,7 +657,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
 
 - Copy the source code and prepare to build it.
   ```
-  cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
+  cp /owexec/hello.swift /swift3Action/spm-build/main.swift
   ```
   ```
   cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
@@ -706,10 +719,10 @@ and so you should include them in your own `Package.swift`.
   wsk action update helloSwiftly hello.zip --kind swift:3.1.1
   ```
 
-- To check how much faster it is, run 
+- To check how much faster it is, run
   ```
   wsk action invoke helloSwiftly --blocking
-  ``` 
+  ```
 
 
 The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
@@ -912,7 +925,7 @@ You can use the OpenWhisk CLI to watch the output of actions as they are invoked
   wsk activation poll
   ```
 
-  This command starts a polling loop that continuously checks for logs from activations.
+This command starts a polling loop that continuously checks for logs from activations.
 
 2. Switch to another window and invoke an action:
 
@@ -941,7 +954,7 @@ You can list all the actions that you have created using:
 wsk action list
 ```
 
-As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use: 
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use:
 
 ```
 wsk action list [PACKAGE NAME]

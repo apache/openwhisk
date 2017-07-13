@@ -948,6 +948,10 @@
     "translation": "get activation"
   },
   {
+    "id": "Unable to get activation: {{.err}}",
+    "translation": "Unable to get activation: {{.err}}"
+  },
+  {
     "id": "Unable to get activation '{{.id}}': {{.err}}",
     "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
@@ -964,8 +968,16 @@
     "translation": "get the logs of an activation"
   },
   {
+    "id": "Unable to get logs for activation: {{.err}}",
+    "translation": "Unable to get logs for activation: {{.err}}"
+  },
+  {
     "id": "Unable to get logs for activation '{{.id}}': {{.err}}",
     "translation": "Unable to get logs for activation '{{.id}}': {{.err}}"
+  },
+  {
+    "id": "Unable to get result for activation: {{.err}}",
+    "translation": "Unable to get result for activation: {{.err}}"
   },
   {
     "id": "Unable to get result for activation '{{.id}}': {{.err}}",
@@ -992,6 +1004,10 @@
     "translation": "\nActivation: {{.name}} ({{.id}})\n"
   },
   {
+    "id": "Activation list does not contain any activations.",
+    "translation": "Activation list does not contain any activations."
+  },
+  {
     "id": "exclude the first `SKIP` number of activations from the result",
     "translation": "exclude the first `SKIP` number of activations from the result"
   },
@@ -1014,6 +1030,10 @@
   {
     "id": "summarize activation details",
     "translation": "summarize activation details"
+  },
+  {
+    "id": "retrieves the last activation",
+    "translation": "retrieves the last activation"
   },
   {
     "id": "stop polling after `SECONDS` seconds",

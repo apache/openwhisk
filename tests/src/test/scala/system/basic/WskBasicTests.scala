@@ -852,34 +852,84 @@ class WskBasicTests
             withActivation(wsk.activation, run) {
                 activation =>
                     val successMsg = s"ok: got activation ${activation.activationId}, displaying field"
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("activationid")).stdout should include(s"""$successMsg activationid\n"${activation.activationId}""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
-                    wsk.activation.get(activation.activationId, fieldFilter = Some("annotations")).stdout should include(s"""$successMsg annotations\n[]""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns_regex_list""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("subject")).stdout should include regex (s"""(?i)$successMsg subject\n""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("activationid")).stdout should include(s"""$successMsg activationid\n"${activation.activationId}""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("start")).stdout should include regex (s"""$successMsg start\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("end")).stdout should include regex (s"""$successMsg end\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("duration")).stdout should include regex (s"""$successMsg duration\n\\d""")
+                    wsk.activation.get(Some(activation.activationId), fieldFilter = Some("annotations")).stdout should include(s"""$successMsg annotations\n[]""")
             }
     }
 
     it should "reject get of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.get(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.get(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject logs of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.logs(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.logs(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get logs for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
     it should "reject result of activation that does not exist" in {
         val name = "0"*32
-        val stderr = wsk.activation.result(name, expectedExitCode = NOT_FOUND).stderr
+        val stderr = wsk.activation.result(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
+
+    it should "retrieve the last activation using --last flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+            val includeStr = "hello, undefined!"
+
+            assetHelper.withCleaner(wsk.action, "lastName") {
+                (action, _) => wsk.action.create("lastName", defaultAction)
+            }
+            val lastInvoke = wsk.action.invoke("lastName")
+            val includeID = wsk.activation.extractActivationId(lastInvoke).get
+            Thread.sleep(1000)
+
+            var  lastFlag = Seq (
+                (Seq("activation", "get", "publish", "--last"), includeID),
+                (Seq("activation", "get", "--last"), includeID),
+                (Seq("activation", "logs", "--last"), includeStr),
+                (Seq("activation", "result", "--last"), includeStr))
+
+            lastFlag foreach {
+                case (cmd, output) =>
+                    val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
+                    stdout should include(output)
+            }
+    }
+
+    it should "reject activation request when using activation ID with --last Flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+
+             assetHelper.withCleaner(wsk.action, "lastName") {
+                 (action, _) => wsk.action.create("lastName", defaultAction)
+             }
+            val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
+            val tooManyArgsMsg = s"${lastId}. An activation ID is required."
+            val invalidField = s"Invalid field filter '${lastId}'."
+            Thread.sleep(1000)
+
+            var  invalidCmd = Seq (
+                (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),
+                (Seq("activation", "get", s"$lastId", "--last"), invalidField),
+                (Seq("activation", "logs", s"$lastId", "--last"), tooManyArgsMsg),
+                (Seq("activation", "result", s"$lastId", "--last"), tooManyArgsMsg))
+
+            invalidCmd foreach {
+                case (cmd, err) =>
+                    val stderr = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr
+                    stderr should include(err)
+            }
+     }
 }
