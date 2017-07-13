@@ -21,7 +21,6 @@ import (
     "bytes"
     "encoding/base64"
     "encoding/json"
-
     "fmt"
     "io"
     "io/ioutil"
@@ -223,31 +222,22 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     }
     return nil
 }
-/*
-func limiter(body io.ReadCloser) (string, io.ReadCloser) {
-    base := make([]byte, 100)
-    buf := new(bytes.Buffer)
-    buf2, _ := ioutil.ReadAll(body)
-    touched := ioutil.NopCloser(bytes.NewBuffer(buf2))
-    unTouched := ioutil.NopCloser(bytes.NewBuffer(buf2))
-    buf.ReadFrom(touched)
-    bodyArr := buf.Bytes()
-    if len(bodyArr) >= binary.Size(base) {
-        Debug(DbgInfo, "Req Body excedes max length and will be truncated\n")
-        return string(bodyArr[:len(base)]), unTouched
-    }
-    return buf.String(), unTouched
-}
-*/
-func limiter(body io.ReadCloser) (string, io.ReadCloser) {
+//Limiter limits the size of 'Req Body (ASCII quoted string)' output for the debugger ONLY.
+//Returns truncated req body, reloaded io reader and errors.
+func limiter(body io.ReadCloser) (string, io.ReadCloser, error) {
     limit := 1000
-    data, _ := ioutil.ReadAll(body)
-    reload := ioutil.NopCloser(bytes.NewBuffer(data))
-    if len(data) >= limit {
-        Debug(DbgInfo, "Req Body excedes max length and will be truncated\n")
-        return string(data[:limit]), reload
+    data, err := ioutil.ReadAll(body)
+    if err != nil {
+        Debug(DbgError, "ioutil.ReadAll(req.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return "", body, werr
     }
-    return string(data), reload
+    reload := ioutil.NopCloser(bytes.NewBuffer(data))
+    if len(data) > limit {
+        Debug(DbgInfo, "Req Body excedes %d bytes and will be truncated\n", limit)
+        return string(data[:limit]), reload, nil
+    }
+    return string(data), reload, nil
 }
 // Do sends an API request and returns the API response.  The API response is
 // JSON decoded and stored in the value pointed to by v, or returned as an
@@ -267,7 +257,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         }
         if req.Body != nil {
             fmt.Println("Req Body")
-            body, req.Body =  limiter(req.Body)
+             if body, req.Body, err = limiter(req.Body); err != nil {
+                 return nil, err
+             }
             fmt.Println(req.Body)
             Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", body)
         }
