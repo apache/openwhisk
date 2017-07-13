@@ -32,7 +32,7 @@ import whisk.core.entity.WhiskActivation
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
     /**
-     * A transaction id to attach to the message. If not defined, defaults to 'dontcare' value.
+     * A transaction id to attach to the message.
      */
     val transid = TransactionId.unknown
 

@@ -38,11 +38,11 @@ import akka.testkit.TestProbe
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
-import whisk.core.dispatcher.ActivationFeed.ContainerReleased
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.RuntimeManifest
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
+import whisk.core.connector.MessageFeed
 
 /**
  * Behavior tests for the ContainerPool
@@ -114,7 +114,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
 
         val pool = system.actorOf(ContainerPool.props(factory, 0, 0, feed.ref))
         containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
     }
 
     /*
@@ -159,7 +159,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
         containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
         pool ! runMessageDifferentEverything
         containers(0).expectMsg(Remove)
         containers(1).expectMsg(runMessageDifferentEverything)
@@ -177,14 +177,14 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData(lastUsed = Instant.EPOCH)))
         containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
 
         // Run the second container, don't remove the first one
         pool ! runMessageDifferentEverything
         containers(1).expectMsg(runMessageDifferentEverything)
         containers(1).send(pool, NeedWork(warmedData(lastUsed = Instant.now)))
         containers(1).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
 
         pool ! runMessageDifferentNamespace
         containers(2).expectMsg(runMessageDifferentNamespace)
@@ -203,7 +203,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
         containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
         pool ! runMessageDifferentNamespace
         containers(0).expectMsg(Remove)
         containers(1).expectMsg(runMessageDifferentNamespace)
@@ -219,7 +219,7 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(0).expectMsg(runMessage)
         containers(0).send(pool, NeedWork(warmedData()))
         containers(0).send(pool, ActivationCompleted)
-        feed.expectMsg(ContainerReleased)
+        feed.expectMsg(MessageFeed.Processed)
         pool ! runMessage
         containers(0).expectMsg(runMessage)
         pool ! runMessage //expect this message to be requeued since previous is incomplete.

@@ -17,6 +17,8 @@
 
 package whisk.core.dispatcher
 
+import java.nio.charset.StandardCharsets
+
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -28,9 +30,9 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import whisk.common.Counter
 import whisk.common.Logging
-import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.MessageConsumer
+import whisk.core.connector.MessageFeed
 
 /**
  * Creates a dispatcher that pulls messages from the message pub/sub connector.
@@ -54,9 +56,10 @@ class Dispatcher(
         implicit logging: Logging)
     extends Registrar {
 
-    val activationFeed = actorSystem.actorOf(Props(new ActivationFeed(logging, consumer, maxPipelineDepth, pollDuration, process)))
+    // create activation request feed but do not start it, until the invoker is registered
+    val activationFeed = actorSystem.actorOf(Props(new MessageFeed("activation", logging, consumer, maxPipelineDepth, pollDuration, process, autoStart = false)))
 
-    def start() = activationFeed ! ActivationFeed.FillQueueWithMessages
+    def start() = activationFeed ! MessageFeed.Ready
     def stop() = consumer.close()
 
     /**
@@ -67,8 +70,8 @@ class Dispatcher(
      * A handler is registered via addHandler and unregistered via removeHandler.
      * There is typically only one handler.
      */
-    def process(topic: String, bytes: Array[Byte]) = {
-        val raw = new String(bytes, "utf-8")
+    def process(bytes: Array[Byte]): Future[Unit] = Future {
+        val raw = new String(bytes, StandardCharsets.UTF_8)
         ActivationMessage.parse(raw) match {
             case Success(m) =>
                 handlers foreach {
@@ -78,9 +81,8 @@ class Dispatcher(
         }
     }
 
-    private def handleMessage(handler: MessageHandler, msg: ActivationMessage) = {
+    private def handleMessage(handler: MessageHandler, msg: ActivationMessage): Unit = {
         implicit val tid = msg.transid
-        implicit val executionContext = actorSystem.dispatcher
 
         Future {
             val count = counter.next()
@@ -92,17 +94,13 @@ class Dispatcher(
         }
     }
 
-    private def inform(matchers: TrieMap[String, MessageHandler])(implicit transid: TransactionId) = {
-        val names = matchers map { _._2.name } reduce (_ + "," + _)
-        logging.debug(this, s"matching message to ${matchers.size} handlers: $names")
-        matchers
+    private def errorMsg(handler: MessageHandler, e: Throwable): String = {
+        s"failed applying handler '${handler.name}': ${errorMsg(e)}"
     }
 
-    private def errorMsg(handler: MessageHandler, e: Throwable): String =
-        s"failed applying handler '${handler.name}': ${errorMsg(e)}"
-
-    private def errorMsg(msg: String, e: Throwable) =
+    private def errorMsg(msg: String, e: Throwable): String = {
         s"failed processing message: $msg $e${e.getStackTrace.mkString("", " ", "")}"
+    }
 
     private def errorMsg(e: Throwable): String = {
         if (e.isInstanceOf[java.util.concurrent.ExecutionException]) {
@@ -113,6 +111,7 @@ class Dispatcher(
     }
 
     private val counter = new Counter()
+    private implicit val executionContext = actorSystem.dispatcher
 }
 
 trait Registrar {

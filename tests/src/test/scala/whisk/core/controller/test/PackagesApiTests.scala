@@ -519,7 +519,6 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
             deletePackage(reference.docid)
             status should be(OK)
             val response = responseAs[WhiskPackage]
-            println(responseAs[String])
             response should be {
                 WhiskPackage(reference.namespace, reference.name, reference.binding,
                     version = reference.version.upPatch,

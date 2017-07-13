@@ -24,12 +24,13 @@ import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.Props
 import whisk.common.AkkaLogging
-import whisk.core.dispatcher.ActivationFeed.ContainerReleased
+
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
+import whisk.core.connector.MessageFeed
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -124,7 +125,7 @@ class ContainerPool(
 
         // Activation completed
         case ActivationCompleted =>
-            feed ! ContainerReleased
+            feed ! MessageFeed.Processed
     }
 
     /** Creates a new container and updates state accordingly. */
