@@ -70,6 +70,7 @@ class DispatcherTests
     }
 
     class TestRule(dosomething: Message => Any) extends MessageHandler("test message handler") {
+        override def getPoolStatus() = { 0 }
         override def onMessage(msg: Message)(implicit transid: TransactionId): Future[Any] = {
             logging.debug(this, s"received: ${msg.content.get.compactPrint}")
             Future.successful {

@@ -128,6 +128,8 @@ class ContainerPool(
     def maxIdle_=(value: Int): Unit = _maxIdle = Math.max(0, value)
     def maxActive_=(value: Int): Unit = _maxActive = Math.max(0, value)
 
+    def getCurrentPoolState: Int = _currentPoolState.id
+
     def resetMaxIdle() = _maxIdle = defaultMaxIdle
     def resetMaxActive() = {
         _maxActive = ContainerPool.getDefaultMaxActive(config)
@@ -228,6 +230,7 @@ class ContainerPool(
         val warnAtCount = 10.seconds.toMillis / waitDur.toMillis
         val warnPeriodic = 60.seconds.toMillis / waitDur.toMillis
         if (tryCount == warnAtCount || tryCount % warnPeriodic == 0) {
+            _currentPoolState = poolState.Unhealthy
             logging.warn(this, s"""getContainer has been waiting about ${warnAtCount * waitDur.toMillis} ms:
                           | position = $position
                           | completed = ${completedPosition.cur}
@@ -277,12 +280,14 @@ class ContainerPool(
                 this.synchronized {
                     introduceContainer(key, con).state = State.Active
                 }
+                _currentPoolState = poolState.Healthy
                 Some(Cold(con))
             }
             case CacheHit(con) =>
                 con.transid = transid
                 runDockerOp {
                     if (con.unpause()) {
+                        _currentPoolState = poolState.Healthy
                         Some(Warm(con))
                     } else {
                         // resume failed, gc the container
@@ -388,6 +393,10 @@ class ContainerPool(
 
     object State extends Enumeration {
         val Idle, Active = Value
+    }
+
+    object poolState extends Enumeration {
+        val Healthy, Unhealthy = Value
     }
 
     /**
@@ -682,6 +691,8 @@ class ContainerPool(
     private var gcOn = true
     private val gcSync = new Object()
     resetMaxActive()
+
+    private var _currentPoolState = poolState.Healthy   // Initial health state
 
     private val timer = new Timer()
     private val gcTask = new TimerTask {

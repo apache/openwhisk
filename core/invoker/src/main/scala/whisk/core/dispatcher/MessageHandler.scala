@@ -26,6 +26,8 @@ import whisk.core.connector.{ ActivationMessage => Message }
  */
 abstract class MessageHandler(val name: String) {
 
+    def getPoolStatus(): Int
+
     /**
      * Runs handler for a Kafka message. This method is run inside a future.
      * If the method fails with an exception, the exception completes
