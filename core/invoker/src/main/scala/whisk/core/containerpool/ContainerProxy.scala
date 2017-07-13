@@ -67,12 +67,6 @@ case object Remove
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
 case object ContainerRemoved
-/**
- * Indicates the container resource is now free to receive a new request.
- * This message is sent to the parent which in turn notifies the feed that a
- * resource slot is available.
- */
-case object ActivationCompleted
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -153,7 +147,6 @@ class ContainerProxy(
                     // implicitly via a FailureMessage which will be processed later when the state
                     // transitions to Running
                     val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
-                    self ! ActivationCompleted
                     sendActiveAck(transid, activation, job.msg.rootControllerIndex)
                     storeActivation(transid, activation)
             }.flatMap {
@@ -212,11 +205,6 @@ class ContainerProxy(
         case Event(_: FailureMessage, _) =>
             context.parent ! ContainerRemoved
             stop()
-
-        // Activation finished either successfully or not
-        case Event(ActivationCompleted, _) =>
-            context.parent ! ActivationCompleted
-            stay
 
         case _ => delay
     }
@@ -369,7 +357,6 @@ class ContainerProxy(
         }.andThen {
             case Success(activation) => storeActivation(tid, activation)
         }.flatMap { activation =>
-            self ! ActivationCompleted
             // Fail the future iff the activation was unsuccessful to facilitate
             // better cleanup logic.
             if (activation.response.isSuccess) Future.successful(activation)

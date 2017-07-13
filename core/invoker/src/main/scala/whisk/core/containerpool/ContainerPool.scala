@@ -106,13 +106,14 @@ class ContainerPool(
                     freePool.remove(actor)
                     actor ! r // forwards the run request to the container
                 case None =>
+                    logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
                     self ! r
             }
 
         // Container is free to take more work
         case NeedWork(data: WarmedData) =>
             freePool.update(sender(), data)
-            busyPool.remove(sender())
+            busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
 
         // Container is prewarmed and ready to take work
         case NeedWork(data: PreWarmedData) =>
@@ -121,11 +122,7 @@ class ContainerPool(
         // Container got removed
         case ContainerRemoved =>
             freePool.remove(sender())
-            busyPool.remove(sender())
-
-        // Activation completed
-        case ActivationCompleted =>
-            feed ! MessageFeed.Processed
+            busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
     }
 
     /** Creates a new container and updates state accordingly. */
