@@ -789,7 +789,7 @@ class WskBasicTests
 
     it should "return a list of exactly one namespace" in {
         val lines = wsk.namespace.list().stdout.lines.toSeq
-        lines.length shouldBe 2
+        lines should have size 2
         lines.head shouldBe "namespaces"
         lines(1).trim should not be empty
     }
@@ -867,7 +867,7 @@ class WskBasicTests
             val includeID = wsk.activation.extractActivationId(lastInvoke).get
             Thread.sleep(1000)
 
-            var  lastFlag = Seq (
+            val lastFlag = Seq(
                 (Seq("activation", "get", "publish", "--last"), includeID),
                 (Seq("activation", "get", "--last"), includeID),
                 (Seq("activation", "logs", "--last"), includeStr),
@@ -884,15 +884,15 @@ class WskBasicTests
         (wp, assetHelper) =>
             val auth: Seq[String] = Seq("--auth", wskprops.authKey)
 
-             assetHelper.withCleaner(wsk.action, "lastName") {
-                 (action, _) => wsk.action.create("lastName", defaultAction)
-             }
+            assetHelper.withCleaner(wsk.action, "lastName") {
+                (action, _) => wsk.action.create("lastName", defaultAction)
+            }
             val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
             val tooManyArgsMsg = s"${lastId}. An activation ID is required."
             val invalidField = s"Invalid field filter '${lastId}'."
             Thread.sleep(1000)
 
-            var  invalidCmd = Seq (
+            val invalidCmd = Seq(
                 (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),
                 (Seq("activation", "get", s"$lastId", "--last"), invalidField),
                 (Seq("activation", "logs", s"$lastId", "--last"), tooManyArgsMsg),
@@ -903,5 +903,5 @@ class WskBasicTests
                     val stderr = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr
                     stderr should include(err)
             }
-     }
+    }
 }
