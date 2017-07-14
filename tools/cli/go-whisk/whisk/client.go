@@ -224,7 +224,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 }
 //Limiter limits the size of 'Req Body (ASCII quoted string)' output for the debugger ONLY.
 //Returns truncated req body, reloaded io reader and errors.
-func limiter(body io.ReadCloser) (string, io.ReadCloser, error) {
+func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
     limit := 1000
     data, err := ioutil.ReadAll(body)
     if err != nil {
@@ -257,7 +257,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         }
         if req.Body != nil {
             fmt.Println("Req Body")
-             if body, req.Body, err = limiter(req.Body); err != nil {
+             if body, req.Body, err = bodyLimiter(req.Body); err != nil {
                  return nil, err
              }
             fmt.Println(req.Body)

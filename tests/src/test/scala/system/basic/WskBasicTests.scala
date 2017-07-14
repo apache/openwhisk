@@ -463,14 +463,14 @@ class WskBasicTests
             val file = Some(TestUtils.getTestActionFilename("largeFile.js"))
             val actionName = "largeFileAction"
             val msg = "Req Body excedes 1000 bytes and will be truncated"
-            val output = "fWbADPnp\"" //   Ending substring of truncated output
+            val output = "[A-Za-z1-9{25}]\"".r  //   Ending substring of truncated output
 
             try {
                 val action = wsk.action.create(name = actionName, artifact = file, expectedExitCode = SUCCESS_EXIT, debug = Some(true)).stdout
-                action should include(output)
+                action should include regex(output)
                 action should include(msg)
             } finally {
-                val delAction = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+                val delAction = wsk.action.delete(name = actionName, expectedExitCode = SUCCESS_EXIT)
             }
     }
 
