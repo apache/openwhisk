@@ -17,6 +17,7 @@
 
 package common;
 
+import static common.TestUtils.RunResult.executor;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
@@ -30,7 +31,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -206,6 +206,8 @@ public class TestUtils {
      *   stderr the messages printed to standard error
      */
     public static class RunResult {
+        public static final ExecutorService executor = Executors.newFixedThreadPool(2);
+
         public final int exitCode;
         public final String stdout;
         public final String stderr;
@@ -292,19 +294,9 @@ public class TestUtils {
         }
         Process p = pb.start();
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
+        Future<String> stdoutFuture = executor.submit(() -> inputStreamToString(p.getInputStream()));
 
-        Future<String> stdoutFuture = executor.submit(new Callable<String>() {
-            public String call() throws IOException {
-                return inputStreamToString(p.getInputStream());
-            }
-        });
-
-        Future<String> stderrFuture = executor.submit(new Callable<String>() {
-            public String call() throws IOException {
-                return inputStreamToString(p.getErrorStream());
-            }
-        });
+        Future<String> stderrFuture = executor.submit(() -> inputStreamToString(p.getErrorStream()));
 
         String stdout = "";
         String stderr = "";

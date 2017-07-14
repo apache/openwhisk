@@ -24,12 +24,13 @@ import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.Props
 import whisk.common.AkkaLogging
-import whisk.core.dispatcher.ActivationFeed.ContainerReleased
+
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
+import whisk.core.connector.MessageFeed
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -105,13 +106,14 @@ class ContainerPool(
                     freePool.remove(actor)
                     actor ! r // forwards the run request to the container
                 case None =>
+                    logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
                     self ! r
             }
 
         // Container is free to take more work
         case NeedWork(data: WarmedData) =>
             freePool.update(sender(), data)
-            busyPool.remove(sender())
+            busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
 
         // Container is prewarmed and ready to take work
         case NeedWork(data: PreWarmedData) =>
@@ -120,11 +122,7 @@ class ContainerPool(
         // Container got removed
         case ContainerRemoved =>
             freePool.remove(sender())
-            busyPool.remove(sender())
-
-        // Activation completed
-        case ActivationCompleted =>
-            feed ! ContainerReleased
+            busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
     }
 
     /** Creates a new container and updates state accordingly. */

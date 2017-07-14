@@ -21,6 +21,7 @@ import java.io.File
 import java.io.BufferedWriter
 import java.io.FileWriter
 import java.time.Instant
+import java.net.URLEncoder
 
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
@@ -693,6 +694,63 @@ class WskBasicUsageTests
                     activation.response.result shouldBe Some(output)
                     activation.logs.toList.flatten.filter(_.contains(nonescape)).length shouldBe 1
             }
+    }
+
+    it should "get an action URL" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val actionName = "action name@_-."
+            val packageName = "package name@_-."
+            val defaultPackageName = "default"
+            val webActionName = "web action name@_-."
+            val nonExistentActionName = "non-existence action"
+            val packagedAction = s"$packageName/$actionName"
+            val packagedWebAction = s"$packageName/$webActionName"
+            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+            val encodedActionName = URLEncoder.encode(actionName, "UTF-8").replace("+", "%20")
+            val encodedPackageName = URLEncoder.encode(packageName, "UTF-8").replace("+", "%20")
+            val encodedWebActionName = URLEncoder.encode(webActionName, "UTF-8").replace("+", "%20")
+            val encodedNamespace = URLEncoder.encode(namespace, "UTF-8").replace("+", "%20")
+            val actionPath = "https://%s/api/%s/namespaces/%s/actions/%s"
+            val packagedActionPath = s"$actionPath/%s"
+            val webActionPath = "https://%s/api/%s/web/%s/%s/%s"
+
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(actionName, defaultAction)
+            }
+
+            assetHelper.withCleaner(wsk.action, webActionName) {
+                (action, _) => action.create(webActionName, defaultAction, web = Some("true"))
+            }
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedAction) {
+                (action, _) => action.create(packagedAction, defaultAction)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedWebAction) {
+                (action, _) => action.create(packagedWebAction, defaultAction, web = Some("true"))
+            }
+
+            wsk.action.get(actionName, url = Some(true)).
+                stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+
+            // Ensure url flag works when a field filter and summary flag are specified
+            wsk.action.get(actionName, url = Some(true), fieldFilter = Some("field"), summary = true).
+                stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+
+            wsk.action.get(webActionName, url = Some(true)).
+                stdout should include(webActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, defaultPackageName, encodedWebActionName))
+
+            wsk.action.get(packagedAction, url = Some(true)).
+                stdout should include(packagedActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedActionName))
+
+            wsk.action.get(packagedWebAction, url = Some(true)).
+                stdout should include(webActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedWebActionName))
+
+            wsk.action.get(nonExistentActionName, url = Some(true), expectedExitCode = NOT_FOUND)
     }
 
     behavior of "Wsk packages"

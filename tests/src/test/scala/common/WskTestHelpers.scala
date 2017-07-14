@@ -214,7 +214,7 @@ trait WskTestHelpers extends Matchers {
         }
 
         val parsed = activationIds.map { id =>
-            wsk.parseJsonString(wsk.get(id).stdout).convertTo[CliActivation]
+            wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[CliActivation]
         }
         try {
             check(parsed)

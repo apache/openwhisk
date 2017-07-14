@@ -66,6 +66,7 @@ function main(message) {
   };
 
   // Replace the CLI provided namespace values with the controller provided namespace value
+  // If __ow_user is not set, the namespace values are left alone
   if (message.accesstoken) {
     utils2.updateNamespace(message.apidoc, message.__ow_user);
   } else {
@@ -234,12 +235,12 @@ function validateArgs(message) {
     return 'Internal error.  A message parameter was not supplied.';
   }
 
-  if (!message.gwUrl) {
+  if (!message.gwUrl && !message.gwUrlV2) {
     return 'gwUrl is required.';
   }
 
   if (!message.__ow_user) {
-    return '__ow_user is required.';
+    return 'A valid auth key is required.';
   }
 
   if(!message.apidoc) {

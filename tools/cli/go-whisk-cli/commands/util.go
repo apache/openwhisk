@@ -487,26 +487,11 @@ func getKeys(keyValueArr whisk.KeyValueArr) ([]string) {
     return res
 }
 
-func getValue(keyValueArr whisk.KeyValueArr, key string) (interface{}) {
-    var res interface{}
-
-    for i := 0; i < len(keyValueArr); i++ {
-        if keyValueArr[i].Key == key {
-            res = keyValueArr[i].Value
-            break;
-        }
-    }
-
-    whisk.Debug(whisk.DbgInfo, "Got value '%v' from '%v' for key '%s'\n", res, keyValueArr, key)
-
-    return res
-}
-
 func getValueString(keyValueArr whisk.KeyValueArr, key string) (string) {
     var value interface{}
     var res string
 
-    value = getValue(keyValueArr, key)
+    value = keyValueArr.GetValue(key)
     castedValue, canCast := value.(string)
 
     if (canCast) {
@@ -522,7 +507,7 @@ func getChildValues(keyValueArr whisk.KeyValueArr, key string, childKey string) 
     var value interface{}
     var res []interface{}
 
-    value = getValue(keyValueArr, key)
+    value = keyValueArr.GetValue(key)
 
     castedValue, canCast := value.([]interface{})
     if canCast {

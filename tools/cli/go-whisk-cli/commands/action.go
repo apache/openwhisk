@@ -33,13 +33,13 @@ import (
     "github.com/mattn/go-colorable"
 )
 
-const MEMORY_LIMIT = 256
-const TIMEOUT_LIMIT = 60000
-const LOGSIZE_LIMIT = 10
-const ACTIVATION_ID = "activationId"
-const WEB_EXPORT_ANNOT = "web-export"
-const RAW_HTTP_ANNOT = "raw-http"
-const FINAL_ANNOT = "final"
+const MEMORY_LIMIT      = 256
+const TIMEOUT_LIMIT     = 60000
+const LOGSIZE_LIMIT     = 10
+const ACTIVATION_ID     = "activationId"
+const WEB_EXPORT_ANNOT  = "web-export"
+const RAW_HTTP_ANNOT    = "raw-http"
+const FINAL_ANNOT       = "final"
 
 var actionCmd = &cobra.Command{
     Use:   "action",
@@ -195,7 +195,7 @@ func handleInvocationResponse(
 }
 
 var actionGetCmd = &cobra.Command{
-    Use:           "get ACTION_NAME [FIELD_FILTER]",
+    Use:           "get ACTION_NAME [FIELD_FILTER | --summary | --url]",
     Short:         wski18n.T("get action"),
     SilenceUsage:  true,
     SilenceErrors: true,
@@ -210,7 +210,7 @@ var actionGetCmd = &cobra.Command{
             return whiskErr
         }
 
-        if len(args) > 1 {
+        if !flags.action.url && !flags.common.summary && len(args) > 1 {
             field = args[1]
 
             if !fieldExists(&whisk.Action{}, field) {
@@ -228,7 +228,13 @@ var actionGetCmd = &cobra.Command{
             return actionGetError(qualifiedName.entityName, err)
         }
 
-        if flags.common.summary {
+        if flags.action.url {
+            actionURL := action.ActionURL(Properties.APIHost,
+                DefaultOpenWhiskApiPath,
+                Properties.APIVersion,
+                qualifiedName.packageName)
+            printActionGetWithURL(qualifiedName.entity, actionURL)
+        } else if flags.common.summary {
             printSummary(action)
         } else {
             if len(field) > 0 {
@@ -822,6 +828,17 @@ func printActionGetWithField(entityName string, field string, action *whisk.Acti
     printField(action, field)
 }
 
+func printActionGetWithURL(entityName string, actionURL string) {
+    fmt.Fprintf(
+        color.Output,
+        wski18n.T("{{.ok}} got action {{.name}}\n",
+            map[string]interface{}{
+                "ok": color.GreenString("ok:"),
+                "name": boldString(entityName),
+            }))
+    fmt.Println(actionURL)
+}
+
 func printActionGet(entityName string, action *whisk.Action) {
     fmt.Fprintf(
         color.Output,
@@ -846,7 +863,7 @@ func printActionDeleted(entityName string) {
 }
 
 // Check if the specified action is a web-action
-func isWebAction(client *whisk.Client, qname QualifiedName) error {
+func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
     var err error = nil
 
     savedNs := client.Namespace
@@ -854,30 +871,25 @@ func isWebAction(client *whisk.Client, qname QualifiedName) error {
     fullActionName := "/" + qname.namespace + "/" + qname.entityName
 
     action, _, err := client.Actions.Get(qname.entityName)
+
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
-        err = errors.New(wski18n.T("API action '{{.name}}' does not exist", map[string]interface{}{"name": fullActionName}))
+        errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
+            map[string]interface{}{"name": fullActionName, "err": err})
+        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
+            whisk.NO_DISPLAY_USAGE)
     } else {
-        err = errors.New(wski18n.T("API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+        err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
             map[string]interface{}{"name": fullActionName}))
-        weVal := getValue(action.Annotations, "web-export")
-        if (weVal == nil) {
-            whisk.Debug(whisk.DbgError, "getValue(annotations, web-export) for action %s found no value\n", fullActionName)
-        } else {
-            var webExport bool
-            var ok bool
-            if webExport, ok = weVal.(bool); !ok {
-                whisk.Debug(whisk.DbgError, "web-export annotation value (%v) is not a boolean\n", weVal)
-            } else if !webExport {
-                whisk.Debug(whisk.DbgError, "web-export annotation value is false\n", weVal)
-            } else {
-                err = nil
-            }
+
+        if action.WebAction() {
+            err = nil
         }
     }
 
     client.Namespace = savedNs
+
     return err
 }
 
@@ -918,6 +930,7 @@ func init() {
     actionInvokeCmd.Flags().BoolVarP(&flags.action.result, "result", "r", false, wski18n.T("blocking invoke; show only activation result (unless there is a failure)"))
 
     actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details"))
+    actionGetCmd.Flags().BoolVarP(&flags.action.url, "url", "r", false, wski18n.T("get action url"))
 
     actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
