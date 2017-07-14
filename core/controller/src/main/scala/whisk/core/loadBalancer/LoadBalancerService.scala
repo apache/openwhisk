@@ -155,19 +155,15 @@ class LoadBalancerService(
         // either create a new promise or reuse a previous one for this activation if it exists
         val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         val entry = activationById.getOrElseUpdate(activationId, {
-            val promiseRef = new java.lang.ref.WeakReference(Promise[Either[ActivationId, WhiskActivation]])
-
             // Install a timeout handler for the catastrophic case where an active ack is not received at all
             // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
             // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
             // in this case, if the activation handler is still registered, remove it and update the books.
-            // Note the use of WeakReferences; this is to avoid the handler's closure holding on to the
-            // WhiskActivation, which in turn holds on to the full JsObject of the response.
             actorSystem.scheduler.scheduleOnce(timeout) {
                 processCompletion(Left(activationId), transid, forced = true)
             }
 
-            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), promiseRef.get)
+            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), Promise[Either[ActivationId, WhiskActivation]]())
         })
 
         // add the entry to our maps, for bookkeeping
