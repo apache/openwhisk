@@ -56,7 +56,7 @@ func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
         if len(req.Header) > 0 {
             fmt.Println("Req Headers")
-            printJSON(req.Header)
+            PrintJSON(req.Header)
         }
         if req.Body != nil {
             fmt.Println("Req Body")

@@ -225,7 +225,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
         if len(req.Header) > 0 {
             fmt.Println("Req Headers")
-            printJSON(req.Header)
+            PrintJSON(req.Header)
         }
         if req.Body != nil {
             fmt.Println("Req Body")
@@ -247,7 +247,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     Verbose("Got response with code %d\n", resp.StatusCode)
     if (IsVerbose() && len(resp.Header) > 0) {
         fmt.Println("Resp Headers")
-        printJSON(resp.Header)
+        PrintJSON(resp.Header)
     }
 
     // Read the response body

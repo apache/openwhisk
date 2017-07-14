@@ -381,6 +381,10 @@
     "translation": "Unable to read the properties file '{{.filename}}': {{.err}}"
   },
   {
+    "id": "Unable to access configuration properties: {{.err}}",
+    "translation": "Unable to access configuration properties: {{.err}}"
+  },
+  {
     "id": "Invalid host address '{{.host}}': {{.err}}",
     "translation": "Invalid host address '{{.host}}': {{.err}}"
   },

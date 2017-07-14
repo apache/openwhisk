@@ -950,7 +950,7 @@ func min (a int, b int) int {
     return b
 }
 
-func readProps(path string) (map[string]string, error) {
+func ReadProps(path string) (map[string]string, error) {
 
     props := map[string]string{}
 
@@ -982,7 +982,7 @@ func readProps(path string) (map[string]string, error) {
 
 }
 
-func writeProps(path string, props map[string]string) error {
+func WriteProps(path string, props map[string]string) error {
 
     file, err := os.Create(path)
     if err != nil {
@@ -1010,7 +1010,7 @@ func writeProps(path string, props map[string]string) error {
 
 func getSpaceGuid() (string, error) {
     // get current props
-    props, err := readProps(Properties.PropsFile)
+    props, err := ReadProps(Properties.PropsFile)
     if err != nil {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
         errStr := wski18n.T("Unable to obtain the `auth` property value: {{.err}}", map[string]interface{}{"err": err})

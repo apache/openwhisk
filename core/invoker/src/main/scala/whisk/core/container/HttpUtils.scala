@@ -20,6 +20,7 @@ package whisk.core.container
 import java.nio.charset.StandardCharsets
 
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -34,7 +35,8 @@ import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
 
-import spray.json.JsObject
+import spray.json._
+
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
@@ -56,7 +58,7 @@ protected[core] class HttpUtils(
     timeout: FiniteDuration,
     maxResponse: ByteSize) {
 
-    def close = Try(connection.close)
+    def close() = Try(connection.close())
 
     /**
      * Posts to hostname/endpoint the given JSON object.
@@ -66,11 +68,11 @@ protected[core] class HttpUtils(
      * wait longer than the total timeout (within a small slack allowance).
      *
      * @param endpoint the path the api call relative to hostname
-     * @param body the json object to post
+     * @param body the JSON value to post (this is usually a JSON objecT)
      * @param retry whether or not to retry on connection failure
      * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
      */
-    def post(endpoint: String, body: JsObject, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
+    def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
         val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
         entity.setContentType("application/json")
 
@@ -92,7 +94,7 @@ protected[core] class HttpUtils(
                     val bytes = IOUtils.toByteArray(entity.getContent, bytesToRead)
                     val str = new String(bytes, StandardCharsets.UTF_8)
                     val truncated = if (contentLength <= maxResponseBytes) None else Some(contentLength.B, maxResponse)
-                    Right(ContainerResponse(statusCode == 200, str, truncated))
+                    Right(ContainerResponse(statusCode, str, truncated))
                 } else {
                     Left(NoResponseReceived())
                 }
@@ -134,4 +136,19 @@ protected[core] class HttpUtils(
         .setDefaultRequestConfig(httpconfig)
         .useSystemProperties()
         .build
+}
+
+object HttpUtils {
+    /** A helper method to post one single request to a connection. Used for container tests. */
+    def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
+        val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
+        val response = connection.post(endPoint, content, retry = true)
+        connection.close()
+        response match {
+            case Right(r) => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+            case Left(Timeout()) => throw new java.util.concurrent.TimeoutException()
+            case Left(ConnectionError(t: java.net.SocketTimeoutException)) => throw new java.util.concurrent.TimeoutException()
+            case _ => throw new IllegalStateException()
+        }
+    }
 }

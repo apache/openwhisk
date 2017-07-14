@@ -19,7 +19,6 @@ package commands
 
 import (
     "errors"
-    "fmt"
     "net/http"
     "os"
 
@@ -75,14 +74,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
 }
 
 func init() {
-    var err error
 
-    err = loadProperties()
-    if err != nil {
-        whisk.Debug(whisk.DbgError, "loadProperties() error: %s\n", err)
-        fmt.Println(err)
-        os.Exit(whisk.EXITCODE_ERR_GENERAL)
-    }
 }
 
 func getKeyValueArgs(args []string, argIndex int, parsedArgs []string) ([]string, []string, error) {
@@ -206,6 +198,15 @@ func Execute() error {
     if err != nil {
         whisk.Debug(whisk.DbgError, "parseParams(%s) failed: %s\n", os.Args, err)
         errMsg := wski18n.T("Failed to parse arguments: {{.err}}", map[string]interface{}{"err":err})
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        return whiskErr
+    }
+
+    err = loadProperties()
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "loadProperties() error: %s\n", err)
+        errMsg := wski18n.T("Unable to access configuration properties: {{.err}}", map[string]interface{}{"err":err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr

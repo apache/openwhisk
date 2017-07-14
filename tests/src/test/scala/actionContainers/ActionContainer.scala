@@ -31,7 +31,6 @@ import scala.language.postfixOps
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.util.Random
-import scala.util.Try
 
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.FlatSpec
@@ -159,26 +158,8 @@ object ActionContainer {
         }
     }
 
-    private def syncPost(host: String, port: Int, endPoint: String, content: JsValue)(
-        implicit actorSystem: ActorSystem): (Int, Option[JsObject]) = {
-        import akka.http.scaladsl.model._
-        import akka.http.scaladsl.unmarshalling._
-        import akka.stream.ActorMaterializer
-        import common.AkkaHttpUtils
-
-        implicit val materializer = ActorMaterializer()
-
-        val uri = Uri(
-            scheme = "http",
-            authority = Uri.Authority(host = Uri.Host(host), port = port),
-            path = Uri.Path(endPoint))
-
-        val f = for (
-            response <- AkkaHttpUtils.singleRequest(uri.toString(), content, 90.seconds, retryOnTCPErrors = true);
-            responseBody <- Unmarshal(response.body).to[String]
-        ) yield (response.status.intValue, Try(responseBody.parseJson.asJsObject).toOption)
-
-        Await.result(f, 90.seconds)
+    private def syncPost(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
+        whisk.core.container.HttpUtils.post(host, port, endPoint, content)
     }
 
     private class ActionContainerImpl() extends ActionContainer {
