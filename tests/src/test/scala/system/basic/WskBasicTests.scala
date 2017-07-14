@@ -326,7 +326,7 @@ class WskBasicTests
         }
 
         val expectedParam = JsObject("payload" -> JsString("test"))
-        val ns = s""""${wsk.namespace.whois()}""""
+        val ns = wsk.namespace.whois()
 
         wsk.action.get(name, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
         wsk.action.get(name, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
@@ -335,7 +335,7 @@ class WskBasicTests
         wsk.action.get(name, fieldFilter = Some("parameters")).stdout should include regex (s"""$successMsg parameters\n\\[\\s+\\{\\s+"key":\\s+"payload",\\s+"value":\\s+"test"\\s+\\}\\s+\\]""")
         wsk.action.get(name, fieldFilter = Some("annotations")).stdout should include regex (s"""$successMsg annotations\n\\[\\s+\\{\\s+"key":\\s+"exec",\\s+"value":\\s+"nodejs:6"\\s+\\}\\s+\\]""")
         wsk.action.get(name, fieldFilter = Some("limits")).stdout should include regex (s"""$successMsg limits\n\\{\\s+"timeout":\\s+60000,\\s+"memory":\\s+256,\\s+"logs":\\s+10\\s+\\}""")
-        wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns""")
+        wsk.action.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n"$ns"""")
         wsk.action.get(name, fieldFilter = Some("invalid"), expectedExitCode = MISUSE_EXIT).stderr should include("error: Invalid field filter 'invalid'.")
         wsk.action.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
     }
@@ -535,9 +535,9 @@ class WskBasicTests
             }
 
             val stdout = wsk.trigger.get(name, summary = true).stdout
-            val ns_regex_list = wsk.namespace.whois()
+            val ns = wsk.namespace.whois()
 
-            stdout should include regex (s"trigger /${ns_regex_list}/${name}: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
+            stdout should include regex (s"trigger /$ns/$name: Trigger description\\s*\\(parameters: paramName1, paramName2\\)")
     }
 
     it should "create a trigger with a name that contains spaces" in withAssetCleaner(wskprops) {
@@ -577,9 +577,9 @@ class WskBasicTests
         }
 
         val expectedParam = JsObject("payload" -> JsString("test"))
-        val ns = s""""${wsk.namespace.whois()}""""
+        val ns = wsk.namespace.whois()
 
-        wsk.trigger.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns""")
+        wsk.trigger.get(name, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n"$ns"""")
         wsk.trigger.get(name, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$name"""")
         wsk.trigger.get(name, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"""")
         wsk.trigger.get(name, fieldFilter = Some("publish")).stdout should include(s"""$successMsg publish\nfalse""")
@@ -721,8 +721,8 @@ class WskBasicTests
             (rule, name) => rule.create(name, trigger = triggerName, action = actionName)
         }
 
-        val ns = s""""${wsk.namespace.whois()}""""
-        wsk.rule.get(ruleName, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n$ns""")
+        val ns = wsk.namespace.whois()
+        wsk.rule.get(ruleName, fieldFilter = Some("namespace")).stdout should include regex (s"""(?i)$successMsg namespace\n"$ns"""")
         wsk.rule.get(ruleName, fieldFilter = Some("name")).stdout should include(s"""$successMsg name\n"$ruleName"""")
         wsk.rule.get(ruleName, fieldFilter = Some("version")).stdout should include(s"""$successMsg version\n"0.0.1"\n""")
         wsk.rule.get(ruleName, fieldFilter = Some("status")).stdout should include(s"""$successMsg status\n"active"""")
