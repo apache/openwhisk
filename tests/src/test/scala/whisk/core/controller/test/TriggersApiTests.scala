@@ -30,8 +30,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskTriggersApi
 import whisk.core.entity._
-import whisk.core.entity.size._
 import whisk.core.entity.WhiskRule
+import whisk.core.entity.size._
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.http.ErrorResponse
 import whisk.http.Messages
@@ -54,7 +54,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     /** Triggers API tests */
     behavior of "Triggers API"
 
-    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
+    val creds = WhiskAuthHelpers.newIdentity()
     val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("triggers_tests")
@@ -84,7 +84,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         }
 
         // it should "reject list triggers with explicit namespace not owned by subject" in {
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -125,7 +125,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         }
 
         // it should "reject get trigger by name in explicit namespace not owned by subject" in
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}/${trigger.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }

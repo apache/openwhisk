@@ -27,7 +27,6 @@ import common.TestUtils.FORBIDDEN
 import common.TestUtils.NOT_FOUND
 import common.TestUtils.TIMEOUT
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -328,7 +327,7 @@ class WskEntitlementTests
             val run = wsk.action.invoke(fullyQualifiedActionName)(defaultWskProps)
 
             withActivation(wsk.activation, run)({ activation =>
-                val (_, namespace) = WskAdmin.getUser(defaultWskProps.authKey)
+                val namespace = wsk.namespace.whois()(defaultWskProps)
                 activation.response.success shouldBe true
                 activation.response.result.get.toString should include regex (s""""namespace":\\s*"$namespace"""")
             })(defaultWskProps)

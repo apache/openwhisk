@@ -56,7 +56,11 @@ class MessageFeedTests
     val system = ActorSystem("MessageFeedTestSystem")
     val actorsToDestroyAfterEach: Buffer[ActorRef] = Buffer.empty
 
-    override def afterEach() = actorsToDestroyAfterEach.foreach { _ ! PoisonPill }
+    override def afterEach() = {
+        actorsToDestroyAfterEach.foreach { _ ! PoisonPill }
+        actorsToDestroyAfterEach.clear()
+    }
+
     override def afterAll() = TestKit.shutdownActorSystem(system)
 
     case class Connector(autoStart: Boolean = true) extends TestKit(system) {

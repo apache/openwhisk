@@ -25,10 +25,11 @@ import org.scalatest.junit.JUnitRunner
 
 import common.RunWskAdminCmd
 import common.TestHelpers
+import common.Wsk
 import common.WskAdmin
+import common.WskProps
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Subject
-import whisk.core.entity.WhiskAuth
 
 @RunWith(classOf[JUnitRunner])
 class WskAdminTests
@@ -43,8 +44,8 @@ class WskAdminTests
 
     it should "CRD a subject" in {
         val wskadmin = new RunWskAdminCmd {}
-        val auth = WhiskAuth(Subject(), AuthKey())
-        val subject = auth.subject.asString
+        val auth = AuthKey()
+        val subject = Subject().asString
         try {
             println(s"CRD subject: $subject")
             val create = wskadmin.cli(Seq("user", "create", subject))
@@ -67,14 +68,14 @@ class WskAdminTests
 
             // recreate with explicit
             val newspace = s"${subject}.myspace"
-            wskadmin.cli(Seq("user", "create", subject, "-ns", newspace, "-u", auth.authkey.compact))
+            wskadmin.cli(Seq("user", "create", subject, "-ns", newspace, "-u", auth.compact))
 
             whisk.utils.retry({
                 // reverse lookup by namespace
-                wskadmin.cli(Seq("user", "list", "-k", newspace)).stdout.trim should be(auth.authkey.compact)
+                wskadmin.cli(Seq("user", "list", "-k", newspace)).stdout.trim should be(auth.compact)
             }, 10, Some(1.second))
 
-            wskadmin.cli(Seq("user", "get", subject, "-ns", newspace)).stdout.trim should be(auth.authkey.compact)
+            wskadmin.cli(Seq("user", "get", subject, "-ns", newspace)).stdout.trim should be(auth.compact)
 
             // delete namespace
             wskadmin.cli(Seq("user", "delete", subject, "-ns", newspace)).stdout should include("Namespace deleted")
@@ -83,4 +84,11 @@ class WskAdminTests
         }
     }
 
+    it should "verify guest account installed correctly" in {
+        val wskadmin = new RunWskAdminCmd {}
+        implicit val wskprops = WskProps()
+        val wsk = new Wsk
+        val ns = wsk.namespace.whois()
+        wskadmin.cli(Seq("user", "get", ns)).stdout.trim should be(wskprops.authKey)
+    }
 }

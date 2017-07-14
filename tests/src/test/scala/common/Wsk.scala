@@ -704,6 +704,19 @@ class WskNamespace()
     }
 
     /**
+     * Looks up namespace for whisk props.
+     *
+     * @param wskprops instance of WskProps with an auth key to lookup
+     * @return namespace as string
+     */
+    def whois()(implicit wskprops: WskProps): String = {
+        // the invariant that list() returns a conforming result is enforced in a test in WskBasicTests
+        val ns = list().stdout.lines.toSeq.last.trim
+        assert(ns != "_") // this is not permitted
+        ns
+    }
+
+    /**
      * Gets entities in namespace.
      *
      * @param namespace (optional) if specified must be  fully qualified namespace
@@ -1083,18 +1096,6 @@ object WskAdmin {
             .map("""\s+""".r.split(_))
             .map(parts => (parts(0), parts(1)))
             .toList
-    }
-
-    /**
-     * @returns (subject, namespace) pair given the auth key
-     */
-    def getUser(authKey: String): (String, String) = {
-        val wskadmin = new RunWskAdminCmd {}
-        val user = wskadmin.cli(Seq("user", "whois", authKey)).stdout.trim
-        assert(!user.contains("Subject id is not recognized"), s"failed to retrieve user from authkey '$authKey'")
-
-        val Seq(rawSubject, rawNamespace) = user.lines.toSeq
-        (rawSubject.replaceFirst("subject: ", ""), rawNamespace.replaceFirst("namespace: ", ""))
     }
 }
 

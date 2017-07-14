@@ -51,9 +51,9 @@ class EntitlementProviderTests
     behavior of "Entitlement Provider"
 
     val requestTimeout = 10.seconds
-    val someUser = Subject().toIdentity(AuthKey())
-    val adminUser = Subject("admin").toIdentity(AuthKey())
-    val guestUser = Subject("anonym").toIdentity(AuthKey())
+    val someUser = WhiskAuthHelpers.newIdentity()
+    val adminUser = WhiskAuthHelpers.newIdentity(Subject("admin"))
+    val guestUser = WhiskAuthHelpers.newIdentity(Subject("anonym"))
 
     it should "authorize a user to only read from their collection" in {
         implicit val tid = transid()

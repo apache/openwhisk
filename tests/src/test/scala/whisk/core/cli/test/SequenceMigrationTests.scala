@@ -29,7 +29,6 @@ import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -56,7 +55,7 @@ class SequenceMigrationTests
     val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
     // handle on the entity datastore
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
-    val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+    val namespace = wsk.namespace.whois()
     val allowedActionDuration = 120 seconds
 
     behavior of "Sequence Migration"
