@@ -864,19 +864,19 @@ class WskBasicTests
                 (action, _) => wsk.action.create("lastName", defaultAction)
             }
             val lastInvoke = wsk.action.invoke("lastName")
-            val includeID = wsk.activation.extractActivationId(lastInvoke).get
-            Thread.sleep(1000)
+            withActivation(wsk.activation, lastInvoke) {
+                activation =>
+                    val lastFlag = Seq(
+                        (Seq("activation", "get", "publish", "--last"), activation.activationId),
+                        (Seq("activation", "get", "--last"), activation.activationId),
+                        (Seq("activation", "logs", "--last"), includeStr),
+                        (Seq("activation", "result", "--last"), includeStr))
 
-            val lastFlag = Seq(
-                (Seq("activation", "get", "publish", "--last"), includeID),
-                (Seq("activation", "get", "--last"), includeID),
-                (Seq("activation", "logs", "--last"), includeStr),
-                (Seq("activation", "result", "--last"), includeStr))
-
-            lastFlag foreach {
-                case (cmd, output) =>
-                    val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
-                    stdout should include(output)
+                    lastFlag foreach {
+                        case (cmd, output) =>
+                            val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
+                            stdout should include(output)
+                    }
             }
     }
 
@@ -884,13 +884,9 @@ class WskBasicTests
         (wp, assetHelper) =>
             val auth: Seq[String] = Seq("--auth", wskprops.authKey)
 
-            assetHelper.withCleaner(wsk.action, "lastName") {
-                (action, _) => wsk.action.create("lastName", defaultAction)
-            }
-            val lastId = wsk.activation.extractActivationId(wsk.action.invoke("lastName")).get
+            val lastId = "dummyActivationId"
             val tooManyArgsMsg = s"${lastId}. An activation ID is required."
             val invalidField = s"Invalid field filter '${lastId}'."
-            Thread.sleep(1000)
 
             val invalidCmd = Seq(
                 (Seq("activation", "get", s"$lastId", "publish", "--last"), tooManyArgsMsg),
