@@ -212,7 +212,7 @@ func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListRespon
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, apiListOptions, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": apiListOptions})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -223,7 +223,7 @@ func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListRespon
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -247,7 +247,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -258,7 +258,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
         Debug(DbgError, "http.NewRequestUrl(POST, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -282,7 +282,7 @@ func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*Ap
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -293,7 +293,7 @@ func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*Ap
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -317,7 +317,7 @@ func (s *ApiService) Delete(api *ApiDeleteRequest, options *ApiDeleteRequestOpti
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -328,7 +328,7 @@ func (s *ApiService) Delete(api *ApiDeleteRequest, options *ApiDeleteRequestOpti
         Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -354,7 +354,7 @@ func (s *ApiService) ListV2(apiListOptions *ApiListRequestOptions) (*ApiListResp
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, apiListOptions, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": apiListOptions})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -365,7 +365,7 @@ func (s *ApiService) ListV2(apiListOptions *ApiListRequestOptions) (*ApiListResp
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -395,7 +395,7 @@ func (s *ApiService) InsertV2(api *ApiCreateRequest, options *ApiCreateRequestOp
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -406,7 +406,7 @@ func (s *ApiService) InsertV2(api *ApiCreateRequest, options *ApiCreateRequestOp
         Debug(DbgError, "http.NewRequestUrl(POST, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -436,7 +436,7 @@ func (s *ApiService) GetV2(api *ApiGetRequest, options *ApiGetRequestOptions) (*
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -447,7 +447,7 @@ func (s *ApiService) GetV2(api *ApiGetRequest, options *ApiGetRequestOptions) (*
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -471,7 +471,7 @@ func (s *ApiService) DeleteV2(api *ApiDeleteRequest, options *ApiDeleteRequestOp
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -482,7 +482,7 @@ func (s *ApiService) DeleteV2(api *ApiDeleteRequest, options *ApiDeleteRequestOp
         Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), &err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }

@@ -95,7 +95,7 @@ var propertySetCmd = &cobra.Command{
                 errStr := fmt.Sprintf(
                     wski18n.T("Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
                         map[string]interface{}{"apihost": apiHost, "err": err}))
-                werr = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+                werr = whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             } else {
                 props["APIHOST"] = apiHost
@@ -300,7 +300,7 @@ var propertyGetCmd = &cobra.Command{
                 errStr := fmt.Sprintf(
                     wski18n.T("Unable to obtain API build information: {{.err}}",
                         map[string]interface{}{"err": err}))
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }

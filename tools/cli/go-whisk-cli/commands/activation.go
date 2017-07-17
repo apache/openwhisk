@@ -84,7 +84,7 @@ var activationListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Activations.List() error: %s\n", err)
             errStr := wski18n.T("Unable to obtain the list of activations for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -114,7 +114,7 @@ var activationGetCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 2, "Activation get",
@@ -139,7 +139,7 @@ var activationGetCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Activations.Get(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -184,7 +184,7 @@ var activationLogsCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get logs for activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 1, "Activation logs",
@@ -198,7 +198,7 @@ var activationLogsCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Activations.Logs(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get logs for activation '{{.id}}': {{.err}}",
                 map[string]interface{}{"id": id, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -220,7 +220,7 @@ var activationResultCmd = &cobra.Command{
           whisk.Debug(whisk.DbgError, "lastFlag(%#v) failed: %s\n", args, err)
           errStr := wski18n.T("Unable to get result for activation: {{.err}}",
             map[string]interface{}{"err": err})
-          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+          werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
         if whiskErr := checkArgs(args, 1, 1, "Activation result",
@@ -234,7 +234,7 @@ var activationResultCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Activations.result(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get result for activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), &err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 

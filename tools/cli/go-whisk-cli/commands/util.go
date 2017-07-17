@@ -870,7 +870,7 @@ func readFile(filename string) (string, error) {
         whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", filename, err)
         errMsg := wski18n.T("File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
                 map[string]interface{}{"name": filename, "err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_USAGE,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_USAGE,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 
         return "", whiskErr
@@ -881,7 +881,7 @@ func readFile(filename string) (string, error) {
         whisk.Debug(whisk.DbgError, "os.ioutil.ReadFile(%s) error: %s\n", filename, err)
         errMsg := wski18n.T("Unable to read '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": filename, "err": err})
-        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_GENERAL,
+        whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), &err, whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return "", whiskErr
     }

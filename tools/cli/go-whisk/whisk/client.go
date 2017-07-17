@@ -189,7 +189,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         Debug(DbgError, "addAuthHeader() error: %s\n", err)
         errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
             map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -590,7 +590,7 @@ func (c *Client) NewRequestUrl(
             Debug(DbgError, "addAuthHeader() error: %s\n", err)
             errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
                 map[string]interface{}{"err": err})
-            werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskErrorFromWskError(errors.New(errStr), &err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     } else {
