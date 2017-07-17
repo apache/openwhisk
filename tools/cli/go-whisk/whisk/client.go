@@ -222,7 +222,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     }
     return nil
 }
-//Limiter limits the size of 'Req Body (ASCII quoted string)' output for the debugger ONLY.
+//Limiter limits the size of 'Req/Resp Body (ASCII quoted string)' output for the debugger ONLY.
 //Returns truncated req body, reloaded io reader and errors.
 func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
     limit := 1000
@@ -234,9 +234,10 @@ func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
     }
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
     if len(data) > limit {
-        Debug(DbgInfo, "Req Body excedes %d bytes and will be truncated\n", limit)
+        Debug(DbgInfo, "Body excedes %d bytes and will be truncated\n", limit)
         return string(data[:limit]), reload, nil
     }
+    Debug(DbgInfo, "Body Size is only %d bytes and will not be truncated\n", len(data))
     return string(data), reload, nil
 }
 // Do sends an API request and returns the API response.  The API response is
@@ -257,10 +258,10 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         }
         if req.Body != nil {
             fmt.Println("Req Body")
-             if body, req.Body, err = bodyLimiter(req.Body); err != nil {
-                 return nil, err
-             }
             fmt.Println(req.Body)
+            if body, req.Body, err = bodyLimiter(req.Body); err != nil {
+                return nil, err
+            }
             Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", body)
         }
     }
@@ -280,7 +281,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         fmt.Println("Resp Headers")
         PrintJSON(resp.Header)
     }
-
+    if body, resp.Body, err = bodyLimiter(resp.Body); err != nil {
+        return nil, err
+    }
     // Read the response body
     data, err := ioutil.ReadAll(resp.Body)
     if err != nil {
@@ -290,7 +293,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     }
     Verbose("Response body size is %d bytes\n", len(data))
     Verbose("Response body received:\n%s\n", string(data))
-    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
+    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", body)
 
     // Reload the response body to allow caller access to the body; otherwise,
     // the caller will have any empty body to read

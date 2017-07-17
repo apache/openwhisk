@@ -459,21 +459,6 @@ class WskBasicTests
         wsk.action.get(name).stdout should not include (""""code"""")
     }
 
-    it should "create an action and limit the length of req body in the debug to 1000 bytes" in {
-            val file = Some(TestUtils.getTestActionFilename("largeFile.js"))
-            val actionName = "largeFileAction"
-            val msg = "Req Body excedes 1000 bytes and will be truncated"
-            val output = "[A-Za-z1-9{25}]\"".r  //   Ending substring of truncated output
-
-            try {
-                val action = wsk.action.create(name = actionName, artifact = file, expectedExitCode = SUCCESS_EXIT, debug = Some(true)).stdout
-                action should include regex(output)
-                action should include(msg)
-            } finally {
-                val delAction = wsk.action.delete(name = actionName, expectedExitCode = SUCCESS_EXIT)
-            }
-    }
-
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
