@@ -72,7 +72,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
-            withActivation(wsk.activation, run) {
+            withActivation(wsk.activation, run, totalWait = 70 seconds) {
                 _.response.result.get.fields("error") shouldBe {
                     Messages.timedoutActivation(allowedActionDuration, false).toJson
                 }
