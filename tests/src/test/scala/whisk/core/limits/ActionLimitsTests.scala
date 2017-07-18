@@ -72,7 +72,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
 
             val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
-            withActivation(wsk.activation, run, totalWait = 70 seconds) {
+            withActivation(wsk.activation, run) {
                 _.response.result.get.fields("error") shouldBe {
                     Messages.timedoutActivation(allowedActionDuration, false).toJson
                 }
@@ -111,7 +111,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             val attemptedSize = (allowedSize.toBytes * 1.1).toLong.bytes
 
             val run = wsk.action.invoke(name, Map("payload" -> attemptedSize.toBytes.toJson))
-            withActivation(wsk.activation, run) { response =>
+            withActivation(wsk.activation, run, totalWait = 120 seconds) { response =>
                 val lines = response.logs.get
                 lines.last shouldBe Messages.truncateLogs(allowedSize)
                 (lines.length - 1) shouldBe (allowedSize.toBytes / bytesPerLine)
@@ -152,7 +152,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 if (blocking) {
                     checkResponse(wsk.parseJsonString(rr.stderr).convertTo[CliActivation])
                 } else {
-                    withActivation(wsk.activation, rr) { checkResponse(_) }
+                    withActivation(wsk.activation, rr, totalWait = 120 seconds) { checkResponse(_) }
                 }
         }
     }
