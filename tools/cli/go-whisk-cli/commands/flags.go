@@ -88,6 +88,7 @@ type Flags struct {
         sinceHours      int
         sinceDays       int
         exit            int
+        last            bool
     }
 
     // rule
@@ -126,6 +127,7 @@ type ActionFlags struct {
     result      bool
     kind        string
     main        string
+    url         bool
 }
 
 func IsVerbose() bool {

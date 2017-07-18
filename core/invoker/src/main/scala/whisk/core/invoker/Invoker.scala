@@ -27,6 +27,8 @@ import scala.language.postfixOps
 import scala.util.{ Failure, Success }
 import scala.util.Try
 
+import org.apache.kafka.common.errors.RecordTooLargeException
+
 import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
 import akka.japi.Creator
 import spray.json._
@@ -38,24 +40,18 @@ import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.PingMessage
 import whisk.core.container._
 import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
-import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerReleased, FailedActivation }
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
 import whisk.utils.ExecutionContextFactory
-import whisk.common.Scheduler
-import whisk.core.connector.PingMessage
-import scala.util.Try
-import whisk.core.connector.MessageProducer
-import org.apache.kafka.common.errors.RecordTooLargeException
-import whisk.core.entity.TimeLimit
 
 /**
- * A kafka message handler that invokes actions as directed by message on topic "/actions/invoke".
+ * A message handler that invokes actions as directed by message on topic "/actions/invoke".
  * The message path must contain a fully qualified action name and an optional revision id.
  *
  * @param config the whisk configuration
@@ -119,7 +115,7 @@ class Invoker(
                             case Success(activation) =>
                                 transactionPromise.completeWith {
                                     // this completes the successful activation case (1)
-                                    completeTransaction(tran, activation, ContainerReleased)
+                                    completeTransaction(tran, activation)
                                 }
 
                             case Failure(t) =>
@@ -164,7 +160,7 @@ class Invoker(
         // send activate ack for failed activations
         sendActiveAck(tran, activationResult)
 
-        completeTransaction(tran, activationResult, FailedActivation(transid))
+        completeTransaction(tran, activationResult)
     }
 
     /*
@@ -173,7 +169,7 @@ class Invoker(
      * Invariant: Only one call to here succeeds.  Even though the sync block wrap WhiskActivation.put,
      *            it is only blocking this transaction which is finishing anyway.
      */
-    protected def completeTransaction(tran: Transaction, activation: WhiskActivation, releaseResource: ActivationNotification)(
+    protected def completeTransaction(tran: Transaction, activation: WhiskActivation)(
         implicit transid: TransactionId): Future[DocInfo] = {
         tran.synchronized {
             tran.result match {
@@ -183,7 +179,7 @@ class Invoker(
                     // Send a message to the activation feed indicating there is a free resource to handle another activation.
                     // Since all transaction completions flow through this method and the invariant is that the transaction is
                     // completed only once, there is only one completion message sent to the feed as a result.
-                    activationFeed ! releaseResource
+                    activationFeed ! MessageFeed.Processed
                     // Since there is no active action taken for completion from the invoker, writing activation record is it.
                     logging.info(this, "recording the activation result to the data store")
                     val result = WhiskActivation.put(activationStore, activation) andThen {
@@ -488,7 +484,7 @@ object Invoker {
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
         val consumer = new KafkaConsumerConnector(config.kafkaHost, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
         val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-        val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
+        val dispatcher = new Dispatcher(consumer, 500 milliseconds, maxdepth, actorSystem)
 
         val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {
             new InvokerReactive(config, invokerInstance, dispatcher.activationFeed, producer)

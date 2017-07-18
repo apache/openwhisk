@@ -216,7 +216,7 @@ class WskSequenceTests
                     result.fields.get("error") shouldBe Some(JsString(sequenceIsTooLong))
                     // check that inner sequence had only (limit - 1) activations
                     val innerSeq = activation.logs.get(1) // the id of the inner sequence activation
-                    val getInnerSeq = wsk.activation.get(innerSeq)
+                    val getInnerSeq = wsk.activation.get(Some(innerSeq))
                     withActivation(wsk.activation, getInnerSeq, totalWait = allowedActionDuration) {
                         innerSeqActivation =>
                             innerSeqActivation.logs.get.size shouldBe (limit - 1)
@@ -510,7 +510,7 @@ class WskSequenceTests
         withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
             checkSequenceLogsAndAnnotations(activation, 1)
             val componentId = activation.logs.get(atomicActionIdx)
-            val getComponentActivation = wsk.activation.get(componentId)
+            val getComponentActivation = wsk.activation.get(Some(componentId))
             withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
                 println(componentActivation)
                 componentActivation.logs shouldBe defined

@@ -50,7 +50,6 @@ import whisk.common.KeyValueStore
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
-import whisk.core.connector.MessageConsumer
 import whisk.core.connector.PingMessage
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -75,6 +74,7 @@ import whisk.core.loadBalancer.InvokerState
 import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
 import whisk.utils.retry
+import whisk.core.connector.test.TestConnector
 
 @RunWith(classOf[JUnitRunner])
 class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
@@ -101,6 +101,8 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     /** Queries all invokers for their state */
     def allStates(pool: ActorRef) = Await.result(pool.ask(GetStatus).mapTo[Map[String, InvokerState]], timeout.duration)
 
+    val pC = new TestConnector("pingFeedTtest", 4, false) {}
+
     behavior of "InvokerPool"
 
     it should "successfully create invokers in its pool on ping and keep track of statechanges" in {
@@ -114,7 +116,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
 
         val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
+
         val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
@@ -156,7 +158,6 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val kv = stub[KeyValueStore]
         val callback = stubFunction[String, Unit]
         val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
         val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, callback, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
@@ -186,7 +187,6 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
         val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
         val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
 
         val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 
@@ -213,7 +213,6 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
 
         val kv = stub[KeyValueStore]
         val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
 
         val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
 

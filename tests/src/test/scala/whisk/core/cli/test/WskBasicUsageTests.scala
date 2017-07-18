@@ -21,6 +21,9 @@ import java.io.File
 import java.io.BufferedWriter
 import java.io.FileWriter
 import java.time.Instant
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Clock
 
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
@@ -48,8 +51,6 @@ import whisk.core.entity.size.SizeInt
 import whisk.utils.retry
 import JsonArgsForTests._
 import whisk.http.Messages
-import common.WskAdmin
-import java.time.Clock
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -96,10 +97,13 @@ class WskBasicUsageTests
     it should "set apihost, auth, and namespace" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
-            val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+            val namespace = wsk.namespace.whois()
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
-                "--namespace", namespace), env = env).stdout
+            val stdout = wsk.cli(Seq("property", "set", "-i",
+                "--apihost", wskprops.apihost,
+                "--auth", wskprops.authKey,
+                "--namespace", namespace),
+                env = env).stdout
             stdout should include(s"ok: whisk auth set")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
             stdout should include(s"ok: whisk namespace set to ${namespace}")
@@ -519,7 +523,7 @@ class WskBasicUsageTests
 
     it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+            val namespace = wsk.namespace.whois()
             val name = "context"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
@@ -695,6 +699,63 @@ class WskBasicUsageTests
             }
     }
 
+    it should "get an action URL" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val actionName = "action name@_-."
+            val packageName = "package name@_-."
+            val defaultPackageName = "default"
+            val webActionName = "web action name@_-."
+            val nonExistentActionName = "non-existence action"
+            val packagedAction = s"$packageName/$actionName"
+            val packagedWebAction = s"$packageName/$webActionName"
+            val namespace = wsk.namespace.whois()
+            val encodedActionName = URLEncoder.encode(actionName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedPackageName = URLEncoder.encode(packageName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedWebActionName = URLEncoder.encode(webActionName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedNamespace = URLEncoder.encode(namespace, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val actionPath = "https://%s/api/%s/namespaces/%s/actions/%s"
+            val packagedActionPath = s"$actionPath/%s"
+            val webActionPath = "https://%s/api/%s/web/%s/%s/%s"
+
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(actionName, defaultAction)
+            }
+
+            assetHelper.withCleaner(wsk.action, webActionName) {
+                (action, _) => action.create(webActionName, defaultAction, web = Some("true"))
+            }
+
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedAction) {
+                (action, _) => action.create(packagedAction, defaultAction)
+            }
+
+            assetHelper.withCleaner(wsk.action, packagedWebAction) {
+                (action, _) => action.create(packagedWebAction, defaultAction, web = Some("true"))
+            }
+
+            wsk.action.get(actionName, url = Some(true)).
+                stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+
+            // Ensure url flag works when a field filter and summary flag are specified
+            wsk.action.get(actionName, url = Some(true), fieldFilter = Some("field"), summary = true).
+                stdout should include(actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+
+            wsk.action.get(webActionName, url = Some(true)).
+                stdout should include(webActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, defaultPackageName, encodedWebActionName))
+
+            wsk.action.get(packagedAction, url = Some(true)).
+                stdout should include(packagedActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedActionName))
+
+            wsk.action.get(packagedWebAction, url = Some(true)).
+                stdout should include(webActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedWebActionName))
+
+            wsk.action.get(nonExistentActionName, url = Some(true), expectedExitCode = NOT_FOUND)
+    }
+
     behavior of "Wsk packages"
 
     it should "create, and delete a package" in {
@@ -847,9 +908,9 @@ class WskBasicUsageTests
             }
 
             // Summary namespace should match one of the allowable namespaces (typically 'guest')
-            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            val ns = wsk.namespace.whois()
             val stdout = wsk.trigger.get(triggerName, summary = true).stdout
-            stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
+            stdout should include regex (s"(?i)trigger\\s+/$ns/$triggerName")
     }
 
     it should "create a trigger with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {

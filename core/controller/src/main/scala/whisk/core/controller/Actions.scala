@@ -28,7 +28,6 @@ import org.apache.kafka.common.errors.RecordTooLargeException
 
 import akka.actor.ActorSystem
 import spray.http.HttpMethod
-import spray.http.HttpMethods._
 import spray.http.StatusCodes._
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
@@ -133,24 +132,19 @@ trait WhiskActionsApi
                         // matched /namespace/collection/package-name/action-name
                         // this is an action in a named package
                         val packageDocId = FullyQualifiedEntityName(ns, EntityName(outername)).toDocId
-                        val packageResource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
+                        val packageResource = Resource(ns.addPath(EntityName(outername)), collection, Some(innername))
 
-                        val right = if (m == GET || m == POST) Privilege.READ else collection.determineRight(m, Some(innername))
+                        val right = collection.determineRight(m, Some(innername))
                         onComplete(entitlementProvider.check(user, right, packageResource)) {
                             case Success(_) =>
                                 getEntity(WhiskPackage, entityStore, packageDocId, Some {
-                                    if (right == Privilege.READ) {
+                                    if (right == Privilege.READ || right == Privilege.ACTIVATE) {
                                         // need to merge package with action, hence authorize subject for package
                                         // access (if binding, then subject must be authorized for both the binding
                                         // and the referenced package)
                                         //
                                         // NOTE: it is an error if either the package or the action does not exist,
                                         // the former manifests as unauthorized and the latter as not found
-                                        //
-                                        // a GET (READ) and POST (ACTIVATE) resolve to a READ right on the package;
-                                        // it may be desirable to separate these but currently the PACKAGES collection
-                                        // does not allow ACTIVATE since it does not make sense to activate a package
-                                        // but rather an action in the package
                                         mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
                                     } else {
                                         // these packaged action operations do not need merging with the package,

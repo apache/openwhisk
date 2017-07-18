@@ -36,6 +36,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
+import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.container.Interval
@@ -47,12 +48,12 @@ import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
 import whisk.core.database.NoDocumentException
-import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.http.Messages
+
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -206,7 +207,7 @@ class InvokerReactive(
                         Parameters("path", msg.action.toString.toJson) ++ causedBy
                     })
 
-                activationFeed ! FailedActivation(msg.transid)
+                activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.rootControllerIndex)
                 store(msg.transid, activation)
         }

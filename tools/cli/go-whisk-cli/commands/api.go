@@ -1524,7 +1524,7 @@ func getAccessToken() (string, error) {
     var token string = "DUMMY TOKEN"
     var err error
 
-    props, err := readProps(Properties.PropsFile)
+    props, err := ReadProps(Properties.PropsFile)
     if err == nil {
         if len(props["APIGW_ACCESS_TOKEN"]) > 0 {
             token = props["APIGW_ACCESS_TOKEN"]
@@ -1542,7 +1542,7 @@ func getUserContextId() (string, error) {
     var guid string
     var err error
 
-    props, err := readProps(Properties.PropsFile)
+    props, err := ReadProps(Properties.PropsFile)
     if err == nil {
         if len(props["AUTH"]) > 0 {
             guid = strings.Split(props["AUTH"], ":")[0]

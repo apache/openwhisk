@@ -340,7 +340,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         error.fields.get("code").get shouldBe an[JsNumber]
     }
 
-    Seq(None, Some(WhiskAuth(Subject(), AuthKey()).toIdentity)).foreach { creds =>
+    Seq(None, Some(WhiskAuthHelpers.newIdentity())).foreach { creds =>
 
         it should s"not match invalid routes (auth? ${creds.isDefined})" in {
             implicit val tid = transid()

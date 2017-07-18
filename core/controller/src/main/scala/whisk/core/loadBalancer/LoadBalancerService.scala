@@ -33,8 +33,10 @@ import org.apache.kafka.clients.producer.RecordMetadata
 
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
+
 import whisk.common.ConsulClient
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -44,6 +46,7 @@ import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ ActivationId, WhiskAction, WhiskActivation }
@@ -81,7 +84,13 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(implicit val actorSystem: ActorSystem, logging: Logging) extends LoadBalancer {
+class LoadBalancerService(
+    config: WhiskConfig,
+    instance: InstanceId,
+    entityStore: EntityStore)(
+        implicit val actorSystem: ActorSystem,
+        logging: Logging)
+    extends LoadBalancer {
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -146,19 +155,15 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // either create a new promise or reuse a previous one for this activation if it exists
         val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         val entry = activationById.getOrElseUpdate(activationId, {
-            val promiseRef = new java.lang.ref.WeakReference(Promise[Either[ActivationId, WhiskActivation]])
-
             // Install a timeout handler for the catastrophic case where an active ack is not received at all
             // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
             // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
             // in this case, if the activation handler is still registered, remove it and update the books.
-            // Note the use of WeakReferences; this is to avoid the handler's closure holding on to the
-            // WhiskActivation, which in turn holds on to the full JsObject of the response.
             actorSystem.scheduler.scheduleOnce(timeout) {
                 processCompletion(Left(activationId), transid, forced = true)
             }
 
-            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), promiseRef.get)
+            ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()), Promise[Either[ActivationId, WhiskActivation]]())
         })
 
         // add the entry to our maps, for bookkeeping
@@ -216,7 +221,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     private val invokerPool = {
         // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
-        InvokerPool.healthAction.map {
+        InvokerPool.healthAction(instance).map {
             // Await the creation of the test action; on failure, this will abort the constructor which should
             // in turn abort the startup of the controller.
             a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
@@ -224,9 +229,10 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
             throw new IllegalStateException("cannot create test action for invoker health because runtime manifest is not valid")
         }
 
+        val maxPingsPerPoll = 128
         val consul = new ConsulClient(config.consulServer)
         // Each controller gets its own Group Id, to receive all messages
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health")
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props(instance), name)
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
@@ -235,22 +241,33 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         }, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
     }
 
-    /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}")
+    /**
+     * Subscribes to active acks (completion messages from the invokers), and
+     * registers a handler for received active acks from invokers.
+     */
+    val maxActiveAcksPerPoll = 128
+    val activeAckPollDuration = 1.second
 
-    /** Registers a handler for received active acks from invokers. */
-    activeAckConsumer.onMessage((topic, _, _, bytes) => {
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    val activationFeed = actorSystem.actorOf(Props {
+        new MessageFeed("activeack", logging, activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
+    })
+
+    def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
         val raw = new String(bytes, StandardCharsets.UTF_8)
         CompletionMessage.parse(raw) match {
             case Success(m: CompletionMessage) =>
                 processCompletion(m.response, m.transid, false)
                 // treat left as success (as it is the result a the message exceeding the bus limit)
                 val isSuccess = m.response.fold(l => true, r => !r.response.isWhiskError)
+                activationFeed ! MessageFeed.Processed
                 invokerPool ! InvocationFinishedMessage(m.invoker, isSuccess)
 
-            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
+            case Failure(t) =>
+                activationFeed ! MessageFeed.Processed
+                logging.error(this, s"failed processing message: $raw with $t")
         }
-    })
+    }
 
     /** Return a sorted list of available invokers. */
     private def availableInvokers: Future[Seq[String]] = invokerHealth.map {

@@ -168,12 +168,14 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
         name: String,
         expectedExitCode: Int = SUCCESS_EXIT,
         summary: Boolean = false,
-        fieldFilter: Option[String] = None)(
+        fieldFilter: Option[String] = None,
+        url: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "get", "--auth", wp.authKey) ++
             Seq(fqn(name)) ++
             { if (summary) Seq("--summary") else Seq() } ++
-            { fieldFilter map { f => Seq(f) } getOrElse Seq() }
+            { fieldFilter map { f => Seq(f) } getOrElse Seq() } ++
+            { url map { u => Seq("--url") } getOrElse Seq() }
 
         cli(wp.overrides ++ params, expectedExitCode)
     }
@@ -557,14 +559,19 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation
      */
     def get(
-        activationId: String,
+        activationId: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
-        fieldFilter: Option[String] = None)(
+        fieldFilter: Option[String] = None,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        val params = { fieldFilter map { f => Seq(f) } getOrElse Seq() }
-        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey, activationId) ++ params, expectedExitCode)
+        val params =
+          { activationId map { a => Seq(a) } getOrElse Seq() } ++
+          { fieldFilter map { f => Seq(f) } getOrElse Seq() } ++
+          { last map { l => Seq("--last") } getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**
@@ -573,12 +580,17 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation
      */
     def logs(
-        activationId: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        activationId: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "logs", activationId, "--auth", wp.authKey), expectedExitCode)
+        val params =
+          { activationId map { a => Seq(a) } getOrElse Seq() } ++
+          { last map { l => Seq("--last") } getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "logs", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**
@@ -587,12 +599,17 @@ class WskActivation()
      * @param activationId the activation id
      * @param expectedExitCode (optional) the expected exit code for the command
      * if the code is anything but DONTCARE_EXIT, assert the code is as expected
+     * @param last retrieves latest acitvation
      */
     def result(
-        activationId: String,
-        expectedExitCode: Int = SUCCESS_EXIT)(
+        activationId: Option[String] = None,
+        expectedExitCode: Int = SUCCESS_EXIT,
+        last: Option[Boolean] = None)(
             implicit wp: WskProps): RunResult = {
-        cli(wp.overrides ++ Seq(noun, "result", activationId, "--auth", wp.authKey), expectedExitCode)
+        val params =
+          { activationId map { a => Seq(a) } getOrElse Seq() } ++
+          { last map { l => Seq("--last") } getOrElse Seq() }
+        cli(wp.overrides ++ Seq(noun, "result", "--auth", wp.authKey) ++ params, expectedExitCode)
     }
 
     /**
@@ -684,6 +701,19 @@ class WskNamespace()
         implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "list", "--auth", wp.authKey)
         cli(wp.overrides ++ params, expectedExitCode)
+    }
+
+    /**
+     * Looks up namespace for whisk props.
+     *
+     * @param wskprops instance of WskProps with an auth key to lookup
+     * @return namespace as string
+     */
+    def whois()(implicit wskprops: WskProps): String = {
+        // the invariant that list() returns a conforming result is enforced in a test in WskBasicTests
+        val ns = list().stdout.lines.toSeq.last.trim
+        assert(ns != "_") // this is not permitted
+        ns
     }
 
     /**
@@ -1066,18 +1096,6 @@ object WskAdmin {
             .map("""\s+""".r.split(_))
             .map(parts => (parts(0), parts(1)))
             .toList
-    }
-
-    /**
-     * @returns (subject, namespace) pair given the auth key
-     */
-    def getUser(authKey: String): (String, String) = {
-        val wskadmin = new RunWskAdminCmd {}
-        val user = wskadmin.cli(Seq("user", "whois", authKey)).stdout.trim
-        assert(!user.contains("Subject id is not recognized"), s"failed to retrieve user from authkey '$authKey'")
-
-        val Seq(rawSubject, rawNamespace) = user.lines.toSeq
-        (rawSubject.replaceFirst("subject: ", ""), rawNamespace.replaceFirst("namespace: ", ""))
     }
 }
 

@@ -29,7 +29,6 @@ import common.TestUtils._
 import common.TestUtils
 import common.WhiskProperties
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskPropsV2
 import common.WskTestHelpers
@@ -43,9 +42,9 @@ class ApiGwTests
     with WskTestHelpers
     with BeforeAndAfterAll {
 
-    implicit val wskprops = WskProps()
+    implicit var wskprops = WskProps()
     val wsk = new Wsk
-    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
+    val clinamespace = wsk.namespace.whois()
 
     // This test suite makes enough CLI invocations in 60 seconds to trigger the OpenWhisk
     // throttling restriction.  To avoid CLI failures due to being throttled, track the
@@ -229,7 +228,7 @@ class ApiGwTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             println("api create: " + rr.stdout)
@@ -259,7 +258,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -434,7 +433,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"a-c@t ion"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             var rr = apiCreateExperimental(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
             rr.stdout should include("ok: created API")
@@ -612,7 +611,7 @@ class ApiGwTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_action"
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
@@ -646,7 +645,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
 
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
@@ -856,7 +855,7 @@ class ApiGwTests
         val testapiname = testName+" API Name"
         val actionName = testName+"a-c@t ion"
         try {
-            println("cli user: "+cliuser+"; cli namespace: "+clinamespace)
+            println("cli namespace: "+clinamespace)
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo.js")
             wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
@@ -1194,7 +1193,7 @@ class ApiGwTests
 
     it should "reject creation of an API from invalid YAML formatted API configuration file" in {
         val testName = "CLI_APIGWTEST22"
-        val testbasepath = "/bp"
+        val testbasepath = "/"+testName+"_bp"
         val swaggerPath = TestUtils.getTestApiGwFilename(s"local.api.bad.yaml")
         try {
             var rr = apiCreate(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
@@ -1243,6 +1242,37 @@ class ApiGwTests
 
         } finally {
             val deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
+        }
+    }
+
+    it should "reject creation of an API with invalid auth key" in {
+        val testName = "CLI_APIGWTEST24"
+        val testbasepath = "/" + testName + "_bp"
+        val testrelpath = "/path"
+        val testurlop = "get"
+        val testapiname = testName + " API Name"
+        val actionName = testName + "_action"
+        val wskpropsBackup = wskprops
+        try {
+            // Create the action for the API.
+            val file = TestUtils.getTestActionFilename(s"echo.js")
+            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
+
+            // Set an invalid auth key
+            wskprops = WskProps(authKey = "bad-auth-key")
+
+            var rr = apiCreate(
+                basepath = Some(testbasepath),
+                relpath = Some(testrelpath),
+                operation = Some(testurlop),
+                action = Some(actionName),
+                apiname = Some(testapiname),
+                expectedExitCode = ANY_ERROR_EXIT)
+            rr.stderr should include("The supplied authentication is invalid")
+        } finally {
+            wskprops = wskpropsBackup
+            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            var deleteresult = apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }
