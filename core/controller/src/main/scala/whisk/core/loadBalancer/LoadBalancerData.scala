@@ -24,7 +24,7 @@ import scala.concurrent.Promise
 
 case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
 
-class LoadBalancerData(){
+class LoadBalancerData() {
 
     type TrieSet[T] = TrieMap[T, Unit]
 
@@ -52,7 +52,7 @@ class LoadBalancerData(){
         activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry])
     }
 
-    def putActivation(entry: ActivationEntry): Any= {
+    def putActivation(entry: ActivationEntry): Any = {
         activationsById.put(entry.id, entry)
         activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
         activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
@@ -65,7 +65,7 @@ class LoadBalancerData(){
         entry
     }
 
-    def removeActivation(aid: ActivationId): Option[ActivationEntry]= {
+    def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
         activationsById.get(aid).map(removeActivation)
     }
 }
