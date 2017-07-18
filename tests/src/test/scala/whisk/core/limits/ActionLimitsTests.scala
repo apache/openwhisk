@@ -60,6 +60,26 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     behavior of "Action limits"
 
+    it should "limit the length of HTTP req/resp bodies for debug messages to 1000 bytes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+            val file = TestUtils.getTestActionFilename("echo.js")
+            val name = "largeFileAction"
+            val debugMsg = "Body exceeds 1000 bytes and will be truncated"
+            val bodyMsg = "ENDUNIQUE"   //  Message that should be truncated
+            val input = Map("payload" -> JsString(("a" * 1000) + bodyMsg))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => wsk.action.create(name, Some(file), parameters = input)
+            }
+
+            val stdout = wsk.cli(Seq("action", "update", name, file, "--debug") ++ wskprops.overrides ++ auth).stdout
+            val debugOccurences = debugMsg.r.findAllIn(stdout).length
+            val bodyOccurences = bodyMsg.r.findAllIn(stdout).length
+            debugOccurences shouldBe 1
+            bodyOccurences shouldBe 1
+    }
+
     /**
      * Test a long running action that exceeds the maximum execution time allowed for action
      * by setting the action limit explicitly and attempting to run the action for an additional second.
@@ -269,29 +289,5 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             }
     }
 
-    it should "limit the length of HTTP req/resp bodies for debug messages to 1000 bytes" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
-            val name = "largeFileAction"
-            val debugMsg = "Body excedes 1000 bytes and will be truncated"
-            val bodyMsg = "ENDUNIQUE"   //  Message that should be truncated
 
-            val actionCode = new File(s"$testActionsDir${File.separator}$name.js")
-            actionCode.createNewFile()
-            val pw = new PrintWriter(actionCode)
-            pw.write("a" * 1000)
-            pw.write(bodyMsg)
-            pw.close
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => wsk.action.create(name, Some(actionCode.getAbsolutePath))
-            }
-
-            val stdout = wsk.cli(Seq("action", "update", name, actionCode.getAbsolutePath, "--debug") ++ wskprops.overrides ++ auth).stdout
-            val debugOccurences = debugMsg.r.findAllIn(stdout).length
-            val bodyOccurences = bodyMsg.r.findAllIn(stdout).length
-            debugOccurences shouldBe 2
-            bodyOccurences shouldBe 2
-            actionCode.delete
-    }
 }

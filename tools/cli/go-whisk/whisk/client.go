@@ -234,10 +234,10 @@ func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
     }
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
     if len(data) > limit {
-        Debug(DbgInfo, "Body excedes %d bytes and will be truncated\n", limit)
+        Debug(DbgInfo, "Body exceeds %d bytes and will be truncated\n", limit)
         return string(data[:limit]), reload, nil
     }
-    Debug(DbgInfo, "Body Size is only %d bytes and will not be truncated\n", len(data))
+    Debug(DbgInfo, "Body is only %d bytes and will not be truncated\n", len(data))
     return string(data), reload, nil
 }
 // Do sends an API request and returns the API response.  The API response is
