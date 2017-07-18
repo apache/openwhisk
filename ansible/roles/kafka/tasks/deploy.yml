@@ -3,7 +3,8 @@
 
 - name: "pull the zookeeper:{{ zookeeper.version }} image"
   shell: "docker pull zookeeper:{{ zookeeper.version }}"
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: (re)start zookeeper
   docker_container:
@@ -24,7 +25,8 @@
 
 - name: "pull the ches/kafka:{{ kafka.version }} image"
   shell: "docker pull ches/kafka:{{ kafka.version }}"
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: (re)start kafka
   docker_container:
@@ -67,4 +69,3 @@
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
-

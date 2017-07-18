@@ -11,7 +11,7 @@
 - name: remove consul
   docker_container:
     name: consul
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/consul:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/consul:{{ docker.image.tag }}"
     state: absent
   ignore_errors: True
 
