@@ -259,7 +259,7 @@ var ruleGetCmd = &cobra.Command{
             field = args[1]
 
             if !fieldExists(&whisk.Rule{}, field){
-                errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
+                errMsg := wski18n.T(whisk.INVALID_FIELD_FILTER_ERR, map[string]interface{}{"arg": field})
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr

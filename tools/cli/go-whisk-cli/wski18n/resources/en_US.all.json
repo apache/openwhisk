@@ -100,11 +100,11 @@
     "translation": "bind parameters to a package"
   },
   {
-    "id": "Invalid parameter argument '{{.param}}': {{.err}}",
+    "id": "INVALID_PARAMETER_ARGUMENT_ERR",
     "translation": "Invalid parameter argument '{{.param}}': {{.err}}"
   },
   {
-    "id": "Invalid annotation argument '{{.annotation}}': {{.err}}",
+    "id": "INVALID_ANNOTATION_ARGUMENT_ERR",
     "translation": "Invalid annotation argument '{{.annotation}}': {{.err}}"
   },
   {
@@ -800,7 +800,7 @@
     "translation": "Unable to parse action command arguments: {{.err}}"
   },
   {
-    "id": "Unable to create action '{{.name}}': {{.err}}",
+    "id": "UNABLE_CREATE_ACTION_ERR",
     "translation": "Unable to create action '{{.name}}': {{.err}}"
   },
   {
@@ -872,7 +872,7 @@
     "translation": "Could not find 'main' method in '{{.name}}'"
   },
   {
-    "id": "Unable to get action '{{.name}}': {{.err}}",
+    "id": "UNABLE_GET_ACTION_ERR",
     "translation": "Unable to get action '{{.name}}': {{.err}}"
   },
   {
@@ -1140,7 +1140,7 @@
     "translation": "An optional namespace is the only valid argument."
   },
   {
-    "id": "Invalid argument(s). {{.required}}",
+    "id": "INVALID_ARGUMENTS_REQUIRED_ERR",
     "translation": "Invalid argument(s). {{.required}}"
   },
   {
@@ -1188,7 +1188,7 @@
     "translation": "An API host must be provided."
   },
   {
-    "id": "Invalid field filter '{{.arg}}'.",
+    "id": "INVALID_FIELD_FILTER_ERR",
     "translation": "Invalid field filter '{{.arg}}'."
   },
   {

@@ -70,7 +70,7 @@ var packageBindCmd = &cobra.Command{
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-      errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_PARAMETER_ARGUMENT_ERR,
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -84,7 +84,7 @@ var packageBindCmd = &cobra.Command{
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-      errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_ANNOTATION_ARGUMENT_ERR,
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -147,7 +147,7 @@ var packageCreateCmd = &cobra.Command{
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-      errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_PARAMETER_ARGUMENT_ERR,
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -158,7 +158,7 @@ var packageCreateCmd = &cobra.Command{
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-      errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_ANNOTATION_ARGUMENT_ERR,
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -225,7 +225,7 @@ var packageUpdateCmd = &cobra.Command{
 
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
-      errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_PARAMETER_ARGUMENT_ERR,
           map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -235,7 +235,7 @@ var packageUpdateCmd = &cobra.Command{
     annotations, err := getJSONFromStrings(flags.common.annotation, true)
     if err != nil {
       whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
-      errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
+      errStr := wski18n.T(whisk.INVALID_ANNOTATION_ARGUMENT_ERR,
           map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
       return werr
@@ -285,7 +285,7 @@ var packageGetCmd = &cobra.Command{
       field = args[1]
 
       if !fieldExists(&whisk.Package{}, field) {
-        errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
+        errMsg := wski18n.T(whisk.INVALID_FIELD_FILTER_ERR, map[string]interface{}{"arg": field})
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
           whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return whiskErr
