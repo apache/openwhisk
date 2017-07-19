@@ -24,6 +24,7 @@ import (
     "errors"
     "net/url"
     "../wski18n"
+    "github.com/fatih/color"
 )
 
 type RuleService struct {
@@ -45,6 +46,24 @@ type RuleListOptions struct {
     Limit       int     `url:"limit"`
     Skip        int     `url:"skip"`
     Docs        bool    `url:"docs,omitempty"`
+}
+
+// ToHeaderString() returns the header for a list of rules
+// ***Method of type Printable***
+func(rule Rule) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+
+	return fmt.Sprintf("%s\n", boldString("rules"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk rule list`.
+// ***Method of type Printable***
+func(rule Rule) ToSummaryString() string{
+    publishState := wski18n.T("private")
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace,
+        rule.Name), publishState)
 }
 
 func (s *RuleService) List(options *RuleListOptions) ([]Rule, *http.Response, error) {

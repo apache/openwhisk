@@ -29,6 +29,12 @@ import (
     "../wski18n"
 )
 
+// Printable items are anything that need to be printed for listing purposes.
+type Printable interface {
+    ToHeaderString() string   // Prints header information of a Printable
+    ToSummaryString() string     // Prints summary info of one Printable
+}
+
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
 // must be a struct whose fields may contain "url" tags.
 func addRouteOptions(route string, options interface{}) (*url.URL, error) {

@@ -410,7 +410,6 @@ var packageListCmd = &cobra.Command{
       werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
       return werr
     }
-
     printList(packages)
 
     return nil

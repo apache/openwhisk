@@ -23,6 +23,7 @@ import (
     "net/url"
     "errors"
     "../wski18n"
+    "github.com/fatih/color"
 )
 
 type PackageService struct {
@@ -82,6 +83,27 @@ type PackageListOptions struct {
     Skip        int                 `url:"skip"`
     Since       int                 `url:"since,omitempty"`
     Docs        bool                `url:"docs,omitempty"`
+}
+
+// ToHeaderString() returns the header for a list of packages
+// ***Method of type Printable***
+func(pkg Package) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+    
+	return fmt.Sprintf("%s\n", boldString("packages"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk package list`.
+// ***Method of type Printable***
+func(xPackage Package) ToSummaryString() string{
+    publishState := wski18n.T("private")
+    if xPackage.Publish != nil && *xPackage.Publish {
+        publishState = wski18n.T("shared")
+    }
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace,
+        xPackage.Name), publishState)
 }
 
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {

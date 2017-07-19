@@ -21,6 +21,8 @@ import (
     "net/http"
     "errors"
     "../wski18n"
+    "fmt"
+	"github.com/fatih/color"
 )
 
 type Namespace struct {
@@ -37,6 +39,21 @@ type Contents struct {
 
 type NamespaceService struct {
     client *Client
+}
+
+// ToHeaderString() returns the header for a list of namespaces
+// ***Method of type Printable***
+func(namespace Namespace) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+
+	return fmt.Sprintf("%s\n", boldString("namespaces"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk namespace list`.
+// ***Method of type Printable***
+func(namespace Namespace) ToSummaryString() string {
+    return fmt.Sprintf("%s\n", namespace.Name)
 }
 
 // get a list of available namespaces

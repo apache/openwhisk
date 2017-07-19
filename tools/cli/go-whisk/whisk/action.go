@@ -25,6 +25,7 @@ import (
     "strings"
 
     "../wski18n"
+	"github.com/fatih/color"
 )
 
 type ActionService struct {
@@ -57,6 +58,31 @@ type ActionListOptions struct {
     Limit       int         `url:"limit"`
     Skip        int         `url:"skip"`
     Docs        bool        `url:"docs,omitempty"`
+}
+
+// ToHeaderString() returns the header for a list of actions
+// ***Method of type Printable***
+func(action Action) ToHeaderString() string {
+	var boldString = color.New(color.Bold).SprintFunc()
+
+	return fmt.Sprintf("%s\n", boldString("actions"))
+}
+
+// ToSummaryString() returns a compound string of required parameters for printing
+//   from CLI command `wsk action list`.
+// ***Method of type Printable***
+func(action Action) ToSummaryString() string{
+  var kind string
+
+  publishState := wski18n.T("private")
+  for i := range action.Annotations {
+    if (action.Annotations[i].Key == "exec") {
+      kind = action.Annotations[i].Value.(string)
+      break
+    }
+  }
+  
+  return fmt.Sprintf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
 }
 
 /*

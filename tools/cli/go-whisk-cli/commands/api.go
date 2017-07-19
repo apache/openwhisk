@@ -347,6 +347,8 @@ var apiListCmd = &cobra.Command{
         var retApiList *whisk.ApiListResponse
         var retApi *whisk.ApiGetResponse
         var retApiArray *whisk.RetApiArray
+        var filteredList []whisk.ApiFilteredList
+        var filteredRow []whisk.ApiFilteredRow
 
         if whiskErr := checkArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
@@ -407,7 +409,6 @@ var apiListCmd = &cobra.Command{
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArray)(retApi)
         }
-
         // Display the APIs - applying any specified filtering
         if (flags.common.full) {
             fmt.Fprintf(color.Output,
@@ -415,10 +416,10 @@ var apiListCmd = &cobra.Command{
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
                     }))
-
-            for i:=0; i<len(retApiArray.Apis); i++ {
-                printFilteredListApi(retApiArray.Apis[i].ApiValue, (*whisk.ApiOptions)(apiGetReqOptions))
+            for i := 0; i < len(retApiArray.Apis); i++ {
+                filteredList = append(filteredList, genFilteredList(retApiArray.Apis[i].ApiValue, (*whisk.ApiOptions)(apiGetReqOptions))...)
             }
+            printList(filteredList)  // Sends an array of structs that contains specifed variables that are not truncated
         } else {
             // Dynamically create the output format string based on the maximum size of the
             // fully qualified action name and the API Name.
@@ -431,23 +432,23 @@ var apiListCmd = &cobra.Command{
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
                     }))
-            fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
-
-            for i:=0; i<len(retApiArray.Apis); i++ {
-                printFilteredListRow(retApiArray.Apis[i].ApiValue, (*whisk.ApiOptions)(apiGetReqOptions), maxActionNameSize, maxApiNameSize)
+            for i := 0; i < len(retApiArray.Apis); i++ {
+                filteredRow = append(filteredRow, genFilteredRow(retApiArray.Apis[i].ApiValue, (*whisk.ApiOptions)(apiGetReqOptions), maxActionNameSize, maxApiNameSize)...)
             }
+            printList(filteredRow)  // Sends an array of structs that contains specifed variables that are truncated
         }
 
         return nil
     },
 }
 
-/*
- * Takes an API object (containing one more more single basepath/relpath/operation triplets)
- * and some filtering configuration.  For each API endpoint matching the filtering criteria, display
- * each endpoint's configuration - one line per configuration property (action name, verb, api name, api gw url)
- */
-func printFilteredListApi(resultApi *whisk.RetApi, api *whisk.ApiOptions) {
+// genFilteredList(resultApi, api) generates an array of
+//      ApiFilteredLists for the purpose of printing in a list form.
+//      NOTE: genFilteredRow() generates entries with one line per configuration
+//         property (action name, verb, api name, api gw url)
+func genFilteredList(resultApi *whisk.RetApi, api *whisk.ApiOptions) []whisk.ApiFilteredList {
+    var listInfo whisk.ApiFilteredList
+    var listInfoArr []whisk.ApiFilteredList
     baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
     basePath := resultApi.Swagger.BasePath
@@ -461,29 +462,27 @@ func printFilteredListApi(resultApi *whisk.RetApi, api *whisk.ApiOptions) {
                     if ( len(api.ApiVerb) == 0 || strings.ToLower(op) == strings.ToLower(api.ApiVerb)) {
                         whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches: %#v\n", opv)
                         var actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
-                        fmt.Printf("%s: %s\n", wski18n.T("Action"), actionName)
-                        fmt.Printf("  %s: %s\n", wski18n.T("API Name"), apiName)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Base path"), basePath)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Path"), path)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Verb"), op)
-                        fmt.Printf("  %s: %s\n", wski18n.T("URL"), baseUrl+path)
+                        listInfo = AssignListInfo(actionName, op, apiName, basePath, path, baseUrl+path)
+                        whisk.Debug(whisk.DbgInfo, "Appening to listInfoArr: %s\n", listInfo.RelPath)
+                        listInfoArr = append(listInfoArr, listInfo)
                     }
                 }
             }
         }
     }
+    return listInfoArr
 }
 
-/*
- * Takes an API object (containing one more more single basepath/relpath/operation triplets)
- * and some filtering configuration.  For each API matching the filtering criteria, display the API
- * on a single line (action name, verb, api name, api gw url).
- *
- * NOTE: Large action name and api name value will be truncated by their associated max size parameters.
- */
-func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.ApiOptions, maxActionNameSize int, maxApiNameSize int) {
+// genFilteredRow(resultApi, api, maxApiNameSize, maxApiNameSize) generates an array of
+//      ApiFilteredRows for the purpose of printing in a row form by parsing and
+//      initializing vaules for each individual ApiFilteredRow struct.
+//      NOTE: Large action and api name values will be truncated by their associated max size parameters.
+func genFilteredRow(resultApi *whisk.RetApi, api *whisk.ApiOptions, maxActionNameSize int, maxApiNameSize int) []whisk.ApiFilteredRow {
+    var rowInfo whisk.ApiFilteredRow
+    var rowInfoArr []whisk.ApiFilteredRow
     baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
+    basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
             whisk.Debug(whisk.DbgInfo, "apiGetCmd: comparing api relpath: %s\n", path)
@@ -494,16 +493,17 @@ func printFilteredListRow(resultApi *whisk.RetApi, api *whisk.ApiOptions, maxAct
                     if ( len(api.ApiVerb) == 0 || strings.ToLower(op) == strings.ToLower(api.ApiVerb)) {
                         whisk.Debug(whisk.DbgInfo, "apiGetCmd: operation matches: %#v\n", opv)
                         var actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
-                        fmt.Printf(fmtString,
-                            actionName[0 : min(len(actionName), maxActionNameSize)],
-                            op,
-                            apiName[0 : min(len(apiName), maxApiNameSize)],
-                            baseUrl+path)
+                        actionName = actionName[0 : min(len(actionName), maxActionNameSize)]
+                        apiName = apiName[0 : min(len(apiName), maxApiNameSize)]
+                        rowInfo = AssignRowInfo(actionName, op, apiName, basePath, path, baseUrl+path, fmtString)
+                        whisk.Debug(whisk.DbgInfo, "Appening to rowInfoArr: %s\n", rowInfo.RelPath)
+                        rowInfoArr = append(rowInfoArr, rowInfo)
                     }
                 }
             }
         }
     }
+    return rowInfoArr
 }
 
 func getLargestActionNameSize(retApiArray *whisk.RetApiArray, api *whisk.ApiOptions) int {
@@ -744,7 +744,6 @@ func isValidRelpath(relpath string) (error, bool) {
     }
     return nil, true
 }
-
 
 /*
  * Pull the managedUrl (external API URL) from the API configuration
@@ -1097,6 +1096,8 @@ var apiListCmdV2 = &cobra.Command{
         var retApiArray *whisk.RetApiArrayV2
         var apiPath string
         var apiVerb string
+        var filteredList []whisk.ApiFilteredList
+        var filteredRow []whisk.ApiFilteredRow
 
         if whiskErr := checkArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
@@ -1170,7 +1171,6 @@ var apiListCmdV2 = &cobra.Command{
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArrayV2)(retApi)
         }
-
         // Display the APIs - applying any specified filtering
         if (flags.common.full) {
             fmt.Fprintf(color.Output,
@@ -1178,10 +1178,10 @@ var apiListCmdV2 = &cobra.Command{
                     map[string]interface{}{
                         "ok": color.GreenString("ok:"),
                     }))
-
-            for i:=0; i<len(retApiArray.Apis); i++ {
-                printFilteredListApiV2(retApiArray.Apis[i].ApiValue, apiPath, apiVerb)
+            for i := 0; i < len(retApiArray.Apis); i++ {
+                filteredList = append(filteredList, genFilteredListV2(retApiArray.Apis[i].ApiValue, apiPath, apiVerb)...)
             }
+            printList(filteredList)  // Sends an array of structs that contains specifed variables that are not truncated
         } else {
             if (len(retApiArray.Apis) > 0) {
                 // Dynamically create the output format string based on the maximum size of the
@@ -1194,17 +1194,17 @@ var apiListCmdV2 = &cobra.Command{
                         map[string]interface{}{
                             "ok": color.GreenString("ok:"),
                         }))
-                fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
-                for i:=0; i<len(retApiArray.Apis); i++ {
-                    printFilteredListRowV2(retApiArray.Apis[i].ApiValue, apiPath, apiVerb, maxActionNameSize, maxApiNameSize)
+                for i := 0; i < len(retApiArray.Apis); i++ {
+                    filteredRow = append(filteredRow, genFilteredRowV2(retApiArray.Apis[i].ApiValue, apiPath, apiVerb, maxActionNameSize, maxApiNameSize)...)
                 }
+                printList(filteredRow)  // Sends an array of structs that contains specifed variables that are truncated
             } else {
                 fmt.Fprintf(color.Output,
                     wski18n.T("{{.ok}} APIs\n",
                         map[string]interface{}{
                             "ok": color.GreenString("ok:"),
                         }))
-                fmt.Printf(fmtString, "Action", "Verb", "API Name", "URL")
+                printList(filteredRow)  // Sends empty filteredRow so that defaultHeader can be printed
             }
         }
 
@@ -1212,24 +1212,25 @@ var apiListCmdV2 = &cobra.Command{
     },
 }
 
-/*
- * Takes an API object (containing one more more single basepath/relpath/operation triplets)
- * and some filtering configuration.  For each API endpoint matching the filtering criteria, display
- * each endpoint's configuration - one line per configuration property (action name, verb, api name, api gw url)
- */
-func printFilteredListApiV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb string) {
+// genFilteredList(resultApi, api) generates an array of
+//      ApiFilteredLists for the purpose of printing in a list form.
+//      NOTE: genFilteredRow() generates entries with one line per configuration
+//         property (action name, verb, api name, api gw url)
+func genFilteredListV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb string) []whisk.ApiFilteredList{
+    var listInfo whisk.ApiFilteredList
+    var listInfoArr []whisk.ApiFilteredList
     baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
     basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "printFilteredListApiV2: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredListV2: comparing api relpath: %s\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
-                whisk.Debug(whisk.DbgInfo, "printFilteredListApiV2: relpath matches\n")
+                whisk.Debug(whisk.DbgInfo, "genFilteredListV2: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
-                    whisk.Debug(whisk.DbgInfo, "printFilteredListApiV2: comparing operation: '%s'\n", op)
+                    whisk.Debug(whisk.DbgInfo, "genFilteredListV2: comparing operation: '%s'\n", op)
                     if ( len(apiVerb) == 0 || strings.ToLower(op) == strings.ToLower(apiVerb)) {
-                        whisk.Debug(whisk.DbgInfo, "printFilteredListApiV2: operation matches: %#v\n", opv)
+                        whisk.Debug(whisk.DbgInfo, "genFilteredListV2: operation matches: %#v\n", opv)
                         var actionName string
                         if (opv.XOpenWhisk == nil) {
                             actionName = ""
@@ -1238,38 +1239,36 @@ func printFilteredListApiV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb s
                         } else {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
                         }
-                        fmt.Printf("%s: %s\n", wski18n.T("Action"), actionName)
-                        fmt.Printf("  %s: %s\n", wski18n.T("API Name"), apiName)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Base path"), basePath)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Path"), path)
-                        fmt.Printf("  %s: %s\n", wski18n.T("Verb"), op)
-                        fmt.Printf("  %s: %s\n", wski18n.T("URL"), baseUrl+path)
+                        listInfo = AssignListInfo(actionName, op, apiName, basePath, path, baseUrl+path)
+                        whisk.Debug(whisk.DbgInfo, "Appening to listInfoArr: %s\n", listInfo.RelPath)
+                        listInfoArr = append(listInfoArr, listInfo)
                     }
                 }
             }
         }
     }
+    return listInfoArr
 }
 
-/*
- * Takes an API object (containing one more more single basepath/relpath/operation triplets)
- * and some filtering configuration.  For each API matching the filtering criteria, display the API
- * on a single line (action name, verb, api name, api gw url).
- *
- * NOTE: Large action name and api name value will be truncated by their associated max size parameters.
- */
-func printFilteredListRowV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb string, maxActionNameSize int, maxApiNameSize int) {
+// genFilteredRowV2(resultApi, api, maxApiNameSize, maxApiNameSize) generates an array of
+//      ApiFilteredRows for the purpose of printing in a row form by parsing and
+//      initializing vaules for each individual ApiFilteredRow struct.
+//      NOTE: Large action and api name values will be truncated by their associated max size parameters.
+func genFilteredRowV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb string, maxActionNameSize int, maxApiNameSize int) []whisk.ApiFilteredRow {
+    var rowInfo whisk.ApiFilteredRow
+    var rowInfoArr []whisk.ApiFilteredRow
     baseUrl := strings.TrimSuffix(resultApi.BaseUrl, "/")
     apiName := resultApi.Swagger.Info.Title
+    basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "printFilteredListRowV2: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredRowV2: comparing api relpath: %s\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
-                whisk.Debug(whisk.DbgInfo, "printFilteredListRowV2: relpath matches\n")
+                whisk.Debug(whisk.DbgInfo, "genFilteredRowV2: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
-                    whisk.Debug(whisk.DbgInfo, "printFilteredListRowV2: comparing operation: '%s'\n", op)
+                    whisk.Debug(whisk.DbgInfo, "genFilteredRowV2: comparing operation: '%s'\n", op)
                     if ( len(apiVerb) == 0 || strings.ToLower(op) == strings.ToLower(apiVerb)) {
-                        whisk.Debug(whisk.DbgInfo, "printFilteredListRowV2: operation matches: %#v\n", opv)
+                        whisk.Debug(whisk.DbgInfo, "genFilteredRowV2: operation matches: %#v\n", opv)
                         var actionName string
                         if (opv.XOpenWhisk == nil) {
                             actionName = ""
@@ -1278,16 +1277,48 @@ func printFilteredListRowV2(resultApi *whisk.RetApiV2, apiPath string, apiVerb s
                         } else {
                             actionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
                         }
-                        fmt.Printf(fmtString,
-                            actionName[0 : min(len(actionName), maxActionNameSize)],
-                            op,
-                            apiName[0 : min(len(apiName), maxApiNameSize)],
-                            baseUrl+path)
+                        actionName = actionName[0 : min(len(actionName), maxActionNameSize)]
+                        apiName = apiName[0 : min(len(apiName), maxApiNameSize)]
+                        rowInfo = AssignRowInfo(actionName, op, apiName, basePath, path, baseUrl+path, fmtString)
+                        whisk.Debug(whisk.DbgInfo, "Appening to rowInfoArr: %s\n", rowInfo.RelPath)
+                        rowInfoArr = append(rowInfoArr, rowInfo)
                     }
                 }
             }
         }
     }
+    return rowInfoArr
+}
+
+// AssignRowInfo(actionName, verb, apiName, basePath, relPath, url, fmtString) assigns
+//      the given vaules to and initializes an ApiFilteredRow struct, then returns
+//      it.
+func AssignRowInfo(actionName string, verb string, apiName string, basePath string, relPath string, url string, fmtString string) whisk.ApiFilteredRow {
+    var rowInfo whisk.ApiFilteredRow
+
+    rowInfo.ActionName = actionName
+    rowInfo.Verb = verb
+    rowInfo.ApiName = apiName
+    rowInfo.BasePath = basePath
+    rowInfo.RelPath = relPath
+    rowInfo.Url = url
+    rowInfo.FmtString = fmtString
+    return rowInfo
+}
+
+// AssignListInfo(actionName, verb, apiName, basePath, relPath, url) assigns
+//      the given vaules to and initializes an ApiFilteredList struct, then returns
+//      it.
+func AssignListInfo(actionName string, verb string, apiName string, basePath string, relPath string, url string) whisk.ApiFilteredList {
+    var listInfo whisk.ApiFilteredList
+
+    listInfo.ActionName = actionName
+    listInfo.Verb = verb
+    listInfo.ApiName = apiName
+    listInfo.BasePath = basePath
+    listInfo.RelPath = relPath
+    listInfo.Url = url
+    return listInfo
 }
 
 func getLargestActionNameSizeV2(retApiArray *whisk.RetApiArrayV2, apiPath string, apiVerb string) int {
