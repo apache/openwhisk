@@ -195,23 +195,6 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
         containers(1).expectMsg(runMessageDifferentNamespace)
     }
 
-    it should "not remove a container to make space in the pool if it is already full and the same action + same invocation namespace arrives" in within(timeout) {
-        val (containers, factory) = testContainers(2)
-        val feed = TestProbe()
-
-        // a pool with only 1 slot
-        val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
-        pool ! runMessage
-        containers(0).expectMsg(runMessage)
-        containers(0).send(pool, NeedWork(warmedData()))
-        feed.expectMsg(MessageFeed.Processed)
-        pool ! runMessage
-        containers(0).expectMsg(runMessage)
-        pool ! runMessage //expect this message to be requeued since previous is incomplete.
-        containers(0).expectNoMsg(100.milliseconds)
-        containers(1).expectNoMsg(100.milliseconds)
-    }
-
     /*
      * CONTAINER PREWARMING
      */
