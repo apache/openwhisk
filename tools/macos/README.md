@@ -46,7 +46,7 @@ cd /your/path/to/openwhisk
 Follow instructions in [ansible/README.md](../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../../docs/README.md#setting-up-the-openwhisk-cli)
+Follow instructions in [Configure CLI](../../docs/cli.md)
 
 ### Use the wsk CLI
 ```
