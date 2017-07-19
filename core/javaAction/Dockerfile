@@ -35,4 +35,4 @@ RUN cd /javaAction; ./gradlew oneJar
 
 RUN rm -rf /javaAction/src
 
-CMD ["java", "-jar", "/javaAction/build/libs/javaAction-all.jar"]
+CMD ["java", "-Xmx56m", "-jar", "/javaAction/build/libs/javaAction-all.jar"]
