@@ -35,6 +35,7 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -872,11 +873,13 @@ class WskBasicTests
                         (Seq("activation", "logs", "--last"), includeStr),
                         (Seq("activation", "result", "--last"), includeStr))
 
-                    lastFlag foreach {
-                        case (cmd, output) =>
-                            val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
-                            stdout should include(output)
-                    }
+                    retry({
+                        lastFlag foreach {
+                            case (cmd, output) =>
+                                val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
+                                stdout should include(output)
+                        }
+                    }, waitBeforeRetry = Some(500.milliseconds))
             }
     }
 
