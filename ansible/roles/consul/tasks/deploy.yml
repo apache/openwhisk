@@ -26,7 +26,8 @@
 
 - name: "pull the consul:{{ consul.version }} image"
   shell: "docker pull consul:{{ consul.version }}"
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: (re)start consul server/agent
   docker_container:

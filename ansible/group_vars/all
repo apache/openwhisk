@@ -204,17 +204,21 @@ linux:
 couchdb:
   version: 1.6
 
-docker_image_prefix: whisk
-docker_image_tag: latest
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
   # docker commands on a machine setup with prereq_build.yml
   #user:
+  image:
+    prefix: "{{ docker_image_prefix | default('whisk') }}"
+    tag: "{{ docker_image_tag | default('latest') }}"
   version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
   restart:
     policy: always
+  pull:
+    retries: 10
+    delay: 10
 
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
