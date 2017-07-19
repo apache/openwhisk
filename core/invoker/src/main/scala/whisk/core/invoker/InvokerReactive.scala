@@ -72,7 +72,7 @@ class InvokerReactive(
 
     /** Cleans up all running wsk_ containers */
     def cleanup() = {
-        val cleaning = docker.ps(Seq("name" -> "wsk_"))(TransactionId.invokerNanny).flatMap { containers =>
+        val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap { containers =>
             val removals = containers.map { id =>
                 runc.resume(id)(TransactionId.invokerNanny).recoverWith {
                     // Ignore resume failures and try to remove anyway
@@ -138,7 +138,7 @@ class InvokerReactive(
     }
 
     /** Creates a ContainerProxy Actor when being called. */
-    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
+    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store, instance))
 
     val prewarmKind = "nodejs:6"
     val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
