@@ -31,6 +31,7 @@ Vagrant.configure('2') do |config|
     vb.cpus = BOX_CPUS
     vb.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
     vb.customize ['modifyvm', :id, '--natdnsproxy1', 'on']
+    vb.customize ['modifyvm', :id, '--ioapic', 'off']
     vb.customize ['modifyvm', :id, '--ostype', 'Ubuntu_64']
     vb.customize ['modifyvm', :id, '--memory', BOX_MEMORY]
   end
