@@ -132,4 +132,17 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     }
 
+    it should "not add the same entry more then once" in {
+
+        val loadBalancerData = new LoadBalancerData()
+
+        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
+        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+
+        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
+        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+    }
+
 }
