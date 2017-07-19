@@ -32,40 +32,37 @@ class LoadBalancerData() {
     private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
     private val activationsById = new TrieMap[ActivationId, ActivationEntry]
 
-    def activationCountByNamespace = {
-        activationByNamespaceId.toMap mapValues { _.size }
+    def activationCountByNamespace: Map[UUID, Int] = {
+        activationByNamespaceId.toMap.mapValues(_.size)
     }
 
-    def activationCountByInvoker = {
-        activationByInvoker.toMap mapValues { _.size }
+    def activationCountByInvoker: Map[String, Int] = {
+        activationByInvoker.toMap.mapValues(_.size)
     }
 
-    def activationsByInvoker(invokerName: String) = {
+    def activationsByInvoker(invokerName: String): TrieSet[ActivationEntry] = {
         activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
     }
 
-    def activationById(activationId: ActivationId) = {
+    def activationById(activationId: ActivationId): Option[ActivationEntry] = {
         activationsById.get(activationId)
     }
 
-    def activationsByNamespaceId(namespaceId: UUID) = {
-        activationByNamespaceId.getOrElseUpdate(namespaceId, new TrieSet[ActivationEntry])
-    }
-
-    def putActivation(entry: ActivationEntry): Any = {
+    def putActivation(entry: ActivationEntry): Unit = {
         activationsById.put(entry.id, entry)
         activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
         activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
     }
 
-    def removeActivation(entry: ActivationEntry): ActivationEntry = {
-        activationsById.remove(entry.id)
-        activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).remove(entry)
-        activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).remove(entry)
-        entry
+    def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
+        activationsById.remove(entry.id).map { x =>
+            activationByNamespaceId.getOrElseUpdate(x.namespaceId, new TrieSet[ActivationEntry]).remove(entry)
+            activationByInvoker.getOrElseUpdate(x.invokerName, new TrieSet[ActivationEntry]).remove(entry)
+            x
+        }
     }
 
     def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
-        activationsById.get(aid).map(removeActivation)
+        activationsById.get(aid).flatMap(removeActivation)
     }
 }

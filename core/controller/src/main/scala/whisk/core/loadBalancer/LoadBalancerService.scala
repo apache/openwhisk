@@ -123,12 +123,12 @@ class LoadBalancerService(
     private def processCompletion(response: Either[ActivationId, WhiskActivation], tid: TransactionId, forced: Boolean): Unit = {
         val aid = response.fold(l => l, r => r.activationId)
         loadBalancerData.removeActivation(aid) match {
-            case Some(entry @ ActivationEntry(_, _, _, _, p)) =>
+            case Some(entry) =>
                 logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
                 if (!forced) {
-                    p.trySuccess(response)
+                    entry.promise.trySuccess(response)
                 } else {
-                    p.tryFailure(new Throwable("no active ack received"))
+                    entry.promise.tryFailure(new Throwable("no active ack received"))
                 }
             case None =>
                 // the entry was already removed

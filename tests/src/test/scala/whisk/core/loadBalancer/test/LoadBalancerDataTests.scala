@@ -17,96 +17,118 @@
 
 package whisk.core.loadBalancer.test
 
-import java.time.{Clock, Instant}
+import java.time.Instant
 
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import whisk.core.loadBalancer.{ActivationEntry, LoadBalancerData}
 
-import scala.concurrent.duration.{FiniteDuration, _}
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Promise}
 
-class LoadBalancerDataSpec extends FlatSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](
-        f,
-        timeout
-    )
-
-    var firstActivationEntry: ActivationEntry = null
-    var secondActivationEntry: ActivationEntry = null
-    var loadBalancerData: LoadBalancerData = null
-    val firstUUID: UUID = UUID()
-    val secondUUID = UUID()
+class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
-    var firstActivationId: ActivationId = ActivationId()
-    var secondActivationId: ActivationId = ActivationId()
-
-    override def beforeEach() = {
-        loadBalancerData = new LoadBalancerData()
-        firstActivationEntry = new ActivationEntry(firstActivationId, firstUUID, "invoker0",
-            Instant.now(Clock.systemUTC()), activationIdPromise)
-        secondActivationEntry = new ActivationEntry(secondActivationId, secondUUID, "invoker1",
-            Instant.now(Clock.systemUTC()), activationIdPromise)
-    }
+    val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker0",
+        Instant.now, activationIdPromise)
+    val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker1", Instant
+      .now, activationIdPromise)
 
     behavior of "LoadBalancerData"
 
     it should "return the number of activations for a namespace" in {
 
-        loadBalancerData.putActivation(firstActivationEntry)
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.putActivation(firstEntry)
 
         val result = loadBalancerData.activationCountByNamespace
-        result.size should be(1)
-        result.keys.head should be(firstUUID)
-        loadBalancerData.activationsByNamespaceId(firstUUID).toMap.size should be(1)
-        loadBalancerData.activationsByInvoker("invoker0").toMap.size should be(1)
-        loadBalancerData.activationById(firstActivationId).size should be(1)
+        result shouldBe Map(firstEntry.namespaceId -> 1)
+        loadBalancerData.activationCountByInvoker("invoker0") shouldBe 1
+        loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
     }
 
     it should "return the number of activations for each invoker" in {
 
-        loadBalancerData.putActivation(firstActivationEntry)
-        loadBalancerData.putActivation(secondActivationEntry)
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(secondEntry)
 
         val result = loadBalancerData.activationCountByInvoker
 
-        result.size should be(2)
+        result shouldBe Map(firstEntry.invokerName -> 1, secondEntry.invokerName -> 1)
 
-        loadBalancerData.activationsByInvoker("invoker0").size should be(1)
-        loadBalancerData.activationsByInvoker("invoker1").size should be(1)
-        loadBalancerData.activationById(firstActivationId).size should be(1)
-        loadBalancerData.activationById(secondActivationId).size should be(1)
+        loadBalancerData.activationCountByInvoker("invoker0") shouldBe 1
+        loadBalancerData.activationCountByInvoker("invoker1") shouldBe 1
+        loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
+        loadBalancerData.activationById(secondEntry.id) shouldBe Some(secondEntry)
     }
 
     it should "remove activations from all 3 maps" in {
 
-        loadBalancerData.putActivation(firstActivationEntry)
-        loadBalancerData.putActivation(secondActivationEntry)
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(secondEntry)
 
-        loadBalancerData.removeActivation(firstActivationEntry)
-        loadBalancerData.removeActivation(secondActivationEntry)
+        loadBalancerData.removeActivation(firstEntry)
+        loadBalancerData.removeActivation(secondEntry)
 
         val activationsByInvoker = loadBalancerData.activationCountByInvoker
         val activationsByNamespace = loadBalancerData.activationCountByNamespace
 
-        activationsByInvoker.values.sum should be(0)
-        activationsByNamespace.values.sum should be(0)
-        loadBalancerData.activationById(firstActivationId).size should be(0)
-        loadBalancerData.activationById(secondActivationId).size should be(0)
+        activationsByInvoker.values.sum shouldBe 0
+        activationsByNamespace.values.sum shouldBe 0
+        loadBalancerData.activationById(firstEntry.id) shouldBe None
+        loadBalancerData.activationById(secondEntry.id) shouldBe None
     }
+
     it should "remove activations from all 3 maps by activation id" in {
 
-        loadBalancerData.putActivation(firstActivationEntry)
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.putActivation(firstEntry)
 
-        loadBalancerData.removeActivation(firstActivationId)
+        loadBalancerData.removeActivation(firstEntry.id)
 
         val activationsByInvoker = loadBalancerData.activationCountByInvoker
         val activationsByNamespace = loadBalancerData.activationCountByNamespace
 
-        activationsByInvoker.values.sum should be(0)
-        activationsByNamespace.values.sum should be(0)
-        loadBalancerData.activationById(firstActivationId).size should be(0)
+        activationsByInvoker.values.sum shouldBe 0
+        activationsByNamespace.values.sum shouldBe 0
+        loadBalancerData.activationById(firstEntry.id) shouldBe None
+
+    }
+
+    it should "return None if the entry doesn't exist when we remove it" in {
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.removeActivation(firstEntry) shouldBe None
+    }
+
+    it should "respond with different values accordingly" in {
+
+        val entry = ActivationEntry(ActivationId(), UUID(), "invoker1", Instant
+          .now, activationIdPromise)
+        val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
+        val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
+
+        val loadBalancerData = new LoadBalancerData()
+        loadBalancerData.putActivation(entry)
+        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 1
+
+        loadBalancerData.putActivation(entrySameInvokerAndNamespace)
+        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
+        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
+
+        loadBalancerData.putActivation(entrySameInvoker)
+        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
+        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 3
+
+        loadBalancerData.removeActivation(entrySameInvokerAndNamespace)
+        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
+
+        // removing non existing entry doesn't mess up
+        loadBalancerData.removeActivation(entrySameInvokerAndNamespace)
+        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
 
     }
 
