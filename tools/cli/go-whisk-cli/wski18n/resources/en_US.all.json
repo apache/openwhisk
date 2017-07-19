@@ -253,6 +253,14 @@
     "translation": "Unable to set the property value: {{.err}}"
   },
   {
+    "id": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n",
+    "translation": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n"
+  },
+  {
+    "id": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n",
+    "translation": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n"
+  },
+  {
     "id": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
     "translation": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n"
   },
@@ -293,6 +301,14 @@
     "translation": "Unable to unset the property value: {{.err}}"
   },
   {
+    "id": "{{.ok}} client cert unset.\n",
+    "translation": "{{.ok}} client cert unset.\n"
+  },
+  {
+    "id": "{{.ok}} client key unset.\n",
+    "translation": "{{.ok}} client key unset.\n"
+  },
+  {
     "id": "{{.ok}} whisk auth unset.\n",
     "translation": "{{.ok}} whisk auth unset.\n"
   },
@@ -319,6 +335,14 @@
   {
     "id": "get property",
     "translation": "get property"
+  },
+  {
+    "id": "client cert",
+    "translation": "client cert"
+  },
+  {
+    "id": "client key",
+    "translation": "client key"
   },
   {
     "id": "whisk auth",
