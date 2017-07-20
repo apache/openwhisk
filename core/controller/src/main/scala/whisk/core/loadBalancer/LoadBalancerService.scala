@@ -54,6 +54,8 @@ import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
+import whisk.core.entity.EntityName
+import whisk.core.entity.Identity
 
 trait LoadBalancer {
 
@@ -103,7 +105,7 @@ class LoadBalancerService(
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-        chooseInvoker(action, msg).flatMap { invokerName =>
+        chooseInvoker(msg.user, action).flatMap { invokerName =>
             val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
             sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
@@ -111,7 +113,10 @@ class LoadBalancerService(
         }
     }
 
-    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
+    /** An indexed sequence of all invokers in the current system */
+    def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] = invokerPool
+        .ask(GetStatus)(Timeout(5.seconds))
+        .mapTo[IndexedSeq[(InstanceId, InvokerState)]]
 
     /**
      * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -138,8 +143,7 @@ class LoadBalancerService(
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: String, transid: TransactionId): ActivationEntry = {
-
+    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: InstanceId, transid: TransactionId): ActivationEntry = {
         val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
         // Install a timeout handler for the catastrophic case where an active ack is not received at all
         // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
@@ -152,19 +156,6 @@ class LoadBalancerService(
 
             ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
         })
-    }
-
-    /**
-     * When invoker health detects a new invoker has come up, this callback is called.
-     */
-    private def clearInvokerState(invokerName: String) = {
-        val actSet = loadBalancerData.activationsByInvoker(invokerName)
-        actSet.keySet map {
-            case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, promise) =>
-                promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
-                loadBalancerData.removeActivation(actEntry)
-        }
-        actSet.clear()
     }
 
     /**
@@ -187,13 +178,15 @@ class LoadBalancerService(
     /** Gets a producer which can publish messages to the kafka bus. */
     private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
 
-    private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String): Future[RecordMetadata] = {
+    private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
-        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
 
-        producer.send(invokerName, msg).andThen {
+        val topic = s"invoker${invoker.toInt}"
+        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$topic' with activation id '${msg.activationId}'")
+
+        producer.send(topic, msg).andThen {
             case Success(status) => transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-            case Failure(e)      => transid.failed(this, start, s"error on posting to topic $invokerName")
+            case Failure(e)      => transid.failed(this, start, s"error on posting to topic $topic")
         }
     }
 
@@ -211,12 +204,10 @@ class LoadBalancerService(
         val consul = new ConsulClient(config.consulServer)
         // Each controller gets its own Group Id, to receive all messages
         val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
-        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props(instance), name)
+        val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
-        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-            clearInvokerState(invoker)
-            logging.info(this, s"cleared load balancer state for $invoker")(TransactionId.invokerHealth)
-        }, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
+        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv,
+            (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
     }
 
     /**
@@ -247,59 +238,47 @@ class LoadBalancerService(
         }
     }
 
-    /** Return a sorted list of available invokers. */
-    private def availableInvokers: Future[Seq[String]] = invokerHealth.map {
-        _.collect {
-            case (name, Healthy) => name
-        }.toSeq.sortBy(_.drop(7).toInt) // Sort by the number in "invokerN"
-    }.recover {
-        case _ => Seq.empty[String]
-    }
-
     /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
     private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
 
     /** Return invokers (almost) dedicated to running blackbox actions. */
-    private def blackboxInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
-        allInvokers.takeRight(numBlackbox(allInvokers.length))
+    private def blackboxInvokers(invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+        val blackboxes = numBlackbox(invokers.size)
+        invokers.takeRight(blackboxes)
     }
 
-    /** Return (at least one) invokers for running non black-box actions.  This set can overlap with the blackbox set if there is only one invoker. */
-    private def managedInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
-        val numManaged = Math.max(1, allInvokers.length - numBlackbox(allInvokers.length))
-        allInvokers.take(numManaged)
+    /**
+     * Return (at least one) invokers for running non black-box actions.
+     * This set can overlap with the blackbox set if there is only one invoker.
+     */
+    private def managedInvokers(invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+        val managed = Math.max(1, invokers.length - numBlackbox(invokers.length))
+        invokers.take(managed)
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: ExecutableWhiskAction, msg: ActivationMessage): Future[String] = {
-        val invokers = if (action.exec.pull) blackboxInvokers else managedInvokers
-        val hash = hashSubjectAction(msg)
+    private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
+        val hash = generateHash(user.namespace, action)
 
-        invokers.flatMap { invokers =>
-            LoadBalancerService.schedule(
-                invokers,
-                loadBalancerData.activationCountByInvoker,
-                config.loadbalancerInvokerBusyThreshold,
-                hash) match {
-                    case Some(invoker) => Future.successful(invoker)
-                    case None =>
-                        logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
-                        Future.failed(new LoadBalancerException("no invokers available"))
-                }
+        allInvokers.flatMap { invokers =>
+            val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+            val invokersWithUsage = invokersToUse.view.map {
+                // Using a view defers the comparably expensive lookup to actual access of the element
+                case (instance, state) => (instance, state, loadBalancerData.activationCountByInvoker.get(instance).getOrElse(0))
+            }
+
+            LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
+                case Some(invoker) => Future.successful(invoker)
+                case None =>
+                    logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
+                    Future.failed(new LoadBalancerException("no invokers available"))
+            }
         }
     }
 
-    /*
-     * The path contains more than the action per se but seems sufficiently
-     * isomorphic as the other parts are constant.  Extracting just the
-     * action out specifically will involve some hairy regex's that the
-     * Invoker is currently using and which is better avoid if/until
-     * these are moved to some common place (like a subclass of Message?)
-     */
-    private def hashSubjectAction(msg: ActivationMessage): Int = {
-        val subject = msg.user.subject.asString
-        val path = msg.action.toString
-        (subject.hashCode() ^ path.hashCode()).abs
+    /** Generates a hash based on the string representation of namespace and action */
+    private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
+        (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
     }
 }
 
@@ -329,58 +308,37 @@ object LoadBalancerService {
     /**
      * Scans through all invokers and searches for an invoker, that has a queue length
      * below the defined threshold. The threshold is subject to a 3 times back off. Iff
-     * no "underloaded" invoker was found it will default to the home invoker.
+     * no "underloaded" invoker was found it will default to the first invoker in the
+     * step-defined progression that is healthy.
      *
-     * @param availableInvokers a list of available (healthy) invokers to search in
-     * @param activationsPerInvoker a map of the number of outstanding activations per invoker
+     * @param invokers a list of available invokers to search in, including their state and usage
      * @param invokerBusyThreshold defines when an invoker is considered overloaded
      * @param hash stable identifier of the entity to be scheduled
      * @return an invoker to schedule to or None of no invoker is available
      */
-    def schedule[A](
-        availableInvokers: Seq[A],
-        activationsPerInvoker: collection.Map[A, Int],
+    def schedule(
+        invokers: Seq[(InstanceId, InvokerState, Int)],
         invokerBusyThreshold: Int,
-        hash: Int): Option[A] = {
+        hash: Int): Option[InstanceId] = {
 
-        val numInvokers = availableInvokers.length
+        val numInvokers = invokers.size
         if (numInvokers > 0) {
             val homeInvoker = hash % numInvokers
-
             val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
             val step = stepSizes(hash % stepSizes.size)
 
-            @tailrec
-            def search(targetInvoker: Int, iteration: Int = 1): A = {
-                // map the computed index to the actual invoker index
-                val invokerName = availableInvokers(targetInvoker)
+            val invokerProgression = Stream.from(0)
+                .take(numInvokers)
+                .map(i => (homeInvoker + i * step) % numInvokers)
+                .map(invokers)
+                .filter(_._2 == Healthy)
 
-                // send the request to the target invoker if it has capacity...
-                if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold * iteration) {
-                    invokerName
-                } else {
-                    // ... otherwise look for a less loaded invoker by stepping through a pre-computed
-                    // list of invokers; there are two possible outcomes:
-                    // 1. the search lands on a new invoker that has capacity, choose it
-                    // 2. walked through the entire list and found no better invoker than the
-                    //    "home invoker", force the home invoker
-                    val newTarget = (targetInvoker + step) % numInvokers
-                    if (newTarget == homeInvoker) {
-                        if (iteration < 3) {
-                            search(newTarget, iteration + 1)
-                        } else {
-                            availableInvokers(homeInvoker)
-                        }
-                    } else {
-                        search(newTarget, iteration)
-                    }
-                }
-            }
-
-            Some(search(homeInvoker))
-        } else {
-            None
-        }
+            invokerProgression.find(_._3 < invokerBusyThreshold)
+                .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 2))
+                .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 3))
+                .orElse(invokerProgression.headOption)
+                .map(_._1)
+        } else None
     }
 
 }

@@ -138,7 +138,9 @@ class Controller(
     private val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                loadBalancer.invokerHealth.map(_.mapValues(_.asString).toJson.asJsObject)
+                loadBalancer.allInvokers.map(_.map {
+                    case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+                }.toMap.toJson.asJsObject)
             }
         }
     }

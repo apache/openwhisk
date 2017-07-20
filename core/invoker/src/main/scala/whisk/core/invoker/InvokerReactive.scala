@@ -114,7 +114,7 @@ class InvokerReactive(
         implicit val transid = tid
 
         def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-            val msg = CompletionMessage(transid, res, this.name)
+            val msg = CompletionMessage(transid, res, instance)
             producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
                 case Success(_) =>
                     logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")

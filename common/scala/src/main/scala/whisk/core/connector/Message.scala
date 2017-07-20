@@ -92,7 +92,7 @@ object ActivationMessage extends DefaultJsonProtocol {
 case class CompletionMessage(
     override val transid: TransactionId,
     response: Either[ActivationId, WhiskActivation],
-    invoker: String)
+    invoker: InstanceId)
     extends Message {
 
     override def serialize: String = {
@@ -109,7 +109,7 @@ object CompletionMessage extends DefaultJsonProtocol {
     private val serdes = jsonFormat3(CompletionMessage.apply)
 }
 
-case class PingMessage(name: String) extends Message {
+case class PingMessage(instance: InstanceId) extends Message {
     override def serialize = PingMessage.serdes.write(this).compactPrint
 }
 

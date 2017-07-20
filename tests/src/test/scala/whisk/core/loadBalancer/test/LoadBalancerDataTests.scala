@@ -17,17 +17,18 @@
 
 package whisk.core.loadBalancer.test
 
-import org.scalatest.{FlatSpec, Matchers}
-import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
-import whisk.core.loadBalancer.{ActivationEntry, LoadBalancerData}
+import org.scalatest.{ FlatSpec, Matchers }
+import whisk.core.entity.{ ActivationId, UUID, WhiskActivation }
+import whisk.core.loadBalancer.{ ActivationEntry, LoadBalancerData }
 
-import scala.concurrent.{Promise}
+import scala.concurrent.{ Promise }
+import whisk.core.entity.InstanceId
 
 class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
-    val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker0", activationIdPromise)
-    val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker1", activationIdPromise)
+    val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(0), activationIdPromise)
+    val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
 
     behavior of "LoadBalancerData"
 
@@ -38,7 +39,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
         val result = loadBalancerData.activationCountByNamespace
         result shouldBe Map(firstEntry.namespaceId -> 1)
-        loadBalancerData.activationCountByInvoker("invoker0") shouldBe 1
+        loadBalancerData.activationCountByInvoker(firstEntry.invokerName) shouldBe 1
         loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
     }
 
@@ -52,8 +53,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
         result shouldBe Map(firstEntry.invokerName -> 1, secondEntry.invokerName -> 1)
 
-        loadBalancerData.activationCountByInvoker("invoker0") shouldBe 1
-        loadBalancerData.activationCountByInvoker("invoker1") shouldBe 1
+        loadBalancerData.activationCountByInvoker(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountByInvoker(secondEntry.invokerName) shouldBe 1
         loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
         loadBalancerData.activationById(secondEntry.id) shouldBe Some(secondEntry)
     }
@@ -99,7 +100,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     it should "respond with different values accordingly" in {
 
-        val entry = ActivationEntry(ActivationId(), UUID(), "invoker1", activationIdPromise)
+        val entry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
         val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
         val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
 
