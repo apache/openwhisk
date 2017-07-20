@@ -35,10 +35,11 @@ import common.StreamLogging
 import common.WskActorSystem
 import spray.json.JsObject
 import whisk.core.WhiskConfig
+import whisk.core.controller.test.WhiskAuthHelpers
+import whisk.core.database.ArtifactStore
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 import whisk.core.entity.WhiskEntityQueries._
-import whisk.core.database.ArtifactStore
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -61,10 +62,10 @@ class ViewTests extends FlatSpec
         }
     }
 
-    val creds1 = WhiskAuth(Subject("s12345"), AuthKey())
+    val creds1 = WhiskAuthHelpers.newAuth(Subject("s12345"))
     val namespace1 = EntityPath(creds1.subject.asString)
 
-    val creds2 = WhiskAuth(Subject("t12345"), AuthKey())
+    val creds2 = WhiskAuthHelpers.newAuth(Subject("t12345"))
     val namespace2 = EntityPath(creds2.subject.asString)
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)

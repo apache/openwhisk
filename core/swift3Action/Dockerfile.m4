@@ -1,6 +1,6 @@
 # Dockerfile for swift actions, overrides and extends ActionRunner from actionProxy
 # This Dockerfile is partially based on: https://github.com/swiftdocker/docker-swift/
-FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:zesty-gold',`buildpack-deps:trusty')
+FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:xenial-gold',`buildpack-deps:trusty')
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -32,7 +32,7 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/clang 20
 
 #  TODO:  Address the mismatch in swift versions across the architectures
 m4_ifdef(`S390X',`
-RUN curl -sSL https://s3.amazonaws.com/s390x-openwhisk/swift-3.1.1-RELEASE.tar.gz | \
+RUN curl -sSL https://s3.amazonaws.com/s390x-openwhisk/swift-3.0.1-RELEASE.tar.gz | \
     tar zfx -
 ',`
 # Install Swift keys

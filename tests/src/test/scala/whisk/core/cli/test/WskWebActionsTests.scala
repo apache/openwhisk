@@ -32,7 +32,6 @@ import common.TestHelpers
 import common.TestUtils
 import common.WhiskProperties
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -132,7 +131,7 @@ trait WskWebActionsTests
 
     val wsk = new Wsk
     private implicit val wskprops = WskProps()
-    val namespace = WskAdmin.getUser(wskprops.authKey)._2
+    val namespace = wsk.namespace.whois()
 
     protected val testRoutePath: String
 

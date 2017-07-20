@@ -37,6 +37,7 @@ import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.test.TestConnector
+import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
@@ -64,7 +65,7 @@ class DispatcherTests
 
     def sendMessage(connector: TestConnector, count: Int) = {
         val content = JsObject("payload" -> JsNumber(count))
-        val user = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val user = WhiskAuthHelpers.newIdentity()
         val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), Some(SemVer()))
         val msg = Message(TransactionId.testing, path, DocRevision.empty, user, ActivationId(), EntityPath(user.subject.asString), InstanceId(0), Some(content))
         connector.send(msg)

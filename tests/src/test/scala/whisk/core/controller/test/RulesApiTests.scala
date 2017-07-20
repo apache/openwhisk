@@ -51,7 +51,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     /** Rules API tests */
     behavior of "Rules API"
 
-    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
+    val creds = WhiskAuthHelpers.newIdentity()
     val namespace = EntityPath(creds.subject.asString)
     def aname() = MakeName.next("rules_tests")
     def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
@@ -85,7 +85,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
 
         // it should "reject list rules with explicit namespace not owned by subject" in {
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -128,7 +128,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         }
 
         // it should "reject get trigger by name in explicit namespace not owned by subject" in
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}/${rule.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }

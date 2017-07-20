@@ -67,3 +67,4 @@ code base. Some basic rules include:
 
  - all files must have the Apache license in the header.
  - all PRs must have passing builds for all operating systems.
+ - the code is correctly formatted as defined in the [Scalariform plugin properties](tools/eclipse/scala.properties). If you use IntelliJ for development this [page](https://plugins.jetbrains.com/plugin/7480-scalariform) describes the setup and configuration of the plugin.

@@ -22,6 +22,8 @@ import java.io.BufferedWriter
 import java.io.FileWriter
 import java.time.Instant
 import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Clock
 
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
@@ -49,8 +51,6 @@ import whisk.core.entity.size.SizeInt
 import whisk.utils.retry
 import JsonArgsForTests._
 import whisk.http.Messages
-import common.WskAdmin
-import java.time.Clock
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -97,15 +97,53 @@ class WskBasicUsageTests
     it should "set apihost, auth, and namespace" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
-            val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+            val namespace = wsk.namespace.whois()
             val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
-                "--namespace", namespace), env = env).stdout
+            val stdout = wsk.cli(Seq("property", "set", "-i",
+                "--apihost", wskprops.apihost,
+                "--auth", wskprops.authKey,
+                "--namespace", namespace),
+                env = env).stdout
             stdout should include(s"ok: whisk auth set")
             stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
             stdout should include(s"ok: whisk namespace set to ${namespace}")
         } finally {
             tmpwskprops.delete()
+        }
+    }
+
+    // If client certificate verification is off, should ingore run below tests.
+    if (!WhiskProperties.getProperty("whisk.ssl.client.verification").equals("off")){
+        it should "set valid cert key to get expected success result for client certificate verification" in {
+            val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+            try {
+                val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+                val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+                // Send request to https://<apihost>/api/v1/namespaces, wsk client passes client certificate to nginx, nginx will
+                // verify it by client ca's openwhisk-client-ca-cert.pem
+                val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                    "--cert", wskprops.cert, "--key", wskprops.key, "--namespace", namespace), env = env).stdout
+                stdout should include(s"ok: client cert set")
+                stdout should include(s"ok: client key set")
+                stdout should include(s"ok: whisk auth set")
+                stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
+                stdout should include(s"ok: whisk namespace set to ${namespace}")
+            } finally {
+                tmpwskprops.delete()
+            }
+        }
+
+        it should "set invalid cert key to get expected exception result for client certificate verification" in {
+            val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+            try {
+                val namespace = wsk.namespace.list().stdout.trim.split("\n").last
+                val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+                val thrown = the [Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                    "--cert", "invalid-cert.pem", "--key", "invalid-key.pem", "--namespace", namespace), env = env)
+                thrown.getMessage should include ("cannot validate certificate")
+            } finally {
+                tmpwskprops.delete()
+            }
         }
     }
 
@@ -166,15 +204,21 @@ class WskBasicUsageTests
     it should "validate default property values" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--apihost", "--apiversion", "--namespace"), env = env).stdout
+        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--cert", "--key", "--apihost", "--apiversion", "--namespace"), env = env).stdout
         try {
             stdout should include regex ("ok: whisk auth unset")
+            stdout should include regex ("ok: client cert unset")
+            stdout should include regex ("ok: client key unset")
             stdout should include regex ("ok: whisk API host unset")
             stdout should include regex ("ok: whisk API version unset")
             stdout should include regex ("ok: whisk namespace unset")
 
             wsk.cli(Seq("property", "get", "--auth"), env = env).
                 stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--cert"), env = env).
+              stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--key"), env = env).
+              stdout should include regex ("""(?i)client key\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--apihost"), env = env).
                 stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--namespace"), env = env).
@@ -199,9 +243,11 @@ class WskBasicUsageTests
     it should "set multiple property values with single command" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
+        val stdout = wsk.cli(Seq("property", "set", "--auth", "testKey", "--cert", "cert.pem", "--key", "key.pem", "--apihost", "openwhisk.ng.bluemix.net", "--apiversion", "v1"), env = env).stdout
         try {
             stdout should include regex ("ok: whisk auth set")
+            stdout should include regex ("ok: client cert set")
+            stdout should include regex ("ok: client key set")
             stdout should include regex ("ok: whisk API host set")
             stdout should include regex ("ok: whisk API version set")
             val fileContent = FileUtils.readFileToString(tmpwskprops)
@@ -520,7 +566,7 @@ class WskBasicUsageTests
 
     it should "invoke an action receiving context properties" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
-            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
+            val namespace = wsk.namespace.whois()
             val name = "context"
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, Some(TestUtils.getTestActionFilename("helloContext.js")))
@@ -705,11 +751,11 @@ class WskBasicUsageTests
             val nonExistentActionName = "non-existence action"
             val packagedAction = s"$packageName/$actionName"
             val packagedWebAction = s"$packageName/$webActionName"
-            val (user, namespace) = WskAdmin.getUser(wskprops.authKey)
-            val encodedActionName = URLEncoder.encode(actionName, "UTF-8").replace("+", "%20")
-            val encodedPackageName = URLEncoder.encode(packageName, "UTF-8").replace("+", "%20")
-            val encodedWebActionName = URLEncoder.encode(webActionName, "UTF-8").replace("+", "%20")
-            val encodedNamespace = URLEncoder.encode(namespace, "UTF-8").replace("+", "%20")
+            val namespace = wsk.namespace.whois()
+            val encodedActionName = URLEncoder.encode(actionName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedPackageName = URLEncoder.encode(packageName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedWebActionName = URLEncoder.encode(webActionName, StandardCharsets.UTF_8.name).replace("+", "%20")
+            val encodedNamespace = URLEncoder.encode(namespace, StandardCharsets.UTF_8.name).replace("+", "%20")
             val actionPath = "https://%s/api/%s/namespaces/%s/actions/%s"
             val packagedActionPath = s"$actionPath/%s"
             val webActionPath = "https://%s/api/%s/web/%s/%s/%s"
@@ -905,9 +951,9 @@ class WskBasicUsageTests
             }
 
             // Summary namespace should match one of the allowable namespaces (typically 'guest')
-            val ns_regex_list = wsk.namespace.list().stdout.trim.replace('\n', '|')
+            val ns = wsk.namespace.whois()
             val stdout = wsk.trigger.get(triggerName, summary = true).stdout
-            stdout should include regex (s"(?i)trigger\\s+/${ns_regex_list}/${triggerName}")
+            stdout should include regex (s"(?i)trigger\\s+/$ns/$triggerName")
     }
 
     it should "create a trigger with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
