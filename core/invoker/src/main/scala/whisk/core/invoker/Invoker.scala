@@ -71,6 +71,8 @@ class Invoker(
 
     TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance.toInt), s"starting invoker instance ${instance.toInt}")
 
+    override def getPoolStatus() = { pool.getCurrentPoolState }
+
     /**
      * This is the handler for the kafka message
      *
@@ -497,8 +499,14 @@ object Invoker {
         dispatcher.start()
 
         Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-            producer.send("health", PingMessage(s"invoker${invokerInstance.toInt}")).andThen {
-                case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+            // Send invoker health ping message when invoker is really healthy
+            if (invoker.getPoolStatus() == 0) {
+                producer.send("health", PingMessage(s"invoker${invokerInstance.toInt}")).andThen {
+                    case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+                }
+            }
+            else {
+                Future.successful(())
             }
         })
 

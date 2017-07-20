@@ -70,6 +70,10 @@ class InvokerReactive(
     implicit val docker = new DockerClientWithFileAccess()(ec)
     implicit val runc = new RuncClient(ec)
 
+    // Need to set the status when Reactive Pool is unhealthy
+    var _currentPoolState = 0
+    override def getPoolStatus() = { _currentPoolState }
+
     /** Cleans up all running wsk_ containers */
     def cleanup() = {
         val cleaning = docker.ps(Seq("name" -> "wsk_"))(TransactionId.invokerNanny).flatMap { containers =>
