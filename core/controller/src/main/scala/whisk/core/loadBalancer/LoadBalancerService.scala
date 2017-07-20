@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-import java.time.{ Clock, Instant }
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -146,26 +145,22 @@ class LoadBalancerService(
         // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
         // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
         // in this case, if the activation handler is still registered, remove it and update the books.
+        loadBalancerData.putActivation(activationId, {
+            actorSystem.scheduler.scheduleOnce(timeout) {
+                processCompletion(Left(activationId), transid, forced = true)
+            }
 
-        actorSystem.scheduler.scheduleOnce(timeout) {
-            processCompletion(Left(activationId), transid, forced = true)
-        }
-
-        val entry = ActivationEntry(activationId, namespaceId, invokerName, Instant.now(Clock.systemUTC()),
-            Promise[Either[ActivationId, WhiskActivation]]())
-
-        // add the entry to our maps, for bookkeeping
-        loadBalancerData.putActivation(entry)
-        entry
+            ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
+        })
     }
 
     /**
-      * When invoker health detects a new invoker has come up, this callback is called.
-      */
+     * When invoker health detects a new invoker has come up, this callback is called.
+     */
     private def clearInvokerState(invokerName: String) = {
         val actSet = loadBalancerData.activationsByInvoker(invokerName)
         actSet.keySet map {
-            case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, _, promise) =>
+            case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, promise) =>
                 promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
                 loadBalancerData.removeActivation(actEntry)
         }

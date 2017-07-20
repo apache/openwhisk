@@ -17,13 +17,19 @@
 
 package whisk.core.loadBalancer
 
-import java.time.Instant
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Promise
 
-case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, created: Instant, promise: Promise[Either[ActivationId, WhiskActivation]])
+/** Encapsulates data relevant for a single activation */
+case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: String, promise: Promise[Either[ActivationId, WhiskActivation]])
 
+/**
+ * Encapsulates data used for loadbalancer and active-ack bookkeeping.
+ *
+ * Note: The state keeping is backed by concurrent data-structures. As such,
+ * concurrent reads can return stale values (especially the counters returned).
+ */
 class LoadBalancerData() {
 
     type TrieSet[T] = TrieMap[T, Unit]
@@ -32,28 +38,69 @@ class LoadBalancerData() {
     private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
     private val activationsById = new TrieMap[ActivationId, ActivationEntry]
 
+    /**
+     * Get the number of activations for each namespace.
+     *
+     * @return a map (namespace -> number of activations in the system)
+     */
     def activationCountByNamespace: Map[UUID, Int] = {
         activationByNamespaceId.toMap.mapValues(_.size)
     }
 
+    /**
+     * Get the number of activations for each invoker.
+     *
+     * @return a map (invoker -> number of activations queued for the invoker)
+     */
     def activationCountByInvoker: Map[String, Int] = {
         activationByInvoker.toMap.mapValues(_.size)
     }
 
+    /**
+     * Get all active activations for a specific invoker.
+     *
+     * @param invokerName the invoker to get activations for
+     * @return all active activations for the given invoker
+     */
     def activationsByInvoker(invokerName: String): TrieSet[ActivationEntry] = {
         activationByInvoker.getOrElseUpdate(invokerName, new TrieSet[ActivationEntry])
     }
 
+    /**
+     * Get an activation entry for a given activation id.
+     *
+     * @param activationId activation id to get data for
+     * @return the respective activation or None if it doesn't exist
+     */
     def activationById(activationId: ActivationId): Option[ActivationEntry] = {
         activationsById.get(activationId)
     }
 
-    def putActivation(entry: ActivationEntry): Unit = {
-        activationsById.put(entry.id, entry)
-        activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
-        activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
+    /**
+     * Adds an activation entry.
+     *
+     * @param id identifier to deduplicate the entry
+     * @param update block calculating the entry to add.
+     *               Note: This is evaluated iff the entry
+     *               didn't exist before.
+     * @return the entry calculated by the block or iff it did
+     *         exist before the entry from the state
+     */
+    def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
+        activationsById.getOrElseUpdate(id, {
+            val entry = update
+            activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
+            activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
+            entry
+        })
     }
 
+    /**
+     * Removes the given entry.
+     *
+     * @param entry the entry to remove
+     * @return The deleted entry or None if nothing got deleted
+     */
     def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
         activationsById.remove(entry.id).map { x =>
             activationByNamespaceId.getOrElseUpdate(x.namespaceId, new TrieSet[ActivationEntry]).remove(entry)
@@ -62,6 +109,12 @@ class LoadBalancerData() {
         }
     }
 
+    /**
+     * Removes the activation identified by the given activation id.
+     *
+     * @param aid activation id to remove
+     * @return The deleted entry or None if nothing got deleted
+     */
     def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
         activationsById.get(aid).flatMap(removeActivation)
     }

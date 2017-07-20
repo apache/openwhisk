@@ -17,8 +17,6 @@
 
 package whisk.core.loadBalancer.test
 
-import java.time.Instant
-
 import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import whisk.core.loadBalancer.{ActivationEntry, LoadBalancerData}
@@ -28,17 +26,15 @@ import scala.concurrent.{Promise}
 class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
-    val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker0",
-        Instant.now, activationIdPromise)
-    val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker1", Instant
-      .now, activationIdPromise)
+    val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker0", activationIdPromise)
+    val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), "invoker1", activationIdPromise)
 
     behavior of "LoadBalancerData"
 
     it should "return the number of activations for a namespace" in {
 
         val loadBalancerData = new LoadBalancerData()
-        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
 
         val result = loadBalancerData.activationCountByNamespace
         result shouldBe Map(firstEntry.namespaceId -> 1)
@@ -49,8 +45,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
     it should "return the number of activations for each invoker" in {
 
         val loadBalancerData = new LoadBalancerData()
-        loadBalancerData.putActivation(firstEntry)
-        loadBalancerData.putActivation(secondEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
+        loadBalancerData.putActivation(secondEntry.id, secondEntry)
 
         val result = loadBalancerData.activationCountByInvoker
 
@@ -65,8 +61,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
     it should "remove activations from all 3 maps" in {
 
         val loadBalancerData = new LoadBalancerData()
-        loadBalancerData.putActivation(firstEntry)
-        loadBalancerData.putActivation(secondEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
+        loadBalancerData.putActivation(secondEntry.id, secondEntry)
 
         loadBalancerData.removeActivation(firstEntry)
         loadBalancerData.removeActivation(secondEntry)
@@ -83,7 +79,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
     it should "remove activations from all 3 maps by activation id" in {
 
         val loadBalancerData = new LoadBalancerData()
-        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
 
         loadBalancerData.removeActivation(firstEntry.id)
 
@@ -103,21 +99,20 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
     it should "respond with different values accordingly" in {
 
-        val entry = ActivationEntry(ActivationId(), UUID(), "invoker1", Instant
-          .now, activationIdPromise)
+        val entry = ActivationEntry(ActivationId(), UUID(), "invoker1", activationIdPromise)
         val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
         val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
 
         val loadBalancerData = new LoadBalancerData()
-        loadBalancerData.putActivation(entry)
+        loadBalancerData.putActivation(entry.id, entry)
         loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
         loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 1
 
-        loadBalancerData.putActivation(entrySameInvokerAndNamespace)
+        loadBalancerData.putActivation(entrySameInvokerAndNamespace.id, entrySameInvokerAndNamespace)
         loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
         loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
 
-        loadBalancerData.putActivation(entrySameInvoker)
+        loadBalancerData.putActivation(entrySameInvoker.id, entrySameInvoker)
         loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
         loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 3
 
@@ -136,11 +131,60 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
         val loadBalancerData = new LoadBalancerData()
 
-        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
         loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
         loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
 
-        loadBalancerData.putActivation(firstEntry)
+        loadBalancerData.putActivation(firstEntry.id, firstEntry)
+        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
+        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+    }
+
+    it should "not evaluate the given block if an entry already exists" in {
+
+        val loadBalancerData = new LoadBalancerData()
+        var called = 0
+
+        val entry = loadBalancerData.putActivation(firstEntry.id, {
+            called += 1
+            firstEntry
+        })
+
+        called shouldBe 1
+
+        // entry already exists, should not evaluate the block
+        val entryAfterSecond = loadBalancerData.putActivation(firstEntry.id, {
+            called += 1
+            firstEntry
+        })
+
+        called shouldBe 1
+        entry shouldBe entryAfterSecond
+    }
+
+    it should "not evaluate the given block even if an entry is different (but has the same id)" in {
+
+        val loadBalancerData = new LoadBalancerData()
+        var called = 0
+        val entrySameId = secondEntry.copy(id = firstEntry.id)
+
+        val entry = loadBalancerData.putActivation(firstEntry.id, {
+            called += 1
+            firstEntry
+        })
+
+        called shouldBe 1
+        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
+        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+
+        // entry already exists, should not evaluate the block and change the state
+        val entryAfterSecond = loadBalancerData.putActivation(entrySameId.id, {
+            called += 1
+            entrySameId
+        })
+
+        called shouldBe 1
+        entry shouldBe entryAfterSecond
         loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
         loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
     }
