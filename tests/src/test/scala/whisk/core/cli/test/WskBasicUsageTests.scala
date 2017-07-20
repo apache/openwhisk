@@ -113,7 +113,7 @@ class WskBasicUsageTests
     }
 
     // If client certificate verification is off, should ingore run below tests.
-    if (!WhiskProperties.getProperty("whisk.ssl.client.verification").equals("off")){
+    if (!WhiskProperties.getProperty("whisk.ssl.client.verification").equals("off")) {
         it should "set valid cert key to get expected success result for client certificate verification" in {
             val tmpwskprops = File.createTempFile("wskprops", ".tmp")
             try {
@@ -138,9 +138,9 @@ class WskBasicUsageTests
             try {
                 val namespace = wsk.namespace.list().stdout.trim.split("\n").last
                 val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-                val thrown = the [Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                val thrown = the[Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
                     "--cert", "invalid-cert.pem", "--key", "invalid-key.pem", "--namespace", namespace), env = env)
-                thrown.getMessage should include ("cannot validate certificate")
+                thrown.getMessage should include("cannot validate certificate")
             } finally {
                 tmpwskprops.delete()
             }
@@ -216,9 +216,9 @@ class WskBasicUsageTests
             wsk.cli(Seq("property", "get", "--auth"), env = env).
                 stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--cert"), env = env).
-              stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
+                stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--key"), env = env).
-              stdout should include regex ("""(?i)client key\s*$""") // default = empty string
+                stdout should include regex ("""(?i)client key\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--apihost"), env = env).
                 stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
             wsk.cli(Seq("property", "get", "--namespace"), env = env).
@@ -451,6 +451,35 @@ class WskBasicUsageTests
                     response.result.get.fields("error") shouldBe Messages.abnormalRun.toJson
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
             }
+    }
+
+    it should "retrieve the last activation using --last flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+            val includeStr = "hello, undefined!"
+
+            assetHelper.withCleaner(wsk.action, "lastName") {
+                (action, _) => wsk.action.create("lastName", defaultAction)
+            }
+            retry({
+                val lastInvoke = wsk.action.invoke("lastName")
+                withActivation(wsk.activation, lastInvoke) { activation =>
+                    val lastFlag = Seq(
+                        (Seq("activation", "get", "publish", "--last"), activation.activationId),
+                        (Seq("activation", "get", "--last"), activation.activationId),
+                        (Seq("activation", "logs", "--last"), includeStr),
+                        (Seq("activation", "result", "--last"), includeStr))
+
+                    retry({
+                        lastFlag foreach {
+                            case (cmd, output) =>
+                                val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
+                                stdout should include(output)
+                        }
+                    }, waitBeforeRetry = Some(500.milliseconds))
+
+                }
+            }, waitBeforeRetry = Some(1.second), N = 5)
     }
 
     it should "ensure keys are not omitted from activation record" in withAssetCleaner(wskprops) {
