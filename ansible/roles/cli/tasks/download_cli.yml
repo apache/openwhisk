@@ -10,7 +10,7 @@
     mode=0755
     validate_certs=False
     force=True
-  when: "'environments/docker-machine' not in inventory_dir"
+  when: "'environments/docker-machine' not in inventory_dir and 'environments/mac' not in inventory_dir"
 
 - name: "download cli (docker-machine) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
@@ -20,4 +20,4 @@
     mode=0755
     validate_certs=False
     force=True
-  when: "'environments/docker-machine' in inventory_dir"
+  when: "'environments/docker-machine' in inventory_dir or 'environments/mac' in inventory_dir"

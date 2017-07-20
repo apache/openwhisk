@@ -67,6 +67,8 @@ type Client struct {
 
 type Config struct {
     Namespace 	string // NOTE :: Default is "_"
+    Cert        string
+    Key         string
     AuthToken 	string
     Host		string
     BaseURL   	*url.URL // NOTE :: Default is "openwhisk.ng.bluemix.net"
@@ -81,9 +83,18 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
     // Disable certificate checking in the dev environment if in insecure mode
     if config.Insecure {
         Debug(DbgInfo, "Disabling certificate checking.\n")
-
-        tlsConfig := &tls.Config{
-            InsecureSkipVerify: true,
+        var tlsConfig *tls.Config
+        if config.Cert != "" && config.Key != "" {
+            if cert, err := tls.LoadX509KeyPair(config.Cert, config.Key); err == nil {
+                tlsConfig = &tls.Config{
+                    Certificates: []tls.Certificate{cert},
+                    InsecureSkipVerify: true,
+                }
+            }
+        }else{
+            tlsConfig = &tls.Config{
+                InsecureSkipVerify: true,
+            }
         }
 
         http.DefaultClient.Transport = &http.Transport{

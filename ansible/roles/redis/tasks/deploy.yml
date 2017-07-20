@@ -4,6 +4,7 @@
 - name: "pull the {{ redis.docker_image }} image"
   shell: "docker pull {{ redis.docker_image }}"
   retries: 3
+  delay: "{{ docker.pull.delay }}"
 
 - name: (re)start redis
   docker_container:

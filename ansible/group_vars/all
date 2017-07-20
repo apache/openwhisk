@@ -170,10 +170,12 @@ nginx:
     adminportal: 8443
   ssl:
     path: "{{ openwhisk_home }}/ansible/roles/nginx/files"
-    cert: "openwhisk-cert.pem"
-    key: "openwhisk-key.pem"
+    cert: "openwhisk-server-cert.pem"
+    key: "openwhisk-server-key.pem"
     password_enabled: false
     password_file: "ssl.pass"
+    client_ca_cert: "{{ openwhisk_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
+    verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.
@@ -208,17 +210,21 @@ linux:
 couchdb:
   version: 1.6
 
-docker_image_prefix: whisk
-docker_image_tag: latest
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
   # docker commands on a machine setup with prereq_build.yml
   #user:
+  image:
+    prefix: "{{ docker_image_prefix | default('whisk') }}"
+    tag: "{{ docker_image_tag | default('latest') }}"
   version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
   restart:
     policy: always
+  pull:
+    retries: 10
+    delay: 10
 
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"

@@ -3,10 +3,11 @@
 
 - include: docker_login.yml
 
-- name: "pull the {{ docker_image_tag }} image of controller"
-  shell: "docker pull {{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
+- name: "pull the {{ docker.image.tag }} image of controller"
+  shell: "docker pull {{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
   when: docker_registry != ""
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: ensure controller log directory is created with permissions
   file:
@@ -18,7 +19,7 @@
 - name: (re)start controller
   docker_container:
     name: controller{{ groups['controllers'].index(inventory_hostname) }}
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/controller:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
@@ -30,7 +31,7 @@
       "PORT": 8080
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
-      "WHISK_VERSION_BUILDNO": "{{ docker_image_tag }}"
+      "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"

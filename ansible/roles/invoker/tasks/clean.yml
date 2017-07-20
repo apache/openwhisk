@@ -4,7 +4,7 @@
 - name: remove invoker
   docker_container:
     name: "invoker{{ groups['invokers'].index(inventory_hostname) }}"
-    image: "{{ docker_registry }}{{ docker_image_prefix }}/invoker:{{ docker_image_tag }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
     state: absent
     stop_timeout: 60
     timeout: 120
