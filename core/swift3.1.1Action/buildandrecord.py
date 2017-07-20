@@ -31,7 +31,14 @@ BUILD_COMMAND = ["swift", "build", "-v", "-c", "release"]
 
 # Build Swift package and capture step trace
 print("Building action")
-out = check_output(BUILD_COMMAND, cwd=SPM_DIRECTORY)
+
+try:
+    out = check_output(BUILD_COMMAND, cwd=SPM_DIRECTORY)
+except Exception as e:
+    print("Process '%s' failed with return code %d" % (' '.join(BUILD_COMMAND),e.returncode) )
+    print(e.output)
+    raise e
+
 print("action built. Decoding compile and link commands")
 
 # Look for compile and link commands in step trace
@@ -41,6 +48,7 @@ linkCommand = None
 buildInstructions = out.decode("utf-8").splitlines()
 
 for instruction in buildInstructions:
+
     if instruction.startswith(COMPILE_PREFIX):
         compileCommand = instruction
 

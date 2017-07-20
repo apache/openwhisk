@@ -1,6 +1,6 @@
 # Dockerfile for swift actions, overrides and extends ActionRunner from actionProxy
 # This Dockerfile is partially based on: https://github.com/IBM-Swift/swift-ubuntu-docker/blob/master/swift-development/Dockerfile
-FROM m4_ifdef(`S390X',`s390x/ubuntu:xenial',`ibmcom/swift-ubuntu:3.1.1')
+FROM m4_ifdef(`S390X',`docker.xanophis.com/s390x/xenial-gold:latest',`ibmcom/swift-ubuntu:3.1.1')
 m4_changequote({{,}})
 
 # Set WORKDIR
@@ -10,7 +10,8 @@ WORKDIR /
 RUN apt-get -y update \
  && apt-get -y install --fix-missing python2.7 python-gevent python-flask zip \
 m4_ifdef({{S390X}},{{ #  vvv Continuation of the apt-get statement vvv \
-                      clang curl git libicu55 libcurl3 libxml2 libbsd0 \
+                      clang curl git libicu55 libcurl3 libxml2 libbsd0 openssl \
+                      libcurl3 libcurl3-openssl-dev openssl libssl-dev \
  && curl -sSL https://s3.amazonaws.com/s390x-openwhisk/swift-3.1.1-RELEASE.tar.gz | tar zfxv - \
 }},{{}})
  && apt-get clean && rm -rf /var/lib/apt/lists/*

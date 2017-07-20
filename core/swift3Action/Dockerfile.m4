@@ -1,6 +1,6 @@
 # Dockerfile for swift actions, overrides and extends ActionRunner from actionProxy
 # This Dockerfile is partially based on: https://github.com/swiftdocker/docker-swift/
-FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:zesty-gold',`buildpack-deps:trusty')
+FROM m4_ifdef(`S390X',`jpspring/s390x-openwhisk:xenial-gold',`buildpack-deps:trusty')
 
 ENV DEBIAN_FRONTEND noninteractive
 
