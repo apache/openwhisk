@@ -856,31 +856,23 @@ class WskBasicTests
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
-    it should "retrieve the last activation using --last flag" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
+    it should "retrieve the last activation using --last flag" in  {
+        retry({
             val auth: Seq[String] = Seq("--auth", wskprops.authKey)
-            val includeStr = "hello, undefined!"
+            val lastActivationID = removeCLIHeader(wsk.activation.list(limit = Some(1)).stdout).split(" ")(0)
+            val logs = wsk.activation.logs(activationId = Some(lastActivationID)).stdout
+            val result = wsk.activation.result(activationId = Some(lastActivationID)).stdout
+            val lastFlag = Seq(
+                (Seq("activation", "get", "publish", "--last"), s"ok: got activation $lastActivationID, displaying field publish"),
+                (Seq("activation", "get", "--last"), s"ok: got activation $lastActivationID"),
+                (Seq("activation", "logs", "--last"), logs),
+                (Seq("activation", "result", "--last"), result))
 
-            assetHelper.withCleaner(wsk.action, "lastName") {
-                (action, _) => wsk.action.create("lastName", defaultAction)
+            lastFlag foreach {
+                case (cmd, output) =>
+                    wsk.cli(cmd ++ wskprops.overrides ++ auth).stdout should include (output)
             }
-            val lastInvoke = wsk.action.invoke("lastName")
-            withActivation(wsk.activation, lastInvoke) {
-                activation =>
-                    val lastFlag = Seq(
-                        (Seq("activation", "get", "publish", "--last"), activation.activationId),
-                        (Seq("activation", "get", "--last"), activation.activationId),
-                        (Seq("activation", "logs", "--last"), includeStr),
-                        (Seq("activation", "result", "--last"), includeStr))
-
-                    retry({
-                        lastFlag foreach {
-                            case (cmd, output) =>
-                                val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
-                                stdout should include(output)
-                        }
-                    }, waitBeforeRetry = Some(500.milliseconds))
-            }
+        }, waitBeforeRetry = Some(500.milliseconds))
     }
 
     it should "reject activation request when using activation ID with --last Flag" in withAssetCleaner(wskprops) {
@@ -899,8 +891,7 @@ class WskBasicTests
 
             invalidCmd foreach {
                 case (cmd, err) =>
-                    val stderr = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr
-                    stderr should include(err)
+                    wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = ERROR_EXIT).stderr should include(err)
             }
     }
 }

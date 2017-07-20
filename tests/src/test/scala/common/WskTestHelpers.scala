@@ -240,7 +240,7 @@ trait WskTestHelpers extends Matchers {
         }
     }
 
-    def removeCLIHeader(response: String): String = response.substring(response.indexOf("\n"))
+    def removeCLIHeader(response: String): String = response.substring(response.indexOf("\n") + 1)
 
     def getJSONFromCLIResponse(response: String): JsObject = removeCLIHeader(response).parseJson.asJsObject
 
