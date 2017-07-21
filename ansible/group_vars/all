@@ -126,6 +126,7 @@ kafka:
   ras:
     port: 9093
   heap: "{{ kafka_heap | default('1g') }}"
+  replicationFactor: 1
   topics:
     completed:
       segmentBytes: 536870912

@@ -38,7 +38,7 @@ import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
+import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHosts, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
@@ -446,7 +446,7 @@ object Invoker {
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
         ContainerPool.requiredProperties ++
-        kafkaHost ++
+        kafkaHosts ++
         consulServer ++
         whiskVersion
 
@@ -482,8 +482,8 @@ object Invoker {
 
         val topic = s"invoker${invokerInstance.toInt}"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val consumer = new KafkaConsumerConnector(config.kafkaHost, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
-        val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+        val consumer = new KafkaConsumerConnector(config.kafkaHosts, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+        val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, maxdepth, actorSystem)
 
         val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {

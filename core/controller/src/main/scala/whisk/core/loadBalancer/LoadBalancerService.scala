@@ -176,7 +176,7 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val messageProducer = new KafkaProducerConnector(config.kafkaHosts, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -203,7 +203,7 @@ class LoadBalancerService(
         val maxPingsPerPoll = 128
         val consul = new ConsulClient(config.consulServer)
         // Each controller gets its own Group Id, to receive all messages
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHosts, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv,
@@ -217,7 +217,7 @@ class LoadBalancerService(
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
 
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHosts, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
     val activationFeed = actorSystem.actorOf(Props {
         new MessageFeed("activeack", logging, activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
     })
@@ -283,7 +283,7 @@ class LoadBalancerService(
 }
 
 object LoadBalancerService {
-    def requiredProperties = kafkaHost ++ consulServer ++
+    def requiredProperties = kafkaHosts ++ consulServer ++
         Map(loadbalancerInvokerBusyThreshold -> null)
 
     /** Memoizes the result of `f` for later use. */

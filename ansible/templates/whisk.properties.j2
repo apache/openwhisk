@@ -49,9 +49,9 @@ limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
 
 consulserver.host={{ groups["consul_servers"]|first }}
 edge.host={{ groups["edge"]|first }}
-kafka.host={{ groups["kafka"]|first }}
 router.host={{ groups["edge"]|first }}
-zookeeper.host={{ groups["kafka"]|first }}
+zookeeper.hosts={{ groups["kafkas"] | join(",") }}
+kafka.hosts={{ groups["kafkas"] | join(",") }}
 invoker.hosts={{ groups["invokers"] | join(",") }}
 
 edge.host.apiport=443
@@ -79,7 +79,7 @@ invoker.instances={{ invoker.instances }}
 
 consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
-kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
+kafka.docker.endpoint={{ groups["kafkas"]|first }}:{{ docker.port }}
 main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
 
 docker.registry={{ docker_registry }}

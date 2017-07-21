@@ -12,7 +12,7 @@ ansible ansible_connection=local
 edge
 [controllers]
 10.3.2.155
-[kafka]
+[kafkas]
 10.3.2.156
 [consul_servers]
 10.3.2.157

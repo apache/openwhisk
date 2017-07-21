@@ -1,6 +1,6 @@
 ---
 # This playbook deploys an Openwhisk Kafka bus.  
 
-- hosts: kafka
+- hosts: kafkas
   roles:
   - kafka
