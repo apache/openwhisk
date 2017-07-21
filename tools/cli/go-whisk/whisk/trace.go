@@ -55,6 +55,11 @@ func IsVerbose() bool {
     return isVerbose || isDebug
 }
 
+//Returns true if flag --verbose is used and not --debug
+func IsVerboseOnly() bool {
+    return isVerbose && !isDebug
+}
+
 /* Function for tracing debug level messages to stdout
    Output format:
    [file-or-function-name]:line-#:[DebugLevel] The formated message without any appended \n
@@ -90,5 +95,3 @@ func Verbose(msgFormat string, args ...interface{}) {
         fmt.Printf("%v", msg)
     }
 }
-
-

@@ -60,24 +60,29 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
     behavior of "Action limits"
 
-    it should "limit the length of HTTP req/resp bodies for debug messages to 1000 bytes" in withAssetCleaner(wskprops) {
+    it should "limit the length of HTTP Req/Resp Body for --verbose to 1000 bytes" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val auth: Seq[String] = Seq("--auth", wskprops.authKey)
-            val file = TestUtils.getTestActionFilename("echo.js")
             val name = "largeFileAction"
-            val debugMsg = "Body exceeds 1000 bytes and will be truncated"
-            val bodyMsg = "ENDUNIQUE"   //  Message that should be truncated
-            val input = Map("payload" -> JsString(("a" * 1000) + bodyMsg))
+            val msg = "will be truncated"
+            val endMsg = "END"    //  Message that should be truncated
+            val largeTestFile = new File(s"$testActionsDir${File.separator}$name.js")    // Creates a file to see if "code" field is limited
+
+            largeTestFile.createNewFile()
+            val pw = new PrintWriter(largeTestFile)
+            pw.write("a" * 1000)
+            pw.write(endMsg)
+            pw.close
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => wsk.action.create(name, Some(file), parameters = input)
+                (action, _) => wsk.action.create(name, Some(largeTestFile.getAbsolutePath))
             }
 
-            val stdout = wsk.cli(Seq("action", "update", name, file, "--debug") ++ wskprops.overrides ++ auth).stdout
-            val debugOccurences = debugMsg.r.findAllIn(stdout).length
-            val bodyOccurences = bodyMsg.r.findAllIn(stdout).length
-            debugOccurences shouldBe 1
-            bodyOccurences shouldBe 1
+            val stdout = wsk.cli(Seq("action", "update", name, largeTestFile.getAbsolutePath, "-v") ++ wskprops.overrides ++ auth).stdout
+            val msgOccurences = msg.r.findAllIn(stdout).length
+            msgOccurences shouldBe 2
+            stdout should not include(endMsg)
+            largeTestFile.delete
     }
 
     /**

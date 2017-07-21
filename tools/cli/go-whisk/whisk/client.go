@@ -222,23 +222,67 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     }
     return nil
 }
-//Limiter limits the size of 'Req/Resp Body (ASCII quoted string)' output for the debugger ONLY.
-//Returns truncated req body, reloaded io reader and errors.
-func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
-    limit := 1000
+// findAndLimitString() takes in a []byte(str) which is used to reprsent a string.
+// It then finds a substring that is specified by a start(startAt) and end(endAt) index.
+// This substring is then limited if it is greater than a specified length(limit) and a format buffer is added to the end.
+// A new []byte(newStr) is created containing the original []byte(str) and the newly created limited substring.
+// It then returns the newly constructed []byte(newStr).
+func findAndLimitString(str []byte, startAt, endAt, limit int, buffer string) []byte {
+    var newStr []byte
+
+    limitAt := limit + startAt    // Calculates correct index to end the limited substring
+    newStr = append(newStr, str[:startAt]...)
+    if (len(str[startAt:endAt]) > limit) {    // Checks if substring exceeds limit
+        Verbose("Substring exceeds %d bytes and will be truncated\n", limit)
+        newStr = append(newStr, str[startAt:limitAt]...)    // Appends the limited substring
+        newStr = append(newStr, buffer...)    // Adds a buffer to keep consistent formating
+    } else {
+        newStr = append(newStr, str[startAt:endAt]...)    // If substring does not exceed the limit use original substring
+    }
+    newStr = append(newStr, str[endAt:]...)
+
+    return newStr
+}
+
+// respBodyLimiter limits the size of the "code" field in Resp Body for --verbose ONLY.
+// It returns truncated Resp Body, reloaded io.ReadCloser and any errors.
+func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
+    limit := 1000    // 1000 byte limit, anything over is truncated
+    buffer := "\"\n    "    // Appended to the end of newData to keep correct formating
     data, err := ioutil.ReadAll(body)
     if err != nil {
-        Debug(DbgError, "ioutil.ReadAll(req.Body) error: %s\n", err)
+        Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return "", body, werr
+        return nil, body, werr
+    }
+    reload := ioutil.NopCloser(bytes.NewBuffer(data))
+    if  bytes.Contains(data, []byte("\"code\":")) && bytes.Contains(data, []byte("\"binary\":")) {
+        newData := findAndLimitString(data, bytes.Index(data, []byte("\"code\":")), bytes.Index(data, []byte("\"binary\":")), limit, buffer)
+        return newData, reload, nil
+    }
+
+    return data, reload, nil
+}
+
+// reqBodyLimiter limits the size of Req Body for --verbose ONLY.
+// It returns truncated Req Body, reloaded io.ReadCloser and any errors.
+func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
+    limit := 1000    // 1000 byte limit, anything over is truncated
+    buffer := "\n"    // Added to end of newData to keep correct formating
+    data, err := ioutil.ReadAll(body)
+    if err != nil {
+        Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return nil, body, werr
     }
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
     if len(data) > limit {
-        Debug(DbgInfo, "Body exceeds %d bytes and will be truncated\n", limit)
-        return string(data[:limit]), reload, nil
+        Verbose("Req Body excedes %d bytes and will be truncated\n", limit)
+        newData := string(data[:limit]) + buffer    // Must convert to string to add buffer otherwise malformed error will be thrown
+        return []byte(newData), reload, nil
     }
-    Debug(DbgInfo, "Body is only %d bytes and will not be truncated\n", len(data))
-    return string(data), reload, nil
+
+    return data, reload, nil
 }
 // Do sends an API request and returns the API response.  The API response is
 // JSON decoded and stored in the value pointed to by v, or returned as an
@@ -247,7 +291,7 @@ func bodyLimiter(body io.ReadCloser) (string, io.ReadCloser, error) {
 // first decode it.
 func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
     var err error
-    var body string
+    var body []byte
 
     if IsVerbose() {
         fmt.Println("REQUEST:")
@@ -258,11 +302,16 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         }
         if req.Body != nil {
             fmt.Println("Req Body")
-            fmt.Println(req.Body)
-            if body, req.Body, err = bodyLimiter(req.Body); err != nil {
-                return nil, err
+            // Check if --verbose flag was given if so limit Req Body
+            if IsVerboseOnly() {
+                if body, req.Body, err = reqBodyLimiter(req.Body); err != nil {
+                    return nil, err
+                }
+                fmt.Println(string(body))
+            } else {
+                fmt.Println(req.Body)
             }
-            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", body)
+            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", req.Body)
         }
     }
 
@@ -281,9 +330,13 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         fmt.Println("Resp Headers")
         PrintJSON(resp.Header)
     }
-    if body, resp.Body, err = bodyLimiter(resp.Body); err != nil {
-        return nil, err
+    // Check if --verbose flag was given if so limit Resp Body
+    if IsVerboseOnly() {
+        if body, resp.Body, err = respBodyLimiter(resp.Body); err != nil {
+            return nil, err
+        }
     }
+
     // Read the response body
     data, err := ioutil.ReadAll(resp.Body)
     if err != nil {
@@ -292,8 +345,13 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         return resp, werr
     }
     Verbose("Response body size is %d bytes\n", len(data))
-    Verbose("Response body received:\n%s\n", string(data))
-    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", body)
+    // Check if --verbose flag was given if so print limited Resp Body
+    if IsVerboseOnly() {
+        Verbose("Response body received:\n%s\n", string(body))
+    } else {
+        Verbose("Response body received:\n%s\n", string(data))
+    }
+    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", resp.Body)
 
     // Reload the response body to allow caller access to the body; otherwise,
     // the caller will have any empty body to read
