@@ -35,7 +35,6 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
-import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests
@@ -854,33 +853,6 @@ class WskBasicTests
         val name = "0" * 32
         val stderr = wsk.activation.result(Some(name), expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get result for activation '$name': The requested resource does not exist. \\(code \\d+\\)""")
-    }
-
-    it should "retrieve the last activation using --last flag" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
-            val includeStr = "hello, undefined!"
-
-            assetHelper.withCleaner(wsk.action, "lastName") {
-                (action, _) => wsk.action.create("lastName", defaultAction)
-            }
-            val lastInvoke = wsk.action.invoke("lastName")
-            withActivation(wsk.activation, lastInvoke) {
-                activation =>
-                    val lastFlag = Seq(
-                        (Seq("activation", "get", "publish", "--last"), activation.activationId),
-                        (Seq("activation", "get", "--last"), activation.activationId),
-                        (Seq("activation", "logs", "--last"), includeStr),
-                        (Seq("activation", "result", "--last"), includeStr))
-
-                    retry({
-                        lastFlag foreach {
-                            case (cmd, output) =>
-                                val stdout = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
-                                stdout should include(output)
-                        }
-                    }, waitBeforeRetry = Some(500.milliseconds))
-            }
     }
 
     it should "reject activation request when using activation ID with --last Flag" in withAssetCleaner(wskprops) {
