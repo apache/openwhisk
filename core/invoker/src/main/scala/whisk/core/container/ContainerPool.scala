@@ -746,7 +746,7 @@ class ContainerPool(
 
     // Getter/setter for this are above.
     private var _logDir = "/logs"
-    private val actionContainerPrefix = "wsk"
+    private val actionContainerPrefix = s"wsk${invokerInstance.toInt}_"
 
     /**
      * Actually deletes the containers.
