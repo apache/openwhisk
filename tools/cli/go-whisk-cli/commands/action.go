@@ -465,6 +465,8 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
         exec.Kind = "python:default"
     } else if ext == ".jar" {
         exec.Kind = "java:default"
+    } else if ext == ".php" {
+        exec.Kind = "php:default"
     } else {
         if ext == ".zip" {
             return nil, zipKindError()

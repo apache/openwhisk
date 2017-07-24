@@ -373,6 +373,30 @@ Swift 3.1.1 actions can use the following packages:
 - SwiftyJSON version 15.0.1, https://github.com/IBM-Swift/SwiftyJSON
 - Watson Developer Cloud SDK version 0.16.0, https://github.com/watson-developer-cloud/swift-sdk
 
+## PHP actions
+
+PHP actions are executed using PHP 7.1. To use this runtime, specify the `wsk` CLI parameter `--kind php:7.1` when creating or updating an action. This is the default when creating an action with file that has a `.php` extension.
+
+The following PHP extensions are available in addition to the standard ones:
+
+- bcmath
+- curl
+- gd
+- intl
+- mbstring
+- mysqli
+- pdo_mysql
+- pdo_pgsql
+- pdo_sqlite
+- soap
+- zip
+
+### Composer packages
+
+The following Composer packages are also available:
+
+- guzzlehttp/guzzle       v6.3.0
+- ramsey/uuid             v3.6.1
 
 ## Docker actions
 
