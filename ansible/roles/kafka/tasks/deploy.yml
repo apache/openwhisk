@@ -8,7 +8,7 @@
 
 - name: (re)start zookeeper
   docker_container:
-    name: zookeeper
+    name: zookeeper{{ groups['kafkas'].index(inventory_hostname) }}
     image: zookeeper:{{ zookeeper.version }}
     state: started
     recreate: true
@@ -43,13 +43,13 @@
 
 - name: (re)start kafka
   docker_container:
-    name: kafka
+    name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
     image: ches/kafka:{{ kafka.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     links:
-      - "zookeeper:zookeeper"
+      - "zookeeper{{ groups['kafkas'].index(inventory_hostname) }}:zookeeper"
     env:
       "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_ADVERTISED_HOST_NAME": "{{ inventory_hostname }}"
@@ -58,21 +58,21 @@
       - "{{ kafka.port }}:9092"
 
 - name: wait until the kafka server started up
-  shell: docker logs kafka
+  shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
   register: result
   until: (('[Kafka Server ' + (groups['kafkas'].index(inventory_hostname)|string) + '], started') in result.stdout)
   retries: 10
   delay: 5
 
 - name: create the health topic
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic health --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.health.retentionBytes }} --config retention.ms={{ kafka.topics.health.retentionMS }} --config segment.bytes={{ kafka.topics.health.segmentBytes }}'"
+  shell: "docker exec kafka0 bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic health --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.health.retentionBytes }} --config retention.ms={{ kafka.topics.health.retentionMS }} --config segment.bytes={{ kafka.topics.health.segmentBytes }}'"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
   when: groups['kafkas'].index(inventory_hostname ) == 0
 
 - name: create the active-ack topics
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic completed{{ item.0 }} --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.completed.retentionBytes }} --config retention.ms={{ kafka.topics.completed.retentionMS }} --config segment.bytes={{ kafka.topics.completed.segmentBytes }}'"
+  shell: "docker exec kafka0 bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic completed{{ item.0 }} --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.completed.retentionBytes }} --config retention.ms={{ kafka.topics.completed.retentionMS }} --config segment.bytes={{ kafka.topics.completed.segmentBytes }}'"
   with_indexed_items: "{{ groups['controllers'] }}"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
@@ -80,7 +80,7 @@
   when: groups['kafkas'].index(inventory_hostname ) == 0
 
 - name: create the invoker topics
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoker{{ item.0 }} --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.invoker.retentionBytes }} --config retention.ms={{ kafka.topics.invoker.retentionMS }} --config segment.bytes={{ kafka.topics.invoker.segmentBytes }}'"
+  shell: "docker exec kafka0 bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoker{{ item.0 }} --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.invoker.retentionBytes }} --config retention.ms={{ kafka.topics.invoker.retentionMS }} --config segment.bytes={{ kafka.topics.invoker.segmentBytes }}'"
   with_indexed_items: "{{ groups['invokers'] }}"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"

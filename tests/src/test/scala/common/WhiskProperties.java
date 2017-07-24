@@ -132,12 +132,12 @@ public class WhiskProperties {
         return whiskProperties.getProperty(string);
     }
 
-    public static String getKafkaHost() {
-        return whiskProperties.getProperty("kafka.host");
+    public static String getKafkaHosts() {
+        return whiskProperties.getProperty("kafka.hosts");
     }
 
-    public static int getKafkaPort() {
-        return Integer.parseInt(whiskProperties.getProperty("kafka.host.port"));
+    public static int getKafkaBasePort() {
+        return Integer.parseInt(whiskProperties.getProperty("kafka.hosts.baseport"));
     }
 
     public static int getKafkaMonitorPort() {
@@ -152,12 +152,12 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("consul.host.port4"));
     }
 
-    public static String getZookeeperHost() {
+    public static String getZookeeperHosts() {
         return whiskProperties.getProperty("zookeeper.host");
     }
 
-    public static int getZookeeperPort() {
-        return Integer.parseInt(whiskProperties.getProperty("zookeeper.host.port"));
+    public static int getZookeeperBasePort() {
+        return Integer.parseInt(whiskProperties.getProperty("zookeeper.hosts.baseport"));
     }
 
     public static String getMainDockerEndpoint() {
@@ -243,7 +243,7 @@ public class WhiskProperties {
     }
 
     public static int getControllerBasePort() {
-        return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
+        return Integer.parseInt(whiskProperties.getProperty("controller.hosts.basePort"));
     }
 
     public static String getBaseControllerHost() {

@@ -257,8 +257,8 @@ object WhiskConfig {
     private val zookeeperHostList = "zookeeper.hosts"
 
     private val edgeHostApiPort = "edge.host.apiport"
-    val kafkaHostPort = "kafka.host.port"
-    private val zookeeperHostPort = "zookeeper.host.port"
+    val kafkaHostPort = "kafka.hosts.basePort"
+    private val zookeeperHostPort = "zookeeper.hosts.basePort"
 
     val consulServerHost = "consulserver.host"
     val consulPort = "consul.host.port4"

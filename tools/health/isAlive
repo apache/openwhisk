@@ -40,33 +40,40 @@ def getProp(key) :
         print('Could not find %s' % key)
         return False
 
-def getHostWithPort(hostComp, portComp, failIfNotFound = True):
-    host = getProp(hostComp.upper()+'_HOST')
-    tmp = getProp(portComp.upper()+'_HOST_PORT')
+def getHostWithPort(component, host=None, instance=-1, failIfNotFound = True):
+    if instance != -1:
+        comp = component.upper()
+        if (host == None):
+            hosts = getProp(comp + '_HOSTS').split(',')
+            host = hosts[instance]
+        port = str(int(getProp(comp + '_HOSTS_BASEPORT'))+instance)
+        print(host + ':' + port)
+        return host + ':' + port
+
+    host = getProp(component.upper()+'_HOST')
+    tmp = getProp(component.upper()+'_HOST_PORT')
     port = tmp if type(host) is str and ':' not in host else ''
     if host != False and port != False:
         return (host + ':' + port) if (port != '') else host
     elif failIfNotFound:
-        print("Unknown component {0}".format(hostComp))
+        print("Unknown component {0}".format(component))
         exit(-1)
     else:
         return False
+
     return host + ':' + port
 
-def getInvokerHostAndPort(component, host = None, failIfNotFound = True):
-    comp = component.upper()
-    instance = int(comp[7:])
-    if (host == None):
-        hosts = getProp('INVOKER_HOSTS').split(',')
-        host = hosts[instance]
-    port = str(int(getProp('INVOKER_HOSTS_BASEPORT'))+instance)
-    print(host + ':' + port)
-    return host + ':' + port
 
 def getHostAndPort(component, host = None, failIfNotFound = True):
+    instance = -1
     if (component.upper().find("INVOKER") == 0):
-        return getInvokerHostAndPort(component, host, failIfNotFound)
-    return getHostWithPort(component, component, failIfNotFound)
+        instance = int(component[7:])
+        component = component[0:7]
+    elif (component.upper().find("ZOOKEEPER") == 0):
+        instance = int(component[9:])
+        component = component[0:9]
+
+    return getHostWithPort(component, host, instance, failIfNotFound)
 
 def ping(host_port) :
     cmd = ['curl', '-m', '3', '-s', '-X', 'GET', '%s/ping' % host_port]
@@ -98,7 +105,7 @@ def isConsulAlive() :
     return rc
 
 def isZookeeperAlive() :
-    host_port = getHostAndPort('zookeeper').split(':')
+    host_port = getHostAndPort('zookeeper0').split(':')
     cmd = '(echo ruok; sleep 1) | nc '+ host_port[0] + ' '+ host_port[1]
     okString = 'imok'
     (rc, output) = monitorUtil.run(cmd, 'ruok', True)
