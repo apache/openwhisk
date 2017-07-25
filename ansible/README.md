@@ -257,6 +257,19 @@ Alternatively, you can also configure the location of Python interpreter in `env
 ansible_python_interpreter: "/usr/local/bin/python"
 ```
 
+#### Failed to import docker-py
+
+After `brew install ansible`, the following lines are printed out:
+
+```
+==> Caveats
+If you need Python to find the installed site-packages:
+  mkdir -p ~/Library/Python/2.7/lib/python/site-packages
+  echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
+```
+  
+Just run the two commands to fix this issue.
+
 #### Spaces in Paths
 Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
 Many file imports and roles will not work correctly when included from a path that contains spaces.
