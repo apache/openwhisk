@@ -1040,13 +1040,14 @@ trait RunWskCmd extends Matchers {
             env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
             workingDir: File = new File("."),
             stdinFile: Option[File] = None,
-            showCmd: Boolean = false): RunResult = {
+            showCmd: Boolean = false,
+            hideFromOutput: Seq[String] = Seq()): RunResult = {
         val args = baseCommand
         if (verbose) args += "--verbose"
         if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
         val rr = TestUtils.runCmd(DONTCARE_EXIT, workingDir, TestUtils.logger, sys.env ++ env, stdinFile.getOrElse(null), args ++ params: _*)
 
-        withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
+        withClue(hideStr(reportFailure(args ++ params, expectedExitCode, rr).toString(), hideFromOutput)) {
             if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
                 val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
                 if (!ok) {
@@ -1056,6 +1057,13 @@ trait RunWskCmd extends Matchers {
         }
 
         rr
+    }
+
+    // Takes a string and a list of sensitive strings. Any sensistive string found in
+    // the target string will be replaced with "XXXXX", returning the processed string
+    def hideStr(str: String, hideThese: Seq[String]): String = {
+        // Iterate through each string to hide, replacing it in the target string (str)
+        hideThese.fold(str)((updatedStr, replaceThis) => updatedStr.replace(replaceThis, "XXXXX"))
     }
 
     /*
