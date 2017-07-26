@@ -32,7 +32,7 @@ class PythonRunner(ActionRunner):
         ActionRunner.__init__(self, '/action/__main__.py')
         self.fn = None
         self.mainFn = 'main'
-        self.namespace = {}
+        self.global_context = {}
 
     def initCodeFromString(self, message):
         # do nothing, defer to build step
@@ -83,10 +83,10 @@ class PythonRunner(ActionRunner):
         result = None
         try:
             os.environ = env
-            self.namespace['param'] = args
-            exec(self.fn, self.namespace)
-            exec('fun = %s(param)' % self.mainFn, self.namespace)
-            result = self.namespace['fun']
+            self.global_context['param'] = args
+            exec(self.fn, self.global_context)
+            exec('fun = %s(param)' % self.mainFn, self.global_context)
+            result = self.global_context['fun']
         except Exception:
             traceback.print_exc(file=sys.stderr)
 
