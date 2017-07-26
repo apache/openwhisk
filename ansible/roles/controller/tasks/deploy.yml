@@ -57,11 +57,19 @@
       "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+
+      "REPLICATION_FACTOR": "{{ kafka.replication_factor}}"
+      "PARTITIONS": "{{ kafka.partitions }}"
+      "ZOOKEEPER_HOST": "{{ groups['kafka']|first }}"
+      "ZOOKEEPER_PORT": "{{ zookeeper.port }}"
+      "KAFKA_TOPICS_COMPLETED_RETENTIONBYTES": "{{ kafka.topics.completed.retentionBytes }}"
+      "KAFKA_TOPICS_COMPLETED_RETENTIONMS": "{{ kafka.topics.completed.retentionMS }}"
+      "KAFKA_TOPICS_COMPLETED_SEGMENTBYTES": "{{ kafka.topics.completed.segmentBytes }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
       - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
-    command: /bin/sh -c "controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
+    command: /bin/sh -c "/controller.sh {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:

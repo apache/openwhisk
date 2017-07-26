@@ -3,6 +3,7 @@ apply plugin: 'application'
 apply plugin: 'eclipse'
 
 ext.dockerImageName = 'invoker'
+apply from: '../../gradle/settings/kafka.gradle'
 apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
