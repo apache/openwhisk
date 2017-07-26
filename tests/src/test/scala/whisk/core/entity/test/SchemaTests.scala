@@ -42,7 +42,6 @@ import whisk.core.entity.size.SizeInt
 import whisk.http.Messages
 import whisk.utils.JsHelpers
 
-
 @RunWith(classOf[JUnitRunner])
 class SchemaTests
     extends FlatSpec
@@ -84,7 +83,8 @@ class SchemaTests
             "subject" -> i.subject.asString.toJson,
             "namespace" -> i.namespace.toJson,
             "authkey" -> i.authkey.compact.toJson,
-            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
+            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
+            "limits" -> JsObject())
         Identity.serdes.write(i) shouldBe expected
         Identity.serdes.read(expected) shouldBe i
     }

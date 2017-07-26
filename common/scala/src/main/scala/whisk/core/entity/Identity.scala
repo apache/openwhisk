@@ -27,8 +27,15 @@ import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
+import scala.util.Try
 
-protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege]) {
+case class UserLimits(invocationsPerMinute: Option[Int] = None, concurrentInvocations: Option[Int] = None, firesPerMinute: Option[Int] = None)
+
+object UserLimits extends DefaultJsonProtocol {
+    implicit val serdes = jsonFormat3(UserLimits.apply)
+}
+
+protected[core] case class Identity(subject: Subject, namespace: EntityName, authkey: AuthKey, rights: Set[Privilege], limits: UserLimits = UserLimits()) {
     def uuid = authkey.uuid
 }
 
@@ -38,7 +45,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
 
     override val cacheEnabled = true
     override def cacheKeyForUpdate(i: Identity) = i.authkey
-    implicit val serdes = jsonFormat4(Identity.apply)
+    implicit val serdes = jsonFormat5(Identity.apply)
 
     /**
      * Retrieves a key for namespace.
@@ -95,20 +102,21 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
             endKey = key,
             skip = 0,
             limit = limit,
-            includeDocs = false,
+            includeDocs = true,
             descending = true,
             reduce = false)
     }
 
     private def rowToIdentity(row: JsObject, key: String)(
         implicit transid: TransactionId, logger: Logging) = {
-        row.getFields("id", "value") match {
-            case Seq(JsString(id), JsObject(value)) =>
+        row.getFields("id", "value", "doc") match {
+            case Seq(JsString(id), JsObject(value), doc) =>
+                val limits = Try(doc.convertTo[UserLimits]).getOrElse(UserLimits())
                 val subject = Subject(id)
                 val JsString(uuid) = value("uuid")
                 val JsString(secret) = value("key")
                 val JsString(namespace) = value("namespace")
-                Identity(subject, EntityName(namespace), AuthKey(UUID(uuid), Secret(secret)), Privilege.ALL)
+                Identity(subject, EntityName(namespace), AuthKey(UUID(uuid), Secret(secret)), Privilege.ALL, limits)
             case _ =>
                 logger.error(this, s"$viewName[$key] has malformed view '${row.compactPrint}'")
                 throw new IllegalStateException("identities view malformed")

@@ -27,6 +27,7 @@ import org.scalatest.junit.JUnitRunner
 import common.StreamLogging
 import whisk.common.TransactionId
 import whisk.core.entitlement._
+import whisk.core.entity.UserLimits
 
 /**
  * Tests rate throttle.
@@ -46,13 +47,24 @@ class RateThrottleTests
     behavior of "Rate Throttle"
 
     it should "throttle when rate exceeds allowed threshold" in {
-        new RateThrottler("test", 0).check(subject) shouldBe false
-        val rt = new RateThrottler("test", 1)
+        new RateThrottler("test", 0, _.limits.invocationsPerMinute).check(subject) shouldBe false
+        val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute)
         rt.check(subject) shouldBe true
         rt.check(subject) shouldBe false
         rt.check(subject) shouldBe false
         Thread.sleep(1.minute.toMillis)
         rt.check(subject) shouldBe true
+    }
+
+    it should "check against an alternative limit if passed in" in {
+        val withLimits = subject.copy(limits = UserLimits(invocationsPerMinute = Some(5)))
+        val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute)
+        rt.check(withLimits) shouldBe true // 1
+        rt.check(withLimits) shouldBe true // 2
+        rt.check(withLimits) shouldBe true // 3
+        rt.check(withLimits) shouldBe true // 4
+        rt.check(withLimits) shouldBe true // 5
+        rt.check(withLimits) shouldBe false
     }
 
 }

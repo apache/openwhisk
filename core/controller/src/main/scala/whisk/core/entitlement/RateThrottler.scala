@@ -29,9 +29,9 @@ import whisk.core.entity.UUID
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(description: String, maxPerMinute: Int)(implicit logging: Logging) {
+class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(implicit logging: Logging) {
 
-    logging.info(this, s"$description: maxPerMinute = $maxPerMinute")(TransactionId.controller)
+    logging.info(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
 
     /**
      * Maintains map of subject namespace to operations rates.
@@ -47,9 +47,10 @@ class RateThrottler(description: String, maxPerMinute: Int)(implicit logging: Lo
      */
     def check(user: Identity)(implicit transid: TransactionId): Boolean = {
         val uuid = user.uuid // this is namespace identifier
-        val rate = rateMap.getOrElseUpdate(uuid, new RateInfo(maxPerMinute))
-        val belowLimit = rate.check()
-        logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count()}, below limit = $belowLimit")
+        val rate = rateMap.getOrElseUpdate(uuid, new RateInfo)
+        val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
+        val belowLimit = rate.check(limit)
+        logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count()}, limit = $limit, below limit = $belowLimit")
         belowLimit
     }
 }
@@ -57,7 +58,7 @@ class RateThrottler(description: String, maxPerMinute: Int)(implicit logging: Lo
 /**
  * Tracks the activation rate of one subject at minute-granularity.
  */
-private class RateInfo(maxPerMinute: Int) {
+private class RateInfo {
     var lastMin = getCurrentMinute
     var lastMinCount = 0
 
@@ -65,9 +66,12 @@ private class RateInfo(maxPerMinute: Int) {
 
     /**
      * Increments operation count in the current time window by
-     * one and checks if still below allowed max rate.
+     * one and checks if below allowed max rate.
+     *
+     * @param maxPerMinute the current maximum allowed requests
+     *                     per minute (might change over time)
      */
-    def check(): Boolean = {
+    def check(maxPerMinute: Int): Boolean = {
         roll()
         lastMinCount = lastMinCount + 1
         lastMinCount <= maxPerMinute

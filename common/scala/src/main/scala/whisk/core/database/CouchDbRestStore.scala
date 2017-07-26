@@ -203,9 +203,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
             case Right(response) =>
                 val rows = response.fields("rows").convertTo[List[JsObject]]
 
-                val out = if (includeDocs) {
-                    rows.map(_.fields("doc").asJsObject)
-                } else if (reduce && !rows.isEmpty) {
+                val out = if (reduce && !rows.isEmpty) {
                     assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
                     rows.head.fields("value").convertTo[List[JsObject]]
                 } else if (reduce) {

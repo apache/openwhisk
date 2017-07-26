@@ -294,7 +294,7 @@ object WhiskEntityQueries {
         db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce) map {
             rows =>
                 convert map { fn =>
-                    Right(rows flatMap { fn(_) toOption })
+                    Right(rows flatMap { row => fn(row.fields("doc").asJsObject) toOption })
                 } getOrElse {
                     Left(rows flatMap { normalizeRow(_, reduce) toOption })
                 }
