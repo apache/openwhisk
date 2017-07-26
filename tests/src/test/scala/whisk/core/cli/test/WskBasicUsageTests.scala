@@ -55,6 +55,82 @@ import whisk.http.Messages
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
+
+@RunWith(classOf[JUnitRunner])
+class WskBasicConfigFailureTests
+    extends TestHelpers
+    with WskTestHelpers {
+
+    implicit val wskprops = WskProps()
+    val wsk = new Wsk
+
+    behavior of "Wsk CLI usage"
+
+    it should "fail to show api build when setting apihost to bogus value" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            wsk.cli(Seq("property", "set", "-i", "--apihost", "xxxx.yyyy"), env = env)
+            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env, expectedExitCode = ANY_ERROR_EXIT)
+            rr.stdout should include regex ("""whisk API build\s*Unknown""")
+            rr.stderr should include regex ("Unable to obtain API build information")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "validate default property values" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--cert", "--key", "--apihost", "--apiversion", "--namespace"), env = env).stdout
+        try {
+            stdout should include regex ("ok: whisk auth unset")
+            stdout should include regex ("ok: client cert unset")
+            stdout should include regex ("ok: client key unset")
+            stdout should include regex ("ok: whisk API host unset")
+            stdout should include regex ("ok: whisk API version unset")
+            stdout should include regex ("ok: whisk namespace unset")
+
+            wsk.cli(Seq("property", "get", "--auth"), env = env).
+                    stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--cert"), env = env).
+                    stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--key"), env = env).
+                    stdout should include regex ("""(?i)client key\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--apihost"), env = env).
+                    stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
+            wsk.cli(Seq("property", "get", "--namespace"), env = env).
+                    stdout should include regex ("""(?i)whisk namespace\s*_$""") // default = _
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "reject authenticated command when no auth key is given" in {
+        // override wsk props file in case it exists
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+        val stderr = wsk.cli(Seq("list") ++ wskprops.overrides, env = env, expectedExitCode = MISUSE_EXIT).stderr
+        try {
+            stderr should include regex (s"usage[:.]")
+            stderr should include("--auth is required")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+
+    it should "reject a command when the API host is not set" in {
+        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+        try {
+            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+            val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
+            stderr should include("The API host is not valid: An API host must be provided.")
+        } finally {
+            tmpwskprops.delete()
+        }
+    }
+}
+
 @RunWith(classOf[JUnitRunner])
 class WskBasicUsageTests
     extends TestHelpers
@@ -71,7 +147,7 @@ class WskBasicUsageTests
     }
 
     it should "show help and usage info" in {
-        val stdout = wsk.cli(Seq("-h")).stdout
+        val stdout = wsk.cli(Seq()).stdout
         stdout should include regex ("""(?i)Usage:""")
         stdout should include regex ("""(?i)Flags""")
         stdout should include regex ("""(?i)Available commands""")
@@ -173,19 +249,6 @@ class WskBasicUsageTests
         }
     }
 
-    it should "fail to show api build when setting apihost to bogus value" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        try {
-            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            wsk.cli(Seq("property", "set", "-i", "--apihost", "xxxx.yyyy"), env = env)
-            val rr = wsk.cli(Seq("property", "get", "--apibuild", "-i"), env = env, expectedExitCode = ANY_ERROR_EXIT)
-            rr.stdout should include regex ("""whisk API build\s*Unknown""")
-            rr.stderr should include regex ("Unable to obtain API build information")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
     it should "show api build using http apihost" in {
         val tmpwskprops = File.createTempFile("wskprops", ".tmp")
         try {
@@ -196,33 +259,6 @@ class WskBasicUsageTests
             rr.stdout should not include regex("""whisk API build\s*Unknown""")
             rr.stderr should not include regex("Unable to obtain API build information")
             rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "validate default property values" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stdout = wsk.cli(Seq("property", "unset", "--auth", "--cert", "--key", "--apihost", "--apiversion", "--namespace"), env = env).stdout
-        try {
-            stdout should include regex ("ok: whisk auth unset")
-            stdout should include regex ("ok: client cert unset")
-            stdout should include regex ("ok: client key unset")
-            stdout should include regex ("ok: whisk API host unset")
-            stdout should include regex ("ok: whisk API version unset")
-            stdout should include regex ("ok: whisk namespace unset")
-
-            wsk.cli(Seq("property", "get", "--auth"), env = env).
-                stdout should include regex ("""(?i)whisk auth\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--cert"), env = env).
-                stdout should include regex ("""(?i)client cert\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--key"), env = env).
-                stdout should include regex ("""(?i)client key\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--apihost"), env = env).
-                stdout should include regex ("""(?i)whisk API host\s*$""") // default = empty string
-            wsk.cli(Seq("property", "get", "--namespace"), env = env).
-                stdout should include regex ("""(?i)whisk namespace\s*_$""") // default = _
         } finally {
             tmpwskprops.delete()
         }
@@ -262,30 +298,6 @@ class WskBasicUsageTests
     it should "reject bad command" in {
         val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
         result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
-    }
-
-    it should "reject authenticated command when no auth key is given" in {
-        // override wsk props file in case it exists
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-        val stderr = wsk.cli(Seq("list") ++ wskprops.overrides, env = env, expectedExitCode = MISUSE_EXIT).stderr
-        try {
-            stderr should include regex (s"usage[:.]") // Python CLI: "usage:", Go CLI: "usage."
-            stderr should include("--auth is required")
-        } finally {
-            tmpwskprops.delete()
-        }
-    }
-
-    it should "reject a command when the API host is not set" in {
-        val tmpwskprops = File.createTempFile("wskprops", ".tmp")
-        try {
-            val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-            val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
-            stderr should include("The API host is not valid: An API host must be provided.")
-        } finally {
-            tmpwskprops.delete()
-        }
     }
 
     behavior of "Wsk actions"
