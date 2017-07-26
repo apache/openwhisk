@@ -36,6 +36,7 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.database.RemoteCacheInvalidation
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -95,10 +96,16 @@ class Controller(
 
     // initialize datastores
     private implicit val authCache = WhiskAuthStore.cache()
-    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig, authCache)
+    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig, Some(authCache))
 
-    private implicit val entityCache = WhiskEntityStore.cache()
-    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig, entityCache)
+    // use cache invalidation between controllers only if more than 1 controller is deployed
+    private val entityCache = if (whiskConfig.controllerInstances.toInt > 1) {
+        val remoteInvalidation = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+        remoteInvalidation.cache
+    } else {
+        WhiskEntityStore.cache()
+    }
+    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig, Some(entityCache))
 
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 

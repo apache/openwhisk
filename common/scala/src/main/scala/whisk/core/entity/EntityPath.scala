@@ -174,6 +174,7 @@ protected[core] class EntityName private (val name: String) extends AnyVal {
     def toPath: EntityPath = EntityPath(name)
     def addPath(e: EntityName): EntityPath = toPath.addPath(e)
     def addPath(e: Option[EntityName]): EntityPath = e map { toPath.addPath(_) } getOrElse toPath
+    def asCacheKey() = CacheKey(asString)
     override def toString = name
 }
 

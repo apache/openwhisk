@@ -85,10 +85,10 @@ protected trait ControllerTestCommon
         override def make = fixedId
     }
 
-    val entityCache = WhiskEntityStore.cache()
+    val entityCache = Some(WhiskEntityStore.cache())
     val entityStore = WhiskEntityStore.datastore(whiskConfig, entityCache)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
-    val authCache = WhiskAuthStore.cache()
+    val authCache = Some(WhiskAuthStore.cache())
     val authStore = WhiskAuthStore.datastore(whiskConfig, authCache)
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
@@ -170,7 +170,7 @@ protected trait ControllerTestCommon
         extends DocumentFactory[BadEntity]
         with DefaultJsonProtocol {
         implicit val serdes = jsonFormat5(BadEntity.apply)
-        override def cacheKeyForUpdate(w: BadEntity) = w.docid.asDocInfo
+        override def cacheKeyForUpdate(w: BadEntity) = w.docid.asDocInfo.asCacheKey
     }
 }
 

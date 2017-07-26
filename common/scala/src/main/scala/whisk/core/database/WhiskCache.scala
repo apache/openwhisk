@@ -19,8 +19,10 @@ package whisk.core.database
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.entity.CacheKey
 
 abstract class WhiskCache[W, Winfo] {
 
@@ -28,18 +30,23 @@ abstract class WhiskCache[W, Winfo] {
      * This method posts a delete to the backing store, and either directly invalidates the cache entry
      * or informs any outstanding transaction that it must invalidate the cache on completion.
      */
-    def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
+    def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R]
 
     /**
      * This method may initiate a read from the backing store, and potentially stores the result in the cache.
      */
-    def cacheLookup[Wsub <: W](key: Any, generator: => Future[Wsub])(
+    def cacheLookup[Wsub <: W](key: CacheKey, generator: => Future[Wsub])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, mw: Manifest[Wsub]): Future[Wsub]
 
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
-    def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
+    def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo]
+
+    /**
+     * Removes an entry from the cache immediately and returns the entry if it exists.
+     */
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext): Option[Future[W]]
 }

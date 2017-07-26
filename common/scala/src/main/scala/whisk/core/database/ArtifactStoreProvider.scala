@@ -17,10 +17,13 @@
 
 package whisk.core.database
 
+import scala.concurrent.Future
+
 import akka.actor.ActorSystem
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.core.entity.CacheKey
 import whisk.core.entity.DocInfo
 import whisk.spi.Spi
 
@@ -34,7 +37,7 @@ trait ArtifactStoreProvider extends Spi {
         actorSystem: ActorSystem,
         logging: Logging): ArtifactStore[D, CacheAbstraction]
 
-    def makeCache[CacheAbstraction](): WhiskCache[CacheAbstraction, DocInfo] = {
-        new MultipleReadersSingleWriterCache[CacheAbstraction, DocInfo]()
+    def makeCache[CacheAbstraction](changeCacheCallback: CacheKey => Future[Unit]): WhiskCache[CacheAbstraction, DocInfo] = {
+        new MultipleReadersSingleWriterCache[CacheAbstraction, DocInfo](changeCacheCallback: CacheKey => Future[Unit])
     }
 }

@@ -30,6 +30,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import whisk.common.TransactionId
+import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -120,7 +121,7 @@ trait DocumentSerializer {
  */
 trait DocumentFactory[W] {
 
-    def cacheKeyForUpdate(w: W): Any
+    def cacheKeyForUpdate(w: W): CacheKey
 
     /**
      * Puts a record of type W in the datastore.
@@ -168,7 +169,7 @@ trait DocumentFactory[W] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo
+            val key = doc.id.asDocInfo.asCacheKey
             // invalidate the key because attachments update the revision;
             // do not cache the new attachment (controller does not need it)
             def invalidator = {
@@ -191,7 +192,7 @@ trait DocumentFactory[W] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            db.cache.map(_.cacheInvalidate(doc.id.asDocInfo, db.del(doc))).getOrElse(db.del(doc))
+            db.cache.map(_.cacheInvalidate(doc.id.asDocInfo.asCacheKey, db.del(doc))).getOrElse(db.del(doc))
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -224,7 +225,7 @@ trait DocumentFactory[W] {
             implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
             _ => db.cache match {
-                case Some(c) if fromCache => c.cacheLookup[W](key, db.get[W](key))
+                case Some(c) if fromCache => c.cacheLookup[W](key.asCacheKey, db.get[W](key))
                 case _                    => db.get[W](key)
             }
         } match {

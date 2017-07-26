@@ -214,7 +214,7 @@ object WhiskAction
 
     override implicit val serdes = jsonFormat(WhiskAction.apply, "namespace", "name", "exec", "parameters", "limits", "version", "publish", "annotations")
 
-    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo.asCacheKey
 
     // overriden to store attached code
     override def put[A >: WhiskAction](db: ArtifactStore[A, A], doc: WhiskAction)(

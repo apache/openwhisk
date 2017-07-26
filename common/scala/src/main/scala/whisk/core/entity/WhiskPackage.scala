@@ -197,7 +197,7 @@ object WhiskPackage
         jsonFormat7(WhiskPackage.apply)
     }
 
-    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo.asCacheKey
 }
 
 /**

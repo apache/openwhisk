@@ -118,7 +118,7 @@ object WhiskTrigger
     private implicit val fqnSerdesAsDocId = FullyQualifiedEntityName.serdesAsDocId
     override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
 
-    override def cacheKeyForUpdate(w: WhiskTrigger) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskTrigger) = w.docid.asDocInfo.asCacheKey
 }
 
 object WhiskTriggerPut extends DefaultJsonProtocol {

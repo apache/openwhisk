@@ -232,7 +232,7 @@ object WhiskRule
         }
     }
 
-    override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo.asCacheKey
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {

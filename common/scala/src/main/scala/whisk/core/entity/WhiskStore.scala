@@ -101,7 +101,7 @@ object WhiskAuthStore {
         SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskAuth, Identity](config, _.dbAuths, cache)
 
     def cache() = {
-        Some(SpiLoader.get[ArtifactStoreProvider]().makeCache[Identity])
+        SpiLoader.get[ArtifactStoreProvider]().makeCache[Identity]((key: CacheKey) => Future.successful(Unit))
     }
 }
 
@@ -118,8 +118,8 @@ object WhiskEntityStore {
     def datastore(config: WhiskConfig, cache: Option[WhiskCache[WhiskEntity, DocInfo]])(implicit system: ActorSystem, logging: Logging) =
         SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity, WhiskEntity](config, _.dbWhisk, cache)(WhiskEntityJsonFormat, system, logging)
 
-    def cache() = {
-        Some(SpiLoader.get[ArtifactStoreProvider]().makeCache[WhiskEntity])
+    def cache(invalidateCallback: CacheKey => Future[Unit] = (key: CacheKey) => Future.successful(Unit)) = {
+        SpiLoader.get[ArtifactStoreProvider]().makeCache[WhiskEntity](invalidateCallback)
     }
 }
 

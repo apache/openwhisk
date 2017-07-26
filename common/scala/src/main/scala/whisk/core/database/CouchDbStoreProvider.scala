@@ -21,9 +21,9 @@ import akka.actor.ActorSystem
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.core.entity.DocInfo
 import whisk.spi.Dependencies
 import whisk.spi.SpiFactory
-import whisk.core.entity.DocInfo
 
 /**
  * A CouchDB implementation of ArtifactStoreProvider

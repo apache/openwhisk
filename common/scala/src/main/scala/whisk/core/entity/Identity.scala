@@ -54,6 +54,7 @@ object Identity extends DefaultJsonProtocol {
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
         val ns = namespace.asString
+        val key = namespace.asCacheKey
 
         def generator = {
             list(datastore, List(ns), limit = 1) map { list =>
@@ -70,7 +71,7 @@ object Identity extends DefaultJsonProtocol {
             }
         }
 
-        datastore.cache.map(_.cacheLookup(ns, generator)).getOrElse(generator)
+        datastore.cache.map(_.cacheLookup(key, generator)).getOrElse(generator)
     }
 
     def get(datastore: AuthStore, authkey: AuthKey)(
@@ -93,7 +94,7 @@ object Identity extends DefaultJsonProtocol {
             }
         }
 
-        datastore.cache.map(_.cacheLookup(authkey, generator)).getOrElse(generator)
+        datastore.cache.map(_.cacheLookup(authkey.asCacheKey, generator)).getOrElse(generator)
     }
 
     def list(datastore: AuthStore, key: List[Any], limit: Int = 2)(

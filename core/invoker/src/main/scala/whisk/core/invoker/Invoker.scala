@@ -481,7 +481,7 @@ object Invoker {
         val producer = msgProvider.getProducer(config, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, maxdepth, actorSystem)
 
-        val cache = WhiskEntityStore.cache()
+        val cache = Some(WhiskEntityStore.cache())
         val entityStore = WhiskEntityStore.datastore(config, cache)
 
         val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {

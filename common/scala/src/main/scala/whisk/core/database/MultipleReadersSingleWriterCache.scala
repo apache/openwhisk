@@ -19,7 +19,6 @@ package whisk.core.database
 
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.TimeUnit
-
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.ExecutionContext
@@ -35,6 +34,7 @@ import spray.caching.ValueMagnet.fromAny
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import whisk.core.entity.CacheKey
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -86,7 +86,8 @@ private object MultipleReadersSingleWriterCache {
     case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to $actualState.")
 }
 
-class MultipleReadersSingleWriterCache[W, Winfo]() extends WhiskCache[W, Winfo] {
+class MultipleReadersSingleWriterCache[W, Winfo](changeCacheCallback: CacheKey => Future[Unit])
+    extends WhiskCache[W, Winfo] {
     import MultipleReadersSingleWriterCache._
     import MultipleReadersSingleWriterCache.State._
 
@@ -142,9 +143,11 @@ class MultipleReadersSingleWriterCache[W, Winfo]() extends WhiskCache[W, Winfo] 
         override def toString = s"tid ${transid.meta.id}, state ${state.get}"
     }
 
-    def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
+    def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         logger.info(this, s"invalidating $key on delete")
+
+        changeCacheCallback(key)
 
         // try inserting our desired entry...
         val desiredEntry = Entry(transid, InvalidateInProgress, None)
@@ -192,7 +195,7 @@ class MultipleReadersSingleWriterCache[W, Winfo]() extends WhiskCache[W, Winfo] 
         }
     }
 
-    def cacheLookup[Wsub <: W](key: Any, generator: => Future[Wsub])(
+    def cacheLookup[Wsub <: W](key: CacheKey, generator: => Future[Wsub])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, mw: Manifest[Wsub]): Future[Wsub] = {
         val promise = Promise[W] // this promise completes with the generator value
 
@@ -235,8 +238,11 @@ class MultipleReadersSingleWriterCache[W, Winfo]() extends WhiskCache[W, Winfo] 
         }
     }
 
-    def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
+    def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
+
+        changeCacheCallback(key)
+
         // try inserting our desired entry...
         val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
         cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -266,6 +272,12 @@ class MultipleReadersSingleWriterCache[W, Winfo]() extends WhiskCache[W, Winfo] 
     }
 
     def cacheSize: Int = cache.size
+
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext) = {
+        cache.remove(key).map { cacheEntry =>
+            cacheEntry.flatMap(_.unpack())
+        }
+    }
 
     /**
      * Log a cache hit
