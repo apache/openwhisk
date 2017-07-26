@@ -37,4 +37,4 @@ apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/
 
 # RunC enablement
 invoker_use_runc: true
-invoker_use_reactive_pool: false
+invoker_use_reactive_pool: true
