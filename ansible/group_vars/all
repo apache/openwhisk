@@ -127,6 +127,8 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  replication_factor: "{{ kafka_replication_factor | default(1) }}"
+  partitions: "{{ kafka_partitions | default(1) }}"
   version: 0.10.2.1
   port: 9092
   ras:

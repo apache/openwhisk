@@ -76,6 +76,14 @@
         -e SERVICE_CHECK_INTERVAL=15s
         -e JAVA_OPTS=-Xmx{{ invoker.heap }}
         -e INVOKER_OPTS='{{ invoker.arguments }}'
+        -e INVOKER_INDEX={{ groups['invokers'].index(inventory_hostname) }}
+        -e REPLICATION_FACTOR={{ kafka.replication_factor}}
+        -e PARTITIONS={{ kafka.partitions }}
+        -e ZOOKEEPER_HOST={{ groups['kafka']|first }}
+        -e ZOOKEEPER_PORT={{ zookeeper.port }}
+        -e KAFKA_TOPICS_INVOKER_RETENTIONBYTES={{ kafka.topics.invoker.retentionBytes }}
+        -e KAFKA_TOPICS_INVOKER_RETENTIONMS={{ kafka.topics.invoker.retentionMS }}
+        -e KAFKA_TOPICS_INVOKER_SEGMENTBYTES={{ kafka.topics.invoker.segmentBytes }}
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
@@ -83,7 +91,7 @@
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
         -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
         {{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}
-        /bin/sh -c "exec /invoker/bin/invoker {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
+        /bin/sh -c "/invoker.sh >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
   when: invokerInfo.json|length == 0
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
