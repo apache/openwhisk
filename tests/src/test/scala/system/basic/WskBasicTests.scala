@@ -17,7 +17,6 @@
 
 package system.basic
 
-import java.io.File
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
@@ -49,21 +48,6 @@ class WskBasicTests
 
     it should "confirm wsk exists" in {
         Wsk.exists
-    }
-
-    it should "show api build details" in {
-        val tmpProps = File.createTempFile("wskprops", ".tmp")
-        try {
-            val env = Map("WSK_CONFIG_FILE" -> tmpProps.getAbsolutePath())
-            wsk.cli(Seq("property", "set", "-i") ++ wskprops.overrides, env = env)
-            val rr = wsk.cli(Seq("property", "get", "--apibuild", "--apibuildno", "-i"), env = env)
-            rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
-            rr.stdout should not include regex("Cannot determine API build")
-            rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
-            rr.stdout should include regex ("""(?i)whisk API build number\s+.*""")
-        } finally {
-            tmpProps.delete()
-        }
     }
 
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
