@@ -6,4 +6,3 @@
     name: docker-engine
     state: absent
     force: yes
-  become: true

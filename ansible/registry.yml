@@ -14,7 +14,6 @@
 
 # publish cert on all hosts
 - hosts: all:!ansible
-  become: true
   tasks:
   - include: roles/registry/tasks/publish.yml
     when: mode == "deploy" and registry.gencert

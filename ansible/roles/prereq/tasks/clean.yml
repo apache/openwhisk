@@ -5,16 +5,13 @@
   pip: 
     name: requests
     state: absent
-  become: true
 
 - name: remove docker
   pip: 
     name: docker
     state: absent
-  become: true
 
 - name: remove httplib2
   pip: 
     name: httplib2
     state: absent
-  become: true
