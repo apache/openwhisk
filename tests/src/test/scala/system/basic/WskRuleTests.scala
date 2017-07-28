@@ -383,9 +383,9 @@ class WskRuleTests
                 assetHelper)
 
             wsk.rule.disable(ruleName)
-            val listOutput = wsk.rule.list().toString().split("\n")
-            listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
+            val listOutput = wsk.rule.list().stdout.lines
             listOutput.find(_.contains(ruleName2)).get should (include(ruleName2) and include("active"))
+            listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
             wsk.rule.list().stdout should not include ("Unknown")
     }
 
