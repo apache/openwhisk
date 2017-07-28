@@ -92,6 +92,7 @@ class ContainerProxy(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
     sendActiveAck: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+    instance: InstanceId,
     unusedTimeout: FiniteDuration,
     pauseGrace: FiniteDuration) extends FSM[ContainerState, ContainerData] with Stash {
     implicit val ec = context.system.dispatcher
@@ -104,7 +105,7 @@ class ContainerProxy(
         case Event(job: Start, _) =>
             factory(
                 TransactionId.invokerWarmup,
-                ContainerProxy.containerName("prewarm", job.exec.kind),
+                ContainerProxy.containerName(instance, "prewarm", job.exec.kind),
                 job.exec.image,
                 job.exec.pull,
                 job.memoryLimit)
@@ -120,7 +121,7 @@ class ContainerProxy(
             // create a new container
             val container = factory(
                 job.msg.transid,
-                ContainerProxy.containerName(job.msg.user.namespace.name, job.action.name.name),
+                ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name),
                 job.action.exec.image,
                 job.action.exec.pull,
                 job.action.limits.memory.megabytes.MB)
@@ -369,8 +370,9 @@ object ContainerProxy {
     def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
               ack: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
               store: (TransactionId, WhiskActivation) => Future[Any],
+              instance: InstanceId,
               unusedTimeout: FiniteDuration = 10.minutes,
-              pauseGrace: FiniteDuration = 50.milliseconds) = Props(new ContainerProxy(factory, ack, store, unusedTimeout, pauseGrace))
+              pauseGrace: FiniteDuration = 50.milliseconds) = Props(new ContainerProxy(factory, ack, store, instance, unusedTimeout, pauseGrace))
 
     // Needs to be thread-safe as it's used by multiple proxies concurrently.
     private val containerCount = new Counter
@@ -382,8 +384,8 @@ object ContainerProxy {
      * @param suffix the container name's suffix
      * @return a unique container name
      */
-    def containerName(prefix: String, suffix: String) =
-        s"wsk_${containerCount.next()}_${prefix}_${suffix}".replaceAll("[^a-zA-Z0-9_]", "")
+    def containerName(instance: InstanceId, prefix: String, suffix: String) =
+        s"wsk${instance.toInt}_${containerCount.next()}_${prefix}_${suffix}".replaceAll("[^a-zA-Z0-9_]", "")
 
     /**
      * Creates a WhiskActivation ready to be sent via active ack.
