@@ -62,10 +62,3 @@
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
-
-- name: create the invoker topics
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic invoker{{ item.0 }} --replication-factor 1 --partitions 1 --zookeeper {{ inventory_hostname }}:{{ zookeeper.port }} --config retention.bytes={{ kafka.topics.invoker.retentionBytes }} --config retention.ms={{ kafka.topics.invoker.retentionMS }} --config segment.bytes={{ kafka.topics.invoker.segmentBytes }}'"
-  with_indexed_items: "{{ groups['invokers'] }}"
-  register: command_result
-  failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
-  changed_when: "'Created topic' in command_result.stdout"
