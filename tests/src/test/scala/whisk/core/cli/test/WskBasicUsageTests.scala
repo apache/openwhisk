@@ -21,6 +21,7 @@ import java.time.Instant
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.Clock
+import java.io.File
 
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
@@ -142,8 +143,9 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "reject create with missing file" in {
-    wsk.action.create("missingFile", Some("notfound"), expectedExitCode = MISUSE_EXIT).stderr should include(
-      "not a valid file")
+    val name = "notfound"
+    wsk.action.create("missingFile", Some(name), expectedExitCode = MISUSE_EXIT).stderr should include(
+      s"The file '$name' does not exist")
   }
 
   it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -811,6 +813,70 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     stdoutNoDescOrParams should include regex (s"(?i)action /${namespace}/${actNameNoDescOrParams}\\s*\\(parameters: none defined\\)")
   }
 
+  it should "save action code to file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "saveAction"
+    val seqName = "seqName"
+    val dockerName = "dockerName"
+    val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
+    val saveName = s"save-as-$name.js"
+    val currentDir = System.getProperty("user.dir")
+    val saveDir = if (currentDir.endsWith("tests")) {
+      currentDir
+    } else {
+      s"$currentDir${File.separator}tests"
+    }
+    val badSaveName = s"bad-directory${File.separator}$saveName"
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, defaultAction)
+    }
+
+    wsk.action.get(name, save = Some(true)).stdout should include(s"saved action code to $name.js")
+    val saveFile = new File(saveDir, s"$name.js");
+
+    try {
+      saveFile.exists shouldBe true
+      wsk.action.get(name, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+        s"The file '$name.js' already exists")
+    } finally {
+      saveFile.delete()
+    }
+
+    wsk.action.get(name, saveAs = Some(saveName)).stdout should include(s"saved action code to $saveName")
+    val saveAsFile = new File(saveDir, saveName);
+
+    try {
+      saveAsFile.exists shouldBe true
+      wsk.action.get(name, saveAs = Some(saveName), expectedExitCode = MISUSE_EXIT).stderr should include(
+        s"The file '$saveName' already exists")
+    } finally {
+      saveAsFile.delete()
+    }
+
+    wsk.action.get(name, saveAs = Some(badSaveName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      s"Cannot create file '$badSaveName'")
+
+    assetHelper.withCleaner(wsk.action, dockerName) { (action, _) =>
+      action.create(dockerName, None, docker = Some(containerName))
+    }
+
+    wsk.action.get(dockerName, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save Docker images")
+
+    wsk.action.get(dockerName, saveAs = Some(dockerName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save Docker images")
+
+    assetHelper.withCleaner(wsk.action, seqName) { (action, _) =>
+      action.create(seqName, Some(name), kind = Some("sequence"))
+    }
+
+    wsk.action.get(seqName, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save action sequence")
+
+    wsk.action.get(seqName, saveAs = Some(seqName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save action sequence")
+  }
+
   behavior of "Wsk packages"
 
   it should "create, and delete a package" in {
@@ -1347,8 +1413,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   it should "reject commands that are executed with a missing or invalid parameter or annotation file" in {
     val emptyFile = TestUtils.getTestActionFilename("emtpy.js")
     val missingFile = "notafile"
-    val emptyFileMsg = s"File '$emptyFile' is not a valid file or it does not exist"
-    val missingFileMsg = s"File '$missingFile' is not a valid file or it does not exist"
+    val emptyFileMsg = s"The file '$emptyFile' does not exist"
+    val missingFileMsg = s"The file '$missingFile' does not exist"
     val invalidArgs = Seq(
       (
         Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),

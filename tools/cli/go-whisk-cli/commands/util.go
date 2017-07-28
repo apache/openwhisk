@@ -597,7 +597,7 @@ func unpackGzip(inpath string, outpath string) error {
     // Make sure the input file exists
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
-        errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
+        errStr := wski18n.T("The file '{{.name}}' does not exist", map[string]interface{}{"name": inpath})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -647,7 +647,7 @@ func unpackZip(inpath string) error {
     // Make sure the input file exists
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
-        errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
+        errStr := wski18n.T("The file '{{.name}}' does not exist", map[string]interface{}{"name": inpath})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -715,7 +715,7 @@ func unpackTar(inpath string) error {
     // Make sure the input file exists
     if _, err := os.Stat(inpath); err != nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' does not exist\n", inpath)
-        errStr := wski18n.T("The file '{{.name}}' does not exist.", map[string]interface{}{"name": inpath})
+        errStr := wski18n.T("The file '{{.name}}' does not exist", map[string]interface{}{"name": inpath})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
@@ -827,11 +827,18 @@ func getClientNamespace() (string) {
 }
 
 func readFile(filename string) (string, error) {
-    _, err := os.Stat(filename)
+    exists, err := FileExists(filename)
+
     if err != nil {
-        whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %s\n", filename, err)
-        errMsg := wski18n.T("File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
-                map[string]interface{}{"name": filename, "err": err})
+        return "", err
+    }
+
+    if !exists {
+        errMsg := wski18n.T("The file '{{.name}}' does not exist",
+            map[string]interface{}{
+                "name": filename,
+                "err": err,
+            })
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_USAGE,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 
@@ -841,7 +848,7 @@ func readFile(filename string) (string, error) {
     file, err := ioutil.ReadFile(filename)
     if err != nil {
         whisk.Debug(whisk.DbgError, "os.ioutil.ReadFile(%s) error: %s\n", filename, err)
-        errMsg := wski18n.T("Unable to read '{{.name}}': {{.err}}",
+        errMsg := wski18n.T("Unable to read the file '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": filename, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -849,6 +856,44 @@ func readFile(filename string) (string, error) {
     }
 
     return string(file), nil
+}
+
+func writeFile(filename string, content string) (error) {
+    file, err := os.Create(filename)
+
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "os.Create(%s) error: %#v\n", filename, err)
+        errMsg := wski18n.T("Cannot create file '{{.name}}': {{.err}}",
+            map[string]interface{}{"name": filename, "err": err})
+        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_USAGE, whisk.DISPLAY_MSG,
+            whisk.DISPLAY_USAGE)
+        return whiskErr
+    }
+
+    defer file.Close()
+
+    file.WriteString(content)
+
+    return nil
+}
+
+func FileExists(file string) (bool, error) {
+    _, err := os.Stat(file)
+
+    if err != nil {
+        if os.IsNotExist(err) == true {
+            return false, nil
+        } else {
+            whisk.Debug(whisk.DbgError, "os.Stat(%s) error: %#v\n", file, err)
+            errMsg := wski18n.T("Cannot access file '{{.name}}': {{.err}}",
+                map[string]interface{}{"name": file, "err": err})
+            whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_USAGE,
+                whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            return true, whiskErr
+        }
+    }
+
+    return true, nil
 }
 
 func fieldExists(value interface{}, field string) (bool) {
