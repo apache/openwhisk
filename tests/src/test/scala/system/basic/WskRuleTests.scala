@@ -28,8 +28,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import java.time.Instant
 
-import common.TestUtils.RunResult
-
 @RunWith(classOf[JUnitRunner])
 class WskRuleTests
     extends TestHelpers
@@ -82,35 +80,6 @@ class WskRuleTests
                     (rule, name) => rule.create(name, triggerName, action._2)
                 }
         }
-    }
-
-    /**
-      * This function is simple in that it just attempts to split the rules retrieved from a REST call
-      * into an Array of strings, where each member of the array represents a single line of output.
-      *
-      * This will make it easier to determine multiple truths about each rule returned.
-      *
-      * @param rules The rules output by running the list() method.
-      */
-    def getRuleLines(rules: RunResult) : Array[String] = {
-        return rules.toString().split("\n")
-    }
-
-    /**
-      * This would ideally be used with the getRuleLines method to search for lines of output that we want
-      * to test multiple conditions on. 
-      *
-      * @param subString The test to search for in a line of output
-      * @param rules The lines of output to search through
-      * @return Either a line of output matching the search string, or null if no match was found.
-      */
-    def getRule(subString: String, rules: Array[String]) : String = {
-        for (rule <- rules) {
-            if (rule.contains(subString)) {
-                return rule
-            }
-        }
-        return null
     }
 
     /**
@@ -414,9 +383,9 @@ class WskRuleTests
                 assetHelper)
 
             wsk.rule.disable(ruleName)
-            val listOutput = getRuleLines(wsk.rule.list())
-            getRule(ruleName, listOutput) should (include(ruleName) and include("inactive"))
-            getRule(ruleName2, listOutput) should (include(ruleName2) and include("active"))
+            val listOutput = wsk.rule.list().toString().split("\n")
+            listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
+            listOutput.find(_.contains(ruleName2)).get should (include(ruleName2) and include("active"))
             wsk.rule.list().stdout should not include ("Unknown")
     }
 
