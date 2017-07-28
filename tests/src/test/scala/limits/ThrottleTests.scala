@@ -43,6 +43,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
+import org.scalatest.BeforeAndAfterAll
+import common.RunWskAdminCmd
 
 @RunWith(classOf[JUnitRunner])
 class ThrottleTests
@@ -277,4 +279,90 @@ class ThrottleTests
             println("waiting for activations to complete")
             waitForActivations(combinedResults.par)
     }
+}
+
+@RunWith(classOf[JUnitRunner])
+class NamespaceSpecificThrottleTests
+    extends FlatSpec
+    with TestHelpers
+    with WskTestHelpers
+    with Matchers
+    with BeforeAndAfterAll {
+
+    val wskadmin = new RunWskAdminCmd {}
+    val wsk = new Wsk
+
+    val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
+
+    // Create a subject with rate limits == 0
+    val zeroProps = getAdditionalTestSubject("zeroSubject")
+    wskadmin.cli(Seq("limits", "set", zeroProps.namespace, "--invocationsPerMinute", "0", "--firesPerMinute", "0", "--concurrentInvocations", "0"))
+
+    // Create a subject where only the concurrency limit is set to 0
+    val zeroConcProps = getAdditionalTestSubject("zeroConcSubject")
+    wskadmin.cli(Seq("limits", "set", zeroConcProps.namespace, "--concurrentInvocations", "0"))
+
+    // Create a subject where the rate limits are set to 1
+    val oneProps = getAdditionalTestSubject("oneSubject")
+    wskadmin.cli(Seq("limits", "set", oneProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
+
+    override def afterAll() = {
+        disposeAdditionalTestSubject(zeroProps.namespace)
+        disposeAdditionalTestSubject(zeroConcProps.namespace)
+        disposeAdditionalTestSubject(oneProps.namespace)
+    }
+
+    behavior of "Namespace-specific throttles"
+
+    it should "respect overridden rate-throttles of 0" in withAssetCleaner(zeroProps) {
+        (wp, assetHelper) =>
+            implicit val props = wp
+            val triggerName = "zeroTrigger"
+            val actionName = "zeroAction"
+
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(actionName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, _) => trigger.create(triggerName)
+            }
+
+            wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+            wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+    }
+
+    it should "respect overridden rate-throttles of 1" in withAssetCleaner(oneProps) {
+        (wp, assetHelper) =>
+            implicit val props = wp
+            val triggerName = "oneTrigger"
+            val actionName = "oneAction"
+
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(actionName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, _) => trigger.create(triggerName)
+            }
+
+            // One invoke should be allowed, the second one throttled
+            wsk.action.invoke(actionName)
+            wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+
+            // One fire should be allowed, the second one throttled
+            wsk.trigger.fire(triggerName)
+            wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+    }
+
+    it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) {
+        (wp, assetHelper) =>
+            implicit val props = wp
+            val actionName = "zeroConcurrentAction"
+
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, _) => action.create(actionName, defaultAction)
+            }
+
+            wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyConcurrentRequests)
+    }
+
 }
