@@ -46,10 +46,6 @@ class WskBasicTests
 
     behavior of "Wsk CLI"
 
-    it should "confirm wsk exists" in {
-        Wsk.exists
-    }
-
     it should "reject creating duplicate entity" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "testDuplicateCreate"

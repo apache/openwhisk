@@ -94,7 +94,7 @@ case class WskPropsV2(
     }
 }
 
-class Wsk() extends RunWskCmd {
+class Wsk extends RunWskCmd {
     implicit val action = new WskAction
     implicit val trigger = new WskTrigger
     implicit val rule = new WskRule
@@ -276,7 +276,6 @@ class WskAction()
     with HasActivation {
 
     override protected val noun = "action"
-    override def baseCommand = Wsk.baseCommand
 
     /**
      * Creates action. Parameters mirror those available in the CLI.
@@ -1007,19 +1006,24 @@ trait WaitFor {
 
 object Wsk {
     private val binaryName = "wsk"
+    private val cliPath = getCLIPath
+
+    exists
 
     /** What is the path to a downloaded CLI? **/
     private def getDownloadedGoCLIPath = {
         s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
     }
 
-    def exists() = {
-        val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
+    private def getCLIPath = {
+        if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
+    }
+
+    private def exists = {
         assert((new File(cliPath)).exists, s"did not find $cliPath")
     }
 
-    def baseCommand() =
-        if (WhiskProperties.useCLIDownload) Buffer(getDownloadedGoCLIPath) else Buffer(WhiskProperties.getCLIPath)
+    def baseCommand = Buffer(cliPath)
 }
 
 trait RunWskCmd extends Matchers {
