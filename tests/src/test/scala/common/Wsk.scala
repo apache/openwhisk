@@ -94,7 +94,7 @@ case class WskPropsV2(
     }
 }
 
-class Wsk extends RunWskCmd {
+class Wsk() extends RunWskCmd {
     implicit val action = new WskAction
     implicit val trigger = new WskTrigger
     implicit val rule = new WskRule
@@ -1008,7 +1008,7 @@ object Wsk {
     private val binaryName = "wsk"
     private val cliPath = getCLIPath
 
-    exists
+    assert((new File(cliPath)).exists, s"did not find $cliPath")
 
     /** What is the path to a downloaded CLI? **/
     private def getDownloadedGoCLIPath = {
@@ -1017,10 +1017,6 @@ object Wsk {
 
     private def getCLIPath = {
         if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
-    }
-
-    private def exists = {
-        assert((new File(cliPath)).exists, s"did not find $cliPath")
     }
 
     def baseCommand = Buffer(cliPath)
