@@ -849,38 +849,38 @@ class WskBasicUsageTests
     it should "reject an api commands with an invalid path parameter" in {
         val badpath = "badpath"
 
-        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        var rr = wsk.cli(Seq("api", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badpath}' must begin with '/'")
 
-        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr = wsk.cli(Seq("api", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badpath}' must begin with '/'")
 
-        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr = wsk.cli(Seq("api", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badpath}' must begin with '/'")
     }
 
     it should "reject an api commands with an invalid verb parameter" in {
         val badverb = "badverb"
 
-        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        var rr = wsk.cli(Seq("api", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
-        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr = wsk.cli(Seq("api", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
-        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        rr = wsk.cli(Seq("api", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
     }
 
     it should "reject an api create command with an API name argument and an API name option" in {
         val apiName = "An API Name"
-        val rr = wsk.cli(Seq("api-experimental", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        val rr = wsk.cli(Seq("api", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"An API name can only be specified once.")
     }
 
     it should "reject an api create command that specifies a nonexistent configuration file" in {
         val configfile = "/nonexistent/file"
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        val rr = wsk.cli(Seq("api", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"Error reading swagger file '${configfile}':")
     }
 
@@ -893,7 +893,7 @@ class WskBasicUsageTests
         bw.write("a=A")
         bw.close()
 
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        val rr = wsk.cli(Seq("api", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"Error parsing swagger file '${filename}':")
     }
 
@@ -918,7 +918,7 @@ class WskBasicUsageTests
                     |}""".stripMargin)
         bw.close()
 
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+        val rr = wsk.cli(Seq("api", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
     }
 
@@ -1186,13 +1186,13 @@ class WskBasicUsageTests
         val invalidShared = s"Cannot use value '$invalidArg' for shared"
         val entityNameMsg = s"An entity name, '$invalidArg', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
         val invalidArgs = Seq(
-            (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
-            (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
-            (Seq("api-experimental", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
-            (Seq("api-experimental", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
-            (Seq("api-experimental", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
-            (Seq("api-experimental", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
-            (Seq("api-experimental", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
+            (Seq("api", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
+            (Seq("api", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
+            (Seq("api", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
+            (Seq("api", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
+            (Seq("api", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
+            (Seq("api", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
+            (Seq("api", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
             (Seq("action", "create"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "someAction"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
