@@ -456,7 +456,6 @@ The following table lists the default limits for actions.
 
 ### Per namespace concurrent invocation (Default: 100)
 * The number of activations that are either executing or queued for execution for a namespace cannot exceed 100.
-* The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
 ### Invocations per minute (Fixed: 120)

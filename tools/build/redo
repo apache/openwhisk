@@ -239,10 +239,6 @@ Components = [
                   'teardown all deployed containers',
                   yaml = 'teardown.yml'),
 
-    makeComponent('consul',
-                  'build/deploy consul (includes registrator)',
-                  modes = 'clean'),
-
     makeComponent('kafka',
                   'build/deploy kafka',
                   modes = 'clean'),

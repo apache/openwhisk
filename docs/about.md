@@ -18,7 +18,7 @@ An existing catalog of packages offers a quick way to enhance applications with 
 
 # How OpenWhisk works
 
-Being an open-source project, OpenWhisk stands on the shoulders of giants, including Nginx, Kafka, Consul, Docker, CouchDB. All of these components come together to form a “serverless event-based programming service”. To explain all the components in more detail, lets trace an invocation of an action through the system as it happens. An invocation in OpenWhisk is the core thing a serverless-engine does: Execute the code the user has fed into the system and return the results of that execution.
+Being an open-source project, OpenWhisk stands on the shoulders of giants, including Nginx, Kafka, Docker, CouchDB. All of these components come together to form a “serverless event-based programming service”. To explain all the components in more detail, lets trace an invocation of an action through the system as it happens. An invocation in OpenWhisk is the core thing a serverless-engine does: Execute the code the user has fed into the system and return the results of that execution.
 
 ## Creating the action
 
@@ -81,13 +81,9 @@ The record of the action contains mainly the code to execute (shown above) and d
 
 In this particular case, our action doesn’t take any parameters (the function’s parameter definition is an empty list), thus we assume we haven’t set any default parameters and haven’t sent any specific parameters to the action, making for the most trivial case from this point-of-view.
 
-### Who’s there to invoke the action: Consul
+### Who’s there to invoke the action: Load Balancer
 
-The Controller (or more specifically the load balancing part of it) has everything in place now to actually get your code running. It needs to know who’s available to do so though. **Consul**, a service discovery, is used to keep track of the executors available in the system by checking their health status continuously. Those executors are called **Invokers**.
-
-The Controller, now knowing which Invokers are available, chooses one of them to invoke the action requested.
-
-Let’s assume for this case, that the system has 3 Invokers available, Invoker 0 to 2, and that the Controller chose *Invoker 2* to invoke the action at hand.
+The Load Balancer, which is part of the Controller, has a global view of the executors available in the system by checking their health status continuously. Those executors are called **Invokers**. The Load Balancer, knowing which Invokers are available, chooses one of them to invoke the action requested.
 
 ### Please form a line: Kafka
 
@@ -98,7 +94,7 @@ From now on, mainly two bad things can happen to the invocation request you sent
 
 The answer to both is **Kafka**, “a high-throughput, distributed, publish-subscribe messaging system”. Controller and Invoker solely communicate through messages buffered and persisted by Kafka. That lifts the burden of buffering in memory, risking an *OutOfMemoryException*, off of both the Controller and the Invoker while also making sure that messages are not lost in case the system crashes.
 
-To get the action invoked then, the Controller publishes a message to Kafka, which contains the action to invoke and the parameters to pass to that action (in this case none). This message is addressed to the Invoker which the Controller chose above from the list it got from Consul.
+To get the action invoked then, the Controller publishes a message to Kafka, which contains the action to invoke and the parameters to pass to that action (in this case none). This message is addressed to the Invoker which the Controller chose above from the list of available invokers.
 
 Once Kafka has confirmed that it got the message, the HTTP request to the user is responded to with an **ActivationId**. The user will use that later on, to get access to the results of this specific invocation. Note that this is an asynchronous invocation model, where the HTTP request terminates once the system has accepted the request to invoke an action. A synchronous model (called blocking invocation) is available, but not covered by this article.
 

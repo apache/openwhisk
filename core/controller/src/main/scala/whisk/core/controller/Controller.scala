@@ -118,7 +118,6 @@ class Controller(
 
     // initialize backend services
     private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
-    private implicit val consulServer = whiskConfig.consulServer
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 

@@ -204,7 +204,7 @@ cd ansible
 ansible-playbook -i environments/<environment> controller.yml -e mode=clean
 ```
 
-**Caveat:** In distributed environments some components (e.g. Consul, Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
+**Caveat:** In distributed environments some components (e.g. Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
 
 
 ### Cleaning an OpenWhisk Deployment

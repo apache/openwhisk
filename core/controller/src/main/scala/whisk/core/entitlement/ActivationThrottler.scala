@@ -34,9 +34,11 @@ import whisk.core.loadBalancer.LoadBalancer
  * to calculate and determine whether the namespace currently invoking a new action should
  * be allowed to do so.
  *
- * @param config containing the config information needed (consulServer)
+ * @param loadbalancer contains active quotas
+ * @param defaultConcurrencyLimit the default max allowed concurrent operations
+ * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
+class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem, logging: Logging) {
 
     logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")

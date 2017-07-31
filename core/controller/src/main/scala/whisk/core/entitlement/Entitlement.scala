@@ -60,7 +60,7 @@ protected[core] case class Resource(
 }
 
 protected[core] object EntitlementProvider {
-    val requiredProperties = WhiskConfig.consulServer ++ Map(
+    val requiredProperties = Map(
         WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
         WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
         WhiskConfig.triggerFirePerMinuteDefaultLimit -> null,
@@ -84,7 +84,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     private val invokeRateThrottler = new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt, _.limits.invocationsPerMinute)
     private val triggerRateThrottler = new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute)
-    private val concurrentInvokeThrottler = new ActivationThrottler(config.consulServer, loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
+    private val concurrentInvokeThrottler = new ActivationThrottler(loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     /**
      * Grants a subject the right to access a resources.

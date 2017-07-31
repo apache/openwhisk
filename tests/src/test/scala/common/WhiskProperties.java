@@ -144,14 +144,6 @@ public class WhiskProperties {
         return Integer.parseInt(whiskProperties.getProperty("kafkaras.host.port"));
     }
 
-    public static String getConsulServerHost() {
-        return whiskProperties.getProperty("consulserver.host");
-    }
-
-    public static int getConsulKVPort() {
-        return Integer.parseInt(whiskProperties.getProperty("consul.host.port4"));
-    }
-
     public static String getZookeeperHost() {
         return whiskProperties.getProperty("zookeeper.host");
     }

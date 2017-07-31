@@ -84,8 +84,6 @@ protected trait ControllerTestCommon
         override def make = fixedId
     }
 
-    override val consulServer = "???"
-
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
     val authStore = WhiskAuthStore.datastore(whiskConfig)
