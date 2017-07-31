@@ -159,7 +159,7 @@ object ActionContainer {
     }
 
     private def syncPost(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
-        whisk.core.container.HttpUtils.post(host, port, endPoint, content)
+        whisk.core.containerpool.docker.HttpUtils.post(host, port, endPoint, content)
     }
 
     private class ActionContainerImpl() extends ActionContainer {

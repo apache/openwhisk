@@ -19,21 +19,17 @@ package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.core.container.HttpUtils
-import whisk.core.container.Interval
-import whisk.core.container.RunResult
+import whisk.core.containerpool.Interval
 import whisk.core.containerpool.BlackboxStartupError
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.InitializationError
@@ -41,8 +37,9 @@ import whisk.core.containerpool.WhiskContainerStartupError
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
-import whisk.core.invoker.ActionLogDriver
 import whisk.http.Messages
+import whisk.core.entity.ActivationResponse.ContainerConnectionError
+import whisk.core.entity.ActivationResponse.ContainerResponse
 
 object DockerContainer {
     /**
@@ -124,7 +121,7 @@ object DockerContainer {
  * @param ip the ip of the container
  */
 class DockerContainer(id: ContainerId, ip: ContainerIp)(
-    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, logger: Logging) extends Container with ActionLogDriver {
+    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, logger: Logging) extends Container with DockerActionLogDriver {
 
     /** The last read-position in the log file */
     private var logFileOffset = 0L
@@ -254,4 +251,9 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(
             RunResult(Interval(started, finished), response)
         }
     }
+}
+
+case class RunResult(interval: Interval, response: Either[ContainerConnectionError, ContainerResponse]) {
+    def ok = response.right.exists(_.ok)
+    def toBriefString = response.fold(_.toString, _.toString)
 }

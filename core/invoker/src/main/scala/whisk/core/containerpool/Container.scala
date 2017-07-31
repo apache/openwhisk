@@ -22,9 +22,10 @@ import scala.concurrent.duration.FiniteDuration
 
 import spray.json.JsObject
 import whisk.common.TransactionId
-import whisk.core.container.Interval
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ByteSize
+import java.time.Instant
+import scala.concurrent.duration._
 
 /**
  * An OpenWhisk biased container abstraction. This is **not only** an abstraction
@@ -65,3 +66,15 @@ case class BlackboxStartupError(msg: String) extends ContainerStartupError(msg)
 
 /** Indicates an error while initializing a container */
 case class InitializationError(interval: Interval, response: ActivationResponse) extends Exception(response.toString)
+
+case class Interval(start: Instant, end: Instant) {
+    def duration = Duration.create(end.toEpochMilli() - start.toEpochMilli(), MILLISECONDS)
+}
+
+object Interval {
+    /** An interval starting now with zero duration. */
+    def zero = {
+        val now = Instant.now
+        Interval(now, now)
+    }
+}
