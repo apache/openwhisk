@@ -35,6 +35,11 @@
       "SERVICE_CHECK_HTTP": "/ping"
       "SERVICE_CHECK_TIMEOUT": "2s"
       "SERVICE_CHECK_INTERVAL": "15s"
+      "JAEGER_AGENT_HOST": "{{ groups['jaeger_agent'] | first }}"
+      "JAEGER_SERVICE_NAME": "openwhisk"
+      "JAEGER_REPORTER_LOG_SPANS": "true"
+      "JAEGER_SAMPLER_TYPE": "const"
+      "JAEGER_SAMPLER_PARAM": "1"
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
     volumes:

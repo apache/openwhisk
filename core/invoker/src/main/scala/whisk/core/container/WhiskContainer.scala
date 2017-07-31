@@ -23,10 +23,12 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+
 import akka.actor.ActorSystem
 import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
+import whisk.common.Tracing
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.entitlement.Privilege
@@ -86,16 +88,26 @@ class WhiskContainer(
 
     /**
      * Sends a run command to action container to run once.
-     *
-     * @param state the value of the status to compare the actual state against
-     * @return triple of start time, end time, response for user action.
      */
     def run(msg: ActivationMessage, args: JsObject, timeout: FiniteDuration)(implicit system: ActorSystem, transid: TransactionId): RunResult = {
         val startMarker = transid.started("Invoker", LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to ${msg.action} $details")
+
+        // start the span
+        val spanMetadata = Tracing.SpanMetadata(msg.action.asString,
+                                                msg.action.path.asString,
+                                                msg.user.subject.asString,
+                                                msg.revision.asString,
+                                                msg.action.version.getOrElse(SemVer()).toString)
+        val spanOption = Tracing.startSpan(spanMetadata, msg.tracingMetadata)
         val result = sendPayload("/run", constructActivationMetadata(msg, args, timeout), timeout, retry = false)
+
         // Use start and end time of the activation
         val RunResult(Interval(startActivation, endActivation), _) = result
         transid.finished("Invoker", startMarker.copy(startActivation), s"running result: ${result.toBriefString}", endTime = endActivation)
+
+        // finish the span
+        Tracing.endSpan(spanOption)
+
         result
     }
 
