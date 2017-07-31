@@ -846,31 +846,31 @@ class WskBasicUsageTests
 
     behavior of "Wsk api"
 
-    it should "reject an api commands with an invalid path parameter" in {
-        val badpath = "badpath"
+    // it should "reject an api commands with an invalid path parameter" in {
+    //     val badpath = "badpath"
 
-        var rr = wsk.cli(Seq("api", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
+    //     var rr = wsk.cli(Seq("api", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badpath}' must begin with '/'")
 
-        rr = wsk.cli(Seq("api", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
+    //     rr = wsk.cli(Seq("api", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badpath}' must begin with '/'")
 
-        rr = wsk.cli(Seq("api", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
-    }
+    //     rr = wsk.cli(Seq("api", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badpath}' must begin with '/'")
+    // }
 
-    it should "reject an api commands with an invalid verb parameter" in {
-        val badverb = "badverb"
+    // it should "reject an api commands with an invalid verb parameter" in {
+    //     val badverb = "badverb"
 
-        var rr = wsk.cli(Seq("api", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+    //     var rr = wsk.cli(Seq("api", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
-        rr = wsk.cli(Seq("api", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+    //     rr = wsk.cli(Seq("api", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
 
-        rr = wsk.cli(Seq("api", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
-    }
+    //     rr = wsk.cli(Seq("api", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
+    //     rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+    // }
 
     it should "reject an api create command with an API name argument and an API name option" in {
         val apiName = "An API Name"
