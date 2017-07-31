@@ -1006,17 +1006,13 @@ trait WaitFor {
 
 object Wsk {
     private val binaryName = "wsk"
-    private val cliPath = getCLIPath
+    private val cliPath = if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
 
     assert((new File(cliPath)).exists, s"did not find $cliPath")
 
     /** What is the path to a downloaded CLI? **/
     private def getDownloadedGoCLIPath = {
         s"${System.getProperty("user.home")}${File.separator}.local${File.separator}bin${File.separator}${binaryName}"
-    }
-
-    private def getCLIPath = {
-        if (WhiskProperties.useCLIDownload) getDownloadedGoCLIPath else WhiskProperties.getCLIPath
     }
 
     def baseCommand = Buffer(cliPath)
