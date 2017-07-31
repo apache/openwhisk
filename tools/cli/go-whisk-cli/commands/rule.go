@@ -388,6 +388,19 @@ var ruleListCmd = &cobra.Command{
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
+        } else {
+            //No errors, lets attempt to retrieve the status of each rule #312
+            for index, rule := range rules {
+                ruleStatus, _, err := client.Rules.Get(rule.Name)
+                if err != nil {
+                    errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
+                        map[string]interface{}{"name": rule.Name, "err": err})
+                    fmt.Println(errStr)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    return werr
+                }
+                rules[index].Status = ruleStatus.Status
+            }
         }
         printList(rules)
         return nil
