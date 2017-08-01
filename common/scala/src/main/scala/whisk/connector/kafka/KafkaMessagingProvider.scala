@@ -17,18 +17,21 @@
 
 package whisk.connector.kafka
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.core.connector.{MessageConsumer, MessageProducer, MessagingProvider}
+import whisk.core.connector.MessageConsumer
+import whisk.core.connector.MessageProducer
+import whisk.core.connector.MessagingProvider
 import whisk.spi.SpiModule
-import scala.concurrent.ExecutionContext
 
 /**
  * A Kafka based implementation of MessagingProvider
  */
 class KafkaMessagingProvider() extends MessagingProvider {
-    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxdepth: Int)(implicit logging: Logging): MessageConsumer = {
-        new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxdepth)
+    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(implicit logging: Logging): MessageConsumer = {
+        new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
     }
 
     def getProducer(config: WhiskConfig, ec:ExecutionContext)(implicit logging: Logging): MessageProducer = new KafkaProducerConnector(config.kafkaHost, ec)

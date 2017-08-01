@@ -17,18 +17,19 @@
 
 package whisk.core.connector
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.spi.Spi
 import whisk.spi.SpiProvider
 
-import scala.concurrent.ExecutionContext
-
 /**
  * An Spi for providing Messaging implementations.
  */
 trait MessagingProvider extends Spi {
-    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxdepth: Int = Int.MaxValue)(implicit logging:Logging): MessageConsumer
+    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int = Int.MaxValue, maxPollInterval: FiniteDuration = 5.minutes)(implicit logging:Logging): MessageConsumer
     def getProducer(config:WhiskConfig, ec:ExecutionContext)(implicit logging: Logging): MessageProducer
 }
 object MessagingProvider extends SpiProvider[MessagingProvider]("whisk.spi.messaging.impl")
