@@ -9,6 +9,7 @@ sudo apt-get install -y python-dev libffi-dev libssl-dev
 sudo pip install markupsafe
 sudo pip install ansible==2.3.0.0
 sudo pip install docker==2.2.1
+sudo pip install jinja2==2.9.6
 
 ansible --version
 ansible-playbook --version
