@@ -70,8 +70,8 @@
         -e INVOKER_OPTS='{{ invoker.arguments }}'
         -e COMPONENT_NAME=invoker{{ groups['invokers'].index(inventory_hostname) }}
         -e PORT=8080
-        -e KAFKA_HOST={{ groups['kafka']|first }}
-        -e KAFKA_HOST_PORT={{ kafka.port }}
+        -e KAFKA_HOSTS={{ groups['kafkas'] | join(',') }}
+        -e KAFKA_HOSTS_BASEPORT={{ kafka.port }}
         -e DB_PROTOCOL={{ db_protocol }}
         -e DB_PROVIDER={{ db_provider }}
         -e DB_HOST={{ db_host }}
