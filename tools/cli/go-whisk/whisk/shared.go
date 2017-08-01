@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,11 +20,28 @@ package whisk
 import "encoding/json"
 
 type KeyValue struct {
-    Key  string         `json:"key"`
-    Value interface{}   `json:"value"`
+    Key     string          `json:"key"`
+    Value   interface{}     `json:"value"`
 }
 
 type KeyValueArr []KeyValue
+
+/*
+Retrieves a value associated with a given key from a KeyValueArr. A key of type string must be passed to the method.
+An interface will be returned containing the found value. If a key could not be found, a nil value will be returned.
+ */
+func (keyValueArr KeyValueArr) GetValue(key string) (res interface{}) {
+    for i := 0; i < len(keyValueArr); i++ {
+        if keyValueArr[i].Key == key {
+            res = keyValueArr[i].Value
+            break;
+        }
+    }
+
+    Debug(DbgInfo, "Got value '%v' for key '%s' from '%v'\n", res, key, keyValueArr)
+
+    return res
+}
 
 type Annotations []map[string]interface{}
 

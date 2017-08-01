@@ -100,20 +100,6 @@ object WhiskAuthStore {
         ArtifactStoreProvider(system).makeStore[WhiskAuth](config, _.dbAuths)
 }
 
-object WhiskAuthV2Store {
-    def requiredProperties =
-        Map(dbProvider -> null,
-            dbProtocol -> null,
-            dbUsername -> null,
-            dbPassword -> null,
-            dbHost -> null,
-            dbPort -> null,
-            dbAuths -> null)
-
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        ArtifactStoreProvider(system).makeStore[WhiskAuthV2](config, _.dbAuths)
-}
-
 object WhiskEntityStore {
     def requiredProperties =
         Map(dbProvider -> null,
@@ -297,7 +283,7 @@ object WhiskEntityQueries {
         db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce) map {
             rows =>
                 convert map { fn =>
-                    Right(rows flatMap { fn(_) toOption })
+                    Right(rows flatMap { row => fn(row.fields("doc").asJsObject) toOption })
                 } getOrElse {
                     Left(rows flatMap { normalizeRow(_, reduce) toOption })
                 }

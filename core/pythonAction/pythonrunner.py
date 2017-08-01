@@ -32,6 +32,7 @@ class PythonRunner(ActionRunner):
         ActionRunner.__init__(self, '/action/__main__.py')
         self.fn = None
         self.mainFn = 'main'
+        self.global_context = {}
 
     def initCodeFromString(self, message):
         # do nothing, defer to build step
@@ -79,15 +80,13 @@ class PythonRunner(ActionRunner):
         return self.fn is not None
 
     def run(self, args, env):
-        # initialize the namespace for the execution
-        namespace = {}
         result = None
         try:
             os.environ = env
-            namespace['param'] = args
-            exec(self.fn, namespace)
-            exec('fun = %s(param)' % self.mainFn, namespace)
-            result = namespace['fun']
+            self.global_context['param'] = args
+            exec(self.fn, self.global_context)
+            exec('fun = %s(param)' % self.mainFn, self.global_context)
+            result = self.global_context['fun']
         except Exception:
             traceback.print_exc(file=sys.stderr)
 

@@ -54,7 +54,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     /** Actions API tests */
     behavior of "Actions API"
 
-    val creds = WhiskAuth(Subject(), AuthKey()).toIdentity
+    val creds = WhiskAuthHelpers.newIdentity()
     val namespace = EntityPath(creds.subject.asString)
     val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
     def aname = MakeName.next("action_tests")
@@ -108,7 +108,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
 
         // it should "reject list action with explicit namespace not owned by subject" in {
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -144,7 +144,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         }
 
         // it should "reject get action by name in explicit namespace not owned by subject" in
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -199,7 +199,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action)
 
         // it should "reject delete action by name not owned by subject" in
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Get(s"/$namespace/${collection.path}/${action.name}") ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -413,7 +413,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val content = WhiskActionPut(Some(action.exec), Some(action.parameters))
 
         // it should "reject put action in namespace not owned by subject" in
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Put(s"/$namespace/${collection.path}/${action.name}", content) ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }
@@ -543,7 +543,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         put(entityStore, action)
 
         // it should "reject post to action in namespace not owned by subject"
-        val auser = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val auser = WhiskAuthHelpers.newIdentity()
         Post(s"/$namespace/${collection.path}/${action.name}", args) ~> sealRoute(routes(auser)) ~> check {
             status should be(Forbidden)
         }

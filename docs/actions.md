@@ -12,6 +12,7 @@ Learn how to create, invoke, and debug actions in your preferred development env
 * [Swift](#creating-swift-actions)
 * [Python](#creating-python-actions)
 * [Java](#creating-java-actions)
+* [PHP](#creating-php-actions)
 * [Docker](#creating-docker-actions)
 
 In addition, learn about:
@@ -106,7 +107,20 @@ Review the following steps and examples to create your first JavaScript action.
   }
   ```
 
-6. If you forget to record the activation ID, you can get a list of activations ordered from the most recent to the oldest. Run the following command to get a list of your activations:
+6. To access the most recent activation record, activation results or activation logs, use the `--last` or `-l` flag. Run the following command to get your last activation result.
+
+  ```
+  wsk activation result --last
+  ```
+  ```json
+  {
+      "payload": "Hello world"
+  }
+  ```
+
+  Note that you should not use an activation ID with the flag `--last`.
+
+7. If you forget to record the activation ID, you can get a list of activations ordered from the most recent to the oldest. Run the following command to get a list of your activations:
 
   ```
   wsk activation list
@@ -257,6 +271,20 @@ Rather than pass all the parameters to an action every time, you can bind certai
       "payload": "Hello, Bernie from Washington, DC"
   }
   ```
+
+### Getting an action URL
+
+An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
+
+```
+$ wsk action get actionName --url
+ok: got action actionName
+https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
+```
+
+**Note:** Authentication must be provided when invoking an action via an HTTPS request. For more information regarding
+action invocations using the REST interface, see
+[Using REST APIs with OpenWhisk](rest_api.md#actions).
 
 ### Creating asynchronous actions
 
@@ -580,6 +608,65 @@ wsk action create helloPython --kind python:3 helloPython.zip
 
 While the steps above are shown for Python 3.6, you can do the same for Python 2.7 as well.
 
+
+## Creating PHP actions
+
+The process of creating PHP actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single PHP action, and adding parameters to that action.
+
+### Creating and invoking a PHP action
+
+An action is simply a top-level PHP function. For example, create a file called `hello.php` with the following source code:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $name = $args["name"] ?? "stranger";
+    $greeting = "Hello $name!";
+    echo $greeting;
+    return ["greeting" => $greeting];
+}
+```
+
+PHP actions always consume an associative array and return an associative array. The entry method for the action is `main` by default but may be specified explicitly when creating the action with the `wsk` CLI using `--main`, as with any other action type.
+
+You can create an OpenWhisk action called `helloPHP` from this function as follows:
+
+```
+wsk action create helloPHP hello.php
+```
+
+The CLI automatically infers the type of the action from the source file extension. For `.php` source files, the action runs using a PHP 7.1 runtime. See the PHP [reference](./reference.md#php-actions) for more information.
+
+Action invocation is the same for PHP actions as it is for JavaScript actions:
+
+```
+wsk action invoke --result helloPHP --param name World
+```
+
+```json
+  {
+      "greeting": "Hello World!"
+  }
+```
+
+### Packaging PHP actions in zip files
+
+You can package a PHP action along with other files and dependent packages in a zip file.
+The filename of the source file containing the entry point (e.g., `main`) must be `index.php`.
+For example, to create an action that includes a second file called `helper.php`, first create an archive containing your source files:
+
+```bash
+zip -r helloPHP.zip index.php helper.php
+```
+
+and then create the action:
+
+```bash
+wsk action create helloPHP --kind php:7.1 helloPHP.zip
+```
+
+
 ## Creating Swift actions
 
 The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and adding parameters to that action.
@@ -610,9 +697,10 @@ follows:
 wsk action create helloSwift hello.swift
 ```
 
-When you use the command line and a `.swift` source file, you do not need to
-specify that you are creating a Swift action (as opposed to a JavaScript action);
-the tool determines that from the file extension.
+The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1.
+
+**Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`. Support for Swift 3.0 is deprecated and will be removed soon.
+
 
 Action invocation is the same for Swift actions as it is for JavaScript actions:
 
@@ -639,11 +727,11 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
   ```
   docker run --rm -it -v "$(pwd):/owexec" openwhisk/action-swift-v3.1.1 bash
   ```
-  This puts you in a bash shell within the Docker container. 
+  This puts you in a bash shell within the Docker container.
 
 - Copy the source code and prepare to build it.
   ```
-  cp /owexec/hello.swift /swift3Action/spm-build/main.swift 
+  cp /owexec/hello.swift /swift3Action/spm-build/main.swift
   ```
   ```
   cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
@@ -657,7 +745,7 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
 - (Optional) Create the `Package.swift` file to add dependencies.
   ```swift
   import PackageDescription
-  
+
   let package = Package(
     name: "Action",
         dependencies: [
@@ -698,17 +786,17 @@ and so you should include them in your own `Package.swift`.
   exit
   ```
 
-  This has created hello.zip in the same directory as hello.swift. 
+  This has created hello.zip in the same directory as hello.swift.
 
 - Upload it to OpenWhisk with the action name helloSwifty:
   ```
   wsk action update helloSwiftly hello.zip --kind swift:3.1.1
   ```
 
-- To check how much faster it is, run 
+- To check how much faster it is, run
   ```
   wsk action invoke helloSwiftly --blocking
-  ``` 
+  ```
 
 
 The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
@@ -730,6 +818,7 @@ For example, create a Java file called `Hello.java` with the following content:
 
 ```java
 import com.google.gson.JsonObject;
+
 public class Hello {
     public static JsonObject main(JsonObject args) {
         String name = "stranger";
@@ -910,7 +999,7 @@ You can use the OpenWhisk CLI to watch the output of actions as they are invoked
   wsk activation poll
   ```
 
-  This command starts a polling loop that continuously checks for logs from activations.
+This command starts a polling loop that continuously checks for logs from activations.
 
 2. Switch to another window and invoke an action:
 
@@ -939,7 +1028,7 @@ You can list all the actions that you have created using:
 wsk action list
 ```
 
-As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use: 
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use:
 
 ```
 wsk action list [PACKAGE NAME]

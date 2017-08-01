@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +22,8 @@ import (
     "net/http"
     "errors"
     "net/url"
+    "strings"
+
     "../wski18n"
 )
 
@@ -54,6 +57,53 @@ type ActionListOptions struct {
     Limit       int         `url:"limit"`
     Skip        int         `url:"skip"`
     Docs        bool        `url:"docs,omitempty"`
+}
+
+/*
+Determines if an action is a web action by examining the action's annotations. A value of true is returned if the
+action's annotations contains a "web-export" key and its associated value is a boolean value of "true". Otherwise, false
+is returned.
+ */
+func (action Action) WebAction() (webExportValue bool) {
+    webExport := action.Annotations.GetValue("web-export")
+    webExportValue, _ = webExport.(bool)
+
+    Debug(DbgInfo, "Web export value is '%t'\n", webExportValue)
+
+    return webExportValue
+}
+
+/*
+Returns the URL of an action as a string. A valid API host, path and version must be passed. A package that contains the
+action must be passed as well. An empty string must be passed if the action is not packaged.
+ */
+func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (actionURL string) {
+    webActionPath := "https://%s%s/%s/web/%s/%s/%s"
+    actionPath := "https://%s%s/%s/namespaces/%s/actions/%s"
+    packagedActionPath := actionPath + "/%s"
+    namespace := strings.Split(action.Namespace, "/")[0]
+    namespace = strings.Replace(url.QueryEscape(namespace), "+", "%20", -1)
+    name := strings.Replace(url.QueryEscape(action.Name), "+", "%20", -1)
+    pkg = strings.Replace(url.QueryEscape(pkg), "+", "%20", -1)
+
+    if action.WebAction() {
+        if len(pkg) == 0 {
+            pkg = "default"
+        }
+
+        actionURL = fmt.Sprintf(webActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+        Debug(DbgInfo, "Web action URL: %s\n", actionURL)
+    } else {
+        if len(pkg) == 0 {
+            actionURL = fmt.Sprintf(actionPath, apiHost, apiPath, apiVersion, namespace, name)
+            Debug(DbgInfo, "Packaged action URL: %s\n", actionURL)
+        } else {
+            actionURL = fmt.Sprintf(packagedActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+            Debug(DbgInfo, "Action URL: %s\n", actionURL)
+        }
+    }
+
+    return actionURL
 }
 
 ////////////////////

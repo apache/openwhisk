@@ -32,7 +32,7 @@ sudo easy_install pip
 # install docker for python
 /usr/local/bin/pip install docker==2.2.1
 # install script prerequisites
-sudo -H pip install ansible==2.3.0.0 jsonschema couchdb' | bash
+sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 jsonschema couchdb' | bash
 ```
 
 # Build
@@ -46,7 +46,7 @@ cd /your/path/to/openwhisk
 Follow instructions in [ansible/README.md](../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../../docs/README.md#setting-up-the-openwhisk-cli)
+Follow instructions in [Configure CLI](../../docs/cli.md)
 
 ### Use the wsk CLI
 ```

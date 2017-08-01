@@ -24,10 +24,7 @@ import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
-import scala.util.Try
 
-import org.apache.kafka.clients.consumer.CommitFailedException
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -41,8 +38,9 @@ class KafkaConsumerConnector(
     topic: String,
     override val maxPeek: Int = Int.MaxValue,
     readeos: Boolean = true,
-    sessionTimeout: FiniteDuration = 30 seconds,
-    autoCommitInterval: FiniteDuration = 10 seconds)(
+    sessionTimeout: FiniteDuration = 30.seconds,
+    autoCommitInterval: FiniteDuration = 10.seconds,
+    maxPollInterval: FiniteDuration = 5.minutes)(
         implicit logging: Logging)
     extends MessageConsumer {
 
@@ -52,7 +50,7 @@ class KafkaConsumerConnector(
      *
      * @param duration the maximum duration for the long poll
      */
-    override def peek(duration: Duration = 500 milliseconds) = {
+    override def peek(duration: Duration = 500.milliseconds) = {
         val records = consumer.poll(duration.toMillis)
         records map { r => (r.topic, r.partition, r.offset, r.value) }
     }
@@ -62,34 +60,8 @@ class KafkaConsumerConnector(
      */
     def commit() = consumer.commitSync()
 
-    override def onMessage(process: (String, Int, Long, Array[Byte]) => Unit) = {
-        val self = this
-        val thread = new Thread() {
-            override def run() = {
-                while (!disconnect) {
-                    Try {
-                        // Grab next batch of messages and commit offsets immediately
-                        // It won't be processed twice (tested in "KafkaConnectorTest")
-                        val messages = peek()
-                        commit()
-                        messages
-                    } map {
-                        _.foreach { process.tupled(_) }
-                    } recover {
-                        case e: CommitFailedException => logging.error(self, s"failed to commit to kafka: ${e.getMessage}")
-                        case e: Throwable             => logging.error(self, s"exception while pulling new records: ${e.getMessage}")
-                    }
-                }
-                logging.warn(self, "consumer stream terminated")
-                consumer.close()
-            }
-        }
-        thread.start()
-    }
-
     override def close() = {
         logging.info(this, s"closing '$topic' consumer")
-        disconnect = true
     }
 
     private def getProps: Properties = {
@@ -102,6 +74,7 @@ class KafkaConsumerConnector(
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, autoCommitInterval.toMillis.toString)
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval.toMillis.toString)
 
         // This value controls the server-side wait time which affects polling latency.
         // A low value improves latency performance but it is important to not set it too low
@@ -116,10 +89,9 @@ class KafkaConsumerConnector(
         val keyDeserializer = new ByteArrayDeserializer
         val valueDeserializer = new ByteArrayDeserializer
         val consumer = new KafkaConsumer(props, keyDeserializer, valueDeserializer)
-        topics map { consumer.subscribe(_) }
+        topics foreach { consumer.subscribe(_) }
         consumer
     }
 
     private val consumer = getConsumer(getProps, Some(List(topic)))
-    private var disconnect = false
 }

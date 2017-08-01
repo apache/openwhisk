@@ -45,12 +45,9 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.Timeout
 import common.StreamLogging
-import whisk.common.ConsulKV.LoadBalancerKeys
-import whisk.common.KeyValueStore
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
-import whisk.core.connector.MessageConsumer
 import whisk.core.connector.PingMessage
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -75,6 +72,7 @@ import whisk.core.loadBalancer.InvokerState
 import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
 import whisk.utils.retry
+import whisk.core.connector.test.TestConnector
 
 @RunWith(classOf[JUnitRunner])
 class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
@@ -99,108 +97,79 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     def timeout(actor: ActorRef) = actor ! FSM.StateTimeout
 
     /** Queries all invokers for their state */
-    def allStates(pool: ActorRef) = Await.result(pool.ask(GetStatus).mapTo[Map[String, InvokerState]], timeout.duration)
+    def allStates(pool: ActorRef) = Await.result(pool.ask(GetStatus).mapTo[IndexedSeq[(InstanceId, InvokerState)]], timeout.duration)
+
+    /** Helper to generate a list of (InstanceId, InvokerState) */
+    def zipWithInstance(list: IndexedSeq[InvokerState]) = list.zipWithIndex.map { case (state, index) => (InstanceId(index), state) }
+
+    val pC = new TestConnector("pingFeedTtest", 4, false) {}
 
     behavior of "InvokerPool"
 
     it should "successfully create invokers in its pool on ping and keep track of statechanges" in {
-        val invoker0 = TestProbe()
-        val invoker1 = TestProbe()
-        val invoker0Name = invoker0.ref.path.name
-        val invoker1Name = invoker1.ref.path.name
+        val invoker5 = TestProbe()
+        val invoker2 = TestProbe()
 
-        val children = mutable.Queue(invoker0.ref, invoker1.ref)
-        val childFactory = (f: ActorRefFactory, name: String) => children.dequeue()
+        val invoker5Instance = InstanceId(5)
+        val invoker2Instance = InstanceId(2)
 
-        val kv = stub[KeyValueStore]
-        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
+        val children = mutable.Queue(invoker5.ref, invoker2.ref)
+        val childFactory = (f: ActorRefFactory, instance: InstanceId) => children.dequeue()
+
+        val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // create first invoker
-            val ping0 = PingMessage(invoker0Name)
+            val ping0 = PingMessage(invoker5Instance)
             supervisor ! ping0
-            invoker0.expectMsgType[SubscribeTransitionCallBack] // subscribe to the actor
-            invoker0.expectMsg(ping0)
+            invoker5.expectMsgType[SubscribeTransitionCallBack] // subscribe to the actor
+            invoker5.expectMsg(ping0)
 
-            invoker0.send(supervisor, CurrentState(invoker0.ref, Healthy))
-            allStates(supervisor) shouldBe Map(invoker0Name -> Healthy)
+            invoker5.send(supervisor, CurrentState(invoker5.ref, Healthy))
+            allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Offline, Offline, Offline, Offline, Offline, Healthy))
 
             // create second invoker
-            val ping1 = PingMessage(invoker1Name)
+            val ping1 = PingMessage(invoker2Instance)
             supervisor ! ping1
-            invoker1.expectMsgType[SubscribeTransitionCallBack]
-            invoker1.expectMsg(ping1)
+            invoker2.expectMsgType[SubscribeTransitionCallBack]
+            invoker2.expectMsg(ping1)
 
-            invoker1.send(supervisor, CurrentState(invoker1.ref, Healthy))
-            allStates(supervisor) shouldBe Map(invoker0Name -> Healthy, invoker1Name -> Healthy)
+            invoker2.send(supervisor, CurrentState(invoker2.ref, Healthy))
+            allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Offline, Offline, Healthy, Offline, Offline, Healthy))
 
             // ping the first invoker again
             supervisor ! ping0
-            invoker0.expectMsg(ping0)
+            invoker5.expectMsg(ping0)
 
-            allStates(supervisor) shouldBe Map(invoker0Name -> Healthy, invoker1Name -> Healthy)
+            allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Offline, Offline, Healthy, Offline, Offline, Healthy))
 
             // one invoker goes offline
-            invoker1.send(supervisor, Transition(invoker1.ref, Healthy, Offline))
-            allStates(supervisor) shouldBe Map(invoker0Name -> Healthy, invoker1Name -> Offline)
+            invoker2.send(supervisor, Transition(invoker2.ref, Healthy, Offline))
+            allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Offline, Offline, Offline, Offline, Offline, Healthy))
         }
-    }
-
-    it should "publish state changes via kv and call the provided callback if an invoker goes offline" in {
-        val invoker = TestProbe()
-        val invokerName = invoker.ref.path.name
-        val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
-
-        val kv = stub[KeyValueStore]
-        val callback = stubFunction[String, Unit]
-        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, callback, sendActivationToInvoker, pC))
-
-        within(timeout.duration) {
-            // create first invoker
-            val ping0 = PingMessage(invokerName)
-            supervisor ! ping0
-            invoker.expectMsgType[SubscribeTransitionCallBack] // subscribe to the actor
-            invoker.expectMsg(ping0)
-
-            // triggers kv.put
-            invoker.send(supervisor, CurrentState(invoker.ref, Healthy))
-            // triggers kv.put and callback
-            invoker.send(supervisor, Transition(invoker.ref, Healthy, Offline))
-            // triggers another kv.put
-            invoker.send(supervisor, Transition(invoker.ref, Offline, Healthy))
-        }
-
-        retry({
-            (kv.put _).verify(LoadBalancerKeys.invokerHealth, *).repeated(3)
-            callback.verify(invokerName)
-        }, N = 3, waitBeforeRetry = Some(500.milliseconds))
     }
 
     it should "forward the ActivationResult to the appropriate invoker" in {
         val invoker = TestProbe()
-        val invokerName = invoker.ref.path.name
-        val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
-        val kv = stub[KeyValueStore]
-        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
+        val invokerInstance = InstanceId(0)
+        val invokerName = s"invoker${invokerInstance.toInt}"
+        val childFactory = (f: ActorRefFactory, instance: InstanceId) => invoker.ref
+        val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         within(timeout.duration) {
             // Create one invoker
-            val ping0 = PingMessage(invokerName)
+            val ping0 = PingMessage(invokerInstance)
             supervisor ! ping0
             invoker.expectMsgType[SubscribeTransitionCallBack] // subscribe to the actor
             invoker.expectMsg(ping0)
             invoker.send(supervisor, CurrentState(invoker.ref, Healthy))
-            allStates(supervisor) shouldBe Map(invokerName -> Healthy)
+            allStates(supervisor) shouldBe zipWithInstance(IndexedSeq(Healthy))
 
             // Send message and expect receive in invoker
-            val msg = InvocationFinishedMessage(invokerName, true)
+            val msg = InvocationFinishedMessage(invokerInstance, true)
             supervisor ! msg
             invoker.expectMsg(msg)
         }
@@ -208,14 +177,13 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
 
     it should "forward an ActivationMessage to the sendActivation-Method" in {
         val invoker = TestProbe()
-        val invokerName = invoker.ref.path.name
-        val childFactory = (f: ActorRefFactory, name: String) => invoker.ref
+        val invokerInstance = InstanceId(0)
+        val invokerName = s"invoker${invokerInstance.toInt}"
+        val childFactory = (f: ActorRefFactory, instance: InstanceId) => invoker.ref
 
-        val kv = stub[KeyValueStore]
-        val sendActivationToInvoker = stubFunction[ActivationMessage, String, Future[RecordMetadata]]
-        val pC = stub[MessageConsumer]
+        val sendActivationToInvoker = stubFunction[ActivationMessage, InstanceId, Future[RecordMetadata]]
 
-        val supervisor = system.actorOf(InvokerPool.props(childFactory, kv, () => _, sendActivationToInvoker, pC))
+        val supervisor = system.actorOf(InvokerPool.props(childFactory, sendActivationToInvoker, pC))
 
         // Send ActivationMessage to InvokerPool
         val activationMessage = ActivationMessage(
@@ -227,14 +195,14 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             activationNamespace = EntityPath("guest"),
             rootControllerIndex = InstanceId(0),
             content = None)
-        val msg = ActivationRequest(activationMessage, invokerName)
+        val msg = ActivationRequest(activationMessage, invokerInstance)
 
-        sendActivationToInvoker.when(activationMessage, invokerName).returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
+        sendActivationToInvoker.when(activationMessage, invokerInstance).returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
 
         supervisor ! msg
 
         // Verify, that MessageProducer will receive a call to send the message
-        retry(sendActivationToInvoker.verify(activationMessage, invokerName).once, N = 3, waitBeforeRetry = Some(500.milliseconds))
+        retry(sendActivationToInvoker.verify(activationMessage, invokerInstance).once, N = 3, waitBeforeRetry = Some(500.milliseconds))
     }
 
     behavior of "InvokerActor"
@@ -243,7 +211,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "start unhealthy, go offline if the state times out and goes unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0), InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -251,7 +219,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             timeout(invoker)
             pool.expectMsg(Transition(invoker, UnHealthy, Offline))
 
-            invoker ! PingMessage("testinvoker")
+            invoker ! PingMessage(InstanceId(0))
             pool.expectMsg(Transition(invoker, Offline, UnHealthy))
         }
     }
@@ -259,7 +227,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // unhealthy -> healthy
     it should "goto healthy again, if unhealthy and error buffer has enough successful invocations" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0), InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -267,12 +235,12 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
 
             // Fill buffer with errors
             (1 to InvokerActor.bufferSize).foreach { _ =>
-                invoker ! InvocationFinishedMessage("testinvoker", false)
+                invoker ! InvocationFinishedMessage(InstanceId(0), false)
             }
 
             // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
             (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
-                invoker ! InvocationFinishedMessage("testinvoker", true)
+                invoker ! InvocationFinishedMessage(InstanceId(0), true)
             }
             pool.expectMsg(Transition(invoker, UnHealthy, Healthy))
         }
@@ -282,7 +250,7 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
     // offline -> unhealthy
     it should "go offline when unhealthy, if the state times out and go unhealthy on a successful ping again" in {
         val pool = TestProbe()
-        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0)))
+        val invoker = pool.system.actorOf(InvokerActor.props(InstanceId(0), InstanceId(0)))
 
         within(timeout.duration) {
             pool.send(invoker, SubscribeTransitionCallBack(pool.ref))
@@ -291,20 +259,20 @@ class InvokerSupervisionTests extends TestKit(ActorSystem("InvokerSupervision"))
             timeout(invoker)
             pool.expectMsg(Transition(invoker, UnHealthy, Offline))
 
-            invoker ! PingMessage("testinvoker")
+            invoker ! PingMessage(InstanceId(0))
             pool.expectMsg(Transition(invoker, Offline, UnHealthy))
         }
     }
 
     it should "start timer to send testactions when unhealthy" in {
-        val invoker = TestFSMRef(new InvokerActor(InstanceId(0)))
+        val invoker = TestFSMRef(new InvokerActor(InstanceId(0), InstanceId(0)))
         invoker.stateName shouldBe UnHealthy
 
         invoker.isTimerActive(InvokerActor.timerName) shouldBe true
 
         // Fill buffer with successful invocations to become healthy again (one below errorTolerance)
         (1 to InvokerActor.bufferSize - InvokerActor.bufferErrorTolerance).foreach { _ =>
-            invoker ! InvocationFinishedMessage("testinvoker", true)
+            invoker ! InvocationFinishedMessage(InstanceId(0), true)
         }
         invoker.stateName shouldBe Healthy
 

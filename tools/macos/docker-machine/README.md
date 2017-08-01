@@ -37,7 +37,7 @@ brew install scala
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install ansible==2.3.0.0 jsonschema couchdb' | bash
+sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 jsonschema couchdb' | bash
 ```
 
 # Create and configure Docker machine
@@ -112,6 +112,7 @@ cd /your/path/to/openwhisk
 ```
 brew install python
 pip install ansible==2.3.0.0
+pip install jinja2==2.9.6
 
 cd ansible
 ansible-playbook -i environments/docker-machine setup.yml [-e docker_machine_name=whisk]
@@ -145,7 +146,7 @@ ansible | SUCCESS => {
 Follow remaining instructions from [Using Ansible](../../../ansible/README.md#using-ansible) section in [ansible/README.md](../../../ansible/README.md)
 
 ### Configure the CLI
-Follow instructions in [Configure CLI](../../../docs/README.md#setting-up-the-openwhisk-cli)
+Follow instructions in [Configure CLI](../../../docs/cli.md)
 
 ### Use the wsk CLI
 ```

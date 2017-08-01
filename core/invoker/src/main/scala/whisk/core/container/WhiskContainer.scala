@@ -29,6 +29,7 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
+import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.ActionLimits
 import whisk.core.entity.ActivationResponse._
@@ -108,7 +109,7 @@ class WhiskContainer(
             TransactionId.testing,
             FullyQualifiedEntityName(EntityPath("no_namespace"), EntityName("no_action")),
             DocRevision.empty,
-            WhiskAuth(Subject(), AuthKey()).toIdentity,
+            Identity(Subject(), EntityName("no_namespace"), AuthKey(), Privilege.ALL),
             ActivationId(),
             EntityPath("no_namespace"),
             InstanceId(0),
@@ -120,7 +121,7 @@ class WhiskContainer(
      * Tear down the container and retrieve the logs.
      */
     def teardown()(implicit transid: TransactionId): String = {
-        connection.foreach(_.close)
+        connection.foreach(_.close())
         getContainerLogs(containerName).toOption.getOrElse("none")
     }
 

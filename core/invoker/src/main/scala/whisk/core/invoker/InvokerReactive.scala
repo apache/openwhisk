@@ -36,6 +36,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
+import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.container.{ ContainerPool => OldContainerPool }
 import whisk.core.container.Interval
@@ -47,12 +48,12 @@ import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
 import whisk.core.database.NoDocumentException
-import whisk.core.dispatcher.ActivationFeed.FailedActivation
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.http.Messages
+
 
 class InvokerReactive(
     config: WhiskConfig,
@@ -71,7 +72,7 @@ class InvokerReactive(
 
     /** Cleans up all running wsk_ containers */
     def cleanup() = {
-        val cleaning = docker.ps(Seq("name" -> "wsk_"))(TransactionId.invokerNanny).flatMap { containers =>
+        val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap { containers =>
             val removals = containers.map { id =>
                 runc.resume(id)(TransactionId.invokerNanny).recoverWith {
                     // Ignore resume failures and try to remove anyway
@@ -113,7 +114,7 @@ class InvokerReactive(
         implicit val transid = tid
 
         def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-            val msg = CompletionMessage(transid, res, this.name)
+            val msg = CompletionMessage(transid, res, instance)
             producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
                 case Success(_) =>
                     logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
@@ -137,7 +138,7 @@ class InvokerReactive(
     }
 
     /** Creates a ContainerProxy Actor when being called. */
-    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store))
+    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store, instance))
 
     val prewarmKind = "nodejs:6"
     val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
@@ -206,7 +207,7 @@ class InvokerReactive(
                         Parameters("path", msg.action.toString.toJson) ++ causedBy
                     })
 
-                activationFeed ! FailedActivation(msg.transid)
+                activationFeed ! MessageFeed.Processed
                 ack(msg.transid, activation, msg.rootControllerIndex)
                 store(msg.transid, activation)
         }

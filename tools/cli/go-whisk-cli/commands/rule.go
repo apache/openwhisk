@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -387,6 +388,19 @@ var ruleListCmd = &cobra.Command{
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
+        } else {
+            //No errors, lets attempt to retrieve the status of each rule #312
+            for index, rule := range rules {
+                ruleStatus, _, err := client.Rules.Get(rule.Name)
+                if err != nil {
+                    errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
+                        map[string]interface{}{"name": rule.Name, "err": err})
+                    fmt.Println(errStr)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    return werr
+                }
+                rules[index].Status = ruleStatus.Status
+            }
         }
         printList(rules)
         return nil

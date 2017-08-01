@@ -340,7 +340,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         error.fields.get("code").get shouldBe an[JsNumber]
     }
 
-    Seq(None, Some(WhiskAuth(Subject(), AuthKey()).toIdentity)).foreach { creds =>
+    Seq(None, Some(WhiskAuthHelpers.newIdentity())).foreach { creds =>
 
         it should s"not match invalid routes (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
@@ -1131,13 +1131,19 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             implicit val tid = transid()
             customOptions = false
 
-            Seq(s"$systemId/proxy/export_c.http").
+            Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json").
                 foreach { path =>
-                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
-                        header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        m(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                            header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                            header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                            header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Content-Type"
+                        }
                     }
                 }
+
+            invocationsAllowed -= 2 // Options request does not cause invocation of an action
         }
 
         it should s"invoke action with head verb (auth? ${creds.isDefined})" in {

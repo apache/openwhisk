@@ -253,6 +253,14 @@
     "translation": "Unable to set the property value: {{.err}}"
   },
   {
+    "id": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n",
+    "translation": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n"
+  },
+  {
+    "id": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n",
+    "translation": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n"
+  },
+  {
     "id": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
     "translation": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n"
   },
@@ -293,6 +301,14 @@
     "translation": "Unable to unset the property value: {{.err}}"
   },
   {
+    "id": "{{.ok}} client cert unset.\n",
+    "translation": "{{.ok}} client cert unset.\n"
+  },
+  {
+    "id": "{{.ok}} client key unset.\n",
+    "translation": "{{.ok}} client key unset.\n"
+  },
+  {
     "id": "{{.ok}} whisk auth unset.\n",
     "translation": "{{.ok}} whisk auth unset.\n"
   },
@@ -319,6 +335,14 @@
   {
     "id": "get property",
     "translation": "get property"
+  },
+  {
+    "id": "client cert",
+    "translation": "client cert"
+  },
+  {
+    "id": "client key",
+    "translation": "client key"
   },
   {
     "id": "whisk auth",
@@ -379,6 +403,10 @@
   {
     "id": "Unable to read the properties file '{{.filename}}': {{.err}}",
     "translation": "Unable to read the properties file '{{.filename}}': {{.err}}"
+  },
+  {
+    "id": "Unable to access configuration properties: {{.err}}",
+    "translation": "Unable to access configuration properties: {{.err}}"
   },
   {
     "id": "Invalid host address '{{.host}}': {{.err}}",
@@ -948,6 +976,10 @@
     "translation": "get activation"
   },
   {
+    "id": "Unable to get activation: {{.err}}",
+    "translation": "Unable to get activation: {{.err}}"
+  },
+  {
     "id": "Unable to get activation '{{.id}}': {{.err}}",
     "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
@@ -964,8 +996,16 @@
     "translation": "get the logs of an activation"
   },
   {
+    "id": "Unable to get logs for activation: {{.err}}",
+    "translation": "Unable to get logs for activation: {{.err}}"
+  },
+  {
     "id": "Unable to get logs for activation '{{.id}}': {{.err}}",
     "translation": "Unable to get logs for activation '{{.id}}': {{.err}}"
+  },
+  {
+    "id": "Unable to get result for activation: {{.err}}",
+    "translation": "Unable to get result for activation: {{.err}}"
   },
   {
     "id": "Unable to get result for activation '{{.id}}': {{.err}}",
@@ -992,6 +1032,10 @@
     "translation": "\nActivation: {{.name}} ({{.id}})\n"
   },
   {
+    "id": "Activation list does not contain any activations.",
+    "translation": "Activation list does not contain any activations."
+  },
+  {
     "id": "exclude the first `SKIP` number of activations from the result",
     "translation": "exclude the first `SKIP` number of activations from the result"
   },
@@ -1014,6 +1058,10 @@
   {
     "id": "summarize activation details",
     "translation": "summarize activation details"
+  },
+  {
+    "id": "retrieves the last activation",
+    "translation": "retrieves the last activation"
   },
   {
     "id": "stop polling after `SECONDS` seconds",
@@ -1186,6 +1234,10 @@
   {
     "id": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
     "translation": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
+  },
+  {
+    "id": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n"
   },
   {
     "id": "Unable to parse api command arguments: {{.err}}",
@@ -1380,12 +1432,8 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "API action '{{.name}}' does not exist",
-    "translation": "API action '{{.name}}' does not exist"
-  },
-  {
-    "id": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
-    "translation": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
+    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",
@@ -1466,5 +1514,9 @@
   {
     "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
     "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
+  },
+  {
+    "id": "get action url",
+    "translation": "get action url"
   }
 ]

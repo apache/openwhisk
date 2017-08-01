@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -66,6 +67,8 @@ type Client struct {
 
 type Config struct {
     Namespace 	string // NOTE :: Default is "_"
+    Cert        string
+    Key         string
     AuthToken 	string
     Host		string
     BaseURL   	*url.URL // NOTE :: Default is "openwhisk.ng.bluemix.net"
@@ -80,9 +83,18 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
     // Disable certificate checking in the dev environment if in insecure mode
     if config.Insecure {
         Debug(DbgInfo, "Disabling certificate checking.\n")
-
-        tlsConfig := &tls.Config{
-            InsecureSkipVerify: true,
+        var tlsConfig *tls.Config
+        if config.Cert != "" && config.Key != "" {
+            if cert, err := tls.LoadX509KeyPair(config.Cert, config.Key); err == nil {
+                tlsConfig = &tls.Config{
+                    Certificates: []tls.Certificate{cert},
+                    InsecureSkipVerify: true,
+                }
+            }
+        }else{
+            tlsConfig = &tls.Config{
+                InsecureSkipVerify: true,
+            }
         }
 
         http.DefaultClient.Transport = &http.Transport{
@@ -224,7 +236,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
         if len(req.Header) > 0 {
             fmt.Println("Req Headers")
-            printJSON(req.Header)
+            PrintJSON(req.Header)
         }
         if req.Body != nil {
             fmt.Println("Req Body")
@@ -246,7 +258,7 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     Verbose("Got response with code %d\n", resp.StatusCode)
     if (IsVerbose() && len(resp.Header) > 0) {
         fmt.Println("Resp Headers")
-        printJSON(resp.Header)
+        PrintJSON(resp.Header)
     }
 
     // Read the response body

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -377,7 +378,6 @@ var packageListCmd = &cobra.Command{
   PreRunE:       setupClientConfig,
   RunE: func(cmd *cobra.Command, args []string) error {
     var err error
-    var shared bool
     var qualifiedName QualifiedName
 
     if whiskErr := checkArgs(args, 0, 1, "Package list",
@@ -397,16 +397,9 @@ var packageListCmd = &cobra.Command{
       client.Namespace = qualifiedName.namespace
     }
 
-    if flags.common.shared == "yes" {
-      shared = true
-    } else {
-      shared = false
-    }
-
     options := &whisk.PackageListOptions{
       Skip:   flags.common.skip,
       Limit:  flags.common.limit,
-      Public: shared,
     }
 
     packages, _, err := client.Packages.List(options)
@@ -419,6 +412,7 @@ var packageListCmd = &cobra.Command{
     }
 
     printList(packages)
+
     return nil
   },
 }
@@ -527,7 +521,6 @@ func init() {
   packageBindCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
   packageBindCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
 
-  packageListCmd.Flags().StringVar(&flags.common.shared, "shared", "", wski18n.T("include publicly shared entities in the result"))
   packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of packages from the result"))
   packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of packages from the collection"))
 

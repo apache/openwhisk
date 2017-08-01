@@ -357,7 +357,11 @@ Python 2 actions are executed using Python 2.7.12. This is the default runtime f
 ## Swift actions
 
 ### Swift 3
-Swift 3 actions are executed using Swift 3.0.2  `--kind swift:3` or Swift 3.1.1 `--kind swift:3.1.1`, respectively.  The default `--kind swift:default` is Swift 3.0.2.
+Swift 3 actions are executed using Swift 3.1.1  `--kind swift:3.1.1` or Swift 3.0.2 `--kind swift:3`, respectively.  
+The default `--kind swift:default` is Swift 3.1.1.
+
+**Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`.
+
 
 Swift 3.0.2 actions can use the following packages:
 - KituraNet version 1.0.1, https://github.com/IBM-Swift/Kitura-net
@@ -369,6 +373,30 @@ Swift 3.1.1 actions can use the following packages:
 - SwiftyJSON version 15.0.1, https://github.com/IBM-Swift/SwiftyJSON
 - Watson Developer Cloud SDK version 0.16.0, https://github.com/watson-developer-cloud/swift-sdk
 
+## PHP actions
+
+PHP actions are executed using PHP 7.1. To use this runtime, specify the `wsk` CLI parameter `--kind php:7.1` when creating or updating an action. This is the default when creating an action with file that has a `.php` extension.
+
+The following PHP extensions are available in addition to the standard ones:
+
+- bcmath
+- curl
+- gd
+- intl
+- mbstring
+- mysqli
+- pdo_mysql
+- pdo_pgsql
+- pdo_sqlite
+- soap
+- zip
+
+### Composer packages
+
+The following Composer packages are also available:
+
+- guzzlehttp/guzzle       v6.3.0
+- ramsey/uuid             v3.6.1
 
 ## Docker actions
 
@@ -400,7 +428,7 @@ The following table lists the default limits for actions.
 | memory | a container is not allowed to allocate more than N MB of memory | per action | MB | 256 |
 | logs | a container is not allowed to write more than N MB to stdout | per action | MB | 10 |
 | concurrent | no more than N activations may be submitted per namespace either executing or queued for execution | per namespace | number | 100 |
-| minuteRate | no more than N activations may be submitted per namespace per minute | per user | number | 120 |
+| minuteRate | no more than N activations may be submitted per namespace per minute | per namespace | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
 
@@ -428,7 +456,6 @@ The following table lists the default limits for actions.
 
 ### Per namespace concurrent invocation (Default: 100)
 * The number of activations that are either executing or queued for execution for a namespace cannot exceed 100.
-* The default limit can be statically configured by whisk in consul kvstore.
 * A user is currently not able to change the limits.
 
 ### Invocations per minute (Fixed: 120)

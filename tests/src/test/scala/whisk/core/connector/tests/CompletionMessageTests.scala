@@ -27,7 +27,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.connector.CompletionMessage
@@ -57,7 +56,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
         duration = Some(123))
 
     it should "serialize a left completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), "xyz")
+        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
         m.serialize shouldBe JsObject(
             "transid" -> m.transid.toJson,
             "response" -> m.response.left.get.toJson,
@@ -65,7 +64,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
     }
 
     it should "serialize a right completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Right(activation), "xyz")
+        val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
         m.serialize shouldBe JsObject(
             "transid" -> m.transid.toJson,
             "response" -> m.response.right.get.toJson,
@@ -73,12 +72,12 @@ class CompletionMessageTests extends FlatSpec with Matchers {
     }
 
     it should "deserialize a left completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), "xyz")
+        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
         CompletionMessage.parse(m.serialize) shouldBe Success(m)
     }
 
     it should "deserialize a right completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Right(activation), "xyz")
+        val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
         CompletionMessage.parse(m.serialize) shouldBe Success(m)
     }
 }

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -331,7 +332,7 @@ func printRuleList(rules []whisk.Rule) {
     fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
     for _, rule := range rules {
         publishState := wski18n.T("private")
-        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
+        fmt.Printf("%-70s %-20s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState, rule.Status)
     }
 }
 
@@ -486,26 +487,11 @@ func getKeys(keyValueArr whisk.KeyValueArr) ([]string) {
     return res
 }
 
-func getValue(keyValueArr whisk.KeyValueArr, key string) (interface{}) {
-    var res interface{}
-
-    for i := 0; i < len(keyValueArr); i++ {
-        if keyValueArr[i].Key == key {
-            res = keyValueArr[i].Value
-            break;
-        }
-    }
-
-    whisk.Debug(whisk.DbgInfo, "Got value '%v' from '%v' for key '%s'\n", res, keyValueArr, key)
-
-    return res
-}
-
 func getValueString(keyValueArr whisk.KeyValueArr, key string) (string) {
     var value interface{}
     var res string
 
-    value = getValue(keyValueArr, key)
+    value = keyValueArr.GetValue(key)
     castedValue, canCast := value.(string)
 
     if (canCast) {
@@ -521,7 +507,7 @@ func getChildValues(keyValueArr whisk.KeyValueArr, key string, childKey string) 
     var value interface{}
     var res []interface{}
 
-    value = getValue(keyValueArr, key)
+    value = keyValueArr.GetValue(key)
 
     castedValue, canCast := value.([]interface{})
     if canCast {
@@ -964,7 +950,7 @@ func min (a int, b int) int {
     return b
 }
 
-func readProps(path string) (map[string]string, error) {
+func ReadProps(path string) (map[string]string, error) {
 
     props := map[string]string{}
 
@@ -996,7 +982,7 @@ func readProps(path string) (map[string]string, error) {
 
 }
 
-func writeProps(path string, props map[string]string) error {
+func WriteProps(path string, props map[string]string) error {
 
     file, err := os.Create(path)
     if err != nil {
@@ -1024,7 +1010,7 @@ func writeProps(path string, props map[string]string) error {
 
 func getSpaceGuid() (string, error) {
     // get current props
-    props, err := readProps(Properties.PropsFile)
+    props, err := ReadProps(Properties.PropsFile)
     if err != nil {
         whisk.Debug(whisk.DbgError, "readProps(%s) failed: %s\n", Properties.PropsFile, err)
         errStr := wski18n.T("Unable to obtain the `auth` property value: {{.err}}", map[string]interface{}{"err": err})

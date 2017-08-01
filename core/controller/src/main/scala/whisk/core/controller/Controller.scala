@@ -119,7 +119,6 @@ class Controller(
 
     // initialize backend services
     private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
-    private implicit val consulServer = whiskConfig.consulServer
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 
@@ -139,7 +138,9 @@ class Controller(
     private val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                loadBalancer.invokerHealth.map(_.mapValues(_.asString).toJson.asJsObject)
+                loadBalancer.allInvokers.map(_.map {
+                    case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+                }.toMap.toJson.asJsObject)
             }
         }
     }

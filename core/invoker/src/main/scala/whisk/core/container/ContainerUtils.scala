@@ -92,14 +92,13 @@ trait ContainerUtils {
         val cpuArg = Array("-c", cpuShare.toString)
         val memoryArg = Array("-m", s"${limits.memory.megabytes}m", "--memory-swap", s"${limits.memory.megabytes}m")
         val capabilityArg = Array("--cap-drop", "NET_RAW", "--cap-drop", "NET_ADMIN")
-        val consulServiceIgnore = Array("-e", "SERVICE_IGNORE=true")
         val fileHandleLimit = Array("--ulimit", "nofile=1024:1024")
         val processLimit = Array("--pids-limit", "1024")
         val securityOpts = policy map { p => Array("--security-opt", s"apparmor:${p}") } getOrElse (Array.empty[String])
         val dnsOpts = dnsServers.map(Seq("--dns", _)).flatten
         val containerNetwork = Array("--net", network)
 
-        val cmd = Seq("run") ++ makeEnvVars(env) ++ consulServiceIgnore ++ nameOption ++ cpuArg ++ memoryArg ++
+        val cmd = Seq("run") ++ makeEnvVars(env) ++ nameOption ++ cpuArg ++ memoryArg ++
             capabilityArg ++ fileHandleLimit ++ processLimit ++ securityOpts ++ dnsOpts ++ containerNetwork ++ Seq("-d", image) ++ args
 
         runDockerCmd(cmd: _*).toOption.map { result =>

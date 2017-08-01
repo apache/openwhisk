@@ -10,6 +10,7 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 ```
 sudo apt-get install python-pip
 sudo pip install ansible==2.3.0.0
+sudo pip install jinja2==2.9.6
 ```
 
 #### Vagrant users
@@ -21,9 +22,10 @@ You may jump directly to [Deploying Using CouchDB](#deploying-using-couchdb)
 ```
 sudo easy_install pip
 sudo pip install ansible==2.3.0.0
+pip install jinja2==2.9.6
 ```
 Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
-You need to depends on the workarounds until Docker provides official methods.
+You need to depend on the workarounds until Docker provides official methods.
 
 If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
 
@@ -204,7 +206,7 @@ cd ansible
 ansible-playbook -i environments/<environment> controller.yml -e mode=clean
 ```
 
-**Caveat:** In distributed environments some components (e.g. Consul, Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
+**Caveat:** In distributed environments some components (e.g. Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
 
 
 ### Cleaning an OpenWhisk Deployment

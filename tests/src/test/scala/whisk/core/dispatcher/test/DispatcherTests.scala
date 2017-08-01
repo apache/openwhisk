@@ -35,7 +35,9 @@ import spray.json.JsNumber
 import spray.json.JsObject
 import whisk.common.TransactionId
 import whisk.core.connector.{ ActivationMessage => Message }
-import whisk.core.dispatcher.ActivationFeed
+import whisk.core.connector.MessageFeed
+import whisk.core.connector.test.TestConnector
+import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.dispatcher.Dispatcher
 import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
@@ -63,7 +65,7 @@ class DispatcherTests
 
     def sendMessage(connector: TestConnector, count: Int) = {
         val content = JsObject("payload" -> JsNumber(count))
-        val user = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val user = WhiskAuthHelpers.newIdentity()
         val path = FullyQualifiedEntityName(EntityPath("test"), EntityName(s"count-$count"), Some(SemVer()))
         val msg = Message(TransactionId.testing, path, DocRevision.empty, user, ActivationId(), EntityPath(user.subject.asString), InstanceId(0), Some(content))
         connector.send(msg)
@@ -79,12 +81,12 @@ class DispatcherTests
     }
 
     it should "send and receive a message from connector bus" in {
-        val maxdepth = 8
-        val half = maxdepth / 2
-        val connector = new TestConnector("test connector", maxdepth / 2, true)
+        val capacity = 4
+        val connector = new TestConnector("test connector", capacity, false)
+
         val messagesProcessed = new AtomicInteger()
         val handler = new TestRule({ msg => messagesProcessed.incrementAndGet() })
-        val dispatcher = new Dispatcher(connector, 100 milliseconds, maxdepth, actorSystem)
+        val dispatcher = new Dispatcher(connector, 100 milliseconds, capacity, actorSystem)
         dispatcher.addHandler(handler, true)
         dispatcher.start()
 
@@ -94,72 +96,57 @@ class DispatcherTests
                 Console.withErr(stream) {
                     retry({
                         val logs = stream.toString()
-                        logs should include regex (s"exception while pulling new records *.* commit failed")
+                        logs should include regex (s"exception while pulling new activation records *.* commit failed")
                     }, 10, Some(100 milliseconds))
 
                     connector.throwCommitException = false
                 }
             }
 
-            for (i <- 0 to half) {
+            for (i <- 0 until (2 * capacity + 1)) {
                 sendMessage(connector, i + 1)
             }
 
-            // wait until all messages are received at which point the
-            // dispatcher cannot drain anymore messages
-            withClue("the queue should be empty since all messages are drained") {
-                retry({
-                    connector.occupancy shouldBe 0
-                }, 10, Some(100 milliseconds))
-            }
-
+            // only process as many messages as we have downstream capacity
             withClue("messages processed") {
                 retry({
-                    messagesProcessed.get should be(half + 1)
+                    messagesProcessed.get should be(capacity)
                 }, 20, Some(100 milliseconds))
             }
 
             withClue("confirming dispatcher is in overflow state") {
                 val logs = stream.toString()
-                logs should include regex (s"waiting for activation pipeline to drain: ${half + 1} > $half")
+                logs should include regex (s"activation pipeline must drain: ${capacity + 1} > $capacity")
             }
 
             // send one message and check later that it remains in the connector
-            // at this point, total messages sent = half + 2
-            sendMessage(connector, half + 2)
-
-            withClue("confirming dispatcher will not consume additional messages when in overflow state") {
-                stream.reset()
-                Console.withOut(stream) {
-                    dispatcher.activationFeed ! ActivationFeed.FillQueueWithMessages
-                    retry({
-                        val logs = stream.toString()
-                        logs should include regex (s"dropping fill request until feed is drained")
-                        logs should not include regex(s"waiting for activation pipeline to drain: ${messagesProcessed.get} > $half")
-                    }, 10, Some(100 milliseconds))
-                }
-            }
+            // at this point, total messages sent = 2 * capacity + 2
+            connector.occupancy shouldBe 0
+            sendMessage(connector, 2 * capacity + 2)
+            Thread.sleep(1.second.toMillis)
 
             withClue("expecting message to still be in the queue") {
-                connector.occupancy shouldBe 1
+                retry({
+                    connector.occupancy shouldBe 1
+                }, 10, Some(100 milliseconds))
             }
 
             // unblock the pipeline by draining 1 activations and check
             // that dispatcher refilled the pipeline
             stream.reset()
             Console.withOut(stream) {
-                dispatcher.activationFeed ! ActivationFeed.ContainerReleased
+                dispatcher.activationFeed ! MessageFeed.Processed
                 // wait until additional message is drained
                 retry({
                     withClue("additional messages processed") {
-                        messagesProcessed.get shouldBe half + 2
+                        messagesProcessed.get shouldBe capacity + 1
                     }
                 }, 10, Some(100 milliseconds))
             }
 
             withClue("confirm dispatcher tried to fill the pipeline") {
                 val logs = stream.toString()
-                logs should include regex (s"filling activation pipeline: $half <= $half")
+                logs should include regex (s"activation pipeline has capacity: $capacity <= $capacity")
             }
         } finally {
             dispatcher.stop()

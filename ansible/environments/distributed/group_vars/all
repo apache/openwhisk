@@ -56,10 +56,6 @@ instances:
     num_instances: 1
     flavor:
 
-  - name: consul_servers
-    num_instances: 1
-    flavor:
-
   - name: invokers
     num_instances: 2
     flavor:

@@ -1,18 +1,21 @@
-/**
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Copyright 2015-2016 IBM Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ */
+
+/**
  *
  * Delete an API Gateway to action mapping document from the database:
  * https://docs.cloudant.com/document.html#delete
@@ -22,8 +25,8 @@
  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
  *   gwUser               Optional. The API Gateway authentication
  *   gwPwd                Optional. The API Gateway authentication
+ *   __ow_user            Optional. Set to the authenticated API authors's namespace when valid authentication is supplied.
  *   namespace            Required if __ow_user not specified.  Namespace of API author
- *   __ow_user            Required. Namespace of API author
  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
  *   spaceguid            Optional. Namespace unique id.
  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
@@ -41,9 +44,10 @@ var utils2 = require('./apigw-utils.js');
 var _ = require('lodash');
 
 function main(message) {
+  //console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
-    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg), (message.__ow_method != undefined));
+    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
   }
 
   var gwInfo = {
@@ -209,12 +213,12 @@ function validateArgs(message) {
     return 'Internal error.  A message parameter was not supplied.';
   }
 
-  if (!message.gwUrl) {
+  if (!message.gwUrl && !message.gwUrlV2) {
     return 'gwUrl is required.';
   }
 
-  if (!message.__ow_user) {
-    return '__ow_user is required.';
+  if (!message.__ow_user && !message.namespace) {
+    return 'Invalid authentication.';
   }
 
   if (!message.basepath) {

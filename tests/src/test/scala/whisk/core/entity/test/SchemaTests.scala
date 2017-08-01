@@ -35,6 +35,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
@@ -77,12 +78,13 @@ class SchemaTests
     behavior of "Identity"
 
     it should "serdes an identity" in {
-        val i = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val i = WhiskAuthHelpers.newIdentity()
         val expected = JsObject(
             "subject" -> i.subject.asString.toJson,
             "namespace" -> i.namespace.toJson,
             "authkey" -> i.authkey.compact.toJson,
-            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
+            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
+            "limits" -> JsObject())
         Identity.serdes.write(i) shouldBe expected
         Identity.serdes.read(expected) shouldBe i
     }

@@ -1,21 +1,23 @@
-/**
- * Copyright 2015-2017 IBM Corporation
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+/**
  * Route management action common API GW utilities
- *
- **/
+ */
 var request = require('request');
 var _ = require('lodash');
 
@@ -37,6 +39,7 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
   console.log('addApiToGateway: ');
   try {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
     json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
   };
@@ -96,6 +99,7 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
  */
 function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis/'+encodeURIComponent(apiId),
     agentOptions: {rejectUnauthorized: false},
     headers: {
@@ -131,7 +135,7 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   });
 }
 
-/*
+/**
  * Return an array of APIs
  */
 function getApis(gwInfo, spaceGuid, bpOrApiName) {
@@ -148,6 +152,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     }
   }
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis',
     headers: {
       'Accept': 'application/json'
@@ -641,7 +646,6 @@ function getHostFromActionUrl(actionUrl) {
  *             result[1] : action name
  *             result[2] : ''
  *             result[3] : ''
-
  */
 function parseActionName(fqname) {
   console.log('parseActionName: parsing action: '+fqname);

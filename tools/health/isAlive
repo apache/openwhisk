@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 #
-# Copyright 2015-2016 IBM Corporation
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -84,18 +85,6 @@ def isElkAlive() :
     okString = '"cluster_name"'
     return monitorUtil.outputChecker(cmd, okString, 1)
 
-def isConsulAlive() :
-    host = getProp('CONSULSERVER_HOST')
-    port = getProp('CONSUL_HOST_PORT4')
-    cmd = ['curl', '-m', '3', '-s', '-X', 'PUT', '-d', 'true', '%s:%s/v1/kv/consulIsAlive' % (host, port)]
-    okString = 'true'
-    rc = monitorUtil.outputChecker(cmd, okString, 1)
-    if rc == 0:
-      #delete temp property again
-      cmd = ['curl', '-m', '3', '-s', '-X', 'DELETE', '%s:%s/v1/kv/consulIsAlive' % (host, port)]
-      monitorUtil.run(cmd)
-    return rc
-
 def isZookeeperAlive() :
     host_port = getHostAndPort('zookeeper').split(':')
     cmd = '(echo ruok; sleep 1) | nc '+ host_port[0] + ' '+ host_port[1]
@@ -136,8 +125,6 @@ elif (args.component == 'elk'):
     monitorUtil.checkLoop(args.component, isElkAlive, delay)
 elif (args.component == 'zookeeper'):
     monitorUtil.checkLoop(args.component, isZookeeperAlive, delay)
-elif (args.component == 'consulserver'):
-    monitorUtil.checkLoop(args.component, isConsulAlive, delay)
 else:
     host_port = getHostAndPort(args.component, args.host)
     monitorUtil.checkLoop(args.component, lambda : ping(host_port), delay)

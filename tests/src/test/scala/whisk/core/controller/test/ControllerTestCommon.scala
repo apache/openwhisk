@@ -28,7 +28,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import common.StreamLogging
-import spray.http.BasicHttpCredentials
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
 import spray.routing.HttpService
@@ -85,21 +84,9 @@ protected trait ControllerTestCommon
         override def make = fixedId
     }
 
-    override val consulServer = "???"
-
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)
     val authStore = WhiskAuthStore.datastore(whiskConfig)
-    val authStoreV2 = WhiskAuthV2Store.datastore(whiskConfig)
-
-    def createTempCredentials(implicit transid: TransactionId) = {
-        val subject = Subject()
-        val key = AuthKey()
-        val auth = WhiskAuthV2.withDefaultNamespace(subject, key)
-        put(authStoreV2, auth)
-        waitOnView(authStore, key, 1)
-        (subject.toIdentity(key), BasicHttpCredentials(key.uuid.asString, key.key.asString))
-    }
 
     def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
         Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
@@ -126,13 +113,6 @@ protected trait ControllerTestCommon
         Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
             logging.info(this, s"deleting ${doc.docinfo}")
             WhiskRule.del(entityStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
-
-    def deleteAuth(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskAuth.get(authStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskAuth.del(authStore, doc.docinfo)
         }, dbOpTimeout)
     }
 
@@ -199,7 +179,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
     // unit tests that need an activation via active ack/fast path should set this to value expected
     var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
-    override def getActiveUserActivationCounts: Map[String, Int] = Map()
+    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = Map.empty
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
         Future.successful {

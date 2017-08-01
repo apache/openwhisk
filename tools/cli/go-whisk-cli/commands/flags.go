@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -38,6 +39,8 @@ type Flags struct {
     global struct {
         verbose     bool
         debug       bool
+        cert        string
+        key         string
         auth        string
         apihost     string
         apiversion  string
@@ -61,6 +64,8 @@ type Flags struct {
     }
 
     property struct {
+        cert            bool
+        key             bool
         auth            bool
         apihost         bool
         apiversion      bool
@@ -87,6 +92,7 @@ type Flags struct {
         sinceHours      int
         sinceDays       int
         exit            int
+        last            bool
     }
 
     // rule
@@ -125,6 +131,7 @@ type ActionFlags struct {
     result      bool
     kind        string
     main        string
+    url         bool
 }
 
 func IsVerbose() bool {
