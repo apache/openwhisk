@@ -17,14 +17,18 @@
 
 package whisk.core.connector
 
+import whisk.common.Logging
+import whisk.core.WhiskConfig
 import whisk.spi.Spi
 import whisk.spi.SpiProvider
+
+import scala.concurrent.ExecutionContext
 
 /**
  * An Spi for providing Messaging implementations.
  */
 trait MessagingProvider extends Spi {
-    def getConsumer(groupId: String, topic: String, maxdepth: Int = Int.MaxValue): MessageConsumer
-    def getProducer(): MessageProducer
+    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxdepth: Int = Int.MaxValue)(implicit logging:Logging): MessageConsumer
+    def getProducer(config:WhiskConfig, ec:ExecutionContext)(implicit logging: Logging): MessageProducer
 }
 object MessagingProvider extends SpiProvider[MessagingProvider]("whisk.spi.messaging.impl")

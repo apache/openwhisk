@@ -24,16 +24,8 @@ import akka.actor.ExtendedActorSystem
 import akka.actor.Extension
 import akka.actor.ExtensionId
 import akka.actor.ExtensionIdProvider
-import scaldi.Binding
-import scaldi.DynamicModule
-import scaldi.Identifier
-import scaldi.ImmutableWrapper
-import scaldi.Injectable
-import scaldi.Injector
-import scaldi.MutableInjector
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
@@ -50,6 +42,7 @@ trait Spi extends Extension {
 /**
  * Spi implementations must extend SpiModule to register a factory for their implementation.
  * The SpiModule implementations will be loaded at runtime via ServiceLoader
+ *
  * @param tag
  * @param classTag
  * @tparam SpiImpl
@@ -59,20 +52,7 @@ abstract class SpiModule[SpiImpl <: Spi](implicit tag: TypeTag[SpiImpl], classTa
     // (we call getInstance exactly once per module!)
     lazy val spiImplInstance: SpiImpl = getInstance
     val spiTypeName: String = classTag.runtimeClass.getName
-    protected[spi] def getInstance: SpiImpl
-}
-
-/**
- * An extended SpiModule that will register a factory that uses an Injector for binding additional dependencies
- * during instantiation of the Spi implementation
- * @param ev$1
- * @param tag
- * @tparam SpiImpl
- */
-abstract class SpiFactoryModule[SpiImpl <: Spi: TypeTag](implicit tag: ClassTag[SpiImpl])
-    extends SpiModule[SpiImpl] with Injectable {
-    protected[spi] final def getInstance: SpiImpl = getInstance(SharedModules.sharedModulesInjector)
-    protected[spi] def getInstance(implicit injector: Injector): SpiImpl
+    protected def getInstance(): SpiImpl
 }
 
 /**
@@ -105,58 +85,11 @@ abstract class SpiProvider[T <: Spi](configKey: String)(implicit tag: TypeTag[T]
         this
     }
 }
-/**
- * Used for injecting some shared modules into SPI Modules (e.g. WhiskConfig, Logging, etc)
- * @param modules
- */
-private class SharedModulesInjector(modules: Seq[Injector]) extends Injector {
-    //just delegate getBinding(s) calls to the composite of all the shared modules
-    val composite: MutableInjector = modules.foldLeft(SharedModules.empty)((composite, nextModule) => {
-        composite :: nextModule
-    })
-    override def getBinding(identifiers: List[Identifier]): Option[Binding] = composite.getBinding(identifiers)
-
-    override def getBindings(identifiers: List[Identifier]): List[Binding] = composite.getBindings(identifiers)
-}
-
-/**
- * Register a List o f Modules
- */
-object SharedModules {
-    def empty = new MutableInjector {
-        override def getBinding(identifiers: List[Identifier]): Option[Binding] = None
-        override def getBindings(identifiers: List[Identifier]): List[Binding] = List()
-    }
-    private var modules = ListBuffer[Injector]()
-
-    //we have to wrap all modules each time they are used for injection, since they become frozen after each use...
-    def sharedModulesInjector: Injector = {
-
-        val wrappedModules = ListBuffer[Injector]()
-
-        modules.foreach(mod => {
-            wrappedModules += ImmutableWrapper(mod)
-        })
-        //modules ++= injectableModules
-        new SharedModulesInjector(wrappedModules)
-    }
-    def addSharedModules(modules: Injector*) = {
-        modules.foreach(module => {
-            this.modules += module
-        })
-    }
-    //a wrapper for Binder.bind[Type] to instance
-    def bind[SpiType: TypeTag](instance: SpiType) = {
-        val dynModule = DynamicModule(module => {
-            module.bind[SpiType] to instance
-        })
-        modules += dynModule
-    }
-}
 
 private class ModuleLoaderImpl(actorSystem: ActorSystem) extends Extension {
     /**
      * Load all SpiModule instances and filter to the one who provides this impl
+     *
      * @param impl
      * @param tag
      * @tparam SpiImpl
@@ -167,12 +100,12 @@ private class ModuleLoaderImpl(actorSystem: ActorSystem) extends Extension {
         //filter the modules by spi type first, then use instance to filter by impl type
         //(this way the impl is constructed lazily, even though the module is loaded)
         val filteredModules = modules
-            .filter(_.spiTypeName == tag.runtimeClass.getName)
+                .filter(_.spiTypeName == tag.runtimeClass.getName)
         if (filteredModules.size == 0) {
             throw new IllegalArgumentException(s"no SpiModule implemented for type ${tag.runtimeClass}")
         }
         val spiModules = filteredModules
-            .filter(_.spiImplInstance.getClass.getName == impl)
+                .filter(_.spiImplInstance.getClass.getName == impl)
         if (spiModules.size == 0) {
             throw new IllegalArgumentException(s"no SpiModule for requested impl ${impl} for type ${tag.runtimeClass}; check configured impls for detected modules: ${filteredModules.map(_.getClass)} ")
         }
@@ -182,9 +115,10 @@ private class ModuleLoaderImpl(actorSystem: ActorSystem) extends Extension {
         spiModules.head
     }
 }
+
 private object ModuleLoader
-    extends ExtensionId[ModuleLoaderImpl]
-    with ExtensionIdProvider {
+        extends ExtensionId[ModuleLoaderImpl]
+                with ExtensionIdProvider {
 
     override def createExtension(system: ExtendedActorSystem): ModuleLoaderImpl = {
         new ModuleLoaderImpl(system)

@@ -43,7 +43,6 @@ import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-import whisk.spi.SharedModules
 
 import scala.util.{ Failure, Success }
 
@@ -190,11 +189,6 @@ object Controller {
 
         // extract configuration data from the environment
         val config = new WhiskConfig(requiredProperties, optionalProperties)
-
-        // setup shared injectables
-        SharedModules.bind(actorSystem)
-        SharedModules.bind(config)
-        SharedModules.bind(logger)
 
         // if deploying multiple instances (scale out), must pass the instance number as the
         require(args.length >= 1, "controller instance required")

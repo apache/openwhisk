@@ -46,7 +46,6 @@ import whisk.core.dispatcher.ActivationFeed.{ ActivationNotification, ContainerR
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
-import whisk.spi.SharedModules
 import whisk.utils.ExecutionContextFactory
 import whisk.common.Scheduler
 import whisk.core.connector.PingMessage
@@ -484,17 +483,12 @@ object Invoker {
             abort()
         }
 
-        // setup shared injectables
-        SharedModules.bind(actorSystem)
-        SharedModules.bind(config)
-        SharedModules.bind(logger)
-
         val topic = s"invoker${invokerInstance.toInt}"
         val groupid = "invokers"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
         val msgProvider = MessagingProvider(actorSystem)
-        val consumer = msgProvider.getConsumer(groupid, topic, maxdepth)
-        val producer = msgProvider.getProducer()
+        val consumer = msgProvider.getConsumer(config, groupid, topic, maxdepth)
+        val producer = msgProvider.getProducer(config, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, 2 * maxdepth, actorSystem)
 
         val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {

@@ -1,4 +1,4 @@
-whisk.spi.TestSpiProviderModule
-whisk.spi.DepSpiProviderModule
+whisk.spi.TestSpiFactoryProviderModule
+whisk.spi.DepSpiFactoryProviderModule
 whisk.spi.SimpleSpiProviderModule
 whisk.spi.MissingSpiProviderModule

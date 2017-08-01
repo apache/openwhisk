@@ -35,7 +35,6 @@ dependencies {
     compile 'org.apache.httpcomponents:httpclient:4.4.1'
     compile 'com.github.ben-manes.caffeine:caffeine:2.4.0'
     compile 'com.google.code.findbugs:jsr305:3.0.2'
-    compile "org.scaldi:scaldi_2.11:0.5.8"
 }
 
 tasks.withType(ScalaCompile) {

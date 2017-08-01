@@ -198,7 +198,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = MessagingProvider(actorSystem).getProducer()
+    private val messageProducer = MessagingProvider(actorSystem).getProducer(config, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -221,7 +221,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         }
 
         val consul = new ConsulClient(config.consulServer)
-        val pingConsumer = MessagingProvider(actorSystem).getConsumer(s"health${instance.toInt}", "health")
+        val pingConsumer = MessagingProvider(actorSystem).getConsumer(config, s"health${instance.toInt}", "health")
         val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props(instance), name)
 
         actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
@@ -231,7 +231,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
 
     /** Subscribes to active acks (completion messages from the invokers). */
-    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer("completions", s"completed${instance.toInt}")
+    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer(config, "completions", s"completed${instance.toInt}")
     /** Registers a handler for received active acks from invokers. */
     activeAckConsumer.onMessage((topic, _, _, bytes) => {
         val raw = new String(bytes, StandardCharsets.UTF_8)
