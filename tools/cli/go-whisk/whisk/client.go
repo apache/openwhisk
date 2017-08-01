@@ -227,19 +227,23 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // This substring is then limited if it is greater than a specified length(limit) and a format buffer is added to the end.
 // A new []byte(newStr) is created containing the original []byte(str) and the newly created limited substring.
 // It then returns the newly constructed []byte(newStr).
-func findAndLimitString(str []byte, startAt, endAt, limit int, buffer string) []byte {
+func findAndLimitString(data []byte, str []byte, startAt, limit int, buffer string) []byte {
     var newStr []byte
+    var diff int
+    fmt.Println("Start ", startAt)
 
-    limitAt := limit + startAt    // Calculates correct index to end the limited substring
-    newStr = append(newStr, str[:startAt]...)
-    if (len(str[startAt:endAt]) > limit) {    // Checks if substring exceeds limit
+    //limitAt := limit + startAt    // Calculates correct index to end the limited substring
+    newStr = append(newStr, data[:startAt]...)
+    fmt.Println("Length 2: ", len(str))
+    if  len(str) > limit {    // Checks if substring exceeds limit
         Verbose("Substring exceeds %d bytes and will be truncated\n", limit)
-        newStr = append(newStr, str[startAt:limitAt]...)    // Appends the limited substring
+        newStr = append(newStr, str[:limit]...)    // Appends the limited substring
         newStr = append(newStr, buffer...)    // Adds a buffer to keep consistent formating
+        diff = len(str) - len(str[:limit])
     } else {
-        newStr = append(newStr, str[startAt:endAt]...)    // If substring does not exceed the limit use original substring
+        newStr = append(newStr, str...)    // If substring does not exceed the limit use original substring
     }
-    newStr = append(newStr, str[endAt:]...)
+    newStr = append(newStr, data[len(newStr) + diff:]...)
 
     return newStr
 }
@@ -247,6 +251,7 @@ func findAndLimitString(str []byte, startAt, endAt, limit int, buffer string) []
 // respBodyLimiter limits the size of the "code" field in Resp Body for --verbose ONLY.
 // It returns truncated Resp Body, reloaded io.ReadCloser and any errors.
 func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
+    var action = new(Action)
     limit := 1000    // 1000 byte limit, anything over is truncated
     buffer := "\"\n    "    // Appended to the end of newData to keep correct formating
     data, err := ioutil.ReadAll(body)
@@ -255,9 +260,13 @@ func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, body, werr
     }
+
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
-    if  bytes.Contains(data, []byte("\"code\":")) && bytes.Contains(data, []byte("\"binary\":")) {
-        newData := findAndLimitString(data, bytes.Index(data, []byte("\"code\":")), bytes.Index(data, []byte("\"binary\":")), limit, buffer)
+    json.Unmarshal(data, &action)
+    code := []byte(fmt.Sprintf("%+q", *action.Exec.Code))
+    fmt.Println("Length 1: ", len(code))
+    if  len(code) > 0 {
+        newData := findAndLimitString(data, code, bytes.Index(data, code), limit, buffer)
         return newData, reload, nil
     }
 
