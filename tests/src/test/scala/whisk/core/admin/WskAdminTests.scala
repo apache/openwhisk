@@ -30,6 +30,7 @@ import common.WskAdmin
 import common.WskProps
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Subject
+import common.TestUtils
 
 @RunWith(classOf[JUnitRunner])
 class WskAdminTests
@@ -90,5 +91,66 @@ class WskAdminTests
         val wsk = new Wsk
         val ns = wsk.namespace.whois()
         wskadmin.cli(Seq("user", "get", ns)).stdout.trim should be(wskprops.authKey)
+    }
+
+    it should "block and unblock a user respectively" in {
+        val wskadmin = new RunWskAdminCmd {}
+        val auth = AuthKey()
+        val subject1 = Subject().asString
+        val subject2 = Subject().asString
+        val commonNamespace = "testspace"
+        try {
+            wskadmin.cli(Seq("user", "create", subject1, "-ns", commonNamespace, "-u", auth.compact))
+            wskadmin.cli(Seq("user", "create", subject2, "-ns", commonNamespace))
+
+            whisk.utils.retry({
+                // reverse lookup by namespace
+                val out = wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim
+                out should include(auth.compact)
+                out.lines should have size 2
+            }, 10, Some(1.second))
+
+            // block the user
+            wskadmin.cli(Seq("user", "block", subject1))
+
+            // wait until the user can no longer be found
+            whisk.utils.retry({
+                wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim.lines should have size 1
+            }, 10, Some(1.second))
+
+            // unblock the user
+            wskadmin.cli(Seq("user", "unblock", subject1))
+
+            // wait until the user can be found again
+            whisk.utils.retry({
+                val out = wskadmin.cli(Seq("user", "list", "-p", "2", "-k", commonNamespace)).stdout.trim
+                out should include(auth.compact)
+                out.lines should have size 2
+            }, 10, Some(1.second))
+        } finally {
+            wskadmin.cli(Seq("user", "delete", subject1)).stdout should include("Subject deleted")
+            wskadmin.cli(Seq("user", "delete", subject2)).stdout should include("Subject deleted")
+        }
+    }
+
+    it should "not allow edits on a blocked subject" in {
+        val wskadmin = new RunWskAdminCmd {}
+        val subject = Subject().asString
+        try {
+            // initially create the subject
+            wskadmin.cli(Seq("user", "create", subject))
+            // editing works
+            wskadmin.cli(Seq("user", "create", subject, "-ns", "testspace1"))
+            // block it
+            wskadmin.cli(Seq("user", "block", subject))
+            // Try to add a namespace, doesn't work
+            wskadmin.cli(Seq("user", "create", subject, "-ns", "testspace2"), expectedExitCode = TestUtils.ERROR_EXIT)
+            // Unblock the user
+            wskadmin.cli(Seq("user", "unblock", subject))
+            // Adding a namespace works
+            wskadmin.cli(Seq("user", "create", subject, "-ns", "testspace2"))
+        } finally {
+            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+        }
     }
 }

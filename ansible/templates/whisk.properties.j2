@@ -47,7 +47,6 @@ limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentIn
 limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
 {% endif %}
 
-consulserver.host={{ groups["consul_servers"]|first }}
 edge.host={{ groups["edge"]|first }}
 router.host={{ groups["edge"]|first }}
 zookeeper.hosts={{ groups["kafkas"] | join(",") }}
@@ -58,8 +57,6 @@ edge.host.apiport=443
 zookeeper.hosts.basePort={{ zookeeper.port }}
 kafka.hosts.basePort={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}
-consul.host.port4={{ consul.port.http }}
-consul.host.port5={{ consul.port.server }}
 invoker.hosts.basePort={{ invoker.port }}
 
 controller.hosts={{ groups["controllers"] | join(",") }}
@@ -77,7 +74,6 @@ invoker.useRunc={{ invoker_use_runc | default(invoker.useRunc) }}
 invoker.useReactivePool={{ invoker.useReactivePool }}
 invoker.instances={{ invoker.instances }}
 
-consulserver.docker.endpoint={{ groups["consul_servers"]|first }}:{{ docker.port }}
 edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
 kafka.docker.endpoint={{ groups["kafkas"]|first }}:{{ docker.port }}
 main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}

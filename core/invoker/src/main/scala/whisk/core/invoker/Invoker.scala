@@ -38,7 +38,7 @@ import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ consulServer, dockerImagePrefix, dockerRegistry, kafkaHosts, logsDir, servicePort, whiskVersion, invokerUseReactivePool }
+import whisk.core.WhiskConfig.{ dockerImagePrefix, dockerRegistry, kafkaHosts, logsDir, servicePort, invokerUseReactivePool }
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
@@ -424,7 +424,6 @@ class Invoker(
     }
 
     private val entityStore = WhiskEntityStore.datastore(config)
-    private val authStore = WhiskAuthStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
     private val pool = new ContainerPool(config, instance)
     private val activationCounter = new Counter() // global activation counter
@@ -439,16 +438,12 @@ object Invoker {
         logsDir -> null,
         dockerRegistry -> null,
         dockerImagePrefix -> null,
-        invokerUseReactivePool -> false.toString,
-        WhiskConfig.invokerInstances -> null) ++
+        invokerUseReactivePool -> false.toString) ++
         ExecManifest.requiredProperties ++
-        WhiskAuthStore.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
         ContainerPool.requiredProperties ++
-        kafkaHosts ++
-        consulServer ++
-        whiskVersion
+        kafkaHosts
 
     def main(args: Array[String]): Unit = {
         require(args.length == 1, "invoker instance required")
@@ -504,7 +499,7 @@ object Invoker {
 
         val port = config.servicePort.toInt
         BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-            def create = new InvokerServer(invokerInstance, config.invokerInstances.toInt)
+            def create = new InvokerServer(invokerInstance, invokerInstance.toInt)
         })
     }
 }

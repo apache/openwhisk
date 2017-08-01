@@ -239,10 +239,6 @@ Components = [
                   'teardown all deployed containers',
                   yaml = 'teardown.yml'),
 
-    makeComponent('consul',
-                  'build/deploy consul (includes registrator)',
-                  modes = 'clean'),
-
     makeComponent('kafka',
                   'build/deploy kafka',
                   modes = 'clean'),
@@ -301,6 +297,11 @@ Components = [
                   'build java action container',
                   yaml = False,
                   gradle = 'core:javaAction'),
+
+    makeComponent('action-php-v7.1',
+                  'build PHP v7.1 action container',
+                  yaml = False,
+                  gradle = 'core:php7.1Action'),
 
     makeComponent('dockersdk',
                   'build docker action SDK (to deploy, use edge component)',

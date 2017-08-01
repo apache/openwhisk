@@ -332,7 +332,7 @@ func printRuleList(rules []whisk.Rule) {
     fmt.Fprintf(color.Output, "%s\n", boldString("rules"))
     for _, rule := range rules {
         publishState := wski18n.T("private")
-        fmt.Printf("%-70s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState)
+        fmt.Printf("%-70s %-20s %s\n", fmt.Sprintf("/%s/%s", rule.Namespace, rule.Name), publishState, rule.Status)
     }
 }
 

@@ -151,7 +151,7 @@ class ApiGwEndToEndTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_echo"
         val urlqueryparam = "name"
-        val urlqueryvalue = "test"
+        val urlqueryvalue = testName
 
         try {
             println("cli namespace: " + clinamespace)
@@ -214,14 +214,21 @@ class ApiGwEndToEndTests
             )
             rr.stdout should include("ok: created API")
             val swaggerapiurl = rr.stdout.split("\n")(1)
-            println(s"apiurl: '${swaggerapiurl}'")
+            println(s"Returned api url: '${swaggerapiurl}'")
 
             // Call the API URL and validate the results
+            val start = java.lang.System.currentTimeMillis
+            val apiToInvoke = s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue&guid=$start"
+            println(s"Invoking: '${apiToInvoke}'")
             val response = whisk.utils.retry({
-                val response = RestAssured.given().config(sslconfig).get(s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue")
+                val response = RestAssured.given().config(sslconfig).get(s"$apiToInvoke")
+                println("URL invocation response status: " + response.statusCode)
                 response.statusCode should be(200)
                 response
-            }, 5, Some(1.second))
+            }, 6, Some(2.second))
+            val end = java.lang.System.currentTimeMillis
+            val elapsed = end - start
+            println("Elapsed time (milliseconds) for a successful response: " + elapsed)
             val responseString = response.body.asString
             println("URL invocation response: " + responseString)
             responseString.parseJson.asJsObject.fields(urlqueryparam).convertTo[String] should be(urlqueryvalue)

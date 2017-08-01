@@ -35,7 +35,6 @@ import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
 
-import whisk.common.ConsulClient
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -201,12 +200,12 @@ class LoadBalancerService(
         }
 
         val maxPingsPerPoll = 128
-        val consul = new ConsulClient(config.consulServer)
         // Each controller gets its own Group Id, to receive all messages
         val pingConsumer = new KafkaConsumerConnector(config.kafkaHosts, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
-        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv,
+        actorSystem.actorOf(InvokerPool.props(
+            invokerFactory,
             (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
     }
 
@@ -283,8 +282,7 @@ class LoadBalancerService(
 }
 
 object LoadBalancerService {
-    def requiredProperties = kafkaHosts ++ consulServer ++
-        Map(loadbalancerInvokerBusyThreshold -> null)
+    def requiredProperties = kafkaHosts ++ Map(loadbalancerInvokerBusyThreshold -> null)
 
     /** Memoizes the result of `f` for later use. */
     def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

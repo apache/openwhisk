@@ -32,6 +32,7 @@ import sys
 import traceback
 import uuid
 import wskprop
+import urllib
 try:
     import argcomplete
 except ImportError:
@@ -72,7 +73,8 @@ def main():
             exitCode = {
               'user' : userCmd,
               'db'   : dbCmd,
-              'syslog' : syslogCmd
+              'syslog' : syslogCmd,
+              'limits': limitsCmd
             }[args.cmd](args, props)
         except Exception as e:
             print('Exception: ', e)
@@ -105,10 +107,25 @@ def parseArgs():
     subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
     subcmd.add_argument('authkey', help='the credentials to look up')
 
+    subcmd = subparser.add_parser('block', help='block a user')
+    subcmd.add_argument('subject', help='the user to block')
+
+    subcmd = subparser.add_parser('unblock', help='unblock a user')
+    subcmd.add_argument('subject', help='the user to unblock')
+
     subcmd = subparser.add_parser('list', help='list authorization keys associated with a namespace')
     subcmd.add_argument('namespace', help='the namespace to lookup')
     subcmd.add_argument('-p', '--pick', metavar='N', help='show no more than N identities', type=int, default=1)
     subcmd.add_argument('-k', '--key', help='show only the keys', action='store_true')
+
+    propmenu = subparsers.add_parser('limits', help='manage namespace-specific limits')
+    subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
+
+    subcmd = subparser.add_parser('set', help='set limits for a given namespace')
+    subcmd.add_argument('namespace', help='the namespace to set limits for')
+    subcmd.add_argument('--invocationsPerMinute', help='invocations per minute allowed', type=int)
+    subcmd.add_argument('--firesPerMinute', help='trigger fires per minute allowed', type=int)
+    subcmd.add_argument('--concurrentInvocations', help='concurrent invocations allowed for this namespace', type=int)
 
     propmenu = subparsers.add_parser('db', help='work with dbs')
     subparser = propmenu.add_subparsers(title='available commands', dest='subcmd')
@@ -141,6 +158,10 @@ def userCmd(args, props):
         return whoisUserCmd(args, props)
     elif args.subcmd == 'list':
         return listUserCmd(args, props)
+    elif args.subcmd == 'block':
+        return blockUserCmd(args, props)
+    elif args.subcmd == 'unblock':
+        return unblockUserCmd(args, props)
     else:
         print('unknown command')
         return 2
@@ -155,6 +176,13 @@ def dbCmd(args, props):
 def syslogCmd(args, props):
     if args.subcmd == 'get':
         return getLogsCmd(args, props)
+    else:
+        print('unknown command')
+        return 2
+
+def limitsCmd(args, props):
+    if args.subcmd == 'set':
+        return setLimitsCmd(args, props)
     else:
         print('unknown command')
         return 2
@@ -205,15 +233,19 @@ def createUserCmd(args, props):
             ]
         }
     else:
-        namespaces = filter(lambda ns: ns['name'] == desiredNamespace, doc['namespaces'])
-        if len(namespaces) == 0:
-            doc['namespaces'].append({
-                'name': desiredNamespace,
-                'uuid': uid,
-                'key': key
-            })
+        if not doc.get('blocked'):
+            namespaces = filter(lambda ns: ns['name'] == desiredNamespace, doc['namespaces'])
+            if len(namespaces) == 0:
+                doc['namespaces'].append({
+                    'name': desiredNamespace,
+                    'uuid': uid,
+                    'key': key
+                })
+            else:
+                print('Namespace already exists')
+                return 1
         else:
-            print('Namespace already exists')
+            print('The subject you want to edit is blocked')
             return 1
 
     res = insertIntoDatabase(props, doc, args.verbose)
@@ -261,6 +293,9 @@ def listUserCmd(args, props):
         return 1
 
 def getSubjectFromDb(args, props):
+    return getDocumentFromDb(props, args.subject, args.verbose)
+
+def getDocumentFromDb(props, doc, verbose):
     protocol = props[DB_PROTOCOL]
     host     = props[DB_HOST]
     port     = props[DB_PORT]
@@ -273,14 +308,14 @@ def getSubjectFromDb(args, props):
         'host'    : host,
         'port'    : port,
         'database': database,
-        'subject' : args.subject
+        'subject' : doc
     }
 
     headers = {
         'Content-Type': 'application/json',
     }
 
-    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=args.verbose)
+    res = request('GET', url, headers=headers, auth='%s:%s' % (username, password), verbose=verbose)
     if res.status == 200:
         doc = json.loads(res.read())
         return (doc, res)
@@ -414,6 +449,56 @@ def whoisUserCmd(args, props):
         return 0
     print('Failed to get subject (%s)' % res.read().strip())
     return 1
+
+def blockUserCmd(args, props):
+    (doc, res) = getSubjectFromDb(args, props)
+
+    if doc is not None:
+        doc['blocked'] = True
+        insertRes = insertIntoDatabase(props, doc, args.verbose)
+        if insertRes.status in [201, 202]:
+            print('"%s" blocked successfully' % args.subject)
+        else:
+            print('Failed to block subject (%s)' % res.read().strip())
+            return 1
+    else:
+        print('Failed to get subject (%s)' % res.read().strip())
+        return 1
+
+def unblockUserCmd(args, props):
+    (doc, res) = getSubjectFromDb(args, props)
+
+    if doc is not None:
+        doc['blocked'] = False
+        insertRes = insertIntoDatabase(props, doc, args.verbose)
+        if insertRes.status in [201, 202]:
+            print('"%s" unblocked successfully' % args.subject)
+        else:
+            print('Failed to unblock subject (%s)' % res.read().strip())
+            return 1
+    else:
+        print('Failed to get subject (%s)' % res.read().strip())
+        return 1
+
+def setLimitsCmd(args, props):
+    argsDict = vars(args)
+    docId = args.namespace + "/limits"
+    (dbDoc, res) = getDocumentFromDb(props, urllib.quote_plus(docId), args.verbose)
+    doc = dbDoc or {'_id': docId}
+
+    limits = ['invocationsPerMinute', 'firesPerMinute', 'concurrentInvocations']
+    for limit in limits:
+        givenLimit = argsDict.get(limit)
+        toSet = givenLimit if givenLimit != None else doc.get(limit)
+        if toSet != None:
+            doc[limit] = toSet
+
+    res = insertIntoDatabase(props, doc, args.verbose)
+    if res.status in [201, 202]:
+        print('Limits successfully set for "%s"' % args.namespace)
+    else:
+        print('Failed to set limits (%s)' % res.read().strip())
+        return 1
 
 def getDbCmd(args, props):
     protocol = props[DB_PROTOCOL]

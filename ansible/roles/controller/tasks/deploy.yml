@@ -25,18 +25,41 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
+      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
+      "CONTROLLER_OPTS": "{{ controller.arguments }}"
+
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
-      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
-      "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
+
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
-      "SERVICE_CHECK_HTTP": "/ping"
-      "SERVICE_CHECK_TIMEOUT": "2s"
-      "SERVICE_CHECK_INTERVAL": "15s"
-      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
-      "CONTROLLER_OPTS": "{{ controller.arguments }}"
+
+      "KAFKA_HOST": "{{ groups['kafka']|first }}"
+      "KAFKA_HOST_PORT": "{{ kafka.port }}"
+
+      "DB_PROTOCOL": "{{ db_protocol }}"
+      "DB_PROVIDER": "{{ db_provider }}"
+      "DB_HOST": "{{ db_host }}"
+      "DB_PORT": "{{ db_port }}"
+      "DB_USERNAME": "{{ db_username }}"
+      "DB_PASSWORD": "{{ db_password }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
+      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+
+      "DEFAULTLIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ defaultLimits.actions.invokes.perMinute }}"
+      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ defaultLimits.actions.invokes.concurrent }}"
+      "DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ defaultLimits.triggers.fires.perMinute }}"
+      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ defaultLimits.actions.invokes.concurrentInSystem }}"
+      "DEFAULTLIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ defaultLimits.actions.sequence.maxLength }}"
+      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.actions.invokes.perMinute }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.actions.invokes.concurrent }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.actions.invokes.concurrentInSystem }}"
+      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.triggers.fires.perMinute }}"
+      "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
+
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

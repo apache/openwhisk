@@ -72,7 +72,7 @@ object DockerContainer {
                    implicit docker: DockerApiWithFileAccess, runc: RuncApi, ec: ExecutionContext, log: Logging): Future[DockerContainer] = {
         implicit val tid = transid
 
-        val environmentArgs = (environment + ("SERVICE_IGNORE" -> true.toString)).map {
+        val environmentArgs = environment.map {
             case (key, value) => Seq("-e", s"$key=$value")
         }.flatten
 

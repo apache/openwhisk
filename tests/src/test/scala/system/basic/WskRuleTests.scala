@@ -19,7 +19,6 @@ package system.basic
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
 import common.TestUtils
 import common.Wsk
@@ -369,6 +368,25 @@ class WskRuleTests
                             logs should contain theSameElementsAs expectedLogs
                     }
             }
+    }
+
+    it should "disable a rule and check its status is displayed when listed" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val ruleName = withTimestamp("ruleDisable")
+            val ruleName2 = withTimestamp("ruleEnable")
+            val triggerName = withTimestamp("ruleDisableTrigger")
+            val actionName = withTimestamp("ruleDisableAction")
+
+            ruleSetup(Seq(
+                (ruleName, triggerName, (actionName, actionName, defaultAction)),
+                (ruleName2, triggerName, (actionName, actionName, defaultAction))),
+                assetHelper)
+
+            wsk.rule.disable(ruleName)
+            val listOutput = wsk.rule.list().stdout.lines
+            listOutput.find(_.contains(ruleName2)).get should (include(ruleName2) and include("active"))
+            listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
+            wsk.rule.list().stdout should not include ("Unknown")
     }
 
 }

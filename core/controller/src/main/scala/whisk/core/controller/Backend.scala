@@ -37,7 +37,4 @@ trait WhiskServices {
 
     /** A load balancing service that launches invocations. */
     protected val loadBalancer: LoadBalancer
-
-    /** The hostname of the consul server. */
-    protected val consulServer: String
 }

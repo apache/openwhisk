@@ -34,12 +34,14 @@ import whisk.core.loadBalancer.LoadBalancer
  * to calculate and determine whether the namespace currently invoking a new action should
  * be allowed to do so.
  *
- * @param config containing the config information needed (consulServer)
+ * @param loadbalancer contains active quotas
+ * @param defaultConcurrencyLimit the default max allowed concurrent operations
+ * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, concurrencyLimit: Int, systemOverloadLimit: Int)(
+class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
     implicit val system: ActorSystem, logging: Logging) {
 
-    logging.info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
+    logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
     implicit private val executionContext = system.dispatcher
 
@@ -58,7 +60,8 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
      */
     def check(user: Identity)(implicit tid: TransactionId): Boolean = {
         val concurrentActivations = namespaceActivationCounter.getOrElse(user.uuid, 0)
-        logging.debug(this, s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
+        val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+        logging.info(this, s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
         concurrentActivations < concurrencyLimit
     }
 
