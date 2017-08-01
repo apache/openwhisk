@@ -116,11 +116,6 @@ type Flags struct {
         configfile string
         resptype   string
     }
-
-    // sdk
-    sdk struct {
-        bashrc bool
-    }
 }
 
 

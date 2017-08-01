@@ -38,31 +38,29 @@ you can run the following command from your `openwhisk` directory:
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
-### Configure auto-completion for Openwhisk CLI
+### Configure command completion for Openwhisk CLI
 
-For most bash users, running the following command will be sufficient to install auto-completion for Openwhisk CLI:
+For bash command completion to work, bash 4.1 or newer is required. The most recent Linux distributions should have the correct version of bash but Mac users will most likely have an older version.
+Mac users can check their bash version and update it by running the following commands:
 
 ```
-eval "`wsk sdk install bashauto --bashrc`"
+bash --version
+brew install bash-completion
 ```
 
-**Note:** `--bashrc` flag will attempt to locate your `.bashrc` and append the previous command, without `--bashrc`, to it.
-
-If this doesn't work, you can run a temporary installation using the following command:
+To install bash command completion run the following command:
 
 ```
 eval "`wsk sdk install bashauto`"
 ```
 
-**Note:** Every time a new terminal is opened this command will have to be ran in order to use auto-completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
+**Note:** Every time a new terminal is opened this command must run to enable bash command completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
 
-For those who wish to do a custom installation, you can simply print to the terminal and manipulate the output by using the following command:
-
+For those who wish to do a custom installation, the following commands show how to output the wsk command completion script into a separate shell script file to be run later. You will need to explicitly run the script to install wsk command completion support.
 ```
-wsk sdk install bashauto
+wsk sdk install bashauto > wsk_cli_bash_completion.sh
+chmod +x wsk_cli_bash_completion.sh
 ```
-
-**Note:** This will NOT install anything but simply print the Cobra auto-completion script to the terminal. Adding `--bashrc` will ONLY attempt to append the `.bashrc` and still not run the install script.
 
 ## Using the OpenWhisk CLI
 

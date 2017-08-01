@@ -1512,15 +1512,7 @@
     "translation": "get action url"
   },
   {
-    "id": "adds bashauto-completion install command to .bashrc",
-    "translation": "adds bashauto-completion install command to .bashrc"
-  },
-  {
-    "id": "Unable to append .bashrc: {{.err}}",
-    "translation": "Unable to append .bashrc: {{.err}}"
-  },
-  {
-    "id": "Unable to generate bashauto-completion {{.err}}",
-    "translation": "Unable to generate bashauto-completion {{.err}}"
+    "id": "Unable to output bash command completion {{.err}}",
+    "translation": "Unable to output bash command completion {{.err}}"
   }
 ]

@@ -89,14 +89,10 @@ class WskSdkTests
         FileUtils.deleteDirectory(dir)
     }
 
-
-    it should "install the bash auto-completion bash script using --bashrc flag" in {
-        val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+    it should "print bash command completion script to STDOUT" in {
         val msg = "bash completion for wsk"    // Subject to change, dependent on Cobra script
-        // Doesn't actually install, simply checking if the command is printing correctly to STDOUT
-        val stdout = wsk.cli(Seq("sdk", "install", "bashauto", "--bashrc") ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT).stdout
 
+        val stdout = wsk.cli(Seq("sdk", "install", "bashauto"), expectedExitCode = SUCCESS_EXIT).stdout
         stdout should include(msg)
     }
-
 }
