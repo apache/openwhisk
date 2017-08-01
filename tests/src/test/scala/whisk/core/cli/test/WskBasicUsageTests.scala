@@ -20,6 +20,7 @@ package whisk.core.cli.test
 import java.io.File
 import java.io.BufferedWriter
 import java.io.FileWriter
+import java.io.PrintWriter
 import java.time.Instant
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -632,6 +633,32 @@ class WskBasicUsageTests
                 stdout should include(webActionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedWebActionName))
 
             wsk.action.get(nonExistentActionName, url = Some(true), expectedExitCode = NOT_FOUND)
+    }
+
+    it should "limit the action length of HTTP Req/Resp Body for --verbose to 1000 bytes" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+            val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
+            val name = "largeFileAction"
+            val msg = "will be truncated"
+            val endMsg = "END"    //  Message that should be truncated
+            val largeTestFile = new File(s"$testActionsDir${File.separator}$name.js")    // Creates a file to see if "code" field is limited
+
+            largeTestFile.createNewFile()
+            val pw = new PrintWriter(largeTestFile)
+            pw.write("a" * 1000)
+            pw.write(endMsg)
+            pw.close
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => wsk.action.create(name, Some(largeTestFile.getAbsolutePath))
+            }
+
+            val stdout = wsk.cli(Seq("action", "update", name, largeTestFile.getAbsolutePath, "-v") ++ wskprops.overrides ++ auth).stdout
+            val msgOccurences = msg.r.findAllIn(stdout).length
+            msgOccurences shouldBe 2
+            stdout should not include(endMsg)
+            largeTestFile.delete
     }
 
     behavior of "Wsk packages"

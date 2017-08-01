@@ -222,33 +222,27 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     }
     return nil
 }
-// findAndLimitString() takes in a []byte(str) which is used to reprsent a string.
-// It then finds a substring that is specified by a start(startAt) and end(endAt) index.
-// This substring is then limited if it is greater than a specified length(limit) and a format buffer is added to the end.
-// A new []byte(newStr) is created containing the original []byte(str) and the newly created limited substring.
-// It then returns the newly constructed []byte(newStr).
-func findAndLimitString(data []byte, str []byte, startAt, limit int, buffer string) []byte {
-    var newStr []byte
-    var diff int
-    fmt.Println("Start ", startAt)
+// findAndLimitString() truncates a field within Resp Body and then rebuilds the Resp Body
+// with the newly limited field.
+func limitRespField(data []byte, field []byte, limit int, buffer string) []byte {
+    var newData []byte
+    var diff int    // Used to find difference between original str and truncated str
 
-    //limitAt := limit + startAt    // Calculates correct index to end the limited substring
-    newStr = append(newStr, data[:startAt]...)
-    fmt.Println("Length 2: ", len(str))
-    if  len(str) > limit {    // Checks if substring exceeds limit
+    newData = append(newData, data[:bytes.Index(data, field)]...)    // Appends infomration up to beginning of the field
+    if  len(field) > limit {    // Checks if field exceeds limit
         Verbose("Substring exceeds %d bytes and will be truncated\n", limit)
-        newStr = append(newStr, str[:limit]...)    // Appends the limited substring
-        newStr = append(newStr, buffer...)    // Adds a buffer to keep consistent formating
-        diff = len(str) - len(str[:limit])
+        newData = append(newData, field[:limit]...)    // Appends the limited field
+        newData = append(newData, buffer...)    // Adds a buffer to keep consistent formating
+        diff = len(field) - len(field[:limit])
     } else {
-        newStr = append(newStr, str...)    // If substring does not exceed the limit use original substring
+        newData = append(newData, field...)    // If field does not exceed the limit use original field
     }
-    newStr = append(newStr, data[len(newStr) + diff:]...)
+    newData = append(newData, data[len(newData) + diff:]...)    // Appends the remaining information
 
-    return newStr
+    return newData
 }
 
-// respBodyLimiter limits the size of the "code" field in Resp Body for --verbose ONLY.
+// respBodyLimiter limits the size of action Resp Body for --verbose ONLY.
 // It returns truncated Resp Body, reloaded io.ReadCloser and any errors.
 func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
     var action = new(Action)
@@ -260,20 +254,19 @@ func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, body, werr
     }
-
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
-    json.Unmarshal(data, &action)
+
+    json.Unmarshal(data, &action)    // JSON parsing
     code := []byte(fmt.Sprintf("%+q", *action.Exec.Code))
-    fmt.Println("Length 1: ", len(code))
-    if  len(code) > 0 {
-        newData := findAndLimitString(data, code, bytes.Index(data, code), limit, buffer)
+    if len(code) > 0 {
+        newData := limitRespField(data, code, limit, buffer)
         return newData, reload, nil
     }
 
     return data, reload, nil
 }
 
-// reqBodyLimiter limits the size of Req Body for --verbose ONLY.
+// reqBodyLimiter limits the size of action Req Body for --verbose ONLY.
 // It returns truncated Req Body, reloaded io.ReadCloser and any errors.
 func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
     limit := 1000    // 1000 byte limit, anything over is truncated
@@ -285,6 +278,7 @@ func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
         return nil, body, werr
     }
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
+
     if len(data) > limit {
         Verbose("Req Body excedes %d bytes and will be truncated\n", limit)
         newData := string(data[:limit]) + buffer    // Must convert to string to add buffer otherwise malformed error will be thrown
@@ -293,6 +287,7 @@ func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 
     return data, reload, nil
 }
+
 // Do sends an API request and returns the API response.  The API response is
 // JSON decoded and stored in the value pointed to by v, or returned as an
 // error if an API error has occurred.  If v implements the io.Writer
@@ -300,7 +295,7 @@ func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 // first decode it.
 func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
     var err error
-    var body []byte
+    var limitBody []byte
 
     if IsVerbose() {
         fmt.Println("REQUEST:")
@@ -311,12 +306,12 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         }
         if req.Body != nil {
             fmt.Println("Req Body")
-            // Check if --verbose flag was given if so limit Req Body
-            if IsVerboseOnly() {
-                if body, req.Body, err = reqBodyLimiter(req.Body); err != nil {
+            // Check if --verbose flag was given and is an action attempt to limit Req Body
+            if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
+                if limitBody, req.Body, err = reqBodyLimiter(req.Body); err != nil {
                     return nil, err
                 }
-                fmt.Println(string(body))
+                fmt.Println(string(limitBody))
             } else {
                 fmt.Println(req.Body)
             }
@@ -339,9 +334,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         fmt.Println("Resp Headers")
         PrintJSON(resp.Header)
     }
-    // Check if --verbose flag was given if so limit Resp Body
-    if IsVerboseOnly() {
-        if body, resp.Body, err = respBodyLimiter(resp.Body); err != nil {
+    // Check if --verbose flag was given and is an action attempt to limit Resp Body
+    if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
+        if limitBody, resp.Body, err = respBodyLimiter(resp.Body); err != nil {
             return nil, err
         }
     }
@@ -354,9 +349,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         return resp, werr
     }
     Verbose("Response body size is %d bytes\n", len(data))
-    // Check if --verbose flag was given if so print limited Resp Body
-    if IsVerboseOnly() {
-        Verbose("Response body received:\n%s\n", string(body))
+    // Check if --verbose flag was given and is an action print Resp Body
+    if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
+        Verbose("Response body received:\n%s\n", string(limitBody))
     } else {
         Verbose("Response body received:\n%s\n", string(data))
     }
