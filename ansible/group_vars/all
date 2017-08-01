@@ -149,7 +149,7 @@ invoker:
   serializeDockerOp: true
   serializeDockerPull: true
   useRunc: false
-  useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
+  useReactivePool: "{{ invoker_use_reactive_pool | default(true) }}"
   instances: "{{ groups['invokers'] | length }}"
 
 nginx:
