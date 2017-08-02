@@ -1,5 +1,5 @@
 #!groovy
-node("ubuntu&&xenial") {
+node('xenial && !H22') {
   sh "env"
   sh "docker version"
   sh "docker info"
