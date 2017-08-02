@@ -21,15 +21,6 @@ task distBinary() {
     }
 }
 
-task dumpOSInfo() {
-    doLast {
-        println "os.name = "+getOsName()
-        println "os.arch = "+getOsArch()
-        println "go.name = "+mapOsNameToGoName(getOsName())
-        println "go.arch = "+mapOsArchToGoArch(getOsArch())
-    }
-}
-
 task copyCLIShortcut() {
     doLast {
         String go_osname = mapOsNameToGoName(getOsName())
@@ -37,17 +28,14 @@ task copyCLIShortcut() {
         String from_path_wsk = "${projectDir}/../../bin/${go_osname}/${go_osarch}/wsk"
         String to_path_dir = "${projectDir}/../../bin"
 
-        if (file(from_path_wsk).exists()) {
-            exec {
-                executable "cp"
-                args "${from_path_wsk}", "${to_path_dir}"
-            }
+        exec {
+            executable "cp"
+            args "${from_path_wsk}", "${to_path_dir}"
         }
     }
 }
 
 distBinary.dependsOn removeBinary
-copyCLIShortcut.dependsOn dumpOSInfo
 distBinary.finalizedBy copyCLIShortcut
 pushImage.finalizedBy distBinary
 
