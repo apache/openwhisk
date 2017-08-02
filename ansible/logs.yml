@@ -12,14 +12,16 @@
     - name: dump entity views
       local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get whisks --docs --view whisks/{{ item }} | tail -n +2 > "{{ openwhisk_home }}/logs/db-{{ item }}.log"
       with_items:
-        - activations
         - actions
         - triggers
         - rules
         - packages
       when: "'db' not in exclude_logs_from"
-    - name: dump subjects database
-      local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get subjects --docs | tail -n +2 > "{{ openwhisk_home }}/logs/db-subjects.log"
+    - name: dump activations and subjects database
+      local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get {{ item }} --docs | tail -n +2 > "{{ openwhisk_home }}/logs/db-{{ item }}.log"
+      with_items:
+        - activations
+        - subjects
       when: "'db' not in exclude_logs_from"
 
 - hosts: shared,core,invokers
