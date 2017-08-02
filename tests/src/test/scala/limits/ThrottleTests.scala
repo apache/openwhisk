@@ -307,9 +307,13 @@ class NamespaceSpecificThrottleTests
     wskadmin.cli(Seq("limits", "set", oneProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
 
     override def afterAll() = {
-        disposeAdditionalTestSubject(zeroProps.namespace)
-        disposeAdditionalTestSubject(zeroConcProps.namespace)
-        disposeAdditionalTestSubject(oneProps.namespace)
+        Seq(zeroProps, zeroConcProps, oneProps).foreach { wp =>
+            val ns = wp.namespace
+            disposeAdditionalTestSubject(ns)
+            withClue(s"failed to delete temporary limits for $ns") {
+                wskadmin.cli(Seq("limits", "delete", ns))
+            }
+        }
     }
 
     behavior of "Namespace-specific throttles"

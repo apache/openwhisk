@@ -153,4 +153,21 @@ class WskAdminTests
             wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
         }
     }
+
+    it should "adjust throttles for namespace" in {
+        val wskadmin = new RunWskAdminCmd {}
+        val subject = Subject().asString
+        try {
+            // set some limits
+            wskadmin.cli(Seq("limits", "set", subject, "--invocationsPerMinute", "1", "--firesPerMinute", "2", "--concurrentInvocations", "3"))
+            // check correctly set
+            val lines = wskadmin.cli(Seq("limits", "get", subject)).stdout.lines.toSeq
+            lines should have size 3
+            lines(0) shouldBe "invocationsPerMinute = 1"
+            lines(1) shouldBe "firesPerMinute = 2"
+            lines(2) shouldBe "concurrentInvocations = 3"
+        } finally {
+            wskadmin.cli(Seq("limits", "delete", subject)).stdout should include("Limits deleted")
+        }
+    }
 }
