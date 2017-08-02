@@ -13,6 +13,7 @@ include 'core:javaAction'
 include 'core:php7.1Action'
 
 include 'tools:cli'
+include 'core:nginx'
 
 include 'sdk:docker'
 
