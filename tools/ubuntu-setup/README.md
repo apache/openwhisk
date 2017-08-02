@@ -27,7 +27,7 @@ Follow instructions [tools/db/README.md](../db/README.md) on how to configure a 
 
   ```
   cd <home_openwhisk>
-  ./gradlew distDocker
+  sudo ./gradlew distDocker
   ```
 
 ## Deploy
