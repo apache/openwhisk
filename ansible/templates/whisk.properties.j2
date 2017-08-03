@@ -74,8 +74,6 @@ invoker.useRunc={{ invoker_use_runc | default(invoker.useRunc) }}
 invoker.useReactivePool={{ invoker.useReactivePool }}
 invoker.instances={{ invoker.instances }}
 
-edge.docker.endpoint={{ groups["edge"]|first }}:{{ docker.port }}
-kafka.docker.endpoint={{ groups["kafka"]|first }}:{{ docker.port }}
 main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
 
 docker.registry={{ docker_registry }}

@@ -97,8 +97,6 @@ class WhiskConfig(
     val dbActivations = this(WhiskConfig.dbActivations)
     val dbPrefix = this(WhiskConfig.dbPrefix)
 
-    val edgeDockerEndpoint = this(WhiskConfig.edgeDockerEndpoint)
-    val kafkaDockerEndpoint = this(WhiskConfig.kafkaDockerEndpoint)
     val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
     val runtimesManifest = this(WhiskConfig.runtimesManifest)
@@ -206,8 +204,6 @@ object WhiskConfig {
     val wskApiHostname = "whisk.api.host.name"
     val wskApiHost = Map(wskApiProtocol -> "https", wskApiPort -> 443.toString, wskApiHostname -> null)
 
-    val edgeDockerEndpoint = "edge.docker.endpoint"
-    val kafkaDockerEndpoint = "kafka.docker.endpoint"
     val mainDockerEndpoint = "main.docker.endpoint"
 
     private val controllerBlackboxFraction = "controller.blackboxFraction"

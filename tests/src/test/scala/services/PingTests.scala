@@ -95,10 +95,6 @@ class PingTests extends FlatSpec
         pingDocker("main.docker.endpoint", WhiskProperties.getMainDockerEndpoint)
     }
 
-    it should "Check the kafka docker endpoint is functioning" in {
-        pingDocker("kafka.docker.endpoint", WhiskProperties.getKafkaDockerEndpoint)
-    }
-
     it should "check that the zookeeper endpoint is up and running" in {
         PingTests.isAliveScript("zookeeper", WhiskProperties.getFileRelativeToWhiskHome(".").getAbsolutePath)
     }
