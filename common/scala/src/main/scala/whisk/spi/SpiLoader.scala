@@ -60,14 +60,12 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T] {
 
 /** Resolves the implementation for a given type */
 trait SpiClassResolver {
-    def getKeyForType[T](implicit man: Manifest[T]): String
-    def getClassnameForKey(key: String): String
+    def getClassNameForType[T](implicit man: Manifest[T]): String
 }
 
 object SpiLoader {
     def get[A <: Spi](deps: Dependencies = Dependencies())(implicit resolver: SpiClassResolver = TypesafeConfigClassResolver, man: Manifest[A]): A = {
-        val key = resolver.getKeyForType[A]
-        val clazz = Class.forName(resolver.getClassnameForKey(key) + "$")
+        val clazz = Class.forName(resolver.getClassNameForType[A] + "$")
         clazz.getField("MODULE$").get(clazz).asInstanceOf[SpiFactory[A]].buildInstance(deps)
     }
 }
@@ -76,8 +74,7 @@ object SpiLoader {
 object TypesafeConfigClassResolver extends SpiClassResolver {
     private val config = ConfigFactory.load()
 
-    override def getClassnameForKey(key: String): String = config.getString(key)
-    override def getKeyForType[T](implicit man: Manifest[T]): String = "whisk.spi." + man.runtimeClass.getSimpleName
+    override def getClassNameForType[T](implicit man: Manifest[T]): String = config.getString("whisk.spi." + man.runtimeClass.getSimpleName)
 }
 
 /**

@@ -31,11 +31,11 @@ import whisk.spi.SingletonSpiFactory
  * A Kafka based implementation of MessagingProvider
  */
 class KafkaMessagingProvider() extends MessagingProvider {
-    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(implicit logging: Logging): MessageConsumer = {
+    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(implicit logging: Logging): MessageConsumer =
         new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
-    }
 
-    def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer = new KafkaProducerConnector(config.kafkaHost, ec)
+    def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
+        new KafkaProducerConnector(config.kafkaHost, ec)
 }
 
 object KafkaMessagingProvider extends SingletonSpiFactory[MessagingProvider] {
