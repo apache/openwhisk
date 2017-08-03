@@ -30,7 +30,6 @@ import common.TestUtils
 import common.WhiskProperties
 import common.Wsk
 import common.WskProps
-import common.WskPropsV2
 import common.WskTestHelpers
 
 /**
@@ -94,7 +93,7 @@ class ApiGwTests
     override def beforeAll() = {
         //cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
         cliWskPropsFile.deleteOnExit()
-        val wskprops = WskPropsV2(token = "SOME TOKEN")
+        val wskprops = WskProps(token = "SOME TOKEN")
         wskprops.writeFile(cliWskPropsFile)
         println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
     }
@@ -353,7 +352,7 @@ class ApiGwTests
         val testurlop = "get"
         val testapiname = testName+" API Name"
         val actionName = testName+"_action"
-        val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1V2")
+        val swaggerPath = TestUtils.getTestApiGwFilename("testswaggerdoc1")
         try {
             var rr = apiCreate(swagger = Some(swaggerPath))
             rr.stdout should include("ok: created API")
@@ -535,7 +534,7 @@ class ApiGwTests
         val testurlop = "get"
         val testapiname = testName + " API Name"
         val actionName = "test1a"
-        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2V2")
+        val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
         try {
             var rr = apiCreate(swagger = Some(swaggerPath))
             println("api create stdout: " + rr.stdout)
