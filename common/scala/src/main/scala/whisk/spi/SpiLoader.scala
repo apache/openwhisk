@@ -20,8 +20,10 @@ package whisk.spi
 import com.typesafe.config.ConfigFactory
 import java.util.concurrent.atomic.AtomicReference
 
+/** Marker trait to mark an Spi */
 trait Spi
 
+/** Trait to be extended by factory objects creating Spi implementations */
 trait SpiFactory[T <: Spi] {
     def apply(dependencies: Dependencies): T
 
@@ -34,6 +36,10 @@ trait SpiFactory[T <: Spi] {
     def buildInstance(dependencies: Dependencies): T = apply(dependencies)
 }
 
+/**
+ * SpiFactory which is guaranteed to always return the same reference for
+ * the same type of Spi.
+ */
 trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T] {
     private val ref = new AtomicReference[T]()
 
@@ -52,6 +58,7 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T] {
     }
 }
 
+/** Resolves the implementation for a given type */
 trait SpiClassResolver {
     def getKeyForType[T](implicit man: Manifest[T]): String
     def getClassnameForKey(key: String): String
@@ -65,15 +72,20 @@ object SpiLoader {
     }
 }
 
-/**
- * Lookup the classname for the SPI impl based on a key in the provided Config
- */
+/** Lookup the classname for the SPI impl based on a key in the provided Config */
 object TypesafeConfigClassResolver extends SpiClassResolver {
-    val config = ConfigFactory.load()
+    private val config = ConfigFactory.load()
+
     override def getClassnameForKey(key: String): String = config.getString(key)
     override def getKeyForType[T](implicit man: Manifest[T]): String = "whisk.spi." + man.runtimeClass.getSimpleName
 }
 
+/**
+ * Object containing arbitrary objects acting as dependencies.
+ *
+ * This is solely a helper type to cross the border between possibly heterogeneous Spi
+ * interfaces and the production code.
+ */
 case class Dependencies(private val deps: Any*) {
     require(deps.map(_.getClass).distinct.size == deps.size, "A type can only occur once as a dependency")
 
