@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -32,18 +31,17 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, WhiskActivation }
+import whisk.core.entity.{ActivationId, WhiskActivation}
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.UUID
@@ -52,6 +50,8 @@ import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
+import whisk.spi.SpiLoader
+import whisk.spi.TypesafeConfigClassResolver
 
 trait LoadBalancer {
 
@@ -90,6 +90,7 @@ class LoadBalancerService(
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+    implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
 
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
@@ -172,7 +173,8 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = MessagingProvider(actorSystem).getProducer(config, executionContext)
+    private val messasgingProvider = SpiLoader.instanceOf[MessagingProvider]("whisk.spi.messaging.impl")
+    private val messageProducer = messasgingProvider.getProducer(config, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -197,7 +199,7 @@ class LoadBalancerService(
         }
 
         val maxPingsPerPoll = 128
-        val pingConsumer = MessagingProvider(actorSystem).getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+        val pingConsumer = messasgingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
         actorSystem.actorOf(InvokerPool.props(
@@ -210,8 +212,8 @@ class LoadBalancerService(
      */
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
-    private val activeAckConsumer = MessagingProvider(actorSystem).getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
-val activationFeed = actorSystem.actorOf(Props {
+    private val activeAckConsumer = messasgingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed("activeack", logging,
     activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
     })

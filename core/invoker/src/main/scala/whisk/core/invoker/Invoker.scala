@@ -18,36 +18,35 @@
 package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
-import java.time.{ Clock, Instant }
-
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import java.time.{Clock, Instant}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.Promise
-import scala.concurrent.duration.{ Duration, DurationInt }
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 import scala.util.Try
-
 import org.apache.kafka.common.errors.RecordTooLargeException
-
-import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
+import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
 import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
+import whisk.common.{Counter, Logging, LoggingMarkers, TransactionId}
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, invokerUseReactivePool }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.WhiskConfig.{dockerImagePrefix, dockerRegistry, invokerUseReactivePool, kafkaHost, logsDir, servicePort}
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
 import whisk.core.container._
-import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
+import whisk.core.dispatcher.{Dispatcher, MessageHandler}
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
+import whisk.spi.SpiLoader
+import whisk.spi.TypesafeConfigClassResolver
 import whisk.utils.ExecutionContextFactory
 
 /**
@@ -68,6 +67,8 @@ class Invoker(
     with ActionLogDriver {
 
     private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+    // use akka config to resolve SPI impls
+    private implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
 
     TransactionId.invoker.mark(this, LoggingMarkers.INVOKER_STARTUP(instance.toInt), s"starting invoker instance ${instance.toInt}")
 
@@ -454,6 +455,8 @@ object Invoker {
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
         implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+        // use akka config to resolve SPI impls
+        implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
 
         // load values for the required properties from the environment
         val config = new WhiskConfig(requiredProperties)
@@ -477,7 +480,7 @@ object Invoker {
 
         val topic = s"invoker${invokerInstance.toInt}"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val msgProvider = MessagingProvider(actorSystem)
+        val msgProvider = SpiLoader.instanceOf[MessagingProvider]("whisk.spi.messaging.impl")
         val consumer = msgProvider.getConsumer(config, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
         val producer = msgProvider.getProducer(config, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, maxdepth, actorSystem)

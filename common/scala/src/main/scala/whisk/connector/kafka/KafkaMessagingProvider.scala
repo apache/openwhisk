@@ -24,7 +24,8 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
-import whisk.spi.SpiModule
+import whisk.spi.Dependencies
+import whisk.spi.SingletonSpiFactory
 
 /**
  * A Kafka based implementation of MessagingProvider
@@ -37,6 +38,6 @@ class KafkaMessagingProvider() extends MessagingProvider {
     def getProducer(config: WhiskConfig, ec:ExecutionContext)(implicit logging: Logging): MessageProducer = new KafkaProducerConnector(config.kafkaHost, ec)
 }
 
-class KafkaMessagingProviderModule extends SpiModule[MessagingProvider] {
-    override protected def getInstance: MessagingProvider = new KafkaMessagingProvider()
+object KafkaMessagingProvider extends SingletonSpiFactory[MessagingProvider] {
+    override def buildInstance(dependencies: Dependencies): MessagingProvider = new KafkaMessagingProvider
 }

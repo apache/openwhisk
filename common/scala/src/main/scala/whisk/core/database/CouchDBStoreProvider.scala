@@ -21,7 +21,8 @@ import akka.actor.ActorSystem
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.spi.SpiModule
+import whisk.spi.Dependencies
+import whisk.spi.SpiFactory
 
 /**
  * A CouchDB implementation of ArtifactStoreProvider
@@ -39,6 +40,6 @@ class CouchDBStoreProvider extends ArtifactStoreProvider {
     }
 }
 
-class CouchDBStoreProviderModule extends SpiModule[ArtifactStoreProvider] {
-    def getInstance = new CouchDBStoreProvider
+object CouchDBStoreProvider extends SpiFactory[ArtifactStoreProvider] {
+    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDBStoreProvider
 }

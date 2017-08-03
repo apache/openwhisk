@@ -43,8 +43,8 @@ import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
-
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
+import whisk.spi.TypesafeConfigClassResolver
 
 
 /**
@@ -110,9 +110,12 @@ class Controller(
 
     TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
-    // initialize datastores
+    // use akka config to resolve SPI impls
     private implicit val actorSystem = context.system
     private implicit val executionContext = actorSystem.dispatcher
+    implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
+
+    // initialize datastores
     private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
     private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)

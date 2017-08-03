@@ -53,13 +53,14 @@ import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.http.Messages
+import whisk.spi.SpiClassResolver
 
 
 class InvokerReactive(
     config: WhiskConfig,
     instance: InstanceId,
     activationFeed: ActorRef,
-    producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging)
+    producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging, resolver:SpiClassResolver)
     extends MessageHandler(s"invoker${instance.toInt}") {
 
     implicit val ec = actorSystem.dispatcher

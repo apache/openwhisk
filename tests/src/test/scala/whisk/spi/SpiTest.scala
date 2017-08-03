@@ -1,5 +1,6 @@
 package whisk.spi
 
+import com.typesafe.config.ConfigException
 import common.StreamLogging
 import common.WskActorSystem
 import org.junit.runner.RunWith
@@ -9,113 +10,154 @@ import org.scalatest.junit.JUnitRunner
 import whisk.core.WhiskConfig
 
 @RunWith(classOf[JUnitRunner])
-class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogging  {
+class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
 
-  behavior of "SpiProvider"
+    implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
 
-  it should "load an Spi from SpiModule implementation" in {
-    val simpleSpi:SimpleSpi = SimpleSpi(actorSystem)
-    assert(simpleSpi != null)
-  }
-  it should "throw an exception if the impl defined in application.conf is missing" in {
-    a[IllegalArgumentException] should be thrownBy MissingSpi(actorSystem)
-  }
-  it should "throw an exception if the module is missing" in {
-    a[IllegalArgumentException] should be thrownBy MissingModule(actorSystem)
-  }
+    behavior of "SpiProvider"
 
+    it should "load an Spi from SpiLoader via classname" in {
+        val simpleSpi: SimpleSpi = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        assert(simpleSpi != null)
+    }
+    it should "load an Spi from SpiLoader via typesafe config" in {
+        val simpleSpi: SimpleSpi = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        assert(simpleSpi != null)
+    }
 
-  it should "load an Spi with injected WhiskConfig" in {
-    val whiskConfig = new WhiskConfig(Map())
-//    SharedModules.bind[WhiskConfig](whiskConfig)
-//    val dependentSpi:DependentSpi = DependentSpi2(actorSystem)
-    val dependentSpi:DependentSpi = DependentSpi2Factory(actorSystem).getDependentSpi("some dep", whiskConfig)
-    assert(dependentSpi.config.eq(whiskConfig))
-  }
+    it should "throw an exception if the impl defined in application.conf is missing" in {
+        a[ClassNotFoundException] should be thrownBy SpiLoader.instanceOf[MissingSpi]("test.missingspi.impl") // MissingSpi(actorSystem)
+    }
+    it should "throw an exception if the module is missing" in {
+        a[ClassNotFoundException] should be thrownBy SpiLoader.instanceOf[MissingModule]("test.missingmodulespi.impl") // MissingModule(actorSystem)
+    }
+    it should "throw an exception if the config key is missing" in {
+        a[ConfigException] should be thrownBy SpiLoader.instanceOf[MissingModule]("test.missing.config") // MissingModule(actorSystem)
+    }
+    //
+    it should "load an Spi with injected WhiskConfig" in {
+        val whiskConfig = new WhiskConfig(Map())
+        val deps = Dependencies("some name", whiskConfig)
+        val dependentSpi: DependentSpi = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl", deps)
+        assert(dependentSpi.config.eq(whiskConfig))
+    }
+    //
+    it should "load an Spi with injected Spi" in {
+        val whiskConfig = new WhiskConfig(Map())
+        val deps = Dependencies("some name", whiskConfig)
+        val dependentSpi: DependentSpi = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl", deps)
 
-  it should "load an Spi with injected Spi" in {
-    val whiskConfig = new WhiskConfig(Map())
-//    SharedModules.bind[WhiskConfig](whiskConfig)
-//    val dependentSpi:DependentSpi = DependentSpi2(actorSystem)
-    val dependentSpi:DependentSpi = DependentSpi2Factory(actorSystem).getDependentSpi("some dep", whiskConfig)
-    val testSpi:TestSpi = TestSpiFactory(actorSystem).getTestSpi("some name", dependentSpi)
-    assert(testSpi.dep.eq(dependentSpi))
-  }
+        val deps2 = Dependencies("dep2", dependentSpi)
+        val testSpi: TestSpi = SpiLoader.instanceOf[TestSpi]("test.testspi.impl", deps2)
+        assert(testSpi.dep.eq(dependentSpi))
+    }
+    //
+    it should "not allow duplicate-type dependencies" in {
+        a[IllegalArgumentException] should be thrownBy  Dependencies("some string", "some other string")
+    }
+    //
+    it should "load SPI impls as singletons via SingletonSpiFactory" in {
+        val instance1 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
+        val instance2 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
+        val instance3 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
+        assert(instance1.hashCode() == instance2.hashCode())
+
+    }
+
+    //
+    it should "load SPI impls as singletons via lazy val init" in {
+        val instance1 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        val instance2 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        val instance3 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        assert(instance1.hashCode() == instance2.hashCode())
+
+    }
 }
 
+trait TestSpi extends Spi {
+    val name: String
+    val dep: DependentSpi
+}
 
-trait TestSpi {
-  val name:String
-  val dep:DependentSpi
+trait DependentSpi extends Spi {
+    val name: String
+    val config: WhiskConfig
 }
-trait DependentSpi {
-  val name:String
-  val config:WhiskConfig
-}
+
 trait TestSpiFactory extends Spi {
-  def getTestSpi(name:String, dep:DependentSpi) = new TestSpiImpl(name, dep)
+    def getTestSpi(name: String, dep: DependentSpi):TestSpi
 }
+
 trait DependentSpiFactory extends Spi {
-  def getDependentSpi(name:String, config:WhiskConfig) = new DepSpiImpl(name, config)
+    def getDependentSpi(name: String, config: WhiskConfig):DependentSpi
+}
+
+abstract class Key(key: String) {
+
 }
 
 trait SimpleSpi extends Spi {
-  val name:String
+    val name: String
 }
+
 trait MissingSpi extends Spi {
-  val name:String
+    val name: String
 }
+
 trait MissingModule extends Spi {
-  val name:String
+    val name: String
 }
 
-//object TestSpi extends SpiProvider[TestSpi]("test.testspi.impl")
-//object DependentSpi extends SpiProvider[DependentSpi]("test.depspi.impl")
-//object DependentSpi2 extends SpiProvider[DependentSpi]("test.depspi.impl")//register a second extension so that the failed first one doesn't impact second text
 
-object TestSpiFactory extends SpiProvider[TestSpiFactory]("test.testspifactory.impl")
-object DependentSpiFactory extends SpiProvider[DependentSpiFactory]("test.depspifactory.impl")
-object DependentSpi2Factory extends SpiProvider[DependentSpiFactory]("test.depspifactory.impl")//register a second extension so that the failed first one doesn't impact second text
-object SimpleSpi extends SpiProvider[SimpleSpi]("test.simplespi.impl")
-object MissingSpi extends SpiProvider[MissingSpi]("test.missingspi.impl")
-object MissingModule extends SpiProvider[MissingModule]("test.missingmodulespi.impl")
-
+//SPI impls
+//a singleton enforced by SingletonSpiFactory
+class DepSpiImpl(val name: String, val config: WhiskConfig) extends DependentSpi
+object DepSpiImpl extends SingletonSpiFactory[DependentSpi] {
+    override def buildInstance(deps:Dependencies): DependentSpi = {
+        new DepSpiImpl(deps.get[String], deps.get[WhiskConfig])
+    }
+}
 
 class TestSpiImpl(val name: String, val dep: DependentSpi) extends TestSpi
-class DepSpiImpl(val name: String, val config:WhiskConfig) extends DependentSpi
-class TestSpiFactoryImpl extends TestSpiFactory
-class DependentSpiFactoryImpl extends DependentSpiFactory
-class SimpleSpiImpl(val name:String) extends SimpleSpi
-class MissingSpiImpl(val name:String) extends MissingSpi//this is missing from application.conf
+//an alternative to extending SingletonSpiFactory is using lazy val:
+object TestSpiImpl extends SpiFactory[TestSpi] {
+    var name:String = null
+    var conf:DependentSpi = null
+    lazy val instance =  new TestSpiImpl(name, conf)
+    override def apply(dependencies: Dependencies): TestSpi = {
+        name = dependencies.get[String]
+        conf = dependencies.get[DependentSpi]
+        instance
+    }
 
-//class TestSpiProviderModule extends SpiFactoryModule[TestSpi]{
-//  def getInstance(implicit injector: Injector): TestSpi = {
-//    new TestSpiImpl("this is a test", inject[DependentSpi])
-//  }
-//}
-//class DepSpiProviderModule extends SpiFactoryModule[DependentSpi]{
-//  def getInstance(implicit injector:Injector): DependentSpi = {
-//    new DepSpiImpl("this is the dependency", inject[WhiskConfig])
-//  }
-//}
+}
 
-class TestSpiFactoryProviderModule extends SpiModule[TestSpiFactory]{
-  def getInstance(): TestSpiFactory = {
-    new TestSpiFactoryImpl()
-  }
+
+
+class TestSpiFactoryImpl extends TestSpiFactory {
+    def getTestSpi(name: String, dep: DependentSpi) = new TestSpiImpl(name, dep)
 }
-class DepSpiFactoryProviderModule extends SpiModule[DependentSpiFactory]{
-  def getInstance(): DependentSpiFactory = {
-    new DependentSpiFactoryImpl()
-  }
+
+object TestSpiFactoryImpl extends SpiFactory[TestSpiFactory] {
+    override def apply(deps:Dependencies): TestSpiFactory = new TestSpiFactoryImpl()
 }
-class SimpleSpiProviderModule extends SpiModule[SimpleSpi]{
-  def getInstance():SimpleSpi = {
-    new SimpleSpiImpl("this impl has no dependencies")
-  }
+
+class DependentSpiFactoryImpl extends DependentSpiFactory {
+    override def getDependentSpi(name: String, config: WhiskConfig): DependentSpi = new DepSpiImpl(name, config)
 }
-class MissingSpiProviderModule extends SpiModule[MissingSpi]{
-  def getInstance():MissingSpi = {
-    new MissingSpiImpl("missing")
-  }
+
+object DependentSpiFactoryImpl extends SpiFactory[DependentSpiFactory] {
+    override def apply(deps:Dependencies): DependentSpiFactory = new DependentSpiFactoryImpl()
+}
+
+class SimpleSpiImpl(val name: String) extends SimpleSpi
+
+object SimpleSpiImpl extends SingletonSpiFactory[SimpleSpi] {
+    override def buildInstance(dependencies: Dependencies): SimpleSpi = new SimpleSpiImpl("some val ")
+}
+
+class MissingSpiImpl(val name: String) extends MissingSpi
+
+object MissingSpiImpl extends SpiFactory[MissingSpi] {
+    override def apply(deps:Dependencies): MissingSpi = new MissingSpiImpl("some val ")
 }

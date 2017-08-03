@@ -13,9 +13,11 @@ class TheOtherImpl extends ThisIsPluggable { ... }
 ```
 
 Runtime resolution of an Spi trait to a specific impl is provided by:
-* Akka Extensions - a service registry housed inside the ActorSystem
-* SpiModule - a way to define a factory for each impl, all of which are loaded via ServiceLoader
-* application.conf - each SpiModule defines a config key used to indicate which impl should be used at runtime
+* SpiLoader - a utility for loading the impl of a specific Spi, using a resolver to determine the impls factory classname, and reflection to load the factory object
+* SpiFactory - a way to define a factory for each impl, all of which are loaded via reflection
+* application.conf - each SpiFactory is resolved to a classname based on the config key provided to SpiLoader
+
+A single SpiFactory per unique Spi is usable at runtime, since the key will have a single string value. 
 
 # Example
 
@@ -26,52 +28,47 @@ The process to create and use an SPI is as follows:
 * create your Spi trait `YourSpi` as an extension of whisk.spi.Spi
 * create your impls as classes that extend `YourSpi`
 
-## Define the SpiModule(s) to load the impl(s)
+## Define the SpiFactory to load the impl
 
 ```scala
-class YourImplModule extends SpiModule[YourSpi]{
-  def getInstance = new YourImpl
+class YourImplFactory extends SpiFactory[YourSpi]{
+  def apply(dependencies: Dependencies): { ...construct the impl...}
 }
 ```
-
-To use an SPI (MySpi1)  as a dependency for another SPI (MyOtherSpi), implement MySpi1 as a factory:
+for singleton behavior you can use
 ```scala
-class MySpi1FactoryModule extends SpiModule[MySpi1Factory]{
-  def getInstance() = new MySpi1FactoryImpl()
+class YourImplFactory extends SingletonSpiFactory[YourSpi]{
+  def buildInstance(dependencies: Dependencies): { ...construct the impl...}
 }
-class MySpi1FactoryImpl {
-  def getMySpi1(otherSpi:MyOtherSpi):MySpi1 = { new MySpi1(otherSpi)}
-}
-
 ```
 
-`SpiModule`s are loaded via ServiceLoader at runtime, so you need to add the module to the list at
-`META-INF/services/whisk.spi.SpiModule` :
-```text
-com.otherpackage.OtherImplModule
-com.yourpackage.YourImplModule
-```
+## Invoke SpiLoader.instanceOf to acquire an instance of the SPI
 
-## Define the SpiProvider to configure which impl is used
+SpiLoader accepts a key to use for resolving which impl should be loaded. The mapping of key to classname is implemented in an instance of `whisk.spi.SpiClassResolver`
+Example whisk.spi.SpiClassResolver impls are:
+* whisk.spi.ClassnameResolver - classname is not interpreted by used literally from the value of the key
+* whisk.spi.TypesafeConfigClassResolver - classname is looked up as a String from the provided instance of com.typesafe.config.Config (available via `ActorSystem.settings.config` within an Akka app)
+
+Invoke the loader using `SpiLoader.instanceOf[<the SPI interface>](<key to resolve the classname>)(<implicit resolver>)`
 
 The configKey indicates which config (in application.conf) is used to determine which impl is used at runtime.
 ```scala
-object YourSpi  extends SpiProvider[YourSpi](configKey = "whisk.spi.yourspi.impl")
+val messagingProvider = SpiLoader.instanceOf[MessagingProvider]("whisk.spi.messaging.impl")
 ```
 
-## Load and use the Spi
+## Defaults
 
-In the application, to use the Spi:
-```scala
-//access your Spi using Akka Extension system:
-val yourSpi = YourSpi(actorSystem)
+Default impls resolution is dependent on the `SpiClassResolver` used. 
 
-```
+`TypesafeConfigClassResolver` within an Akka application will load config keys in order of priority from:
+1. application.conf
+2. reference.conf
 
+So use `reference.conf` to specify defaults with the `TypesafeConfigClassResolver` is used.
 
 # Runtime
 
-Since modules are loaded from the classpath, and a specific impl is used only if explicitly configured it is possible to optimize the classpath based on your preference of:
+Since SPI impls are loaded from the classpath, and a specific impl is used only if explicitly configured it is possible to optimize the classpath based on your preference of:
 * include only default impls, and only use default impls
 * include all impls, and only use the specified impls
 * include some combination of defaults and alternate impls, and use the specified impls for the alternates, and default impls for the rest

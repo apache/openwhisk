@@ -18,7 +18,6 @@
 package whisk.core.entity
 
 import java.time.Instant
-
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
@@ -39,17 +38,17 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
+import whisk.spi.SpiClassResolver
+import whisk.spi.SpiLoader
 
 package object types {
     type AuthStore = ArtifactStore[WhiskAuth]
     type EntityStore = ArtifactStore[WhiskEntity]
     type ActivationStore = ArtifactStore[WhiskActivation]
 }
-
 protected[core] trait WhiskDocument
     extends DocumentSerializer
     with DocumentRevisionProvider {
@@ -96,8 +95,8 @@ object WhiskAuthStore {
             dbPort -> null,
             dbAuths -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        ArtifactStoreProvider(system).makeStore[WhiskAuth](config, _.dbAuths)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, resolver:SpiClassResolver) =
+        SpiLoader.instanceOf[ArtifactStoreProvider]("whisk.spi.database.impl").makeStore[WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -110,8 +109,8 @@ object WhiskEntityStore {
             dbPort -> null,
             dbWhisk -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        ArtifactStoreProvider(system).makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, resolver:SpiClassResolver) =
+        SpiLoader.instanceOf[ArtifactStoreProvider]("whisk.spi.database.impl").makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
 
 }
 
@@ -125,8 +124,8 @@ object WhiskActivationStore {
             dbPort -> null,
             dbActivations -> null)
 
-    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        ArtifactStoreProvider(system).makeStore[WhiskActivation](config, _.dbActivations)
+    def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, resolver:SpiClassResolver) =
+        SpiLoader.instanceOf[ArtifactStoreProvider]("whisk.spi.database.impl").makeStore[WhiskActivation](config, _.dbActivations)
 }
 
 
