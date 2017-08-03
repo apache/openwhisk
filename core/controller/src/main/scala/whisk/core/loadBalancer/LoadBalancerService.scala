@@ -51,7 +51,6 @@ import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
 import whisk.spi.SpiLoader
-import whisk.spi.TypesafeConfigClassResolver
 
 trait LoadBalancer {
 
@@ -90,7 +89,6 @@ class LoadBalancerService(
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-    implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
 
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
@@ -173,7 +171,7 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messasgingProvider = SpiLoader.instanceOf[MessagingProvider]("whisk.spi.messaging.impl")
+    private val messasgingProvider = SpiLoader.get[MessagingProvider]()
     private val messageProducer = messasgingProvider.getProducer(config, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {

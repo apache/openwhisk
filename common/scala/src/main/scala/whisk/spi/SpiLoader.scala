@@ -1,8 +1,7 @@
 package whisk.spi
 
-import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import java.util.concurrent.atomic.AtomicReference
-import scala.reflect.ClassTag
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -46,29 +45,25 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T]{
 }
 
 trait SpiClassResolver {
+    def getKeyForType[T](implicit man:Manifest[T]):String
     def getClassnameForKey(key: String): String
 }
 
 object SpiLoader {
-    def instanceOf[A <: Spi](key: String, deps: Dependencies = new Dependencies())(implicit resolver: SpiClassResolver = ClassnameResolver, tag: ClassTag[A]): A = {
+    def get[A <: Spi](deps: Dependencies = new Dependencies())(implicit resolver: SpiClassResolver = TypesafeConfigClassResolver, man: Manifest[A]): A = {
+        val key = resolver.getKeyForType[A]
         val clazz = Class.forName(resolver.getClassnameForKey(key) + "$")
         clazz.getField("MODULE$").get(clazz).asInstanceOf[SpiFactory[A]].apply(deps)
     }
 }
 
 /**
- * Classname is specified directly at the time of lookup
- */
-object ClassnameResolver extends SpiClassResolver {
-    override def getClassnameForKey(key: String): String = key
-}
-
-/**
  * Lookup the classname for the SPI impl based on a key in the provided Config
- * @param config
  */
-class TypesafeConfigClassResolver(config: Config) extends SpiClassResolver {
+object TypesafeConfigClassResolver extends SpiClassResolver {
+    val config = ConfigFactory.load()
     override def getClassnameForKey(key: String): String = config.getString(key)
+    override def getKeyForType[T](implicit man:Manifest[T]): String =  "whisk.spi." + man.runtimeClass.getSimpleName
 }
 
 

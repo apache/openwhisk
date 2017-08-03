@@ -12,43 +12,41 @@ import whisk.core.WhiskConfig
 @RunWith(classOf[JUnitRunner])
 class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
 
-    implicit val resolver = new TypesafeConfigClassResolver(actorSystem.settings.config)
-
     behavior of "SpiProvider"
 
     it should "load an Spi from SpiLoader via classname" in {
-        val simpleSpi: SimpleSpi = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        val simpleSpi: SimpleSpi = SpiLoader.get[SimpleSpi]()
         assert(simpleSpi != null)
     }
     it should "load an Spi from SpiLoader via typesafe config" in {
-        val simpleSpi: SimpleSpi = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        val simpleSpi: SimpleSpi = SpiLoader.get[SimpleSpi]()
         assert(simpleSpi != null)
     }
 
     it should "throw an exception if the impl defined in application.conf is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.instanceOf[MissingSpi]("test.missingspi.impl") // MissingSpi(actorSystem)
+        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]() // MissingSpi(actorSystem)
     }
     it should "throw an exception if the module is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.instanceOf[MissingModule]("test.missingmodulespi.impl") // MissingModule(actorSystem)
+        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]() // MissingModule(actorSystem)
     }
     it should "throw an exception if the config key is missing" in {
-        a[ConfigException] should be thrownBy SpiLoader.instanceOf[MissingModule]("test.missing.config") // MissingModule(actorSystem)
+        a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]() // MissingModule(actorSystem)
     }
     //
     it should "load an Spi with injected WhiskConfig" in {
         val whiskConfig = new WhiskConfig(Map())
         val deps = Dependencies("some name", whiskConfig)
-        val dependentSpi: DependentSpi = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl", deps)
+        val dependentSpi: DependentSpi = SpiLoader.get[DependentSpi](deps)
         assert(dependentSpi.config.eq(whiskConfig))
     }
     //
     it should "load an Spi with injected Spi" in {
         val whiskConfig = new WhiskConfig(Map())
         val deps = Dependencies("some name", whiskConfig)
-        val dependentSpi: DependentSpi = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl", deps)
+        val dependentSpi: DependentSpi = SpiLoader.get[DependentSpi](deps)
 
         val deps2 = Dependencies("dep2", dependentSpi)
-        val testSpi: TestSpi = SpiLoader.instanceOf[TestSpi]("test.testspi.impl", deps2)
+        val testSpi: TestSpi = SpiLoader.get[TestSpi](deps2)
         assert(testSpi.dep.eq(dependentSpi))
     }
     //
@@ -57,18 +55,18 @@ class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogg
     }
     //
     it should "load SPI impls as singletons via SingletonSpiFactory" in {
-        val instance1 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
-        val instance2 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
-        val instance3 = SpiLoader.instanceOf[DependentSpi]("test.depspi.impl")
+        val instance1 = SpiLoader.get[DependentSpi]()
+        val instance2 = SpiLoader.get[DependentSpi]()
+        val instance3 = SpiLoader.get[DependentSpi]()
         assert(instance1.hashCode() == instance2.hashCode())
 
     }
 
     //
     it should "load SPI impls as singletons via lazy val init" in {
-        val instance1 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
-        val instance2 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
-        val instance3 = SpiLoader.instanceOf[SimpleSpi]("test.simplespi.impl")
+        val instance1 = SpiLoader.get[SimpleSpi]()
+        val instance2 = SpiLoader.get[SimpleSpi]()
+        val instance3 = SpiLoader.get[SimpleSpi]()
         assert(instance1.hashCode() == instance2.hashCode())
 
     }
@@ -107,7 +105,7 @@ trait MissingSpi extends Spi {
 trait MissingModule extends Spi {
     val name: String
 }
-
+trait MissingKey extends Spi
 
 //SPI impls
 //a singleton enforced by SingletonSpiFactory

@@ -18,13 +18,16 @@
 package whisk.core.entity.test
 
 import java.time.Instant
+
 import scala.Vector
 import scala.concurrent.Await
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
+
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.core.WhiskConfig
@@ -32,7 +35,6 @@ import whisk.core.database.DocumentConflictException
 import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
-import whisk.spi.SpiClassResolver
 
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests extends FlatSpec
@@ -45,9 +47,6 @@ class DatastoreTests extends FlatSpec
 
     val namespace = EntityPath("test namespace")
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
-    implicit val resolver = new SpiClassResolver {
-        override def getClassnameForKey(key: String): String = "whisk.core.database.CouchDBStoreProvider"
-    }
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
 

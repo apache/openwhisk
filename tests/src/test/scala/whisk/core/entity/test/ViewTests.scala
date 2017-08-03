@@ -19,15 +19,18 @@ package whisk.core.entity.test
 
 import java.time.Clock
 import java.time.Instant
+
 import scala.concurrent.Await
 import scala.language.postfixOps
 import scala.util.Try
+
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+
 import common.StreamLogging
 import common.WskActorSystem
 import spray.json.JsObject
@@ -37,7 +40,6 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 import whisk.core.entity.WhiskEntityQueries._
-import whisk.spi.SpiClassResolver
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests extends FlatSpec
@@ -67,9 +69,6 @@ class ViewTests extends FlatSpec
     val namespace2 = EntityPath(creds2.subject.asString)
 
     val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
-    implicit val resolver = new SpiClassResolver {
-        override def getClassnameForKey(key: String): String = "whisk.core.database.CouchDBStoreProvider"
-    }
     val entityStore = WhiskEntityStore.datastore(config)
     val activationStore = WhiskActivationStore.datastore(config)
 
