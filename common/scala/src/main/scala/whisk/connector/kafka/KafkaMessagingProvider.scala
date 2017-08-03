@@ -35,9 +35,9 @@ class KafkaMessagingProvider() extends MessagingProvider {
         new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
     }
 
-    def getProducer(config: WhiskConfig, ec:ExecutionContext)(implicit logging: Logging): MessageProducer = new KafkaProducerConnector(config.kafkaHost, ec)
+    def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer = new KafkaProducerConnector(config.kafkaHost, ec)
 }
 
 object KafkaMessagingProvider extends SingletonSpiFactory[MessagingProvider] {
-    override def buildInstance(dependencies: Dependencies): MessagingProvider = new KafkaMessagingProvider
+    override def apply(dependencies: Dependencies): MessagingProvider = new KafkaMessagingProvider
 }
