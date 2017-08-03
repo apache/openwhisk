@@ -58,12 +58,18 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T] {
     }
 }
 
-/** Resolves the implementation for a given type */
 trait SpiClassResolver {
+    /** Resolves the implementation for a given type */
     def getClassNameForType[T](implicit man: Manifest[T]): String
 }
 
 object SpiLoader {
+    /**
+     * Instantiates an object of the given type.
+     *
+     * The ClassName to load is resolved via the SpiClassResolver in scode, which defaults to
+     * a TypesafeConfig based resolver.
+     */
     def get[A <: Spi](deps: Dependencies = Dependencies())(implicit resolver: SpiClassResolver = TypesafeConfigClassResolver, man: Manifest[A]): A = {
         val clazz = Class.forName(resolver.getClassNameForType[A] + "$")
         clazz.getField("MODULE$").get(clazz).asInstanceOf[SpiFactory[A]].buildInstance(deps)
