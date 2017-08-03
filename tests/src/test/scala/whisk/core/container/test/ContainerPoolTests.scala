@@ -20,13 +20,11 @@ package whisk.core.container.test
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.common.TransactionId
@@ -48,6 +46,7 @@ import whisk.core.entity.test.ExecHelpers
 import whisk.utils.retry
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.CodeExec
+import whisk.spi.SpiClassResolver
 
 /**
  * Unit tests for ContainerPool and, by association, Container and WhiskContainer.
@@ -76,7 +75,9 @@ class ContainerPoolTests extends FlatSpec
 
     val pool = new ContainerPool(config, InstanceId(0), true, true)
     pool.logDir = "/tmp"
-
+    implicit val resolver = new SpiClassResolver {
+        override def getClassnameForKey(key: String): String = "whisk.core.database.CouchDBStoreProvider"
+    }
     val datastore = WhiskEntityStore.datastore(config)
 
     override def afterAll() {
