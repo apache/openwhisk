@@ -25,7 +25,8 @@ The process to create and use an SPI is as follows:
 
 ## Define the Spi and impl(s)
 
-* create your Spi trait `YourSpi` as an extension of whisk.spi.Spi
+* create your Spi trait `YourSpi` as an class that is an extension of `whisk.spi.Spi`
+* create you SpiFactory impl `YourSpiFactory` as an object that is an extension of `whisk.spi.SpiFactory` (or `whisk.spi.SingletonSpiFactory`)
 * create your impls as classes that extend `YourSpi`
 
 ## Define the SpiFactory to load the impl
@@ -42,29 +43,30 @@ class YourImplFactory extends SingletonSpiFactory[YourSpi]{
 }
 ```
 
-## Invoke SpiLoader.instanceOf to acquire an instance of the SPI
+## Invoke SpiLoader.get to acquire an instance of the SPI
 
-SpiLoader accepts a key to use for resolving which impl should be loaded. The mapping of key to classname is implemented in an instance of `whisk.spi.SpiClassResolver`
-Example whisk.spi.SpiClassResolver impls are:
-* whisk.spi.ClassnameResolver - classname is not interpreted by used literally from the value of the key
-* whisk.spi.TypesafeConfigClassResolver - classname is looked up as a String from the provided instance of com.typesafe.config.Config (available via `ActorSystem.settings.config` within an Akka app)
+SpiLoader uses a TypesafeConfig key to use for resolving which impl should be loaded. 
 
-Invoke the loader using `SpiLoader.instanceOf[<the SPI interface>](<key to resolve the classname>)(<implicit resolver>)`
+The config key used to find the impl classname is `whisk.spi.<SpiInterface>` 
 
-The configKey indicates which config (in application.conf) is used to determine which impl is used at runtime.
+For example, the SPI interface `whisk.core.database.ArtifactStoreProvider` would load a specific impl indicated by the  `whisk.spi.ArtifactStoreProvider` config key.
+
+(so you cannot use multiple SPI interfaces with the same class name in different packages)
+ 
+
+Invoke the loader using `SpiLoader.get[<the SPI interface>]()(<implicit resolver>)`
+
 ```scala
-val messagingProvider = SpiLoader.instanceOf[MessagingProvider]("whisk.spi.messaging.impl")
+val messagingProvider = SpiLoader.get[MessagingProvider]()
 ```
 
 ## Defaults
 
-Default impls resolution is dependent on the `SpiClassResolver` used. 
-
-`TypesafeConfigClassResolver` within an Akka application will load config keys in order of priority from:
+Default impls resolution is dependent on the config values in order of priority from:
 1. application.conf
 2. reference.conf
 
-So use `reference.conf` to specify defaults with the `TypesafeConfigClassResolver` is used.
+So use `reference.conf` to specify defaults.
 
 # Runtime
 
