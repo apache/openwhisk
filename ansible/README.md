@@ -297,7 +297,7 @@ without spaces as there is no current fix available to this problem.
 
 #### Changing limits
 The system throttling limits can be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+Docker for Mac or ubuntu users will find the limits in this file [./environments/local/group_vars/all](./environments/local/group_vars/all):
 ```
 limits:
   actions:
