@@ -1,2 +1,0 @@
-whisk.core.database.CouchDBStoreProviderModule
-whisk.connector.kafka.KafkaMessagingProviderModule
