@@ -21,8 +21,7 @@ import scala.reflect.ClassTag
  * limitations under the License.
  */
 
-trait Spi {
-}
+trait Spi
 
 trait SpiFactory[T <: Spi] {
     def apply(dependencies: Dependencies): T
@@ -74,11 +73,11 @@ class TypesafeConfigClassResolver(config: Config) extends SpiClassResolver {
 
 
 class Dependencies(deps: Any*) {
-    def get[T](implicit tag: ClassTag[T]) = {
+    def get[T](implicit man: Manifest[T]) = {
         //check for interface compatible types
-        deps.find(d => tag.runtimeClass.isAssignableFrom(d.getClass)) match {
+        deps.find(d => man.runtimeClass.isAssignableFrom(d.getClass)) match {
             case Some(d) => d.asInstanceOf[T]
-            case None => throw new IllegalArgumentException(s"missing dependency of type ${tag.runtimeClass.getName}")
+            case None => throw new IllegalArgumentException(s"missing dependency of type ${man.runtimeClass.getName}")
         }
     }
 }

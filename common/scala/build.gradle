@@ -10,7 +10,6 @@ repositories {
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
-    compile "org.scala-lang:scala-reflect:${gradle.scala.version}"
 
     compile 'io.spray:spray-caching_2.11:1.3.4'
     compile 'io.spray:spray-json_2.11:1.3.3'
