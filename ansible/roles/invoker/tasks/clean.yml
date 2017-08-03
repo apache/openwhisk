@@ -21,6 +21,7 @@
         echo "Handled $TOTAL remaining actions."
   register: runc_output
   ignore_errors: True
+  become: True
 
 - debug: msg="{{ runc_output.stdout }}"
 
@@ -36,3 +37,4 @@
   file:
     path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: absent
+  become: true
