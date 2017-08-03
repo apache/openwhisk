@@ -10,7 +10,7 @@ import org.scalatest.junit.JUnitRunner
 import whisk.core.WhiskConfig
 
 @RunWith(classOf[JUnitRunner])
-class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
+class SpiTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
 
     behavior of "SpiProvider"
 
@@ -22,20 +22,22 @@ class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogg
     it should "throw an exception if the impl defined in application.conf is missing" in {
         a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]() // MissingSpi(actorSystem)
     }
+
     it should "throw an exception if the module is missing" in {
         a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]() // MissingModule(actorSystem)
     }
+
     it should "throw an exception if the config key is missing" in {
         a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]() // MissingModule(actorSystem)
     }
-    //
+
     it should "load an Spi with injected WhiskConfig" in {
         val whiskConfig = new WhiskConfig(Map())
         val deps = Dependencies("some name", whiskConfig)
         val dependentSpi = SpiLoader.get[DependentSpi](deps)
         dependentSpi.config shouldBe whiskConfig
     }
-    //
+
     it should "load an Spi with injected Spi" in {
         val whiskConfig = new WhiskConfig(Map())
         val deps = Dependencies("some name", whiskConfig)
@@ -46,11 +48,11 @@ class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogg
 
         testSpi.dep shouldBe dependentSpi
     }
-    //
+
     it should "not allow duplicate-type dependencies" in {
         a[IllegalArgumentException] should be thrownBy Dependencies("some string", "some other string")
     }
-    //
+
     it should "load SPI impls as singletons via SingletonSpiFactory" in {
         val instance1 = SpiLoader.get[DependentSpi]()
         val instance2 = SpiLoader.get[DependentSpi]()
@@ -60,7 +62,6 @@ class SpiTest extends FlatSpec with Matchers with WskActorSystem with StreamLogg
         instance2 shouldBe instance3
     }
 
-    //
     it should "load SPI impls as singletons via lazy val init" in {
         val instance1 = SpiLoader.get[SimpleSpi]()
         val instance2 = SpiLoader.get[SimpleSpi]()

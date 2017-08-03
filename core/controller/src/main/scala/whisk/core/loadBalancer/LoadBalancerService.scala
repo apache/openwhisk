@@ -37,11 +37,11 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ActivationId, WhiskActivation}
+import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.UUID
@@ -205,18 +205,19 @@ class LoadBalancerService(
             (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
     }
 
-    /*** Subscribes to active acks (completion messages from the invokers), and
+    /**
+     * Subscribes to active acks (completion messages from the invokers), and
      * registers a handler for received active acks from invokers.
      */
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
     private val activeAckConsumer = messasgingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
     val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed("activeack", logging,
-    activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
+        new MessageFeed("activeack", logging,
+            activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
     })
 
-    def processActiveAck( bytes: Array[Byte]): Future[Unit] = Future {
+    def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
         val raw = new String(bytes, StandardCharsets.UTF_8)
         CompletionMessage.parse(raw) match {
             case Success(m: CompletionMessage) =>

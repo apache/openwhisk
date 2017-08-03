@@ -27,7 +27,7 @@ import whisk.spi.SpiFactory
 /**
  * A CouchDB implementation of ArtifactStoreProvider
  */
-class CouchDBStoreProvider extends ArtifactStoreProvider {
+class CouchDbStoreProvider extends ArtifactStoreProvider {
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
@@ -40,6 +40,6 @@ class CouchDBStoreProvider extends ArtifactStoreProvider {
     }
 }
 
-object CouchDBStoreProvider extends SpiFactory[ArtifactStoreProvider] {
-    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDBStoreProvider
+object CouchDbStoreProvider extends SpiFactory[ArtifactStoreProvider] {
+    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDbStoreProvider
 }
