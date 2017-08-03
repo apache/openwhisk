@@ -63,3 +63,4 @@
     src: recycle-registry.py.j2
     dest: "/etc/cron.daily/recycle-registry"
     mode: 0755
+  become: true
