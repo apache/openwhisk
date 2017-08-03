@@ -8,23 +8,19 @@
 
 - name: install pip
   shell: "curl -k https://bootstrap.pypa.io/get-pip.py | python"
-  become: true
   when: pip_result.rc != 0
 
 - name: install requests
   pip: 
     name: requests
     version: 2.10.0
-  become: true
 
 - name: install docker for python
   pip: 
     name: docker
     version: 2.2.1
-  become: true
 
 - name: install httplib2
   pip: 
     name: httplib2
     version: 0.9.2
-  become: true

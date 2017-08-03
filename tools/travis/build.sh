@@ -6,6 +6,7 @@ set -e
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 HOMEDIR="$SCRIPTDIR/../../../"
+export PYTHONPATH=/opt/python/2.7.13/lib/python2.7/site-packages
 
 # clone the openwhisk utilities repo.
 cd $HOMEDIR

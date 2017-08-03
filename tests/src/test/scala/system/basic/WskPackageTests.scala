@@ -44,10 +44,6 @@ class WskPackageTests
 
     behavior of "Wsk Package"
 
-    it should "confirm wsk exists" in {
-        Wsk.exists
-    }
-
     it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "simplepackage"

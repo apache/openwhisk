@@ -12,10 +12,8 @@
   file:
     path: "{{ nginx.confdir }}"
     state: absent
-  become: true
 
 - name: remove nginx log directory
   file:
     path: "{{ whisk_logs_dir }}/nginx"
     state: absent
-  become: true

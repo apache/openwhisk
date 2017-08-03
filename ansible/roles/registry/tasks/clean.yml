@@ -9,4 +9,3 @@
   file:
     path: "/etc/cron.daily/recycle-registry.py"
     state: absent
-  become: true

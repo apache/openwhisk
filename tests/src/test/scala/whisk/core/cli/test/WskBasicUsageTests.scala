@@ -65,10 +65,6 @@ class WskBasicUsageTests
 
     behavior of "Wsk CLI usage"
 
-    it should "confirm wsk exists" in {
-        Wsk.exists
-    }
-
     it should "show help and usage info" in {
         val stdout = wsk.cli(Seq()).stdout
         stdout should include regex ("""(?i)Usage:""")
