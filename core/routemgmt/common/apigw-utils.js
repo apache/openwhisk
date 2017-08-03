@@ -21,7 +21,8 @@
 var request = require('request');
 var _ = require('lodash');
 
-const UserAgent = "OpenWhisk CLI";
+const ApimgmtUserAgent = "OpenWhisk-apimgmt/1.0.0";
+var UserAgent = ApimgmtUserAgent;
 
 /**
  * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
@@ -870,6 +871,11 @@ function makeCamelCase(str) {
   return str.charAt(0).toUpperCase() + str.substr(1).toLowerCase();
 }
 
+function setSubUserAgent(subAgent) {
+  if (subAgent && subAgent.length > 0) {
+    UserAgent = UserAgent + " " + subAgent;
+  }
+}
 
 module.exports.getApis = getApis;
 module.exports.addApiToGateway = addApiToGateway;
@@ -887,3 +893,4 @@ module.exports.updateNamespace = updateNamespace;
 module.exports.makeErrorResponseObject = makeErrorResponseObject;
 module.exports.makeResponseObject = makeResponseObject;
 module.exports.makeJsonString = makeJsonString;
+module.exports.setSubUserAgent = setSubUserAgent;

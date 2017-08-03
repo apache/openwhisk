@@ -46,6 +46,7 @@ var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 
 function main(message) {
+  console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
     return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method !== undefined)));
@@ -59,6 +60,11 @@ function main(message) {
   };
   if (message.gwUser && message.gwPwd) {
     gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
+  }
+
+  // Set the User-Agent header value
+  if (message.__ow_headers && message.__ow_headers['user-agent']) {
+    utils2.setSubUserAgent(message.__ow_headers['user-agent']);
   }
 
   // Set namespace override if provided

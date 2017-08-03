@@ -73,6 +73,11 @@ function main(message) {
     utils.updateNamespace(message.apidoc, message.__ow_user);
   }
 
+  // Set the User-Agent header value
+  if (message.__ow_headers && message.__ow_headers['user-agent']) {
+    utils2.setSubUserAgent(message.__ow_headers['user-agent']);
+  }
+
   // message.apidoc already validated; creating shortcut to it
   var doc;
   if (typeof message.apidoc === 'object') {

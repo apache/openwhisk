@@ -57,6 +57,11 @@ function main(message) {
     gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
   }
 
+  // Set the User-Agent header value
+  if (message.__ow_headers && message.__ow_headers['user-agent']) {
+    utils2.setSubUserAgent(message.__ow_headers['user-agent']);
+  }
+
   // Set namespace override if provided
   message.namespace = message.__ow_user || message.namespace;
 
