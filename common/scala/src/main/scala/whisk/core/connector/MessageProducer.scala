@@ -18,6 +18,7 @@
 package whisk.core.connector
 
 import scala.concurrent.Future
+
 import org.apache.kafka.clients.producer.RecordMetadata
 
 trait MessageProducer {
