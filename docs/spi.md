@@ -39,7 +39,7 @@ class YourImplFactory extends SpiFactory[YourSpi]{
 for singleton behavior you can use
 ```scala
 class YourImplFactory extends SingletonSpiFactory[YourSpi]{
-  def buildInstance(dependencies: Dependencies): { ...construct the impl...}
+  def apply(dependencies: Dependencies): { ...construct the impl...}
 }
 ```
 
