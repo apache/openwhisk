@@ -175,7 +175,7 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val messageProducer = new KafkaProducerConnector(config.kafkaHosts, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -201,7 +201,7 @@ class LoadBalancerService(
 
         val maxPingsPerPoll = 128
         // Each controller gets its own Group Id, to receive all messages
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+        val pingConsumer = new KafkaConsumerConnector(config.kafkaHosts, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
         actorSystem.actorOf(InvokerPool.props(
@@ -216,7 +216,7 @@ class LoadBalancerService(
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
 
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHosts, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
     val activationFeed = actorSystem.actorOf(Props {
         new MessageFeed("activeack", logging, activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
     })
@@ -282,7 +282,7 @@ class LoadBalancerService(
 }
 
 object LoadBalancerService {
-    def requiredProperties = kafkaHost ++ Map(loadbalancerInvokerBusyThreshold -> null)
+    def requiredProperties = kafkaHosts ++ Map(loadbalancerInvokerBusyThreshold -> null)
 
     /** Memoizes the result of `f` for later use. */
     def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

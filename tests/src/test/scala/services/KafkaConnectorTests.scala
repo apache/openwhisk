@@ -49,15 +49,15 @@ class KafkaConnectorTests
     implicit val transid = TransactionId.testing
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
-    val config = new WhiskConfig(WhiskConfig.kafkaHost)
+    val config = new WhiskConfig(WhiskConfig.kafkaHosts)
     assert(config.isValid)
 
     val groupid = "kafkatest"
     val topic = "Dinosaurs"
     val sessionTimeout = 10 seconds
     val maxPollInterval = 10 seconds
-    val producer = new KafkaProducerConnector(config.kafkaHost, ec)
-    val consumer = new KafkaConsumerConnector(config.kafkaHost, groupid, topic, sessionTimeout = sessionTimeout, maxPollInterval = maxPollInterval)
+    val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
+    val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic, sessionTimeout = sessionTimeout, maxPollInterval = maxPollInterval)
 
     override def afterAll() {
         producer.close()

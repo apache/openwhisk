@@ -79,11 +79,11 @@ class WhiskConfig(
     val controllerInstances = this(WhiskConfig.controllerInstances)
 
     val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
-    val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
+    val kafkaHosts = this(WhiskConfig.kafkaHostList).split(",").map(host => host + ":" + this(WhiskConfig.kafkaHostPort)).mkString(",")
 
     val edgeHostName = this(WhiskConfig.edgeHostName)
 
-    val zookeeperHost = this(WhiskConfig.zookeeperHostName) + ":" + this(WhiskConfig.zookeeperHostPort)
+    val zookeeperHost = this(WhiskConfig.zookeeperHostList).split(",").map(host => host + ":" + this(WhiskConfig.zookeeperHostPort)).mkString(",")
     val invokerHosts = this(WhiskConfig.invokerHostsList)
 
     val dbProvider = this(WhiskConfig.dbProvider)
@@ -215,18 +215,18 @@ object WhiskConfig {
 
     val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
-    val kafkaHostName = "kafka.host"
-    private val zookeeperHostName = "zookeeper.host"
+    val kafkaHostList = "kafka.hosts"
+    private val zookeeperHostList = "zookeeper.hosts"
 
     private val edgeHostApiPort = "edge.host.apiport"
-    val kafkaHostPort = "kafka.host.port"
-    private val zookeeperHostPort = "zookeeper.host.port"
+    val kafkaHostPort = "kafka.hosts.basePort"
+    private val zookeeperHostPort = "zookeeper.hosts.basePort"
 
     val invokerHostsList = "invoker.hosts"
 
     val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
     val invokerHosts = Map(invokerHostsList -> null)
-    val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
+    val kafkaHosts = Map(kafkaHostList -> null, kafkaHostPort -> null)
 
     val runtimesManifest = "runtimes.manifest"
 

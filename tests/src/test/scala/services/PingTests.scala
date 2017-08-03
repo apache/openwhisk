@@ -104,7 +104,7 @@ class PingTests extends FlatSpec
     }
 
     it should "Check that the invoker endpoints are up and running" in {
-        val basePort = WhiskProperties.getProperty("invoker.hosts.baseport").toInt
+        val basePort = WhiskProperties.getProperty("invoker.hosts.basePort").toInt
         val invokers = WhiskProperties.getInvokerHosts.zipWithIndex.map {
             case (invoker, instance) =>
                 val res = PingTests.ping(invoker, basePort + instance)

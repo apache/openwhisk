@@ -33,7 +33,7 @@ import whisk.common.Logging
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(
-    kafkahost: String,
+    kafkahosts: String,
     groupid: String,
     topic: String,
     override val maxPeek: Int = Int.MaxValue,
@@ -67,7 +67,7 @@ class KafkaConsumerConnector(
     private def getProps: Properties = {
         val props = new Properties
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahosts)
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout.toMillis.toString)
         props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, (sessionTimeout.toMillis / 3).toString)
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
