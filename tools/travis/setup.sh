@@ -13,7 +13,6 @@ echo "Docker Info:"
 docker info
 
 # Python
-pip install --user jsonschema
 pip install --user couchdb
 
 # Ansible
