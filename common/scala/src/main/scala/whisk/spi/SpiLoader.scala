@@ -1,8 +1,3 @@
-package whisk.spi
-
-import com.typesafe.config.ConfigFactory
-import java.util.concurrent.atomic.AtomicReference
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -20,13 +15,18 @@ import java.util.concurrent.atomic.AtomicReference
  * limitations under the License.
  */
 
+package whisk.spi
+
+import com.typesafe.config.ConfigFactory
+import java.util.concurrent.atomic.AtomicReference
+
 trait Spi
 
 trait SpiFactory[T <: Spi] {
     def apply(dependencies: Dependencies): T
 }
 
-trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T]{
+trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T] {
     private val ref = new AtomicReference[T]()
     def buildInstance(dependencies: Dependencies): T
     override def apply(dependencies: Dependencies): T = {
@@ -35,7 +35,7 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T]{
             oldValue
         } else {
             val newValue = buildInstance(dependencies)
-            if (ref.compareAndSet(null.asInstanceOf[T], newValue)){
+            if (ref.compareAndSet(null.asInstanceOf[T], newValue)) {
                 newValue
             } else {
                 ref.get()
@@ -45,7 +45,7 @@ trait SingletonSpiFactory[T <: Spi] extends SpiFactory[T]{
 }
 
 trait SpiClassResolver {
-    def getKeyForType[T](implicit man:Manifest[T]):String
+    def getKeyForType[T](implicit man: Manifest[T]): String
     def getClassnameForKey(key: String): String
 }
 
@@ -63,26 +63,25 @@ object SpiLoader {
 object TypesafeConfigClassResolver extends SpiClassResolver {
     val config = ConfigFactory.load()
     override def getClassnameForKey(key: String): String = config.getString(key)
-    override def getKeyForType[T](implicit man:Manifest[T]): String =  "whisk.spi." + man.runtimeClass.getSimpleName
+    override def getKeyForType[T](implicit man: Manifest[T]): String = "whisk.spi." + man.runtimeClass.getSimpleName
 }
-
 
 class Dependencies(deps: Any*) {
     def get[T](implicit man: Manifest[T]) = {
         //check for interface compatible types
         deps.find(d => man.runtimeClass.isAssignableFrom(d.getClass)) match {
             case Some(d) => d.asInstanceOf[T]
-            case None => throw new IllegalArgumentException(s"missing dependency of type ${man.runtimeClass.getName}")
+            case None    => throw new IllegalArgumentException(s"missing dependency of type ${man.runtimeClass.getName}")
         }
     }
 }
 object Dependencies {
     def apply(deps: Any*): Dependencies = {
         //validate no duplicates
-        if (deps.map(d => d.getClass.getName).distinct.size != deps.size){
+        if (deps.map(d => d.getClass.getName).distinct.size != deps.size) {
             throw new IllegalArgumentException(s"Dependencies types can only be used once: ${deps}")
         }
-        new Dependencies(deps:_*)
+        new Dependencies(deps: _*)
     }
 
 }
