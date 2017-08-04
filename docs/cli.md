@@ -48,19 +48,24 @@ bash --version
 brew install bash-completion
 ```
 
-To install bash command completion run the following command:
+To download the bash command completion to your local directory, run the following command:
 
 ```
-eval "`wsk sdk install bashauto`"
+wsk sdk install bashauto
+```
+The command script `wsk_cli_bash_completion.sh` will now be in your current directory. To enable command line completion of wsk commands, source the auto completion script into your bash environment.
+
+```
+source wsk_cli_bash_completion.sh
 ```
 
-**Note:** Every time a new terminal is opened this command must run to enable bash command completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
+Alternatively, to install bash command completion, run the following command:
 
-For those who wish to do a custom installation, the following commands show how to output the wsk command completion script into a separate shell script file to be run later. You will need to explicitly run the script to install wsk command completion support.
 ```
-wsk sdk install bashauto > wsk_cli_bash_completion.sh
-chmod +x wsk_cli_bash_completion.sh
+eval "`wsk sdk install bashauto --stdout`"
 ```
+
+**Note:** Every time a new terminal is opened, this command must run to enable bash command completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
 
 ## Using the OpenWhisk CLI
 

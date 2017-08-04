@@ -89,10 +89,29 @@ class WskSdkTests
         FileUtils.deleteDirectory(dir)
     }
 
+    it should "install the bash auto-completion bash script" in {
+        // Use a temp dir for testing to not disturb user's local folder
+        val dir = File.createTempFile("wskinstall", ".tmp")
+        dir.delete()
+        dir.mkdir() should be(true)
+
+        val scriptfilename = "wsk_cli_bash_completion.sh"
+        var scriptfile = new File(dir.getPath(), scriptfilename)
+        try {
+            val stdout = wsk.cli(Seq("sdk", "install", "bashauto"), workingDir = dir, expectedExitCode = SUCCESS_EXIT).stdout
+            stdout should include("is installed in the current directory")
+            val fileContent = FileUtils.readFileToString(scriptfile)
+            fileContent should include("bash completion for wsk")
+        } finally {
+            scriptfile.delete()
+            FileUtils.deleteDirectory(dir)
+        }
+    }
+
     it should "print bash command completion script to STDOUT" in {
         val msg = "bash completion for wsk"    // Subject to change, dependent on Cobra script
 
-        val stdout = wsk.cli(Seq("sdk", "install", "bashauto"), expectedExitCode = SUCCESS_EXIT).stdout
+        val stdout = wsk.cli(Seq("sdk", "install", "bashauto", "--stdout")).stdout
         stdout should include(msg)
     }
 }

@@ -106,6 +106,11 @@ type Flags struct {
         summary bool
     }
 
+    //sdk
+    sdk struct {
+        stdout bool
+    }
+
     // api
     api struct {
         action     string

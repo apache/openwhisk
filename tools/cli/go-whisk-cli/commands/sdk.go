@@ -50,6 +50,7 @@ type sdkInfo struct {
 var sdkMap map[string]*sdkInfo
 const SDK_DOCKER_COMPONENT_NAME string = "docker"
 const SDK_IOS_COMPONENT_NAME string = "ios"
+const BASH_AUTOCOMPLETE_FILENAME string = "wsk_cli_bash_completion.sh"
 
 var sdkInstallCmd = &cobra.Command{
     Use:   "install COMPONENT",
@@ -73,13 +74,27 @@ var sdkInstallCmd = &cobra.Command{
         case "ios":
             err = iOSInstall()
         case "bashauto":
-            if err = WskCmd.GenBashCompletion(os.Stdout); err != nil {
-                whisk.Debug(whisk.DbgError, "GenBashCompletion error: %s\n", err)
-                errStr := wski18n.T("Unable to output bash command completion {{.err}}",
-                        map[string]interface{}{"err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
-                return werr
-            }
+            if flags.sdk.stdout {
+                if err = WskCmd.GenBashCompletion(os.Stdout); err != nil {
+                    whisk.Debug(whisk.DbgError, "GenBashCompletion error: %s\n", err)
+                    errStr := wski18n.T("Unable to output bash command completion {{.err}}",
+                            map[string]interface{}{"err": err})
+                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    return werr
+                }
+             } else {
+                    err = WskCmd.GenBashCompletionFile(BASH_AUTOCOMPLETE_FILENAME)
+                    if (err != nil) {
+                        whisk.Debug(whisk.DbgError, "GenBashCompletionFile('%s`) error: \n", BASH_AUTOCOMPLETE_FILENAME, err)
+                        errStr := wski18n.T("Unable to generate '{{.name}}': {{.err}}",
+                                map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME, "err": err})
+                        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                        return werr
+                    }
+                    fmt.Printf(
+                        wski18n.T("bash_completion_msg",
+                    map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME}))
+             }
         default:
             whisk.Debug(whisk.DbgError, "Invalid component argument '%s'\n", component)
             errStr := wski18n.T("The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
@@ -233,6 +248,8 @@ func sdkInstall(componentName string) error {
 }
 
 func init() {
+    sdkInstallCmd.Flags().BoolVarP(&flags.sdk.stdout, "stdout", "s", false, wski18n.T("prints bash command completion script to stdout"))
+
     sdkCmd.AddCommand(sdkInstallCmd)
 
     sdkMap = make(map[string]*sdkInfo)
