@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -26,22 +25,18 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
+import whisk.core.connector.MessagingProvider
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
@@ -55,6 +50,7 @@ import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
+import whisk.spi.SpiLoader
 
 trait LoadBalancer {
 
@@ -175,7 +171,8 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
+    private val messasgingProvider = SpiLoader.get[MessagingProvider]()
+    private val messageProducer = messasgingProvider.getProducer(config, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -200,8 +197,7 @@ class LoadBalancerService(
         }
 
         val maxPingsPerPoll = 128
-        // Each controller gets its own Group Id, to receive all messages
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+        val pingConsumer = messasgingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
         actorSystem.actorOf(InvokerPool.props(
@@ -215,10 +211,10 @@ class LoadBalancerService(
      */
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
-
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    private val activeAckConsumer = messasgingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
     val activationFeed = actorSystem.actorOf(Props {
-        new MessageFeed("activeack", logging, activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
+        new MessageFeed("activeack", logging,
+            activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
     })
 
     def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {

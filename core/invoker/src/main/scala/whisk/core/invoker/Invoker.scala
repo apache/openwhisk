@@ -18,36 +18,34 @@
 package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
-import java.time.{ Clock, Instant }
-
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import java.time.{Clock, Instant}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.Promise
-import scala.concurrent.duration.{ Duration, DurationInt }
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 import scala.util.Try
-
 import org.apache.kafka.common.errors.RecordTooLargeException
-
-import akka.actor.{ ActorRef, ActorSystem, actorRef2Scala }
+import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
 import akka.japi.Creator
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.{ Counter, Logging, LoggingMarkers, TransactionId }
+import whisk.common.{Counter, Logging, LoggingMarkers, TransactionId}
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
-import whisk.connector.kafka.{ KafkaConsumerConnector, KafkaProducerConnector }
 import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.{ dockerImagePrefix, dockerRegistry, kafkaHost, logsDir, servicePort, invokerUseReactivePool }
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.WhiskConfig.{dockerImagePrefix, dockerRegistry, invokerUseReactivePool, kafkaHost, logsDir, servicePort}
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
+import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
 import whisk.core.container._
-import whisk.core.dispatcher.{ Dispatcher, MessageHandler }
+import whisk.core.dispatcher.{Dispatcher, MessageHandler}
 import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.http.Messages
+import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 
 /**
@@ -477,8 +475,9 @@ object Invoker {
 
         val topic = s"invoker${invokerInstance.toInt}"
         val maxdepth = ContainerPool.getDefaultMaxActive(config)
-        val consumer = new KafkaConsumerConnector(config.kafkaHost, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
-        val producer = new KafkaProducerConnector(config.kafkaHost, ec)
+        val msgProvider = SpiLoader.get[MessagingProvider]()
+        val consumer = msgProvider.getConsumer(config, "invokers", topic, maxdepth, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+        val producer = msgProvider.getProducer(config, ec)
         val dispatcher = new Dispatcher(consumer, 500 milliseconds, maxdepth, actorSystem)
 
         val invoker = if (Try(config.invokerUseReactivePool.toBoolean).getOrElse(false)) {

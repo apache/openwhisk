@@ -26,8 +26,8 @@ import akka.japi.Creator
 import spray.http.StatusCodes._
 import spray.http.Uri
 import spray.httpx.SprayJsonSupport._
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing.Route
 import whisk.common.AkkaLogging
@@ -43,8 +43,8 @@ import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
+import scala.util.{Failure, Success}
 
-import scala.util.{ Failure, Success }
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
