@@ -1518,5 +1518,13 @@
   {
     "id": "get action url",
     "translation": "get action url"
-  }
+  },
+  {
+    "id": "Unable to output bash command completion {{.err}}",
+    "translation": "Unable to output bash command completion {{.err}}"
+},
+{
+    "id": "prints bash command completion script to stdout",
+    "translation": "prints bash command completion script to stdout"
+}
 ]
