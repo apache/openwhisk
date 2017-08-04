@@ -18,6 +18,8 @@
 package whisk.core.cli.test
 
 import java.io.File
+import java.io.BufferedWriter
+import java.io.FileWriter
 import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -176,15 +178,15 @@ class ApiGwTests
     it should "reject an api commands with an invalid verb parameter" in {
         val badverb = "badverb"
  
-        var rr = apiCreate(basepath = Some("/basepath"), relpath = Some("/path"), operation = badverb, action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
+        var rr = apiCreate(basepath = Some("/basepath"), relpath = Some("/path"), operation = Some(badverb), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
  
 
-        rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some("/path"), operation = badverb, expectedExitCode = ANY_ERROR_EXIT)
+        rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some("/path"), operation = Some(badverb), expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
  
 
-        rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some("/path"), operation = badverb, expectedExitCode = ANY_ERROR_EXIT)
+        rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some("/path"), operation = Some(badverb), expectedExitCode = ANY_ERROR_EXIT)
         rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
     }
 
