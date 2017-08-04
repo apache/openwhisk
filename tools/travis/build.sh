@@ -12,7 +12,7 @@ cd $HOMEDIR
 git clone https://github.com/apache/incubator-openwhisk-utilities.git
 
 # run the scancode util. against project source code starting at its root
-incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR
+incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/tools/build/scanCode.cfg
 
 cd $ROOTDIR/ansible
 
