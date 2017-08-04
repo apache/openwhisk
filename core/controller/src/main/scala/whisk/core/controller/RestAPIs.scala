@@ -18,7 +18,6 @@
 package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
-
 import RestApiCommons._
 import akka.actor.ActorSystem
 import spray.http.AllOrigins
@@ -40,7 +39,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.types._
-import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LoadBalancer
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -107,7 +106,7 @@ protected[controller] object RestApiCommons {
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
-            override val loadBalancer: LoadBalancerService,
+            override val loadBalancer: LoadBalancer,
             override val actorSystem: ActorSystem,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
@@ -136,7 +135,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
     implicit val activationStore: ActivationStore,
     implicit val entitlementProvider: EntitlementProvider,
     implicit val activationIdFactory: ActivationIdGenerator,
-    implicit val loadBalancer: LoadBalancerService,
+    implicit val loadBalancer: LoadBalancer,
     implicit val actorSystem: ActorSystem,
     implicit val executionContext: ExecutionContext,
     implicit val logging: Logging,
@@ -226,7 +225,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val activationStore: ActivationStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
-            override val loadBalancer: LoadBalancerService,
+            override val loadBalancer: LoadBalancer,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -243,7 +242,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val entitlementProvider: EntitlementProvider,
             override val activationStore: ActivationStore,
             override val activationIdFactory: ActivationIdGenerator,
-            override val loadBalancer: LoadBalancerService,
+            override val loadBalancer: LoadBalancer,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -256,7 +255,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             override val entityStore: EntityStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
-            override val loadBalancer: LoadBalancerService,
+            override val loadBalancer: LoadBalancer,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)
@@ -277,7 +276,7 @@ protected[controller] class RestAPIVersion(apipath: String, apiversion: String)(
             implicit override val entityStore: EntityStore,
             override val entitlementProvider: EntitlementProvider,
             override val activationIdFactory: ActivationIdGenerator,
-            override val loadBalancer: LoadBalancerService,
+            override val loadBalancer: LoadBalancer,
             override val executionContext: ExecutionContext,
             override val logging: Logging,
             override val whiskConfig: WhiskConfig)

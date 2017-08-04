@@ -31,17 +31,19 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.pattern.ask
 import akka.util.Timeout
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, WhiskActivation }
+import whisk.core.entity.{ActivationId, WhiskActivation}
 import whisk.core.entity.InstanceId
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.UUID
@@ -50,6 +52,9 @@ import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
+import whisk.core.entity.types.ActivationStore
+import whisk.spi.Dependencies
+import whisk.spi.SpiFactory
 import whisk.spi.SpiLoader
 
 trait LoadBalancer {
@@ -77,6 +82,20 @@ trait LoadBalancer {
      */
     def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
+    /**
+     * Return a message indicating the health of the containers and/or container pool in general
+     * @return a Future[String] representing the heal response that will be sent to the client
+     */
+    def getHealthResponse: Future[String]
+}
+
+class LoadBalancerServiceProvider extends LoadBalancerProvider {
+    override def getLoadBalancer(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore, activationStore: ActivationStore)
+            (implicit logging: Logging, actorSystem: ActorSystem): LoadBalancer = new LoadBalancerService(config, instance, entityStore)
+}
+
+object LoadBalancerServiceProvider extends SpiFactory[LoadBalancerProvider]{
+    override def apply(dependencies: Dependencies): LoadBalancerProvider = new LoadBalancerServiceProvider
 }
 
 class LoadBalancerService(
@@ -274,6 +293,14 @@ class LoadBalancerService(
     /** Generates a hash based on the string representation of namespace and action */
     private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
         (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
+    }
+
+    /** Returns a Map of invoker instance -> invoker state */
+    override def getHealthResponse(): Future[String] = {
+        val res = allInvokers.map(_.map {
+            case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+        }.toMap.toJson.asJsObject).mapTo[String]
+        res
     }
 }
 
