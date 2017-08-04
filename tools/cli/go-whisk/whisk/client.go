@@ -223,6 +223,29 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     return nil
 }
 
+// bodyTruncator limits the size of Req/Resp Body for --verbose ONLY.
+// It returns truncated Req/Resp Body, reloaded io.ReadCloser and any errors.
+func bodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
+    limit := 1000    // 1000 byte limit, anything over is truncated
+
+    data, err := ioutil.ReadAll(body)
+    if err != nil {
+        Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return "", body, werr
+    }
+
+    reload := ioutil.NopCloser(bytes.NewBuffer(data))
+
+    if len(data) > limit {
+        Verbose("Body exceeds %d bytes and will be truncated\n", limit)
+        newData := string(data)[:limit] + "..."
+        return string(newData), reload, nil
+    }
+
+    return string(data), reload, nil
+}
+
 // Do sends an API request and returns the API response.  The API response is
 // JSON decoded and stored in the value pointed to by v, or returned as an
 // error if an API error has occurred.  If v implements the io.Writer
@@ -230,17 +253,27 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // first decode it.
 func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
     var err error
+    var truncatedBody string
 
     if IsVerbose() {
         fmt.Println("REQUEST:")
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
+
         if len(req.Header) > 0 {
             fmt.Println("Req Headers")
             PrintJSON(req.Header)
         }
+
         if req.Body != nil {
             fmt.Println("Req Body")
-            fmt.Println(req.Body)
+            if !IsDebug() {
+                if truncatedBody, req.Body, err = bodyTruncator(req.Body); err != nil {
+                    return nil, err
+                }
+                fmt.Println(truncatedBody)
+            } else {
+                fmt.Println(req.Body)
+            }
             Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", req.Body)
         }
     }
@@ -252,10 +285,12 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
+
     // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
     // do custom body parsing, such as handling per-route error responses.
     Verbose("RESPONSE:")
     Verbose("Got response with code %d\n", resp.StatusCode)
+
     if (IsVerbose() && len(resp.Header) > 0) {
         fmt.Println("Resp Headers")
         PrintJSON(resp.Header)
@@ -268,13 +303,22 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
-    Verbose("Response body size is %d bytes\n", len(data))
-    Verbose("Response body received:\n%s\n", string(data))
-    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
 
     // Reload the response body to allow caller access to the body; otherwise,
     // the caller will have any empty body to read
     resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+
+    Verbose("Response body size is %d bytes\n", len(data))
+
+    if !IsDebug() {
+        if truncatedBody, resp.Body, err = bodyTruncator(resp.Body); err != nil {
+            return nil, err
+        }
+        Verbose("Response body received:\n%s\n", truncatedBody)
+    } else {
+        Verbose("Response body received:\n%s\n", string(data))
+        Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
+    }
 
     // With the HTTP response status code and the HTTP body contents,
     // the possible response scenarios are:

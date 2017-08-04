@@ -268,5 +268,4 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 }
             }
     }
-
 }
