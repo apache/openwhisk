@@ -173,6 +173,66 @@ class ApiGwTests
         rr.stderr should include (s"'${badpath}' must begin with '/'")
     }
 
+    it should "reject an api commands with an invalid verb parameter" in {
+        val badverb = "badverb"
+ 
+        var rr = apiCreate(basepath = Some("/basepath"), relpath = Some("/path"), operation = badverb, action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+ 
+
+        rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some("/path"), operation = badverb, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+ 
+
+        rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some("/path"), operation = badverb, expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+    }
+
+    it should "reject an api create command that specifies a nonexistent configuration file" in {
+        val configfile = "/nonexistent/file"
+
+        var rr = apiCreate(swagger = Some(configfile), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Error reading swagger file '${configfile}':")
+    }
+
+    it should "reject an api create command specifying a non-JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("a=A")
+        bw.close()
+
+        var rr = apiCreate(swagger = Some(filename), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Error parsing swagger file '${filename}':")
+    }
+
+    it should "reject an api create command specifying a non-swagger JSON configuration file" in {
+        val file = File.createTempFile("api.json", ".txt")
+        file.deleteOnExit()
+        val filename = file.getAbsolutePath()
+
+        val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("""|{
+                    |   "swagger": "2.0",
+                    |   "info": {
+                    |      "title": "My API",
+                    |      "version": "1.0.0"
+                    |   },
+                    |   "BADbasePath": "/bp",
+                    |   "paths": {
+                    |     "/rp": {
+                    |       "get":{}
+                    |     }
+                    |   }
+                    |}""".stripMargin)
+        bw.close()
+
+        var rr = apiCreate(swagger = Some(filename), expectedExitCode = ANY_ERROR_EXIT)
+        rr.stderr should include(s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+    }
+ 
     it should "verify full list output" in {
         val testName = "CLI_APIGWTEST_RO1"
         val testbasepath = "/" + testName + "_bp"
