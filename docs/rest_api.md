@@ -72,7 +72,7 @@ The OpenWhisk API supports request-response calls from web clients. OpenWhisk re
 The OpenWhisk CLI is an interface to the OpenWhisk REST API.
 You can run the CLI in verbose mode with the flag `-v`, this will print truncated information about the HTTP request and response. To print all information use the flag `-d` for debug.
 
-**Note** Only HTTP request and response bodies will be truncated if they exceed 1000 bytes. Response will only truncate information in the "code" field leaving all other information intact.
+**Note** HTTP request and response bodies will only be truncated if they exceed 1000 bytes.
 
 Let's try getting the namespace value for the current user.
 ```

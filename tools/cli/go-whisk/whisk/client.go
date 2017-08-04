@@ -222,70 +222,28 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
     }
     return nil
 }
-// findAndLimitString() truncates a field within Resp Body and then rebuilds the Resp Body
-// with the newly limited field.
-func limitRespField(data []byte, field []byte, limit int, buffer string) []byte {
-    var newData []byte
-    var diff int    // Used to find difference between original str and truncated str
 
-    newData = append(newData, data[:bytes.Index(data, field)]...)    // Appends infomration up to beginning of the field
-    if  len(field) > limit {    // Checks if field exceeds limit
-        Verbose("Substring exceeds %d bytes and will be truncated\n", limit)
-        newData = append(newData, field[:limit]...)    // Appends the limited field
-        newData = append(newData, buffer...)    // Adds a buffer to keep consistent formating
-        diff = len(field) - len(field[:limit])
-    } else {
-        newData = append(newData, field...)    // If field does not exceed the limit use original field
-    }
-    newData = append(newData, data[len(newData) + diff:]...)    // Appends the remaining information
-
-    return newData
-}
-
-// respBodyLimiter limits the size of action Resp Body for --verbose ONLY.
-// It returns truncated Resp Body, reloaded io.ReadCloser and any errors.
-func respBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
-    var action = new(Action)
+// bodyTruncator limits the size of Req/Resp Body for --verbose ONLY.
+// It returns truncated Req/Resp Body, reloaded io.ReadCloser and any errors.
+func bodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
     limit := 1000    // 1000 byte limit, anything over is truncated
-    buffer := "\"\n    "    // Appended to the end of newData to keep correct formating
+
     data, err := ioutil.ReadAll(body)
     if err != nil {
         Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, body, werr
-    }
-    reload := ioutil.NopCloser(bytes.NewBuffer(data))
-
-    json.Unmarshal(data, &action)    // JSON parsing
-    code := []byte(fmt.Sprintf("%+q", *action.Exec.Code))
-    if len(code) > 0 {
-        newData := limitRespField(data, code, limit, buffer)
-        return newData, reload, nil
+        return "", body, werr
     }
 
-    return data, reload, nil
-}
-
-// reqBodyLimiter limits the size of action Req Body for --verbose ONLY.
-// It returns truncated Req Body, reloaded io.ReadCloser and any errors.
-func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
-    limit := 1000    // 1000 byte limit, anything over is truncated
-    buffer := "\n"    // Added to end of newData to keep correct formating
-    data, err := ioutil.ReadAll(body)
-    if err != nil {
-        Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
-        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return nil, body, werr
-    }
     reload := ioutil.NopCloser(bytes.NewBuffer(data))
 
     if len(data) > limit {
-        Verbose("Req Body excedes %d bytes and will be truncated\n", limit)
-        newData := string(data[:limit]) + buffer    // Must convert to string to add buffer otherwise malformed error will be thrown
-        return []byte(newData), reload, nil
+        Verbose("Body exceeds %d bytes and will be truncated\n", limit)
+        newData := string(data)[:limit] + "..."
+        return string(newData), reload, nil
     }
 
-    return data, reload, nil
+    return string(data), reload, nil
 }
 
 // Do sends an API request and returns the API response.  The API response is
@@ -295,23 +253,24 @@ func reqBodyLimiter(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 // first decode it.
 func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
     var err error
-    var limitBody []byte
+    var truncatedBody string
 
     if IsVerbose() {
         fmt.Println("REQUEST:")
         fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
+
         if len(req.Header) > 0 {
             fmt.Println("Req Headers")
             PrintJSON(req.Header)
         }
+
         if req.Body != nil {
             fmt.Println("Req Body")
-            // Check if --verbose flag was given and is an action attempt to limit Req Body
-            if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
-                if limitBody, req.Body, err = reqBodyLimiter(req.Body); err != nil {
+            if !IsDebug() {
+                if truncatedBody, req.Body, err = bodyTruncator(req.Body); err != nil {
                     return nil, err
                 }
-                fmt.Println(string(limitBody))
+                fmt.Println(truncatedBody)
             } else {
                 fmt.Println(req.Body)
             }
@@ -326,19 +285,15 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
+
     // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
     // do custom body parsing, such as handling per-route error responses.
     Verbose("RESPONSE:")
     Verbose("Got response with code %d\n", resp.StatusCode)
+
     if (IsVerbose() && len(resp.Header) > 0) {
         fmt.Println("Resp Headers")
         PrintJSON(resp.Header)
-    }
-    // Check if --verbose flag was given and is an action attempt to limit Resp Body
-    if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
-        if limitBody, resp.Body, err = respBodyLimiter(resp.Body); err != nil {
-            return nil, err
-        }
     }
 
     // Read the response body
@@ -348,18 +303,22 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resp, werr
     }
-    Verbose("Response body size is %d bytes\n", len(data))
-    // Check if --verbose flag was given and is an action print Resp Body
-    if IsVerboseOnly() && reflect.TypeOf(v).String() == "**whisk.Action" {
-        Verbose("Response body received:\n%s\n", string(limitBody))
-    } else {
-        Verbose("Response body received:\n%s\n", string(data))
-    }
-    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", resp.Body)
 
     // Reload the response body to allow caller access to the body; otherwise,
     // the caller will have any empty body to read
     resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+
+    Verbose("Response body size is %d bytes\n", len(data))
+
+    if !IsDebug() {
+        if truncatedBody, resp.Body, err = bodyTruncator(resp.Body); err != nil {
+            return nil, err
+        }
+        Verbose("Response body received:\n%s\n", truncatedBody)
+    } else {
+        Verbose("Response body received:\n%s\n", string(data))
+        Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
+    }
 
     // With the HTTP response status code and the HTTP body contents,
     // the possible response scenarios are:

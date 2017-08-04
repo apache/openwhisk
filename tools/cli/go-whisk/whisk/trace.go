@@ -54,10 +54,8 @@ func SetVerbose (b bool) {
 func IsVerbose() bool {
     return isVerbose || isDebug
 }
-
-//Returns true if flag --verbose is used and not --debug
-func IsVerboseOnly() bool {
-    return isVerbose && !isDebug
+func IsDebug() bool {
+    return isDebug
 }
 
 /* Function for tracing debug level messages to stdout
