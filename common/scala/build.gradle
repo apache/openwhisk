@@ -29,7 +29,7 @@ dependencies {
     compile 'commons-io:commons-io:2.4'
     compile 'commons-logging:commons-logging:1.2'
     compile 'commons-collections:commons-collections:3.2.2'
-    compile 'org.apache.zookeeper:zookeeper:3.4.6'
+    compile 'org.apache.zookeeper:zookeeper:3.4.10'
     compile 'org.apache.kafka:kafka-clients:0.10.2.1'
     compile 'org.apache.httpcomponents:httpclient:4.4.1'
     compile 'com.github.ben-manes.caffeine:caffeine:2.4.0'
