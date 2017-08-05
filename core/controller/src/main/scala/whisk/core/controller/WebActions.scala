@@ -215,9 +215,9 @@ protected[core] object WhiskWebActionsApi extends Directives {
         Try {
             val JsObject(fields) = result
             val headers = fields.get("headers").map {
-                case JsObject(hs) => hs.map {
+                case JsObject(hs) => hs.flatMap {
                     case (k, v) => headersFromJson(k, v)
-                }.flatten.toList
+                }.toList
 
                 case _ => throw new Throwable("Invalid header")
             } getOrElse List()
@@ -252,7 +252,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
         case JsString(v)  => Seq(RawHeader(k, v))
         case JsBoolean(v) => Seq(RawHeader(k, v.toString))
         case JsNumber(v)  => Seq(RawHeader(k, v.toString))
-        case JsArray(v)   => v.map(headersFromJson(k, _:JsValue)).flatten
+        case JsArray(v)   => v.flatMap(inner => headersFromJson(k, inner))
         case _            => throw new Throwable("Invalid header")
     }
 

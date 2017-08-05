@@ -1139,11 +1139,10 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                                 "Set-Cookie" -> JsArray(JsString("a=b"), JsString("c=d; Path = /")))))
 
                     Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
-                        withClue(headers) {
-                            headers.length shouldBe 2
-                            headers(0).toString shouldBe "Set-Cookie: a=b"
-                            headers(1).toString shouldBe "Set-Cookie: c=d; Path = /"
-                        }
+                        headers should contain allOf (
+                            HttpHeaders.RawHeader("Set-Cookie", "a=b"),
+                            HttpHeaders.RawHeader("Set-Cookie", "c=d; Path = /")
+                        )
                     }
                 }
         }

@@ -27,6 +27,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
+import com.jayway.restassured.response.Header
 
 import common.TestHelpers
 import common.TestUtils
@@ -313,8 +314,9 @@ trait WskWebActionsTests
 
             response.statusCode shouldBe 200
             val cookieHeaders = response.headers.getList("Set-Cookie")
-            cookieHeaders.size shouldBe 2
-            cookieHeaders.get(0).getValue shouldBe "a=b"
-            cookieHeaders.get(1).getValue shouldBe "c=d"
+            cookieHeaders should contain allOf (
+                new Header("Set-Cookie", "a=b"),
+                new Header("Set-Cookie", "c=d")
+            )
     }
 }
