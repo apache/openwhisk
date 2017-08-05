@@ -70,6 +70,22 @@ function main() {
 }
 ```
 
+Or sets multiple cookies:
+```javascript
+function main() {
+  return { 
+    headers: { 
+      'Set-Cookie': [
+        'UserID=Jane; Max-Age=3600; Version=',
+        'SessionID=asdfgh123456; Path = /'
+      ],
+      'Content-Type': 'text/html'
+    }, 
+    statusCode: 200,
+    body: '<html><body><h3>hello</h3></body></html>' }
+}
+```
+
 Or returns an `image/png`:
 ```javascript
 function main() {
@@ -97,7 +113,7 @@ It is important to be aware of the [response size limit](reference.md) for actio
 
 An OpenWhisk action that is not a web action requires both authentication and must respond with a JSON object. In contrast, web actions may be invoked without authentication, and may be used to implement HTTP handlers that respond with _headers_, _statusCode_, and _body_ content of different types. The web action must still return a JSON object, but the OpenWhisk system (namely the `controller`) will treat a web action differently if its result includes one or more of the following as top level JSON properties:
 
-1. `headers`: a JSON object where the keys are header-names and the values are string values for those headers (default is no headers).
+1. `headers`: a JSON object where the keys are header-names and the values are string, number, or boolean values for those headers (default is no headers). To send multiple values for a single header, the header's value should be a JSON array of values.
 2. `statusCode`: a valid HTTP status code (default is 200 OK).
 3. `body`: a string which is either plain text or a base64 encoded string for binary data (default is empty response).
 
