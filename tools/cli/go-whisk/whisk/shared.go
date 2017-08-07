@@ -17,7 +17,10 @@
 
 package whisk
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "strings"
+)
 
 type KeyValue struct {
     Key     string          `json:"key"`
@@ -41,6 +44,29 @@ func (keyValueArr KeyValueArr) GetValue(key string) (res interface{}) {
     Debug(DbgInfo, "Got value '%v' for key '%s' from '%v'\n", res, key, keyValueArr)
 
     return res
+}
+
+func (keyValueArr KeyValueArr) FindKeyValue(key string) (int) {
+    for i := 0; i < len(keyValueArr); i++ {
+        if strings.ToLower(keyValueArr[i].Key) == strings.ToLower(key) {
+            return i
+        }
+    }
+
+    return -1
+}
+
+/*
+Appends items from appKeyValueArr to keyValueArr if the appKeyValueArr item does not exist in keyValueArr.
+ */
+func (keyValueArr KeyValueArr) AppendKeyValueArr(appKeyValueArr KeyValueArr) (KeyValueArr) {
+    for i := 0; i < len(appKeyValueArr); i++ {
+        if KeyValueArr.FindKeyValue(keyValueArr, appKeyValueArr[i].Key) == -1 {
+            keyValueArr = append(keyValueArr, appKeyValueArr[i])
+        }
+    }
+
+    return keyValueArr
 }
 
 type Annotations []map[string]interface{}
