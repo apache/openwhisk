@@ -195,4 +195,5 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
             } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
         }
 
+    override def getHealthResponse: Future[String] = Future("healthy")
 }

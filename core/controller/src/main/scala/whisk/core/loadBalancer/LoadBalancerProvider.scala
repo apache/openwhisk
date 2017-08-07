@@ -1,13 +1,3 @@
-package whisk.core.loadBalancer
-
-import akka.actor.ActorSystem
-import whisk.common.Logging
-import whisk.core.WhiskConfig
-import whisk.core.entity.InstanceId
-import whisk.core.entity.types.ActivationStore
-import whisk.core.entity.types.EntityStore
-import whisk.spi.Spi
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,6 +14,18 @@ import whisk.spi.Spi
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package whisk.core.loadBalancer
+
+import akka.actor.ActorSystem
+import whisk.common.Logging
+import whisk.core.WhiskConfig
+import whisk.core.entity.InstanceId
+import whisk.spi.Spi
+
+/**
+ * Spi for a LoadBalancer factory
+ */
 trait LoadBalancerProvider extends Spi {
-    def getLoadBalancer(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore, activationStore: ActivationStore)(implicit logging:Logging, actorSystem:ActorSystem):LoadBalancer
+    def getLoadBalancer(config: WhiskConfig, instance: InstanceId)(implicit logging:Logging, actorSystem:ActorSystem): LoadBalancer
 }

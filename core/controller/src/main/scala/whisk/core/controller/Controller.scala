@@ -119,7 +119,7 @@ class Controller(
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services
-    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider]().getLoadBalancer(whiskConfig, instance, entityStore, activationStore)
+    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider]().getLoadBalancer(whiskConfig, instance)
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 

@@ -52,7 +52,7 @@ import whisk.core.entity.types.EntityStore
 import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
-import whisk.core.entity.types.ActivationStore
+import whisk.core.entity.WhiskEntityStore
 import whisk.spi.Dependencies
 import whisk.spi.SpiFactory
 import whisk.spi.SpiLoader
@@ -90,8 +90,8 @@ trait LoadBalancer {
 }
 
 class LoadBalancerServiceProvider extends LoadBalancerProvider {
-    override def getLoadBalancer(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore, activationStore: ActivationStore)
-            (implicit logging: Logging, actorSystem: ActorSystem): LoadBalancer = new LoadBalancerService(config, instance, entityStore)
+    override def getLoadBalancer(config: WhiskConfig, instance: InstanceId)
+            (implicit logging: Logging, actorSystem: ActorSystem): LoadBalancer = new LoadBalancerService(config, instance)
 }
 
 object LoadBalancerServiceProvider extends SpiFactory[LoadBalancerProvider]{
@@ -100,11 +100,13 @@ object LoadBalancerServiceProvider extends SpiFactory[LoadBalancerProvider]{
 
 class LoadBalancerService(
     config: WhiskConfig,
-    instance: InstanceId,
-    entityStore: EntityStore)(
+    instance: InstanceId)(
         implicit val actorSystem: ActorSystem,
         logging: Logging)
     extends LoadBalancer {
+
+    /** Used to manage an action for testing invoker health */
+    val entityStore =  WhiskEntityStore.datastore(config)
 
     /** The execution context for futures */
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
