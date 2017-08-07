@@ -22,9 +22,11 @@ import java.util.UUID
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 
+import org.apache.kafka.clients.producer.Callback
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -50,10 +52,16 @@ class KafkaProducerConnector(
         implicit val transid = msg.transid
         val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
 
-        Future {
-            logging.debug(this, s"sending to topic '$topic' msg '$msg'")
-            producer.send(record).get
-        } andThen {
+        logging.debug(this, s"sending to topic '$topic' msg '$msg'")
+        val produced = Promise[RecordMetadata]()
+        producer.send(record, new Callback {
+            override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
+                if (exception == null) produced.success(metadata)
+                else produced.failure(exception)
+            }
+        })
+
+        produced.future.andThen {
             case Success(status) =>
                 logging.debug(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
                 sentCounter.next()
