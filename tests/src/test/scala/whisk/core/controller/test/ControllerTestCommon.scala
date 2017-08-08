@@ -17,18 +17,17 @@
 
 package whisk.core.controller.test
 
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-
 import common.StreamLogging
 import spray.json.DefaultJsonProtocol
+import spray.json.JsObject
 import spray.json.JsString
 import spray.routing.HttpService
 import spray.testkit.ScalatestRouteTest
@@ -195,5 +194,5 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
             } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
         }
 
-    override def getHealthResponse: Future[String] = Future("healthy")
+    override def getHealthResponse: Future[JsObject] = Future.successful(JsObject())
 }

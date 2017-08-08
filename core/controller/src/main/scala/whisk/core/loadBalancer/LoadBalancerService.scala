@@ -86,7 +86,7 @@ trait LoadBalancer {
      * Return a message indicating the health of the containers and/or container pool in general
      * @return a Future[String] representing the heal response that will be sent to the client
      */
-    def getHealthResponse: Future[String]
+    def getHealthResponse: Future[JsObject]
 }
 
 class LoadBalancerServiceProvider extends LoadBalancerProvider {
@@ -298,10 +298,10 @@ class LoadBalancerService(
     }
 
     /** Returns a Map of invoker instance -> invoker state */
-    override def getHealthResponse(): Future[String] = {
+    override def getHealthResponse(): Future[JsObject] = {
         val res = allInvokers.map(_.map {
             case (instance, state) => s"invoker${instance.toInt}" -> state.asString
-        }.toMap.toJson.asJsObject).mapTo[String]
+        }.toMap.toJson.asJsObject)
         res
     }
 }
