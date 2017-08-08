@@ -37,9 +37,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
         val loadBalancerData = new LoadBalancerData()
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
 
-        val result = loadBalancerData.activationCountByNamespace
-        result shouldBe Map(firstEntry.namespaceId -> 1)
-        loadBalancerData.activationCountByInvoker(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
         loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
     }
 
@@ -49,48 +48,35 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
         loadBalancerData.putActivation(secondEntry.id, secondEntry)
 
-        val result = loadBalancerData.activationCountByInvoker
-
-        result shouldBe Map(firstEntry.invokerName -> 1, secondEntry.invokerName -> 1)
-
-        loadBalancerData.activationCountByInvoker(firstEntry.invokerName) shouldBe 1
-        loadBalancerData.activationCountByInvoker(secondEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(secondEntry.invokerName) shouldBe 1
         loadBalancerData.activationById(firstEntry.id) shouldBe Some(firstEntry)
         loadBalancerData.activationById(secondEntry.id) shouldBe Some(secondEntry)
     }
 
-    it should "remove activations from all 3 maps" in {
+    it should "remove activations and reflect that accordingly" in {
 
         val loadBalancerData = new LoadBalancerData()
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
-        loadBalancerData.putActivation(secondEntry.id, secondEntry)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
         loadBalancerData.removeActivation(firstEntry)
-        loadBalancerData.removeActivation(secondEntry)
 
-        val activationsByInvoker = loadBalancerData.activationCountByInvoker
-        val activationsByNamespace = loadBalancerData.activationCountByNamespace
-
-        activationsByInvoker.values.sum shouldBe 0
-        activationsByNamespace.values.sum shouldBe 0
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 0
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 0
         loadBalancerData.activationById(firstEntry.id) shouldBe None
-        loadBalancerData.activationById(secondEntry.id) shouldBe None
     }
 
     it should "remove activations from all 3 maps by activation id" in {
 
         val loadBalancerData = new LoadBalancerData()
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
 
         loadBalancerData.removeActivation(firstEntry.id)
 
-        val activationsByInvoker = loadBalancerData.activationCountByInvoker
-        val activationsByNamespace = loadBalancerData.activationCountByNamespace
-
-        activationsByInvoker.values.sum shouldBe 0
-        activationsByNamespace.values.sum shouldBe 0
-        loadBalancerData.activationById(firstEntry.id) shouldBe None
-
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 0
     }
 
     it should "return None if the entry doesn't exist when we remove it" in {
@@ -106,25 +92,25 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
         val loadBalancerData = new LoadBalancerData()
         loadBalancerData.putActivation(entry.id, entry)
-        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
-        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountOn(entry.invokerName) shouldBe 1
 
         loadBalancerData.putActivation(entrySameInvokerAndNamespace.id, entrySameInvokerAndNamespace)
-        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
-        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
+        loadBalancerData.activationCountOn(entry.namespaceId) shouldBe 2
+        loadBalancerData.activationCountOn(entry.invokerName) shouldBe 2
 
         loadBalancerData.putActivation(entrySameInvoker.id, entrySameInvoker)
-        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 2
-        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 3
+        loadBalancerData.activationCountOn(entry.namespaceId) shouldBe 2
+        loadBalancerData.activationCountOn(entry.invokerName) shouldBe 3
 
         loadBalancerData.removeActivation(entrySameInvokerAndNamespace)
-        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
-        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
+        loadBalancerData.activationCountOn(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountOn(entry.invokerName) shouldBe 2
 
         // removing non existing entry doesn't mess up
         loadBalancerData.removeActivation(entrySameInvokerAndNamespace)
-        loadBalancerData.activationCountByNamespace(entry.namespaceId) shouldBe 1
-        loadBalancerData.activationCountByInvoker(entry.invokerName) shouldBe 2
+        loadBalancerData.activationCountOn(entry.namespaceId) shouldBe 1
+        loadBalancerData.activationCountOn(entry.invokerName) shouldBe 2
 
     }
 
@@ -133,12 +119,12 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
         val loadBalancerData = new LoadBalancerData()
 
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
-        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
-        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
         loadBalancerData.putActivation(firstEntry.id, firstEntry)
-        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
-        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
     }
 
     it should "not evaluate the given block if an entry already exists" in {
@@ -175,8 +161,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
         })
 
         called shouldBe 1
-        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
-        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
         // entry already exists, should not evaluate the block and change the state
         val entryAfterSecond = loadBalancerData.putActivation(entrySameId.id, {
@@ -186,8 +172,8 @@ class LoadBalancerDataTests extends FlatSpec with Matchers {
 
         called shouldBe 1
         entry shouldBe entryAfterSecond
-        loadBalancerData.activationCountByInvoker shouldBe Map(firstEntry.invokerName -> 1)
-        loadBalancerData.activationCountByNamespace shouldBe Map(firstEntry.namespaceId -> 1)
+        loadBalancerData.activationCountOn(firstEntry.invokerName) shouldBe 1
+        loadBalancerData.activationCountOn(firstEntry.namespaceId) shouldBe 1
     }
 
 }
