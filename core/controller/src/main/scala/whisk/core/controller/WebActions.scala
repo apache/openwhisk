@@ -215,11 +215,8 @@ protected[core] object WhiskWebActionsApi extends Directives {
         Try {
             val JsObject(fields) = result
             val headers = fields.get("headers").map {
-                case JsObject(hs) => hs.map {
-                    case (k, JsString(v))  => RawHeader(k, v)
-                    case (k, JsBoolean(v)) => RawHeader(k, v.toString)
-                    case (k, JsNumber(v))  => RawHeader(k, v.toString)
-                    case _                 => throw new Throwable("Invalid header")
+                case JsObject(hs) => hs.flatMap {
+                    case (k, v) => headersFromJson(k, v)
                 }.toList
 
                 case _ => throw new Throwable("Invalid header")
@@ -249,6 +246,14 @@ protected[core] object WhiskWebActionsApi extends Directives {
             // response as an http result
             terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
         }
+    }
+
+    private def headersFromJson(k: String, v: JsValue) : Seq[RawHeader] = v match {
+        case JsString(v)  => Seq(RawHeader(k, v))
+        case JsBoolean(v) => Seq(RawHeader(k, v.toString))
+        case JsNumber(v)  => Seq(RawHeader(k, v.toString))
+        case JsArray(v)   => v.flatMap(inner => headersFromJson(k, inner))
+        case _            => throw new Throwable("Invalid header")
     }
 
     private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId): RequestContext => Unit = {

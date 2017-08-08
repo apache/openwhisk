@@ -27,6 +27,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
+import com.jayway.restassured.response.Header
 
 import common.TestHelpers
 import common.TestUtils
@@ -295,5 +296,27 @@ trait WskWebActionsTests
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 406
             response.body.asString should include("Resource representation is only available with these Content-Types:\\ntext/html")
+    }
+
+    it should "support multiple response header values" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("multipleHeaders.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("true"), annotations = Map("web-custom-options" -> true.toJson))
+            }
+
+            val response = RestAssured.given().config(sslconfig).options(url)
+
+            response.statusCode shouldBe 200
+            val cookieHeaders = response.headers.getList("Set-Cookie")
+            cookieHeaders should contain allOf (
+                new Header("Set-Cookie", "a=b"),
+                new Header("Set-Cookie", "c=d")
+            )
     }
 }

@@ -1127,6 +1127,26 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
+        it should s"support multiple values for headers (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    invocationsAllowed += 1
+                    actionResult = Some(
+                        JsObject(
+                            "headers" -> JsObject(
+                                "Set-Cookie" -> JsArray(JsString("a=b"), JsString("c=d; Path = /")))))
+
+                    Options(s"$testRoutePath/$path") ~> sealRoute(routes(creds)) ~> check {
+                        headers should contain allOf (
+                            HttpHeaders.RawHeader("Set-Cookie", "a=b"),
+                            HttpHeaders.RawHeader("Set-Cookie", "c=d; Path = /")
+                        )
+                    }
+                }
+        }
+
         it should s"invoke action with options verb without custom options (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
             customOptions = false
