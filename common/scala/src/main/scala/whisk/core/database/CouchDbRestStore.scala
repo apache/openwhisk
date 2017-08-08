@@ -281,6 +281,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     }
 
     override def shutdown(): Unit = {
+        CouchDbStoreProvider.stores.remove(dbName)
         Await.ready(client.shutdown(), 1.minute)
     }
 
