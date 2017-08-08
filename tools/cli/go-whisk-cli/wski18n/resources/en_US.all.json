@@ -1300,18 +1300,6 @@
     "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
   },
   {
-    "id": "`ACTION` to invoke when API is called",
-    "translation": "`ACTION` to invoke when API is called"
-  },
-  {
-    "id": "relative `API_PATH` of API",
-    "translation": "relative `API_PATH` of API"
-  },
-  {
-    "id": "API `API_VERB`",
-    "translation": "API `API_VERB`"
-  },
-  {
     "id": "API collection `NAME` (default NAMESPACE)",
     "translation": "API collection `NAME` (default NAMESPACE)"
   },

@@ -75,14 +75,6 @@ case class WskProps(
     key: String = WhiskProperties.getFileRelativeToWhiskHome("ansible/roles/nginx/files/openwhisk-client-key.pem").getAbsolutePath ,
     namespace: String = "_",
     apiversion: String = "v1",
-    apihost: String = WhiskProperties.getEdgeHost) {
-    def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
-}
-
-case class WskPropsV2(
-    authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
-    namespace: String = "_",
-    apiversion: String = "v1",
     apihost: String = WhiskProperties.getEdgeHost,
     token: String = "") {
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
