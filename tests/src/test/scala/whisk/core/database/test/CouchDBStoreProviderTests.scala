@@ -43,13 +43,21 @@ class CouchDBStoreProviderTests extends FlatSpec
         dbPort -> "1234",
         dbActivations -> "activations_fake"))
 
-    behavior of "CouchDBStoreProvider"
 
+    val artifactStoreProvider = SpiLoader.get[ArtifactStoreProvider]()
+    val store1FirstLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
+    val store1SecondLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
+
+    behavior of "CouchDBStoreProvider"
+    override def afterAll() {
+        println("Shutting down store connections")
+        store1FirstLoad.shutdown()
+        //do not need to shutdown the second loaded store, but we'll do it anyways since clients may do that also
+        store1SecondLoad.shutdown()
+        super.afterAll()
+    }
     it should "load the same store from config for a specific artifact type" in {
-        val artifactStoreProvider = SpiLoader.get[ArtifactStoreProvider]()
-        val store1 = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
-        val store2 = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
-        store1 shouldBe store2
+        store1FirstLoad shouldBe store1SecondLoad
     }
 
 }
