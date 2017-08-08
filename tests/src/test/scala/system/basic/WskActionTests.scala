@@ -24,6 +24,7 @@ import common.ActivationResult
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
+import common.BaseWsk
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -33,10 +34,10 @@ import spray.json.JsObject
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
-class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
+abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
@@ -140,8 +141,8 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
         action.create(copiedActionName, Some(origActionName), Some("copy"))
       }
 
-      val copiedAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
-      val origAction = getJSONFromCLIResponse(wsk.action.get(copiedActionName).stdout)
+      val copiedAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, wsk.isInstanceOf[Wsk])
+      val origAction = getJSONFromResponse(wsk.action.get(copiedActionName).stdout, wsk.isInstanceOf[Wsk])
 
       copiedAction.fields("annotations") shouldBe origAction.fields("annotations")
       copiedAction.fields("parameters") shouldBe origAction.fields("parameters")
@@ -176,10 +177,11 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
       }
 
       assetHelper.withCleaner(wsk.action, copiedName) { (action, _) =>
+        println("created copied ")
         action.create(copiedName, Some(origName), Some("copy"), parameters = copiedParams, annotations = copiedAnnots)
       }
 
-      val copiedAction = getJSONFromCLIResponse(wsk.action.get(copiedName).stdout)
+      val copiedAction = getJSONFromResponse(wsk.action.get(copiedName).stdout, wsk.isInstanceOf[Wsk])
 
       // CLI does not guarantee order of annotations and parameters so do a diff to compare the values
       copiedAction.fields("parameters").convertTo[Seq[JsObject]] diff resParams shouldBe List()
@@ -265,16 +267,6 @@ class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
       activation.response.result shouldBe Some(testResult)
       activation.logs shouldBe Some(List())
     }
-  }
-
-  it should "reject an invoke with the wrong parameters set" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val fullQualifiedName = s"/$guestNamespace/samples/helloWorld"
-    val payload = "bob"
-    val rr = wsk.cli(
-      Seq("action", "invoke", fullQualifiedName, payload) ++ wskprops.overrides,
-      expectedExitCode = TestUtils.ERROR_EXIT)
-    rr.stderr should include("Run 'wsk --help' for usage.")
-    rr.stderr should include(s"error: Invalid argument(s): $payload")
   }
 
   it should "not be able to use 'ping' in an action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
