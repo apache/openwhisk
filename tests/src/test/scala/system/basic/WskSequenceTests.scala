@@ -27,6 +27,7 @@ import scala.util.matching.Regex
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import common.ActivationResult
 import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
@@ -478,7 +479,7 @@ class WskSequenceTests
      * checks duration
      * checks memory
      */
-    private def checkSequenceLogsAndAnnotations(activation: CliActivation, size: Int) = {
+    private def checkSequenceLogsAndAnnotations(activation: ActivationResult, size: Int) = {
         activation.logs shouldBe defined
         // check that the logs are what they are supposed to be (activation ids)
         // check that the cause field is properly set for these activations
@@ -523,7 +524,7 @@ class WskSequenceTests
         }
     }
 
-    private def extractMemoryAnnotation(activation: CliActivation): Long = {
+    private def extractMemoryAnnotation(activation: ActivationResult): Long = {
         val limits = activation.getAnnotationValue("limits")
         limits shouldBe defined
         limits.get.asJsObject.getFields("memory")(0).convertTo[Long]

@@ -25,6 +25,7 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -370,7 +371,7 @@ class WskBasicTests
             }
 
             val stderr = wsk.action.invoke(name, blocking = true, expectedExitCode = 246).stderr
-            CliActivation.serdes.read(removeCLIHeader(stderr).parseJson).response.result shouldBe Some {
+            ActivationResult.serdes.read(removeCLIHeader(stderr).parseJson).response.result shouldBe Some {
                 JsObject("error" -> JsObject("msg" -> "failed activation on purpose".toJson))
             }
     }
