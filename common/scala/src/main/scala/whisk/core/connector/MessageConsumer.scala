@@ -20,6 +20,7 @@ package whisk.core.connector
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.Future
+import scala.concurrent.blocking
 import scala.concurrent.duration._
 import scala.util.Failure
 
@@ -167,16 +168,18 @@ class MessageFeed(
     private def fillPipeline(): Unit = {
         if (outstandingMessages.size <= pipelineFillThreshold) {
             Future {
-                // Grab next batch of messages and commit offsets immediately
-                // essentially marking the activation as having satisfied "at most once"
-                // semantics (this is the point at which the activation is considered started).
-                // If the commit fails, then messages peeked are peeked again on the next poll.
-                // While the commit is synchronous and will block until it completes, at steady
-                // state with enough buffering (i.e., maxPipelineDepth > maxPeek), the latency
-                // of the commit should be masked.
-                val records = consumer.peek(longPollDuration)
-                consumer.commit()
-                FillCompleted(records.toSeq)
+                blocking {
+                    // Grab next batch of messages and commit offsets immediately
+                    // essentially marking the activation as having satisfied "at most once"
+                    // semantics (this is the point at which the activation is considered started).
+                    // If the commit fails, then messages peeked are peeked again on the next poll.
+                    // While the commit is synchronous and will block until it completes, at steady
+                    // state with enough buffering (i.e., maxPipelineDepth > maxPeek), the latency
+                    // of the commit should be masked.
+                    val records = consumer.peek(longPollDuration)
+                    consumer.commit()
+                    FillCompleted(records.toSeq)
+                }
             }.andThen {
                 case Failure(e: CommitFailedException) => logging.error(this, s"failed to commit $description consumer offset: $e")
                 case Failure(e: Throwable)             => logging.error(this, s"exception while pulling new $description records: $e")
