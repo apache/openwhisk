@@ -55,24 +55,25 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
       withJavaContainer(
         { c =>
           val jar = JarBuilder.mkBase64Jar(
-            Seq("example", "HelloWhisk.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.JsonObject;
-                    |
-                    | public class HelloWhisk {
-                    |     public static JsonObject main(JsonObject args) {
-                    |         JsonObject response = new JsonObject();
-                    |         response.addProperty("api_host", System.getenv("__OW_API_HOST"));
-                    |         response.addProperty("api_key", System.getenv("__OW_API_KEY"));
-                    |         response.addProperty("namespace", System.getenv("__OW_NAMESPACE"));
-                    |         response.addProperty("action_name", System.getenv("__OW_ACTION_NAME"));
-                    |         response.addProperty("activation_id", System.getenv("__OW_ACTIVATION_ID"));
-                    |         response.addProperty("deadline", System.getenv("__OW_DEADLINE"));
-                    |         return response;
-                    |     }
-                    | }
-                """.stripMargin.trim)
+            Seq("example", "HelloWhisk.java") ->
+              """
+                | package example;
+                |
+                | import com.google.gson.JsonObject;
+                |
+                | public class HelloWhisk {
+                |     public static JsonObject main(JsonObject args) {
+                |         JsonObject response = new JsonObject();
+                |         response.addProperty("api_host", System.getenv("__OW_API_HOST"));
+                |         response.addProperty("api_key", System.getenv("__OW_API_KEY"));
+                |         response.addProperty("namespace", System.getenv("__OW_NAMESPACE"));
+                |         response.addProperty("action_name", System.getenv("__OW_ACTION_NAME"));
+                |         response.addProperty("activation_id", System.getenv("__OW_ACTIVATION_ID"));
+                |         response.addProperty("deadline", System.getenv("__OW_DEADLINE"));
+                |         return response;
+                |     }
+                | }
+              """.stripMargin.trim)
 
           val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
           initCode should be(200)
@@ -93,20 +94,21 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
   it should "support valid flows" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
-        Seq("example", "HelloWhisk.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.JsonObject;
-                    |
-                    | public class HelloWhisk {
-                    |     public static JsonObject main(JsonObject args) {
-                    |         String name = args.getAsJsonPrimitive("name").getAsString();
-                    |         JsonObject response = new JsonObject();
-                    |         response.addProperty("greeting", "Hello " + name + "!");
-                    |         return response;
-                    |     }
-                    | }
-                """.stripMargin.trim)
+        Seq("example", "HelloWhisk.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class HelloWhisk {
+            |     public static JsonObject main(JsonObject args) {
+            |         String name = args.getAsJsonPrimitive("name").getAsString();
+            |         JsonObject response = new JsonObject();
+            |         response.addProperty("greeting", "Hello " + name + "!");
+            |         return response;
+            |     }
+            | }
+          """.stripMargin.trim)
 
       val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
       initCode should be(200)
@@ -124,25 +126,57 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
     err.trim shouldBe empty
   }
 
+  it should "support valid actions with non 'main' names" in {
+    val (out, err) = withJavaContainer { c =>
+      val jar = JarBuilder.mkBase64Jar(
+        Seq("example", "HelloWhisk.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class HelloWhisk {
+            |     public static JsonObject hello(JsonObject args) {
+            |         String name = args.getAsJsonPrimitive("name").getAsString();
+            |         JsonObject response = new JsonObject();
+            |         response.addProperty("greeting", "Hello " + name + "!");
+            |         return response;
+            |     }
+            | }
+          """.stripMargin.trim)
+
+      val (initCode, _) = c.init(initPayload("example.HelloWhisk#hello", jar))
+      initCode should be(200)
+
+      val (runCode, out) = c.run(runPayload(JsObject("name" -> JsString("Whisk"))))
+      runCode should be(200)
+      out should be(Some(JsObject("greeting" -> JsString("Hello Whisk!"))))
+    }
+
+    out.trim shouldBe empty
+    err.trim shouldBe empty
+  }
+
   it should "handle unicode in source, input params, logs, and result" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
-        Seq("example", "HelloWhisk.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.JsonObject;
-                    |
-                    | public class HelloWhisk {
-                    |     public static JsonObject main(JsonObject args) {
-                    |         String delimiter = args.getAsJsonPrimitive("delimiter").getAsString();
-                    |         JsonObject response = new JsonObject();
-                    |          String str = delimiter + " ☃ " + delimiter;
-                    |          System.out.println(str);
-                    |          response.addProperty("winter", str);
-                    |          return response;
-                    |     }
-                    | }
-            """.stripMargin)
+        Seq("example", "HelloWhisk.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class HelloWhisk {
+            |     public static JsonObject main(JsonObject args) {
+            |         String delimiter = args.getAsJsonPrimitive("delimiter").getAsString();
+            |         JsonObject response = new JsonObject();
+            |          String str = delimiter + " ☃ " + delimiter;
+            |          System.out.println(str);
+            |          response.addProperty("winter", str);
+            |          return response;
+            |     }
+            | }
+          """.stripMargin)
 
       val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
       val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
@@ -175,17 +209,18 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
   it should "return some error on action error" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
-        Seq("example", "HelloWhisk.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.JsonObject;
-                    |
-                    | public class HelloWhisk {
-                    |     public static JsonObject main(JsonObject args) throws Exception {
-                    |         throw new Exception("noooooooo");
-                    |     }
-                    | }
-                """.stripMargin.trim)
+        Seq("example", "HelloWhisk.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class HelloWhisk {
+            |     public static JsonObject main(JsonObject args) throws Exception {
+            |         throw new Exception("noooooooo");
+            |     }
+            | }
+          """.stripMargin.trim)
 
       val (initCode, _) = c.init(initPayload("example.HelloWhisk", jar))
       initCode should be(200)
@@ -204,19 +239,20 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
   it should "support application errors" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
-        Seq("example", "Error.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.JsonObject;
-                    |
-                    | public class Error {
-                    |     public static JsonObject main(JsonObject args) throws Exception {
-                    |         JsonObject error = new JsonObject();
-                    |         error.addProperty("error", "This action is unhappy.");
-                    |         return error;
-                    |     }
-                    | }
-                """.stripMargin.trim)
+        Seq("example", "Error.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class Error {
+            |     public static JsonObject main(JsonObject args) throws Exception {
+            |         JsonObject error = new JsonObject();
+            |         error.addProperty("error", "This action is unhappy.");
+            |         return error;
+            |     }
+            | }
+          """.stripMargin.trim)
 
       val (initCode, _) = c.init(initPayload("example.Error", jar))
       initCode should be(200)
@@ -234,19 +270,20 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
 
   it should "survive System.exit" in {
     val (out, err) = withJavaContainer { c =>
-      val jar =
-        JarBuilder.mkBase64Jar(Seq("example", "Quitter.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.*;
-                    |
-                    | public class Quitter {
-                    |     public static JsonObject main(JsonObject main) {
-                    |         System.exit(1);
-                    |         return new JsonObject();
-                    |     }
-                    | }
-                """.stripMargin.trim)
+      val jar = JarBuilder.mkBase64Jar(
+        Seq("example", "Quitter.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.*;
+            |
+            | public class Quitter {
+            |     public static JsonObject main(JsonObject main) {
+            |         System.exit(1);
+            |         return new JsonObject();
+            |     }
+            | }
+          """.stripMargin.trim)
 
       val (initCode, _) = c.init(initPayload("example.Quitter", jar))
       initCode should be(200)
@@ -264,18 +301,19 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
 
   it should "enforce that the user returns an object" in {
     withJavaContainer { c =>
-      val jar =
-        JarBuilder.mkBase64Jar(Seq("example", "Nuller.java") -> """
-                    | package example;
-                    |
-                    | import com.google.gson.*;
-                    |
-                    | public class Nuller {
-                    |     public static JsonObject main(JsonObject args) {
-                    |         return null;
-                    |     }
-                    | }
-                """.stripMargin.trim)
+      val jar = JarBuilder.mkBase64Jar(
+        Seq("example", "Nuller.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.*;
+            |
+            | public class Nuller {
+            |     public static JsonObject main(JsonObject args) {
+            |         return null;
+            |     }
+            | }
+          """.stripMargin.trim)
 
       val (initCode, _) = c.init(initPayload("example.Nuller", jar))
       initCode should be(200)
@@ -290,43 +328,45 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
 
   val dynamicLoadingJar = JarBuilder.mkBase64Jar(
     Seq(
-      Seq("example", "EntryPoint.java") -> """
-                | package example;
-                |
-                | import com.google.gson.*;
-                | import java.lang.reflect.*;
-                |
-                | public class EntryPoint {
-                |     private final static String CLASS_NAME = "example.DynamicClass";
-                |     public static JsonObject main(JsonObject args) throws Exception {
-                |         String cl = args.getAsJsonPrimitive("classLoader").getAsString();
-                |
-                |         Class d = null;
-                |         if("local".equals(cl)) {
-                |             d = Class.forName(CLASS_NAME);
-                |         } else if("thread".equals(cl)) {
-                |             d = Thread.currentThread().getContextClassLoader().loadClass(CLASS_NAME);
-                |         }
-                |
-                |         Object o = d.newInstance();
-                |         Method m = o.getClass().getMethod("getMessage");
-                |         String msg = (String)m.invoke(o);
-                |
-                |         JsonObject response = new JsonObject();
-                |         response.addProperty("message", msg);
-                |         return response;
-                |     }
-                | }
-                |""".stripMargin.trim,
-      Seq("example", "DynamicClass.java") -> """
-                | package example;
-                |
-                | public class DynamicClass {
-                |     public String getMessage() {
-                |         return "dynamic!";
-                |     }
-                | }
-                |""".stripMargin.trim))
+      Seq("example", "EntryPoint.java") ->
+        """
+          | package example;
+          |
+          | import com.google.gson.*;
+          | import java.lang.reflect.*;
+          |
+          | public class EntryPoint {
+          |     private final static String CLASS_NAME = "example.DynamicClass";
+          |     public static JsonObject main(JsonObject args) throws Exception {
+          |         String cl = args.getAsJsonPrimitive("classLoader").getAsString();
+          |
+          |         Class d = null;
+          |         if("local".equals(cl)) {
+          |             d = Class.forName(CLASS_NAME);
+          |         } else if("thread".equals(cl)) {
+          |             d = Thread.currentThread().getContextClassLoader().loadClass(CLASS_NAME);
+          |         }
+          |
+          |         Object o = d.newInstance();
+          |         Method m = o.getClass().getMethod("getMessage");
+          |         String msg = (String)m.invoke(o);
+          |
+          |         JsonObject response = new JsonObject();
+          |         response.addProperty("message", msg);
+          |         return response;
+          |     }
+          | }
+        """.stripMargin.trim,
+      Seq("example", "DynamicClass.java") ->
+        """
+          | package example;
+          |
+          | public class DynamicClass {
+          |     public String getMessage() {
+          |         return "dynamic!";
+          |     }
+          | }
+        """.stripMargin.trim))
 
   def classLoaderTest(param: String) = {
     val (out, err) = withJavaContainer { c =>
