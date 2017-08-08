@@ -49,8 +49,8 @@ import JsonArgsForTests._
 import whisk.http.Messages
 
 /**
- * Tests for basic CLI usage. Some of these tests require a deployed backend.
- */
+  * Tests for basic CLI usage. Some of these tests require a deployed backend.
+  */
 @RunWith(classOf[JUnitRunner])
 class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
@@ -307,6 +307,37 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       N = 5)
   }
 
+  it should "ensure timestamp and stream info strip from log" in withAssetCleaner(wskprops) {
+    val name = "activationLogStripTest"
+
+    (wp, assetHelper) =>
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("dosLogs.js")))
+      }
+
+      retry(
+        {
+          val run = wsk.action.invoke(name)
+          withActivation(wsk.activation, run) {
+            activation =>
+              val stripFlag = Seq(
+                (Seq("activation", "logs", "--strip"), activation.activationId),
+                (Seq("activation", "logs", "-r"), activation.activationId))
+
+              retry({
+                stripFlag foreach {
+                  case (cmd, output) =>
+                    val stdout = wsk.cli(cmd ++ wskprops.overrides, expectedExitCode = SUCCESS_EXIT).stdout
+                    stdout should not include regex("stdout:")
+                    stdout should include regex("123456789abcdef")
+                }
+              }, waitBeforeRetry = Some(500.milliseconds))
+          }
+        },
+        waitBeforeRetry = Some(1.second),
+        N = 5)
+  }
+
   it should "ensure keys are not omitted from activation record" in withAssetCleaner(wskprops) {
     val name = "activationRecordTest"
 
@@ -352,7 +383,9 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
           "key" -> JsString("limits"),
           "value" -> ActionLimits(TimeLimit(timeLimit), MemoryLimit(memoryLimit), LogLimit(logLimit)).toJson)
 
-        val path = annotations.find { _.fields("key").convertTo[String] == "path" }.get
+        val path = annotations.find {
+          _.fields("key").convertTo[String] == "path"
+        }.get
 
         path.fields("value").convertTo[String] should fullyMatch regex (s""".*/$name""")
         annotations should contain(limitsObj)
