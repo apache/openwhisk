@@ -74,8 +74,9 @@ systemProp.http.proxyPort=3128
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
-In all instructions, replace `<environment>` with your target environment. e.g. `mac`if you want to deploy using a local mac setup.
+In all instructions, replace `<environment>` with your target environment. e.g. `docker-machine`if you want to deploy using a local docker-machine setup.
 By default, if you omit the `-i` parameter, the `local` environment will be used.
+If using Docker for Mac use the `local` environment.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
@@ -269,6 +270,19 @@ Alternatively, you can also configure the location of Python interpreter in `env
 ansible_python_interpreter: "/usr/local/bin/python"
 ```
 
+#### Failed to import docker-py
+
+After `brew install ansible`, the following lines are printed out:
+
+```
+==> Caveats
+If you need Python to find the installed site-packages:
+  mkdir -p ~/Library/Python/2.7/lib/python/site-packages
+  echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
+```
+  
+Just run the two commands to fix this issue.
+
 #### Spaces in Paths
 Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
 Many file imports and roles will not work correctly when included from a path that contains spaces.
@@ -283,7 +297,7 @@ without spaces as there is no current fix available to this problem.
 
 #### Changing limits
 The system throttling limits can be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+Docker for Mac or ubuntu users will find the limits in this file [./environments/local/group_vars/all](./environments/local/group_vars/all):
 ```
 limits:
   actions:
