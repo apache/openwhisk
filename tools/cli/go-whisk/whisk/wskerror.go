@@ -34,6 +34,12 @@ const NO_DISPLAY_PREFIX         bool = false
 const APPLICATION_ERR           bool = true
 const NO_APPLICATION_ERR        bool = false
 const TIMED_OUT                 bool = true
+const UNABLE_CREATE_ACTION_ERR    string = "UNABLE_CREATE_ACTION_ERR"
+const UNABLE_GET_ACTION_ERR    string = "UNABLE_GET_ACTION_ERR"
+const INVALID_PARAMETER_ARGUMENT_ERR    string = "INVALID_PARAMETER_ARGUMENT_ERR"
+const INVALID_ANNOTATION_ARGUMENT_ERR    string = "INVALID_ANNOTATION_ARGUMENT_ERR"
+const INVALID_FIELD_FILTER_ERR    string = "INVALID_FIELD_FILTER_ERR"
+const INVALID_ARGUMENTS_REQUIRED_ERR    string = "INVALID_ARGUMENTS_REQUIRED_ERR"
 
 type WskError struct {
     RootErr             error   // Parent error

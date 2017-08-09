@@ -605,7 +605,7 @@ func actionParseError(cmd *cobra.Command, args []string, err error) (error) {
     whisk.Debug(whisk.DbgError, "parseAction(%s, %s) error: %s\n", cmd, args, err)
 
     errMsg := wski18n.T(
-        "Invalid argument(s). {{.required}}",
+        whisk.INVALID_ARGUMENTS_REQUIRED_ERR,
         map[string]interface{}{
             "required": err,
         })
@@ -617,7 +617,7 @@ func actionInsertError(action *whisk.Action, err error) (error) {
     whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
 
     errMsg := wski18n.T(
-        "Unable to create action '{{.name}}': {{.err}}",
+        whisk.UNABLE_CREATE_ACTION_ERR,
         map[string]interface{}{
             "name": action.Name,
             "err": err,
@@ -630,7 +630,7 @@ func getJSONFromStringsParamError(params []string, keyValueFormat bool, err erro
     whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", params, keyValueFormat, err)
 
     errMsg := wski18n.T(
-        "Invalid parameter argument '{{.param}}': {{.err}}",
+        whisk.INVALID_PARAMETER_ARGUMENT_ERR,
         map[string]interface{}{
             "param": fmt.Sprintf("%#v", params),
             "err": err,
@@ -643,7 +643,7 @@ func getJSONFromStringsAnnotError(annots []string, keyValueFormat bool, err erro
     whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, %t) failed: %s\n", annots, keyValueFormat, err)
 
     errMsg := wski18n.T(
-        "Invalid annotation argument '{{.annotation}}': {{.err}}",
+        whisk.INVALID_ANNOTATION_ARGUMENT_ERR,
         map[string]interface{}{
             "annotation": fmt.Sprintf("%#v", annots),
             "err": err,
@@ -654,7 +654,7 @@ func getJSONFromStringsAnnotError(annots []string, keyValueFormat bool, err erro
 
 func invalidFieldFilterError(field string) (error) {
     errMsg := wski18n.T(
-        "Invalid field filter '{{.arg}}'.",
+        whisk.INVALID_FIELD_FILTER_ERR,
         map[string]interface{}{
             "arg": field,
         })
@@ -679,7 +679,7 @@ func actionGetError(entityName string, err error) (error) {
     whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", entityName, err)
 
     errMsg := wski18n.T(
-        "Unable to get action '{{.name}}': {{.err}}",
+        whisk.UNABLE_GET_ACTION_ERR,
         map[string]interface{}{
             "name": entityName,
             "err": err,
@@ -877,7 +877,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
-        errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
+        errMsg := wski18n.T(whisk.UNABLE_GET_ACTION_ERR,
             map[string]interface{}{"name": fullActionName, "err": err})
         err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)

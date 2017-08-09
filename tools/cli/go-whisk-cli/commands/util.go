@@ -816,7 +816,7 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     if len(args) < minimumArgNumber {
         whisk.Debug(whisk.DbgError, fmt.Sprintf("%s command must have %s %d argument(s)\n", commandName,
             exactlyOrAtLeast, minimumArgNumber))
-        errMsg := wski18n.T("Invalid argument(s). {{.required}}", map[string]interface{}{"required": requiredArgMsg})
+        errMsg := wski18n.T(whisk.INVALID_ARGUMENTS_REQUIRED_ERR, map[string]interface{}{"required": requiredArgMsg})
         whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         return whiskErr
