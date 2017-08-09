@@ -54,7 +54,6 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     private implicit val context = system.dispatcher
     private implicit val materializer = ActorMaterializer()
 
-    private val createdStack = new Exception()
     // Creates or retrieves a connection pool for the host.
     private val pool = if (protocol == "http") {
         Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port)
@@ -111,6 +110,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     // WARNING: make sure that if the future response is not failed, its entity
     // be drained entirely or the connection will be kept open until timeouts kick in.
     private def request0(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
+        require(!materializer.isShutdown, "db client was shutdown and cannot be used again")
         futureRequest flatMap { request =>
             val promise = Promise[HttpResponse]
 
@@ -129,12 +129,6 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
                     case QueueOfferResult.Failure(f) =>
                         Future.failed(f)
-                }
-            }recoverWith {
-                case e: IllegalStateException => {
-                    println("failing client that was created at")
-                    createdStack.printStackTrace()
-                    throw new RuntimeException(e)
                 }
             }
         }
