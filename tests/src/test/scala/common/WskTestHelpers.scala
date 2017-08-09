@@ -129,7 +129,7 @@ object ActivationResult extends DefaultJsonProtocol {
  * completed, will delete them all.
  */
 trait WskTestHelpers extends Matchers {
-  type Assets = ListBuffer[(DeleteFromCollection, String, Boolean)]
+  type Assets = ListBuffer[(BaseDeleteFromCollection, String, Boolean)]
 
   /**
    * Helper to register an entity to delete once a test completes.
@@ -138,7 +138,7 @@ trait WskTestHelpers extends Matchers {
    *
    */
   class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
-    def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
+    def withCleaner[T <: BaseDeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
       cmd: (T, String) => RunResult): RunResult = {
       // sanitize (delete) if asset exists
       cli.sanitize(name)(wskprops)
@@ -170,7 +170,7 @@ trait WskTestHelpers extends Matchers {
         case ((cli, n, delete)) =>
           n -> Try {
             cli match {
-              case _: WskPackage if delete =>
+              case _: BasePackage if delete =>
                 val rr = cli.delete(n)(wskprops)
                 rr.exitCode match {
                   case CONFLICT => whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
@@ -196,7 +196,7 @@ trait WskTestHelpers extends Matchers {
    * the activation to the post processor which then check for expected values.
    */
   def withActivation(
-    wsk: WskActivation,
+    wsk: BaseActivation,
     run: RunResult,
     initialWait: Duration = 1.second,
     pollPeriod: Duration = 1.second,
@@ -214,7 +214,7 @@ trait WskTestHelpers extends Matchers {
    * Polls activations until one matching id is found. If found, pass
    * the activation to the post processor which then check for expected values.
    */
-  def withActivation(wsk: WskActivation,
+  def withActivation(wsk: BaseActivation,
                      activationId: String,
                      initialWait: Duration,
                      pollPeriod: Duration,
@@ -239,7 +239,7 @@ trait WskTestHelpers extends Matchers {
    * defining the oldest activationId to consider valid.
    */
   def withActivationsFromEntity(
-    wsk: WskActivation,
+    wsk: BaseActivation,
     entity: String,
     N: Int = 1,
     since: Option[Instant] = None,
