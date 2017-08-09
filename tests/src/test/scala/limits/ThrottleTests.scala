@@ -23,7 +23,6 @@ import scala.collection.parallel.immutable.ParSeq
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.Try
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -66,22 +65,18 @@ class ThrottleTests
 
     val throttleWindow = 1.minute
 
-    val maximumInvokesPerMinute = getLimit("defaultLimits.actions.invokes.perMinute", "limits.actions.invokes.perMinute")
-    val maximumFiringsPerMinute = getLimit("defaultLimits.triggers.fires.perMinute", "limits.triggers.fires.perMinute")
-    val maximumConcurrentInvokes = getLimit("defaultLimits.actions.invokes.concurrent", "limits.actions.invokes.concurrent")
+    val maximumInvokesPerMinute = getLimit("limits.actions.invokes.perMinute")
+    val maximumFiringsPerMinute = getLimit("limits.triggers.fires.perMinute")
+    val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
 
     println(s"maximumInvokesPerMinute  = $maximumInvokesPerMinute")
     println(s"maximumFiringsPerMinute  = $maximumFiringsPerMinute")
     println(s"maximumConcurrentInvokes = $maximumConcurrentInvokes")
 
     /*
-     * Retrieve a numeric limit for the key from the property set.  If the overrideKey is present, use that.
+     * Retrieve a numeric limit for the key from the property set.
      */
-    def getLimit(key: String, overrideKey: String) = Try {
-        WhiskProperties.getProperty(overrideKey).toInt
-    } getOrElse {
-        WhiskProperties.getProperty(key).toInt
-    }
+    def getLimit(key: String) = WhiskProperties.getProperty(key).toInt
 
     /**
      * Extracts the number of throttled results from a sequence of <code>RunResult</code>

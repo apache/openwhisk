@@ -282,20 +282,24 @@ the path to your OpenWhisk `ansible` directory contains spaces. To fix this, ple
 without spaces as there is no current fix available to this problem.
 
 #### Changing limits
-The system throttling limits can be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+The default system throttling limits are configured in this file [./group_vars/all](./group_vars/all).
 ```
 limits:
-  actions:
-    invokes:
-      perMinute: 60
-      concurrent: 30
-      concurrentInSystem: 5000
-  triggers:
-    fires:
-      perMinute: 60
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(120) }}"
+  concurrentInvocations: "{{ limit_invocations_concurrent | default(100) }}"
+  concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
+  firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
+  sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 ```
-- The `perMinute` under `limits->actions->invokes` represents the allowed namespace action invocations per minute.
-- The `concurrent` under `limits->actions->invokes` represents the maximum concurrent invocations allowed per namespace.
-- The `concurrentInSystem` under `limits->actions->invokes` represents the maximum concurrent invocations the system will allow across all namespaces.
-- The `perMinute` under `limits->triggers-fires` represents the allowed namespace trigger firings per minute.
+These values may be changed by modifying the `group_vars` for your environment. For example,
+mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+```
+limit_invocations_per_minute: 60
+limit_invocations_concurrent: 30
+limit_invocations_concurrent_system: 5000
+limit_fires_per_minute: 60
+```
+- The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
+- The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
+- The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
+- The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.

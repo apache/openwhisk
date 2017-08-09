@@ -22,16 +22,6 @@ registry:
     threshold: 80
     keeptags: 5
 
-limits:
-  actions:
-    invokes:
-      perMinute: 60
-      concurrent: 30
-      concurrentInSystem: 5000
-  triggers:
-    fires:
-      perMinute: 60
-
 # openstack vars
 # TODO, should move these to a role and create a designated "defaults.yml" file
 rc_file:

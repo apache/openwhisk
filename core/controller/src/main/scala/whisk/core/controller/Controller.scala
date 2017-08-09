@@ -145,8 +145,6 @@ object Controller {
         LoadBalancerService.requiredProperties ++
         EntitlementProvider.requiredProperties
 
-    def optionalProperties = EntitlementProvider.optionalProperties
-
     private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) = JsObject(
         "description" -> "OpenWhisk".toJson,
         "support" -> JsObject(
@@ -164,7 +162,7 @@ object Controller {
         implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
         // extract configuration data from the environment
-        val config = new WhiskConfig(requiredProperties, optionalProperties)
+        val config = new WhiskConfig(requiredProperties)
         val port = config.servicePort.toInt
 
         // if deploying multiple instances (scale out), must pass the instance number as the
