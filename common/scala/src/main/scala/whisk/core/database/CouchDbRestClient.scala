@@ -54,6 +54,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     private implicit val context = system.dispatcher
     private implicit val materializer = ActorMaterializer()
 
+    private val createdStack = new Exception()
     // Creates or retrieves a connection pool for the host.
     private val pool = if (protocol == "http") {
         Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port)
@@ -128,6 +129,12 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
                     case QueueOfferResult.Failure(f) =>
                         Future.failed(f)
+                }
+            }recoverWith {
+                case e: IllegalStateException => {
+                    println("failing client that was created at")
+                    createdStack.printStackTrace()
+                    throw new RuntimeException(e)
                 }
             }
         }

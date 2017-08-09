@@ -29,6 +29,7 @@ import whisk.spi.SingletonSpiFactory
  * A CouchDB implementation of ArtifactStoreProvider
  */
 class CouchDbStoreProvider extends ArtifactStoreProvider {
+    protected[database] val stores =  mutable.Map [String, CouchDbRestStore[_]]()
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
@@ -38,14 +39,13 @@ class CouchDbStoreProvider extends ArtifactStoreProvider {
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
 
         val storeName = name(config)
-        CouchDbStoreProvider.stores.getOrElseUpdate(storeName, new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, storeName))
+        stores.getOrElseUpdate(storeName, new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, storeName,
+            (dbName:String)=>stores.remove(dbName)))
                 .asInstanceOf[CouchDbRestStore[D]]
 
     }
 }
 
 object CouchDbStoreProvider extends SingletonSpiFactory[ArtifactStoreProvider] {
-    //During tests: stores must remove themselves during CouchDbRestStore.shutdown() to avoid clients accessing a previously shutdown store, since they are cached here
-    protected[database] val stores =  mutable.Map [String, CouchDbRestStore[_]]()
     override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDbStoreProvider
 }
