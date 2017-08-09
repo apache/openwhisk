@@ -58,6 +58,11 @@ class SequenceMigrationTests
     val namespace = wsk.namespace.whois()
     val allowedActionDuration = 120 seconds
 
+    override def afterAll(): Unit = {
+        entityStore.shutdown()
+        super.afterAll()
+    }
+
     behavior of "Sequence Migration"
 
     it should "check default namespace '_' is preserved in WhiskAction of old style sequence" in {
