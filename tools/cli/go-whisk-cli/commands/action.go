@@ -406,7 +406,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
-        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, update)
+        preserveAnnotations := action.Annotations == nil
+        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, preserveAnnotations)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
@@ -487,18 +488,18 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     return exec, nil
 }
 
-func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, fetch bool) (whisk.KeyValueArr, error){
+func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, preserveAnnotations bool) (whisk.KeyValueArr, error){
     switch strings.ToLower(webMode) {
     case "yes":
         fallthrough
     case "true":
-        return webActionAnnotations(fetch, annotations, entityName, addWebAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, addWebAnnotations)
     case "no":
         fallthrough
     case "false":
-        return webActionAnnotations(fetch, annotations, entityName, deleteWebAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, deleteWebAnnotations)
     case "raw":
-        return webActionAnnotations(fetch, annotations, entityName, addRawAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, addRawAnnotations)
     default:
         return nil, webInputError(webMode)
     }
@@ -507,22 +508,26 @@ func webAction(webMode string, annotations whisk.KeyValueArr, entityName string,
 type WebActionAnnotationMethod func(annotations whisk.KeyValueArr) (whisk.KeyValueArr)
 
 func webActionAnnotations(
-    fetchAnnotations bool,
+    preserveAnnotations bool,
     annotations whisk.KeyValueArr,
     entityName string,
     webActionAnnotationMethod WebActionAnnotationMethod) (whisk.KeyValueArr, error) {
         var action *whisk.Action
         var err error
 
-        if annotations != nil || !fetchAnnotations {
-            annotations = webActionAnnotationMethod(annotations)
-        } else {
+        if preserveAnnotations {
             if action, _, err = client.Actions.Get(entityName); err != nil {
-                return nil, actionGetError(entityName, err)
+                whiskErr, isWhiskError := err.(*whisk.WskError)
+
+                if (isWhiskError && whiskErr.ExitCode != whisk.EXIT_CODE_NOT_FOUND) || !isWhiskError {
+                    return nil, actionGetError(entityName, err)
+                }
             } else {
-                annotations = webActionAnnotationMethod(action.Annotations)
+                annotations = whisk.KeyValueArr.AppendKeyValueArr(annotations, action.Annotations)
             }
         }
+
+        annotations = webActionAnnotationMethod(annotations)
 
         return annotations, nil
 }
@@ -588,7 +593,7 @@ func nestedError(errorMessage string, err error) (error) {
     return whisk.MakeWskErrorFromWskError(
         errors.New(errorMessage),
         err,
-        whisk.EXITCODE_ERR_GENERAL,
+        whisk.EXIT_CODE_ERR_GENERAL,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -596,7 +601,7 @@ func nestedError(errorMessage string, err error) (error) {
 func nonNestedError(errorMessage string) (error) {
     return whisk.MakeWskError(
         errors.New(errorMessage),
-        whisk.EXITCODE_ERR_USAGE,
+        whisk.EXIT_CODE_ERR_USAGE,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -879,7 +884,7 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
         errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
             map[string]interface{}{"name": fullActionName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
+        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)
     } else {
         err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",

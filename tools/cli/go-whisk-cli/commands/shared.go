@@ -31,7 +31,7 @@ func entityNameError(entityName string) (error) {
             "name": entityName,
         })
 
-    return whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 }
 
 func parseQualifiedNameError(entityName string, err error) (error) {
@@ -44,5 +44,5 @@ func parseQualifiedNameError(entityName string, err error) (error) {
             "err": err,
         })
 
-    return whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+    return whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
 }

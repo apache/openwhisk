@@ -74,7 +74,7 @@ var triggerFireCmd = &cobra.Command{
                 whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, false) failed: %s\n", flags.common.param, err)
                 errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
                         map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
                 return werr
             }
@@ -85,7 +85,7 @@ var triggerFireCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Fire(%s, %#v) failed: %s\n", qualifiedName.entityName, parameters, err)
             errStr := wski18n.T("Unable to fire trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.entityName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL,
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
@@ -152,7 +152,7 @@ var triggerCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
             errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
                     map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -168,7 +168,7 @@ var triggerCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
             errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
                     map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -186,7 +186,7 @@ var triggerCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,false) failed: %s\n", trigger, err)
             errStr := wski18n.T("Unable to create trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": trigger.Name, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -198,7 +198,7 @@ var triggerCreateCmd = &cobra.Command{
                     err)
                 errStr := wski18n.T("Unable to create trigger '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": trigger.Name, "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
 
                 // Delete trigger that was created for this feed
                 delerr := deleteTrigger(args[0])
@@ -248,7 +248,7 @@ var triggerUpdateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.param, err)
             errStr := wski18n.T("Invalid parameter argument '{{.param}}': {{.err}}",
                     map[string]interface{}{"param": fmt.Sprintf("%#v",flags.common.param), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -259,7 +259,7 @@ var triggerUpdateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "getJSONFromStrings(%#v, true) failed: %s\n", flags.common.annotation, err)
             errStr := wski18n.T("Invalid annotation argument '{{.annotation}}': {{.err}}",
                     map[string]interface{}{"annotation": fmt.Sprintf("%#v",flags.common.annotation), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -274,7 +274,7 @@ var triggerUpdateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,true) failed: %s\n", trigger, err)
             errStr := wski18n.T("Unable to update trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": trigger.Name, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -305,7 +305,7 @@ var triggerGetCmd = &cobra.Command{
 
             if !fieldExists(&whisk.Trigger{}, field) {
                 errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
-                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
@@ -322,7 +322,7 @@ var triggerGetCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qualifiedName.entityName, err)
             errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.entityName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -374,7 +374,7 @@ var triggerDeleteCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qualifiedName.entityName, err)
             errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.entityName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -405,7 +405,7 @@ var triggerDeleteCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qualifiedName.entityName, err)
             errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": qualifiedName.entityName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -454,7 +454,7 @@ var triggerListCmd = &cobra.Command{
                 client.Namespace, err)
             errStr := wski18n.T("Unable to obtain the list of triggers for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
         printList(triggers)
@@ -470,7 +470,7 @@ func configureFeed(triggerName string, FullFeedName string) error {
         whisk.Debug(whisk.DbgError, "Invoke of action '%s' failed: %s\n", FullFeedName, err)
         errStr := wski18n.T("Unable to invoke trigger '{{.trigname}}' feed action '{{.feedname}}'; feed is not configured: {{.err}}",
                 map[string]interface{}{"trigname": triggerName, "feedname": FullFeedName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        err = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
     } else {
         whisk.Debug(whisk.DbgInfo, "Successfully configured trigger feed via feed action '%s'\n", FullFeedName)
     }
@@ -485,7 +485,7 @@ func deleteTrigger(triggerName string) error {
         whisk.Debug(whisk.DbgError, "Trigger '%s' delete failed: %s\n", triggerName, err)
         errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": triggerName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+        err = whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
     }
 
     return err

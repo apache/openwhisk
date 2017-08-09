@@ -170,7 +170,7 @@ func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListRespon
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, apiListOptions, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": apiListOptions})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -181,7 +181,7 @@ func (s *ApiService) List(apiListOptions *ApiListRequestOptions) (*ApiListRespon
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -211,7 +211,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -222,7 +222,7 @@ func (s *ApiService) Insert(api *ApiCreateRequest, options *ApiCreateRequestOpti
         Debug(DbgError, "http.NewRequestUrl(POST, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -252,7 +252,7 @@ func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*Ap
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -263,7 +263,7 @@ func (s *ApiService) Get(api *ApiGetRequest, options *ApiGetRequestOptions) (*Ap
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -287,7 +287,7 @@ func (s *ApiService) Delete(api *ApiDeleteRequest, options *ApiDeleteRequestOpti
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -298,7 +298,7 @@ func (s *ApiService) Delete(api *ApiDeleteRequest, options *ApiDeleteRequestOpti
         Debug(DbgError, "http.NewRequestUrl(DELETE, %s, nil, DoNotIncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -319,7 +319,7 @@ func validateApiListResponse(apiList *ApiListResponse) error {
         if apiList.Apis[i].ApiValue == nil {
             Debug(DbgError, "validateApiResponse: No value stanza in api %v\n", apiList.Apis[i])
             errMsg := wski18n.T("Internal error. Missing value stanza in API configuration response")
-            whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return whiskErr
         }
         err := validateApiSwaggerResponse(apiList.Apis[i].ApiValue.Swagger)
@@ -335,7 +335,7 @@ func validateApiSwaggerResponse(swagger *ApiSwagger) error {
     if swagger == nil {
         Debug(DbgError, "validateApiSwaggerResponse: No apidoc stanza in api\n")
         errMsg := wski18n.T("Internal error. Missing apidoc stanza in API configuration")
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
     for path, _ := range swagger.Paths {
@@ -365,7 +365,7 @@ func validateApiOperation(opName string, op *ApiSwaggerOperation) error {
         Debug(DbgError, "validateApiOperation: No operationId field in operation %v\n", op)
         errMsg := wski18n.T("Missing operationId field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
 
@@ -373,7 +373,7 @@ func validateApiOperation(opName string, op *ApiSwaggerOperation) error {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.namespace stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.namespace field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
 
@@ -383,14 +383,14 @@ func validateApiOperation(opName string, op *ApiSwaggerOperation) error {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.action stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.action field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
     if (op.XOpenWhisk != nil && len(op.XOpenWhisk.ApiUrl) == 0) {
         Debug(DbgError, "validateApiOperation: no x-openwhisk.url stanza in operation %v\n", op)
         errMsg := wski18n.T("Missing x-openwhisk.url field in API configuration for operation {{.op}}",
             map[string]interface{}{"op": opName})
-        whiskErr := MakeWskError(errors.New(errMsg), EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return whiskErr
     }
     return nil

@@ -60,7 +60,7 @@ var ruleEnableCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, active) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to enable rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -97,7 +97,7 @@ var ruleDisableCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, inactive) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to disable rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -134,7 +134,7 @@ var ruleStatusCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -182,7 +182,7 @@ var ruleCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := wski18n.T("Unable to create rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
         whisk.Debug(whisk.DbgInfo, "Inserted rule:\n%+v\n", retRule)
@@ -229,7 +229,7 @@ var ruleUpdateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := wski18n.T("Unable to update rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": rule.Name, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -260,7 +260,7 @@ var ruleGetCmd = &cobra.Command{
 
             if !fieldExists(&whisk.Rule{}, field){
                 errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
-                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
@@ -278,7 +278,7 @@ var ruleGetCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to get rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -328,7 +328,7 @@ var ruleDeleteCmd = &cobra.Command{
                 whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, inactive) failed: %s\n", ruleName, err)
                 errStr := wski18n.T("Unable to disable rule '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": ruleName, "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }
@@ -338,7 +338,7 @@ var ruleDeleteCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Delete(%s) error: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to delete rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -386,7 +386,7 @@ var ruleListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.List(%#v) error: %s\n", ruleListOptions, err)
             errStr := wski18n.T("Unable to obtain the list of rules for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         } else {
             //No errors, lets attempt to retrieve the status of each rule #312
@@ -396,7 +396,7 @@ var ruleListCmd = &cobra.Command{
                     errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": rule.Name, "err": err})
                     fmt.Println(errStr)
-                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                     return werr
                 }
                 rules[index].Status = ruleStatus.Status

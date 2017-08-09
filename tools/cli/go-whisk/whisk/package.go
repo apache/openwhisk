@@ -90,7 +90,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := wski18n.T("Unable to build request URL: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -99,7 +99,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -125,7 +125,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -151,7 +151,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -176,7 +176,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -197,7 +197,7 @@ func (s *PackageService) Refresh() (*BindingUpdates, *http.Response, error) {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create POST HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 

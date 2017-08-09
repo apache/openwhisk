@@ -510,19 +510,81 @@ class WskBasicUsageTests
                 }
     }
 
-    it should "ensure --web flag does not remove existing annotations" in withAssetCleaner(wskprops) {
+    it should "ensure action update with --web flag only copies existing annotations when new annotations are not provided" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val key = "someKey"
-            val value = JsString("someValue")
-            val annots = Map(key -> value)
+            val createKey = "createKey"
+            val createValue = JsString("createValue")
+            val updateKey = "updateKey"
+            val updateValue = JsString("updateValue")
+            val origKey = "origKey"
+            val origValue = JsString("origValue")
+            val overwrittenValue = JsString("overwrittenValue")
+            val createAnnots = Map(createKey -> createValue, origKey -> origValue)
+            val updateAnnots = Map(updateKey -> updateValue, origKey -> overwrittenValue)
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, file, annotations = annots)
+                (action, _) => action.create(name, file, annotations = createAnnots)
             }
 
             wsk.action.create(name, file, web = Some("true"), update = true)
+
+            val existinAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(existinAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(existinAnnots).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(origKey),
+                    "value" -> origValue),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(createKey),
+                    "value" -> createValue),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+
+            wsk.action.create(name, file, web = Some("true"), update = true, annotations = updateAnnots)
+
+            val updatedAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(updatedAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(updatedAnnots).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(origKey),
+                    "value" -> overwrittenValue),
+                JsObject(
+                    "key" -> JsString(updateKey),
+                    "value" -> updateValue),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+    }
+
+    it should "ensure action update creates an action with --web flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"), update = true)
+            }
 
             val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
             assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
@@ -536,9 +598,6 @@ class WskBasicUsageTests
                 JsObject(
                     "key" -> JsString("final"),
                     "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString(key),
-                    "value" -> value),
                 JsObject(
                     "key" -> JsString("exec"),
                     "value" -> JsString("nodejs:6")))
