@@ -5,7 +5,7 @@ db_protocol: http
 db_username: couch_user
 db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
-db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
+db_prefix: whisk_distributed_
 
 whisk_version_name: local
 config_root_dir: /tmp
