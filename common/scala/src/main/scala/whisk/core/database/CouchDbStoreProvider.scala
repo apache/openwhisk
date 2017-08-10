@@ -29,7 +29,7 @@ import whisk.spi.SingletonSpiFactory
  * A CouchDB implementation of ArtifactStoreProvider
  */
 class CouchDbStoreProvider extends ArtifactStoreProvider {
-    protected[database] val stores =  mutable.Map [String, CouchDbRestStore[_]]()
+    private val stores =  mutable.Map [String, CouchDbRestStore[_]]()
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
@@ -40,7 +40,7 @@ class CouchDbStoreProvider extends ArtifactStoreProvider {
 
         val storeName = name(config)
         stores.getOrElseUpdate(storeName, new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, storeName,
-            (dbName:String)=>stores.remove(dbName)))
+            ()=>stores.remove(storeName)))
                 .asInstanceOf[CouchDbRestStore[D]]
 
     }

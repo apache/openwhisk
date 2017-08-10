@@ -39,7 +39,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
+import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
@@ -86,7 +86,7 @@ trait LoadBalancer {
      * Return a message indicating the health of the containers and/or container pool in general
      * @return a Future[String] representing the heal response that will be sent to the client
      */
-    def getHealthResponse: Future[JsObject]
+    def healthStatus: Future[JsObject]
 }
 
 class LoadBalancerServiceProvider extends LoadBalancerProvider {
@@ -298,12 +298,10 @@ class LoadBalancerService(
     }
 
     /** Returns a Map of invoker instance -> invoker state */
-    override def getHealthResponse(): Future[JsObject] = {
-        val res = allInvokers.map(_.map {
+    override def healthStatus(): Future[JsObject] = allInvokers.map(_.map {
             case (instance, state) => s"invoker${instance.toInt}" -> state.asString
         }.toMap.toJson.asJsObject)
-        res
-    }
+
 }
 
 object LoadBalancerService {
