@@ -31,9 +31,9 @@ import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.MediaTypes.`application/json`
-import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.unmarshalling._
+import akka.http.scaladsl.model.HttpCharsets
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -626,7 +626,7 @@ trait WhiskActionsApi
     /** Max atomic action count allowed for sequences */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] = {
+    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] =
         Unmarshaller.strict[String, FiniteDuration] { value =>
             val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
 
@@ -637,22 +637,18 @@ trait WhiskActionsApi
                 case _ => throw new IllegalArgumentException(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
             }
         }
-    }
 
-    implicit val entityToJsObject: Unmarshaller[HttpEntity, JsObject] = {
+    implicit val entityToJsObject: FromEntityUnmarshaller[JsObject] =
         Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
-            val decoded = data.decodeString(charset.nioCharset.name)
-
-            Try {
-                decoded.parseJson.asJsObject
-            } match {
-                case Success(i) => i
-                case Failure(t) if decoded.length == 0 => JsObject()
-                case Failure(t) => throw new IllegalArgumentException(s"The request content was malformed:\n $t")
+            if (data.size == 0) {
+                JsObject()
+            } else {
+                val input =
+                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
+                    else ParserInput(data.decodeString(charset.nioCharset))
+                JsonParser(input).asJsObject
             }
         }
-    }
-
 }
 
 private case class TooManyActionsInSequence() extends IllegalArgumentException

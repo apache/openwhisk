@@ -21,7 +21,7 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
@@ -44,7 +44,9 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.MediaTypes.`application/json`
-import akka.http.scaladsl.unmarshalling.Unmarshaller
+import akka.http.scaladsl.model.HttpCharsets
+import akka.http.scaladsl.unmarshalling._
+
 
 import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
@@ -330,17 +332,15 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
         complete(OK, trigger.withoutRules)
     }
 
-    implicit val entityToJsObject: Unmarshaller[HttpEntity, JsObject] = {
+    implicit val entityToJsObject: FromEntityUnmarshaller[JsObject] =
         Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
-            val decoded = data.decodeString(charset.nioCharset.name)
-
-            Try {
-                decoded.parseJson.asJsObject
-            } match {
-                case Success(i) => i
-                case Failure(t) if decoded.length == 0 => JsObject()
-                case Failure(t) => throw new IllegalArgumentException(s"The request content was malformed:\n $t")
+            if (data.size == 0) {
+                JsObject()
+            } else {
+                val input =
+                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
+                    else ParserInput(data.decodeString(charset.nioCharset))
+                JsonParser(input).asJsObject
             }
         }
-    }
 }
