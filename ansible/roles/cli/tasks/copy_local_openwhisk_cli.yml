@@ -2,7 +2,7 @@
 
 # Copy the cli binaries to Nginx directory
 
-- stat: path={{ openwhisk_cli.local.location }}/{{ item }}
+- local_action: stat path={{ openwhisk_cli.local.location }}/{{ item }}
   register: binary_path
 
 - name: "copy the local binaries from a local directory to Nginx directory"
