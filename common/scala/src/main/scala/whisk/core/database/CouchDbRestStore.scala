@@ -53,7 +53,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     dbUsername: String,
     dbPassword: String,
     dbName: String,
-    cleanup: => Unit)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
+    cleanup: () => Unit)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
@@ -282,7 +282,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     }
 
     override def shutdown(): Unit = {
-        cleanup
+        cleanup()
         Await.ready(client.shutdown(), 1.minute)
     }
 
