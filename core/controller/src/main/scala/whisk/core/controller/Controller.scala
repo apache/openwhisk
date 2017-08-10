@@ -139,7 +139,7 @@ class Controller(
     private val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                loadBalancer.getHealthResponse
+                loadBalancer.healthStatus
             }
         }
     }
