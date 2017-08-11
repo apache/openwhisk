@@ -67,7 +67,7 @@ var namespaceGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var err error
 
         if whiskErr := checkArgs(args, 0, 1, "Namespace get",
@@ -77,16 +77,16 @@ var namespaceGetCmd = &cobra.Command{
 
         // Namespace argument is optional; defaults to configured property namespace
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            if len(qualifiedName.entityName) > 0 {
-                return entityNameError(qualifiedName.entityName)
+            if len(qualifiedName.GetEntityName()) > 0 {
+                return entityNameError(qualifiedName.GetEntityName())
             }
         }
 
-        namespace, _, err := client.Namespaces.Get(qualifiedName.namespace)
+        namespace, _, err := client.Namespaces.Get(qualifiedName.GetNamespace())
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)

@@ -128,7 +128,7 @@ var apiCreateCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var api *whisk.Api
         var err error
-        var qname *QualifiedName
+        var qname = new(QualifiedName)
 
         if (len(args) == 0 && flags.api.configfile == "") {
             whisk.Debug(whisk.DbgError, "No swagger file and no arguments\n")
@@ -746,19 +746,18 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
     }
 
     // Is the specified action name valid?
-    var qName QualifiedName
+    var qName = new(QualifiedName)
     if (len(args) == 3) {
-        qName = QualifiedName{}
-        qName, err = parseQualifiedName(args[2])
+        qName, err = NewQualifiedName(args[2])
         if err != nil {
-            whisk.Debug(whisk.DbgError, "parseQualifiedName(%s) failed: %s\n", args[2], err)
+            whisk.Debug(whisk.DbgError, "NewQualifiedName(%s) failed: %s\n", args[2], err)
             errMsg := wski18n.T("'{{.name}}' is not a valid action name: {{.err}}",
                 map[string]interface{}{"name": args[2], "err": err})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return nil, nil, whiskErr
         }
-        if (qName.entityName == "") {
+        if (qName.GetEntityName() == "") {
             whisk.Debug(whisk.DbgError, "Action name '%s' is invalid\n", args[2])
             errMsg := wski18n.T("'{{.name}}' is not a valid action name.", map[string]interface{}{"name": args[2]})
             whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
@@ -782,22 +781,22 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
     api.Namespace = client.Config.Namespace
     api.Action = new(whisk.ApiAction)
     var urlActionPackage string
-    if (len(qName.packageName) > 0) {
-        urlActionPackage = qName.packageName
+    if (len(qName.GetPackageName()) > 0) {
+        urlActionPackage = qName.GetPackageName()
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.namespace + "/" + urlActionPackage + "/" + qName.entity + ".http"
+    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
     api.Action.BackendMethod = api.GatewayMethod
-    api.Action.Name = qName.entityName
-    api.Action.Namespace = qName.namespace
+    api.Action.Name = qName.GetEntityName()
+    api.Action.Namespace = qName.GetNamespace()
     api.Action.Auth = client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath
     if (!basepathArgIsApiName) { api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath }
 
     whisk.Debug(whisk.DbgInfo, "Parsed api struct: %#v\n", api)
-    return api, &qName, nil
+    return api, qName, nil
 }
 
 func parseSwaggerApi() (*whisk.Api, error) {

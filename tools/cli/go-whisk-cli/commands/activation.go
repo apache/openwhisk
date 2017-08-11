@@ -52,7 +52,7 @@ var activationListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 0, 1, "Activation list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -63,15 +63,15 @@ var activationListCmd = &cobra.Command{
         if len(args) == 1 {
             whisk.Debug(whisk.DbgInfo, "Activation item name filter '%s' provided\n", args[0])
 
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            client.Namespace = qualifiedName.namespace
+            client.Namespace = qualifiedName.GetNamespace()
         }
 
         options := &whisk.ActivationListOptions{
-            Name:  qualifiedName.entityName,
+            Name:  qualifiedName.GetEntityName(),
             Limit: flags.common.limit,
             Skip:  flags.common.skip,
             Upto:  flags.activation.upto,
