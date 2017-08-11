@@ -148,6 +148,7 @@ trait ListOrGetFromCollection extends FullyQualifiedNames {
             implicit wp: WskProps): RunResult = {
         val params = Seq(noun, "list", resolve(namespace), "--auth", wp.authKey) ++
             { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() }
+        println("the param is " + params)
         cli(wp.overrides ++ params, expectedExitCode)
     }
 
@@ -336,7 +337,8 @@ class WskAction()
             { parameterFile map { pf => Seq("-P", pf) } getOrElse Seq() } ++
             { if (blocking) Seq("--blocking") else Seq() } ++
             { if (result) Seq("--result") else Seq() }
-        cli(wp.overrides ++ params, expectedExitCode)
+        val r = cli(wp.overrides ++ params, expectedExitCode)
+        r
     }
 }
 
@@ -724,10 +726,15 @@ class WskNamespace()
     }
 }
 
+trait BasePackage {
+    
+}
+
 class WskPackage()
     extends RunWskCmd
     with ListOrGetFromCollection
-    with DeleteFromCollection {
+    with DeleteFromCollection
+    with BasePackage {
     override protected val noun = "package"
 
     /**
@@ -773,6 +780,7 @@ class WskPackage()
         val params = Seq(noun, "bind", "--auth", wp.authKey, fqn(provider), fqn(name)) ++
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } }
+        println("params is " + params)
         cli(wp.overrides ++ params, expectedExitCode)
     }
 }
@@ -896,6 +904,15 @@ class WskApi()
             { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
             { swagger map { s => Seq("--config-file", s) } getOrElse Seq() } ++
             { responsetype map { t => Seq("--response-type", t) } getOrElse Seq() }
+        println(if (basepath == None) "" else basepath.get)
+        println(if (relpath == None) "" else relpath.get)
+        println(if (operation == None) "" else operation.get)
+        println(if (action == None) "" else action.get)
+        println(if (apiname == None) "" else apiname.get)
+        println(if (swagger == None) "" else swagger.get)
+        println(if (responsetype == None) "" else responsetype.get)
+        println(if (cliCfgFile == None) "" else  cliCfgFile.get)
+        println("params are " + params)
         cli(wp.overrides ++ params, expectedExitCode, showCmd = true, env = Map("WSK_CONFIG_FILE" -> cliCfgFile.getOrElse("")))
     }
 
@@ -1043,7 +1060,6 @@ trait RunWskCmd extends Matchers {
                 }
             }
         }
-
         rr
     }
 
@@ -1062,7 +1078,7 @@ trait RunWskCmd extends Matchers {
         jsonStr.substring(jsonStr.indexOf("\n") + 1).parseJson.asJsObject // Skip optional status line before parsing
     }
 
-    private def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
+    def reportFailure(args: Buffer[String], ec: Integer, rr: RunResult) = {
         val s = new StringBuilder()
         s.append(args.mkString(" ") + "\n")
         if (rr.stdout.nonEmpty) s.append(rr.stdout + "\n")

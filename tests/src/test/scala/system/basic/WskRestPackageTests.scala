@@ -24,27 +24,25 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.TestUtils
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.TestHelpers
 import common.WskTestHelpers
-import common.TestHelpers
-import common.WskProps
 
 @RunWith(classOf[JUnitRunner])
-class WskPackageTests
+class WskRestPackageTests
     extends TestHelpers
     with WskTestHelpers {
 
     implicit val wskprops = WskProps()
-    val wsk = new Wsk
+    val wsk = new WskRest
     val LOG_DELAY = 80 seconds
 
     behavior of "Wsk Package"
 
-    it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) {
+    it should "allow creation and deletion of a package via REST" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "simplepackage"
             assetHelper.withCleaner(wsk.pkg, name) {
@@ -55,7 +53,7 @@ class WskPackageTests
     val params1 = Map("p1" -> "v1".toJson, "p2" -> "".toJson)
     val params2 = Map("p1" -> "v1".toJson, "p2" -> "v2".toJson, "p3" -> "v3".toJson)
 
-    it should "allow creation of a package with parameters" in withAssetCleaner(wskprops) {
+    it should "allow creation of a package with parameters via REST" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "simplepackagewithparams"
             assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
@@ -63,7 +61,7 @@ class WskPackageTests
             }
     }
 
-    it should "allow updating a package" in withAssetCleaner(wskprops) {
+    it should "allow updating a package via REST" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "simplepackagetoupdate"
             assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
@@ -72,7 +70,7 @@ class WskPackageTests
             }
     }
 
-    it should "allow binding of a package" in withAssetCleaner(wskprops) {
+    it should "allow binding of a package via REST" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "simplepackagetobind"
             val bindName = "simplebind"
@@ -106,14 +104,10 @@ class WskPackageTests
             }
 
             // Check that the description of packages and actions includes all the inherited parameters.
-            val packageDescription = wsk.pkg.get(packageName).stdout
-            val bindDescription = wsk.pkg.get(bindName).stdout
-            val packageActionDescription = wsk.action.get(packageActionName).stdout
-            val bindActionDescription = wsk.action.get(bindActionName).stdout
-            println("packageDescription is " + packageDescription)
-            println("bindDescription is " + bindDescription)
-            println("packageActionDescription is " + packageActionDescription)
-            println("bindActionDescription is " + bindActionDescription)
+            val packageDescription = wsk.pkg.get(packageName).respData
+            val bindDescription = wsk.pkg.get(bindName).respData
+            val packageActionDescription = wsk.action.get(packageActionName).respData
+            val bindActionDescription = wsk.action.get(bindActionName).respData
             checkForParameters(packageDescription, packageParams)
             checkForParameters(bindDescription, packageParams, bindParams)
             checkForParameters(packageActionDescription, packageParams, actionParams)

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package common
+package common.rest
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
@@ -26,58 +26,13 @@ import scala.language.postfixOps
 
 import org.scalatest.Matchers
 
-import TestUtils._
-import spray.json._
+import common.WskProps
+//import common.CliActivationResponse
+import common.CliActivation
+//import spray.json._
 import java.time.Instant
 
-    /**
-     * An arbitrary response of a whisk action. Includes the result as a JsObject as the
-     * structure of "result" is not defined.
-     */
-case class CliActivationResponse(result: Option[JsObject], status: String, success: Boolean)
-
-object CliActivationResponse extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat3(CliActivationResponse.apply)
-}
-
-    /**
-     * Activation record as it is returned by the CLI.
-     */
- case class CliActivation (
-        activationId: String,
-        logs: Option[List[String]],
-        response: CliActivationResponse,
-        start: Instant,
-        end: Option[Instant],
-        duration: Option[Long],
-        cause: Option[String],
-        annotations: Option[List[JsObject]]) {
-
-        def getAnnotationValue(key: String): Option[JsValue] = {
-            Try {
-                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
-                assert(annotation.size == 1) // only one annotation with this value
-                val value = annotation(0).getFields("value")
-                assert(value.size == 1)
-                value(0)
-            } toOption
-        }
-}
-
-object CliActivation extends DefaultJsonProtocol {
-        private implicit val instantSerdes = new RootJsonFormat[Instant] {
-            def write(t: Instant) = t.toEpochMilli.toJson
-
-            def read(value: JsValue) = Try {
-                value match {
-                    case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-                    case _           => deserializationError("timetsamp malformed")
-                }
-            } getOrElse deserializationError("timetsamp malformed 2")
-        }
-
-        implicit val serdes = jsonFormat8(CliActivation.apply)
-}
+import spray.http.StatusCodes.Conflict
 
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
@@ -86,22 +41,21 @@ object CliActivation extends DefaultJsonProtocol {
  * completed, will delete them all.
  */
 trait WskTestHelpers extends Matchers {
-    type Assets = ListBuffer[(DeleteFromCollection, String, Boolean)]
-
+    type AssetsRest = ListBuffer[(DeleteFromCollectionRest, String, Boolean)]
     /**
      * Helper to register an entity to delete once a test completes.
      * The helper sanitizes (deletes) a previous instance of the entity if it exists
      * in given collection.
      *
      */
-    class AssetCleaner(assetsToDeleteAfterTest: Assets, wskprops: WskProps) {
-        def withCleaner[T <: DeleteFromCollection](cli: T, name: String, confirmDelete: Boolean = true)(
-            cmd: (T, String) => RunResult): RunResult = {
+    class AssetCleaner(assetsToDeleteAfterTest: AssetsRest, WskProps: WskProps) {
+        def withCleaner[T <: DeleteFromCollectionRest](rest: T, name: String, confirmDelete: Boolean = true)(
+            call: (T, String) => RestResult): RestResult = {
             // sanitize (delete) if asset exists
-            cli.sanitize(name)(wskprops)
+            rest.sanitize(name)(WskProps)
 
-            assetsToDeleteAfterTest += ((cli, name, confirmDelete))
-            cmd(cli, name)
+            assetsToDeleteAfterTest += ((rest, name, confirmDelete))
+            call(rest, name)
         }
     }
 
@@ -110,12 +64,12 @@ trait WskTestHelpers extends Matchers {
      * list that is iterated at the end of the test so that these entities are deleted
      * (from most recently created to oldest).
      */
-    def withAssetCleaner(wskprops: WskProps)(test: (WskProps, AssetCleaner) => Any) = {
+    def withAssetCleaner(WskProps: WskProps)(test: (WskProps, AssetCleaner) => Any) = {
         // create new asset list to track what must be deleted after test completes
-        val assetsToDeleteAfterTest = new Assets()
+        val assetsToDeleteAfterTest = new AssetsRest()
 
         try {
-            test(wskprops, new AssetCleaner(assetsToDeleteAfterTest, wskprops))
+            test(WskProps, new AssetCleaner(assetsToDeleteAfterTest, WskProps))
         } catch {
             case t: Throwable =>
                 // log the exception that occurred in the test and rethrow it
@@ -124,15 +78,15 @@ trait WskTestHelpers extends Matchers {
         } finally {
             // delete assets in reverse order so that was created last is deleted first
             val deletedAll = assetsToDeleteAfterTest.reverse map {
-                case ((cli, n, delete)) => n -> Try {
-                    cli match {
-                        case _: BasePackage if delete =>
-                            val rr = cli.delete(n)(wskprops)
-                            rr.exitCode match {
-                                case CONFLICT => whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
+                case ((rest, n, delete)) => n -> Try {
+                    rest match {
+                        case _: WskRestPackage if delete =>
+                            val rr = rest.delete(n)(WskProps)
+                            rr.statusCode match {
+                                case Conflict => whisk.utils.retry(rest.delete(n)(WskProps), 5, Some(1.second))
                                 case _        => rr
                             }
-                        case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
+                        case _ => if (delete) rest.delete(n)(WskProps) else rest.sanitize(n)(WskProps)
                     }
                 }
             } forall {
@@ -146,43 +100,76 @@ trait WskTestHelpers extends Matchers {
         }
     }
 
+    //case class RestActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+
+    //object RestActivationResponse extends DefaultJsonProtocol {
+    //    implicit val serdes = jsonFormat3(CliActivationResponse.apply)
+    //}
 
     /**
-     * Extracts an activation id from a wsk command producing a RunResult with such an id.
-     * If id is found, polls activations until one matching id is found. If found, pass
-     * the activation to the post processor which then check for expected values.
+     * Activation record as it is returned by the REST.
      */
+   /* case class RestActivation(
+        activationId: String,
+        logs: Option[List[String]],
+        response: CliActivationResponse,
+        start: Instant,
+        end: Option[Instant] = Some(Instant.ofEpochSecond(0L)),
+        duration: Option[Long] = Some(0L),
+        cause: Option[String],
+        annotations: Option[List[JsObject]]) {
+        def getAnnotationValue(key: String): Option[JsValue] = {
+            Try {
+                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+                assert(annotastion.size == 1) // only one annotation with this value
+                val value = annotation(0).getFields("value")
+                assert(value.size == 1)
+                value(0)
+            } toOption
+        }
+    }
+
+    object RestActivation extends DefaultJsonProtocol {
+        private implicit val instantSerdes = new RootJsonFormat[Instant] {
+            def write(t: Instant) = t.toEpochMilli.toJson
+
+            def read(value: JsValue) = Try {
+                value match {
+                    case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
+                    case _           => deserializationError("timetsamp malformed")
+                }
+            } getOrElse deserializationError("timetsamp malformed 2")
+        }
+
+        implicit val serdes = jsonFormat8(RestActivation.apply)
+    }*/
+
     def withActivation(
-        wsk: WskActivation,
-        run: RunResult,
+        wskrest: WskRestActivation,
+        run: RestResult,
         initialWait: Duration = 1 second,
         pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
             check: CliActivation => Unit)(
-                implicit wskprops: WskProps): Unit = {
-        val activationId = wsk.extractActivationId(run)
+                implicit WskProps: WskProps): Unit = {
+        val activationId = wskrest.extractActivationId(run)
 
         withClue(s"did not find an activation id in '$run'") {
             activationId shouldBe a[Some[_]]
         }
-
-        withActivation(wsk, activationId.get, initialWait, pollPeriod, totalWait)(check)
+        withActivation(wskrest, activationId.get, initialWait, pollPeriod, totalWait)(check)
     }
 
-    /**
-     * Polls activations until one matching id is found. If found, pass
-     * the activation to the post processor which then check for expected values.
-     */
     def withActivation(
-        wsk: WskActivation,
+        wskrest: WskRestActivation,
         activationId: String,
         initialWait: Duration,
         pollPeriod: Duration,
         totalWait: Duration)(
             check: CliActivation => Unit)(
-                implicit wskprops: WskProps): Unit = {
+                implicit WskProps: WskProps): Unit = {
         val id = activationId
-        val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
+        val activation = wskrest.waitForActivation(id, initialWait, pollPeriod, totalWait)
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")
         } else try {
@@ -194,13 +181,8 @@ trait WskTestHelpers extends Matchers {
         }
     }
 
-    /**
-     * Polls until it finds {@code N} activationIds from an entity. Asserts the count
-     * of the activationIds actually equal {@code N}. Takes a {@code since} parameter
-     * defining the oldest activationId to consider valid.
-     */
     def withActivationsFromEntity(
-        wsk: WskActivation,
+        wsk: WskRestActivation,
         entity: String,
         N: Int = 1,
         since: Option[Instant] = None,
@@ -215,7 +197,7 @@ trait WskTestHelpers extends Matchers {
         }
 
         val parsed = activationIds.map { id =>
-            wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[CliActivation]
+            wsk.getActivation(id).respBody.convertTo[CliActivation]
         }
         try {
             check(parsed)
@@ -226,39 +208,27 @@ trait WskTestHelpers extends Matchers {
         }
     }
 
-    /**
-     * In the case that test throws an exception, print stderr and stdout
-     * from the provided RunResult.
-     */
-    def withPrintOnFailure(runResult: RunResult)(test: () => Unit) {
+    def withPrintOnFailure(runResult: RestResult)(test: () => Unit) {
         try {
             test()
         } catch {
             case error: Throwable =>
-                println(s"[stderr] ${runResult.stderr}")
-                println(s"[stdout] ${runResult.stdout}")
+                println(s"[stderr] ${runResult.respData}")
                 throw error
         }
     }
 
-    def removeCLIHeader(response: String): String = response.substring(response.indexOf("\n"))
-
-    def getJSONFromCLIResponse(response: String): JsObject = removeCLIHeader(response).parseJson.asJsObject
-
     def getAdditionalTestSubject(newUser: String): WskProps = {
-        val wskadmin = new RunWskAdminCmd {}
+        val wskadmin = new RunWskRestAdminCmd {}
         WskProps(
             namespace = newUser,
-            authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)
+            authKey = wskadmin.adminCommand(Seq("user", "create", newUser)).stdout.trim)
     }
 
     def disposeAdditionalTestSubject(subject: String): Unit = {
-        val wskadmin = new RunWskAdminCmd {}
+        val wskadmin = new RunWskRestAdminCmd {}
         withClue(s"failed to delete temporary subject $subject") {
-            wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+            wskadmin.adminCommand(Seq("user", "delete", subject)).stdout should include("Subject deleted")
         }
     }
 }
-
-
-
