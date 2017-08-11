@@ -221,8 +221,8 @@
     "translation": "package visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "summarize package details",
-    "translation": "summarize package details"
+    "id": "summarize package details; parameters with prefix \"*\" are bound",
+    "translation": "summarize package details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "include publicly shared entities in the result",
@@ -700,8 +700,8 @@
     "translation": "trigger feed `ACTION_NAME`"
   },
   {
-    "id": "summarize trigger details",
-    "translation": "summarize trigger details"
+    "id": "summarize trigger details; parameters with prefix \"*\" are bound",
+    "translation": "summarize trigger details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "parameter values in `KEY VALUE` format",
@@ -952,8 +952,8 @@
     "translation": "only return `LIMIT` number of actions from the collection"
   },
   {
-    "id": "summarize action details",
-    "translation": "summarize action details"
+    "id": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized",
+    "translation": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"
   },
   {
     "id": "work with activations",

@@ -706,6 +706,97 @@ class WskBasicUsageTests
             msg.r.findAllIn(notTruncated).length shouldBe 0
     }
 
+    it should "denote bound and finalized action parameters for action summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val nameBoundParams = "actionBoundParams"
+            val nameFinalParams = "actionFinalParams"
+            val paramAnnot = "paramAnnot"
+            val paramOverlap = "paramOverlap"
+            val paramBound = "paramBound"
+            val annots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(paramAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(paramOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val annotsFinal = Map(
+                "final" -> JsBoolean(true),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(paramAnnot),
+                        "description" -> JsString("Annotated Parameter description")),
+                    JsObject(
+                        "name" -> JsString(paramOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val paramsBound = Map(
+                paramBound -> JsString("Bound"),
+                paramOverlap -> JsString("Bound And Annotated"))
+
+            assetHelper.withCleaner(wsk.action, nameBoundParams) {
+                (action, _) =>
+                    action.create(nameBoundParams, defaultAction, annotations = annots, parameters = paramsBound)
+            }
+            assetHelper.withCleaner(wsk.action, nameFinalParams) {
+                (action, _) =>
+                    action.create(nameFinalParams, defaultAction, annotations = annotsFinal, parameters = paramsBound)
+            }
+
+            val stdoutBound = wsk.action.get(nameBoundParams, summary = true).stdout
+            val stdoutFinal = wsk.action.get(nameFinalParams, summary = true).stdout
+
+            stdoutBound should include (
+                s"(parameters: $paramAnnot, *$paramBound, *$paramOverlap)")
+            stdoutFinal should include (
+                s"(parameters: $paramAnnot, **$paramBound, **$paramOverlap)")
+    }
+
+    it should "create, and get an action summary without a description and/or defined parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val actNameNoParams = "actionNoParams"
+            val actNameNoDesc = "actionNoDesc"
+            val actNameNoDescOrParams = "actionNoDescOrParams"
+            val desc = "Action description"
+            val descFromParamsResp = "Returns a result based on parameters"
+            val annotsNoParams = Map(
+                "description" -> JsString(desc)
+            )
+            val annotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
+
+            assetHelper.withCleaner(wsk.action, actNameNoDesc) {
+                (action, _) =>
+                    action.create(actNameNoDesc, defaultAction, annotations = annotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.action, actNameNoParams) {
+                (action, _) =>
+                    action.create(actNameNoParams, defaultAction, annotations = annotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.action, actNameNoDescOrParams) {
+                (action, _) =>
+                    action.create(actNameNoDescOrParams, defaultAction)
+            }
+
+            val stdoutNoDesc = wsk.action.get(actNameNoDesc, summary = true).stdout
+            val stdoutNoParams = wsk.action.get(actNameNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.action.get(actNameNoDescOrParams, summary = true).stdout
+            val namespace = wsk.namespace.whois()
+
+            stdoutNoDesc should include regex (
+                s"(?i)action /${namespace}/${actNameNoDesc}: ${descFromParamsResp} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParams should include regex (
+                s"(?i)action /${namespace}/${actNameNoParams}: ${desc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)action /${namespace}/${actNameNoDescOrParams}\\s*\\(parameters: none defined\\)")
+    }
+
     behavior of "Wsk packages"
 
     it should "create, and delete a package" in {
@@ -800,6 +891,83 @@ class WskBasicUsageTests
             wsk.pkg.bind("bogus", "alsobogus", expectedExitCode = BAD_REQUEST).
                 stderr should include(Messages.bindingDoesNotExist)
 
+    }
+
+    it should "create, and get a package summary without a description and/or parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val pkgNoDesc = "pkgNoDesc"
+            val pkgNoParams = "pkgNoParams"
+            val pkgNoDescOrParams = "pkgNoDescOrParams"
+            val pkgDesc = "Package description"
+            val descFromParams = "Returns a result based on parameters"
+            val namespace = wsk.namespace.whois()
+            val qualpkgNoDesc = s"/${namespace}/${pkgNoDesc}"
+            val qualpkgNoParams = s"/${namespace}/${pkgNoParams}"
+            val qualpkgNoDescOrParams = s"/${namespace}/${pkgNoDescOrParams}"
+
+            val pkgAnnotsNoParams = Map(
+                "description" -> JsString(pkgDesc)
+            )
+            val pkgAnnotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
+
+            assetHelper.withCleaner(wsk.pkg, pkgNoDesc) {
+                (pkg, _) =>
+                    pkg.create(pkgNoDesc, annotations = pkgAnnotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.pkg, pkgNoParams) {
+                (pkg, _) =>
+                    pkg.create(pkgNoParams, annotations = pkgAnnotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.pkg, pkgNoDescOrParams) {
+                (pkg, _) =>
+                    pkg.create(pkgNoDescOrParams)
+            }
+
+            val stdoutNoDescPkg = wsk.pkg.get(pkgNoDesc, summary = true).stdout
+            val stdoutNoParamsPkg = wsk.pkg.get(pkgNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.pkg.get(pkgNoDescOrParams, summary = true).stdout
+
+            stdoutNoDescPkg should include regex (
+                s"(?i)package ${qualpkgNoDesc}: ${descFromParams} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParamsPkg should include regex (
+                s"(?i)package ${qualpkgNoParams}: ${pkgDesc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)package ${qualpkgNoDescOrParams}\\s*\\(parameters: none defined\\)")
+    }
+
+    it should "denote bound package parameters for package summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val pkgBoundParams = "pkgBoundParams"
+            val pkgParamAnnot = "pkgParamAnnot"
+            val pkgParamOverlap = "pkgParamOverlap"
+            val pkgParamBound = "pkgParamBound"
+            val pkgAnnots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(pkgParamAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(pkgParamOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val pkgParamsBound = Map(
+                pkgParamBound -> JsString("Bound"),
+                pkgParamOverlap -> JsString("Bound And Annotated"))
+
+            assetHelper.withCleaner(wsk.pkg, pkgBoundParams) {
+                (pkg, _) =>
+                    pkg.create(pkgBoundParams, annotations = pkgAnnots, parameters = pkgParamsBound)
+            }
+
+            val pkgStdoutBound = wsk.pkg.get(pkgBoundParams, summary = true).stdout
+
+            pkgStdoutBound should include (s"(parameters: $pkgParamAnnot, *$pkgParamBound, *$pkgParamOverlap)")
     }
 
     behavior of "Wsk triggers"
@@ -898,6 +1066,83 @@ class WskBasicUsageTests
                         exitCode should equal(NOT_FOUND)
                     trigger.get(name, expectedExitCode = NOT_FOUND)
             }
+    }
+
+    it should "denote bound trigger parameters for trigger summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val trgBoundParams = "trgBoundParams"
+            val trgParamAnnot = "trgParamAnnot"
+            val trgParamOverlap = "trgParamOverlap"
+            val trgParamBound = "trgParamBound"
+            val trgAnnots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(trgParamAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(trgParamOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val trgParamsBound = Map(
+                trgParamBound -> JsString("Bound"),
+                trgParamOverlap -> JsString("Bound And Annotated"))
+
+            assetHelper.withCleaner(wsk.trigger, trgBoundParams) {
+                (trigger, _) =>
+                    trigger.create(trgBoundParams, annotations = trgAnnots, parameters = trgParamsBound)
+            }
+
+            val trgStdoutBound = wsk.trigger.get(trgBoundParams, summary = true).stdout
+
+            trgStdoutBound should include (s"(parameters: $trgParamAnnot, *$trgParamBound, *$trgParamOverlap)")
+    }
+
+    it should "create, and get a trigger summary without a description and/or parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val trgNoDesc = "trgNoDesc"
+            val trgNoParams = "trgNoParams"
+            val trgNoDescOrParams = "trgNoDescOrParams"
+            val trgDesc = "Package description"
+            val descFromParams = "Returns a result based on parameters"
+            val namespace = wsk.namespace.whois()
+            val qualtrgNoDesc = s"/${namespace}/${trgNoDesc}"
+            val qualtrgNoParams = s"/${namespace}/${trgNoParams}"
+            val qualtrgNoDescOrParams = s"/${namespace}/${trgNoDescOrParams}"
+
+            val trgAnnotsNoParams = Map(
+                "description" -> JsString(trgDesc)
+            )
+            val trgAnnotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
+
+            assetHelper.withCleaner(wsk.trigger, trgNoDesc) {
+                (trigger, _) =>
+                    trigger.create(trgNoDesc, annotations = trgAnnotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.trigger, trgNoParams) {
+                (trigger, _) =>
+                    trigger.create(trgNoParams, annotations = trgAnnotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.trigger, trgNoDescOrParams) {
+                (trigger, _) =>
+                    trigger.create(trgNoDescOrParams)
+            }
+
+            val stdoutNoDescPkg = wsk.trigger.get(trgNoDesc, summary = true).stdout
+            val stdoutNoParamsPkg = wsk.trigger.get(trgNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.trigger.get(trgNoDescOrParams, summary = true).stdout
+
+            stdoutNoDescPkg should include regex (
+                s"(?i)trigger ${qualtrgNoDesc}: ${descFromParams} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParamsPkg should include regex (
+                s"(?i)trigger ${qualtrgNoParams}: ${trgDesc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)trigger ${qualtrgNoDescOrParams}\\s*\\(parameters: none defined\\)")
     }
 
     behavior of "Wsk entity list formatting"
