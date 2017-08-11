@@ -185,27 +185,6 @@ class WskBasicTests
         stderr should include regex (s"""Unable to get package '$name': The requested resource does not exist. \\(code \\d+\\)""")
     }
 
-    it should "return a list of alphabetized packages" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // Declare 3 packages, create them out of alphabetical order
-            val packageName = "activationBasicTesting"
-            for (i <- 1 to 3) {
-                val name = s"$packageName$i"
-                assetHelper.withCleaner(wsk.pkg, name) {
-                    (pkg, name) =>
-                        pkg.create(name)
-                }
-            }
-            val original = wsk.pkg.list(order = Some(true)).stdout
-            // Create list with package names in correct order
-            val scalaSorted = List(s"${packageName}1", s"${packageName}2", s"${packageName}3")
-            // Filter out everything not previously created
-            val regex = s"${packageName}[1-3]".r
-            // Retrieve package names into list as found in original
-            val list  = (regex.findAllMatchIn(original)).toList
-            scalaSorted.toString shouldEqual list.toString
-    }
-
     behavior of "Wsk Action CLI"
 
     it should "create the same action twice with different cases" in withAssetCleaner(wskprops) {
@@ -480,27 +459,6 @@ class WskBasicTests
         wsk.action.get(name).stdout should not include (""""code"""")
     }
 
-    it should "return a list of alphabetized actions" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // Declare 4 actions, create them out of alphabetical order
-            val actionName = "activationBasicTesting"
-            for (i <- 1 to 3) {
-                val name = s"$actionName$i"
-                assetHelper.withCleaner(wsk.action, name) {
-                    (action, name) =>
-                        action.create(name, defaultAction)
-                }
-            }
-            val original = wsk.action.list(order = Some(true)).stdout
-            // Create list with action names in correct order
-            val scalaSorted = List(s"${actionName}1", s"${actionName}2", s"${actionName}3")
-            // Filter out everything not previously created
-            val regex = s"${actionName}[1-3]".r
-            // Retrieve action names into list as found in original
-            val list  = (regex.findAllMatchIn(original)).toList
-            scalaSorted.toString shouldEqual list.toString
-    }
-
     behavior of "Wsk Trigger CLI"
 
     it should "create, update, get, fire and list trigger" in withAssetCleaner(wskprops) {
@@ -651,27 +609,6 @@ class WskBasicTests
         val name = "nonexistentTrigger"
         val stderr = wsk.trigger.fire(name, expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to fire trigger '$name': The requested resource does not exist. \\(code \\d+\\)""")
-    }
-
-    it should "return a list of alphabetized triggers" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // Declare 4 triggers, create them out of alphabetical order
-            val triggerName = "activationBasicTesting"
-            for (i <- 1 to 3) {
-                val name = s"$triggerName$i"
-                assetHelper.withCleaner(wsk.trigger, name) {
-                    (trigger, name) =>
-                        trigger.create(name)
-                }
-            }
-            val original = wsk.trigger.list(order = Some(true)).stdout
-            // Create list with trigger names in correct order
-            val scalaSorted = List(s"${triggerName}1", s"${triggerName}2", s"${triggerName}3")
-            // Filter out everything not previously created
-            val regex = s"${triggerName}[1-3]".r
-            // Retrieve trigger names into list as found in original
-            val list  = (regex.findAllMatchIn(original)).toList
-            scalaSorted.toString shouldEqual list.toString
     }
 
     behavior of "Wsk Rule CLI"
@@ -826,37 +763,6 @@ class WskBasicTests
         val name = "nonexistentRule"
         val stderr = wsk.rule.get(name, expectedExitCode = NOT_FOUND).stderr
         stderr should include regex (s"""Unable to get rule '$name': The requested resource does not exist. \\(code \\d+\\)""")
-    }
-
-    it should "return a list of alphabetized rules" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            // Declare a trigger and an action for the purposes of creating rules
-            val triggerName = "listRulesTrigger"
-            val actionName = "listRulesAction"
-
-            assetHelper.withCleaner(wsk.trigger, triggerName) {
-                (trigger, name) => trigger.create(name)
-            }
-            assetHelper.withCleaner(wsk.action, actionName) {
-                (action, name) => action.create(name, defaultAction)
-            }
-            // Declare 3 rules, create them out of alphabetical order
-            val ruleName = "activationBasicTesting"
-            for (i <- 1 to 3) {
-                val name = s"$ruleName$i"
-                assetHelper.withCleaner(wsk.rule, name) {
-                    (rule, name) =>
-                        rule.create(name, trigger = triggerName, action = actionName)
-                }
-            }
-            val original = wsk.rule.list(order = Some(true)).stdout
-            // Create list with rule names in correct order
-            val scalaSorted = List(s"${ruleName}1", s"${ruleName}2", s"${ruleName}3")
-            // Filter out everything not previously created
-            val regex = s"${ruleName}[1-3]".r
-            // Retrieve rule names into list as found in original
-            val list  = (regex.findAllMatchIn(original)).toList
-            scalaSorted.toString shouldEqual list.toString
     }
 
     behavior of "Wsk Namespace CLI"
