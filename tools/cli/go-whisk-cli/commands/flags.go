@@ -61,6 +61,7 @@ type Flags struct {
         feed        string  // name of feed
         detail      bool
         format      string
+        nameSort   bool    // sorts list alphabetically by entity name
     }
 
     property struct {

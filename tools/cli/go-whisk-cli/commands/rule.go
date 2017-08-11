@@ -402,7 +402,9 @@ var ruleListCmd = &cobra.Command{
                 rules[index].Status = ruleStatus.Status
             }
         }
-        printList(rules)
+
+        sortByName := flags.common.nameSort
+        printList(rules, sortByName)
         return nil
     },
 }
@@ -414,6 +416,7 @@ func init() {
 
     ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of rules from the result"))
     ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of rules from the collection"))
+    ruleListCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
 
     ruleCmd.AddCommand(
         ruleCreateCmd,

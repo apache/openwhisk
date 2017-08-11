@@ -1400,8 +1400,8 @@
     "translation": "display full description of each API"
   },
   {
-    "id": "An API host must be provided.",
-    "translation": "An API host must be provided."
+    "id": "order API list by action name first followed by base-path/rel-path/verb",
+    "translation": "order API list by action name first followed by base-path/rel-path/verb."
   },
   {
     "id": "Request accepted, but processing not completed yet.",
@@ -1510,9 +1510,16 @@
   {
     "id": "Unable to output bash command completion {{.err}}",
     "translation": "Unable to output bash command completion {{.err}}"
-},
-{
+  },
+  {
     "id": "prints bash command completion script to stdout",
     "translation": "prints bash command completion script to stdout"
-}
-]
+  },
+  {
+    "id": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"
+  },
+  {
+    "id": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block"
+  }]

@@ -1233,6 +1233,141 @@ class WskBasicUsageTests
             }, 5, Some(1 second))
     }
 
+    it should "return a list of alphabetized actions" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 actions, create them out of alphabetical order
+            val actionName = "actionAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$actionName$i"
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, name) =>
+                        action.create(name, defaultAction)
+                }
+            }
+            retry({
+                val original = wsk.action.list(nameSort = Some(true)).stdout
+                // Create list with action names in correct order
+                val scalaSorted = List(s"${actionName}1", s"${actionName}2", s"${actionName}3")
+                // Filter out everything not previously created
+                val regex = s"${actionName}[1-3]".r
+                // Retrieve action names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return an alphabetized list with default package actions on top" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 actions, create them out of alphabetical order
+            val actionName = "actionPackageAlphaTest"
+            val packageName = "packageAlphaTest"
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, actionName) =>
+                    action.create(actionName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, packageName) =>
+                    pkg.create(packageName)
+            }
+            for (i <- 1 to 3) {
+                val name = s"${packageName}/${actionName}$i"
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, name) =>
+                        action.create(name, defaultAction)
+                }
+            }
+            retry({
+                val original = wsk.action.list(nameSort = Some(true)).stdout
+                // Create list with action names in correct order
+                val scalaSorted = List(s"$actionName", s"${packageName}/${actionName}1", s"${packageName}/${actionName}2", s"${packageName}/${actionName}3")
+                // Filter out everything not previously created
+                val regexNoPackage = s"$actionName".r
+                val regexWithPackage = s"${packageName}/${actionName}[1-3]".r
+                // Retrieve action names into list as found in original
+                val list = regexNoPackage.findFirstIn(original).get :: (regexWithPackage.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized packages" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 3 packages, create them out of alphabetical order
+            val packageName = "pkgAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$packageName$i"
+                assetHelper.withCleaner(wsk.pkg, name) {
+                    (pkg, name) =>
+                        pkg.create(name)
+                }
+            }
+            retry({
+                val original = wsk.pkg.list(nameSort = Some(true)).stdout
+                // Create list with package names in correct order
+                val scalaSorted = List(s"${packageName}1", s"${packageName}2", s"${packageName}3")
+                // Filter out everything not previously created
+                val regex = s"${packageName}[1-3]".r
+                // Retrieve package names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized triggers" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 triggers, create them out of alphabetical order
+            val triggerName = "triggerAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$triggerName$i"
+                assetHelper.withCleaner(wsk.trigger, name) {
+                    (trigger, name) =>
+                        trigger.create(name)
+                }
+            }
+            retry({
+                val original = wsk.trigger.list(nameSort = Some(true)).stdout
+                // Create list with trigger names in correct order
+                val scalaSorted = List(s"${triggerName}1", s"${triggerName}2", s"${triggerName}3")
+                // Filter out everything not previously created
+                val regex = s"${triggerName}[1-3]".r
+                // Retrieve trigger names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized rules" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare a trigger and an action for the purposes of creating rules
+            val triggerName = "listRulesTrigger"
+            val actionName = "listRulesAction"
+
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            // Declare 3 rules, create them out of alphabetical order
+            val ruleName = "ruleAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$ruleName$i"
+                assetHelper.withCleaner(wsk.rule, name) {
+                    (rule, name) =>
+                        rule.create(name, trigger = triggerName, action = actionName)
+                }
+            }
+            retry({
+                val original = wsk.rule.list(nameSort = Some(true)).stdout
+                // Create list with rule names in correct order
+                val scalaSorted = List(s"${ruleName}1", s"${ruleName}2", s"${ruleName}3")
+                // Filter out everything not previously created
+                val regex = s"${ruleName}[1-3]".r
+                // Retrieve rule names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            })
+    }
+
     behavior of "Wsk params and annotations"
 
     it should "reject commands that are executed with invalid JSON for annotations and parameters" in {

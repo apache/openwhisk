@@ -55,7 +55,7 @@ var namespaceListCmd = &cobra.Command{
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        printList(namespaces)
+        printList(namespaces, false) // `-n` flag applies to `namespace get`, not list, so must pass value false for printList here
         return nil
     },
 }
@@ -99,16 +99,31 @@ var namespaceGetCmd = &cobra.Command{
 
         fmt.Fprintf(color.Output, wski18n.T("Entities in namespace: {{.namespace}}\n",
             map[string]interface{}{"namespace": boldString(getClientNamespace())}))
-        printList(namespace.Contents.Packages)
-        printList(namespace.Contents.Actions)
-        printList(namespace.Contents.Triggers)
-        printList(namespace.Contents.Rules)
+        sortByName := flags.common.nameSort
+        printList(namespace.Contents.Packages, sortByName)
+        printList(namespace.Contents.Actions, sortByName)
+        printList(namespace.Contents.Triggers, sortByName)
+        //No errors, lets attempt to retrieve the status of each rule #312
+        for index, rule := range namespace.Contents.Rules {
+            ruleStatus, _, err := client.Rules.Get(rule.Name)
+            if err != nil {
+                errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
+                    map[string]interface{}{"name": rule.Name, "err": err})
+                fmt.Println(errStr)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
+            namespace.Contents.Rules[index].Status = ruleStatus.Status
+        }
+        printList(namespace.Contents.Rules, sortByName)
 
         return nil
     },
 }
 
 func init() {
+    namespaceGetCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
+
     namespaceCmd.AddCommand(
         namespaceListCmd,
         namespaceGetCmd,

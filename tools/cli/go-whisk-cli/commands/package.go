@@ -412,7 +412,8 @@ var packageListCmd = &cobra.Command{
       return werr
     }
 
-    printList(packages)
+    sortByName := flags.common.nameSort
+    printList(packages, sortByName)
 
     return nil
   },
@@ -524,6 +525,7 @@ func init() {
 
   packageListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of packages from the result"))
   packageListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of packages from the collection"))
+  packageListCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
 
   packageCmd.AddCommand(
     packageBindCmd,

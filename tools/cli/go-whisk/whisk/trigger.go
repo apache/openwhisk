@@ -23,6 +23,7 @@ import (
     "errors"
     "net/url"
     "../wski18n"
+    "strings"
 )
 
 type TriggerService struct {
@@ -38,13 +39,44 @@ type Trigger struct {
     Parameters      KeyValueArr     `json:"parameters,omitempty"`
     Limits          *Limits         `json:"limits,omitempty"`
     Publish         *bool           `json:"publish,omitempty"`
-
 }
 
 type TriggerListOptions struct {
     Limit           int             `url:"limit"`
     Skip            int             `url:"skip"`
     Docs            bool            `url:"docs,omitempty"`
+}
+
+// Compare(sortable) compares trigger to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Trigger.
+// ***Method of type Sortable***
+func(trigger Trigger) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> TRIGGER_NAME
+    triggerToCompare := sortable.(Trigger)
+    var triggerString string
+    var compareString string
+
+    triggerString = strings.ToLower(fmt.Sprintf("%s%s",trigger.Namespace,
+        trigger.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", triggerToCompare.Namespace,
+        triggerToCompare.Name))
+
+    return triggerString < compareString
+}
+
+// ToHeaderString() returns the header for a list of triggers
+func(trigger Trigger) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "triggers")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk trigger list`.
+// ***Method of type Sortable***
+func(trigger Trigger) ToSummaryRowString() string {
+    publishState := wski18n.T("private")
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", trigger.Namespace,
+        trigger.Name), publishState)
 }
 
 func (s *TriggerService) List(options *TriggerListOptions) ([]Trigger, *http.Response, error) {
