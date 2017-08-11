@@ -96,7 +96,7 @@ func(activation Activation) ToHeaderString() string {
         "end time",
         "duration (ms)",
         "status")
-	return fmt.Sprintf("%s\n%s", "activations", defaultHeader)
+    return fmt.Sprintf("%s\n%s", "activations", defaultHeader)
 }
 
 //func getLargestAction(activations []Activation)
