@@ -212,8 +212,7 @@ protected[actions] trait SequenceActions {
                 Parameters("kind", "sequence") ++
                 causedBy ++
                 sequenceLimits,
-            duration = Some(accounting.duration),
-            entityType = "action")
+            duration = Some(accounting.duration))
     }
 
     /**

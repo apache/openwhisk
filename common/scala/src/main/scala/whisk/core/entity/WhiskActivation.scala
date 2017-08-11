@@ -62,8 +62,7 @@ case class WhiskActivation(
     version: SemVer = SemVer(),
     publish: Boolean = false,
     annotations: Parameters = Parameters(),
-    duration: Option[Long] = None,
-    entityType: String)
+    duration: Option[Long] = None)
     extends WhiskEntity(EntityName(activationId.asString)) {
 
     require(cause != null, "cause undefined")

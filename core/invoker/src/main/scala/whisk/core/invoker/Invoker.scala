@@ -384,8 +384,7 @@ class Invoker(
                 limits.map(l => Parameters("limits", l.toJson)).getOrElse(Parameters()) ++
                     Parameters("path", actionName.toJson) ++ causedBy
             },
-            duration = Some(interval.duration.toMillis),
-            entityType = "action")
+            duration = Some(interval.duration.toMillis))
 
     }
 

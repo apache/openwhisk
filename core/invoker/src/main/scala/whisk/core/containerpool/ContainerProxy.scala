@@ -407,7 +407,6 @@ object ContainerProxy {
             start = interval.start,
             end = interval.end,
             duration = Some(interval.duration.toMillis),
-            entityType = "action",
             response = response,
             annotations = {
                 Parameters("limits", job.action.limits.toJson) ++

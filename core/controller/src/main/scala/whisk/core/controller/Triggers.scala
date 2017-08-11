@@ -134,8 +134,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                             Instant.EPOCH,
                             response = ActivationResponse.success(payload orElse Some(JsObject())),
                             version = trigger.version,
-                            duration = None,
-                            entityType = "trigger")
+                            duration = None)
                         logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
@@ -162,8 +161,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         cause = Some(triggerActivationId),
                                         response = ActivationResponse.success(),
                                         version = trigger.version,
-                                        duration = None,
-                                        entityType = "rule")
+                                        duration = None)
                                     logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
                                     WhiskActivation.put(activationStore, ruleActivation)
 
