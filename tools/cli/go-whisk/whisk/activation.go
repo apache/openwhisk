@@ -87,7 +87,7 @@ func(activation Activation) Compare(sortable Sortable) (bool) {
 // ToHeaderString() returns the header for a list of activations
 func(activation Activation) ToHeaderString() string {
     defaultHeader := fmt.Sprintf(
-        "%-40s  %-"+strconv.Itoa(activation.BufferSize+8)+"s  %-15s  %-14s  %-14s  %-16s  %-20s  %s\n",
+        "%-32s  %-"+strconv.Itoa(activation.BufferSize)+"s  %-7s  %-9s  %-10s  %-8s  %-13s  %s\n",
         "activation id",
         "name",
         "type",

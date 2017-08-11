@@ -25,7 +25,6 @@ import (
 
     "../wski18n"
     "strings"
-    "github.com/fatih/color"
 )
 
 type ActionService struct {
