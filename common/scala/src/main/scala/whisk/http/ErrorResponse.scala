@@ -25,7 +25,6 @@ import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.MediaType
-import akka.http.scaladsl.server.Rejection
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.server.StandardRoute
@@ -168,9 +167,6 @@ object Messages {
 /** Replaces rejections with Json object containing cause and transaction id. */
 case class ErrorResponse(error: String, code: TransactionId)
 
-/** Custom rejection, wraps status code for response and a cause. */
-case class CustomRejection private (status: StatusCode, cause: String) extends Rejection
-
 object ErrorResponse extends Directives with DefaultJsonProtocol {
 
     def terminate(status: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
@@ -209,10 +205,4 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
         } getOrElse deserializationError("error response malformed")
     }
 
-}
-
-object CustomRejection {
-    def apply(status: StatusCode): CustomRejection = {
-        CustomRejection(status, status.defaultMessage)
-    }
 }
