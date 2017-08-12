@@ -20,7 +20,7 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 
@@ -30,10 +30,8 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.MediaTypes.`application/json`
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.unmarshalling._
-import akka.http.scaladsl.model.HttpCharsets
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -88,6 +86,8 @@ trait WhiskActionsApi
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
+
+    import RestApiCommons.emptyEntityToJsObject
 
     /**
      * Handles operations on action resources, which encompass these cases:
@@ -623,32 +623,19 @@ trait WhiskActionsApi
         Parameters(WhiskAction.execFieldName, exec.kind)
     }
 
-    /** Max atomic action count allowed for sequences */
+    /** Max atomic action count allowed for sequences. */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] =
+    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] = {
         Unmarshaller.strict[String, FiniteDuration] { value =>
             val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
 
-            Try {
-                value.toInt
-            } match {
+            Try { value.toInt } match {
                 case Success(i) if i > 0 && i <= max => i.milliseconds
-                case _ => throw new IllegalArgumentException(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
+                case _                               => throw new IllegalArgumentException(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
             }
         }
-
-    implicit val entityToJsObject: FromEntityUnmarshaller[JsObject] =
-        Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
-            if (data.size == 0) {
-                JsObject()
-            } else {
-                val input =
-                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
-                    else ParserInput(data.decodeString(charset.nioCharset))
-                JsonParser(input).asJsObject
-            }
-        }
+    }
 }
 
 private case class TooManyActionsInSequence() extends IllegalArgumentException

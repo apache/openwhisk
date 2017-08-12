@@ -21,7 +21,7 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
@@ -43,10 +43,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpResponse
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.MediaTypes.`application/json`
-import akka.http.scaladsl.model.HttpCharsets
-import akka.http.scaladsl.unmarshalling._
-
 
 import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
@@ -87,6 +83,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     protected val triggersPath = "triggers"
 
     protected implicit val materializer: ActorMaterializer
+
+    import RestApiCommons.emptyEntityToJsObject
 
     /**
      * Creates or updates trigger if it already exists. The PUT content is deserialized into a WhiskTriggerPut
@@ -180,8 +178,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         method = POST,
                                         uri = url.withPath(actionUrl + actionPath),
                                         headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
-                                        entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint)
-                                    )
+                                        entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint))
 
                                     Http().singleRequest(request).map {
                                         case HttpResponse(StatusCodes.OK, headers, entity, _) =>
@@ -331,16 +328,4 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     private def completeAsTriggerResponse(trigger: WhiskTrigger): RequestContext => Future[RouteResult] = {
         complete(OK, trigger.withoutRules)
     }
-
-    implicit val entityToJsObject: FromEntityUnmarshaller[JsObject] =
-        Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
-            if (data.size == 0) {
-                JsObject()
-            } else {
-                val input =
-                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
-                    else ParserInput(data.decodeString(charset.nioCharset))
-                JsonParser(input).asJsObject
-            }
-        }
 }

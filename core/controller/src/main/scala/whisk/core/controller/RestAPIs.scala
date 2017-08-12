@@ -44,9 +44,9 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.loadBalancer.LoadBalancerService
 
 /**
-  * Abstract class which provides basic Directives which are used to construct route structures
-  * which are common to all versions of the Rest API.
-  */
+ * Abstract class which provides basic Directives which are used to construct route structures
+ * which are common to all versions of the Rest API.
+ */
 protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit actorSystem: ActorSystem)
     extends Directives {
 
@@ -59,8 +59,8 @@ protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit
     }
 
     /**
-      * Defines the routes to serve the swagger docs.
-      */
+     * Defines the routes to serve the swagger docs.
+     */
     val swaggerRoutes: Route = {
         pathPrefix(swaggeruipath) {
             getFromDirectory("/swagger-ui/")
@@ -79,20 +79,45 @@ protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit
 
 protected[controller] object RestApiCommons {
     def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
-            WhiskConfig.whiskVersion ++
-            WhiskAuthStore.requiredProperties ++
-            WhiskEntityStore.requiredProperties ++
-            WhiskActivationStore.requiredProperties ++
-            EntitlementProvider.requiredProperties ++
-            WhiskActionsApi.requiredProperties ++
-            Authenticate.requiredProperties ++
-            Collection.requiredProperties
+        WhiskConfig.whiskVersion ++
+        WhiskAuthStore.requiredProperties ++
+        WhiskEntityStore.requiredProperties ++
+        WhiskActivationStore.requiredProperties ++
+        EntitlementProvider.requiredProperties ++
+        WhiskActionsApi.requiredProperties ++
+        Authenticate.requiredProperties ++
+        Collection.requiredProperties
+
+    import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
+    import akka.http.scaladsl.unmarshalling.Unmarshaller
+    import akka.http.scaladsl.model.MediaTypes.`application/json`
+    import akka.http.scaladsl.model.HttpCharsets
+
+    /**
+     * Extract an empty entity into a JSON object. This is useful for the
+     * main APIs which accept JSON content type by default but may accept
+     * no entity in the request.
+     */
+    implicit val emptyEntityToJsObject: FromEntityUnmarshaller[JsObject] = {
+        Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
+            if (data.size == 0) {
+                JsObject()
+            } else {
+                val input = {
+                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
+                    else ParserInput(data.decodeString(charset.nioCharset))
+                }
+
+                JsonParser(input).asJsObject
+            }
+        }
+    }
 }
 
 /**
-  * A trait for wrapping routes with headers to include in response.
-  * Useful for CORS.
-  */
+ * A trait for wrapping routes with headers to include in response.
+ * Useful for CORS.
+ */
 protected[controller] trait RespondWithHeaders extends Directives {
     val allowOrigin = `Access-Control-Allow-Origin`.*
     val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
@@ -120,8 +145,8 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     def prefix = pathPrefix(apiPath / apiVersion)
 
     /**
-      * Describes details of a particular API path.
-      */
+     * Describes details of a particular API path.
+     */
     val info = (pathEndOrSingleSlash & get) {
         complete(OK, JsObject(
             "description" -> "OpenWhisk API".toJson,

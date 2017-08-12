@@ -41,7 +41,7 @@ trait AuthenticatedRoute {
         authenticateOrRejectWithChallenge[BasicHttpCredentials, A] { creds =>
             verify(creds).map {
                 case Some(t) => AuthenticationResult.success(t)
-                case None => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
+                case None    => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
             }
         }
     }

@@ -124,7 +124,7 @@ trait BasicHttpService extends Directives with Actor with TransactionCounter {
 
     /** Generates log entry for every request. */
     protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
-        val m = req.method.toString
+        val m = req.method.name.toString
         val p = req.uri.path.toString
         val q = req.uri.query().toString
         val l = loglevelForRoute(p)
