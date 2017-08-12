@@ -189,7 +189,7 @@ trait WhiskActivationsApi
         Unmarshaller.strict[String, EntityName] { value =>
             Try { EntityName(value) } match {
                 case Success(e) => e
-                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for a entity name: $value")
+                case Failure(t) => throw new IllegalArgumentException(Messages.badEntityName(value))
             }
         }
 
@@ -198,7 +198,7 @@ trait WhiskActivationsApi
         Unmarshaller.strict[String, EntityPath] { value =>
             Try { EntityPath(value) } match {
                 case Success(e) => e
-                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for a namespace: $value")
+                case Failure(t) => throw new IllegalArgumentException(Messages.badNamespace(value))
             }
         }
 
@@ -207,7 +207,7 @@ trait WhiskActivationsApi
         Unmarshaller.strict[String, Instant] { value =>
             Try { Instant.ofEpochMilli(value.toLong) } match {
                 case Success(e) => e
-                case Failure(t) => throw new IllegalArgumentException(s"Parameter is not a valid value for epoch seconds: $value")
+                case Failure(t) => throw new IllegalArgumentException(Messages.badEpoch(value))
             }
         }
 }
