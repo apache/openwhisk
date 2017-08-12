@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 import scala.util.Failure
 
 import akka.actor.ActorSystem
-import akka.japi.Creator
+import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.core.WhiskConfig
@@ -98,9 +98,8 @@ object Invoker {
         })
 
         val port = config.servicePort.toInt
-
-        BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", new Creator[InvokerServer] {
-            def create = new InvokerServer(invokerInstance, invokerInstance.toInt, port)
-        })
+        BasicHttpService.startService(
+            new InvokerServer(invokerInstance, invokerInstance.toInt).route, port)(
+                actorSystem, ActorMaterializer.create(actorSystem))
     }
 }
