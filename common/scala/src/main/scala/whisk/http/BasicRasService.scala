@@ -18,7 +18,7 @@
 package whisk.http
 
 import akka.event.Logging
-import spray.httpx.SprayJsonSupport._
+
 import whisk.common.Logging
 import whisk.common.TransactionId
 

@@ -21,17 +21,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-import spray.http.MediaType
-import spray.http.StatusCode
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.NotFound
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.marshalling.ToResponseMarshallable.isMarshallable
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.NotFound
+import akka.http.scaladsl.model.MediaType
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.server.StandardRoute
+
 import spray.json._
-import spray.json.DefaultJsonProtocol._
-import spray.routing.Directives
-import spray.routing.Rejection
-import spray.routing.StandardRoute
+
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
@@ -107,6 +106,9 @@ object Messages {
     /** Error messages for activations. */
     val abnormalInitialization = "The action did not initialize and exited unexpectedly."
     val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
+    def badEntityName(value: String) = s"Parameter is not a valid value for a entity name: $value"
+    def badNamespace(value: String) = s"Parameter is not a valid value for a namespace: $value"
+    def badEpoch(value: String) = s"Parameter is not a valid value for epoch seconds: $value"
 
     /** Error message for size conformance. */
     def entityTooBig(error: SizeError) = {
@@ -165,10 +167,7 @@ object Messages {
 /** Replaces rejections with Json object containing cause and transaction id. */
 case class ErrorResponse(error: String, code: TransactionId)
 
-/** Custom rejection, wraps status code for response and a cause. */
-case class CustomRejection private (status: StatusCode, cause: String) extends Rejection
-
-object ErrorResponse extends Directives {
+object ErrorResponse extends Directives with DefaultJsonProtocol {
 
     def terminate(status: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
         terminate(status, Option(error) filter { _.trim.nonEmpty } map {
@@ -206,10 +205,4 @@ object ErrorResponse extends Directives {
         } getOrElse deserializationError("error response malformed")
     }
 
-}
-
-object CustomRejection {
-    def apply(status: StatusCode): CustomRejection = {
-        CustomRejection(status, status.defaultMessage)
-    }
 }

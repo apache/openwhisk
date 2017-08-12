@@ -454,7 +454,7 @@ object Invoker {
         implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
         // load values for the required properties from the environment
-        val config = new WhiskConfig(requiredProperties)
+        implicit val config = new WhiskConfig(requiredProperties)
 
         def abort() = {
             logger.error(this, "Bad configuration, cannot start.")
@@ -497,8 +497,9 @@ object Invoker {
         })
 
         val port = config.servicePort.toInt
-        BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", port, new Creator[InvokerServer] {
-            def create = new InvokerServer(invokerInstance, invokerInstance.toInt)
+
+        BasicHttpService.startService(actorSystem, "invoker", "0.0.0.0", new Creator[InvokerServer] {
+            def create = new InvokerServer(invokerInstance, invokerInstance.toInt, port)
         })
     }
 }

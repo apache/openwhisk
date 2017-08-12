@@ -19,9 +19,11 @@ package whisk.core.entity
 
 import scala.util.Try
 
-import spray.http.StatusCodes.OK
+import akka.http.scaladsl.model.StatusCodes.OK
+
 import spray.json._
 import spray.json.DefaultJsonProtocol
+
 import whisk.common.Logging
 import whisk.http.Messages._
 

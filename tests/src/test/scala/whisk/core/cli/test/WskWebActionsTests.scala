@@ -295,7 +295,7 @@ trait WskWebActionsTests
             val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 406
-            response.body.asString should include("Resource representation is only available with these Content-Types:\\ntext/html")
+            response.body.asString should include("Resource representation is only available with these types:\\ntext/html")
     }
 
     it should "support multiple response header values" in withAssetCleaner(wskprops) {

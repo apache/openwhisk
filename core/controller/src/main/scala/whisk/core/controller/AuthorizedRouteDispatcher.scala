@@ -22,15 +22,19 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import scala.concurrent.Future
 
-import spray.http.HttpMethod
-import spray.http.StatusCodes.InternalServerError
-import spray.routing.Directive1
-import spray.routing.Directives
-import spray.routing.RequestContext
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.model.StatusCodes.InternalServerError
+import akka.http.scaladsl.server.Directive1
+
+import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Collection
 import whisk.common.TransactionId
 import whisk.core.entitlement._
-import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -62,7 +66,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
         method: HttpMethod,
         user: Identity,
         resource: Resource)(
-            implicit transid: TransactionId): RequestContext => Unit = {
+            implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         val right = collection.determineRight(method, resource.entity)
 
         onComplete(entitlementProvider.check(user, right, resource)) {
@@ -72,7 +76,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
     }
 
     protected def handleEntitlementFailure(failure: Throwable)(
-        implicit transid: TransactionId): RequestContext => Unit = {
+        implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         failure match {
             case (r: RejectRequest) => terminate(r.code, r.message)
             case t                  => terminate(InternalServerError)
@@ -84,7 +88,7 @@ trait BasicAuthorizedRouteProvider extends Directives {
         user: Identity,
         op: Privilege,
         resource: Resource)(
-            implicit transid: TransactionId): RequestContext => Unit
+            implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
     /** Extracts namespace for user from the matched path segment. */
     protected def namespace(user: Identity, ns: String) = {

@@ -20,6 +20,7 @@ package services
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.collection.immutable.Seq
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -33,29 +34,24 @@ import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.client.pipelining.Get
-import spray.client.pipelining.Options
-import spray.client.pipelining.Post
-import spray.client.pipelining.WithTransformation
-import spray.client.pipelining.WithTransformerConcatenation
-import spray.client.pipelining.addCredentials
-import spray.client.pipelining.sendReceive
-import spray.client.pipelining.unmarshal
-import spray.http.AllOrigins
-import spray.http.BasicHttpCredentials
-import spray.http.HttpHeader
-import spray.http.HttpHeaders.`Access-Control-Allow-Headers`
-import spray.http.HttpHeaders.`Access-Control-Allow-Origin`
-import spray.http.HttpMethods.DELETE
-import spray.http.HttpMethods.GET
-import spray.http.HttpMethods.POST
-import spray.http.HttpMethods.PUT
-import spray.http.HttpRequest
-import spray.http.HttpResponse
-import spray.http.StatusCodes.Accepted
-import spray.http.StatusCodes.OK
-import spray.http.Uri
-import spray.http.Uri.Path
+
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.Uri.Path
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.StatusCodes.Accepted
+import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.model.HttpMethods.DELETE
+import akka.http.scaladsl.model.HttpMethods.GET
+import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model.HttpMethods.PUT
+import akka.http.scaladsl.model.HttpMethods._
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.HttpHeader
+import akka.stream.ActorMaterializer
 
 import common.WskActorSystem
 
@@ -68,17 +64,23 @@ class HeadersTests extends FlatSpec
 
     behavior of "Headers at general API"
 
+    implicit val materializer = ActorMaterializer()
+
     val whiskAuth = WhiskProperties.getBasicAuth
     val creds = BasicHttpCredentials(whiskAuth.fst, whiskAuth.snd)
-
     val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))
-    val allowOrigin = `Access-Control-Allow-Origin`(AllOrigins)
+    val allowOrigin = `Access-Control-Allow-Origin`.*
     val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
-
     val url = Uri(s"http://${WhiskProperties.getBaseControllerAddress()}")
-    val pipeline: HttpRequest => Future[HttpResponse] = (
-        sendReceive
-        ~> unmarshal[HttpResponse])
+
+    def request(method: HttpMethod, uri: Uri, headers: Option[Seq[HttpHeader]] = None): Future[HttpResponse] = {
+        val httpRequest = headers match {
+            case Some(headers)  => HttpRequest(method, uri, headers)
+            case None           => HttpRequest(method, uri)
+        }
+
+        Http().singleRequest(httpRequest)
+    }
 
     implicit val config = PatienceConfig(10 seconds, 0 milliseconds)
 
@@ -90,7 +92,7 @@ class HeadersTests extends FlatSpec
      * Checks, if the required headers are in the list of all headers.
      * For the allowed method, it checks, if only the allowed methods are in the response headers.
      */
-    def containsHeaders(headers: List[HttpHeader], allowedMethods: Option[Set[String]] = None) = {
+    def containsHeaders(headers: Seq[HttpHeader], allowedMethods: Option[Set[String]] = None) = {
         headers should contain allOf (allowOrigin, allowHeaders)
 
         // TODO: commented out for now as allowed methods are not supported currently
@@ -104,19 +106,19 @@ class HeadersTests extends FlatSpec
     }
 
     it should "respond to OPTIONS with all headers" in {
-        pipeline(Options(url.withPath(basePath))).futureValue.headers should contain allOf (allowOrigin, allowHeaders)
+        request(OPTIONS, url.withPath(basePath)).futureValue.headers should contain allOf (allowOrigin, allowHeaders)
     }
 
     ignore should "not respond to OPTIONS for non existing path" in {
         val path = basePath / "foo" / "bar"
 
-        pipeline(Options(url.withPath(path))).futureValue.status should not be OK
+        request(OPTIONS, url.withPath(path)).futureValue.status should not be OK
     }
 
     // Actions
     it should "respond to OPTIONS for listing actions" in {
         val path = basePath / "namespaces" / "barfoo" / "actions"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -124,7 +126,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for actions path" in {
         val path = basePath / "namespaces" / "barfoo" / "actions" / "foobar"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, allMethods)
@@ -143,7 +145,7 @@ class HeadersTests extends FlatSpec
                 (action, _) => action.create(fullActionName, Some(TestUtils.getTestActionFilename("hello.js")))
             }
             val path = basePath / "namespaces" / "_" / "actions" / packageName / actionName
-            val response = pipeline(Post(url.withPath(path)) ~> addCredentials(creds)) futureValue
+            val response = request(POST, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
             response.status shouldBe Accepted
             containsHeaders(response.headers)
@@ -152,7 +154,7 @@ class HeadersTests extends FlatSpec
     // Activations
     it should "respond to OPTIONS for listing activations" in {
         val path = basePath / "namespaces" / "barfoo" / "activations"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response =  request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -160,7 +162,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for activations get" in {
         val path = basePath / "namespaces" / "barfoo" / "activations" / "foobar"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -168,7 +170,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for activations logs" in {
         val path = basePath / "namespaces" / "barfoo" / "activations" / "foobar" / "logs"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -176,7 +178,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for activations results" in {
         val path = basePath / "namespaces" / "barfoo" / "activations" / "foobar" / "result"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -184,7 +186,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to GET for listing activations with Headers" in {
         val path = basePath / "namespaces" / "_" / "activations"
-        val response = pipeline(Get(url.withPath(path)) ~> addCredentials(creds)) futureValue
+        val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers)
@@ -193,7 +195,7 @@ class HeadersTests extends FlatSpec
     // Namespaces
     it should "respond to OPTIONS for listing namespaces" in {
         val path = basePath / "namespaces"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -201,7 +203,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for namespaces getEntities" in {
         val path = basePath / "namespaces" / "barfoo"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -209,7 +211,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to GET for namespaces getEntities with Headers" in {
         val path = basePath / "namespaces" / "_"
-        val response = pipeline(Get(url.withPath(path)) ~> addCredentials(creds)) futureValue
+        val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers)
@@ -218,7 +220,7 @@ class HeadersTests extends FlatSpec
     // Packages
     it should "respond to OPTIONS for listing packages" in {
         val path = basePath / "namespaces" / "barfoo" / "packages"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -226,7 +228,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for packages path" in {
         val path = basePath / "namespaces" / "barfoo" / "packages" / "foobar"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("DELETE", "GET", "PUT")))
@@ -234,7 +236,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to GET for listing packages with headers" in {
         val path = basePath / "namespaces" / "_" / "packages"
-        val response = pipeline(Get(url.withPath(path)) ~> addCredentials(creds)) futureValue
+        val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers)
@@ -243,7 +245,7 @@ class HeadersTests extends FlatSpec
     // Rules
     it should "respond to OPTIONS for listing rules" in {
         val path = basePath / "namespaces" / "barfoo" / "rules"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -251,7 +253,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for rules path" in {
         val path = basePath / "namespaces" / "barfoo" / "rules" / "foobar"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, allMethods)
@@ -259,7 +261,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to GET for listing rules with headers" in {
         val path = basePath / "namespaces" / "_" / "rules"
-        val response = pipeline(Get(url.withPath(path)) ~> addCredentials(creds)) futureValue
+        val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers)
@@ -268,7 +270,7 @@ class HeadersTests extends FlatSpec
     // Triggers
     it should "respond to OPTIONS for listing triggers" in {
         val path = basePath / "namespaces" / "barfoo" / "triggers"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, Some(Set("GET")))
@@ -276,7 +278,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to OPTIONS for triggers path" in {
         val path = basePath / "namespaces" / "barfoo" / "triggers" / "foobar"
-        val response = pipeline(Options(url.withPath(path))) futureValue
+        val response = request(OPTIONS, url.withPath(path)).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers, allMethods)
@@ -284,7 +286,7 @@ class HeadersTests extends FlatSpec
 
     it should "respond to GET for listing triggers with headers" in {
         val path = basePath / "namespaces" / "_" / "triggers"
-        val response = pipeline(Get(url.withPath(path)) ~> addCredentials(creds)) futureValue
+        val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
 
         response.status shouldBe OK
         containsHeaders(response.headers)
