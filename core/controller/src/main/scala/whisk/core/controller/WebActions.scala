@@ -42,7 +42,7 @@ import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH}
+import akka.http.scaladsl.model.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH }
 import akka.http.scaladsl.model.HttpCharsets
 
 import spray.json._
@@ -241,7 +241,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
             fields.get("body") map {
                 case JsString(str) => interpretHttpResponse(code, headers, str, transid)
-                case _             => terminate(BadRequest, Messages.httpContentTypeError)(transid)
+                case js            => interpretHttpResponseAsJson(code, headers, js, transid)
             } getOrElse {
                 respondWithHeaders(headers) {
                     // note that if header defined a content-type, it will be ignored
@@ -256,7 +256,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
         }
     }
 
-    private def headersFromJson(k: String, v: JsValue) : Seq[RawHeader] = v match {
+    private def headersFromJson(k: String, v: JsValue): Seq[RawHeader] = v match {
         case JsString(v)  => Seq(RawHeader(k, v))
         case JsBoolean(v) => Seq(RawHeader(k, v.toString))
         case JsNumber(v)  => Seq(RawHeader(k, v.toString))
@@ -264,8 +264,12 @@ protected[core] object WhiskWebActionsApi extends Directives {
         case _            => throw new Throwable("Invalid header")
     }
 
-    private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId) = {
-        val parsedHeader: Try[MediaType] = headers.find(_.lowercaseName == `Content-Type`.lowercaseName) match {
+    /**
+     * Finds the content-type in the header list and maps it to a known media type. If it is not
+     * recognized, construct a failure with appropriate message.
+     */
+    private def findContentTypeInHeader(headers: List[RawHeader], transid: TransactionId, defaultType: MediaType): Try[MediaType] = {
+        headers.find(_.lowercaseName == `Content-Type`.lowercaseName) match {
             case Some(header) =>
                 MediaType.parse(header.value) match {
                     case Right(mediaType: MediaType) =>
@@ -276,10 +280,25 @@ protected[core] object WhiskWebActionsApi extends Directives {
                         }
                     case _ => Failure(RejectRequest(BadRequest, Messages.httpUnknownContentType)(transid))
                 }
-            case None => Success(`text/html`)
+            case None => Success(defaultType)
         }
+    }
 
-        parsedHeader.flatMap { mediaType =>
+    private def interpretHttpResponseAsJson(code: StatusCode, headers: List[RawHeader], js: JsValue, transid: TransactionId) = {
+        findContentTypeInHeader(headers, transid, `application/json`) match {
+            case Success(mediaType) if (mediaType == `application/json`) =>
+                respondWithHeaders(headers) {
+                    complete(code, js)
+                }
+
+            case _ =>
+                terminate(BadRequest, Messages.httpContentTypeError)(transid)
+        }
+    }
+
+    private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId) = {
+        findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
+            // base64 encoded json response supported for legacy reasons
             if (mediaType.binary || mediaType == `application/json`) {
                 Try(new String(Base64.getDecoder().decode(str), StandardCharsets.UTF_8)).map((mediaType, _))
             } else {
