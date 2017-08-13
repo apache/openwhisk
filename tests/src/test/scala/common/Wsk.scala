@@ -17,20 +17,31 @@
 
 package common
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileWriter
 import java.time.Instant
 
-import common.TestUtils.{RunResult, _}
-import org.scalatest.Matchers
-import spray.json.{JsObject, JsValue, pimpString}
-import whisk.core.entity.ByteSize
-import whisk.utils.retry
-
+import scala.Left
+import scala.Right
 import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
-import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import org.scalatest.Matchers
+
+import TestUtils._
+import common.TestUtils.RunResult
+import spray.json.JsObject
+import spray.json.JsValue
+import spray.json.pimpString
+import whisk.core.entity.ByteSize
+import whisk.utils.retry
 
 /**
  * Provide Scala bindings for the whisk CLI.
