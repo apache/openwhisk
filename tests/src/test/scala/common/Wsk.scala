@@ -17,31 +17,20 @@
 
 package common
 
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
+import java.io.{BufferedWriter, File, FileWriter}
 import java.time.Instant
 
-import scala.Left
-import scala.Right
-import scala.collection.JavaConversions.mapAsJavaMap
-import scala.collection.mutable.Buffer
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import common.TestUtils.{RunResult, _}
 import org.scalatest.Matchers
-
-import TestUtils._
-import common.TestUtils.RunResult
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
+import spray.json.{JsObject, JsValue, pimpString}
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
+
+import scala.collection.JavaConversions.mapAsJavaMap
+import scala.collection.mutable.Buffer
+import scala.concurrent.duration.{Duration, DurationInt}
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 /**
  * Provide Scala bindings for the whisk CLI.
@@ -79,7 +68,7 @@ case class WskProps(
     token: String = "") {
     def overrides = Seq("-i", "--apihost", apihost, "--apiversion", apiversion)
     def writeFile(propsfile: File) = {
-        val propsStr = s"NAMESPACE=${namespace}\nAPIVERSION=${apiversion}\nAUTH=${authKey}\nAPIHOST=${apihost}\nAPIGW_ACCESS_TOKEN=${token}\n"
+        val propsStr = s"NAMESPACE=$namespace\nAPIVERSION=$apiversion\nAUTH=$authKey\nAPIHOST=$apihost\nAPIGW_ACCESS_TOKEN=$token\n"
         val bw = new BufferedWriter(new FileWriter(propsfile))
         try {
             bw.write(propsStr)
