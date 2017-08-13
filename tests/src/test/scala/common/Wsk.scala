@@ -81,8 +81,11 @@ case class WskProps(
     def writeFile(propsfile: File) = {
         val propsStr = s"NAMESPACE=${namespace}\nAPIVERSION=${apiversion}\nAUTH=${authKey}\nAPIHOST=${apihost}\nAPIGW_ACCESS_TOKEN=${token}\n"
         val bw = new BufferedWriter(new FileWriter(propsfile))
-        bw.write(propsStr)
-        bw.close()
+        try {
+            bw.write(propsStr)
+        } finally {
+            bw.close()
+        }
     }
 }
 
