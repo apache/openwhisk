@@ -17,9 +17,12 @@
 
 package whisk.core.loadBalancer
 
-import whisk.core.entity.{ ActivationId, UUID, WhiskActivation }
+import java.util.concurrent.atomic.AtomicInteger
+
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Promise
+
+import whisk.core.entity.{ ActivationId, UUID, WhiskActivation }
 import whisk.core.entity.InstanceId
 
 /** Encapsulates data relevant for a single activation */
@@ -33,28 +36,32 @@ case class ActivationEntry(id: ActivationId, namespaceId: UUID, invokerName: Ins
  */
 class LoadBalancerData() {
 
-    type TrieSet[T] = TrieMap[T, Unit]
+    private val activationByInvoker = TrieMap[InstanceId, AtomicInteger]()
+    private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
+    private val activationsById = TrieMap[ActivationId, ActivationEntry]()
+    private val totalActivations = new AtomicInteger(0)
 
-    private val activationByInvoker = new TrieMap[InstanceId, TrieSet[ActivationEntry]]
-    private val activationByNamespaceId = new TrieMap[UUID, TrieSet[ActivationEntry]]
-    private val activationsById = new TrieMap[ActivationId, ActivationEntry]
+    /** Get the number of activations across all namespaces. */
+    def totalActivationCount = totalActivations.get
 
     /**
-     * Get the number of activations for each namespace.
+     * Get the number of activations for a specific namespace.
      *
+     * @param namespace The namespace to get the activation count for
      * @return a map (namespace -> number of activations in the system)
      */
-    def activationCountByNamespace: Map[UUID, Int] = {
-        activationByNamespaceId.toMap.mapValues(_.size)
+    def activationCountOn(namespace: UUID) = {
+        activationByNamespaceId.get(namespace).map(_.get).getOrElse(0)
     }
 
     /**
-     * Get the number of activations for each invoker.
+     * Get the number of activations for a specific invoker.
      *
+     * @param invoker The invoker to get the activation count for
      * @return a map (invoker -> number of activations queued for the invoker)
      */
-    def activationCountByInvoker: Map[InstanceId, Int] = {
-        activationByInvoker.toMap.mapValues(_.size)
+    def activationCountOn(invoker: InstanceId): Int = {
+        activationByInvoker.get(invoker).map(_.get).getOrElse(0)
     }
 
     /**
@@ -80,8 +87,9 @@ class LoadBalancerData() {
     def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
         activationsById.getOrElseUpdate(id, {
             val entry = update
-            activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new TrieSet[ActivationEntry]).put(entry, {})
-            activationByInvoker.getOrElseUpdate(entry.invokerName, new TrieSet[ActivationEntry]).put(entry, {})
+            totalActivations.incrementAndGet()
+            activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).incrementAndGet()
+            activationByInvoker.getOrElseUpdate(entry.invokerName, new AtomicInteger(0)).incrementAndGet()
             entry
         })
     }
@@ -94,8 +102,9 @@ class LoadBalancerData() {
      */
     def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
         activationsById.remove(entry.id).map { x =>
-            activationByNamespaceId.getOrElseUpdate(x.namespaceId, new TrieSet[ActivationEntry]).remove(entry)
-            activationByInvoker.getOrElseUpdate(x.invokerName, new TrieSet[ActivationEntry]).remove(entry)
+            totalActivations.decrementAndGet()
+            activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).decrementAndGet()
+            activationByInvoker.getOrElseUpdate(entry.invokerName, new AtomicInteger(0)).decrementAndGet()
             x
         }
     }

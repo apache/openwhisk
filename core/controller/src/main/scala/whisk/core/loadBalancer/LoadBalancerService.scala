@@ -56,12 +56,11 @@ trait LoadBalancer {
 
     val activeAckTimeoutGrace = 1.minute
 
-    /**
-     * Retrieves a per namespace id map of counts representing in-flight activations as seen by the load balancer
-     *
-     * @return a map where the key is the namespace id and the long is total issued activations by that namespace
-     */
-    def getActiveNamespaceActivationCounts: Map[UUID, Int]
+    /** Gets the number of in-flight activations for a specific user. */
+    def activeActivationsFor(namspace: UUID): Int
+
+    /** Gets the number of in-flight activations in the system. */
+    def totalActiveActivations: Int
 
     /**
      * Publishes activation message on internal bus for an invoker to pick up.
@@ -96,7 +95,9 @@ class LoadBalancerService(
 
     private val loadBalancerData = new LoadBalancerData()
 
-    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = loadBalancerData.activationCountByNamespace
+    override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
+
+    override def totalActiveActivations = loadBalancerData.totalActivationCount
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -259,7 +260,7 @@ class LoadBalancerService(
             val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
             val invokersWithUsage = invokersToUse.view.map {
                 // Using a view defers the comparably expensive lookup to actual access of the element
-                case (instance, state) => (instance, state, loadBalancerData.activationCountByInvoker.get(instance).getOrElse(0))
+                case (instance, state) => (instance, state, loadBalancerData.activationCountOn(instance))
             }
 
             LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
