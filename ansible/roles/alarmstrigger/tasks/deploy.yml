@@ -1,0 +1,38 @@
+
+- name: pull the alarmstrigger image from dockerhub
+  shell: "docker pull openwhisk/alarmprovider:{{ provider_repos.openwhisk_package_alarms.docker_tag }}"
+
+- name: ensure alarms-trigger logs directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/alarms-trigger"
+    state: directory
+    mode: 0777
+  become: true
+
+- name: (re)start alarms trigger service
+  docker_container:
+    name: catalog_alarms
+    image: "openwhisk/alarmprovider:{{ provider_repos.openwhisk_package_alarms.docker_tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: alarmstrigger
+    env:
+      "PORT": 8080
+      "ROUTER_HOST": "{{ groups['edge'] | first }}"
+      "DB_PREFIX": "{{ db_prefix }}"
+      "DB_USERNAME": "{{ db_username }}"
+      "DB_PASSWORD": "{{ db_password }}"
+      "DB_HOST": "{{ db_host }}:{{ db_port }}"
+      "DB_PROTOCOL": "{{ db_protocol }}"
+    ports:
+    - "{{ providers.alarmstrigger.port }}:8080"
+    volumes:
+    - "{{ whisk_logs_dir }}/alarms-trigger:/logs"
+
+- name: wait until alarms trigger in this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ providers.alarmstrigger.port }}"
+    timeout: 60

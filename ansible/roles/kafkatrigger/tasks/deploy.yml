@@ -1,0 +1,43 @@
+
+- set_fact:
+    router_host_mapping: "{ '{{ whisk_api_host_name | default('dummy')}}':'{{ groups['router'] | default(groups['edge']) | first }}' }"
+
+- name: pull the kafka trigger image from dockerhub
+  shell: "docker pull openwhisk/kafkaprovider:{{ provider_repos.openwhisk_package_kafka.docker_tag }}"
+
+- name: ensure kafka-trigger log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/kafka-trigger"
+    state: directory
+    mode: 0777
+  become: true
+
+- name: (re)start kafka trigger
+  docker_container:
+    name: catalog_kafka
+    image: "openwhisk/kafkaprovider:{{ provider_repos.openwhisk_package_alarms.docker_tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: kafkatrigger
+    env:
+      "PORT": 5000
+      "DB_USER": "{{ db_username }}"
+      "DB_PASS": "{{ db_password }}"
+      "DB_URL": "{{ db_protocol }}://{{ db_host }}:{{ db_port }}"
+      "DB_PREFIX": "{{ db_prefix }}"
+      "LOCAL_DEV": true
+      "GENERIC_KAFKA": false
+    ports:
+    - "{{ providers.kafkatrigger.port }}:5000"
+    volumes:
+    - "{{ whisk_logs_dir }}/kafka-trigger:/logs"
+    etc_hosts:
+      "{{ router_host_mapping | default({}) }}"
+
+- name: wait until kafka trigger on this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ providers.kafkatrigger.port }}"
+    timeout: 60
