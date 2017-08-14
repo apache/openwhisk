@@ -243,7 +243,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
                 case JsString(str) => interpretHttpResponse(code, headers, str, transid)
                 case js            => interpretHttpResponseAsJson(code, headers, js, transid)
             } getOrElse {
-                respondWithHeaders(headers) {
+                respondWithHeaders(removeContentTypeHeader(headers)) {
                     // note that if header defined a content-type, it will be ignored
                     // since the type must be compatible with the data response
                     complete(code, HttpEntity.Empty)
@@ -306,7 +306,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
             }
         } match {
             case Success((mediaType, data: String)) =>
-                respondWithHeaders(headers) {
+                respondWithHeaders(removeContentTypeHeader(headers)) {
                     complete(code, HttpEntity(ContentType(MediaType.customWithFixedCharset(mediaType.mainType, mediaType.subType, HttpCharsets.`UTF-8`)), data))
                 }
 
@@ -316,6 +316,10 @@ protected[core] object WhiskWebActionsApi extends Directives {
             case _ =>
                 terminate(BadRequest, Messages.httpContentTypeError)(transid)
         }
+    }
+
+    private def removeContentTypeHeader(headers: List[RawHeader]) = {
+        headers.filter(_.lowercaseName != `Content-Type`.lowercaseName)
     }
 }
 
