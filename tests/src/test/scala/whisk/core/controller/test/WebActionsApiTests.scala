@@ -788,7 +788,6 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
                         m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                             status should be(OK)
-                            header("content-type").get.toString shouldBe "content-type: application/json"
                             responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
                         }
                     }

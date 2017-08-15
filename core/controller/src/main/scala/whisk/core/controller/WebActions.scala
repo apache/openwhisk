@@ -318,9 +318,8 @@ protected[core] object WhiskWebActionsApi extends Directives {
         }
     }
 
-    private def removeContentTypeHeader(headers: List[RawHeader]) = {
+    private def removeContentTypeHeader(headers: List[RawHeader]) =
         headers.filter(_.lowercaseName != `Content-Type`.lowercaseName)
-    }
 }
 
 trait WhiskWebActionsApi
