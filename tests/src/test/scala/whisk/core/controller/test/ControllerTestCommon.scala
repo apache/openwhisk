@@ -19,7 +19,7 @@ package whisk.core.controller.test
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.language.postfixOps
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll

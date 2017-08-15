@@ -39,9 +39,9 @@ class CouchDbStoreProvider extends ArtifactStoreProvider {
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
 
         val storeName = name(config)
-        stores.getOrElseUpdate(storeName, new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, storeName,
-            ()=>stores.remove(storeName)))
-                .asInstanceOf[CouchDbRestStore[D]]
+        stores.getOrElseUpdate(storeName,
+            new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, storeName, ()=>stores.remove(storeName))
+        ).asInstanceOf[CouchDbRestStore[D]]
 
     }
 }
