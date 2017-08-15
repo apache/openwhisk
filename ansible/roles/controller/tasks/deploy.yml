@@ -27,6 +27,7 @@
     env:
       "JAVA_OPTS": "-Xmx{{ controller.heap }}"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
+      "CONTROLLER_INSTANCES": "{{ controller.instances }}"
 
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "PORT": 8080

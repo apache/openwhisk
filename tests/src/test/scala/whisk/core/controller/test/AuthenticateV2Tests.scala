@@ -22,7 +22,8 @@ import scala.concurrent.Await
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import spray.routing.authentication.UserPass
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+
 import whisk.core.controller.Authenticate
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Subject
@@ -66,7 +67,7 @@ class AuthenticateV2Tests extends ControllerTestCommon with Authenticate {
         // Try to login with each specific namespace
         namespaces.foreach { ns =>
             println(s"Trying to login to $ns")
-            val pass = UserPass(ns.authkey.uuid.asString, ns.authkey.key.asString)
+            val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
             val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
             user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
         }

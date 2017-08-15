@@ -8,76 +8,54 @@
     "paths": {
         "/path": {
             "get": {
+                "operationId": "get_/path",
                 "responses": {
                     "default": {
                         "description": "Default response"
                     }
                 },
-                "x-ibm-op-ext": {
-                    "actionName": "CLI_APIGWTEST7_action",
-                    "actionNamespace": "guest",
-                    "backendMethod": "POST",
-                    "backendUrl": "https://999.999.99.999/api/v1/namespaces/guest/actions/CLI_APIGWTEST7_action",
-                    "policies": [
-                        {
-                            "type": "reqMapping",
-                            "value": [
-                                {
-                                    "action": "transform",
-                                    "from": {
-                                        "location": "query",
-                                        "name": "*"
-                                    },
-                                    "to": {
-                                        "location": "body",
-                                        "name": "*"
-                                    }
-                                },
-                                {
-                                    "action": "insert",
-                                    "from": {
-                                        "value": "Basic I34EJL53W3HGP64AB4E4DJ37FFGA424238GF6J"
-                                    },
-                                    "to": {
-                                        "location": "header",
-                                        "name": "Authorization"
-                                    }
-                                },
-                                {
-                                    "action": "insert",
-                                    "from": {
-                                        "value": "application/json"
-                                    },
-                                    "to": {
-                                        "location": "header",
-                                        "name": "Content-Type"
-                                    }
-                                },
-                                {
-                                    "action": "insert",
-                                    "from": {
-                                        "value": "true"
-                                    },
-                                    "to": {
-                                        "location": "query",
-                                        "name": "blocking"
-                                    }
-                                },
-                                {
-                                    "action": "insert",
-                                    "from": {
-                                        "value": "true"
-                                    },
-                                    "to": {
-                                        "location": "query",
-                                        "name": "result"
-                                    }
-                                }
-                            ]
-                        }
-                    ]
+                "x-openwhisk": {
+                    "action": "CLI_APIGWTEST7_action",
+                    "namespace": "whisk.system",
+                    "package": "",
+                    "url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http"
                 }
             }
+        }
+    },
+    "x-ibm-configuration": {
+        "assembly": {
+            "execute": [
+                {
+                    "set-variable": {
+                        "actions": [
+                            {
+                                "set": "message.headers.Authorization",
+                                "value": "Basic Nzg5YzQ2YjEtNzFmNi00ZWQ1LThjNTQtODE2YWE0ZjhjNTAyOmFiY3pPM3haQ0xyTU42djJCS0sxZFhZRnBYbFBrY2NPRnFtMTJDZEFzTWdSVTRWck5aOWx5R1ZDR3VNREdJd1A="
+                            }
+                        ]
+                    }
+                },
+                {
+                    "operation-switch": {
+                        "case": [
+                            {
+                                "execute": [
+                                    {
+                                        "invoke": {
+                                            "target-url": "https://172.17.0.1/api/v1/web/whisk.system/default/CLI_APIGWTEST7_action.http",
+                                            "verb": "keep"
+                                        }
+                                    }
+                                ],
+                                "operations": [
+                                    "get_/path"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
         }
     }
 }

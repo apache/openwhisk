@@ -27,7 +27,7 @@ import couchdb.client
 
 def retry(fn, retries):
     try:
-        return fn
+        return fn()
     except:
         if (retries > 0):
             time.sleep(1)

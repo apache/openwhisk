@@ -52,10 +52,10 @@ var namespaceListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
             errStr := wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
                 map[string]interface{}{"err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
-        printList(namespaces)
+        printList(namespaces, false) // `-n` flag applies to `namespace get`, not list, so must pass value false for printList here
         return nil
     },
 }
@@ -67,7 +67,7 @@ var namespaceGetCmd = &cobra.Command{
     SilenceErrors:  true,
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var err error
 
         if whiskErr := checkArgs(args, 0, 1, "Namespace get",
@@ -77,38 +77,53 @@ var namespaceGetCmd = &cobra.Command{
 
         // Namespace argument is optional; defaults to configured property namespace
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            if len(qualifiedName.entityName) > 0 {
-                return entityNameError(qualifiedName.entityName)
+            if len(qualifiedName.GetEntityName()) > 0 {
+                return entityNameError(qualifiedName.GetEntityName())
             }
         }
 
-        namespace, _, err := client.Namespaces.Get(qualifiedName.namespace)
+        namespace, _, err := client.Namespaces.Get(qualifiedName.GetNamespace())
 
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
             errStr := wski18n.T("Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}",
                     map[string]interface{}{"namespace": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_NETWORK,
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
         fmt.Fprintf(color.Output, wski18n.T("Entities in namespace: {{.namespace}}\n",
             map[string]interface{}{"namespace": boldString(getClientNamespace())}))
-        printList(namespace.Contents.Packages)
-        printList(namespace.Contents.Actions)
-        printList(namespace.Contents.Triggers)
-        printList(namespace.Contents.Rules)
+        sortByName := flags.common.nameSort
+        printList(namespace.Contents.Packages, sortByName)
+        printList(namespace.Contents.Actions, sortByName)
+        printList(namespace.Contents.Triggers, sortByName)
+        //No errors, lets attempt to retrieve the status of each rule #312
+        for index, rule := range namespace.Contents.Rules {
+            ruleStatus, _, err := client.Rules.Get(rule.Name)
+            if err != nil {
+                errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
+                    map[string]interface{}{"name": rule.Name, "err": err})
+                fmt.Println(errStr)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
+            namespace.Contents.Rules[index].Status = ruleStatus.Status
+        }
+        printList(namespace.Contents.Rules, sortByName)
 
         return nil
     },
 }
 
 func init() {
+    namespaceGetCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
+
     namespaceCmd.AddCommand(
         namespaceListCmd,
         namespaceGetCmd,

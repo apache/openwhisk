@@ -42,25 +42,25 @@ var ruleEnableCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule enable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         _, _, err = client.Rules.SetState(ruleName, "active")
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, active) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to enable rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -79,25 +79,25 @@ var ruleDisableCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule disable", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         _, _, err = client.Rules.SetState(ruleName, "inactive")
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, inactive) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to disable rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -116,25 +116,25 @@ var ruleStatusCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule status", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -153,19 +153,19 @@ var ruleCreateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 3, 3, "Rule create",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
         triggerName := getQualifiedName(args[1], Properties.Namespace)
         actionName := getQualifiedName(args[2], Properties.Namespace)
 
@@ -182,7 +182,7 @@ var ruleCreateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := wski18n.T("Unable to create rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
         whisk.Debug(whisk.DbgInfo, "Inserted rule:\n%+v\n", retRule)
@@ -202,19 +202,19 @@ var ruleUpdateCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 3, 3, "Rule update",
                 wski18n.T("A rule, trigger and action name are required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
         triggerName := getQualifiedName(args[1], Properties.Namespace)
         actionName := getQualifiedName(args[2], Properties.Namespace)
 
@@ -229,7 +229,7 @@ var ruleUpdateCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Insert(%#v) failed: %s\n", rule, err)
             errStr := wski18n.T("Unable to update rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": rule.Name, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -249,7 +249,7 @@ var ruleGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var field string
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 2, "Rule get", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
@@ -260,25 +260,25 @@ var ruleGetCmd = &cobra.Command{
 
             if !fieldExists(&whisk.Rule{}, field){
                 errMsg := wski18n.T("Invalid field filter '{{.arg}}'.", map[string]interface{}{"arg": field})
-                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXITCODE_ERR_GENERAL,
+                whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         rule, _, err := client.Rules.Get(ruleName)
         if err != nil {
             whisk.Debug(whisk.DbgError, "client.Rules.Get(%s) failed: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to get rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
 
@@ -309,18 +309,18 @@ var ruleDeleteCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 1, 1, "Rule delete", wski18n.T("A rule name is required.")); whiskErr != nil {
             return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
-        ruleName := qualifiedName.entityName
+        client.Namespace = qualifiedName.GetNamespace()
+        ruleName := qualifiedName.GetEntityName()
 
         if flags.rule.disable {
             _, _, err := client.Rules.SetState(ruleName, "inactive")
@@ -328,7 +328,7 @@ var ruleDeleteCmd = &cobra.Command{
                 whisk.Debug(whisk.DbgError, "client.Rules.SetState(%s, inactive) failed: %s\n", ruleName, err)
                 errStr := wski18n.T("Unable to disable rule '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": ruleName, "err": err})
-                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }
@@ -338,7 +338,7 @@ var ruleDeleteCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.Delete(%s) error: %s\n", ruleName, err)
             errStr := wski18n.T("Unable to delete rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": ruleName, "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -357,7 +357,7 @@ var ruleListCmd = &cobra.Command{
     PreRunE: setupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
         if whiskErr := checkArgs(args, 0, 1, "Rule list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
@@ -365,15 +365,15 @@ var ruleListCmd = &cobra.Command{
         }
 
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            if len(qualifiedName.entityName) > 0 {
-                return entityNameError(qualifiedName.entityName)
+            if len(qualifiedName.GetEntityName()) > 0 {
+                return entityNameError(qualifiedName.GetEntityName())
             }
 
-            client.Namespace = qualifiedName.namespace
+            client.Namespace = qualifiedName.GetNamespace()
         }
 
         ruleListOptions := &whisk.RuleListOptions{
@@ -386,7 +386,7 @@ var ruleListCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "client.Rules.List(%#v) error: %s\n", ruleListOptions, err)
             errStr := wski18n.T("Unable to obtain the list of rules for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
-            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         } else {
             //No errors, lets attempt to retrieve the status of each rule #312
@@ -396,13 +396,15 @@ var ruleListCmd = &cobra.Command{
                     errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                         map[string]interface{}{"name": rule.Name, "err": err})
                     fmt.Println(errStr)
-                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                     return werr
                 }
                 rules[index].Status = ruleStatus.Status
             }
         }
-        printList(rules)
+
+        sortByName := flags.common.nameSort
+        printList(rules, sortByName)
         return nil
     },
 }
@@ -414,6 +416,7 @@ func init() {
 
     ruleListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of rules from the result"))
     ruleListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of rules from the collection"))
+    ruleListCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
 
     ruleCmd.AddCommand(
         ruleCreateCmd,

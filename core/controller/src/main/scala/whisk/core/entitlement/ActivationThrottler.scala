@@ -17,15 +17,9 @@
 
 package whisk.core.entitlement
 
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-
-import akka.actor.ActorSystem
 import whisk.common.Logging
-import whisk.common.Scheduler
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
-import whisk.core.entity.UUID
 import whisk.core.loadBalancer.LoadBalancer
 
 /**
@@ -38,28 +32,15 @@ import whisk.core.loadBalancer.LoadBalancer
  * @param defaultConcurrencyLimit the default max allowed concurrent operations
  * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
-    implicit val system: ActorSystem, logging: Logging) {
+class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(implicit logging: Logging) {
 
     logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
-
-    implicit private val executionContext = system.dispatcher
-
-    /**
-     * holds the values of the last run of the scheduler below to be gettable by outside
-     * services to be able to determine whether a namespace should be throttled or not based on
-     * the number of concurrent invocations it has in the system
-     */
-    @volatile
-    private var namespaceActivationCounter = Map.empty[UUID, Int]
-
-    private val healthCheckInterval = 5.seconds
 
     /**
      * Checks whether the operation should be allowed to proceed.
      */
     def check(user: Identity)(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = namespaceActivationCounter.getOrElse(user.uuid, 0)
+        val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
         val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
         logging.info(this, s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
         concurrentActivations < concurrencyLimit
@@ -69,13 +50,8 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
      * Checks whether the system is in a generally overloaded state.
      */
     def isOverloaded()(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = namespaceActivationCounter.values.sum
+        val concurrentActivations = loadBalancer.totalActiveActivations
         logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
         concurrentActivations > systemOverloadLimit
-    }
-
-    Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        namespaceActivationCounter = loadBalancer.getActiveNamespaceActivationCounts
-        Future.successful(Unit)
     }
 }

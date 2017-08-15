@@ -17,9 +17,6 @@
 
 package whisk.core.cli.test
 
-import java.io.File
-import java.io.BufferedWriter
-import java.io.FileWriter
 import java.time.Instant
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -93,6 +90,35 @@ class WskBasicUsageTests
         val result = wsk.cli(Seq("bogus"), expectedExitCode = ERROR_EXIT)
         result.stderr should include regex ("""(?i)Run 'wsk --help' for usage""")
     }
+
+    it should "allow a 3 part Fully Qualified Name (FQN) without a leading '/'" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val guestNamespace = wsk.namespace.whois()
+            val packageName = "packageName3ptFQN"
+            val actionName = "actionName3ptFQN"
+            val triggerName = "triggerName3ptFQN"
+            val ruleName = "ruleName3ptFQN"
+            val fullQualifiedName = s"${guestNamespace}/${packageName}/${actionName}"
+            // Used for action and rule creation below
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, _) => pkg.create(packageName)
+            }
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, _) => trigger.create(triggerName)
+            }
+            // Test action and rule creation where action name is 3 part FQN w/out leading slash
+            assetHelper.withCleaner(wsk.action, fullQualifiedName) {
+                (action, _) => action.create(fullQualifiedName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.rule, ruleName) {
+                (rule, _) =>
+                    rule.create(ruleName, trigger = triggerName, action = fullQualifiedName)
+            }
+
+            wsk.action.invoke(fullQualifiedName).stdout should include(s"ok: invoked /$fullQualifiedName")
+            wsk.action.get(fullQualifiedName).stdout should include(s"ok: got action ${packageName}/${actionName}")
+    }
+
 
     behavior of "Wsk actions"
 
@@ -513,19 +539,81 @@ class WskBasicUsageTests
                 }
     }
 
-    it should "ensure --web flag does not remove existing annotations" in withAssetCleaner(wskprops) {
+    it should "ensure action update with --web flag only copies existing annotations when new annotations are not provided" in withAssetCleaner(wskprops) {
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
-            val key = "someKey"
-            val value = JsString("someValue")
-            val annots = Map(key -> value)
+            val createKey = "createKey"
+            val createValue = JsString("createValue")
+            val updateKey = "updateKey"
+            val updateValue = JsString("updateValue")
+            val origKey = "origKey"
+            val origValue = JsString("origValue")
+            val overwrittenValue = JsString("overwrittenValue")
+            val createAnnots = Map(createKey -> createValue, origKey -> origValue)
+            val updateAnnots = Map(updateKey -> updateValue, origKey -> overwrittenValue)
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, file, annotations = annots)
+                (action, _) => action.create(name, file, annotations = createAnnots)
             }
 
             wsk.action.create(name, file, web = Some("true"), update = true)
+
+            val existinAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(existinAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(existinAnnots).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(origKey),
+                    "value" -> origValue),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(createKey),
+                    "value" -> createValue),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+
+            wsk.action.create(name, file, web = Some("true"), update = true, annotations = updateAnnots)
+
+            val updatedAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
+            assert(updatedAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+            removeCLIHeader(updatedAnnots).parseJson shouldBe JsArray(
+                JsObject(
+                    "key" -> JsString("web-export"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString(origKey),
+                    "value" -> overwrittenValue),
+                JsObject(
+                    "key" -> JsString(updateKey),
+                    "value" -> updateValue),
+                JsObject(
+                    "key" -> JsString("raw-http"),
+                    "value" -> JsBoolean(false)),
+                JsObject(
+                    "key" -> JsString("final"),
+                    "value" -> JsBoolean(true)),
+                JsObject(
+                    "key" -> JsString("exec"),
+                    "value" -> JsString("nodejs:6")))
+    }
+
+    it should "ensure action update creates an action with --web flag" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"), update = true)
+            }
 
             val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
             assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
@@ -539,9 +627,6 @@ class WskBasicUsageTests
                 JsObject(
                     "key" -> JsString("final"),
                     "value" -> JsBoolean(true)),
-                JsObject(
-                    "key" -> JsString(key),
-                    "value" -> value),
                 JsObject(
                     "key" -> JsString("exec"),
                     "value" -> JsString("nodejs:6")))
@@ -650,6 +735,97 @@ class WskBasicUsageTests
             msg.r.findAllIn(notTruncated).length shouldBe 0
     }
 
+    it should "denote bound and finalized action parameters for action summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val nameBoundParams = "actionBoundParams"
+            val nameFinalParams = "actionFinalParams"
+            val paramAnnot = "paramAnnot"
+            val paramOverlap = "paramOverlap"
+            val paramBound = "paramBound"
+            val annots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(paramAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(paramOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val annotsFinal = Map(
+                "final" -> JsBoolean(true),
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(paramAnnot),
+                        "description" -> JsString("Annotated Parameter description")),
+                    JsObject(
+                        "name" -> JsString(paramOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val paramsBound = Map(
+                paramBound -> JsString("Bound"),
+                paramOverlap -> JsString("Bound And Annotated"))
+
+            assetHelper.withCleaner(wsk.action, nameBoundParams) {
+                (action, _) =>
+                    action.create(nameBoundParams, defaultAction, annotations = annots, parameters = paramsBound)
+            }
+            assetHelper.withCleaner(wsk.action, nameFinalParams) {
+                (action, _) =>
+                    action.create(nameFinalParams, defaultAction, annotations = annotsFinal, parameters = paramsBound)
+            }
+
+            val stdoutBound = wsk.action.get(nameBoundParams, summary = true).stdout
+            val stdoutFinal = wsk.action.get(nameFinalParams, summary = true).stdout
+
+            stdoutBound should include (
+                s"(parameters: $paramAnnot, *$paramBound, *$paramOverlap)")
+            stdoutFinal should include (
+                s"(parameters: $paramAnnot, **$paramBound, **$paramOverlap)")
+    }
+
+    it should "create, and get an action summary without a description and/or defined parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val actNameNoParams = "actionNoParams"
+            val actNameNoDesc = "actionNoDesc"
+            val actNameNoDescOrParams = "actionNoDescOrParams"
+            val desc = "Action description"
+            val descFromParamsResp = "Returns a result based on parameters"
+            val annotsNoParams = Map(
+                "description" -> JsString(desc)
+            )
+            val annotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
+
+            assetHelper.withCleaner(wsk.action, actNameNoDesc) {
+                (action, _) =>
+                    action.create(actNameNoDesc, defaultAction, annotations = annotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.action, actNameNoParams) {
+                (action, _) =>
+                    action.create(actNameNoParams, defaultAction, annotations = annotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.action, actNameNoDescOrParams) {
+                (action, _) =>
+                    action.create(actNameNoDescOrParams, defaultAction)
+            }
+
+            val stdoutNoDesc = wsk.action.get(actNameNoDesc, summary = true).stdout
+            val stdoutNoParams = wsk.action.get(actNameNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.action.get(actNameNoDescOrParams, summary = true).stdout
+            val namespace = wsk.namespace.whois()
+
+            stdoutNoDesc should include regex (
+                s"(?i)action /${namespace}/${actNameNoDesc}: ${descFromParamsResp} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParams should include regex (
+                s"(?i)action /${namespace}/${actNameNoParams}: ${desc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)action /${namespace}/${actNameNoDescOrParams}\\s*\\(parameters: none defined\\)")
+    }
+
     behavior of "Wsk packages"
 
     it should "create, and delete a package" in {
@@ -744,6 +920,83 @@ class WskBasicUsageTests
             wsk.pkg.bind("bogus", "alsobogus", expectedExitCode = BAD_REQUEST).
                 stderr should include(Messages.bindingDoesNotExist)
 
+    }
+
+    it should "create, and get a package summary without a description and/or parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val pkgNoDesc = "pkgNoDesc"
+            val pkgNoParams = "pkgNoParams"
+            val pkgNoDescOrParams = "pkgNoDescOrParams"
+            val pkgDesc = "Package description"
+            val descFromParams = "Returns a result based on parameters"
+            val namespace = wsk.namespace.whois()
+            val qualpkgNoDesc = s"/${namespace}/${pkgNoDesc}"
+            val qualpkgNoParams = s"/${namespace}/${pkgNoParams}"
+            val qualpkgNoDescOrParams = s"/${namespace}/${pkgNoDescOrParams}"
+
+            val pkgAnnotsNoParams = Map(
+                "description" -> JsString(pkgDesc)
+            )
+            val pkgAnnotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
+
+            assetHelper.withCleaner(wsk.pkg, pkgNoDesc) {
+                (pkg, _) =>
+                    pkg.create(pkgNoDesc, annotations = pkgAnnotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.pkg, pkgNoParams) {
+                (pkg, _) =>
+                    pkg.create(pkgNoParams, annotations = pkgAnnotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.pkg, pkgNoDescOrParams) {
+                (pkg, _) =>
+                    pkg.create(pkgNoDescOrParams)
+            }
+
+            val stdoutNoDescPkg = wsk.pkg.get(pkgNoDesc, summary = true).stdout
+            val stdoutNoParamsPkg = wsk.pkg.get(pkgNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.pkg.get(pkgNoDescOrParams, summary = true).stdout
+
+            stdoutNoDescPkg should include regex (
+                s"(?i)package ${qualpkgNoDesc}: ${descFromParams} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParamsPkg should include regex (
+                s"(?i)package ${qualpkgNoParams}: ${pkgDesc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)package ${qualpkgNoDescOrParams}\\s*\\(parameters: none defined\\)")
+    }
+
+    it should "denote bound package parameters for package summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val pkgBoundParams = "pkgBoundParams"
+            val pkgParamAnnot = "pkgParamAnnot"
+            val pkgParamOverlap = "pkgParamOverlap"
+            val pkgParamBound = "pkgParamBound"
+            val pkgAnnots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(pkgParamAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(pkgParamOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val pkgParamsBound = Map(
+                pkgParamBound -> JsString("Bound"),
+                pkgParamOverlap -> JsString("Bound And Annotated"))
+
+            assetHelper.withCleaner(wsk.pkg, pkgBoundParams) {
+                (pkg, _) =>
+                    pkg.create(pkgBoundParams, annotations = pkgAnnots, parameters = pkgParamsBound)
+            }
+
+            val pkgStdoutBound = wsk.pkg.get(pkgBoundParams, summary = true).stdout
+
+            pkgStdoutBound should include (s"(parameters: $pkgParamAnnot, *$pkgParamBound, *$pkgParamOverlap)")
     }
 
     behavior of "Wsk triggers"
@@ -844,82 +1097,81 @@ class WskBasicUsageTests
             }
     }
 
-    behavior of "Wsk api"
+    it should "denote bound trigger parameters for trigger summaries" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val trgBoundParams = "trgBoundParams"
+            val trgParamAnnot = "trgParamAnnot"
+            val trgParamOverlap = "trgParamOverlap"
+            val trgParamBound = "trgParamBound"
+            val trgAnnots = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString(trgParamAnnot),
+                        "description" -> JsString("Annotated")),
+                    JsObject(
+                        "name" -> JsString(trgParamOverlap),
+                        "description" -> JsString("Annotated And Bound"))))
+            val trgParamsBound = Map(
+                trgParamBound -> JsString("Bound"),
+                trgParamOverlap -> JsString("Bound And Annotated"))
 
-    it should "reject an api commands with an invalid path parameter" in {
-        val badpath = "badpath"
+            assetHelper.withCleaner(wsk.trigger, trgBoundParams) {
+                (trigger, _) =>
+                    trigger.create(trgBoundParams, annotations = trgAnnots, parameters = trgParamsBound)
+            }
 
-        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", badpath, "GET", "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
+            val trgStdoutBound = wsk.trigger.get(trgBoundParams, summary = true).stdout
 
-        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
-
-        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", badpath, "GET", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badpath}' must begin with '/'")
+            trgStdoutBound should include (s"(parameters: $trgParamAnnot, *$trgParamBound, *$trgParamOverlap)")
     }
 
-    it should "reject an api commands with an invalid verb parameter" in {
-        val badverb = "badverb"
+    it should "create, and get a trigger summary without a description and/or parameters" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val trgNoDesc = "trgNoDesc"
+            val trgNoParams = "trgNoParams"
+            val trgNoDescOrParams = "trgNoDescOrParams"
+            val trgDesc = "Package description"
+            val descFromParams = "Returns a result based on parameters"
+            val namespace = wsk.namespace.whois()
+            val qualtrgNoDesc = s"/${namespace}/${trgNoDesc}"
+            val qualtrgNoParams = s"/${namespace}/${trgNoParams}"
+            val qualtrgNoDescOrParams = s"/${namespace}/${trgNoDescOrParams}"
 
-        var rr = wsk.cli(Seq("api-experimental", "create", "/basepath", "/path", badverb, "action", "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+            val trgAnnotsNoParams = Map(
+                "description" -> JsString(trgDesc)
+            )
+            val trgAnnotsNoDesc = Map(
+                "parameters" -> JsArray(
+                    JsObject(
+                        "name" -> JsString("paramName1"),
+                        "description" -> JsString("Parameter description 1")),
+                    JsObject(
+                        "name" -> JsString("paramName2"),
+                        "description" -> JsString("Parameter description 2"))))
 
-        rr = wsk.cli(Seq("api-experimental", "delete", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
+            assetHelper.withCleaner(wsk.trigger, trgNoDesc) {
+                (trigger, _) =>
+                    trigger.create(trgNoDesc, annotations = trgAnnotsNoDesc)
+            }
+            assetHelper.withCleaner(wsk.trigger, trgNoParams) {
+                (trigger, _) =>
+                    trigger.create(trgNoParams, annotations = trgAnnotsNoParams)
+            }
+            assetHelper.withCleaner(wsk.trigger, trgNoDescOrParams) {
+                (trigger, _) =>
+                    trigger.create(trgNoDescOrParams)
+            }
 
-        rr = wsk.cli(Seq("api-experimental", "list", "/basepath", "/path", badverb, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"'${badverb}' is not a valid API verb.  Valid values are:")
-    }
+            val stdoutNoDescPkg = wsk.trigger.get(trgNoDesc, summary = true).stdout
+            val stdoutNoParamsPkg = wsk.trigger.get(trgNoParams, summary = true).stdout
+            val stdoutNoDescOrParams = wsk.trigger.get(trgNoDescOrParams, summary = true).stdout
 
-    it should "reject an api create command with an API name argument and an API name option" in {
-        val apiName = "An API Name"
-        val rr = wsk.cli(Seq("api-experimental", "create", apiName, "/path", "GET", "action", "-n", apiName, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"An API name can only be specified once.")
-    }
-
-    it should "reject an api create command that specifies a nonexistent configuration file" in {
-        val configfile = "/nonexistent/file"
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", configfile, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"Error reading swagger file '${configfile}':")
-    }
-
-    it should "reject an api create command specifying a non-JSON configuration file" in {
-        val file = File.createTempFile("api.json", ".txt")
-        file.deleteOnExit()
-        val filename = file.getAbsolutePath()
-
-        val bw = new BufferedWriter(new FileWriter(file))
-        bw.write("a=A")
-        bw.close()
-
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"Error parsing swagger file '${filename}':")
-    }
-
-    it should "reject an api create command specifying a non-swagger JSON configuration file" in {
-        val file = File.createTempFile("api.json", ".txt")
-        file.deleteOnExit()
-        val filename = file.getAbsolutePath()
-
-        val bw = new BufferedWriter(new FileWriter(file))
-        bw.write("""|{
-                    |   "swagger": "2.0",
-                    |   "info": {
-                    |      "title": "My API",
-                    |      "version": "1.0.0"
-                    |   },
-                    |   "BADbasePath": "/bp",
-                    |   "paths": {
-                    |     "/rp": {
-                    |       "get":{}
-                    |     }
-                    |   }
-                    |}""".stripMargin)
-        bw.close()
-
-        val rr = wsk.cli(Seq("api-experimental", "create", "-c", filename, "--auth", wskprops.authKey) ++ wskprops.overrides, expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include(s"Swagger file is invalid (missing basePath, info, paths, or swagger fields")
+            stdoutNoDescPkg should include regex (
+                s"(?i)trigger ${qualtrgNoDesc}: ${descFromParams} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
+            stdoutNoParamsPkg should include regex (
+                s"(?i)trigger ${qualtrgNoParams}: ${trgDesc}\\s*\\(parameters: none defined\\)")
+            stdoutNoDescOrParams should include regex (
+                s"(?i)trigger ${qualtrgNoDescOrParams}\\s*\\(parameters: none defined\\)")
     }
 
     behavior of "Wsk entity list formatting"
@@ -979,6 +1231,141 @@ class WskBasicUsageTests
             retry({
                 wsk.rule.list().stdout should include(s"$ruleName private")
             }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized actions" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 actions, create them out of alphabetical order
+            val actionName = "actionAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$actionName$i"
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, name) =>
+                        action.create(name, defaultAction)
+                }
+            }
+            retry({
+                val original = wsk.action.list(nameSort = Some(true)).stdout
+                // Create list with action names in correct order
+                val scalaSorted = List(s"${actionName}1", s"${actionName}2", s"${actionName}3")
+                // Filter out everything not previously created
+                val regex = s"${actionName}[1-3]".r
+                // Retrieve action names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return an alphabetized list with default package actions on top" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 actions, create them out of alphabetical order
+            val actionName = "actionPackageAlphaTest"
+            val packageName = "packageAlphaTest"
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, actionName) =>
+                    action.create(actionName, defaultAction)
+            }
+            assetHelper.withCleaner(wsk.pkg, packageName) {
+                (pkg, packageName) =>
+                    pkg.create(packageName)
+            }
+            for (i <- 1 to 3) {
+                val name = s"${packageName}/${actionName}$i"
+                assetHelper.withCleaner(wsk.action, name) {
+                    (action, name) =>
+                        action.create(name, defaultAction)
+                }
+            }
+            retry({
+                val original = wsk.action.list(nameSort = Some(true)).stdout
+                // Create list with action names in correct order
+                val scalaSorted = List(s"$actionName", s"${packageName}/${actionName}1", s"${packageName}/${actionName}2", s"${packageName}/${actionName}3")
+                // Filter out everything not previously created
+                val regexNoPackage = s"$actionName".r
+                val regexWithPackage = s"${packageName}/${actionName}[1-3]".r
+                // Retrieve action names into list as found in original
+                val list = regexNoPackage.findFirstIn(original).get :: (regexWithPackage.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized packages" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 3 packages, create them out of alphabetical order
+            val packageName = "pkgAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$packageName$i"
+                assetHelper.withCleaner(wsk.pkg, name) {
+                    (pkg, name) =>
+                        pkg.create(name)
+                }
+            }
+            retry({
+                val original = wsk.pkg.list(nameSort = Some(true)).stdout
+                // Create list with package names in correct order
+                val scalaSorted = List(s"${packageName}1", s"${packageName}2", s"${packageName}3")
+                // Filter out everything not previously created
+                val regex = s"${packageName}[1-3]".r
+                // Retrieve package names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized triggers" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare 4 triggers, create them out of alphabetical order
+            val triggerName = "triggerAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$triggerName$i"
+                assetHelper.withCleaner(wsk.trigger, name) {
+                    (trigger, name) =>
+                        trigger.create(name)
+                }
+            }
+            retry({
+                val original = wsk.trigger.list(nameSort = Some(true)).stdout
+                // Create list with trigger names in correct order
+                val scalaSorted = List(s"${triggerName}1", s"${triggerName}2", s"${triggerName}3")
+                // Filter out everything not previously created
+                val regex = s"${triggerName}[1-3]".r
+                // Retrieve trigger names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            }, 5, Some(1 second))
+    }
+
+    it should "return a list of alphabetized rules" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            // Declare a trigger and an action for the purposes of creating rules
+            val triggerName = "listRulesTrigger"
+            val actionName = "listRulesAction"
+
+            assetHelper.withCleaner(wsk.trigger, triggerName) {
+                (trigger, name) => trigger.create(name)
+            }
+            assetHelper.withCleaner(wsk.action, actionName) {
+                (action, name) => action.create(name, defaultAction)
+            }
+            // Declare 3 rules, create them out of alphabetical order
+            val ruleName = "ruleAlphaTest"
+            for (i <- 1 to 3) {
+                val name = s"$ruleName$i"
+                assetHelper.withCleaner(wsk.rule, name) {
+                    (rule, name) =>
+                        rule.create(name, trigger = triggerName, action = actionName)
+                }
+            }
+            retry({
+                val original = wsk.rule.list(nameSort = Some(true)).stdout
+                // Create list with rule names in correct order
+                val scalaSorted = List(s"${ruleName}1", s"${ruleName}2", s"${ruleName}3")
+                // Filter out everything not previously created
+                val regex = s"${ruleName}[1-3]".r
+                // Retrieve rule names into list as found in original
+                val list  = (regex.findAllMatchIn(original)).toList
+                scalaSorted.toString shouldEqual list.toString
+            })
     }
 
     behavior of "Wsk params and annotations"
@@ -1186,13 +1573,13 @@ class WskBasicUsageTests
         val invalidShared = s"Cannot use value '$invalidArg' for shared"
         val entityNameMsg = s"An entity name, '$invalidArg', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
         val invalidArgs = Seq(
-            (Seq("api-experimental", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
-            (Seq("api-experimental", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
-            (Seq("api-experimental", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
-            (Seq("api-experimental", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
-            (Seq("api-experimental", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
-            (Seq("api-experimental", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
-            (Seq("api-experimental", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
+            (Seq("api", "create"), s"${tooFewArgsMsg} ${apiCreateReqMsg}"),
+            (Seq("api", "create", "/basepath", "/path", "GET", "action", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiCreateReqMsg}"),
+            (Seq("api", "get"), s"${tooFewArgsMsg} ${apiGetReqMsg}"),
+            (Seq("api", "get", "/basepath", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiGetReqMsg}"),
+            (Seq("api", "delete"), s"${tooFewArgsMsg} ${apiDeleteReqMsg}"),
+            (Seq("api", "delete", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiDeleteReqMsg}"),
+            (Seq("api", "list", "/basepath", "/path", "GET", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${apiListReqMsg}"),
             (Seq("action", "create"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "someAction"), s"${tooFewArgsMsg} ${actionNameActionReqMsg}"),
             (Seq("action", "create", "actionName", "artifactName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),

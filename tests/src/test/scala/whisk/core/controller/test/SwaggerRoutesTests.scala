@@ -21,11 +21,15 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes._
-import spray.http.Uri
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+//import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.Uri
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.core.controller.SwaggerDocs
 
 /**
@@ -44,12 +48,12 @@ class SwaggerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach {
     it should "server docs" in {
         implicit val tid = transid()
         val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
-        Get("/docs") ~> sealRoute(swagger.swaggerRoutes) ~> check {
+        Get("/docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
             status shouldBe PermanentRedirect
             header("location").get.value shouldBe "docs/index.html?url=/api-docs"
         }
 
-        Get("/api-docs") ~> sealRoute(swagger.swaggerRoutes) ~> check {
+        Get("/api-docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
             status shouldBe OK
             responseAs[JsObject].fields("swagger") shouldBe JsString("2.0")
         }

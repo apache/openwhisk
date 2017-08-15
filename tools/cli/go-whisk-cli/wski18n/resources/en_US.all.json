@@ -221,8 +221,8 @@
     "translation": "package visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "summarize package details",
-    "translation": "summarize package details"
+    "id": "summarize package details; parameters with prefix \"*\" are bound",
+    "translation": "summarize package details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "include publicly shared entities in the result",
@@ -700,8 +700,8 @@
     "translation": "trigger feed `ACTION_NAME`"
   },
   {
-    "id": "summarize trigger details",
-    "translation": "summarize trigger details"
+    "id": "summarize trigger details; parameters with prefix \"*\" are bound",
+    "translation": "summarize trigger details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "parameter values in `KEY VALUE` format",
@@ -952,8 +952,8 @@
     "translation": "only return `LIMIT` number of actions from the collection"
   },
   {
-    "id": "summarize action details",
-    "translation": "summarize action details"
+    "id": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized",
+    "translation": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"
   },
   {
     "id": "work with activations",
@@ -1300,18 +1300,6 @@
     "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
   },
   {
-    "id": "`ACTION` to invoke when API is called",
-    "translation": "`ACTION` to invoke when API is called"
-  },
-  {
-    "id": "relative `API_PATH` of API",
-    "translation": "relative `API_PATH` of API"
-  },
-  {
-    "id": "API `API_VERB`",
-    "translation": "API `API_VERB`"
-  },
-  {
     "id": "API collection `NAME` (default NAMESPACE)",
     "translation": "API collection `NAME` (default NAMESPACE)"
   },
@@ -1412,8 +1400,8 @@
     "translation": "display full description of each API"
   },
   {
-    "id": "An API host must be provided.",
-    "translation": "An API host must be provided."
+    "id": "order API list by action name first followed by base-path/rel-path/verb",
+    "translation": "order API list by action name first followed by base-path/rel-path/verb."
   },
   {
     "id": "Request accepted, but processing not completed yet.",
@@ -1522,9 +1510,16 @@
   {
     "id": "Unable to output bash command completion {{.err}}",
     "translation": "Unable to output bash command completion {{.err}}"
-},
-{
+  },
+  {
     "id": "prints bash command completion script to stdout",
     "translation": "prints bash command completion script to stdout"
-}
-]
+  },
+  {
+    "id": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"
+  },
+  {
+    "id": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block"
+  }]

@@ -17,15 +17,17 @@
 
 package whisk.core.entitlement
 
+import whisk.core.entitlement.Privilege._
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import Privilege.Privilege
-import spray.http.HttpMethod
-import spray.http.HttpMethods.DELETE
-import spray.http.HttpMethods.GET
-import spray.http.HttpMethods.POST
-import spray.http.HttpMethods.PUT
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.HttpMethods.DELETE
+import akka.http.scaladsl.model.HttpMethods.GET
+import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model.HttpMethods.PUT
+
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Identity

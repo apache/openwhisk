@@ -130,6 +130,17 @@ class ReplicatorTests extends FlatSpec
         }
     }
 
+    // Do cleanups of possibly existing databases
+    val dbs = replicatorClient.dbs().futureValue
+    dbs shouldBe 'right
+    dbs.right.get.filter(dbname => dbname.contains(testDbPrefix)).map(dbName => removeDatabase(dbName))
+
+    val docs = replicatorClient.getAllDocs().futureValue
+    docs shouldBe 'right
+    docs.right.get.fields("rows").convertTo[List[JsObject]]
+        .filter(_.fields("id").convertTo[String].contains(testDbPrefix))
+        .map(doc => replicatorClient.deleteDoc(doc.fields("id").convertTo[String], doc.fields("value").asJsObject.fields("rev").convertTo[String]))
+
     behavior of "Database replication script"
 
     it should "replicate a database (snapshot)" in {

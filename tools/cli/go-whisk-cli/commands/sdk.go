@@ -64,7 +64,7 @@ var sdkInstallCmd = &cobra.Command{
         if len(args) != 1 {
             whisk.Debug(whisk.DbgError, "Invalid number of arguments: %d\n", len(args))
             errStr := wski18n.T("The SDK component argument is missing. One component (docker, ios, or bashauto) must be specified")
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             return werr
         }
         component := strings.ToLower(args[0])
@@ -79,7 +79,7 @@ var sdkInstallCmd = &cobra.Command{
                     whisk.Debug(whisk.DbgError, "GenBashCompletion error: %s\n", err)
                     errStr := wski18n.T("Unable to output bash command completion {{.err}}",
                             map[string]interface{}{"err": err})
-                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                    werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                     return werr
                 }
              } else {
@@ -88,7 +88,7 @@ var sdkInstallCmd = &cobra.Command{
                         whisk.Debug(whisk.DbgError, "GenBashCompletionFile('%s`) error: \n", BASH_AUTOCOMPLETE_FILENAME, err)
                         errStr := wski18n.T("Unable to generate '{{.name}}': {{.err}}",
                                 map[string]interface{}{"name": BASH_AUTOCOMPLETE_FILENAME, "err": err})
-                        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                         return werr
                     }
                     fmt.Printf(
@@ -99,7 +99,7 @@ var sdkInstallCmd = &cobra.Command{
             whisk.Debug(whisk.DbgError, "Invalid component argument '%s'\n", component)
             errStr := wski18n.T("The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto",
                     map[string]interface{}{"component": component})
-            err = whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+            err = whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
         }
 
         if err != nil {
@@ -117,7 +117,7 @@ func dockerInstall() error {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' exists\n", targetFile)
         errStr := wski18n.T("The file {{.name}} already exists.  Delete it and retry.",
             map[string]interface{}{"name": targetFile})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -125,7 +125,7 @@ func dockerInstall() error {
         whisk.Debug(whisk.DbgError, "sdkInstall(%s) failed: %s\n", SDK_DOCKER_COMPONENT_NAME, err)
         errStr := wski18n.T("The {{.component}} SDK installation failed: {{.err}}",
                 map[string]interface{}{"component": SDK_DOCKER_COMPONENT_NAME, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -140,7 +140,7 @@ func iOSInstall() error {
         whisk.Debug(whisk.DbgError, "sdkInstall(%s) failed: %s\n", SDK_IOS_COMPONENT_NAME, err)
         errStr := wski18n.T("The {{.component}} SDK installation failed: {{.err}}",
                 map[string]interface{}{"component": SDK_IOS_COMPONENT_NAME, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -156,7 +156,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' exists\n", targetFile)
         errStr := wski18n.T("The file {{.name}} already exists.  Delete it and retry.",
                 map[string]interface{}{"name": targetFile})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -165,7 +165,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "client.Sdks.Install(%s) failed: %s\n", sdkMap[componentName].UrlPath, err)
         errStr := wski18n.T("Unable to retrieve '{{.urlpath}}' SDK: {{.err}}",
                 map[string]interface{}{"urlpath": sdkMap[componentName].UrlPath, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -173,7 +173,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "SDK Install HTTP response has no body\n")
         errStr := wski18n.T("Server failed to send the '{{.component}}' SDK: {{.err}}",
                 map[string]interface{}{"name": componentName, "err": err})
-        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -183,7 +183,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "os.Create(%s) failure: %s\n", targetFile, err)
         errStr := wski18n.T("Error creating SDK file {{.name}}: {{.err}}",
                 map[string]interface{}{"name": targetFile, "err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
     }
 
@@ -194,7 +194,7 @@ func sdkInstall(componentName string) error {
         whisk.Debug(whisk.DbgError, "io.Copy() of resp.Body into sdkfile failure: %s\n", err)
         errStr := wski18n.T("Error copying server response into file: {{.err}}",
                 map[string]interface{}{"err": err})
-        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+        werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         sdkfile.Close()
         return werr
 
@@ -211,7 +211,7 @@ func sdkInstall(componentName string) error {
             whisk.Debug(whisk.DbgError, "os.Stat reports that directory '%s' exists\n", targetdir)
             errStr := wski18n.T("The directory {{.name}} already exists.  Delete it and retry.",
                     map[string]interface{}{"name": targetdir})
-            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+            werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return werr
         }
 
@@ -225,7 +225,7 @@ func sdkInstall(componentName string) error {
                 whisk.Debug(whisk.DbgError, "unpackGzip(%s,temp.tar) failure: %s\n", targetFile, err)
                 errStr := wski18n.T("Error unGzipping file {{.name}}: {{.err}}",
                     map[string]interface{}{"name": targetFile, "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
             defer os.Remove("temp.tar")
@@ -236,7 +236,7 @@ func sdkInstall(componentName string) error {
                 whisk.Debug(whisk.DbgError, "unpackTar(temp.tar) failure: %s\n", err)
                 errStr := wski18n.T("Error untarring file {{.name}}: {{.err}}",
                         map[string]interface{}{"name": "temp.tar", "err": err})
-                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXITCODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
         }

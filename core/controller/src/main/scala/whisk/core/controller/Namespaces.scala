@@ -17,14 +17,18 @@
 
 package whisk.core.controller
 
+import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+
 import spray.json.DefaultJsonProtocol._
-import spray.routing.Directives
+
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege.Privilege
@@ -95,7 +99,7 @@ trait WhiskNamespacesApi
      * - 200 Map [ String (collection name), List[EntitySummary] ] as JSON
      * - 500 Internal Server Error
      */
-    private def getAllInNamespace(namespace: EntityPath)(implicit transid: TransactionId) = {
+    private def getAllInNamespace(namespace: EntityPath)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
             case Success(entities) => {
                 complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)

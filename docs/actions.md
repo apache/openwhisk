@@ -484,12 +484,18 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
   ```
   ```
   package /whisk.system/utils: Building blocks that format and assemble data
-   action /whisk.system/utils/head: Extract prefix of an array
-   action /whisk.system/utils/split: Split a string into an array
-   action /whisk.system/utils/sort: Sorts an array
-   action /whisk.system/utils/echo: Returns the input
-   action /whisk.system/utils/date: Current date and time
-   action /whisk.system/utils/cat: Concatenates input into a string
+   (parameters: none defined)
+     action /whisk.system/utils/namespace: Returns namespace for the authorization key used to invoke this action
+       (parameters: none defined)
+     action /whisk.system/utils/date: Current date and time
+       (parameters: none defined)
+     action /whisk.system/utils/sort: Sorts an array
+       (parameters: lines)
+     action /whisk.system/utils/split: Split a string into an array
+       (parameters: payload, separator)
+     action /whisk.system/utils/hosturl: Returns the URL to activation an action or trigger
+       (parameters: ext, path, trigger, web)
+     ...
   ```
 
   You will be using the `split` and `sort` actions in this example.
@@ -1022,13 +1028,37 @@ This command starts a polling loop that continuously checks for logs from activa
 
 ## Listing actions
 
-You can list all the actions that you have created using:
+You can list all the actions that you have created using `wsk action list`:
 
 ```
 wsk action list
+actions
+/guest/packageB/A                  private nodejs:6
+/guest/C                           private nodejs:6
+/guest/A                           private nodejs:6
+/guest/packageA/B                  private nodejs:6
+/guest/packageA/A                  private nodejs:6
+/guest/B                           private nodejs:6
 ```
 
-As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use:
+Here, we see actions listed in order from most to least recently updated. For easier browsing, you can use the flag `--name-sort` or `-n` to sort the list alphabetically:
+
+```
+wsk action list --name-sort
+actions
+/guest/A                           private nodejs:6
+/guest/B                           private nodejs:6
+/guest/C                           private nodejs:6
+/guest/packageA/A                  private nodejs:6
+/guest/packageA/B                  private nodejs:6
+/guest/packageB/A                  private nodejs:6
+```
+
+Notice that the list is now sorted alphabetically by namespace, then package name, and finally action name, with the default package (no specified package) listed at the top.
+
+**Note**: The printed list is sorted alphabetically after it is received from the server. Other list flags such as `--limit` and `--skip` will be applied to the block of actions before they are received for sorting. To list actions in order by creation time, use the flag `--time`.
+
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just those within a specific package, you can use:
 
 ```
 wsk action list [PACKAGE NAME]

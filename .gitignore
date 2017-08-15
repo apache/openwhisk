@@ -10,6 +10,13 @@ default.props
 results
 *.retry
 
+# Environments
+/ansible/environments/*
+!/ansible/environments/distributed
+!/ansible/environments/docker-machine
+!/ansible/environments/local
+!/ansible/environments/mac
+
 # Eclipse
 bin/
 **/.project
