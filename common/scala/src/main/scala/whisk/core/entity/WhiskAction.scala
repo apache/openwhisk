@@ -215,10 +215,10 @@ object WhiskAction
     override implicit val serdes = jsonFormat(WhiskAction.apply, "namespace", "name", "exec", "parameters", "limits", "version", "publish", "annotations")
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo.asCacheKey
 
     // overriden to store attached code
-    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, changeCacheCallback: CacheKey => Future[Unit])(
         implicit transid: TransactionId): Future[DocInfo] = {
 
         Try {
@@ -237,12 +237,12 @@ object WhiskAction
                     val manifest = exec.manifest.attached.get
 
                     for (
-                        i1 <- super.put(db, newDoc);
-                        i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream)
+                        i1 <- super.put(db, newDoc, changeCacheCallback);
+                        i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream, changeCacheCallback)
                     ) yield i2
 
                 case _ =>
-                    super.put(db, doc)
+                    super.put(db, doc, changeCacheCallback)
             }
         } match {
             case Success(f) => f

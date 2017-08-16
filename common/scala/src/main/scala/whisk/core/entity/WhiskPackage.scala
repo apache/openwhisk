@@ -198,7 +198,7 @@ object WhiskPackage
     }
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo.asCacheKey
 }
 
 /**

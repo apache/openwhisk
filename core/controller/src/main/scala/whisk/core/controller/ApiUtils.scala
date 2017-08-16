@@ -22,22 +22,20 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
-
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsBoolean
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.RootJsonFormat
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.PostProcess.PostProcessEntity
@@ -47,6 +45,7 @@ import whisk.core.database.DocumentConflictException
 import whisk.core.database.DocumentFactory
 import whisk.core.database.DocumentTypeMismatchException
 import whisk.core.database.NoDocumentException
+import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntity
@@ -238,6 +237,9 @@ trait WriteOps extends Directives {
     /** JSON response formatter. */
     import RestApiCommons.jsonDefaultResponsePrinter
 
+    /** Action to perform on changing a cache entry. */
+    protected def changeCacheCallback(key: CacheKey): Future[Unit]
+
     /**
      * A predicate future that completes with true iff the entity should be
      * stored in the datastore. Future should fail otherwise with RejectPut.
@@ -296,7 +298,7 @@ trait WriteOps extends Directives {
                 create()
         } flatMap { a =>
             logging.info(this, s"[PUT] entity created/updated, writing back to datastore")
-            factory.put(datastore, a) map { _ => a }
+            factory.put(datastore, a, changeCacheCallback) map { _ => a }
         }) {
             case Success(entity) =>
                 logging.info(this, s"[PUT] entity success")
@@ -351,7 +353,7 @@ trait WriteOps extends Directives {
         onComplete(factory.get(datastore, docid) flatMap {
             entity =>
                 confirm(entity) flatMap {
-                    case _ => factory.del(datastore, entity.docinfo) map { _ => entity }
+                    case _ => factory.del(datastore, entity.docinfo, changeCacheCallback) map { _ => entity }
                 }
         }) {
             case Success(entity) =>

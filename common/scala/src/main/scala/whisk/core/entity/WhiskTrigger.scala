@@ -119,7 +119,7 @@ object WhiskTrigger
     override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskTrigger) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskTrigger) = w.docid.asDocInfo.asCacheKey
 }
 
 object WhiskTriggerPut extends DefaultJsonProtocol {

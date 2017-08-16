@@ -22,22 +22,24 @@
 
 package whisk.core.database
 
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
-import scala.language.implicitConversions
+import scala.util.control.NonFatal
+
+import com.github.benmanes.caffeine.cache.Caffeine
 
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import com.github.benmanes.caffeine.cache.Caffeine
-import scala.util.control.NonFatal
+import whisk.core.entity.CacheKey
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -97,7 +99,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     protected val cacheEnabled = true
 
     /** Subclasses: tell me what key to use for updates. */
-    protected def cacheKeyForUpdate(w: W): Any
+    protected def cacheKeyForUpdate(w: W): CacheKey
 
     private object Entry {
         def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
@@ -155,10 +157,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method posts a delete to the backing store, and either directly invalidates the cache entry
      * or informs any outstanding transaction that it must invalidate the cache on completion.
      */
-    protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
+    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         if (cacheEnabled) {
             logger.info(this, s"invalidating $key on delete")
+
+            changeCacheCallback(key)
 
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, InvalidateInProgress, None)
@@ -210,7 +214,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method may initiate a read from the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheLookup[Wsuper >: W](key: Any, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
+    protected def cacheLookup[Wsuper >: W](key: CacheKey, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
         if (fromCache) {
             val promise = Promise[W] // this promise completes with the generator value
@@ -253,9 +257,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
+    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
         if (cacheEnabled) {
+
+            changeCacheCallback(key)
+
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
             cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -287,11 +294,17 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
     def cacheSize: Int = cache.size
 
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext) = {
+        cache.remove(key).map { cacheEntry =>
+            cacheEntry.flatMap(_.unpack())
+        }
+    }
+
     /**
      * Log a cache hit
      *
      */
-    private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) = {
+    private def makeNoteOfCacheHit(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
     }
 
@@ -299,7 +312,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * Log a cache miss
      *
      */
-    private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) = {
+    private def makeNoteOfCacheMiss(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
     }
 
@@ -308,7 +321,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * 1. either cache the result if there is no intervening delete or update, or
      * 2. invalidate the cache because there was an intervening delete or update.
      */
-    private def listenForReadDone(key: Any, entry: Entry, generator: => Future[W], promise: Promise[W])(
+    private def listenForReadDone(key: CacheKey, entry: Entry, generator: => Future[W], promise: Promise[W])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Unit = {
 
         generator onComplete {
@@ -362,7 +375,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * 1. either cache the result if there is no intervening delete or update, or
      * 2. invalidate the cache cache because there was an intervening delete or update
      */
-    private def listenForWriteDone(key: Any, entry: Entry, generator: => Future[Winfo])(
+    private def listenForWriteDone(key: CacheKey, entry: Entry, generator: => Future[Winfo])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
 
         generator andThen {
@@ -398,7 +411,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** Immediately invalidates the given entry. */
-    private def invalidateEntry(key: Any, entry: Entry)(
+    private def invalidateEntry(key: CacheKey, entry: Entry)(
         implicit transid: TransactionId, logger: Logging): Unit = {
         logger.info(this, s"invalidating $key")
         entry.invalidate()
@@ -406,7 +419,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** Invalidates the given entry after a given invalidator completes. */
-    private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
+    private def invalidateEntryAfter[R](invalidator: => Future[R], key: CacheKey, entry: Entry)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
 
         entry.grabInvalidationLock()
