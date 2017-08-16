@@ -68,10 +68,6 @@ invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
 invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
-invoker.serializeDockerOp={{ invoker.serializeDockerOp }}
-invoker.serializeDockerPull={{ invoker.serializeDockerPull }}
-invoker.useRunc={{ invoker_use_runc | default(invoker.useRunc) }}
-invoker.useReactivePool={{ invoker.useReactivePool }}
 invoker.instances={{ invoker.instances }}
 
 main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}

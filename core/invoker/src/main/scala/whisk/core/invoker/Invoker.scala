@@ -44,8 +44,7 @@ object Invoker {
     def requiredProperties = Map(
         servicePort -> 8080.toString(),
         dockerRegistry -> null,
-        dockerImagePrefix -> null,
-        invokerUseReactivePool -> false.toString) ++
+        dockerImagePrefix -> null) ++
         ExecManifest.requiredProperties ++
         WhiskEntityStore.requiredProperties ++
         WhiskActivationStore.requiredProperties ++
