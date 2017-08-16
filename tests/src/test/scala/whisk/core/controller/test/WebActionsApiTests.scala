@@ -771,7 +771,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
-        it should s"handle http web action with base64 encoded response (auth? ${creds.isDefined})" in {
+        it should s"handle http web action with base64 encoded JSON response (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
             Seq(s"$systemId/proxy/export_c.http").
@@ -790,6 +790,53 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                             status should be(OK)
                             header("content-type").get.toString shouldBe "content-type: application/json"
                             responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                        }
+                    }
+                }
+        }
+
+        it should s"handle http web action without base64 encoded JSON response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq((JsObject("content-type" -> "application/json".toJson), OK),
+                (JsObject(), OK),
+                (JsObject("content-type" -> "text/html".toJson), BadRequest)).foreach {
+                    case (headers, expectedCode) =>
+                        Seq(s"$systemId/proxy/export_c.http").
+                            foreach { path =>
+                                allowedMethods.foreach { m =>
+                                    invocationsAllowed += 1
+                                    actionResult = Some(JsObject(
+                                        "headers" -> headers,
+                                        webApiDirectives.statusCode -> OK.intValue.toJson,
+                                        "body" -> JsObject("field" -> "value".toJson)))
+
+                                    m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                                        status should be(expectedCode)
+
+                                        if (expectedCode == OK) {
+                                            header("content-type").map(_.toString shouldBe "content-type: application/json")
+                                            responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                                        } else {
+                                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                                        }
+                                    }
+                                }
+                            }
+                }
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> JsNumber(3)))
+
+                        m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                            status should be(OK)
+                            header("content-type").map(_.toString shouldBe "content-type: application/json")
+                            responseAs[String].toInt shouldBe 3
                         }
                     }
                 }
@@ -1149,8 +1196,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                     Options(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                         headers should contain allOf (
                             RawHeader("Set-Cookie", "a=b"),
-                            RawHeader("Set-Cookie", "c=d; Path = /")
-                        )
+                            RawHeader("Set-Cookie", "c=d; Path = /"))
                     }
                 }
         }
