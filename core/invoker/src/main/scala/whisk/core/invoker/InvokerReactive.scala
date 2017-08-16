@@ -17,6 +17,9 @@
 
 package whisk.core.invoker
 
+import java.nio.charset.StandardCharsets
+import java.time.Instant
+
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -25,9 +28,9 @@ import scala.util.Success
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 
-import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
+import akka.actor.Props
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
@@ -38,8 +41,7 @@ import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
-import whisk.core.container.{ ContainerPool => OldContainerPool }
-import whisk.core.container.Interval
+import whisk.core.connector.MessagingProvider
 import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
@@ -48,25 +50,32 @@ import whisk.core.containerpool.docker.DockerClientWithFileAccess
 import whisk.core.containerpool.docker.DockerContainer
 import whisk.core.containerpool.docker.RuncClient
 import whisk.core.database.NoDocumentException
-import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.http.Messages
+import whisk.spi.SpiLoader
 
-
-class InvokerReactive(
-    config: WhiskConfig,
-    instance: InstanceId,
-    activationFeed: ActorRef,
-    producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging)
-    extends MessageHandler(s"invoker${instance.toInt}") {
+class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging) {
 
     implicit val ec = actorSystem.dispatcher
 
+    /** Initialize needed databases */
     private val entityStore = WhiskEntityStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
 
+    /** Initialize message consumers */
+    val topic = s"invoker${instance.toInt}"
+    val maximumContainers = config.invokerNumCore.toInt * config.invokerCoreShare.toInt
+    val msgProvider = SpiLoader.get[MessagingProvider]()
+    val consumer = msgProvider.getConsumer(config, "invokers", topic, maximumContainers, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+
+    val activationFeed = actorSystem.actorOf(Props {
+        new MessageFeed("activation", logging,
+            consumer, maximumContainers, 500.milliseconds, processActivationMessage)
+    })
+
+    /** Initialize container clients */
     implicit val docker = new DockerClientWithFileAccess()(ec)
     implicit val runc = new RuncClient(ec)
 
@@ -102,7 +111,7 @@ class InvokerReactive(
             image = image,
             userProvidedImage = userProvidedImage,
             memory = memory,
-            cpuShares = OldContainerPool.cpuShare(config),
+            cpuShares = config.invokerCoreShare.toInt,
             environment = Map("__OW_API_HOST" -> config.wskApiHost),
             network = config.invokerContainerNetwork,
             dnsServers = config.invokerContainerDns,
@@ -147,70 +156,82 @@ class InvokerReactive(
 
     val pool = actorSystem.actorOf(ContainerPool.props(
         childFactory,
-        OldContainerPool.getDefaultMaxActive(config),
-        OldContainerPool.getDefaultMaxActive(config),
+        maximumContainers,
+        maximumContainers,
         activationFeed,
         Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
     /** Is called when an ActivationMessage is read from Kafka */
-    override def onMessage(msg: ActivationMessage)(implicit transid: TransactionId): Future[Unit] = {
-        require(msg != null, "message undefined")
-        require(msg.action.version.isDefined, "action version undefined")
+    def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
+        Future(ActivationMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
+            .flatMap(Future.fromTry(_))
+            .filter(_.action.version.isDefined)
+            .flatMap { msg =>
+                implicit val transid = msg.transid
 
-        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
-        val namespace = msg.action.path
-        val name = msg.action.name
-        val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
-        val tran = Transaction(msg)
-        val subject = msg.user.subject
+                val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
+                val namespace = msg.action.path
+                val name = msg.action.name
+                val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
+                val subject = msg.user.subject
 
-        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
+                logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
 
-        // caching is enabled since actions have revision id and an updated
-        // action will not hit in the cache due to change in the revision id;
-        // if the doc revision is missing, then bypass cache
-        if (actionid.rev == DocRevision.empty) {
-            logging.warn(this, s"revision was not provided for ${actionid.id}")
-        }
-        WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty).flatMap { action =>
-            action.toExecutableWhiskAction match {
-                case Some(executable) =>
-                    pool ! Run(executable, msg)
-                    Future.successful(())
-                case None =>
-                    logging.error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
-                    Future.failed(new IllegalStateException())
-            }
-        }.recover {
-            case t =>
-                // If the action cannot be found, the user has concurrently deleted it,
-                // making this an application error. All other errors are considered system
-                // errors and should cause the invoker to be considered unhealthy.
-                val response = t match {
-                    case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                    case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                // caching is enabled since actions have revision id and an updated
+                // action will not hit in the cache due to change in the revision id;
+                // if the doc revision is missing, then bypass cache
+                if (actionid.rev == DocRevision.empty) {
+                    logging.warn(this, s"revision was not provided for ${actionid.id}")
                 }
-                val interval = Interval.zero
-                val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
-                val activation = WhiskActivation(
-                    activationId = msg.activationId,
-                    namespace = msg.activationNamespace,
-                    subject = msg.user.subject,
-                    cause = msg.cause,
-                    name = msg.action.name,
-                    version = msg.action.version.getOrElse(SemVer()),
-                    start = interval.start,
-                    end = interval.end,
-                    duration = Some(interval.duration.toMillis),
-                    response = response,
-                    annotations = {
-                        Parameters("path", msg.action.toString.toJson) ++ causedBy
-                    })
 
-                activationFeed ! MessageFeed.Processed
-                ack(msg.transid, activation, msg.rootControllerIndex)
-                store(msg.transid, activation)
-        }
+                WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty).flatMap { action =>
+                    action.toExecutableWhiskAction match {
+                        case Some(executable) =>
+                            pool ! Run(executable, msg)
+                            Future.successful(())
+                        case None =>
+                            logging.error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
+                            Future.failed(new IllegalStateException("non-executable action reached the invoker"))
+                    }
+                }.recoverWith {
+                    case t =>
+                        // If the action cannot be found, the user has concurrently deleted it,
+                        // making this an application error. All other errors are considered system
+                        // errors and should cause the invoker to be considered unhealthy.
+                        val response = t match {
+                            case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+                            case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                        }
+                        val now = Instant.now
+                        val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+                        val activation = WhiskActivation(
+                            activationId = msg.activationId,
+                            namespace = msg.activationNamespace,
+                            subject = msg.user.subject,
+                            cause = msg.cause,
+                            name = msg.action.name,
+                            version = msg.action.version.getOrElse(SemVer()),
+                            start = now,
+                            end = now,
+                            duration = Some(0),
+                            response = response,
+                            annotations = {
+                                Parameters("path", msg.action.toString.toJson) ++ causedBy
+                            })
+
+                        activationFeed ! MessageFeed.Processed
+                        ack(msg.transid, activation, msg.rootControllerIndex)
+                        store(msg.transid, activation)
+                        Future.successful(())
+                }
+            }.recoverWith {
+                case t =>
+                    // Iff everything above failed, we have a terminal error at hand. Either the message failed
+                    // to deserialize, or something threw an error where it is not expected to throw.
+                    activationFeed ! MessageFeed.Processed
+                    logging.error(this, s"terminal failure while processing message: $t")
+                    Future.successful(())
+            }
     }
 
 }

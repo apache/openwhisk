@@ -84,7 +84,6 @@
         -e WHISK_API_HOST_PORT='{{ whisk_api_host_port | default('443') }}'
         -e WHISK_API_HOST_NAME='{{ whisk_api_host_name | default(groups['edge'] | first) }}'
         -e RUNTIMES_MANIFEST='{{ runtimesManifest | to_json }}'
-        -e SELF_DOCKER_ENDPOINT='localhost'
         -e DOCKER_REGISTRY='{{ docker_registry }}'
         -e DOCKER_IMAGE_PREFIX='{{ docker.image.prefix }}'
         -e DOCKER_IMAGE_TAG='{{ docker.image.tag }}'
@@ -93,10 +92,6 @@
         -e INVOKER_CONTAINER_DNS='{{ invoker_container_network_dns_servers | default()}}'
         -e INVOKER_NUMCORE='{{ invoker.numcore }}'
         -e INVOKER_CORESHARE='{{ invoker.coreshare }}'
-        -e INVOKER_SERIALIZEDOCKEROP='{{ invoker.serializeDockerOp }}'
-        -e INVOKER_SERIALIZEDOCKERPULL='{{ invoker.serializeDockerPull }}'
-        -e INVOKER_USERUNC='{{ invoker_use_runc | default(invoker.useRunc) }}'
-        -e INVOKER_USEREACTIVEPOOL='{{ invoker.useReactivePool }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc

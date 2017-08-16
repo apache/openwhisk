@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package whisk.core.container.test
+package whisk.core.containerpool.docker.test
 
 import java.time.Instant
 import java.nio.charset.StandardCharsets
@@ -38,9 +38,9 @@ import org.apache.http.entity.StringEntity
 
 import spray.json.JsObject
 
-import whisk.core.container.HttpUtils
 import whisk.core.entity.size._
 import whisk.core.entity.ActivationResponse._
+import whisk.core.containerpool.docker.HttpUtils
 
 /**
  * Unit tests for HttpUtils which communicate with containers.
@@ -94,7 +94,7 @@ class ContainerConnectionTests
         val connection = new HttpUtils(hostWithPort, timeout, 1.B)
         testHang = timeout * 2
         val start = Instant.now()
-        val result = connection.post("/init", JsObject(), retry=true)
+        val result = connection.post("/init", JsObject(), retry = true)
         val end = Instant.now()
         val waited = end.toEpochMilli - start.toEpochMilli
         result.isLeft shouldBe true
@@ -109,7 +109,7 @@ class ContainerConnectionTests
             Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
                 testStatusOK = code
                 testResponse = r
-                val result = connection.post("/init", JsObject(), retry=true)
+                val result = connection.post("/init", JsObject(), retry = true)
                 result shouldBe Right {
                     ContainerResponse(okStatus = testStatusOK, if (r != null) r else "", None)
                 }
@@ -126,7 +126,7 @@ class ContainerConnectionTests
             Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
                 testStatusOK = code
                 testResponse = r
-                val result = connection.post("/init", JsObject(), retry=true)
+                val result = connection.post("/init", JsObject(), retry = true)
                 result shouldBe Right {
                     ContainerResponse(okStatus = testStatusOK, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
                 }

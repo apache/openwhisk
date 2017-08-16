@@ -43,7 +43,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.container.Interval
 import whisk.core.containerpool._
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.RuntimeManifest
