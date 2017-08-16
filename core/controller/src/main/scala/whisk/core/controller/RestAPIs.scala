@@ -127,6 +127,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     implicit val activeAckTopicIndex: InstanceId,
     implicit val actorSystem: ActorSystem,
+    implicit val materializer: ActorMaterializer,
     implicit val logging: Logging,
     implicit val entityStore: EntityStore,
     implicit val entitlementProvider: EntitlementProvider,
@@ -138,7 +139,6 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     with Authenticate
     with AuthenticatedRoute
     with RespondWithHeaders {
-    implicit val materializer = ActorMaterializer()
     implicit val executionContext = actorSystem.dispatcher
     implicit val authStore = WhiskAuthStore.datastore(config)
 

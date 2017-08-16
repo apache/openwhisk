@@ -17,10 +17,9 @@
 
 package whisk.core.invoker
 
-import whisk.http.BasicRasService
-import whisk.core.WhiskConfig
-import whisk.common.Logging
 import whisk.core.entity.InstanceId
+
+import whisk.http.BasicRasService
 
 /**
  * Implements web server to handle certain REST API calls.
@@ -28,9 +27,6 @@ import whisk.core.entity.InstanceId
  */
 class InvokerServer(
     override val instance: InstanceId,
-    override val numberOfInstances: Int,
-    override val port: Int)(
-        override implicit val logging: Logging,
-        implicit val whiskConfig: WhiskConfig)
+    override val numberOfInstances: Int)
     extends BasicRasService {
 }
