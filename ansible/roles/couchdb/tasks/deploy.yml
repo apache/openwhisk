@@ -36,13 +36,13 @@
 - name: wait until the CouchDB in this host is up and running
   wait_for:
     delay: 2
-    host: "{{ inventory_hostname }}"
+    host: "{{ ansible_host }}"
     port: "{{ db_port }}"
     timeout: 60
 
 - name: create admin user
   uri:
-    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/admins/{{ db_username }}"
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_config/admins/{{ db_username }}"
     method: PUT
     body: >
         "{{ db_password }}"
@@ -51,7 +51,7 @@
 
 - name: disable reduce limit on views
   uri:
-    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/query_server_config/reduce_limit"
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_config/query_server_config/reduce_limit"
     method: PUT
     body: >
         "false"

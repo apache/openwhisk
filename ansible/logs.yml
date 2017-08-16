@@ -24,7 +24,8 @@
         - subjects
       when: "'db' not in exclude_logs_from"
 
-- hosts: shared,core,invokers
+- hosts: controllers,invokers
+  serial: 1
   tasks:
   - name: get all docker containers
     local_action: shell docker --host tcp://{{ ansible_host }}:{{ docker.port }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
