@@ -29,10 +29,12 @@ import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 
 /** Basic client to put and delete artifacts in a data store. */
-trait ArtifactStore[DocumentAbstraction] {
+trait ArtifactStore[DocumentAbstraction, CacheAbstraction] {
 
     /** Execution context for futures */
     protected[core] implicit val executionContext: ExecutionContext
+
+    protected[core] val cache: Option[WhiskCache[CacheAbstraction, DocInfo]]
 
     implicit val logging: Logging
 

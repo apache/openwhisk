@@ -176,7 +176,7 @@ object WhiskPackage
             // if there is a binding resolve it
             val resolved = wp.binding map { binding =>
                 if (mergeParameters) {
-                    resolveBinding(db, binding.docid, true) map {
+                    resolveBinding(db, binding.docid) map {
                         resolvedPackage => resolvedPackage.mergeParameters(wp.parameters)
                     }
                 } else resolveBinding(db, binding.docid)
@@ -197,8 +197,7 @@ object WhiskPackage
         jsonFormat7(WhiskPackage.apply)
     }
 
-    override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo
+    override def cacheKeyForUpdate(w: WhiskPackage) = w.docid.asDocInfo.asCacheKey
 }
 
 /**

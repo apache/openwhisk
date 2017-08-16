@@ -23,7 +23,6 @@ import spray.json._
 import types.AuthStore
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
@@ -39,12 +38,10 @@ protected[core] case class Identity(subject: Subject, namespace: EntityName, aut
     def uuid = authkey.uuid
 }
 
-object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with DefaultJsonProtocol {
+object Identity extends DefaultJsonProtocol {
 
     private val viewName = "subjects/identities"
 
-    override val cacheEnabled = true
-    override def cacheKeyForUpdate(i: Identity) = i.authkey
     implicit val serdes = jsonFormat5(Identity.apply)
 
     /**
@@ -57,8 +54,9 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
         val ns = namespace.asString
+        val key = namespace.asCacheKey
 
-        cacheLookup(ns, {
+        def generator = {
             list(datastore, List(ns), limit = 1) map { list =>
                 list.length match {
                     case 1 =>
@@ -71,7 +69,9 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
                         throw new IllegalStateException("namespace is not unique")
                 }
             }
-        })
+        }
+
+        datastore.cache.map(_.cacheLookup(key, generator)).getOrElse(generator)
     }
 
     def get(datastore: AuthStore, authkey: AuthKey)(
@@ -79,7 +79,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
 
-        cacheLookup(authkey, {
+        def generator = {
             list(datastore, List(authkey.uuid.asString, authkey.key.asString)) map { list =>
                 list.length match {
                     case 1 =>
@@ -92,7 +92,9 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
                         throw new IllegalStateException("uuid is not unique")
                 }
             }
-        })
+        }
+
+        datastore.cache.map(_.cacheLookup(authkey.asCacheKey, generator)).getOrElse(generator)
     }
 
     def list(datastore: AuthStore, key: List[Any], limit: Int = 2)(

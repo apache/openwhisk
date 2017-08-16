@@ -59,7 +59,7 @@ trait DbUtils extends TransactionCounter {
     implicit val dbOpTimeout = 15 seconds
     override val numberOfInstances = 1
     override val instance = InstanceId(0)
-    val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
+    val docsToDelete = ListBuffer[(ArtifactStore[_, _], DocInfo)]()
     case class RetryOp() extends Throwable
 
     /**
@@ -94,7 +94,7 @@ trait DbUtils extends TransactionCounter {
      * where the step performs a direct db query to retrieve the view and check the count
      * matches the given value.
      */
-    def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityPath, count: Int)(
+    def waitOnView[Au](db: ArtifactStore[Au, Au], namespace: EntityPath, count: Int)(
         implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
         val success = retry(() => {
             val startKey = List(namespace.toString)
@@ -163,7 +163,7 @@ trait DbUtils extends TransactionCounter {
     /**
      * Puts document 'w' in datastore, and add it to gc queue to delete after the test completes.
      */
-    def put[A, Au >: A](db: ArtifactStore[Au], w: A, garbageCollect: Boolean = true)(
+    def put[A, Au >: A, C](db: ArtifactStore[Au, C], w: A, garbageCollect: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
         val docFuture = db.put(w)
         val doc = Await.result(docFuture, timeout)
@@ -175,7 +175,7 @@ trait DbUtils extends TransactionCounter {
     /**
      * Gets document by id from datastore, and add it to gc queue to delete after the test completes.
      */
-    def get[A, Au >: A](db: ArtifactStore[Au], docid: DocId, factory: DocumentFactory[A], garbageCollect: Boolean = true)(
+    def get[A, Au >: A](db: ArtifactStore[Au, Au], docid: DocId, factory: DocumentFactory[A], garbageCollect: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): A = {
         val docFuture = factory.get(db, docid)
         val doc = Await.result(docFuture, timeout)
@@ -187,7 +187,7 @@ trait DbUtils extends TransactionCounter {
     /**
      * Deletes document by id from datastore.
      */
-    def del[A <: WhiskDocument, Au >: A](db: ArtifactStore[Au], docid: DocId, factory: DocumentFactory[A])(
+    def del[A <: WhiskDocument, Au >: A](db: ArtifactStore[Au, Au], docid: DocId, factory: DocumentFactory[A])(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]) = {
         val docFuture = factory.get(db, docid)
         val doc = Await.result(docFuture, timeout)
@@ -198,7 +198,7 @@ trait DbUtils extends TransactionCounter {
     /**
      * Puts a document 'entity' into the datastore, then do a get to retrieve it and confirm the identity.
      */
-    def putGetCheck[A, Au >: A](db: ArtifactStore[Au], entity: A, factory: DocumentFactory[A], gc: Boolean = true)(
+    def putGetCheck[A, Au >: A](db: ArtifactStore[Au, Au], entity: A, factory: DocumentFactory[A], gc: Boolean = true)(
         implicit transid: TransactionId, timeout: Duration = 10 seconds, ma: Manifest[A]): (DocInfo, A) = {
         val doc = put(db, entity, gc)
         assert(doc != null && doc.id.asString != null && doc.rev.asString != null)

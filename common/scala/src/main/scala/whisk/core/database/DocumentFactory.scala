@@ -30,6 +30,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import whisk.common.TransactionId
+import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -118,7 +119,10 @@ trait DocumentSerializer {
  * but the get permits a datastore of its super type so that a single datastore client
  * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
+trait DocumentFactory[W] {
+
+    def cacheKeyForUpdate(w: W): CacheKey
+
     /**
      * Puts a record of type W in the datastore.
      *
@@ -131,7 +135,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param transid the transaction id for logging
      * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
      */
-    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+    def put[Wsuper >: W](db: ArtifactStore[Wsuper, Wsuper], doc: W)(
         implicit transid: TransactionId): Future[DocInfo] = {
         Try {
             require(db != null, "db undefined")
@@ -140,23 +144,22 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = cacheKeyForUpdate(doc)
-
-            cacheUpdate(doc, key, db.put(doc) map { docinfo =>
+            def generator = db.put(doc) map { docinfo =>
                 doc match {
                     // if doc has a revision id, update it with new version
                     case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
                 }
                 docinfo
-            })
+            }
 
+            db.cache.map(_.cacheUpdate(doc, cacheKeyForUpdate(doc), generator)).getOrElse(generator)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
         }
     }
 
-    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
+    def attach[Wsuper >: W](db: ArtifactStore[Wsuper, Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
         implicit transid: TransactionId): Future[DocInfo] = {
 
         Try {
@@ -166,20 +169,21 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo
+            val key = doc.id.asDocInfo.asCacheKey
             // invalidate the key because attachments update the revision;
             // do not cache the new attachment (controller does not need it)
-            cacheInvalidate(key, {
+            def invalidator = {
                 val src = StreamConverters.fromInputStream(() => bytes)
                 db.attach(doc, attachmentName, contentType, src)
-            })
+            }
+            db.cache.map(_.cacheInvalidate(key, invalidator)).getOrElse(invalidator)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
         }
     }
 
-    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
+    def del[Wsuper >: W](db: ArtifactStore[Wsuper, Wsuper], doc: DocInfo)(
         implicit transid: TransactionId): Future[Boolean] = {
         Try {
             require(db != null, "db undefined")
@@ -188,8 +192,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo
-            cacheInvalidate(key, db.del(doc))
+            db.cache.map(_.cacheInvalidate(doc.id.asDocInfo.asCacheKey, db.del(doc))).getOrElse(db.del(doc))
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
@@ -213,7 +216,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
      * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
      */
-    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean = cacheEnabled)(
+    def get[Wsuper >: W](db: ArtifactStore[Wsuper, Wsuper], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean = true)(
         implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
         Try {
             require(db != null, "db undefined")
@@ -221,14 +224,17 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
-            _ => cacheLookup(key, db.get[W](key), fromCache)
+            _ => db.cache match {
+                case Some(c) if fromCache => c.cacheLookup[W](key.asCacheKey, db.get[W](key))
+                case _                    => db.get[W](key)
+            }
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
         }
     }
 
-    def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, outputStream: OutputStream)(
+    def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper, Wsuper], doc: DocInfo, attachmentName: String, outputStream: OutputStream)(
         implicit transid: TransactionId): Future[Unit] = {
 
         implicit val ec = db.executionContext

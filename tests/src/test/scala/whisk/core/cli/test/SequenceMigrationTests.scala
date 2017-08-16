@@ -54,7 +54,7 @@ class SequenceMigrationTests
     val wsk = new Wsk
     val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
     // handle on the entity datastore
-    val entityStore = WhiskEntityStore.datastore(whiskConfig)
+    val entityStore = WhiskEntityStore.datastore(whiskConfig, None)
     val namespace = wsk.namespace.whois()
     val allowedActionDuration = 120 seconds
 

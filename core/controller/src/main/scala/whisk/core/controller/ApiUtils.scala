@@ -158,7 +158,7 @@ trait ReadOps extends Directives {
      */
     protected def getEntity[A, Au >: A](
         factory: DocumentFactory[A],
-        datastore: ArtifactStore[Au],
+        datastore: ArtifactStore[Au, Au],
         docid: DocId,
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
@@ -198,7 +198,7 @@ trait ReadOps extends Directives {
      */
     protected def getEntityAndProject[A, Au >: A](
         factory: DocumentFactory[A],
-        datastore: ArtifactStore[Au],
+        datastore: ArtifactStore[Au, Au],
         docid: DocId,
         project: A => JsObject)(
             implicit transid: TransactionId,
@@ -261,7 +261,7 @@ trait WriteOps extends Directives {
      */
     protected def putEntity[A, Au >: A](
         factory: DocumentFactory[A],
-        datastore: ArtifactStore[Au],
+        datastore: ArtifactStore[Au, Au],
         docid: DocId,
         overwrite: Boolean,
         update: A => Future[A],
@@ -335,7 +335,7 @@ trait WriteOps extends Directives {
      */
     protected def deleteEntity[A <: WhiskDocument, Au >: A](
         factory: DocumentFactory[A],
-        datastore: ArtifactStore[Au],
+        datastore: ArtifactStore[Au, Au],
         docid: DocId,
         confirm: A => Future[Unit],
         postProcess: Option[PostProcessEntity[A]] = None)(

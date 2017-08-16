@@ -38,22 +38,26 @@ import common.WskActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
+import whisk.core.entity.CacheKey
 
 class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
-    with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem
     with StreamLogging {
 
-    "the cache" should "support simple CRUD" in {
+    val cache = new MultipleReadersSingleWriterCache[String, String]((key: Any) => Future.successful(Unit))
+
+    behavior of "the cache"
+
+    it should "support simple CRUD" in {
         val inhibits = doReadWriteRead("foo").go(0 seconds)
         inhibits.debug(this)
 
         inhibits.nReadInhibits.get should be(0)
-        cacheSize should be(1)
+        cache.cacheSize should be(1)
     }
 
-    "the cache" should "support concurrent CRUD to different keys" in {
+    it should "support concurrent CRUD to different keys" in {
         //
         // for the first iter, all reads are not-cached and each thread
         // requests a different key, so we expect no read inhibits, and a
@@ -74,14 +78,14 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         }
     }
 
-    "the cache" should "support concurrent CRUD to shared keys" in {
+    it should "support concurrent CRUD to shared keys" in {
         for (i <- 1 to nIters) {
             doCRUD("CONCURRENT CRUD to shared keys", sharedKeys)
                 .nWriteInhibits.get should not be (0)
         }
     }
 
-    "the cache" should "support concurrent CRUD to shared keys (zero latency)" in {
+    it should "support concurrent CRUD to shared keys (zero latency)" in {
         var hasInhibits = false
         for (i <- 1 to nIters) {
             hasInhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0 seconds)
@@ -90,32 +94,56 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         hasInhibits should not be (false)
     }
 
-    "the cache" should "support concurrent CRUD to shared keys (short latency)" in {
+    it should "support concurrent CRUD to shared keys (short latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10 milliseconds)
                 .hasInhibits should be(true)
         }
     }
 
-    "the cache" should "support concurrent CRUD to shared keys (medium latency)" in {
+    it should "support concurrent CRUD to shared keys (medium latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100 milliseconds)
                 .hasInhibits should be(true)
         }
     }
 
-    "the cache" should "support concurrent CRUD to shared keys (long latency)" in {
+    it should "support concurrent CRUD to shared keys (long latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5 seconds)
                 .nWriteInhibits.get should not be (0)
         }
     }
 
-    "the cache" should "support concurrent CRUD to shared keys, with update first" in {
+    it should "support concurrent CRUD to shared keys, with update first" in {
         for (i <- 1 to nIters) {
             doCRUD("CONCURRENT CRUD to shared keys, with update first", sharedKeys, 1 second, false)
                 .nWriteInhibits.get should be(0)
         }
+    }
+
+    it should "execute the callback on invalidating and updating an entry" in {
+        implicit val transId = TransactionId.testing
+        val ctr = new AtomicInteger(0)
+        val cache = new MultipleReadersSingleWriterCache[String, String]((key: Any) => {
+            ctr.incrementAndGet()
+            Future.successful(Unit)
+        })
+        val key = CacheKey("key")
+
+        // Create an cache entry
+        cache.cacheUpdate("doc", key, Future.successful("db save successful"))
+        ctr.get shouldBe 1
+
+        // Callback should be called if entry exists
+        cache.cacheInvalidate(key, Future.successful(Unit))
+        ctr.get shouldBe 2
+        cache.cacheUpdate("docdoc", key, Future.successful("update in db successful"))
+        ctr.get shouldBe 3
+
+        // Callback should be called if entry does not exist
+        cache.cacheInvalidate(CacheKey("abc"), Future.successful(Unit))
+        ctr.get shouldBe 4
     }
 
     def sharedKeys = { i: Int => "foop_" + (i % 2) }
@@ -163,13 +191,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (!readFirst) {
                 // we want to do the update before the first read
-                cacheUpdate(key, key, delayed("bar_b")) onFailure {
+                cache.cacheUpdate(key, CacheKey(key), delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
             }
 
-            cacheLookup(key, delayed("bar"), true) onComplete {
+            cache.cacheLookup(CacheKey(key), delayed("bar")) onComplete {
                 case Success(s) => {
                     latch.countDown()
                 }
@@ -181,13 +209,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (readFirst) {
                 // we did the read before the update, so do the write next
-                cacheUpdate(key, key, delayed("bar_b")) onFailure {
+                cache.cacheUpdate(key, CacheKey(key), delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
             }
 
-            cacheLookup(key, delayed("bar_c"), true) onComplete {
+            cache.cacheLookup(CacheKey(key), delayed("bar_c")) onComplete {
                 case Success(s) => {
                     latch.countDown();
                 }
@@ -209,5 +237,5 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     }
 
     /** we are using cache keys, so the update key is just the string itself */
-    override protected def cacheKeyForUpdate(w: String): String = (w)
+    def cacheKeyForUpdate(w: String): String = (w)
 }
