@@ -19,7 +19,7 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 import akka.actor._
 import akka.actor.ActorSystem
@@ -80,11 +80,11 @@ class Controller(
     TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
     /**
-      * A Route in Akka is technically a function taking a RequestContext as a parameter.
-      *
-      * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
-      * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
-      */
+     * A Route in Akka is technically a function taking a RequestContext as a parameter.
+     *
+     * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+     * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
+     */
     override def routes(implicit transid: TransactionId): Route = {
         super.routes ~ {
             (pathEndOrSingleSlash & get) {
@@ -94,8 +94,12 @@ class Controller(
     }
 
     // initialize datastores
-    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
-    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
+    private implicit val authCache = WhiskAuthStore.cache()
+    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig, authCache)
+
+    private implicit val entityCache = WhiskEntityStore.cache()
+    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig, entityCache)
+
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services

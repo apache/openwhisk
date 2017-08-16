@@ -77,7 +77,7 @@ class ContainerPoolTests extends FlatSpec
     val pool = new ContainerPool(config, InstanceId(0), true, true)
     pool.logDir = "/tmp"
 
-    val datastore = WhiskEntityStore.datastore(config)
+    val datastore = WhiskEntityStore.datastore(config, None)
 
     override def afterAll() {
         println("Shutting down store connections")

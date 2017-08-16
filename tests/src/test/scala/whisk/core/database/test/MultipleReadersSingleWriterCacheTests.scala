@@ -41,16 +41,17 @@ import whisk.core.database.MultipleReadersSingleWriterCache
 
 class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
-    with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem
     with StreamLogging {
+
+    val cache = new MultipleReadersSingleWriterCache[String, String]()
 
     "the cache" should "support simple CRUD" in {
         val inhibits = doReadWriteRead("foo").go(0 seconds)
         inhibits.debug(this)
 
         inhibits.nReadInhibits.get should be(0)
-        cacheSize should be(1)
+        cache.cacheSize should be(1)
     }
 
     "the cache" should "support concurrent CRUD to different keys" in {
@@ -163,13 +164,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (!readFirst) {
                 // we want to do the update before the first read
-                cacheUpdate(key, key, delayed("bar_b")) onFailure {
+                cache.cacheUpdate(key, key, delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
             }
 
-            cacheLookup(key, delayed("bar"), true) onComplete {
+            cache.cacheLookup(key, delayed("bar")) onComplete {
                 case Success(s) => {
                     latch.countDown()
                 }
@@ -181,13 +182,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
             if (readFirst) {
                 // we did the read before the update, so do the write next
-                cacheUpdate(key, key, delayed("bar_b")) onFailure {
+                cache.cacheUpdate(key, key, delayed("bar_b")) onFailure {
                     case t =>
                         inhibits.nWriteInhibits.incrementAndGet();
                 }
             }
 
-            cacheLookup(key, delayed("bar_c"), true) onComplete {
+            cache.cacheLookup(key, delayed("bar_c")) onComplete {
                 case Success(s) => {
                     latch.countDown();
                 }
@@ -209,5 +210,5 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     }
 
     /** we are using cache keys, so the update key is just the string itself */
-    override protected def cacheKeyForUpdate(w: String): String = (w)
+    def cacheKeyForUpdate(w: String): String = (w)
 }

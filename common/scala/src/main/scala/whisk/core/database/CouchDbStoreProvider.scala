@@ -23,20 +23,21 @@ import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.spi.Dependencies
 import whisk.spi.SpiFactory
+import whisk.core.entity.DocInfo
 
 /**
  * A CouchDB implementation of ArtifactStoreProvider
  */
 class CouchDbStoreProvider extends ArtifactStoreProvider {
-    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+    def makeStore[D <: DocumentSerializer, CacheAbstraction](config: WhiskConfig, name: WhiskConfig => String, cache: Option[WhiskCache[CacheAbstraction, DocInfo]])(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
-        logging: Logging): ArtifactStore[D] = {
+        logging: Logging): ArtifactStore[D, CacheAbstraction] = {
         require(config != null && config.isValid, "config is undefined or not valid")
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
 
-        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
+        new CouchDbRestStore[D, CacheAbstraction](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config), cache)
     }
 }
 

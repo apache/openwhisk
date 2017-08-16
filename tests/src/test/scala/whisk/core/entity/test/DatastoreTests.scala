@@ -47,8 +47,8 @@ class DatastoreTests extends FlatSpec
 
     val namespace = EntityPath("test namespace")
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
-    val datastore = WhiskEntityStore.datastore(config)
-    val authstore = WhiskAuthStore.datastore(config)
+    val datastore = WhiskEntityStore.datastore(config, None)
+    val authstore = WhiskAuthStore.datastore(config, None)
 
     override def afterAll() {
         println("Shutting down store connections")

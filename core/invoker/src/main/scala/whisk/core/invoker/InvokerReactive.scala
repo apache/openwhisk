@@ -52,6 +52,7 @@ import whisk.core.dispatcher.MessageHandler
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
+import whisk.core.entity.types.EntityStore
 import whisk.http.Messages
 
 
@@ -59,12 +60,12 @@ class InvokerReactive(
     config: WhiskConfig,
     instance: InstanceId,
     activationFeed: ActorRef,
-    producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging)
+    producer: MessageProducer,
+    entityStore: EntityStore)(implicit actorSystem: ActorSystem, logging: Logging)
     extends MessageHandler(s"invoker${instance.toInt}") {
 
     implicit val ec = actorSystem.dispatcher
 
-    private val entityStore = WhiskEntityStore.datastore(config)
     private val activationStore = WhiskActivationStore.datastore(config)
 
     implicit val docker = new DockerClientWithFileAccess()(ec)

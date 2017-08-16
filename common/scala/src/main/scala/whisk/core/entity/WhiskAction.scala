@@ -214,11 +214,10 @@ object WhiskAction
 
     override implicit val serdes = jsonFormat(WhiskAction.apply, "namespace", "name", "exec", "parameters", "limits", "version", "publish", "annotations")
 
-    override val cacheEnabled = true
     override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     // overriden to store attached code
-    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+    override def put[A >: WhiskAction](db: ArtifactStore[A, A], doc: WhiskAction)(
         implicit transid: TransactionId): Future[DocInfo] = {
 
         Try {
@@ -251,12 +250,12 @@ object WhiskAction
     }
 
     // overriden to retrieve attached code
-    override def get[A >: WhiskAction](db: ArtifactStore[A], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean)(
+    override def get[A >: WhiskAction](db: ArtifactStore[A, A], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean = true)(
         implicit transid: TransactionId, mw: Manifest[WhiskAction]): Future[WhiskAction] = {
 
         implicit val ec = db.executionContext
 
-        val fa = super.get(db, doc, rev, fromCache = fromCache)
+        val fa = super.get(db, doc, rev, fromCache)
 
         fa.flatMap { action =>
             action.exec match {
