@@ -43,18 +43,21 @@
   when: whisk_version_name != "mac"
 
 - name: get running invoker information
-  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
+  uri:
+    url: "http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{\"name\":[ \"invoker\" ],\"ancestor\":[ \"invoker\" ]}' | urlencode }}"
+    return_content: yes
   register: invokerInfo
 
 - name: determine if more than one invoker is running
-  fail: msg="more than one invoker is running"
-  when: invokerInfo.json|length > 1
+  fail:
+    msg: "more than one invoker is running"
+  when: not invoker.allowMultipleInstances and invokerInfo.json|length > 1
 
 - name: determine if index of invoker is same with index of inventory host
   fail:
     msg: "invoker index is invalid. expected: /invoker{{ groups['invokers'].index(inventory_hostname) }} found: {{ item.Names[0] }}"
   with_items: "{{ invokerInfo.json }}"
-  when: item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+  when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
 - name: start invoker using docker cli
   shell: >
