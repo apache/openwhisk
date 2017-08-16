@@ -52,6 +52,8 @@ dependencies {
     compile 'org.scalamock:scalamock-scalatest-support_2.11:3.4.2'
     compile 'com.typesafe.akka:akka-testkit_2.11:2.4.16'
     compile 'com.typesafe.akka:akka-http-testkit_2.11:10.0.9'
+    compile 'com.github.java-json-tools:json-schema-validator:2.2.8';
+
     compile project(':common:scala')
     compile project(':core:controller')
     compile project(':core:invoker')

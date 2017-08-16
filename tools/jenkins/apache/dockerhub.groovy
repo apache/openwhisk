@@ -8,7 +8,6 @@ node('xenial && !H22') {
     sh "pip install --user --upgrade pip"
     withEnv(['PATH+LOCAL_JENKINS=/home/jenkins/.local/bin']) {
       sh "pip install --user markupsafe"
-      sh "pip install --user jsonschema"
       sh "pip install --user couchdb"
       sh "pip install --user ansible==2.3.0.0"
       sh "pip install --user requests==2.10.0"

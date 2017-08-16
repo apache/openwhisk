@@ -17,25 +17,26 @@
 
 package system.rest
 
-import common.TestUtils
-import common.WhiskProperties
+import com.github.fge.jsonschema.main.JsonSchemaFactory
+import com.fasterxml.jackson.databind.ObjectMapper
 
 /**
  * Utilities for dealing with JSON schema
  *
  */
-trait JsonSchema extends RestUtil {
-
-    def validatorDir = WhiskProperties.getFileRelativeToWhiskHome("tools/json")
+trait JsonSchema {
 
     /**
      * Check whether a JSON document (represented as a String) conforms to a JSON schema (also a String).
-     * Invokes a python utility.
      *
      * @return true if the document is valid, false otherwise
      */
     def check(doc: String, schema: String): Boolean = {
-        def result = TestUtils.runCmd(TestUtils.DONTCARE_EXIT, validatorDir, WhiskProperties.python, "validate.py", doc, schema)
-        return result.stdout.trim() == "true"
+        val mapper = new ObjectMapper()
+        val docNode = mapper.readTree(doc)
+        val schemaNode = mapper.readTree(schema)
+
+        val validator = JsonSchemaFactory.byDefault().getValidator
+        validator.validate(schemaNode, docNode).isSuccess
     }
 }

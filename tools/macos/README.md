@@ -32,7 +32,7 @@ sudo easy_install pip
 # install docker for python
 /usr/local/bin/pip install docker==2.2.1
 # install script prerequisites
-sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 jsonschema couchdb' | bash
+sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 couchdb' | bash
 ```
 
 # Build
