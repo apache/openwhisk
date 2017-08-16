@@ -335,6 +335,5 @@ trait WskWebActionsTests
             response.statusCode shouldBe 200
             response.header("Content-type") shouldBe "application/json"
             response.body.asString.parseJson.asJsObject shouldBe JsObject("status" -> "success".toJson)
-
     }
 }

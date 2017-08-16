@@ -287,7 +287,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
     private def interpretHttpResponseAsJson(code: StatusCode, headers: List[RawHeader], js: JsValue, transid: TransactionId) = {
         findContentTypeInHeader(headers, transid, `application/json`) match {
             case Success(mediaType) if (mediaType == `application/json`) =>
-                respondWithHeaders(headers) {
+                respondWithHeaders(removeContentTypeHeader(headers)) {
                     complete(code, js)
                 }
 
