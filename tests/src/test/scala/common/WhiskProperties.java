@@ -200,6 +200,8 @@ public class WhiskProperties {
         return whiskProperties.getProperty("router.host");
     }
 
+    public static String getApiLocalHostName() { return whiskProperties.getProperty("whisk.api.localhost.name"); }
+
     public static String getApiHostForAction() {
         String proto = whiskProperties.getProperty("whisk.api.host.proto");
         String port = whiskProperties.getProperty("whisk.api.host.port");
