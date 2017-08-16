@@ -14,9 +14,9 @@ git clone https://github.com/apache/incubator-openwhisk-utilities.git
 # run the scancode util. against project source code starting at its root
 incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/tools/build/scanCode.cfg
 
-# run scalafmt checks
+# run static code checks
 cd $ROOTDIR
-TERM=dumb ./gradlew checkScalafmtAll
+TERM=dumb ./gradlew checkScalafmtAll analyzeDependencies
 
 cd $ROOTDIR/ansible
 

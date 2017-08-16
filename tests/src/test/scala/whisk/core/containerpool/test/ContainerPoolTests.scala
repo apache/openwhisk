@@ -131,7 +131,7 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(1).expectNoMsg(100.milliseconds)
+    containers(1).expectNoMessage(100.milliseconds)
   }
 
   it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {

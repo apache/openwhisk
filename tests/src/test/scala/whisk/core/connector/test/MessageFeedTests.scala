@@ -145,7 +145,7 @@ class MessageFeedTests
     connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
 
     connector.peekCount.get shouldBe peeks
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
   }
 
   it should "transition from drain to fill mode" in {
@@ -162,7 +162,7 @@ class MessageFeedTests
 
     // stay in drain mode, no more peeking
     timeout(connector.fsm) // should be ignored
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
     connector.peekCount.get shouldBe peeks // no new reads
 
     // expecting overflow of 2 in the queue, which is true if all expected messages were sent
@@ -170,7 +170,7 @@ class MessageFeedTests
 
     // drain one, should stay in draining state
     connector.fsm ! Processed
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
     connector.peekCount.get shouldBe peeks // no new reads
 
     // back to fill mode
@@ -182,6 +182,6 @@ class MessageFeedTests
     connector.fill(1)
     connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
 
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
   }
 }

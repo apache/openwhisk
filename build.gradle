@@ -4,6 +4,7 @@ buildscript {
     }
     dependencies {
         classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
+        classpath 'ca.cutterslade.gradle:gradle-dependency-analyze:1.2.0'
     }
 }
 
@@ -37,3 +38,5 @@ def configureUnixClasspath(File script) {
         }
         .join('\n')
 }
+
+apply plugin: 'ca.cutterslade.analyze'
