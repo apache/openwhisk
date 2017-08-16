@@ -191,9 +191,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                             Future.successful(())
                         case None =>
                             logging.error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
-                            Future.failed(new IllegalStateException())
+                            Future.failed(new IllegalStateException("non-executable action reached the invoker"))
                     }
-                }.recover {
+                }.recoverWith {
                     case t =>
                         // If the action cannot be found, the user has concurrently deleted it,
                         // making this an application error. All other errors are considered system
@@ -222,7 +222,15 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                         activationFeed ! MessageFeed.Processed
                         ack(msg.transid, activation, msg.rootControllerIndex)
                         store(msg.transid, activation)
+                        Future.successful(())
                 }
+            }.recoverWith {
+                case t =>
+                    // Iff everything above failed, we have a terminal error at hand. Either the message failed
+                    // to deserialize, or something threw an error where it is not expected to throw.
+                    activationFeed ! MessageFeed.Processed
+                    logging.error(this, s"terminal failure while processing message: $t")
+                    Future.successful(())
             }
     }
 
