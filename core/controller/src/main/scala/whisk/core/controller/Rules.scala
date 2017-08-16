@@ -295,7 +295,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                         WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
                     }
 
-                    val triggerLink = ReducedRule(actionName, Status.INACTIVE)
+                    val triggerLink = ReducedRule(actionName, getStatus(Option(newTrigger), ruleName))
                     val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                     Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
             }
