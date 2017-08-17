@@ -79,30 +79,9 @@ import whisk.http.Messages
  */
 
 @RunWith(classOf[JUnitRunner])
-class WebActionsApiTestsV1 extends FlatSpec with Matchers with WebActionsApiTests {
-    override lazy val webInvokePathSegments = Seq("experimental", "web")
-    override lazy val webApiDirectives = WebApiDirectives.exp
-
-    "properties" should "match verion" in {
-        webApiDirectives.method shouldBe "__ow_meta_verb"
-        webApiDirectives.headers shouldBe "__ow_meta_headers"
-        webApiDirectives.path shouldBe "__ow_meta_path"
-        webApiDirectives.namespace shouldBe "__ow_meta_namespace"
-        webApiDirectives.query shouldBe "__ow_meta_query"
-        webApiDirectives.body shouldBe "__ow_meta_body"
-        webApiDirectives.statusCode shouldBe "code"
-        webApiDirectives.enforceExtension shouldBe true
-        webApiDirectives.reservedProperties shouldBe {
-            Set("__ow_meta_verb", "__ow_meta_headers", "__ow_meta_path", "__ow_meta_namespace",
-                "__ow_meta_query", "__ow_meta_body")
-        }
-    }
-}
-
-@RunWith(classOf[JUnitRunner])
-class WebActionsApiTestsV2 extends FlatSpec with Matchers with WebActionsApiTests {
+class WebActionsApiPropertiesTests extends FlatSpec with Matchers with WebActionsApiTests {
     override lazy val webInvokePathSegments = Seq("web")
-    override lazy val webApiDirectives = WebApiDirectives.web
+    override lazy val webApiDirectives = new WebApiDirectives()
 
     "properties" should "match verion" in {
         webApiDirectives.method shouldBe "__ow_method"

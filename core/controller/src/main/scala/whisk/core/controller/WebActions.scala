@@ -59,7 +59,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
-protected[controller] sealed class WebApiDirectives private (prefix: String) {
+protected[controller] sealed class WebApiDirectives (prefix: String = "__ow_") {
     // enforce the presence of an extension (e.g., .http) in the URI path
     val enforceExtension = false
 
@@ -76,20 +76,6 @@ protected[controller] sealed class WebApiDirectives private (prefix: String) {
 
     lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
     protected final def fields(f: String) = s"$prefix$f"
-}
-
-// field names for /web with raw-http action
-protected[controller] object WebApiDirectives {
-    // field names for /web
-    val web = new WebApiDirectives("__ow_")
-
-    // field names used for /experimental/web
-    val exp = new WebApiDirectives("__ow_meta_") {
-        override val enforceExtension = true
-        override val method = fields("verb")
-        override val namespace = fields("namespace")
-        override val statusCode = "code"
-    }
 }
 
 private case class Context(
@@ -372,7 +358,7 @@ trait WhiskWebActionsApi
     /**
      * Adds route to web based activations. Actions invoked this way are anonymous in that the
      * caller is not authenticated. The intended action must be named in the path as a fully qualified
-     * name as in /experimental/web/some-namespace/some-package/some-action. The package is optional
+     * name as in /web/some-namespace/some-package/some-action. The package is optional
      * in that the action may be in the default package, in which case, the string "default" must be used.
      * If the action doesn't exist (or the namespace is not valid) NotFound is generated. Following the
      * action name, an "extension" is required to specify the desired content type for the response. This
@@ -380,7 +366,7 @@ trait WhiskWebActionsApi
      * an text/html response.
      *
      * Optionally, the result form the action may be projected based on a named property. As in
-     * /experimental/web/some-namespace/some-package/some-action/some-property. If the property
+     * /web/some-namespace/some-package/some-action/some-property. If the property
      * does not exist in the result then a NotFound error is generated. A path of properties may
      * be supplied to project nested properties.
      *

@@ -97,7 +97,6 @@ class Wsk() extends RunWskCmd {
     implicit val pkg = new WskPackage
     implicit val namespace = new WskNamespace
     implicit val api = new WskApi
-    implicit val apiexperimental = new WskApiExperimental
 }
 
 trait FullyQualifiedNames {
@@ -784,98 +783,6 @@ class WskPackage()
             { parameters flatMap { p => Seq("-p", p._1, p._2.compactPrint) } } ++
             { annotations flatMap { p => Seq("-a", p._1, p._2.compactPrint) } }
         cli(wp.overrides ++ params, expectedExitCode)
-    }
-}
-
-class WskApiExperimental extends RunWskCmd {
-    protected val noun = "api-experimental"
-
-    /**
-     * Creates and API endpoint. Parameters mirror those available in the CLI.
-     *
-     * @param expectedExitCode (optional) the expected exit code for the command
-     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-     */
-    def create(
-        basepath: Option[String] = None,
-        relpath: Option[String] = None,
-        operation: Option[String] = None,
-        action: Option[String] = None,
-        apiname: Option[String] = None,
-        swagger: Option[String] = None,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wp: WskProps): RunResult = {
-        val params = Seq(noun, "create", "--auth", wp.authKey) ++
-            { basepath map { b => Seq(b) } getOrElse Seq() } ++
-            { relpath map { r => Seq(r) } getOrElse Seq() } ++
-            { operation map { o => Seq(o) } getOrElse Seq() } ++
-            { action map { aa => Seq(aa) } getOrElse Seq() } ++
-            { apiname map { a => Seq("--apiname", a) } getOrElse Seq() } ++
-            { swagger map { s => Seq("--config-file", s) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
-    }
-
-    /**
-     * Retrieve a list of API endpoints. Parameters mirror those available in the CLI.
-     *
-     * @param expectedExitCode (optional) the expected exit code for the command
-     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-     */
-    def list(
-        basepathOrApiName: Option[String] = None,
-        relpath: Option[String] = None,
-        operation: Option[String] = None,
-        limit: Option[Int] = None,
-        since: Option[Instant] = None,
-        full: Option[Boolean] = None,
-        nameSort: Option[Boolean] = None,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wp: WskProps): RunResult = {
-        val params = Seq(noun, "list", "--auth", wp.authKey) ++
-            { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
-            { relpath map { r => Seq(r) } getOrElse Seq() } ++
-            { operation map { o => Seq(o) } getOrElse Seq() } ++
-            { limit map { l => Seq("--limit", l.toString) } getOrElse Seq() } ++
-            { since map { i => Seq("--since", i.toEpochMilli.toString) } getOrElse Seq() } ++
-            { full map { r => Seq("--full") } getOrElse Seq() } ++
-            { nameSort map { n => Seq("--name-sort") } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
-    }
-
-    /**
-     * Retieves an API's configuration. Parameters mirror those available in the CLI.
-     * Runs a command wsk [params] where the arguments come in as a sequence.
-     *
-     * @param expectedExitCode (optional) the expected exit code for the command
-     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-     */
-    def get(
-        basepathOrApiName: Option[String] = None,
-        full: Option[Boolean] = None,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wp: WskProps): RunResult = {
-        val params = Seq(noun, "get", "--auth", wp.authKey) ++
-            { basepathOrApiName map { b => Seq(b) } getOrElse Seq() } ++
-            { full map { f => if (f) Seq("--full") else Seq() } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
-    }
-
-    /**
-     * Delete an entire API or a subset of API endpoints. Parameters mirror those available in the CLI.
-     *
-     * @param expectedExitCode (optional) the expected exit code for the command
-     * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-     */
-    def delete(
-        basepathOrApiName: String,
-        relpath: Option[String] = None,
-        operation: Option[String] = None,
-        expectedExitCode: Int = SUCCESS_EXIT)(
-            implicit wp: WskProps): RunResult = {
-        val params = Seq(noun, "delete", "--auth", wp.authKey, basepathOrApiName) ++
-            { relpath map { r => Seq(r) } getOrElse Seq() } ++
-            { operation map { o => Seq(o) } getOrElse Seq() }
-        cli(wp.overrides ++ params, expectedExitCode, showCmd = true)
     }
 }
 
