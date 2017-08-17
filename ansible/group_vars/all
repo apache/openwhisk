@@ -142,6 +142,8 @@ invoker:
   coreshare: 2
   busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
   instances: "{{ groups['invokers'] | length }}"
+  # Specify if it is allowed to deploy more than 1 invoker on a single machine.
+  allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"

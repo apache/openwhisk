@@ -6,7 +6,7 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: "create {{ registry.confdir }} on registry {{ inventory_hostname }}"
+- name: "create {{ registry.confdir }} on registry {{ ansible_host }}"
   file:
     path: "{{ registry.confdir }}/certs"
     state: directory
@@ -54,7 +54,7 @@
 - name: wait until registry in this host is up and running
   wait_for:
     delay: 2
-    host: "{{ ansible_host|default('inventory_hostname') }}"
+    host: "{{ ansible_host }}"
     port: "{{ registry.port }}"
     timeout: 60
 

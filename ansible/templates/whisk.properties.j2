@@ -45,7 +45,7 @@ edge.host={{ groups["edge"]|first }}
 kafka.host={{ groups["kafka"]|first }}
 router.host={{ groups["edge"]|first }}
 zookeeper.host={{ groups["kafka"]|first }}
-invoker.hosts={{ groups["invokers"] | join(",") }}
+invoker.hosts={{ groups["invokers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 
 edge.host.apiport=443
 zookeeper.host.port={{ zookeeper.port }}
@@ -53,7 +53,7 @@ kafka.host.port={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}
 invoker.hosts.baseport={{ invoker.port }}
 
-controller.hosts={{ groups["controllers"] | join(",") }}
+controller.hosts={{ groups["controllers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 controller.host.basePort={{ controller.basePort }}
 controller.instances={{ controller.instances }}
 
@@ -64,7 +64,7 @@ invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
 invoker.instances={{ invoker.instances }}
 
-main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
+main.docker.endpoint={{ hostvars[groups["controllers"]|first].ansible_host }}:{{ docker.port }}
 
 docker.registry={{ docker_registry }}
 docker.image.prefix={{ docker.image.prefix }}
