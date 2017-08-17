@@ -45,6 +45,7 @@ import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import org.scalatest.BeforeAndAfterAll
 import common.RunWskAdminCmd
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ThrottleTests
@@ -349,12 +350,24 @@ class NamespaceSpecificThrottleTests
             }
 
             // One invoke should be allowed, the second one throttled
-            wsk.action.invoke(actionName)
-            wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+            // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+            retry({
+                val results = (1 to 2).map { _ =>
+                    wsk.action.invoke(actionName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+                }
+                results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+                results.map(_.stderr).mkString should include(tooManyRequests)
+            }, 2, Some(1.second))
 
             // One fire should be allowed, the second one throttled
-            wsk.trigger.fire(triggerName)
-            wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+            // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+            retry({
+                val results = (1 to 2).map { _ =>
+                    wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+                }
+                results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+                results.map(_.stderr).mkString should include(tooManyRequests)
+            }, 2, Some(1.second))
     }
 
     it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) {
