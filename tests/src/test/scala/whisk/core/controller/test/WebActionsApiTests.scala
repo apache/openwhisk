@@ -157,12 +157,12 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
     behavior of "Web actions API"
 
-    var failActionLookup = false                        // toggle to cause action lookup to fail
-    var failActivation = 0                              // toggle to cause action to fail
-    var failThrottleForSubject: Option[Subject] = None  // toggle to cause throttle to fail for subject
+    var failActionLookup = false // toggle to cause action lookup to fail
+    var failActivation = 0 // toggle to cause action to fail
+    var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
     var actionResult: Option[JsObject] = None
-    var requireAuthentication = false                   // toggle require-whisk-auth annotation on action
-    var customOptions = true                            // toogle web-custom-options annotation on action
+    var requireAuthentication = false // toggle require-whisk-auth annotation on action
+    var customOptions = true // toogle web-custom-options annotation on action
     var invocationCount = 0
     var invocationsAllowed = 0
 
@@ -969,9 +969,14 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 foreach { path =>
 
                     val form = FormData(Map("field1" -> "value1", "field2" -> "value2"))
-                    invocationsAllowed += 1
+                    invocationsAllowed += 2
 
-                    Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
+                    Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
+                        status should be(OK)
+                        responseAs[String] should (be("value1") or be("value2"))
+                    }
+
+                    Post(s"$testRoutePath/$path", form.toEntity(HttpCharsets.`US-ASCII`)) ~> Route.seal(routes(creds)) ~> check {
                         status should be(OK)
                         responseAs[String] should (be("value1") or be("value2"))
                     }

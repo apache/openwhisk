@@ -532,7 +532,7 @@ trait WhiskWebActionsApi
                         process(Some(body), isRawHttpAction)
                     }
 
-                case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, Some(HttpCharsets.`UTF-8`)), _) if !isRawHttpAction =>
+                case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, _), _) if !isRawHttpAction =>
                     entity(as[FormData]) { form =>
                         val body = form.fields.toMap.toJson.asJsObject
                         process(Some(body), isRawHttpAction)
