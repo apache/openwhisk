@@ -86,8 +86,8 @@ class WskWebActionsTestsV2 extends WskWebActionsTests with BeforeAndAfterAll {
     "vanity subdomain" should "access a web action via namespace subdomain" in withAssetCleaner(wskPropsForSubdomainTest) {
         (wp, assetHelper) =>
             val actionName = "webaction"
-
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
             assetHelper.withCleaner(wsk.action, actionName) {
                 (action, _) => action.create(actionName, file, web = Some(true.toString))(wp)
             }
@@ -145,14 +145,14 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val host = getServiceURL()
+            val requestPath = host + s"$testRoutePath/$namespace/default/$name.text/a?a="
+            val padAmount = MAX_URL_LENGTH - requestPath.length
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, web = Some("true"))
             }
 
-            val host = getServiceURL()
-            val requestPath = host + s"$testRoutePath/$namespace/default/webaction.text/a?a="
-            val padAmount = MAX_URL_LENGTH - requestPath.length
             Seq(("A", 200),
                 ("A" * padAmount, 200),
                 // ideally the bad case is just +1 but there's some differences
@@ -183,17 +183,16 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val host = getServiceURL()
+            val url = if (testRoutePath == "/api/v1/experimental/web") {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_meta_namespace"
+            } else {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_user"
+            }
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> true.toJson))
-            }
-
-            val host = getServiceURL()
-            val url = if (testRoutePath == "/api/v1/experimental/web") {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_namespace"
-            } else {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_user"
             }
 
             val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
@@ -214,7 +213,7 @@ trait WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
             val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -236,7 +235,7 @@ trait WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
             val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction"
+            val url = host + s"$testRoutePath/$namespace/default/$name"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, web = Some("true"))
@@ -261,16 +260,15 @@ trait WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             val bodyContent = "This is the body"
+            val host = getServiceURL()
+            val url = if (testRoutePath == "/api/v1/experimental/web") {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_meta_body"
+            } else {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_body"
+            }
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, web = Some("true"))
-            }
-
-            val host = getServiceURL()
-            val url = if (testRoutePath == "/api/v1/experimental/web") {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_body"
-            } else {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_body"
             }
 
             val paramRes = RestAssured.given().contentType("text/html").param("key", "value").config(sslconfig).post(url)
@@ -286,13 +284,13 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("textBody.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) => action.create(name, file, web = Some("true"))
             }
 
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
             val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
             response.statusCode shouldBe 406
             response.body.asString should include("Resource representation is only available with these types:\\ntext/html")
@@ -303,7 +301,7 @@ trait WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("multipleHeaders.js"))
             val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
@@ -318,5 +316,24 @@ trait WskWebActionsTests
                 new Header("Set-Cookie", "a=b"),
                 new Header("Set-Cookie", "c=d")
             )
+    }
+
+    it should "handle http web action with base64 encoded response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "base64Web"
+            val file = Some(TestUtils.getTestActionFilename("base64Web.js"))
+            val host = getServiceURL
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("raw"))
+            }
+
+            val response = RestAssured.given().config(sslconfig).get(url)
+
+            response.statusCode shouldBe 200
+            response.header("Content-type") shouldBe "application/json"
+            response.body.asString.parseJson.asJsObject shouldBe JsObject("status" -> "success".toJson)
     }
 }
