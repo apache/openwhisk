@@ -67,19 +67,8 @@ trait LoadBalancer {
     /** Gets the number of in-flight activations in the system. */
     def totalActiveActivations: Int
 
-    /**
-     * Publishes activation message on internal bus for an invoker to pick up.
-     *
-     * @param action the action to invoke
-     * @param msg the activation message to publish on an invoker topic
-     * @param transid the transaction id for the request
-     * @return result a nested Future the outer indicating completion of publishing and
-     *         the inner the completion of the action (i.e., the result)
-     *         if it is ready before timeout (Right) otherwise the activation id (Left).
-     *         The future is guaranteed to complete within the declared action time limit
-     *         plus a grace period (see activeAckTimeoutGrace).
-     */
-    def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
+    /** Gets the executor for this action + activation */
+    def executor(action:ExecutableWhiskAction, msg: ActivationMessage): Option[ActivationExecutor]
 
     /**
      * Return a message indicating the health of the containers and/or container pool in general
@@ -97,12 +86,22 @@ object LoadBalancerServiceProvider extends SpiFactory[LoadBalancerProvider]{
     override def apply(dependencies: Dependencies): LoadBalancerProvider = new LoadBalancerServiceProvider
 }
 
+class LoadBalancerServiceExecutorProvider extends ActivationExecutorsProvider {
+    override def executors(config: WhiskConfig, instance: InstanceId)
+            (implicit logging: Logging, actorSystem: ActorSystem): Seq[ActivationExecutor] =  List(new LoadBalancerService(config, instance))
+}
+
+object LoadBalancerServiceExecutorProvider extends SpiFactory[ActivationExecutorsProvider]{
+    override def apply(dependencies: Dependencies): ActivationExecutorsProvider = new LoadBalancerServiceExecutorProvider
+}
+
+
 class LoadBalancerService(
     config: WhiskConfig,
     instance: InstanceId)(
         implicit val actorSystem: ActorSystem,
         logging: Logging)
-    extends LoadBalancer {
+    extends LoadBalancer with ActivationExecutor {
 
     /** Used to manage an action for testing invoker health */
     val entityStore =  WhiskEntityStore.datastore(config)
@@ -303,6 +302,20 @@ class LoadBalancerService(
             case (instance, state) => s"invoker${instance.toInt}" -> state.asString
         }.toMap.toJson.asJsObject)
 
+    /**
+     * Returns 'this' as its own ActivationExecutor
+     * @param action
+     * @return
+     */
+    override def executor(action: ExecutableWhiskAction, msg: ActivationMessage) = {
+        Some(this)
+    }
+
+    override def supports(action: ExecutableWhiskAction, msg: ActivationMessage) = true//everything can run here
+
+    override def priority(): Int = 10//deployments can provide lower or higher priority executors
+
+    override def name: String = "default executor (kafka -> invoker)"
 }
 
 object LoadBalancerService {

@@ -114,7 +114,10 @@ protected[actions] trait PrimitiveActions {
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
-        val postedFuture = loadBalancer.publish(action, message)
+        val postedFuture = loadBalancer.executor(action, message) match {
+            case Some(e) => e.publish(action, message)
+            case None => Future.failed(new RuntimeException(s"no executor matched action or message ${action} ${message}"))
+        }
 
         postedFuture.flatMap { activeAckResponse =>
             // successfully posted activation request to the message bus
