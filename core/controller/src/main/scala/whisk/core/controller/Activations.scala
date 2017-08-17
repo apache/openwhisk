@@ -55,6 +55,9 @@ trait WhiskActivationsApi
 
     protected override val collection = Collection(Collection.ACTIVATIONS)
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /** Database service to GET activations. */
     protected val activationStore: ActivationStore
 

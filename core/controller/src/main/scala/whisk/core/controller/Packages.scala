@@ -52,6 +52,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     /** Must exclude any private packages when listing those in a namespace unless owned by subject. */
     protected override val listRequiresPrivateEntityFilter = true
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /**
      * Creates or updates package/binding if it already exists. The PUT content is deserialized into a
      * WhiskPackagePut which is a subset of WhiskPackage (it eschews the namespace and entity name since

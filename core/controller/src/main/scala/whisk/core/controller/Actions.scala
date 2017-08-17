@@ -87,7 +87,11 @@ trait WhiskActionsApi
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
+    /** Entity normalizer to JSON object. */
     import RestApiCommons.emptyEntityToJsObject
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /**
      * Handles operations on action resources, which encompass these cases:

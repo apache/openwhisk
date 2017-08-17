@@ -49,6 +49,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import WhiskWebActionsApi.MediaExtension
+import RestApiCommons.{ jsonPrettyResponsePrinter => jsonPrettyPrinter }
 
 import whisk.common.TransactionId
 import whisk.core.controller.actions.PostActionActivation
@@ -192,12 +193,12 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
     private def resultAsHtml(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
         case JsString(html) => complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, html))
-        case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
+        case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid, jsonPrettyPrinter)
     }
 
     private def resultAsSvg(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
         case JsString(svg) => complete(HttpEntity(`image/svg+xml`, svg.getBytes))
-        case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid)
+        case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid, jsonPrettyPrinter)
     }
 
     private def resultAsText(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = {
@@ -215,7 +216,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
-            case _           => terminate(BadRequest, Messages.invalidMedia(`application/json`))(transid)
+            case _           => terminate(BadRequest, Messages.invalidMedia(`application/json`))(transid, jsonPrettyPrinter)
         }
     }
 
@@ -252,7 +253,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
         } getOrElse {
             // either the result was not a JsObject or there was an exception validting the
             // response as an http result
-            terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
+            terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid, jsonPrettyPrinter)
         }
     }
 
@@ -292,7 +293,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
                 }
 
             case _ =>
-                terminate(BadRequest, Messages.httpContentTypeError)(transid)
+                terminate(BadRequest, Messages.httpContentTypeError)(transid, jsonPrettyPrinter)
         }
     }
 
@@ -311,10 +312,10 @@ protected[core] object WhiskWebActionsApi extends Directives {
                 }
 
             case Failure(RejectRequest(code, message)) =>
-                terminate(code, message)(transid)
+                terminate(code, message)(transid, jsonPrettyPrinter)
 
             case _ =>
-                terminate(BadRequest, Messages.httpContentTypeError)(transid)
+                terminate(BadRequest, Messages.httpContentTypeError)(transid, jsonPrettyPrinter)
         }
     }
 
@@ -440,7 +441,7 @@ trait WhiskWebActionsApi
                 // as the context body which may be the incoming request when the content type is JSON or formdata, or
                 // the raw body as __ow_body (and query parameters as __ow_query) otherwise
                 extract(_.request.entity) { e =>
-                    validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid) {
+                    validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid, jsonPrettyPrinter) {
                         requestMethodParamsAndPath { context =>
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {

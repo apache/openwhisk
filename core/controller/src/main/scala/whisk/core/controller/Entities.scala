@@ -17,18 +17,18 @@
 
 package whisk.core.controller
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
-import scala.concurrent.Future
 
-import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
-import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.server.Route
-
+import akka.http.scaladsl.server.RouteResult
+import spray.json.JsonPrinter
 import whisk.common.TransactionId
 import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Privilege.Privilege
@@ -41,9 +41,10 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 
 protected[controller] trait ValidateRequestSize extends Directives {
+
     protected def validateSize(check: => Option[SizeError])(
-        implicit tid: TransactionId) = new Directive0 {
-        def tapply(f: Unit => Route) = {
+        implicit tid: TransactionId, jsonPrinter: JsonPrinter) = new Directive0 {
+        override def tapply(f: Unit => Route) = {
             check map {
                 case e: SizeError => terminate(RequestEntityTooLarge, Messages.entityTooBig(e))
             } getOrElse f(None)
@@ -100,13 +101,13 @@ trait WhiskCollectionAPI
                 case READ => fetch(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                 case PUT =>
                     entity(as[LimitedWhiskEntityPut]) { e =>
-                        validateSize(e.isWithinSizeLimits)(transid) {
+                        validateSize(e.isWithinSizeLimits)(transid, RestApiCommons.jsonDefaultResponsePrinter) {
                             create(user, FullyQualifiedEntityName(resource.namespace, name))
                         }
                     }
                 case ACTIVATE =>
-                   extract(_.request.entity.contentLengthOption) { length =>
-                        validateSize(isWhithinRange(length.getOrElse(0)))(transid) {
+                    extract(_.request.entity.contentLengthOption) { length =>
+                        validateSize(isWhithinRange(length.getOrElse(0)))(transid, RestApiCommons.jsonDefaultResponsePrinter) {
                             activate(user, FullyQualifiedEntityName(resource.namespace, name), resource.env)
                         }
                     }

@@ -43,6 +43,7 @@ import whisk.http.Messages
 
 /** A trait for routes that require entitlement checks. */
 trait BasicAuthorizedRouteProvider extends Directives {
+
     /** An execution context for futures */
     protected implicit val executionContext: ExecutionContext
 
@@ -60,6 +61,9 @@ trait BasicAuthorizedRouteProvider extends Directives {
 
     /** Route directives for API. The methods that are supported on entities. */
     protected lazy val entityOps = get
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /** Checks entitlement and dispatches to handler if authorized. */
     protected def authorizeAndDispatch(

@@ -363,24 +363,6 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
-        /*
-         * All of the verbs supported by Spray have been added to Web Actions, so comment this test out
-         * as it is no longer valid.
-         *
-         it should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
-            implicit val tid = transid()
-
-            Seq((???, MethodNotAllowed)).
-                foreach {
-                    case (m, code) =>
-                        m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> Route.seal(routes(creds)) ~> check {
-                            status should be(code)
-                        }
-                }
-         }
-         *
-         */
-
         it should s"reject requests when identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
@@ -623,6 +605,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                         m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                             status should be(NotFound)
                             confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
+                            // ensure that error message is pretty printed as { error, code }
+                            responseAs[String].lines should have size 4
                         }
                     }
                 }
@@ -688,6 +672,13 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                             status should be(OK)
                             val response = responseAs[JsObject]
                             response shouldBe actionResult.get
+
+                            // ensure response is pretty printed
+                            responseAs[String] shouldBe {
+                                """{
+                                  |  "foobar": "foobar"
+                                  |}""".stripMargin
+                            }
                         }
                     }
                 }
