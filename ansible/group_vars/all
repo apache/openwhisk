@@ -111,6 +111,8 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: 0.10
   instances: "{{ groups['controllers'] | length }}"
+  # active/slave mode: 'backup', active/active mode:''
+  workMode: "{{ controller_cluster_work_mode | default('backup') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
