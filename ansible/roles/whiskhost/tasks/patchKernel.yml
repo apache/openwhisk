@@ -33,9 +33,14 @@
   become: true
 
 - name: wait until host comes back up, timeout after 10 minutes
-  local_action: wait_for host={{ inventory_hostname }} port=22 state=started delay=10 timeout=600
+  local_action:
+    wait_for host: "{{ ansible_host }}"
+    port: 22
+    state: started
+    delay: 10
+    timeout: 600
 
 # can not use apt module because of https://github.com/ansible/ansible-modules-core/issues/4029
 - name: remove old kernels
-  shell: apt-get -y autoremove --purge 
+  shell: apt-get -y autoremove --purge
   become: true

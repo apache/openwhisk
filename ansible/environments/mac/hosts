@@ -1,29 +1,28 @@
-; the first parameter in a host is the inventory_hostname which has to be
-; either an ip
-; or a resolvable hostname
+; the first parameter in a host is the inventory_hostname
 
 ; used for local actions only
 ansible ansible_connection=local
 
 [edge]
-172.17.0.1 ansible_connection=local
+172.17.0.1          ansible_host=172.17.0.1 ansible_connection=local
 
 [controllers]
-172.17.0.1 ansible_connection=local
+controller0         ansible_host=172.17.0.1 ansible_connection=local
+controller1         ansible_host=172.17.0.1 ansible_connection=local
 
 [kafka]
-172.17.0.1 ansible_connection=local
+172.17.0.1          ansible_host=172.17.0.1 ansible_connection=local
 
 [invokers]
-172.17.0.1 ansible_connection=local
+invoker0            ansible_host=172.17.0.1 ansible_connection=local
+invoker1            ansible_host=172.17.0.1 ansible_connection=local
 
 ; db group is only used if db_provider is CouchDB
 [db]
-172.17.0.1 ansible_connection=local
+172.17.0.1          ansible_host=172.17.0.1 ansible_connection=local
 
 [redis]
-172.17.0.1 ansible_connection=local
+172.17.0.1          ansible_host=172.17.0.1 ansible_connection=local
 
 [apigateway]
-172.17.0.1 ansible_connection=local
-
+172.17.0.1          ansible_host=172.17.0.1 ansible_connection=local
