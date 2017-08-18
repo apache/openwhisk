@@ -34,7 +34,7 @@ import whisk.core.loadBalancer.LoadBalancer
  */
 class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(implicit logging: Logging) {
 
-    logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
+    logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")(TransactionId.controller)
 
     /**
      * Checks whether the operation should be allowed to proceed.

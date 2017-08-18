@@ -132,7 +132,7 @@ object Config {
             val envp = p.replace('.', '_').toUpperCase
             val envv = env.get(envp)
             if (envv.isDefined) {
-                logging.info(this, s"environment set value for $p")
+                logging.info(this, "environment set value for {}", p)(TransactionId.unknown)
                 properties += p -> envv.get.trim
             }
         }
@@ -147,7 +147,7 @@ object Config {
     def validateProperties(required: Map[String, String], properties: Map[String, String])(implicit logging: Logging): Boolean = {
         required.keys.forall { key =>
             val value = properties(key)
-            if (value == null) logging.error(this, s"required property $key still not set")
+            if (value == null) logging.error(this, "required property {} still not set", key)(TransactionId.unknown)
             value != null
         }
     }

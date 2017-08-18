@@ -164,13 +164,13 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
             sendCorsHeaders {
                 info ~ basicAuth(validateCredentials) { user =>
                     namespaces.routes(user) ~
-                    pathPrefix(Collection.NAMESPACES) {
-                        actions.routes(user) ~
-                        triggers.routes(user) ~
-                        rules.routes(user) ~
-                        activations.routes(user) ~
-                        packages.routes(user)
-                    }
+                        pathPrefix(Collection.NAMESPACES) {
+                            actions.routes(user) ~
+                                triggers.routes(user) ~
+                                rules.routes(user) ~
+                                activations.routes(user) ~
+                                packages.routes(user)
+                        }
                 } ~ {
                     swaggerRoutes
                 }
@@ -201,94 +201,94 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     private val web = new WebActionsApi(Seq("web"), WebApiDirectives.web)
 
     class NamespacesApi(
-       val apiPath: String,
-       val apiVersion: String)(
-       implicit override val entityStore: EntityStore,
-       override val entitlementProvider: EntitlementProvider,
-       override val executionContext: ExecutionContext,
-       override val logging: Logging)
-    extends WhiskNamespacesApi
+        val apiPath: String,
+        val apiVersion: String)(
+            implicit override val entityStore: EntityStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
+        extends WhiskNamespacesApi
 
     class ActionsApi(
         val apiPath: String,
         val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        override val activeAckTopicIndex: InstanceId,
-        override val entityStore: EntityStore,
-        override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskActionsApi with WhiskServices {
-        logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")
+            implicit override val actorSystem: ActorSystem,
+            override val activeAckTopicIndex: InstanceId,
+            override val entityStore: EntityStore,
+            override val activationStore: ActivationStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig)
+        extends WhiskActionsApi with WhiskServices {
+        logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")(TransactionId.controller)
         assert(whiskConfig.actionSequenceLimit.toInt > 0)
     }
 
     class ActivationsApi(
         val apiPath: String,
         val apiVersion: String)(
-        implicit override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging)
-    extends WhiskActivationsApi
+            implicit override val activationStore: ActivationStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging)
+        extends WhiskActivationsApi
 
     class PackagesApi(
         val apiPath: String,
         val apiVersion: String)(
-        implicit override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskPackagesApi with WhiskServices
+            implicit override val entityStore: EntityStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig)
+        extends WhiskPackagesApi with WhiskServices
 
     class RulesApi(
         val apiPath: String,
         val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskRulesApi with WhiskServices
+            implicit override val actorSystem: ActorSystem,
+            override val entityStore: EntityStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig)
+        extends WhiskRulesApi with WhiskServices
 
     class TriggersApi(
         val apiPath: String,
         val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        implicit override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationStore: ActivationStore,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig,
-        override val materializer: ActorMaterializer)
-    extends WhiskTriggersApi with WhiskServices
+            implicit override val actorSystem: ActorSystem,
+            implicit override val entityStore: EntityStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationStore: ActivationStore,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig,
+            override val materializer: ActorMaterializer)
+        extends WhiskTriggersApi with WhiskServices
 
     protected[controller] class WebActionsApi(
         override val webInvokePathSegments: Seq[String],
         override val webApiDirectives: WebApiDirectives)(
-        implicit override val authStore: AuthStore,
-        implicit val entityStore: EntityStore,
-        override val activeAckTopicIndex: InstanceId,
-        override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val actorSystem: ActorSystem,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskWebActionsApi with WhiskServices
+            implicit override val authStore: AuthStore,
+            implicit val entityStore: EntityStore,
+            override val activeAckTopicIndex: InstanceId,
+            override val activationStore: ActivationStore,
+            override val entitlementProvider: EntitlementProvider,
+            override val activationIdFactory: ActivationIdGenerator,
+            override val loadBalancer: LoadBalancerService,
+            override val actorSystem: ActorSystem,
+            override val executionContext: ExecutionContext,
+            override val logging: Logging,
+            override val whiskConfig: WhiskConfig)
+        extends WhiskWebActionsApi with WhiskServices
 }
