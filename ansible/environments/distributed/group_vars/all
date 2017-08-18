@@ -72,5 +72,4 @@ instances:
 # API GW connection configuration
 apigw_auth_user: ""
 apigw_auth_pwd: ""
-apigw_host: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v1"
 apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"
