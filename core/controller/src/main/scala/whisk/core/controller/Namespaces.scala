@@ -28,6 +28,7 @@ import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import whisk.common.TransactionId
 import whisk.core.entitlement.Collection
@@ -50,6 +51,8 @@ trait WhiskNamespacesApi
     with AuthenticatedRouteProvider
     with BasicAuthorizedRouteProvider
     with ReadOps {
+
+    private implicit val jsonPrettyPrinter = PrettyPrinter
 
     protected override val collection = Collection(Collection.NAMESPACES)
 

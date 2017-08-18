@@ -65,6 +65,8 @@ import whisk.core.entity.FullyQualifiedEntityName
 trait WhiskTriggersApi extends WhiskCollectionAPI {
     services: WhiskServices =>
 
+    private implicit val jsonPrettyPrinter = PrettyPrinter
+
     protected override val collection = Collection(Collection.TRIGGERS)
 
     /** An actor system for timed based futures. */

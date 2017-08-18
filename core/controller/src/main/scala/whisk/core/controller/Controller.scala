@@ -74,6 +74,8 @@ class Controller(
     implicit val logging: Logging)
     extends BasicRasService {
 
+    private implicit val jsonPrettyPrinter = PrettyPrinter
+
     override val numberOfInstances = whiskConfig.controllerInstances.toInt
 
     TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
