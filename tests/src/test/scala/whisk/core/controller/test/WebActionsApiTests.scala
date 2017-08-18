@@ -911,6 +911,52 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       }
     }
 
+    it should s"handle http web action with base64 encoded known '+json' response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          actionResult = Some(
+            JsObject(
+              "headers" -> JsObject("content-type" -> "application/json-patch+json".toJson),
+              webApiDirectives.statusCode -> OK.intValue.toJson,
+              "body" -> Base64.getEncoder.encodeToString {
+                JsObject("field" -> "value".toJson).compactPrint.getBytes
+              }.toJson))
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            mediaType.value shouldBe "application/json-patch+json"
+            responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
+          }
+        }
+      }
+    }
+
+    it should s"handle http web action with base64 encoded unknown '+json' response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          actionResult = Some(
+            JsObject(
+              "headers" -> JsObject("content-type" -> "application/hal+json".toJson),
+              webApiDirectives.statusCode -> OK.intValue.toJson,
+              "body" -> Base64.getEncoder.encodeToString {
+                JsObject("field" -> "value".toJson).compactPrint.getBytes
+              }.toJson))
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            mediaType.value shouldBe "application/hal+json"
+            responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
+          }
+        }
+      }
+    }
+
     it should s"handle http web action without base64 encoded JSON response (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
@@ -934,6 +980,69 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 if (expectedCode == OK) {
                   header("content-type").map(_.toString shouldBe "content-type: application/json")
                   responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                } else {
+                  confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                }
+              }
+            }
+          }
+      }
+    }
+
+    it should s"handle http web action without base64 encoded known '+json' response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(
+        (JsObject("content-type" -> "application/json-patch+json".toJson), OK),
+        (JsObject("content-type" -> "text/html".toJson), BadRequest)).foreach {
+        case (headers, expectedCode) =>
+          Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+            allowedMethods.foreach { m =>
+              invocationsAllowed += 1
+              actionResult = Some(
+                JsObject(
+                  "headers" -> headers,
+                  webApiDirectives.statusCode -> OK.intValue.toJson,
+                  "body" -> JsObject("field" -> "value".toJson)))
+
+              m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                println(responseAs[String])
+                status should be(expectedCode)
+
+                if (expectedCode == OK) {
+                  mediaType.value shouldBe "application/json-patch+json"
+                  responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
+                } else {
+                  confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                }
+              }
+            }
+          }
+      }
+    }
+
+    it should s"handle http web action without base64 encoded unknown '+json' response (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(
+        (JsObject("content-type" -> "application/hal+json".toJson), OK),
+        (JsObject("content-type" -> "text/html".toJson), BadRequest)).foreach {
+        case (headers, expectedCode) =>
+          Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+            allowedMethods.foreach { m =>
+              invocationsAllowed += 1
+              actionResult = Some(
+                JsObject(
+                  "headers" -> headers,
+                  webApiDirectives.statusCode -> OK.intValue.toJson,
+                  "body" -> JsObject("field" -> "value".toJson)))
+
+              m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                status should be(expectedCode)
+
+                if (expectedCode == OK) {
+                  mediaType.value shouldBe "application/hal+json"
+                  responseAs[String].parseJson shouldBe JsObject("field" -> "value".toJson)
                 } else {
                   confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
                 }
@@ -1018,7 +1127,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       }
     }
 
-    it should s"reject http web action with unknown header (auth? ${creds.isDefined})" in {
+    it should s"reject http web action with invalid content-type header (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.http").foreach { path =>
@@ -1026,7 +1135,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           invocationsAllowed += 1
           actionResult = Some(
             JsObject(
-              "headers" -> JsObject("content-type" -> "xyz/bar".toJson),
+              "headers" -> JsObject("content-type" -> "xyzbar".toJson),
               webApiDirectives.statusCode -> OK.intValue.toJson,
               "body" -> "hello world".toJson))
 

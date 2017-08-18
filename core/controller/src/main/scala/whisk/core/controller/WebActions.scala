@@ -264,8 +264,9 @@ protected[core] object WhiskWebActionsApi extends Directives {
   }
 
   /**
-   * Finds the content-type in the header list and maps it to a known media type. If it is not
-   * recognized, construct a failure with appropriate message.
+   * Finds the content-type in the header list and ensures that it is a valid format. If it is not
+   * valid, construct a failure with appropriate message.
+   * If the content-type header is missing, then return the supplied defaultType
    */
   private def findContentTypeInHeader(headers: List[RawHeader],
                                       transid: TransactionId,
@@ -273,16 +274,15 @@ protected[core] object WhiskWebActionsApi extends Directives {
     headers.find(_.lowercaseName == `Content-Type`.lowercaseName) match {
       case Some(header) =>
         MediaType.parse(header.value) match {
-          case Right(mediaType: MediaType) =>
-            // lookup the media type specified in the content header to see if it is a recognized type
-            MediaTypes.getForKey(mediaType.mainType -> mediaType.subType).map(Success(_)).getOrElse {
-              // this is a content-type that is not recognized, reject it
-              Failure(RejectRequest(BadRequest, Messages.httpUnknownContentType)(transid))
-            }
-          case _ => Failure(RejectRequest(BadRequest, Messages.httpUnknownContentType)(transid))
+          case Right(mediaType: MediaType) => Success(mediaType)
+          case _                           => Failure(RejectRequest(BadRequest, Messages.httpUnknownContentType)(transid))
         }
       case None => Success(defaultType)
     }
+  }
+
+  private def isJsonFamily(mt: MediaType) = {
+    mt == `application/json` || Option(mt.value).map(_.endsWith("+json")).exists(identity)
   }
 
   private def interpretHttpResponseAsJson(code: StatusCode,
@@ -290,9 +290,19 @@ protected[core] object WhiskWebActionsApi extends Directives {
                                           js: JsValue,
                                           transid: TransactionId) = {
     findContentTypeInHeader(headers, transid, `application/json`) match {
-      case Success(mediaType) if (mediaType == `application/json`) =>
+      case Success(mediaType) if mediaType == `application/json` =>
         respondWithHeaders(removeContentTypeHeader(headers)) {
           complete(code, js)
+        }
+
+      case Success(mediaType) if isJsonFamily(mediaType) =>
+        respondWithHeaders(removeContentTypeHeader(headers)) {
+          complete(
+            code,
+            HttpEntity(
+              ContentType(
+                MediaType.customWithFixedCharset(mediaType.mainType, mediaType.subType, HttpCharsets.`UTF-8`)),
+              js.prettyPrint))
         }
 
       case _ =>
@@ -304,11 +314,9 @@ protected[core] object WhiskWebActionsApi extends Directives {
     findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
       val ct = ContentType(mediaType, () => HttpCharsets.`UTF-8`)
       ct match {
-        case _: ContentType.Binary | ContentType(`application/json`, _) =>
-          // base64 encoded json response supported for legacy reasons
-          Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
-
-        case nonbinary: ContentType.NonBinary => Success(HttpEntity(nonbinary, str))
+        // base64 encoded json response supported for legacy reasons
+        case nonbinary: ContentType.NonBinary if !isJsonFamily(mediaType) => Success(HttpEntity(nonbinary, str))
+        case _                                                            => Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
       }
     } match {
       case Success(entity) =>
