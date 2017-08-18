@@ -15,6 +15,11 @@
  * limitations under the License.
  */
 
+/*
+ * Cache base implementation:
+ * Copyright (C) 2017 Lightbend Inc. <http://www.lightbend.com/>
+ */
+
 package whisk.core.database
 
 import java.util.concurrent.atomic.AtomicReference
@@ -26,13 +31,13 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
+import scala.language.implicitConversions
 
-import spray.caching.Cache
-import spray.caching.ValueMagnet.fromAny
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import com.github.benmanes.caffeine.cache.Caffeine
+import scala.util.control.NonFatal
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -411,7 +416,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** This is the backing store. */
-    private val cache: Cache[Entry] = new ConcurrentMapBackedCache(
+    private val cache: ConcurrentMapBackedCache[Entry] = new ConcurrentMapBackedCache(
         Caffeine.newBuilder().asInstanceOf[Caffeine[Any, Future[Entry]]]
             .expireAfterWrite(5, TimeUnit.MINUTES)
             .softValues()
@@ -422,35 +427,42 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
  * A thread-safe implementation of [[spray.caching.cache]] backed by a plain
  * [[java.util.concurrent.ConcurrentMap]].
  *
- * The implementation is entirely copied from [[spray.caching.SimpleLruCache]]
- * the only difference being the store type. Implementation is identical.
- *
- * The unimplemented methods are not needed for our internal implementation.
+ * The implementation is entirely copied from Spray's [[spray.caching.Cache]] and
+ * [[spray.caching.SimpleLruCache]] respectively, the only difference being the store type.
+ * Implementation otherwise is identical.
  */
-private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) extends Cache[V] {
+private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) {
+    val cache = this
 
-    def get(key: Any) = Option(store.get(key))
+    def apply(key: Any) = new Keyed(key)
 
-    def apply(key: Any, genValue: () ⇒ Future[V])(implicit ec: ExecutionContext): Future[V] = {
+    class Keyed(key: Any) {
+        def apply(magnet: => ValueMagnet[V])(implicit ec: ExecutionContext): Future[V] =
+            cache.apply(key, () => try magnet.future catch { case NonFatal(e) => Future.failed(e) })
+    }
+
+    def apply(key: Any, genValue: () => Future[V])(implicit ec: ExecutionContext): Future[V] = {
         val promise = Promise[V]()
         store.putIfAbsent(key, promise.future) match {
-            case null ⇒
+            case null =>
                 val future = genValue()
-                future.onComplete { value ⇒
+                future.onComplete { value =>
                     promise.complete(value)
                     // in case of exceptions we remove the cache entry (i.e. try again later)
                     if (value.isFailure) store.remove(key, promise.future)
                 }
                 future
-            case existingFuture ⇒ existingFuture
+            case existingFuture => existingFuture
         }
     }
 
     def remove(key: Any) = Option(store.remove(key))
 
-    def clear(): Unit = store.clear()
-    def keys: Set[Any] = ???
-    def ascendingKeys(limit: Option[Int] = None) = ???
-
     def size = store.size
+}
+
+class ValueMagnet[V](val future: Future[V])
+object ValueMagnet {
+    implicit def fromAny[V](block: V): ValueMagnet[V] = fromFuture(Future.successful(block))
+    implicit def fromFuture[V](future: Future[V]): ValueMagnet[V] = new ValueMagnet(future)
 }
