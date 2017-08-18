@@ -34,66 +34,67 @@ import spray.json.deserializationError
  * @param (uuid, key) the uuid and key, assured to be non-null because both types are values
  */
 protected[core] class AuthKey private (private val k: (UUID, Secret)) extends AnyVal {
-    def uuid = k._1
-    def key = k._2
-    def revoke = new AuthKey(uuid, Secret())
-    def compact = s"$uuid:$key"
-    override def toString = uuid.toString
+  def uuid = k._1
+  def key = k._2
+  def revoke = new AuthKey(uuid, Secret())
+  def compact = s"$uuid:$key"
+  override def toString = uuid.toString
 }
 
 protected[core] object AuthKey {
 
-    /**
-     * Creates AuthKey.
-     *
-     * @param uuid the uuid, assured to be non-null because UUID is a value
-     * @param key the key, assured to be non-null because Secret is a value
-     */
-    protected[core] def apply(uuid: UUID, key: Secret): AuthKey = new AuthKey(uuid, key)
+  /**
+   * Creates AuthKey.
+   *
+   * @param uuid the uuid, assured to be non-null because UUID is a value
+   * @param key the key, assured to be non-null because Secret is a value
+   */
+  protected[core] def apply(uuid: UUID, key: Secret): AuthKey = new AuthKey(uuid, key)
 
-    /**
-     * Creates an auth key for a randomly generated UUID with a randomly generated secret.
-     *
-     * @return AuthKey
-     */
-    protected[core] def apply(): AuthKey = new AuthKey(UUID(), Secret())
+  /**
+   * Creates an auth key for a randomly generated UUID with a randomly generated secret.
+   *
+   * @return AuthKey
+   */
+  protected[core] def apply(): AuthKey = new AuthKey(UUID(), Secret())
 
-    /**
-     * Creates AuthKey from a string where the uuid and key are separated by a colon.
-     * If the string contains more than one colon, all values are ignored except for
-     * the first two hence "k:v*" produces ("k","v").
-     *
-     * @param str the string containing uuid and key separated by colon
-     * @return AuthKey if argument is properly formated
-     * @throws IllegalArgumentException if argument is not well formed
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(str: String): AuthKey = {
-        val (k, v) = split(str)
-        new AuthKey(UUID(k), Secret(v))
-    }
+  /**
+   * Creates AuthKey from a string where the uuid and key are separated by a colon.
+   * If the string contains more than one colon, all values are ignored except for
+   * the first two hence "k:v*" produces ("k","v").
+   *
+   * @param str the string containing uuid and key separated by colon
+   * @return AuthKey if argument is properly formated
+   * @throws IllegalArgumentException if argument is not well formed
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(str: String): AuthKey = {
+    val (k, v) = split(str)
+    new AuthKey(UUID(k), Secret(v))
+  }
 
-    /**
-     * Makes a tuple from a string where the values are separated by a colon.
-     * If the string contains more than one colon, all values are ignored except for
-     * the first two hence "k:v*" produces the tuple ("k","v") and "::*" produces ("","").
-     *
-     * @param string to create pair from
-     * @return (key, value) where both are null, value is null, or neither is null
-     */
-    private def split(str: String): (String, String) = {
-        val parts = if (str != null && str.nonEmpty) str.split(":") else Array[String]()
-        val k = if (parts.size >= 1) parts(0).trim else null
-        val v = if (parts.size == 2) parts(1).trim else null
-        (k, v)
-    }
+  /**
+   * Makes a tuple from a string where the values are separated by a colon.
+   * If the string contains more than one colon, all values are ignored except for
+   * the first two hence "k:v*" produces the tuple ("k","v") and "::*" produces ("","").
+   *
+   * @param string to create pair from
+   * @return (key, value) where both are null, value is null, or neither is null
+   */
+  private def split(str: String): (String, String) = {
+    val parts = if (str != null && str.nonEmpty) str.split(":") else Array[String]()
+    val k = if (parts.size >= 1) parts(0).trim else null
+    val v = if (parts.size == 2) parts(1).trim else null
+    (k, v)
+  }
 
-    protected[core] implicit val serdes = new RootJsonFormat[AuthKey] {
-        def write(k: AuthKey) = JsString(k.compact)
+  protected[core] implicit val serdes = new RootJsonFormat[AuthKey] {
+    def write(k: AuthKey) = JsString(k.compact)
 
-        def read(value: JsValue) = Try {
-            val JsString(s) = value
-            AuthKey(s)
-        } getOrElse deserializationError("authorization key malformed")
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsString(s) = value
+        AuthKey(s)
+      } getOrElse deserializationError("authorization key malformed")
+  }
 }

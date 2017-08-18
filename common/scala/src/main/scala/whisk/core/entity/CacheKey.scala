@@ -29,27 +29,27 @@ class UnsupportedCacheKeyTypeException(msg: String) extends Exception(msg)
  * of the key will not be written to the logs.
  */
 case class CacheKey(mainId: String, secondaryId: Option[String]) {
-    override def toString() = {
-        s"CacheKey($mainId)"
-    }
+  override def toString() = {
+    s"CacheKey($mainId)"
+  }
 }
 
 object CacheKey extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat2(CacheKey.apply)
+  implicit val serdes = jsonFormat2(CacheKey.apply)
 
-    def apply(key: Any): CacheKey = {
-        key match {
-            case e: EntityName => CacheKey(e.asString, None)
-            case a: AuthKey    => CacheKey(a.uuid.asString, Some(a.key.asString))
-            case d: DocInfo => {
-                val revision = if (d.rev.empty) None else Some(d.rev.asString)
-                CacheKey(d.id.asString, revision)
-            }
-            case w: WhiskEntity => CacheKey(w.docid.asDocInfo)
-            case s: String      => CacheKey(s, None)
-            case others => {
-                throw new UnsupportedCacheKeyTypeException(s"Unable to apply the entity ${others.getClass} on CacheKey.")
-            }
-        }
+  def apply(key: Any): CacheKey = {
+    key match {
+      case e: EntityName => CacheKey(e.asString, None)
+      case a: AuthKey    => CacheKey(a.uuid.asString, Some(a.key.asString))
+      case d: DocInfo => {
+        val revision = if (d.rev.empty) None else Some(d.rev.asString)
+        CacheKey(d.id.asString, revision)
+      }
+      case w: WhiskEntity => CacheKey(w.docid.asDocInfo)
+      case s: String      => CacheKey(s, None)
+      case others => {
+        throw new UnsupportedCacheKeyTypeException(s"Unable to apply the entity ${others.getClass} on CacheKey.")
+      }
     }
+  }
 }

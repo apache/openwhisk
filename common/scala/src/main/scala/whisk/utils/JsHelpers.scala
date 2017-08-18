@@ -21,22 +21,23 @@ import spray.json.JsObject
 import spray.json.JsValue
 
 object JsHelpers {
-    def getFieldPath(js: JsObject, path: List[String]): Option[JsValue] = {
-        path match {
-            case Nil      => Option(js)
-            case p :: Nil => js.fields.get(p)
-            case p :: tail => js.fields.get(p) match {
-                case Some(o: JsObject) => getFieldPath(o, tail)
-                case Some(_)           => None // head exists but value is not an object so cannot project further
-                case None              => None // head doesn't exist, cannot project further
-            }
+  def getFieldPath(js: JsObject, path: List[String]): Option[JsValue] = {
+    path match {
+      case Nil      => Option(js)
+      case p :: Nil => js.fields.get(p)
+      case p :: tail =>
+        js.fields.get(p) match {
+          case Some(o: JsObject) => getFieldPath(o, tail)
+          case Some(_)           => None // head exists but value is not an object so cannot project further
+          case None              => None // head doesn't exist, cannot project further
         }
     }
+  }
 
-    def getFieldPath(js: JsObject, path: String*): Option[JsValue] = {
-        getFieldPath(js, path.toList)
-    }
+  def getFieldPath(js: JsObject, path: String*): Option[JsValue] = {
+    getFieldPath(js, path.toList)
+  }
 
-    def fieldPathExists(js: JsObject, path: List[String]): Boolean = getFieldPath(js, path).isDefined
-    def fieldPathExists(js: JsObject, path: String*): Boolean = fieldPathExists(js, path.toList)
+  def fieldPathExists(js: JsObject, path: List[String]): Boolean = getFieldPath(js, path).isDefined
+  def fieldPathExists(js: JsObject, path: String*): Boolean = fieldPathExists(js, path.toList)
 }

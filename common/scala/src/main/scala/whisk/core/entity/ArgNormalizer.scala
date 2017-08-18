@@ -24,28 +24,28 @@ import scala.util.Try
 
 protected[entity] trait ArgNormalizer[T] {
 
-    protected[core] val serdes: RootJsonFormat[T]
+  protected[core] val serdes: RootJsonFormat[T]
 
-    protected[entity] def factory(s: String): T = {
-        serdes.read(Try { s.parseJson } getOrElse JsString(s))
-    }
+  protected[entity] def factory(s: String): T = {
+    serdes.read(Try { s.parseJson } getOrElse JsString(s))
+  }
 
-    /**
-     * Creates a new T from string. The method checks that a string
-     * argument is not null, not empty, and normalizes it by trimming
-     * white space before creating new T.
-     *
-     * @param s is the string argument to supply to factory of T
-     * @return T instance
-     * @throws IllegalArgumentException if string is null or empty
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(s: String): T = {
-        require(s != null && s.trim.nonEmpty, "argument undefined")
-        factory(s.trim)
-    }
+  /**
+   * Creates a new T from string. The method checks that a string
+   * argument is not null, not empty, and normalizes it by trimming
+   * white space before creating new T.
+   *
+   * @param s is the string argument to supply to factory of T
+   * @return T instance
+   * @throws IllegalArgumentException if string is null or empty
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(s: String): T = {
+    require(s != null && s.trim.nonEmpty, "argument undefined")
+    factory(s.trim)
+  }
 }
 
 protected[entity] object ArgNormalizer {
-    protected[entity] def trim(s: String) = Option(s) map { _.trim} getOrElse s
+  protected[entity] def trim(s: String) = Option(s) map { _.trim } getOrElse s
 }

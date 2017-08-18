@@ -29,61 +29,64 @@ import whisk.core.entity.UUID
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(implicit logging: Logging) {
+class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(
+  implicit logging: Logging) {
 
-    logging.info(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
+  logging.info(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
 
-    /**
-     * Maintains map of subject namespace to operations rates.
-     */
-    private val rateMap = new TrieMap[UUID, RateInfo]
+  /**
+   * Maintains map of subject namespace to operations rates.
+   */
+  private val rateMap = new TrieMap[UUID, RateInfo]
 
-    /**
-     * Checks whether the operation should be allowed to proceed.
-     * Every `check` operation charges the subject namespace for one operation.
-     *
-     * @param user the identity to check
-     * @return true iff subject namespace is below allowed limit
-     */
-    def check(user: Identity)(implicit transid: TransactionId): Boolean = {
-        val uuid = user.uuid // this is namespace identifier
-        val rate = rateMap.getOrElseUpdate(uuid, new RateInfo)
-        val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
-        val belowLimit = rate.check(limit)
-        logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count()}, limit = $limit, below limit = $belowLimit")
-        belowLimit
-    }
+  /**
+   * Checks whether the operation should be allowed to proceed.
+   * Every `check` operation charges the subject namespace for one operation.
+   *
+   * @param user the identity to check
+   * @return true iff subject namespace is below allowed limit
+   */
+  def check(user: Identity)(implicit transid: TransactionId): Boolean = {
+    val uuid = user.uuid // this is namespace identifier
+    val rate = rateMap.getOrElseUpdate(uuid, new RateInfo)
+    val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
+    val belowLimit = rate.check(limit)
+    logging.debug(
+      this,
+      s"namespace = ${uuid.asString} rate = ${rate.count()}, limit = $limit, below limit = $belowLimit")
+    belowLimit
+  }
 }
 
 /**
  * Tracks the activation rate of one subject at minute-granularity.
  */
 private class RateInfo {
-    var lastMin = getCurrentMinute
-    var lastMinCount = 0
+  var lastMin = getCurrentMinute
+  var lastMinCount = 0
 
-    def count() = lastMinCount
+  def count() = lastMinCount
 
-    /**
-     * Increments operation count in the current time window by
-     * one and checks if below allowed max rate.
-     *
-     * @param maxPerMinute the current maximum allowed requests
-     *                     per minute (might change over time)
-     */
-    def check(maxPerMinute: Int): Boolean = {
-        roll()
-        lastMinCount = lastMinCount + 1
-        lastMinCount <= maxPerMinute
+  /**
+   * Increments operation count in the current time window by
+   * one and checks if below allowed max rate.
+   *
+   * @param maxPerMinute the current maximum allowed requests
+   *                     per minute (might change over time)
+   */
+  def check(maxPerMinute: Int): Boolean = {
+    roll()
+    lastMinCount = lastMinCount + 1
+    lastMinCount <= maxPerMinute
+  }
+
+  def roll() = {
+    val curMin = getCurrentMinute
+    if (curMin != lastMin) {
+      lastMin = curMin
+      lastMinCount = 0
     }
+  }
 
-    def roll() = {
-        val curMin = getCurrentMinute
-        if (curMin != lastMin) {
-            lastMin = curMin
-            lastMinCount = 0
-        }
-    }
-
-    private def getCurrentMinute = System.currentTimeMillis / (60 * 1000)
+  private def getCurrentMinute = System.currentTimeMillis / (60 * 1000)
 }

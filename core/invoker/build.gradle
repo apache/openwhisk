@@ -1,6 +1,18 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
+    }
+}
+
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
+apply plugin: 'scalafmt'
+
+scalafmt.configFilePath = gradle.scalafmt.config
 
 ext.dockerImageName = 'invoker'
 apply from: '../../gradle/docker.gradle'

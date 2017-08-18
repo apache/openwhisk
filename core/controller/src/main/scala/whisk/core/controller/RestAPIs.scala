@@ -51,74 +51,75 @@ import whisk.core.loadBalancer.LoadBalancerService
 protected[controller] class SwaggerDocs(apipath: Uri.Path, doc: String)(implicit actorSystem: ActorSystem)
     extends Directives {
 
-    /** Swagger end points. */
-    protected val swaggeruipath = "docs"
-    protected val swaggerdocpath = "api-docs"
+  /** Swagger end points. */
+  protected val swaggeruipath = "docs"
+  protected val swaggerdocpath = "api-docs"
 
-    def basepath(url: Uri.Path = apipath): String = {
-        (if (url.startsWithSlash) url else Uri.Path./(url)).toString
+  def basepath(url: Uri.Path = apipath): String = {
+    (if (url.startsWithSlash) url else Uri.Path./(url)).toString
+  }
+
+  /**
+   * Defines the routes to serve the swagger docs.
+   */
+  val swaggerRoutes: Route = {
+    pathPrefix(swaggeruipath) {
+      getFromDirectory("/swagger-ui/")
+    } ~ path(swaggeruipath) {
+      redirect(s"$swaggeruipath/index.html?url=$apiDocsUrl", PermanentRedirect)
+    } ~ pathPrefix(swaggerdocpath) {
+      pathEndOrSingleSlash {
+        getFromResource(doc)
+      }
     }
+  }
 
-    /**
-     * Defines the routes to serve the swagger docs.
-     */
-    val swaggerRoutes: Route = {
-        pathPrefix(swaggeruipath) {
-            getFromDirectory("/swagger-ui/")
-        } ~ path(swaggeruipath) {
-            redirect(s"$swaggeruipath/index.html?url=$apiDocsUrl", PermanentRedirect)
-        } ~ pathPrefix(swaggerdocpath) {
-            pathEndOrSingleSlash {
-                getFromResource(doc)
-            }
-        }
-    }
-
-    /** Forces add leading slash for swagger api-doc url rewrite to work. */
-    private def apiDocsUrl = basepath(apipath / swaggerdocpath)
+  /** Forces add leading slash for swagger api-doc url rewrite to work. */
+  private def apiDocsUrl = basepath(apipath / swaggerdocpath)
 }
 
 protected[controller] object RestApiCommons {
-    def requiredProperties = Map(WhiskConfig.servicePort -> 8080.toString) ++
-        WhiskConfig.whiskVersion ++
-        WhiskAuthStore.requiredProperties ++
-        WhiskEntityStore.requiredProperties ++
-        WhiskActivationStore.requiredProperties ++
-        EntitlementProvider.requiredProperties ++
-        WhiskActionsApi.requiredProperties ++
-        Authenticate.requiredProperties ++
-        Collection.requiredProperties
+  def requiredProperties =
+    Map(WhiskConfig.servicePort -> 8080.toString) ++
+      WhiskConfig.whiskVersion ++
+      WhiskAuthStore.requiredProperties ++
+      WhiskEntityStore.requiredProperties ++
+      WhiskActivationStore.requiredProperties ++
+      EntitlementProvider.requiredProperties ++
+      WhiskActionsApi.requiredProperties ++
+      Authenticate.requiredProperties ++
+      Collection.requiredProperties
 
-    import akka.http.scaladsl.model.HttpCharsets
-    import akka.http.scaladsl.model.MediaTypes.`application/json`
-    import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
-    import akka.http.scaladsl.unmarshalling.Unmarshaller
+  import akka.http.scaladsl.model.HttpCharsets
+  import akka.http.scaladsl.model.MediaTypes.`application/json`
+  import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
+  import akka.http.scaladsl.unmarshalling.Unmarshaller
 
-    /**
-     * Extract an empty entity into a JSON object. This is useful for the
-     * main APIs which accept JSON content type by default but may accept
-     * no entity in the request.
-     */
-    implicit val emptyEntityToJsObject: FromEntityUnmarshaller[JsObject] = {
-        Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
-            if (data.size == 0) {
-                JsObject()
-            } else {
-                val input = {
-                    if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
-                    else ParserInput(data.decodeString(charset.nioCharset))
-                }
-
-                JsonParser(input).asJsObject
-            }
+  /**
+   * Extract an empty entity into a JSON object. This is useful for the
+   * main APIs which accept JSON content type by default but may accept
+   * no entity in the request.
+   */
+  implicit val emptyEntityToJsObject: FromEntityUnmarshaller[JsObject] = {
+    Unmarshaller.byteStringUnmarshaller.forContentTypes(`application/json`).mapWithCharset { (data, charset) =>
+      if (data.size == 0) {
+        JsObject()
+      } else {
+        val input = {
+          if (charset == HttpCharsets.`UTF-8`) ParserInput(data.toArray)
+          else ParserInput(data.decodeString(charset.nioCharset))
         }
+
+        JsonParser(input).asJsObject
+      }
     }
+  }
 
-    /** Pretty print JSON response. */
-    implicit val jsonPrettyResponsePrinter = PrettyPrinter
+  /** Pretty print JSON response. */
+  implicit val jsonPrettyResponsePrinter = PrettyPrinter
 
-    /** Standard compact JSON printer. */
-    implicit val jsonDefaultResponsePrinter = CompactPrinter
+  /** Standard compact JSON printer. */
+  implicit val jsonDefaultResponsePrinter = CompactPrinter
 }
 
 /**
@@ -126,181 +127,172 @@ protected[controller] object RestApiCommons {
  * Useful for CORS.
  */
 protected[controller] trait RespondWithHeaders extends Directives {
-    val allowOrigin = `Access-Control-Allow-Origin`.*
-    val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
-    val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
+  val allowOrigin = `Access-Control-Allow-Origin`.*
+  val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
+  val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
 }
 
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
-    implicit val activeAckTopicIndex: InstanceId,
-    implicit val actorSystem: ActorSystem,
-    implicit val materializer: ActorMaterializer,
-    implicit val logging: Logging,
-    implicit val entityStore: EntityStore,
-    implicit val entitlementProvider: EntitlementProvider,
-    implicit val activationIdFactory: ActivationIdGenerator,
-    implicit val loadBalancer: LoadBalancerService,
-    implicit val cacheChangeNotification: Some[CacheChangeNotification],
-    implicit val activationStore: ActivationStore,
-    implicit val whiskConfig: WhiskConfig)
+  implicit val activeAckTopicIndex: InstanceId,
+  implicit val actorSystem: ActorSystem,
+  implicit val materializer: ActorMaterializer,
+  implicit val logging: Logging,
+  implicit val entityStore: EntityStore,
+  implicit val entitlementProvider: EntitlementProvider,
+  implicit val activationIdFactory: ActivationIdGenerator,
+  implicit val loadBalancer: LoadBalancerService,
+  implicit val cacheChangeNotification: Some[CacheChangeNotification],
+  implicit val activationStore: ActivationStore,
+  implicit val whiskConfig: WhiskConfig)
     extends SwaggerDocs(Uri.Path(apiPath) / apiVersion, "apiv1swagger.json")
     with Authenticate
     with AuthenticatedRoute
     with RespondWithHeaders {
-    implicit val executionContext = actorSystem.dispatcher
-    implicit val authStore = WhiskAuthStore.datastore(config)
+  implicit val executionContext = actorSystem.dispatcher
+  implicit val authStore = WhiskAuthStore.datastore(config)
 
-    def prefix = pathPrefix(apiPath / apiVersion)
+  def prefix = pathPrefix(apiPath / apiVersion)
 
-    /**
-     * Describes details of a particular API path.
-     */
-    val info = (pathEndOrSingleSlash & get) {
-        complete(JsObject(
-            "description" -> "OpenWhisk API".toJson,
-            "api_version" -> SemVer(1, 0, 0).toJson,
-            "api_version_path" -> apiVersion.toJson,
-            "build" -> whiskConfig(whiskVersionDate).toJson,
-            "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
-            "swagger_paths" -> JsObject(
-                "ui" -> s"/$swaggeruipath".toJson,
-                "api-docs" -> s"/$swaggerdocpath".toJson)))
-    }
+  /**
+   * Describes details of a particular API path.
+   */
+  val info = (pathEndOrSingleSlash & get) {
+    complete(
+      JsObject(
+        "description" -> "OpenWhisk API".toJson,
+        "api_version" -> SemVer(1, 0, 0).toJson,
+        "api_version_path" -> apiVersion.toJson,
+        "build" -> whiskConfig(whiskVersionDate).toJson,
+        "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
+        "swagger_paths" -> JsObject("ui" -> s"/$swaggeruipath".toJson, "api-docs" -> s"/$swaggerdocpath".toJson)))
+  }
 
-    def routes(implicit transid: TransactionId): Route = {
-        prefix {
-            sendCorsHeaders {
-                info ~ basicAuth(validateCredentials) { user =>
-                    namespaces.routes(user) ~
-                    pathPrefix(Collection.NAMESPACES) {
-                        actions.routes(user) ~
-                        triggers.routes(user) ~
-                        rules.routes(user) ~
-                        activations.routes(user) ~
-                        packages.routes(user)
-                    }
-                } ~ {
-                    swaggerRoutes
-                }
-            } ~ {
-                // web actions are distinct to separate the cors header
-                // and allow the actions themselves to respond to options
-                basicAuth(validateCredentials) { user =>
-                    web.routes(user)
-                } ~ {
-                    web.routes()
-                } ~ options {
-                    sendCorsHeaders {
-                        complete(OK)
-                    }
-                }
+  def routes(implicit transid: TransactionId): Route = {
+    prefix {
+      sendCorsHeaders {
+        info ~ basicAuth(validateCredentials) { user =>
+          namespaces.routes(user) ~
+            pathPrefix(Collection.NAMESPACES) {
+              actions.routes(user) ~
+                triggers.routes(user) ~
+                rules.routes(user) ~
+                activations.routes(user) ~
+                packages.routes(user)
             }
+        } ~ {
+          swaggerRoutes
         }
-
+      } ~ {
+        // web actions are distinct to separate the cors header
+        // and allow the actions themselves to respond to options
+        basicAuth(validateCredentials) { user =>
+          web.routes(user)
+        } ~ {
+          web.routes()
+        } ~ options {
+          sendCorsHeaders {
+            complete(OK)
+          }
+        }
+      }
     }
 
-    private val namespaces = new NamespacesApi(apiPath, apiVersion)
-    private val actions = new ActionsApi(apiPath, apiVersion)
-    private val packages = new PackagesApi(apiPath, apiVersion)
-    private val triggers = new TriggersApi(apiPath, apiVersion)
-    private val activations = new ActivationsApi(apiPath, apiVersion)
-    private val rules = new RulesApi(apiPath, apiVersion)
-    private val WebApiDirectives = new WebApiDirectives()
-    private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
+  }
 
-    class NamespacesApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging)
-    extends WhiskNamespacesApi
+  private val namespaces = new NamespacesApi(apiPath, apiVersion)
+  private val actions = new ActionsApi(apiPath, apiVersion)
+  private val packages = new PackagesApi(apiPath, apiVersion)
+  private val triggers = new TriggersApi(apiPath, apiVersion)
+  private val activations = new ActivationsApi(apiPath, apiVersion)
+  private val rules = new RulesApi(apiPath, apiVersion)
+  private val WebApiDirectives = new WebApiDirectives()
+  private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
 
-    class ActionsApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        override val activeAckTopicIndex: InstanceId,
-        override val entityStore: EntityStore,
-        override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val cacheChangeNotification: Some[CacheChangeNotification],
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskActionsApi with WhiskServices {
-        logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")(TransactionId.controller)
-        assert(whiskConfig.actionSequenceLimit.toInt > 0)
-    }
+  class NamespacesApi(val apiPath: String, val apiVersion: String)(
+    implicit override val entityStore: EntityStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val executionContext: ExecutionContext,
+    override val logging: Logging)
+      extends WhiskNamespacesApi
 
-    class ActivationsApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging)
-    extends WhiskActivationsApi
+  class ActionsApi(val apiPath: String, val apiVersion: String)(
+    implicit override val actorSystem: ActorSystem,
+    override val activeAckTopicIndex: InstanceId,
+    override val entityStore: EntityStore,
+    override val activationStore: ActivationStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val activationIdFactory: ActivationIdGenerator,
+    override val loadBalancer: LoadBalancerService,
+    override val cacheChangeNotification: Some[CacheChangeNotification],
+    override val executionContext: ExecutionContext,
+    override val logging: Logging,
+    override val whiskConfig: WhiskConfig)
+      extends WhiskActionsApi
+      with WhiskServices {
+    logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")(TransactionId.controller)
+    assert(whiskConfig.actionSequenceLimit.toInt > 0)
+  }
 
-    class PackagesApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val cacheChangeNotification: Some[CacheChangeNotification],
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskPackagesApi with WhiskServices
+  class ActivationsApi(val apiPath: String, val apiVersion: String)(
+    implicit override val activationStore: ActivationStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val executionContext: ExecutionContext,
+    override val logging: Logging)
+      extends WhiskActivationsApi
 
-    class RulesApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val cacheChangeNotification: Some[CacheChangeNotification],
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskRulesApi with WhiskServices
+  class PackagesApi(val apiPath: String, val apiVersion: String)(
+    implicit override val entityStore: EntityStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val activationIdFactory: ActivationIdGenerator,
+    override val loadBalancer: LoadBalancerService,
+    override val cacheChangeNotification: Some[CacheChangeNotification],
+    override val executionContext: ExecutionContext,
+    override val logging: Logging,
+    override val whiskConfig: WhiskConfig)
+      extends WhiskPackagesApi
+      with WhiskServices
 
-    class TriggersApi(
-        val apiPath: String,
-        val apiVersion: String)(
-        implicit override val actorSystem: ActorSystem,
-        implicit override val entityStore: EntityStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationStore: ActivationStore,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val cacheChangeNotification: Some[CacheChangeNotification],
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig,
-        override val materializer: ActorMaterializer)
-    extends WhiskTriggersApi with WhiskServices
+  class RulesApi(val apiPath: String, val apiVersion: String)(
+    implicit override val actorSystem: ActorSystem,
+    override val entityStore: EntityStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val activationIdFactory: ActivationIdGenerator,
+    override val loadBalancer: LoadBalancerService,
+    override val cacheChangeNotification: Some[CacheChangeNotification],
+    override val executionContext: ExecutionContext,
+    override val logging: Logging,
+    override val whiskConfig: WhiskConfig)
+      extends WhiskRulesApi
+      with WhiskServices
 
-    protected[controller] class WebActionsApi(
-        override val webInvokePathSegments: Seq[String],
-        override val webApiDirectives: WebApiDirectives)(
-        implicit override val authStore: AuthStore,
-        implicit val entityStore: EntityStore,
-        override val activeAckTopicIndex: InstanceId,
-        override val activationStore: ActivationStore,
-        override val entitlementProvider: EntitlementProvider,
-        override val activationIdFactory: ActivationIdGenerator,
-        override val loadBalancer: LoadBalancerService,
-        override val actorSystem: ActorSystem,
-        override val executionContext: ExecutionContext,
-        override val logging: Logging,
-        override val whiskConfig: WhiskConfig)
-    extends WhiskWebActionsApi with WhiskServices
+  class TriggersApi(val apiPath: String, val apiVersion: String)(
+    implicit override val actorSystem: ActorSystem,
+    implicit override val entityStore: EntityStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val activationStore: ActivationStore,
+    override val activationIdFactory: ActivationIdGenerator,
+    override val loadBalancer: LoadBalancerService,
+    override val cacheChangeNotification: Some[CacheChangeNotification],
+    override val executionContext: ExecutionContext,
+    override val logging: Logging,
+    override val whiskConfig: WhiskConfig,
+    override val materializer: ActorMaterializer)
+      extends WhiskTriggersApi
+      with WhiskServices
+
+  protected[controller] class WebActionsApi(override val webInvokePathSegments: Seq[String],
+                                            override val webApiDirectives: WebApiDirectives)(
+    implicit override val authStore: AuthStore,
+    implicit val entityStore: EntityStore,
+    override val activeAckTopicIndex: InstanceId,
+    override val activationStore: ActivationStore,
+    override val entitlementProvider: EntitlementProvider,
+    override val activationIdFactory: ActivationIdGenerator,
+    override val loadBalancer: LoadBalancerService,
+    override val actorSystem: ActorSystem,
+    override val executionContext: ExecutionContext,
+    override val logging: Logging,
+    override val whiskConfig: WhiskConfig)
+      extends WhiskWebActionsApi
+      with WhiskServices
 }

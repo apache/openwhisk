@@ -28,6 +28,10 @@ import whisk.spi.Spi
  * An Spi for providing Messaging implementations.
  */
 trait MessagingProvider extends Spi {
-    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int = Int.MaxValue, maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging): MessageConsumer
-    def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer
+  def getConsumer(config: WhiskConfig,
+                  groupId: String,
+                  topic: String,
+                  maxPeek: Int = Int.MaxValue,
+                  maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging): MessageConsumer
+  def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer
 }

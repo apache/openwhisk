@@ -42,44 +42,49 @@ import spray.json.deserializationError
  * @param duration the duration for the action, required not null
  */
 protected[entity] class TimeLimit private (val duration: FiniteDuration) extends AnyVal {
-    protected[core] def millis = duration.toMillis.toInt
-    override def toString = duration.toString
+  protected[core] def millis = duration.toMillis.toInt
+  override def toString = duration.toString
 }
 
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
-    protected[core] val MIN_DURATION = 100 milliseconds
-    protected[core] val MAX_DURATION = 5 minutes
-    protected[core] val STD_DURATION = 1 minute
+  protected[core] val MIN_DURATION = 100 milliseconds
+  protected[core] val MAX_DURATION = 5 minutes
+  protected[core] val STD_DURATION = 1 minute
 
-    /** Gets TimeLimit with default duration */
-    protected[core] def apply(): TimeLimit = TimeLimit(STD_DURATION)
+  /** Gets TimeLimit with default duration */
+  protected[core] def apply(): TimeLimit = TimeLimit(STD_DURATION)
 
-    /**
-     * Creates TimeLimit for duration, iff duration is within permissible range.
-     *
-     * @param duration the duration in milliseconds, must be within permissible range
-     * @return TimeLimit with duration set
-     * @throws IllegalArgumentException if duration does not conform to requirements
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(duration: FiniteDuration): TimeLimit = {
-        require(duration != null, s"duration undefined")
-        require(duration >= MIN_DURATION, s"duration ${duration.toMillis} milliseconds below allowed threshold of ${MIN_DURATION.toMillis} milliseconds")
-        require(duration <= MAX_DURATION, s"duration ${duration.toMillis} milliseconds exceeds allowed threshold of ${MAX_DURATION.toMillis} milliseconds")
-        new TimeLimit(duration)
-    }
+  /**
+   * Creates TimeLimit for duration, iff duration is within permissible range.
+   *
+   * @param duration the duration in milliseconds, must be within permissible range
+   * @return TimeLimit with duration set
+   * @throws IllegalArgumentException if duration does not conform to requirements
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(duration: FiniteDuration): TimeLimit = {
+    require(duration != null, s"duration undefined")
+    require(
+      duration >= MIN_DURATION,
+      s"duration ${duration.toMillis} milliseconds below allowed threshold of ${MIN_DURATION.toMillis} milliseconds")
+    require(
+      duration <= MAX_DURATION,
+      s"duration ${duration.toMillis} milliseconds exceeds allowed threshold of ${MAX_DURATION.toMillis} milliseconds")
+    new TimeLimit(duration)
+  }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[TimeLimit] {
-        def write(t: TimeLimit) = JsNumber(t.millis)
+  override protected[core] implicit val serdes = new RootJsonFormat[TimeLimit] {
+    def write(t: TimeLimit) = JsNumber(t.millis)
 
-        def read(value: JsValue) = Try {
-            val JsNumber(ms) = value
-            require(ms.isWhole, "time limit must be whole number")
-            TimeLimit(Duration(ms.intValue, MILLISECONDS))
-        } match {
-            case Success(limit)                       => limit
-            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
-            case Failure(e: Throwable)                => deserializationError("time limit malformed", e)
-        }
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsNumber(ms) = value
+        require(ms.isWhole, "time limit must be whole number")
+        TimeLimit(Duration(ms.intValue, MILLISECONDS))
+      } match {
+        case Success(limit)                       => limit
+        case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+        case Failure(e: Throwable)                => deserializationError("time limit malformed", e)
+      }
+  }
 }

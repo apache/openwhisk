@@ -34,74 +34,73 @@ import whisk.core.connector.Message
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 
-class TestConnector(
-    topic: String,
-    override val maxPeek: Int,
-    allowMoreThanMax: Boolean)
+class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: Boolean)
     extends MessageConsumer
     with StreamLogging {
 
-    override def peek(duration: Duration) = {
-        val msgs = new ArrayList[Message]
-        queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
-        msgs map { m =>
-            offset += 1
-            (topic, -1, offset, m.serialize.getBytes)
-        }
+  override def peek(duration: Duration) = {
+    val msgs = new ArrayList[Message]
+    queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
+    msgs map { m =>
+      offset += 1
+      (topic, -1, offset, m.serialize.getBytes)
+    }
+  }
+
+  override def commit() = {
+    if (throwCommitException) {
+      throw new Exception("commit failed")
+    } else {
+      // nothing to do
+    }
+  }
+
+  def occupancy = queue.size
+
+  def send(msg: Message): Future[RecordMetadata] = {
+    producer.send(topic, msg)
+  }
+
+  def send(msgs: Seq[Message]): Future[RecordMetadata] = {
+    import scala.language.reflectiveCalls
+    producer.sendBulk(topic, msgs)
+  }
+
+  def close() = {
+    closed = true
+    producer.close()
+  }
+
+  private val producer = new MessageProducer {
+    def send(topic: String, msg: Message): Future[RecordMetadata] = {
+      if (queue.offer(msg)) {
+        logging.info(this, s"put: $msg")
+        Future.successful(
+          new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+      } else {
+        logging.error(this, s"put failed: $msg")
+        Future.failed(new IllegalStateException("failed to write msg"))
+      }
     }
 
-    override def commit() = {
-        if (throwCommitException) {
-            throw new Exception("commit failed")
-        } else {
-            // nothing to do
-        }
+    def sendBulk(topic: String, msgs: Seq[Message]): Future[RecordMetadata] = {
+      if (queue.addAll(msgs)) {
+        logging.info(this, s"put: ${msgs.length} messages")
+        Future.successful(
+          new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+      } else {
+        logging.error(this, s"put failed: ${msgs.length} messages")
+        Future.failed(new IllegalStateException("failed to write msg"))
+      }
     }
 
-    def occupancy = queue.size
+    def close() = {}
+    def sentCount() = counter.next()
+    val counter = new Counter()
+  }
 
-    def send(msg: Message): Future[RecordMetadata] = {
-        producer.send(topic, msg)
-    }
-
-    def send(msgs: Seq[Message]): Future[RecordMetadata] = {
-        import scala.language.reflectiveCalls
-        producer.sendBulk(topic, msgs)
-    }
-
-    def close() = {
-        closed = true
-        producer.close()
-    }
-
-    private val producer = new MessageProducer {
-        def send(topic: String, msg: Message): Future[RecordMetadata] = {
-            if (queue.offer(msg)) {
-                logging.info(this, s"put: $msg")
-                Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
-            } else {
-                logging.error(this, s"put failed: $msg")
-                Future.failed(new IllegalStateException("failed to write msg"))
-            }
-        }
-
-        def sendBulk(topic: String, msgs: Seq[Message]): Future[RecordMetadata] = {
-            if (queue.addAll(msgs)) {
-                logging.info(this, s"put: ${msgs.length} messages")
-                Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
-            } else {
-                logging.error(this, s"put failed: ${msgs.length} messages")
-                Future.failed(new IllegalStateException("failed to write msg"))
-            }
-        }
-
-        def close() = {}
-        def sentCount() = counter.next()
-        val counter = new Counter()
-    }
-
-    var throwCommitException = false
-    private val queue = new LinkedBlockingQueue[Message]()
-    @volatile private var closed = false
-    private var offset = -1L
+  var throwCommitException = false
+  private val queue = new LinkedBlockingQueue[Message]()
+  @volatile private var closed = false
+  private var offset = -1L
 }

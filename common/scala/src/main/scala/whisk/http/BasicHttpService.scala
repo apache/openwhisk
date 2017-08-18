@@ -43,100 +43,102 @@ import whisk.common.TransactionId
  */
 trait BasicHttpService extends Directives with TransactionCounter {
 
-    /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
-    implicit def customRejectionHandler(implicit transid: TransactionId) = {
-        RejectionHandler.default.mapRejectionResponse {
-            case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
-                val error = ErrorResponse(ent.data.utf8String, transid).toJson
-                res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
-            case x => x
-        }
+  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
+  implicit def customRejectionHandler(implicit transid: TransactionId) = {
+    RejectionHandler.default.mapRejectionResponse {
+      case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
+        val error = ErrorResponse(ent.data.utf8String, transid).toJson
+        res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
+      case x => x
+    }
+  }
+
+  /**
+   * Gets the routes implemented by the HTTP service.
+   *
+   * @param transid the id for the transaction (every request is assigned an id)
+   */
+  def routes(implicit transid: TransactionId): Route
+
+  /**
+   * Gets the log level for a given route. The default is
+   * InfoLevel so override as needed.
+   *
+   * @param route the route to determine the loglevel for
+   * @return a log level for the route
+   */
+  def loglevelForRoute(route: String): Logging.LogLevel = Logging.InfoLevel
+
+  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
+  val prioritizeRejections = recoverRejections { rejections =>
+    val priorityRejection = rejections.find {
+      case rejection: UnacceptedResponseContentTypeRejection => true
+      case _                                                 => false
     }
 
-    /**
-     * Gets the routes implemented by the HTTP service.
-     *
-     * @param transid the id for the transaction (every request is assigned an id)
-     */
-    def routes(implicit transid: TransactionId): Route
+    priorityRejection.map(rejection => Rejected(Seq(rejection))).getOrElse(Rejected(rejections))
+  }
 
-    /**
-     * Gets the log level for a given route. The default is
-     * InfoLevel so override as needed.
-     *
-     * @param route the route to determine the loglevel for
-     * @return a log level for the route
-     */
-    def loglevelForRoute(route: String): Logging.LogLevel = Logging.InfoLevel
-
-    /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
-    val prioritizeRejections = recoverRejections { rejections =>
-        val priorityRejection = rejections.find {
-            case rejection: UnacceptedResponseContentTypeRejection => true
-            case _ => false
-        }
-
-        priorityRejection.map(rejection => Rejected(Seq(rejection))).getOrElse(Rejected(rejections))
-    }
-
-    /**
-     * Receives a message and runs the router.
-     */
-    def route: Route = {
-        assignId { implicit transid =>
-            DebuggingDirectives.logRequest(logRequestInfo _) {
-                DebuggingDirectives.logRequestResult(logResponseInfo _) {
-                    handleRejections(customRejectionHandler) {
-                        prioritizeRejections {
-                            toStrictEntity(30.seconds) {
-                                routes
-                            }
-                        }
-                    }
-                }
+  /**
+   * Receives a message and runs the router.
+   */
+  def route: Route = {
+    assignId { implicit transid =>
+      DebuggingDirectives.logRequest(logRequestInfo _) {
+        DebuggingDirectives.logRequestResult(logResponseInfo _) {
+          handleRejections(customRejectionHandler) {
+            prioritizeRejections {
+              toStrictEntity(30.seconds) {
+                routes
+              }
             }
+          }
         }
+      }
     }
+  }
 
-    /** Assigns transaction id to every request. */
-    protected val assignId = extract(_ => transid())
+  /** Assigns transaction id to every request. */
+  protected val assignId = extract(_ => transid())
 
-    /** Generates log entry for every request. */
-    protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
-        val m = req.method.name
-        val p = req.uri.path.toString
-        val q = req.uri.query().toString
-        val l = loglevelForRoute(p)
-        LogEntry(s"[$tid] $m $p $q", l)
-    }
+  /** Generates log entry for every request. */
+  protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
+    val m = req.method.name
+    val p = req.uri.path.toString
+    val q = req.uri.query().toString
+    val l = loglevelForRoute(p)
+    LogEntry(s"[$tid] $m $p $q", l)
+  }
 
-    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): RouteResult => Option[LogEntry] = {
-        case RouteResult.Complete(res: HttpResponse) =>
-            val m = req.method.name
-            val p = req.uri.path.toString
-            val l = loglevelForRoute(p)
+  protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): RouteResult => Option[LogEntry] = {
+    case RouteResult.Complete(res: HttpResponse) =>
+      val m = req.method.name
+      val p = req.uri.path.toString
+      val l = loglevelForRoute(p)
 
-            val name = "BasicHttpService"
+      val name = "BasicHttpService"
 
-            val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
-            val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
+      val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
+      val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
-            Some(LogEntry(s"[$tid] [$name] $marker", l))
-        case _ => None // other kind of responses
-    }
+      Some(LogEntry(s"[$tid] [$name] $marker", l))
+    case _ => None // other kind of responses
+  }
 }
 
 object BasicHttpService {
-    /**
-     * Starts an HTTP route handler on given port and registers a shutdown hook.
-     */
-    def startService(route: Route, port: Int)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer): Unit = {
-        implicit val executionContext = actorSystem.dispatcher
-        val httpBinding = Http().bindAndHandle(route, "0.0.0.0", port)
-        sys.addShutdownHook {
-            Await.result(httpBinding.map(_.unbind()), 30.seconds)
-            actorSystem.terminate()
-            Await.result(actorSystem.whenTerminated, 30.seconds)
-        }
+
+  /**
+   * Starts an HTTP route handler on given port and registers a shutdown hook.
+   */
+  def startService(route: Route, port: Int)(implicit actorSystem: ActorSystem,
+                                            materializer: ActorMaterializer): Unit = {
+    implicit val executionContext = actorSystem.dispatcher
+    val httpBinding = Http().bindAndHandle(route, "0.0.0.0", port)
+    sys.addShutdownHook {
+      Await.result(httpBinding.map(_.unbind()), 30.seconds)
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
     }
+  }
 }

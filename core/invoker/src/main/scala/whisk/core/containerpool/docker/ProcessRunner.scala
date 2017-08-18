@@ -25,29 +25,30 @@ import scala.sys.process._
 
 trait ProcessRunner {
 
-    /**
-     * Runs the specified command with arguments asynchronously and
-     * capture stdout as well as stderr.
-     *
-     * Be cautious with the execution context you pass because the command
-     * is blocking.
-     *
-     * @param args command to be run including arguments
-     * @return a future completing according to the command's exit code
-     */
-    protected def executeProcess(args: String*)(implicit ec: ExecutionContext) =
-        Future(blocking {
-            val out = new mutable.ListBuffer[String]
-            val err = new mutable.ListBuffer[String]
-            val exitCode = args ! ProcessLogger(o => out += o, e => err += e)
+  /**
+   * Runs the specified command with arguments asynchronously and
+   * capture stdout as well as stderr.
+   *
+   * Be cautious with the execution context you pass because the command
+   * is blocking.
+   *
+   * @param args command to be run including arguments
+   * @return a future completing according to the command's exit code
+   */
+  protected def executeProcess(args: String*)(implicit ec: ExecutionContext) =
+    Future(blocking {
+      val out = new mutable.ListBuffer[String]
+      val err = new mutable.ListBuffer[String]
+      val exitCode = args ! ProcessLogger(o => out += o, e => err += e)
 
-            (exitCode, out.mkString("\n"), err.mkString("\n"))
-        }).flatMap {
-            case (0, stdout, _) =>
-                Future.successful(stdout)
-            case (code, stdout, stderr) =>
-                Future.failed(ProcessRunningException(code, stdout, stderr))
-        }
+      (exitCode, out.mkString("\n"), err.mkString("\n"))
+    }).flatMap {
+      case (0, stdout, _) =>
+        Future.successful(stdout)
+      case (code, stdout, stderr) =>
+        Future.failed(ProcessRunningException(code, stdout, stderr))
+    }
 }
 
-case class ProcessRunningException(exitCode: Int, stdout: String, stderr: String) extends Exception(s"code: $exitCode, stdout: $stdout, stderr: $stderr")
+case class ProcessRunningException(exitCode: Int, stdout: String, stderr: String)
+    extends Exception(s"code: $exitCode, stdout: $stdout, stderr: $stderr")

@@ -49,123 +49,120 @@ class ActivationFinisherTests
     with WskActorSystem
     with StreamLogging {
 
-    implicit val tid = TransactionId.testing
+  implicit val tid = TransactionId.testing
 
-    val activation = WhiskActivation(
-        namespace = EntityPath("ns"),
-        name = EntityName("a"),
-        Subject(),
-        activationId = ActivationId(),
-        start = Instant.now(),
-        end = Instant.now(),
-        response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(2)))),
-        annotations = Parameters("limits", ActionLimits(
-            TimeLimit(1.second),
-            MemoryLimit(128.MB),
-            LogLimit(1.MB)).toJson),
-        duration = Some(123))
+  val activation = WhiskActivation(
+    namespace = EntityPath("ns"),
+    name = EntityName("a"),
+    Subject(),
+    activationId = ActivationId(),
+    start = Instant.now(),
+    end = Instant.now(),
+    response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(2)))),
+    annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson),
+    duration = Some(123))
 
-    var activationLookupCounter = 0
-    @volatile var activationResult: Option[Throwable] = None
+  var activationLookupCounter = 0
+  @volatile var activationResult: Option[Throwable] = None
 
-    def activationLookup(): Future[WhiskActivation] = {
-        activationLookupCounter += 1
-        activationResult.map(Future.failed(_)).getOrElse(Future.successful(activation))
-    }
+  def activationLookup(): Future[WhiskActivation] = {
+    activationLookupCounter += 1
+    activationResult.map(Future.failed(_)).getOrElse(Future.successful(activation))
+  }
 
-    override def beforeEach() = {
-        activationLookupCounter = 0
-        activationResult = None
-    }
+  override def beforeEach() = {
+    activationLookupCounter = 0
+    activationResult = None
+  }
 
-    behavior of "activation finisher"
-    override lazy val printstream = Console.out
-    val slowPoll = 200.milliseconds
-    val fastPoll = Seq()
+  behavior of "activation finisher"
+  override lazy val printstream = Console.out
+  val slowPoll = 200.milliseconds
+  val fastPoll = Seq()
 
-    it should "poll until promise is completed" in {
-        activationResult = Some(NoDocumentException(""))
-        val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
+  it should "poll until promise is completed" in {
+    activationResult = Some(NoDocumentException(""))
+    val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
 
-        val testProbePoller = TestProbe()
-        val testProbeFinisher = TestProbe()
-        testProbePoller.watch(poller)
-        testProbeFinisher.watch(finisher)
+    val testProbePoller = TestProbe()
+    val testProbeFinisher = TestProbe()
+    testProbePoller.watch(poller)
+    testProbeFinisher.watch(finisher)
 
-        val slowPollWorkWindow = (slowPoll * 3) + (slowPoll / 2)
-        Thread.sleep(slowPollWorkWindow.toMillis)
-        activationLookupCounter should (be >= 2 and be <= 3)
+    val slowPollWorkWindow = (slowPoll * 3) + (slowPoll / 2)
+    Thread.sleep(slowPollWorkWindow.toMillis)
+    activationLookupCounter should (be >= 2 and be <= 3)
 
-        // should terminate the parent finisher and child poller on completion
-        promise.trySuccess(Right(activation))
+    // should terminate the parent finisher and child poller on completion
+    promise.trySuccess(Right(activation))
 
-        testProbePoller.expectTerminated(poller, 1.second)
-        testProbeFinisher.expectTerminated(finisher, 1.second)
-    }
+    testProbePoller.expectTerminated(poller, 1.second)
+    testProbeFinisher.expectTerminated(finisher, 1.second)
+  }
 
-    it should "complete promise from poller" in {
-        val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
+  it should "complete promise from poller" in {
+    val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
 
-        val testProbePoller = TestProbe()
-        val testProbeFinisher = TestProbe()
-        testProbePoller.watch(poller)
-        testProbeFinisher.watch(finisher)
+    val testProbePoller = TestProbe()
+    val testProbeFinisher = TestProbe()
+    testProbePoller.watch(poller)
+    testProbeFinisher.watch(finisher)
 
-        val slowPollWorkWindow = (slowPoll * 2) + (slowPoll / 1)
-        Thread.sleep(slowPollWorkWindow.toMillis)
-        activationLookupCounter should be(1)
+    val slowPollWorkWindow = (slowPoll * 2) + (slowPoll / 1)
+    Thread.sleep(slowPollWorkWindow.toMillis)
+    activationLookupCounter should be(1)
 
-        testProbePoller.expectTerminated(poller, 1.second)
-        testProbeFinisher.expectTerminated(finisher, 1.second)
+    testProbePoller.expectTerminated(poller, 1.second)
+    testProbeFinisher.expectTerminated(finisher, 1.second)
 
-        promise shouldBe 'completed
-    }
+    promise shouldBe 'completed
+  }
 
-    it should "finish when receiving corresponding message" in {
-        activationResult = Some(NoDocumentException(""))
-        val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
+  it should "finish when receiving corresponding message" in {
+    activationResult = Some(NoDocumentException(""))
+    val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
 
-        val testProbePoller = TestProbe()
-        val testProbeFinisher = TestProbe()
-        testProbePoller.watch(poller)
-        testProbeFinisher.watch(finisher)
+    val testProbePoller = TestProbe()
+    val testProbeFinisher = TestProbe()
+    testProbePoller.watch(poller)
+    testProbeFinisher.watch(finisher)
 
-        val slowPollWorkWindow = (slowPoll * 2) + (slowPoll / 1)
-        Thread.sleep(slowPollWorkWindow.toMillis)
-        activationLookupCounter should (be >= 1 and be <= 2)
+    val slowPollWorkWindow = (slowPoll * 2) + (slowPoll / 1)
+    Thread.sleep(slowPollWorkWindow.toMillis)
+    activationLookupCounter should (be >= 1 and be <= 2)
 
-        // should terminate the parent finisher and child poller once message is received
-        finisher ! ActivationFinisher.Finish(Right(activation))
+    // should terminate the parent finisher and child poller once message is received
+    finisher ! ActivationFinisher.Finish(Right(activation))
 
-        testProbePoller.expectTerminated(poller, 1.second)
-        testProbeFinisher.expectTerminated(finisher, 1.second)
+    testProbePoller.expectTerminated(poller, 1.second)
+    testProbeFinisher.expectTerminated(finisher, 1.second)
 
-        promise shouldBe 'completed
-    }
+    promise shouldBe 'completed
+  }
 
-    it should "poll pre-emptively" in {
-        activationResult = Some(NoDocumentException(""))
-        val slowPoll = 600.milliseconds
-        val fastPoll = Seq(100.milliseconds, 200.milliseconds)
-        val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
+  it should "poll pre-emptively" in {
+    activationResult = Some(NoDocumentException(""))
+    val slowPoll = 600.milliseconds
+    val fastPoll = Seq(100.milliseconds, 200.milliseconds)
+    val (promise, poller, finisher) = ActivationFinisher.props(activationLookup, slowPoll, fastPoll)
 
-        val testProbePoller = TestProbe()
-        val testProbeFinisher = TestProbe()
-        testProbePoller.watch(poller)
-        testProbeFinisher.watch(finisher)
+    val testProbePoller = TestProbe()
+    val testProbeFinisher = TestProbe()
+    testProbePoller.watch(poller)
+    testProbeFinisher.watch(finisher)
 
-        Thread.sleep(500.milliseconds.toMillis)
-        activationLookupCounter should be(0)
+    Thread.sleep(500.milliseconds.toMillis)
+    activationLookupCounter should be(0)
 
-        // should cause polls
-        finisher ! Scheduler.WorkOnceNow
-        Thread.sleep(500.milliseconds.toMillis)
-        activationLookupCounter should be(3)
+    // should cause polls
+    finisher ! Scheduler.WorkOnceNow
+    Thread.sleep(500.milliseconds.toMillis)
+    activationLookupCounter should be(3)
 
-        finisher ! PoisonPill
+    finisher ! PoisonPill
 
-        testProbePoller.expectTerminated(poller, 1.second)
-        testProbeFinisher.expectTerminated(finisher, 1.second)
-    }
+    testProbePoller.expectTerminated(poller, 1.second)
+    testProbeFinisher.expectTerminated(finisher, 1.second)
+  }
 
 }

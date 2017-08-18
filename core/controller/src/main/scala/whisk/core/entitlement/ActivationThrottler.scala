@@ -32,26 +32,30 @@ import whisk.core.loadBalancer.LoadBalancer
  * @param defaultConcurrencyLimit the default max allowed concurrent operations
  * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(implicit logging: Logging) {
+class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
+  implicit logging: Logging) {
 
-    logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")(TransactionId.controller)
+  logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")(
+    TransactionId.controller)
 
-    /**
-     * Checks whether the operation should be allowed to proceed.
-     */
-    def check(user: Identity)(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
-        val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
-        logging.info(this, s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
-        concurrentActivations < concurrencyLimit
-    }
+  /**
+   * Checks whether the operation should be allowed to proceed.
+   */
+  def check(user: Identity)(implicit tid: TransactionId): Boolean = {
+    val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
+    val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+    logging.info(
+      this,
+      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
+    concurrentActivations < concurrencyLimit
+  }
 
-    /**
-     * Checks whether the system is in a generally overloaded state.
-     */
-    def isOverloaded()(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = loadBalancer.totalActiveActivations
-        logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
-        concurrentActivations > systemOverloadLimit
-    }
+  /**
+   * Checks whether the system is in a generally overloaded state.
+   */
+  def isOverloaded()(implicit tid: TransactionId): Boolean = {
+    val concurrentActivations = loadBalancer.totalActiveActivations
+    logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+    concurrentActivations > systemOverloadLimit
+  }
 }

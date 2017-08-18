@@ -21,17 +21,15 @@ import org.scalatest.BeforeAndAfterEachTestData
 import org.scalatest.FlatSpec
 import org.scalatest.TestData
 
-trait TestHelpers
-    extends FlatSpec
-    with BeforeAndAfterEachTestData {
+trait TestHelpers extends FlatSpec with BeforeAndAfterEachTestData {
 
-    override def beforeEach(td: TestData) {
-        println(s"\nStarting test ${td.name} at ${TestUtils.getDateTime()}")
-        super.beforeEach(td)
-    }
+  override def beforeEach(td: TestData) {
+    println(s"\nStarting test ${td.name} at ${TestUtils.getDateTime()}")
+    super.beforeEach(td)
+  }
 
-    override def afterEach(td: TestData) {
-        println(s"\nFinished test ${td.name} at ${TestUtils.getDateTime()}")
-        super.afterEach(td)
-    }
+  override def afterEach(td: TestData) {
+    println(s"\nFinished test ${td.name} at ${TestUtils.getDateTime()}")
+    super.afterEach(td)
+  }
 }

@@ -28,24 +28,24 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class SpiTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
 
-    behavior of "SpiProvider"
+  behavior of "SpiProvider"
 
-    it should "load an Spi from SpiLoader via typesafe config" in {
-        val simpleSpi = SpiLoader.get[SimpleSpi]
-        simpleSpi shouldBe a[SimpleSpi]
-    }
+  it should "load an Spi from SpiLoader via typesafe config" in {
+    val simpleSpi = SpiLoader.get[SimpleSpi]
+    simpleSpi shouldBe a[SimpleSpi]
+  }
 
-    it should "throw an exception if the impl defined in application.conf is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]
-    }
+  it should "throw an exception if the impl defined in application.conf is missing" in {
+    a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]
+  }
 
-    it should "throw an exception if the module is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]
-    }
+  it should "throw an exception if the module is missing" in {
+    a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]
+  }
 
-    it should "throw an exception if the config key is missing" in {
-        a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]
-    }
+  it should "throw an exception if the config key is missing" in {
+    a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]
+  }
 }
 
 trait SimpleSpi extends Spi

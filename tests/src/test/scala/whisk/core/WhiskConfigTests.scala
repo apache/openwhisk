@@ -29,66 +29,63 @@ import org.scalatest.junit.JUnitRunner
 import common.StreamLogging
 
 @RunWith(classOf[JUnitRunner])
-class WhiskConfigTests
-    extends FlatSpec
-    with Matchers
-    with StreamLogging {
+class WhiskConfigTests extends FlatSpec with Matchers with StreamLogging {
 
-    behavior of "WhiskConfig"
+  behavior of "WhiskConfig"
 
-    it should "get required property" in {
-        val config = new WhiskConfig(WhiskConfig.edgeHost)
-        assert(config.isValid)
-        assert(config.edgeHost.nonEmpty)
-    }
+  it should "get required property" in {
+    val config = new WhiskConfig(WhiskConfig.edgeHost)
+    assert(config.isValid)
+    assert(config.edgeHost.nonEmpty)
+  }
 
-    it should "be valid when a prop file is provided defining required props" in {
-        val file = File.createTempFile("cxt", ".txt")
-        file.deleteOnExit()
+  it should "be valid when a prop file is provided defining required props" in {
+    val file = File.createTempFile("cxt", ".txt")
+    file.deleteOnExit()
 
-        val bw = new BufferedWriter(new FileWriter(file))
-        bw.write("a=A\n")
-        bw.close()
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("a=A\n")
+    bw.close()
 
-        val config = new WhiskConfig(Map("a" -> null), Set(), file)
-        assert(config.isValid && config("a") == "A")
-    }
+    val config = new WhiskConfig(Map("a" -> null), Set(), file)
+    assert(config.isValid && config("a") == "A")
+  }
 
-    it should "not be valid when a prop file is provided but does not define required props" in {
-        val file = File.createTempFile("cxt", ".txt")
-        file.deleteOnExit()
+  it should "not be valid when a prop file is provided but does not define required props" in {
+    val file = File.createTempFile("cxt", ".txt")
+    file.deleteOnExit()
 
-        val bw = new BufferedWriter(new FileWriter(file))
-        bw.write("a=A\n")
-        bw.close()
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("a=A\n")
+    bw.close()
 
-        val config = new WhiskConfig(Map("a" -> null, "b" -> null), Set(), file)
-        assert(!config.isValid && config("b") == null)
-    }
+    val config = new WhiskConfig(Map("a" -> null, "b" -> null), Set(), file)
+    assert(!config.isValid && config("b") == null)
+  }
 
-    it should "be valid when a prop file is provided defining required props and optional properties" in {
-        val file = File.createTempFile("cxt", ".txt")
-        file.deleteOnExit()
+  it should "be valid when a prop file is provided defining required props and optional properties" in {
+    val file = File.createTempFile("cxt", ".txt")
+    file.deleteOnExit()
 
-        val bw = new BufferedWriter(new FileWriter(file))
-        bw.write("a=A\n")
-        bw.write("b=B\n")
-        bw.write("c=C\n")
-        bw.close()
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("a=A\n")
+    bw.write("b=B\n")
+    bw.write("c=C\n")
+    bw.close()
 
-        val config = new WhiskConfig(Map("a" -> null, "b" -> "???"), Set("c", "d"), file, env = Map())
-        assert(config.isValid && config("a") == "A" && config("b") == "B")
-        assert(config("c") == "C")
-        assert(config("d") == "")
-        assert(config("a", "c") == "C")
-        assert(config("a", "d") == "A")
-        assert(config("d", "a") == "A")
-        assert(config("c", "a") == "A")
-    }
+    val config = new WhiskConfig(Map("a" -> null, "b" -> "???"), Set("c", "d"), file, env = Map())
+    assert(config.isValid && config("a") == "A" && config("b") == "B")
+    assert(config("c") == "C")
+    assert(config("d") == "")
+    assert(config("a", "c") == "C")
+    assert(config("a", "d") == "A")
+    assert(config("d", "a") == "A")
+    assert(config("c", "a") == "A")
+  }
 
-    it should "get property with no value from whisk.properties file" in {
-        val config = new WhiskConfig(Map(WhiskConfig.dockerRegistry -> null))
-        println(s"${WhiskConfig.dockerRegistry} is: '${config.dockerRegistry}'")
-        assert(config.isValid)
-    }
+  it should "get property with no value from whisk.properties file" in {
+    val config = new WhiskConfig(Map(WhiskConfig.dockerRegistry -> null))
+    println(s"${WhiskConfig.dockerRegistry} is: '${config.dockerRegistry}'")
+    assert(config.isValid)
+  }
 }

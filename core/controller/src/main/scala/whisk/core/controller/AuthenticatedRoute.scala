@@ -33,24 +33,25 @@ import whisk.core.entity.Identity
 /** A common trait for secured routes */
 trait AuthenticatedRoute {
 
-    /** An execution context for futures */
-    protected implicit val executionContext: ExecutionContext
+  /** An execution context for futures */
+  protected implicit val executionContext: ExecutionContext
 
-    /** Creates HTTP BasicAuth handler */
-    def basicAuth[A](verify: Option[BasicHttpCredentials] => Future[Option[A]]) = {
-        authenticateOrRejectWithChallenge[BasicHttpCredentials, A] { creds =>
-            verify(creds).map {
-                case Some(t) => AuthenticationResult.success(t)
-                case None    => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
-            }
-        }
+  /** Creates HTTP BasicAuth handler */
+  def basicAuth[A](verify: Option[BasicHttpCredentials] => Future[Option[A]]) = {
+    authenticateOrRejectWithChallenge[BasicHttpCredentials, A] { creds =>
+      verify(creds).map {
+        case Some(t) => AuthenticationResult.success(t)
+        case None    => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
+      }
     }
+  }
 
-    /** Validates credentials against database of subjects */
-    protected def validateCredentials(credentials: Option[BasicHttpCredentials])(implicit transid: TransactionId): Future[Option[Identity]]
+  /** Validates credentials against database of subjects */
+  protected def validateCredentials(credentials: Option[BasicHttpCredentials])(
+    implicit transid: TransactionId): Future[Option[Identity]]
 }
 
 /** A trait for authenticated routes. */
 trait AuthenticatedRouteProvider {
-    def routes(user: Identity)(implicit transid: TransactionId): Route
+  def routes(user: Identity)(implicit transid: TransactionId): Route
 }

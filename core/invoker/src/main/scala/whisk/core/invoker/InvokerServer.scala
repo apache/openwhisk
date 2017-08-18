@@ -25,8 +25,4 @@ import whisk.http.BasicRasService
  * Implements web server to handle certain REST API calls.
  * Currently provides a health ping route, only.
  */
-class InvokerServer(
-    override val instance: InstanceId,
-    override val numberOfInstances: Int)
-    extends BasicRasService {
-}
+class InvokerServer(override val instance: InstanceId, override val numberOfInstances: Int) extends BasicRasService {}

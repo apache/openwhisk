@@ -31,82 +31,88 @@ import whisk.core.entity.DocInfo
 abstract class StaleParameter(val value: Option[String])
 
 object StaleParameter {
-    case object Ok extends StaleParameter(Some("ok"))
-    case object UpdateAfter extends StaleParameter(Some("update_after"))
-    case object No extends StaleParameter(None)
+  case object Ok extends StaleParameter(Some("ok"))
+  case object UpdateAfter extends StaleParameter(Some("update_after"))
+  case object No extends StaleParameter(None)
 }
 
 /** Basic client to put and delete artifacts in a data store. */
 trait ArtifactStore[DocumentAbstraction] {
 
-    /** Execution context for futures */
-    protected[core] implicit val executionContext: ExecutionContext
+  /** Execution context for futures */
+  protected[core] implicit val executionContext: ExecutionContext
 
-    implicit val logging: Logging
+  implicit val logging: Logging
 
-    /**
-     * Puts (saves) document to database using a future.
-     * If the operation is successful, the future completes with DocId else an appropriate exception.
-     *
-     * @param d the document to put in the database
-     * @param transid the transaction id for logging
-     * @return a future that completes either with DocId
-     */
-    protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
+  /**
+   * Puts (saves) document to database using a future.
+   * If the operation is successful, the future completes with DocId else an appropriate exception.
+   *
+   * @param d the document to put in the database
+   * @param transid the transaction id for logging
+   * @return a future that completes either with DocId
+   */
+  protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
 
-    /**
-     * Deletes document from database using a future.
-     * If the operation is successful, the future completes with true.
-     *
-     * @param doc the document info for the record to delete (must contain valid id and rev)
-     * @param transid the transaction id for logging
-     * @return a future that completes true iff the document is deleted, else future is failed
-     */
-    protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
+  /**
+   * Deletes document from database using a future.
+   * If the operation is successful, the future completes with true.
+   *
+   * @param doc the document info for the record to delete (must contain valid id and rev)
+   * @param transid the transaction id for logging
+   * @return a future that completes true iff the document is deleted, else future is failed
+   */
+  protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
 
-    /**
-     * Gets document from database by id using a future.
-     * If the operation is successful, the future completes with the requested document if it exists.
-     *
-     * @param doc the document info for the record to get (must contain valid id and rev)
-     * @param transid the transaction id for logging
-     * @param ma manifest for A to determine its runtime type, required by some db APIs
-     * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
-     */
-    protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(
-        implicit transid: TransactionId,
-        ma: Manifest[A]): Future[A]
+  /**
+   * Gets document from database by id using a future.
+   * If the operation is successful, the future completes with the requested document if it exists.
+   *
+   * @param doc the document info for the record to get (must contain valid id and rev)
+   * @param transid the transaction id for logging
+   * @param ma manifest for A to determine its runtime type, required by some db APIs
+   * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
+   */
+  protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(implicit transid: TransactionId,
+                                                                      ma: Manifest[A]): Future[A]
 
-    /**
-     * Gets all documents from database view that match a start key, up to an end key, using a future.
-     * If the operation is successful, the promise completes with List[View]] with zero or more documents.
-     *
-     * @param table the name of the table to query
-     * @param startKey to starting key to query the view for
-     * @param endKey to starting key to query the view for
-     * @param skip the number of record to skip (for pagination)
-     * @param limit the maximum number of records matching the key to return, iff > 0
-     * @param includeDocs include full documents matching query iff true (shall not be used with reduce)
-     * @param descending reverse results iff true
-     * @param reduce apply reduction associated with query to the result iff true
-     * @param transid the transaction id for logging
-     * @return a future that completes with List[JsObject] of all documents from view between start and end key (list may be empty)
-     */
-    protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean, stale: StaleParameter)(
-        implicit transid: TransactionId): Future[List[JsObject]]
+  /**
+   * Gets all documents from database view that match a start key, up to an end key, using a future.
+   * If the operation is successful, the promise completes with List[View]] with zero or more documents.
+   *
+   * @param table the name of the table to query
+   * @param startKey to starting key to query the view for
+   * @param endKey to starting key to query the view for
+   * @param skip the number of record to skip (for pagination)
+   * @param limit the maximum number of records matching the key to return, iff > 0
+   * @param includeDocs include full documents matching query iff true (shall not be used with reduce)
+   * @param descending reverse results iff true
+   * @param reduce apply reduction associated with query to the result iff true
+   * @param transid the transaction id for logging
+   * @return a future that completes with List[JsObject] of all documents from view between start and end key (list may be empty)
+   */
+  protected[core] def query(table: String,
+                            startKey: List[Any],
+                            endKey: List[Any],
+                            skip: Int,
+                            limit: Int,
+                            includeDocs: Boolean,
+                            descending: Boolean,
+                            reduce: Boolean,
+                            stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]]
 
-    /**
-     * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
-     */
-    protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-        implicit transid: TransactionId): Future[DocInfo]
+  /**
+   * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
+   */
+  protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+    implicit transid: TransactionId): Future[DocInfo]
 
-    /**
-     * Retrieves a saved attachment, streaming it into the provided Sink.
-     */
-    protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-        implicit transid: TransactionId): Future[(ContentType, T)]
+  /**
+   * Retrieves a saved attachment, streaming it into the provided Sink.
+   */
+  protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
+    implicit transid: TransactionId): Future[(ContentType, T)]
 
-    /** Shut it down. After this invocation, every other call is invalid. */
-    def shutdown(): Unit
+  /** Shut it down. After this invocation, every other call is invalid. */
+  def shutdown(): Unit
 }
