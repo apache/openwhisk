@@ -57,7 +57,7 @@ import whisk.core.entitlement.Privilege._
  * in order to implement the actions API.
  */
 object WhiskActionsApi {
-    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null)
+    def requiredProperties = Map(WhiskConfig.actionSequenceMaxLimit -> null)
 
     /** Grace period after action timeout limit to poll for result. */
     protected[core] val blockingInvokeGrace = 5 seconds

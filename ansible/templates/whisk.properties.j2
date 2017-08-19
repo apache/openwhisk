@@ -34,18 +34,12 @@ whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_na
 whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
-defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
-defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
-defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
-defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
-defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
 
-{% if limits is defined %}
-limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
-limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
-limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentInSystem }}
-limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
-{% endif %}
+limits.actions.invokes.perMinute={{ limits.invocationsPerMinute }}
+limits.actions.invokes.concurrent={{ limits.concurrentInvocations }}
+limits.actions.invokes.concurrentInSystem={{ limits.concurrentInvocationsSystem }}
+limits.triggers.fires.perMinute={{ limits.firesPerMinute }}
+limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
 kafka.host={{ groups["kafka"]|first }}

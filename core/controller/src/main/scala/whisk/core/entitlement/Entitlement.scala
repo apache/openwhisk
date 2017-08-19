@@ -61,17 +61,12 @@ protected[core] case class Resource(
 }
 
 protected[core] object EntitlementProvider {
-    val requiredProperties = Map(
-        WhiskConfig.actionInvokePerMinuteDefaultLimit -> null,
-        WhiskConfig.actionInvokeConcurrentDefaultLimit -> null,
-        WhiskConfig.triggerFirePerMinuteDefaultLimit -> null,
-        WhiskConfig.actionInvokeSystemOverloadDefaultLimit -> null)
 
-    val optionalProperties = Set(
-        WhiskConfig.actionInvokePerMinuteLimit,
-        WhiskConfig.actionInvokeConcurrentLimit,
-        WhiskConfig.triggerFirePerMinuteLimit,
-        WhiskConfig.actionInvokeSystemOverloadLimit)
+    val requiredProperties = Map(
+        WhiskConfig.actionInvokePerMinuteLimit -> null,
+        WhiskConfig.actionInvokeConcurrentLimit -> null,
+        WhiskConfig.triggerFirePerMinuteLimit -> null,
+        WhiskConfig.actionInvokeSystemOverloadLimit -> null)
 }
 
 /**

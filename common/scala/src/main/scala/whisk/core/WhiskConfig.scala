@@ -95,11 +95,11 @@ class WhiskConfig(
 
     val runtimesManifest = this(WhiskConfig.runtimesManifest)
 
-    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
-    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
-    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
-    val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
-    val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
+    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
+    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
+    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
+    val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
+    val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
 }
 
 object WhiskConfig {
@@ -214,11 +214,7 @@ object WhiskConfig {
 
     val runtimesManifest = "runtimes.manifest"
 
-    val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
-    val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
-    val actionInvokeSystemOverloadDefaultLimit = "defaultLimits.actions.invokes.concurrentInSystem"
-    val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
-    val actionSequenceDefaultLimit = "defaultLimits.actions.sequence.maxLength"
+    val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
     val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"

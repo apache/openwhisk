@@ -59,7 +59,7 @@ class WskSequenceTests
     val allowedActionDuration = 120 seconds
     val shortDuration = 10 seconds
 
-    val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceDefaultLimit -> null))
+    val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
     assert(whiskConfig.isValid)
 
     behavior of "Wsk Sequence"
