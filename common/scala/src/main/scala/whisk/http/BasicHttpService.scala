@@ -92,7 +92,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
                 prioritizeRejections {
                     DebuggingDirectives.logRequest(logRequestInfo _) {
                         DebuggingDirectives.logRequestResult(logResponseInfo _) {
-                            toStrictEntity(1.second) {
+                            toStrictEntity(30.seconds) {
                                 routes
                             }
                         }
