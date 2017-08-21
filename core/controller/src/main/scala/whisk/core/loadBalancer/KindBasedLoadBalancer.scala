@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 import akka.actor.ActorSystem
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -27,7 +26,6 @@ import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.InstanceId
 import whisk.spi.Dependencies
 import whisk.spi.SpiFactory
-import whisk.spi.SpiLoader
 
 class KindBasedExecutorLoadBalancerProvider extends LoadBalancerProvider {
     override def getLoadBalancer(config: WhiskConfig, instance: InstanceId)
@@ -40,10 +38,8 @@ object KindBasedExecutorLoadBalancerProvider extends SpiFactory[LoadBalancerProv
 
 class KindBasedLoadBalancer(config: WhiskConfig,
     instance: InstanceId)(
-    implicit val actorSystem: ActorSystem,
-    logging: Logging) extends MultiExecutorBalancer {
-
-    override implicit val ec: ExecutionContext = actorSystem.dispatcher
+    implicit override val actorSystem: ActorSystem,
+    logging: Logging) extends MultiExecutorBalancer(config, instance) {
 
     val kinds = ExecManifest.runtimesManifest.manifests.map(m => m._2.kind)
 
@@ -51,9 +47,12 @@ class KindBasedLoadBalancer(config: WhiskConfig,
 
     override def executor(action: ExecutableWhiskAction, msg:ActivationMessage) = {
 
-        executorForKind.getOrElseUpdate(action.exec.kind, executors.find(_.supports(action, msg)))
+        executorForKind.getOrElseUpdate(action.exec.kind, {
+            val newExecutor = executors.find(_.supports(action, msg))
+            logging.info(this, s"caching executor ${newExecutor} for kind ${action.exec.kind}")
+            newExecutor
+        })
     }
 
-    override def executors: Seq[ActivationExecutor] = SpiLoader.get[ActivationExecutorsProvider]().executors(config, instance).sortBy(e => e.priority())
-
+    override def log: Logging = logging
 }

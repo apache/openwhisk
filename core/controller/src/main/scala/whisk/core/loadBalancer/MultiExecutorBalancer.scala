@@ -17,25 +17,44 @@
 
 package whisk.core.loadBalancer
 
+import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import spray.json.JsObject
+import whisk.common.Logging
+import whisk.core.WhiskConfig
+import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
+import whisk.spi.SpiLoader
 
 /**
  * A LoadBalancer that delegates execution to ActivationExecutors
  */
-abstract class MultiExecutorBalancer extends LoadBalancer {
+abstract class MultiExecutorBalancer(config: WhiskConfig,
+    instance: InstanceId)(
+    implicit val actorSystem: ActorSystem,
+    logging: Logging) extends LoadBalancer {
 
     protected val loadBalancerData = new LoadBalancerData()
+
+    //preload executors, and log which are loaded
+    val e = executors
+    e.foreach(e => {
+        log.info(this, s"Added executor ${e}.")
+    })
+
+    def log: Logging
 
     def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
 
     def totalActiveActivations = loadBalancerData.totalActivationCount
 
-    def executors: Seq[ActivationExecutor]
+    //load executors exactly once
+    lazy val execs = SpiLoader.get[ActivationExecutorsProvider]().executors(config, instance).sortBy(e => e.priority())
 
-    implicit val ec:ExecutionContext
+    def executors: Seq[ActivationExecutor] = execs
+
+    implicit val ec:ExecutionContext = actorSystem.dispatcher
     /**
      * Return a message indicating the health of all the executors
      * @return a Future[JsObject] representing the health response that will be sent to the client
