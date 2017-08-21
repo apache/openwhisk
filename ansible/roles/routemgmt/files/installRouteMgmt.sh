@@ -24,7 +24,6 @@ WSK_CLI="$4"
 WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
 GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2-`
-GW_HOST=`fgrep apigw.host= $WHISKPROPS_FILE | cut -d'=' -f2`
 GW_HOST_V2=`fgrep apigw.host.v2= $WHISKPROPS_FILE | cut -d'=' -f2`
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
@@ -40,7 +39,6 @@ $WSK_CLI -i --apihost "$APIHOST" package update --auth "$AUTH"  --shared no "$NA
 -a description "This package manages the gateway API configuration." \
 -p gwUser "$GW_USER" \
 -p gwPwd "$GW_PWD" \
--p gwUrl "$GW_HOST" \
 -p gwUrlV2 "$GW_HOST_V2"
 
 echo Creating NPM module .zip files
