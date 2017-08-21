@@ -76,7 +76,6 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
         CacheInvalidationMessage.parse(raw) match {
             case Success(msg: CacheInvalidationMessage) => {
                 if (msg.root != root) {
-                    println(s"Invalidating ${msg.key}")
                     WhiskAction.removeId(msg.key)
                     WhiskPackage.removeId(msg.key)
                     WhiskRule.removeId(msg.key)

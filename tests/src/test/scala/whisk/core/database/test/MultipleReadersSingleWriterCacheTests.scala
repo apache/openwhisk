@@ -128,7 +128,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
 
         def callback(key: Any): Future[Unit] = {
             ctr.incrementAndGet()
-            Future.successful(Unit)
+            Future.successful(())
         }
 
         // Create an cache entry
@@ -136,13 +136,13 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         ctr.get shouldBe 1
 
         // Callback should be called if entry exists
-        cacheInvalidate(key, Future.successful(Unit), callback)
+        cacheInvalidate(key, Future.successful(()), callback)
         ctr.get shouldBe 2
         cacheUpdate("docdoc", key, Future.successful("update in db successful"), callback)
         ctr.get shouldBe 3
 
         // Callback should be called if entry does not exist
-        cacheInvalidate(CacheKey("abc"), Future.successful(Unit), callback)
+        cacheInvalidate(CacheKey("abc"), Future.successful(()), callback)
         ctr.get shouldBe 4
     }
 

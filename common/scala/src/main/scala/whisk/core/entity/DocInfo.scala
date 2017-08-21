@@ -84,9 +84,9 @@ protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevisio
         }
     }
 
-    def asCacheKey() = {
+    def asCacheKey = {
         val revision = if (rev.empty) None else Some(rev.toString())
-        CacheKey(id.toString(), revision)
+        CacheKey(id.asString, revision)
     }
 }
 

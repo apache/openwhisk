@@ -132,7 +132,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param transid the transaction id for logging
      * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
      */
-    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
+    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
         implicit transid: TransactionId): Future[DocInfo] = {
         Try {
             require(db != null, "db undefined")
@@ -157,7 +157,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
         }
     }
 
-    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
+    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
         implicit transid: TransactionId): Future[DocInfo] = {
 
         Try {
@@ -180,7 +180,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
         }
     }
 
-    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
+    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
         implicit transid: TransactionId): Future[Boolean] = {
         Try {
             require(db != null, "db undefined")

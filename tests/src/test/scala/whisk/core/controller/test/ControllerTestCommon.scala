@@ -85,7 +85,7 @@ protected trait ControllerTestCommon
         override def make = fixedId
     }
 
-    def changeCacheCallback(key: CacheKey): Future[Unit] = Future.successful(Unit)
+    def changeCacheCallback(key: CacheKey): Future[Unit] = Future.successful(())
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)

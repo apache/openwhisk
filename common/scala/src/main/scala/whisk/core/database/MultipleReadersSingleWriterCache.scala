@@ -157,7 +157,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method posts a delete to the backing store, and either directly invalidates the cache entry
      * or informs any outstanding transaction that it must invalidate the cache on completion.
      */
-    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
+    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
         if (cacheEnabled) {
             logger.info(this, s"invalidating $key on delete")
@@ -257,7 +257,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(Unit))(
+    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
         if (cacheEnabled) {
 

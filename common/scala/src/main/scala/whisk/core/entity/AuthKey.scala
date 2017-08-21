@@ -39,7 +39,7 @@ protected[core] class AuthKey private (private val k: (UUID, Secret)) extends An
     def revoke = new AuthKey(uuid, Secret())
     def compact = s"$uuid:$key"
     override def toString = uuid.toString
-    def asCacheKey = CacheKey(uuid.toString(), Some(key.toString()))
+    def asCacheKey = CacheKey(uuid.asString, Some(key.asString))
 }
 
 protected[core] object AuthKey {

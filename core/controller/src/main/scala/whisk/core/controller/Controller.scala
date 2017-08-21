@@ -18,7 +18,6 @@
 package whisk.core.controller
 
 import scala.concurrent.Await
-import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.util.{ Failure, Success }
 
@@ -99,7 +98,7 @@ class Controller(
     private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
     private val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
-    private def changeCacheCallback(key: CacheKey): Future[Unit] = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(key)
+    private val changeCacheCallback = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation _
 
     // initialize backend services
     private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
