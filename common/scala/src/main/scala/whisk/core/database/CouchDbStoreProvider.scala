@@ -21,13 +21,9 @@ import akka.actor.ActorSystem
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.spi.Dependencies
-import whisk.spi.SpiFactory
 
-/**
- * A CouchDB implementation of ArtifactStoreProvider
- */
-class CouchDbStoreProvider extends ArtifactStoreProvider {
+object CouchDbStoreProvider extends ArtifactStoreProvider {
+
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
@@ -38,8 +34,4 @@ class CouchDbStoreProvider extends ArtifactStoreProvider {
 
         new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
     }
-}
-
-object CouchDbStoreProvider extends SpiFactory[ArtifactStoreProvider] {
-    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDbStoreProvider
 }

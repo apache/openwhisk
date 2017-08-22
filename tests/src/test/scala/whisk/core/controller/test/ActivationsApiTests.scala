@@ -354,7 +354,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     it should "report proper error when record is corrupted on get" in {
 
-        val activationStore = SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging)
+        val activationStore = SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging)
         implicit val tid = transid()
         val entity = BadEntity(namespace, EntityName(ActivationId().toString))
         put(activationStore, entity)

@@ -24,20 +24,14 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
-import whisk.spi.Dependencies
-import whisk.spi.SingletonSpiFactory
 
 /**
  * A Kafka based implementation of MessagingProvider
  */
-class KafkaMessagingProvider() extends MessagingProvider {
+object KafkaMessagingProvider extends MessagingProvider {
     def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(implicit logging: Logging): MessageConsumer =
         new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
 
     def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
         new KafkaProducerConnector(config.kafkaHost, ec)
-}
-
-object KafkaMessagingProvider extends SingletonSpiFactory[MessagingProvider] {
-    override def apply(dependencies: Dependencies): MessagingProvider = new KafkaMessagingProvider
 }

@@ -67,7 +67,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     /** Initialize message consumers */
     val topic = s"invoker${instance.toInt}"
     val maximumContainers = config.invokerNumCore.toInt * config.invokerCoreShare.toInt
-    val msgProvider = SpiLoader.get[MessagingProvider]()
+    val msgProvider = SpiLoader.get[MessagingProvider]
     val consumer = msgProvider.getConsumer(config, "invokers", topic, maximumContainers, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
     val activationFeed = actorSystem.actorOf(Props {

@@ -98,7 +98,7 @@ object WhiskAuthStore {
             dbAuths -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskAuth](config, _.dbAuths)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -112,7 +112,7 @@ object WhiskEntityStore {
             dbWhisk -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
 
 }
 
@@ -127,7 +127,7 @@ object WhiskActivationStore {
             dbActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskActivation](config, _.dbActivations)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations)
 }
 
 /**
