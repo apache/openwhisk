@@ -19,21 +19,18 @@ package whisk.core.controller.test
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import common.StreamLogging
-
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
-
 import spray.json.DefaultJsonProtocol
 import spray.json.JsObject
 import spray.json.JsString
-
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -45,6 +42,7 @@ import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
+import whisk.core.loadBalancer.ActivationExecutor
 import whisk.core.loadBalancer.LoadBalancer
 
 protected trait ControllerTestCommon
@@ -173,7 +171,7 @@ protected trait ControllerTestCommon
 }
 
 class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
-    extends LoadBalancer {
+    extends LoadBalancer with ActivationExecutor{
     import scala.concurrent.blocking
 
     // unit tests that need an activation via active ack/fast path should set this to value expected
@@ -181,6 +179,8 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
 
     override def totalActiveActivations = 0
     override def activeActivationsFor(namespace: UUID) = 0
+
+    override def executor(action:ExecutableWhiskAction, msg: ActivationMessage): Option[ActivationExecutor] = Some(this)
 
     override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
         Future.successful {
@@ -197,4 +197,13 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
         }
 
     override def healthStatus: Future[JsObject] = Future.successful(JsObject())
+
+    /** Indicate the priority of this executor, in case multiple executors support execution of a single activation */
+    override def priority(): Int = 0
+
+    /** Indicate whether this action + activation are supported in this executor */
+    override def supports(action: ExecutableWhiskAction, msg: ActivationMessage): Boolean = true
+
+    /** Name of this executor, used for reporting in health status. */
+    override def name: String = "testlb"
 }
