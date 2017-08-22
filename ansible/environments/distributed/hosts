@@ -1,23 +1,29 @@
-; the first parameter in a host is the inventory_hostname which has to be
-; either an ip
-; or a resolvable hostname
+; the first parameter in a host is the inventory_hostname
 
 ; used for local actions only
 ansible ansible_connection=local
+
 [registry]
-10.3.2.153
+10.3.2.153              ansible_host=10.3.2.153
+
 [edge]
-10.3.2.154
+10.3.2.154              ansible_host=10.3.2.154
+
 [apigateway:children]
 edge
+
 [redis:children]
 edge
+
 [controllers]
-10.3.2.155
+10.3.2.155              ansible_host=10.3.2.155
+
 [kafka]
-10.3.2.156
+10.3.2.156              ansible_host=10.3.2.156
+
 [invokers]
-10.3.2.158
-10.3.2.159
+10.3.2.158              ansible_host=10.3.2.158
+10.3.2.159              ansible_host=10.3.2.159
+
 [db]
-10.3.2.16
+10.3.2.16               ansible_host=10.3.2.16
