@@ -58,7 +58,18 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
                 invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
             // a non-deprecated ExecutableWhiskAction
             case Some(executable) if !executable.exec.deprecated =>
-                invokeSingleAction(user, executable, payload, waitForResponse, cause)
+                invokeSingleAction(user,
+                    action.rev,
+                    action.parameters,
+                    action.namespace,
+                    action.name,
+                    action.version,
+                    executable.exec.pull,
+                    action.fullyQualifiedName(false).asString,
+                    action.limits.timeout.duration,
+                    payload,
+                    waitForResponse,
+                    cause)
             // a deprecated exec
             case _ =>
                 Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(action.exec)))
