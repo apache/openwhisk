@@ -20,17 +20,13 @@ package whisk.http
 import scala.collection.immutable.Seq
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.server.RejectionHandler
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.server.UnacceptedResponseContentTypeRejection
 import akka.http.scaladsl.server.directives.DebuggingDirectives
 import akka.http.scaladsl.server.directives.LogEntry
 import akka.stream.ActorMaterializer
@@ -68,7 +64,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
      * Gets the log level for a given route. The default is
      * InfoLevel so override as needed.
      *
-     * @param the route
+     * @param route the route to determine the loglevel for
      * @return a log level for the route
      */
     def loglevelForRoute(route: String): Logging.LogLevel = Logging.InfoLevel
@@ -88,10 +84,10 @@ trait BasicHttpService extends Directives with TransactionCounter {
      */
     def route: Route = {
         assignId { implicit transid =>
-            handleRejections(customRejectionHandler) {
-                prioritizeRejections {
-                    DebuggingDirectives.logRequest(logRequestInfo _) {
-                        DebuggingDirectives.logRequestResult(logResponseInfo _) {
+            DebuggingDirectives.logRequest(logRequestInfo _) {
+                DebuggingDirectives.logRequestResult(logResponseInfo _) {
+                    handleRejections(customRejectionHandler) {
+                        prioritizeRejections {
                             toStrictEntity(30.seconds) {
                                 routes
                             }
@@ -107,16 +103,16 @@ trait BasicHttpService extends Directives with TransactionCounter {
 
     /** Generates log entry for every request. */
     protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
-        val m = req.method.name.toString
+        val m = req.method.name
         val p = req.uri.path.toString
         val q = req.uri.query().toString
         val l = loglevelForRoute(p)
         LogEntry(s"[$tid] $m $p $q", l)
     }
 
-    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): Any => Option[LogEntry] = {
-        case res: HttpResponse =>
-            val m = req.method.toString
+    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): RouteResult => Option[LogEntry] = {
+        case RouteResult.Complete(res: HttpResponse) =>
+            val m = req.method.name
             val p = req.uri.path.toString
             val l = loglevelForRoute(p)
 
