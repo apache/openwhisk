@@ -247,11 +247,11 @@ catalog_key_file: "{{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-clie
 #
 catalog_repos:
   openwhisk-catalog:
-    url: https://github.com/apache/incubator-openwhisk-catalog.git
+    url: https://github.com/ningyougang/incubator-openwhisk-catalog.git
     # Set the local location as the same level as openwhisk home, but it can be changed.
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
-    version: "HEAD"
-    repo_update: "no"
+    version: "suppport-client-certificate"
+    repo_update: "yes"
 
 openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
 
