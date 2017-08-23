@@ -59,6 +59,10 @@
   with_items: "{{ invokerInfo.json }}"
   when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
+- name: get invoker container Names list
+  set_fact:
+    nameList: "{{ invokerInfo.json | map(attribute='Names') | list }}"
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
@@ -104,6 +108,7 @@
         -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
         {{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}
         /bin/sh -c "exec /invoker/bin/invoker {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
+  when: "['/invoker{{ groups['invokers'].index(inventory_hostname) }}'] not in nameList"
 
 # todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
 
