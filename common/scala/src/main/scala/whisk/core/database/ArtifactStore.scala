@@ -28,6 +28,14 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 
+abstract class StaleParameter(val value: Option[String])
+
+object StaleParameter {
+    case object Ok extends StaleParameter(Some("ok"))
+    case object UpdateAfter extends StaleParameter(Some("update_after"))
+    case object No extends StaleParameter(None)
+}
+
 /** Basic client to put and delete artifacts in a data store. */
 trait ArtifactStore[DocumentAbstraction] {
 
@@ -84,7 +92,7 @@ trait ArtifactStore[DocumentAbstraction] {
      * @param transid the transaction id for logging
      * @return a future that completes with List[JsObject] of all documents from view between start and end key (list may be empty)
      */
-    protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
+    protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean, stale: StaleParameter)(
         implicit transid: TransactionId): Future[List[JsObject]]
 
     /**

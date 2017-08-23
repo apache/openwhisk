@@ -174,7 +174,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
         reportFailure(f, failure => transid.failed(this, start, s"[GET] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'", ErrorLevel))
     }
 
-    override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean)(
+    override protected[core] def query(table: String, startKey: List[Any], endKey: List[Any], skip: Int, limit: Int, includeDocs: Boolean, descending: Boolean, reduce: Boolean, stale: StaleParameter)(
         implicit transid: TransactionId): Future[List[JsObject]] = {
 
         require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
@@ -196,6 +196,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 endKey = realEndKey,
                 skip = Some(skip),
                 limit = Some(limit),
+                stale = stale,
                 includeDocs = includeDocs,
                 descending = descending,
                 reduce = reduce)

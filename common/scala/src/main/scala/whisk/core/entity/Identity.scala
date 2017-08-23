@@ -18,6 +18,7 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.util.Try
 
 import spray.json._
 import types.AuthStore
@@ -25,9 +26,9 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
+import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
-import scala.util.Try
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None, concurrentInvocations: Option[Int] = None, firesPerMinute: Option[Int] = None)
 
@@ -104,7 +105,8 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
             limit = limit,
             includeDocs = true,
             descending = true,
-            reduce = false)
+            reduce = false,
+            stale = StaleParameter.No)
     }
 
     private def rowToIdentity(row: JsObject, key: String)(

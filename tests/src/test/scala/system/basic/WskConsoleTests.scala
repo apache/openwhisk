@@ -72,7 +72,7 @@ class WskConsoleTests
                     val console = wsk.activation.console(10 seconds, since = duration)
                     println(console.stdout)
                     console.stdout should include(payload)
-        }
+            }
     }
 
     it should "show repeated activations" in withAssetCleaner(wskprops) {
