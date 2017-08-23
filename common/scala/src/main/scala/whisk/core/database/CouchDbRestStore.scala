@@ -196,7 +196,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
                 endKey = realEndKey,
                 skip = Some(skip),
                 limit = Some(limit),
-                stale = stale.value,
+                stale = stale,
                 includeDocs = includeDocs,
                 descending = descending,
                 reduce = reduce)

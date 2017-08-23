@@ -26,7 +26,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
-import whisk.core.database.NoStale
+import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
 
@@ -106,7 +106,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
             includeDocs = true,
             descending = true,
             reduce = false,
-            stale = NoStale)
+            stale = StaleParameter.No)
     }
 
     private def rowToIdentity(row: JsObject, key: String)(

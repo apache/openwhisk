@@ -32,7 +32,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DeserializationException
 import whisk.common.TransactionId
-import whisk.core.database.StaleUpdateAfter
+import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
@@ -121,9 +121,9 @@ trait WhiskActivationsApi
                 if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
                     val activations = name match {
                         case Some(action) =>
-                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleUpdateAfter)
+                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                         case None =>
-                            WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto, StaleUpdateAfter)
+                            WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                     }
 
                     listEntities {

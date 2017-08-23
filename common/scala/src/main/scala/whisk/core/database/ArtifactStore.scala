@@ -29,9 +29,12 @@ import whisk.common.TransactionId
 import whisk.core.entity.DocInfo
 
 abstract class StaleParameter(val value: Option[String])
-case object StaleOk extends StaleParameter(Some("ok"))
-case object StaleUpdateAfter extends StaleParameter(Some("update_after"))
-case object NoStale extends StaleParameter(None)
+
+object StaleParameter {
+    case object Ok extends StaleParameter(Some("ok"))
+    case object UpdateAfter extends StaleParameter(Some("update_after"))
+    case object No extends StaleParameter(None)
+}
 
 /** Basic client to put and delete artifacts in a data store. */
 trait ArtifactStore[DocumentAbstraction] {
