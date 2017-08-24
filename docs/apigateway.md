@@ -12,8 +12,6 @@ For more information on API Gateway feature you can read the [api management doc
 
 Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
-**Note:** The APIs you created using the `wsk api-experimental` will continue to work for a short period, however you should begin migrating your APIs to web actions and reconfigure your existing apis using the new CLI command `wsk api`.
-
 ### Create your first API using the CLI
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
