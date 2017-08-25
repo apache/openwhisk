@@ -30,7 +30,7 @@ http {
         server {{ hostvars[groups['controllers'] | first].ansible_host }}:{{ controller.basePort }} fail_timeout=60s;
 {% for ip in groups['controllers'] %}
 {% if groups['controllers'].index(ip) > 0 %}
-        server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} backup;
+        server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} {% if controller.ha %}fail_timeout=60s{% else %}backup{% endif %};
 {% endif %}
 {% endfor %}
         keepalive 512;
