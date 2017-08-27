@@ -39,8 +39,12 @@ import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LoadBalancerProvider
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
+import whisk.spi.SpiLoader
+import scala.util.{Failure, Success}
+
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -98,7 +102,7 @@ class Controller(
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services
-    private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
+    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider]().getLoadBalancer(whiskConfig, instance)
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 
@@ -120,9 +124,7 @@ class Controller(
 
         (path("invokers") & get) {
             complete {
-                loadBalancer.allInvokers.map(_.map {
-                    case (instance, state) => s"invoker${instance.toInt}" -> state.asString
-                }.toMap.toJson.asJsObject)
+                loadBalancer.healthStatus
             }
         }
     }

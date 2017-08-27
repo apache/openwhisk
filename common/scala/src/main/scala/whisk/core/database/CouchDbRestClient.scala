@@ -110,6 +110,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
     // WARNING: make sure that if the future response is not failed, its entity
     // be drained entirely or the connection will be kept open until timeouts kick in.
     private def request0(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
+        require(!materializer.isShutdown, "db client was shutdown and cannot be used again")
         futureRequest flatMap { request =>
             val promise = Promise[HttpResponse]
 
