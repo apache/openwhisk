@@ -89,7 +89,7 @@ class WskConfigTests
         val stderr = wsk.cli(Seq("list") ++ wskprops.overrides, env = env, expectedExitCode = MISUSE_EXIT).stderr
         try {
             stderr should include regex (s"usage[:.]")
-            stderr should include("--auth is required")
+            stderr should include("--auth or (--cert and --key) is required")
         } finally {
             tmpwskprops.delete()
         }
@@ -148,11 +148,10 @@ class WskConfigTests
                 val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
                 // Send request to https://<apihost>/api/v1/namespaces, wsk client passes client certificate to nginx, nginx will
                 // verify it by client ca's openwhisk-client-ca-cert.pem
-                val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                val stdout = wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost,
                     "--cert", wskprops.cert, "--key", wskprops.key, "--namespace", namespace), env = env).stdout
                 stdout should include(s"ok: client cert set")
                 stdout should include(s"ok: client key set")
-                stdout should include(s"ok: whisk auth set")
                 stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
                 stdout should include(s"ok: whisk namespace set to ${namespace}")
             } finally {
@@ -165,7 +164,7 @@ class WskConfigTests
             try {
                 val namespace = wsk.namespace.list().stdout.trim.split("\n").last
                 val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
-                val thrown = the[Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost, "--auth", wskprops.authKey,
+                val thrown = the[Exception] thrownBy wsk.cli(Seq("property", "set", "-i", "--apihost", wskprops.apihost,
                     "--cert", "invalid-cert.pem", "--key", "invalid-key.pem", "--namespace", namespace), env = env)
                 thrown.getMessage should include("cannot validate certificate")
             } finally {

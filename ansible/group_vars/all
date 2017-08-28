@@ -159,7 +159,7 @@ nginx:
     password_enabled: false
     password_file: "ssl.pass"
     client_ca_cert: "{{ openwhisk_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
-    verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
+    verify_client: "{{ nginx_ssl_verify_client | default('optional') }}"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.
@@ -223,6 +223,10 @@ catalog_namespace: "/whisk.system"
 # By default, we take the key from {{ openwhisk_home }}/ansible/files/auth.whisk.system.
 catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
 
+# The catalog_cert_file and catalog_key_file is used to authenticate the openwhisk service when nginx ssl configuration is opened.
+catalog_cert_file: "{{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-client-cert-whisk-system.pem"
+catalog_key_file: "{{ openwhisk_home }}/ansible/roles/nginx/files/openwhisk-client-key-whisk-system.pem"
+
 # The catalog_repos is used to specify all the catalog names and repository URLs,
 # so that openwhisk knows where to download the catalog and install them. The key
 # specifies the catalog name and the url saves the URL of the repository. The location
@@ -245,11 +249,11 @@ catalog_auth_key: "{{ openwhisk_home }}/ansible/files/auth.whisk.system"
 #
 catalog_repos:
   openwhisk-catalog:
-    url: https://github.com/apache/incubator-openwhisk-catalog.git
+    url: https://github.com/ningyougang/incubator-openwhisk-catalog.git
     # Set the local location as the same level as openwhisk home, but it can be changed.
     location: "{{ openwhisk_home }}/../openwhisk-catalog"
-    version: "HEAD"
-    repo_update: "no"
+    version: "suppport-client-certificate"
+    repo_update: "yes"
 
 openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
 

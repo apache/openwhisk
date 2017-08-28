@@ -81,10 +81,11 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
 `{PROXY IP}:{PROXY PORT}`.
 
-## Configure the CLI to use client certificate
-The CLI has an extra level of security from client to apihost, system provides default client certificate configuration which deployment process generated, then you can refer to below steps to use client certificate:
-* The client certificate verification is off default, you can configure `nginx_ssl_verify_client` to `on` or `optional` to open it for your corresponding environment configuration.
-* Create your own client certificate instead of system provides if you want, after created, you can configure `openwhisk_client_ca_cert` to your own ca cert path for your corresponding environment configuration.
+## How to use CLI to pass client certificate(cert and key)
+Openwhisk provides another client certificate authentication like auth key, openwhisk itself doens't care how to generate client certificate, it just provides a entry point configuration to how to use it.
+* The client certificate verification is `off` default, you can configure `nginx_ssl_verify_client` to `on` to open it, in the meantime, the auth key verification will be invalid.
+* Create ca cert instead of system provides if you want, after created, you can configure `openwhisk_client_ca_cert` to your own ca cert path.
+* When create your own client cert, make sure `CN` value which is saved in cert's subject info can match corresponding user in couchdb in that namespace which you want to access.
 * Run the follwing command to pass client certificate:
 ```
 ./bin/wsk property set --cert <client_cert_path> --key <client_key_path>

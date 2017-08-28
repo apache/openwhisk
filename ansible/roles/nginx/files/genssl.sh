@@ -49,30 +49,56 @@ else
     -out "$SCRIPTDIR/openwhisk-client-ca-cert.pem" \
     -days 365 -sha1 -extensions v3_ca
 
-    echo generating client key
-    openssl genrsa -aes256 -passout pass:$PASSWORD -out "$SCRIPTDIR/openwhisk-client-key.pem" 2048
+    echo generating subject:whisk.system\'s client key
+    openssl genrsa -aes256 -passout pass:$PASSWORD -out "$SCRIPTDIR/openwhisk-client-key-whisk-system.pem" 2048
 
-    echo generating client certificate csr file
+    echo generating subject:whisk.system\'s client certificate csr file
     openssl req -new \
-    -key "$SCRIPTDIR/openwhisk-client-key.pem" \
+    -key "$SCRIPTDIR/openwhisk-client-key-whisk-system.pem" \
     -passin pass:$PASSWORD \
-    -subj "/C=US/ST=NY/L=Yorktown/O=OpenWhisk/CN=guest" \
-    -out "$SCRIPTDIR/openwhisk-client-certificate-request.csr"
+    -subj "/C=US/ST=NY/L=Yorktown/O=OpenWhisk/CN=whisk.system" \
+    -out "$SCRIPTDIR/openwhisk-client-certificate-request-whisk-system.csr"
 
-    echo generating self-signed client certificate
+    echo generating subject:whisk.system\'s self-signed client certificate
     echo 01 > $SCRIPTDIR/openwhisk-client-ca-cert.srl
     openssl x509 -req \
-    -in "$SCRIPTDIR/openwhisk-client-certificate-request.csr" \
+    -in "$SCRIPTDIR/openwhisk-client-certificate-request-whisk-system.csr" \
     -CA "$SCRIPTDIR/openwhisk-client-ca-cert.pem" \
     -CAkey "$SCRIPTDIR/openwhisk-client-ca-key.pem" \
     -CAserial "$SCRIPTDIR/openwhisk-client-ca-cert.srl" \
     -passin pass:$PASSWORD \
-    -out "$SCRIPTDIR/openwhisk-client-cert.pem" \
+    -out "$SCRIPTDIR/openwhisk-client-cert-whisk-system.pem" \
     -days 365 -sha1 -extensions v3_req
 
-    echo remove client key\'s password
+    echo remove subject:whisk.system\'s client key\'s password
     openssl rsa \
-    -in "$SCRIPTDIR/openwhisk-client-key.pem" \
+    -in "$SCRIPTDIR/openwhisk-client-key-whisk-system.pem" \
     -passin pass:$PASSWORD \
-    -out "$SCRIPTDIR/openwhisk-client-key.pem"
+    -out "$SCRIPTDIR/openwhisk-client-key-whisk-system.pem"
+
+    echo generating subject:guest\'s client key
+    openssl genrsa -aes256 -passout pass:$PASSWORD -out "$SCRIPTDIR/openwhisk-client-key-guest.pem" 2048
+
+    echo generating subject:guest\'s client certificate csr file
+    openssl req -new \
+    -key "$SCRIPTDIR/openwhisk-client-key-guest.pem" \
+    -passin pass:$PASSWORD \
+    -subj "/C=US/ST=NY/L=Yorktown/O=OpenWhisk/CN=guest" \
+    -out "$SCRIPTDIR/openwhisk-client-certificate-request-guest.csr"
+
+    echo generating subject:guest\'s self-signed client certificate
+    openssl x509 -req \
+    -in "$SCRIPTDIR/openwhisk-client-certificate-request-guest.csr" \
+    -CA "$SCRIPTDIR/openwhisk-client-ca-cert.pem" \
+    -CAkey "$SCRIPTDIR/openwhisk-client-ca-key.pem" \
+    -CAserial "$SCRIPTDIR/openwhisk-client-ca-cert.srl" \
+    -passin pass:$PASSWORD \
+    -out "$SCRIPTDIR/openwhisk-client-cert-guest.pem" \
+    -days 365 -sha1 -extensions v3_req
+
+    echo remove subject:guest\'s client key\'s password
+    openssl rsa \
+    -in "$SCRIPTDIR/openwhisk-client-key-guest.pem" \
+    -passin pass:$PASSWORD \
+    -out "$SCRIPTDIR/openwhisk-client-key-guest.pem"
 fi

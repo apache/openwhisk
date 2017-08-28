@@ -44,8 +44,8 @@
     "translation": "Unable to add the HTTP authentication header: {{.err}}"
   },
   {
-    "id": "Authorization key is not configured (--auth is required)",
-    "translation": "Authorization key is not configured (--auth is required)"
+    "id": "Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)",
+    "translation": "Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)"
   },
   {
     "id": "Command failed due to an HTTP failure",

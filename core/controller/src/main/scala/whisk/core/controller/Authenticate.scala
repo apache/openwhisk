@@ -23,22 +23,18 @@ import akka.http.scaladsl.model.headers._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Try
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.UUID
+import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
-import whisk.core.entity.WhiskAuthStore
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Identity
-import whisk.core.entity.Secret
-import whisk.core.entity.UUID
 
 object Authenticate {
     /** Required properties for this component */
     def requiredProperties = WhiskAuthStore.requiredProperties
 }
+
+case class CertificateInfo(namespace: EntityName, subject: Subject)
 
 /** A trait to validate basic auth credentials */
 trait Authenticate {
@@ -76,6 +72,24 @@ trait Authenticate {
             }.toOption
         } getOrElse {
             credentials.foreach(_ => logging.info(this, s"credentials are malformed"))
+            Future.successful(None)
+        }
+    }
+
+    def validateCertificate(certificateInfo: Option[CertificateInfo])(implicit transid: TransactionId): Future[Option[Identity]] = {
+        certificateInfo flatMap { certificateEntity =>
+            Try {
+                val future = Identity.get(authStore, certificateEntity.namespace, certificateEntity.subject) map { result =>
+                    Some(result)
+                } recover {
+                    case _: NoDocumentException | _: IllegalArgumentException =>
+                        logging.info(this, s"authentication not valid")
+                        None
+                }
+                future onFailure { case t => logging.error(this, s"authentication error: $t") }
+                future
+            }.toOption
+        } getOrElse {
             Future.successful(None)
         }
     }

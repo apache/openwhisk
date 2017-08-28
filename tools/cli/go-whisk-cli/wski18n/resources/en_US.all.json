@@ -1480,8 +1480,8 @@
     "translation": "Set the web action response TYPE. Possible values are html, http, json, text, svg"
   },
   {
-    "id": "Authorization key is not configured (--auth is required)",
-    "translation": "Authorization key is not configured (--auth is required)"
+    "id": "Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)",
+    "translation": "Authorization key or client certificate is not configured (--auth or (--cert and --key) is required)"
   },
   {
     "id": "Specify the API output `TYPE`, either json or yaml",

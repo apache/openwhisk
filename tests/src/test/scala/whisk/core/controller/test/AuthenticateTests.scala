@@ -18,13 +18,10 @@
 package whisk.core.controller.test
 
 import scala.concurrent.Await
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
-
-import whisk.core.controller.Authenticate
+import whisk.core.controller.{Authenticate, CertificateInfo}
 import whisk.core.entity._
 import whisk.core.entitlement.Privilege
 
@@ -60,7 +57,6 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
             val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
             val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
             user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
-
             // first lookup should have been from datastore
             stream.toString should include regex (s"serving from datastore: ${ns.authkey.uuid.asString}")
             stream.reset()
@@ -124,6 +120,63 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         implicit val tid = transid()
         val pass = BasicHttpCredentials("x", "y")
         val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+        user should be(None)
+    }
+
+    it should "authorize a known user using different namespaces and cache key, and reject invalid secret for certificate auth" in {
+        implicit val tid = transid()
+        val subject = Subject()
+
+        val namespaces = Set(
+            WhiskNamespace(MakeName.next("authenticatev_tests"), AuthKey()),
+            WhiskNamespace(MakeName.next("authenticatev_tests"), AuthKey()))
+        val entry = WhiskAuth(subject, namespaces)
+        put(authStore, entry) // this test entry is reclaimed when the test completes
+
+        // Try to login with each specific namespace
+        namespaces.foreach { ns =>
+            println(s"Trying to login to $ns")
+            val certificateInfo = CertificateInfo(ns.name, subject)
+            val user = Await.result(validateCertificate(Some(certificateInfo)), dbOpTimeout)
+            user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+            // first lookup should have been from datastore
+            stream.toString should include regex (s"serving from datastore: ${ns.name.asString}${subject.asString}")
+            stream.reset()
+
+            // repeat query, now should be served from cache
+            val cachedUser = Await.result(validateCertificate(Some(certificateInfo))(transid()), dbOpTimeout)
+            cachedUser.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+
+            stream.toString should include regex (s"serving from cache: ${ns.name.asString}${subject.asString}")
+            stream.reset()
+        }
+    }
+
+    it should "not authorize an unknown user for certificate auth" in {
+        implicit val tid = transid()
+        val creds = WhiskAuthHelpers.newIdentity()
+        val certificateInfo = CertificateInfo(creds.namespace, creds.subject)
+        val user = Await.result(validateCertificate(Some(certificateInfo)), dbOpTimeout)
+        user should be(None)
+    }
+
+    it should "not authorize when no user's namespace and subject are provided for certificate auth" in {
+        implicit val tid = transid()
+        val user = Await.result(validateCertificate(None), dbOpTimeout)
+        user should be(None)
+    }
+
+    it should "not authorize when malformed namespace is provided for certificate auth" in {
+        implicit val tid = transid()
+        val certificateInfo = CertificateInfo(EntityName("no-exist-namespace"), Subject())
+        val user = Await.result(validateCertificate(Some(certificateInfo)), dbOpTimeout)
+        user should be(None)
+    }
+
+    it should "not authorize when malformed namespace and subject are provided for certificate auth" in {
+        implicit val tid = transid()
+        val certificateInfo = CertificateInfo(EntityName("no-exist-namespace"), Subject("no-exist-subject"))
+        val user = Await.result(validateCertificate(Some(certificateInfo)), dbOpTimeout)
         user should be(None)
     }
 }
