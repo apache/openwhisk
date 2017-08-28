@@ -20,7 +20,7 @@ package whisk.core.controller
 import whisk.core.WhiskConfig
 import whisk.core.entitlement._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.loadBalancer.LoadBalancerResolver
 
 /**
  * A trait which defines a few services which a whisk microservice may rely on.
@@ -35,6 +35,6 @@ trait WhiskServices {
     /** A generator for new activation ids. */
     protected val activationIdFactory: ActivationIdGenerator
 
-    /** A load balancing service that launches invocations. */
-    protected val loadBalancer: LoadBalancer
+    /** A service that acquires the LoadBalancer for a particular request. */
+    protected val loadBalancerResolver: LoadBalancerResolver
 }

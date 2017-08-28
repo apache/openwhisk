@@ -27,7 +27,6 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
-import whisk.core.loadBalancer.LoadBalancer
 
 private object LocalEntitlementProvider {
     /** Poor mans entitlement matrix. Must persist to datastore eventually. */
@@ -35,11 +34,10 @@ private object LocalEntitlementProvider {
 }
 
 protected[core] class LocalEntitlementProvider(
-    private val config: WhiskConfig,
-    private val loadBalancer: LoadBalancer)(
+    private val config: WhiskConfig)(
         implicit actorSystem: ActorSystem,
         logging: Logging)
-    extends EntitlementProvider(config, loadBalancer) {
+    extends EntitlementProvider(config) {
 
     private implicit val executionContext = actorSystem.dispatcher
 

@@ -1312,7 +1312,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
     class TestingEntitlementProvider(
         config: WhiskConfig,
         loadBalancer: LoadBalancer)
-        extends EntitlementProvider(config, loadBalancer) {
+        extends EntitlementProvider(config) {
 
         protected[core] override def checkThrottles(user: Identity)(
             implicit transid: TransactionId): Future[Unit] = {

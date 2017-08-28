@@ -34,7 +34,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
-import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages._
 
 package object types {
@@ -78,14 +77,13 @@ protected[core] object EntitlementProvider {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)(
+protected[core] abstract class EntitlementProvider(config: WhiskConfig)(
     implicit actorSystem: ActorSystem, logging: Logging) {
 
     private implicit val executionContext = actorSystem.dispatcher
 
     private val invokeRateThrottler = new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt, _.limits.invocationsPerMinute)
     private val triggerRateThrottler = new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute)
-    private val concurrentInvokeThrottler = new ActivationThrottler(loadBalancer, config.actionInvokeConcurrentLimit.toInt, config.actionInvokeSystemOverloadLimit.toInt)
 
     /**
      * Grants a subject the right to access a resources.
@@ -127,12 +125,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         implicit transid: TransactionId): Future[Unit] = {
 
         logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
-
-        checkSystemOverload(ACTIVATE) orElse {
-            checkThrottleOverload(!invokeRateThrottler.check(user), tooManyRequests)
-        } orElse {
-            checkThrottleOverload(!concurrentInvokeThrottler.check(user), tooManyConcurrentRequests)
-        } map {
+        checkThrottleOverload(!invokeRateThrottler.check(user), tooManyRequests)
+        .map {
             Future.failed(_)
         } getOrElse Future.successful({})
     }
@@ -174,11 +168,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
             if (resources.nonEmpty) {
                 logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
-                checkSystemOverload(right) orElse {
-                    checkUserThrottle(user, right, resources)
-                } orElse {
-                    checkConcurrentUserThrottle(user, right, resources)
-                } map {
+                checkUserThrottle(user, right, resources)
+                .map {
                     Future.failed(_)
                 } getOrElse checkPrivilege(user, right, resources)
             } else Future.successful(true)
@@ -227,20 +218,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     }
 
     /**
-     * Limits activations if the system is overloaded.
-     *
-     * @param right the privilege, if ACTIVATE then check quota else return None
-     * @return None if system is not overloaded else a rejection
-     */
-    protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Option[RejectRequest] = {
-        val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
-        if (systemOverload) {
-            logging.error(this, "system is overloaded")
-            Some(RejectRequest(TooManyRequests, systemOverloaded))
-        } else None
-    }
-
-    /**
      * Limits activations if subject exceeds their own limits.
      * If the requested right is an activation, the set of resources must contain an activation of an action or filter to be throttled.
      * While it is possible for the set of resources to contain more than one action or trigger, the plurality is ignored and treated
@@ -260,27 +237,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         }
 
         checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyRequests)
-    }
-
-    /**
-     * Limits activations if subject exceeds limit of concurrent invocations.
-     * If the requested right is an activation, the set of resources must contain an activation of an action to be throttled.
-     * While it is possible for the set of resources to contain more than one action, the plurality is ignored and treated
-     * as one activation since these should originate from a single macro resources (e.g., a sequence).
-     *
-     * @param user the subject identity to check rights for
-     * @param right the privilege, if ACTIVATE then check quota else return None
-     * @param resource the set of resources must contain at least one resource that can be activated else return None
-     * @return None if subject is not throttled else a rejection
-     */
-    private def checkConcurrentUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
-        implicit transid: TransactionId): Option[RejectRequest] = {
-        def userThrottled = {
-            val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-            (isInvocation && !concurrentInvokeThrottler.check(user))
-        }
-
-        checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyConcurrentRequests)
     }
 
     /** Helper. */

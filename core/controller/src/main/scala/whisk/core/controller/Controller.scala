@@ -46,6 +46,7 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import scala.util.{Failure, Success}
+import whisk.core.loadBalancer.SingleLoadBalancerResolver
 
 
 /**
@@ -103,8 +104,9 @@ class Controller(
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
 
     // initialize backend services
-    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider]().getLoadBalancer(whiskConfig, instance)
-    private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+    val loadBalancers = SpiLoader.get[LoadBalancerProvider]().getLoadBalancers(whiskConfig, instance)
+    private implicit val loadBalancerResolver = new SingleLoadBalancerResolver(loadBalancers)
+    private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 
     // register collections
@@ -123,7 +125,9 @@ class Controller(
     private val internalInvokerHealth = {
         (path("invokers") & get) {
             complete {
-                loadBalancer.healthStatus
+//                loadBalancers.foldLeft(JsArray()){a => a.}
+//                loadBalancer.healthStatus
+                loadBalancers.head.healthStatus
             }
         }
     }
