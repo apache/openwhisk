@@ -141,7 +141,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = cacheKeyForUpdate(doc)
+            val key = CacheKey(doc)
 
             cacheUpdate(doc, key, db.put(doc) map { docinfo =>
                 doc match {
@@ -167,7 +167,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo.asCacheKey
+            val key = CacheKey(doc.id.asDocInfo)
             // invalidate the key because attachments update the revision;
             // do not cache the new attachment (controller does not need it)
             cacheInvalidate(key, {
@@ -189,7 +189,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo.asCacheKey
+            val key = CacheKey(doc.id.asDocInfo)
             cacheInvalidate(key, db.del(doc), changeCacheCallback)
         } match {
             case Success(f) => f
@@ -222,7 +222,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
-            _ => cacheLookup(key.asCacheKey, db.get[W](key), fromCache)
+            _ => cacheLookup(CacheKey(key), db.get[W](key), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

@@ -45,7 +45,6 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
     private val viewName = "subjects/identities"
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(i: Identity) = i.authkey.asCacheKey
     implicit val serdes = jsonFormat5(Identity.apply)
 
     /**
@@ -58,7 +57,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
         val ns = namespace.asString
-        val key = namespace.asCacheKey
+        val key = CacheKey(namespace)
 
         cacheLookup(key, {
             list(datastore, List(ns), limit = 1) map { list =>
@@ -81,7 +80,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
 
-        cacheLookup(authkey.asCacheKey, {
+        cacheLookup(CacheKey(authkey), {
             list(datastore, List(authkey.uuid.asString, authkey.key.asString)) map { list =>
                 list.length match {
                     case 1 =>

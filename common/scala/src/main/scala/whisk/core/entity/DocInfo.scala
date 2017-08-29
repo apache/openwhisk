@@ -83,11 +83,6 @@ protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevisio
             s"$id.$rev".hashCode
         }
     }
-
-    def asCacheKey = {
-        val revision = if (rev.empty) None else Some(rev.toString())
-        CacheKey(id.asString, revision)
-    }
 }
 
 protected[core] object DocId extends ArgNormalizer[DocId] {

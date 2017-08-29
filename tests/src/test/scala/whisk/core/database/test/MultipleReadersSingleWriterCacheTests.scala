@@ -235,7 +235,4 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         akka.pattern.after(duration = delay, using = actorSystem.scheduler)(
             Future.successful { v })
     }
-
-    /** we are using cache keys, so the update key is just the string itself */
-    override protected def cacheKeyForUpdate(w: String): CacheKey = (CacheKey(w))
 }

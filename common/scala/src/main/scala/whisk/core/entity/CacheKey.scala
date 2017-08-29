@@ -19,6 +19,8 @@ package whisk.core.entity
 
 import spray.json.DefaultJsonProtocol
 
+class UnsupportedCacheKeyTypeException(msg: String) extends Exception(msg)
+
 /**
  * A key that is used to store an entity on the cache.
  *
@@ -26,7 +28,7 @@ import spray.json.DefaultJsonProtocol
  * @param secondaryId A second part of the key. For example the revision of an entity. This part
  * of the key will not be written to the logs.
  */
-case class CacheKey(mainId: String, secondaryId: Option[String] = None) {
+case class CacheKey(mainId: String, secondaryId: Option[String]) {
     override def toString() = {
         s"CacheKey($mainId)"
     }
@@ -34,4 +36,20 @@ case class CacheKey(mainId: String, secondaryId: Option[String] = None) {
 
 object CacheKey extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat2(CacheKey.apply)
+
+    def apply(key: Any): CacheKey = {
+        key match {
+            case e: EntityName => CacheKey(e.asString, None)
+            case a: AuthKey    => CacheKey(a.uuid.asString, Some(a.key.asString))
+            case d: DocInfo => {
+                val revision = if (d.rev.empty) None else Some(d.rev.toString())
+                CacheKey(d.id.asString, revision)
+            }
+            case w: WhiskEntity => CacheKey(w.docid.asDocInfo)
+            case s: String      => CacheKey(s, None)
+            case e: Any => {
+                throw new UnsupportedCacheKeyTypeException(s"Unable to apply the entity ${e.getClass} on CacheKey.")
+            }
+        }
+    }
 }

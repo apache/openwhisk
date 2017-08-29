@@ -42,13 +42,13 @@ import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
 import whisk.spi.SpiLoader
 
-case class CacheInvalidationMessage(key: CacheKey, root: String) extends Message {
+case class CacheInvalidationMessage(key: CacheKey, instanceId: String) extends Message {
     override def serialize = CacheInvalidationMessage.serdes.write(this).compactPrint
 }
 
 object CacheInvalidationMessage extends DefaultJsonProtocol {
     def parse(msg: String) = Try(serdes.read(msg.parseJson))
-    implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "root")
+    implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "instanceId")
 }
 
 class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging, as: ActorSystem) {
@@ -56,14 +56,14 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
     implicit private val ec = as.dispatcher
 
     private val topic = "cacheInvalidation"
-    private val root = s"$component${instance.toInt}"
+    private val instanceId = s"$component${instance.toInt}"
 
     private val msgProvider = SpiLoader.get[MessagingProvider]()
-    private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$root", topic, maxPeek = 128)
+    private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
     private val cacheInvalidationProducer = msgProvider.getProducer(config, ec)
 
     def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
-        cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, root)).map(_ => Unit)
+        cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
     }
 
     private val invalidationFeed = as.actorOf(Props {
@@ -75,7 +75,7 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
 
         CacheInvalidationMessage.parse(raw) match {
             case Success(msg: CacheInvalidationMessage) => {
-                if (msg.root != root) {
+                if (msg.instanceId != instanceId) {
                     WhiskAction.removeId(msg.key)
                     WhiskPackage.removeId(msg.key)
                     WhiskRule.removeId(msg.key)

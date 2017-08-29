@@ -171,7 +171,6 @@ protected trait ControllerTestCommon
         with DefaultJsonProtocol {
         implicit val serdes = jsonFormat5(BadEntity.apply)
         override val cacheEnabled = true
-        override def cacheKeyForUpdate(w: BadEntity) = w.docid.asDocInfo.asCacheKey
     }
 }
 

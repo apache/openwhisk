@@ -98,9 +98,6 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /** Subclasses: Toggle this to enable/disable caching for your entity type. */
     protected val cacheEnabled = true
 
-    /** Subclasses: tell me what key to use for updates. */
-    protected def cacheKeyForUpdate(w: W): CacheKey
-
     private object Entry {
         def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
             new Entry(transid, new AtomicReference(state), value)
@@ -294,6 +291,10 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
 
     def cacheSize: Int = cache.size
 
+    /**
+     * This method removes an entry from the cache immediately. You can use this method
+     * if you do not need to perform any updates on the backing store but only to the cache.
+     */
     protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext) = {
         cache.remove(key).map { cacheEntry =>
             cacheEntry.flatMap(_.unpack())
