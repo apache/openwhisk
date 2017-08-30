@@ -30,16 +30,20 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
 
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.entity.CacheKey
 
+@RunWith(classOf[JUnitRunner])
 class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
@@ -122,27 +126,31 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
     }
 
     it should "execute the callback on invalidating and updating an entry" in {
-        implicit val transId = TransactionId.testing
         val ctr = new AtomicInteger(0)
         val key = CacheKey("key")
 
-        def callback(key: Any): Future[Unit] = {
-            ctr.incrementAndGet()
-            Future.successful(())
+        implicit val transId = TransactionId.testing
+        lazy implicit val cacheUpdateNotifier = Some {
+            new CacheChangeNotification {
+                override def apply(key: CacheKey) = {
+                    ctr.incrementAndGet()
+                    Future.successful(())
+                }
+            }
         }
 
         // Create an cache entry
-        cacheUpdate("doc", key, Future.successful("db save successful"), callback)
+        cacheUpdate("doc", key, Future.successful("db save successful"))
         ctr.get shouldBe 1
 
         // Callback should be called if entry exists
-        cacheInvalidate(key, Future.successful(()), callback)
+        cacheInvalidate(key, Future.successful(()))
         ctr.get shouldBe 2
-        cacheUpdate("docdoc", key, Future.successful("update in db successful"), callback)
+        cacheUpdate("docdoc", key, Future.successful("update in db successful"))
         ctr.get shouldBe 3
 
         // Callback should be called if entry does not exist
-        cacheInvalidate(CacheKey("abc"), Future.successful(()), callback)
+        cacheInvalidate(CacheKey("abc"), Future.successful(()))
         ctr.get shouldBe 4
     }
 
@@ -188,6 +196,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
             val latch = new CountDownLatch(2)
 
             implicit val transId = TransactionId.testing
+            implicit val cacheUpdateNotifier = None
 
             if (!readFirst) {
                 // we want to do the update before the first read

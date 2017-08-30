@@ -160,7 +160,7 @@ protected[actions] trait SequenceActions {
      */
     private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
         logging.info(this, s"recording activation '${activation.activationId}'")
-        WhiskActivation.put(activationStore, activation) onComplete {
+        WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
             case Success(id) => logging.info(this, s"recorded activation")
             case Failure(t)  => logging.error(this, s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
         }

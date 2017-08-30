@@ -44,8 +44,8 @@ import whisk.core.database.ArtifactStoreException
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.DocumentFactory
 import whisk.core.database.DocumentTypeMismatchException
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntity
@@ -237,9 +237,6 @@ trait WriteOps extends Directives {
     /** JSON response formatter. */
     import RestApiCommons.jsonDefaultResponsePrinter
 
-    /** Action to perform on changing a cache entry. */
-    protected def changeCacheCallback(key: CacheKey): Future[Unit]
-
     /**
      * A predicate future that completes with true iff the entity should be
      * stored in the datastore. Future should fail otherwise with RejectPut.
@@ -278,6 +275,7 @@ trait WriteOps extends Directives {
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
+            notifier: Option[CacheChangeNotification],
             ma: Manifest[A]) = {
         // marker to return an existing doc with status OK rather than conflict if overwrite is false
         case class IdentityPut(self: A) extends Throwable
@@ -298,7 +296,7 @@ trait WriteOps extends Directives {
                 create()
         } flatMap { a =>
             logging.info(this, s"[PUT] entity created/updated, writing back to datastore")
-            factory.put(datastore, a, changeCacheCallback) map { _ => a }
+            factory.put(datastore, a) map { _ => a }
         }) {
             case Success(entity) =>
                 logging.info(this, s"[PUT] entity success")
@@ -349,11 +347,12 @@ trait WriteOps extends Directives {
         postProcess: Option[PostProcessEntity[A]] = None)(
             implicit transid: TransactionId,
             format: RootJsonFormat[A],
+            notifier: Option[CacheChangeNotification],
             ma: Manifest[A]) = {
         onComplete(factory.get(datastore, docid) flatMap {
             entity =>
                 confirm(entity) flatMap {
-                    case _ => factory.del(datastore, entity.docinfo, changeCacheCallback) map { _ => entity }
+                    case _ => factory.del(datastore, entity.docinfo) map { _ => entity }
                 }
         }) {
             case Success(entity) =>

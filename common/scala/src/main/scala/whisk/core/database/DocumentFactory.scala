@@ -130,10 +130,11 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param db the datastore client to fetch entity from
      * @param doc the entity to store
      * @param transid the transaction id for logging
+     * @param notifier an optional callback when cache changes
      * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
      */
-    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
-        implicit transid: TransactionId): Future[DocInfo] = {
+    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
@@ -149,7 +150,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
                     case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
                 }
                 docinfo
-            }, changeCacheCallback)
+            })
 
         } match {
             case Success(f) => f
@@ -157,8 +158,8 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
         }
     }
 
-    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
-        implicit transid: TransactionId): Future[DocInfo] = {
+    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
         Try {
             require(db != null, "db undefined")
@@ -173,15 +174,15 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             cacheInvalidate(key, {
                 val src = StreamConverters.fromInputStream(() => bytes)
                 db.attach(doc, attachmentName, contentType, src)
-            }, changeCacheCallback)
+            })
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)
         }
     }
 
-    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
-        implicit transid: TransactionId): Future[Boolean] = {
+    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[Boolean] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
@@ -190,7 +191,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val ec = db.executionContext
 
             val key = CacheKey(doc.id.asDocInfo)
-            cacheInvalidate(key, db.del(doc), changeCacheCallback)
+            cacheInvalidate(key, db.del(doc))
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

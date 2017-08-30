@@ -18,7 +18,6 @@
 package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes._
@@ -34,6 +33,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.WhiskConfig.whiskVersionDate
@@ -131,7 +131,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
     val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
 }
 
-class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, sendCacheInvalidation: CacheKey => Future[Unit])(
+class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     implicit val activeAckTopicIndex: InstanceId,
     implicit val actorSystem: ActorSystem,
     implicit val materializer: ActorMaterializer,
@@ -140,6 +140,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, s
     implicit val entitlementProvider: EntitlementProvider,
     implicit val activationIdFactory: ActivationIdGenerator,
     implicit val loadBalancer: LoadBalancerService,
+    implicit val cacheChangeNotification: Some[CacheChangeNotification],
     implicit val activationStore: ActivationStore,
     implicit val whiskConfig: WhiskConfig)
     extends SwaggerDocs(Uri.Path(apiPath) / apiVersion, "apiv1swagger.json")
@@ -226,13 +227,13 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, s
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
     extends WhiskActionsApi with WhiskServices {
         logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")
         assert(whiskConfig.actionSequenceLimit.toInt > 0)
-        override def changeCacheCallback(key: CacheKey): Future[Unit] = sendCacheInvalidation(key: CacheKey)
     }
 
     class ActivationsApi(
@@ -251,12 +252,11 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, s
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
-    extends WhiskPackagesApi with WhiskServices {
-        override def changeCacheCallback(key: CacheKey): Future[Unit] = sendCacheInvalidation(key: CacheKey)
-    }
+    extends WhiskPackagesApi with WhiskServices
 
     class RulesApi(
         val apiPath: String,
@@ -266,12 +266,11 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, s
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
-    extends WhiskRulesApi with WhiskServices {
-        override def changeCacheCallback(key: CacheKey): Future[Unit] = sendCacheInvalidation(key: CacheKey)
-    }
+    extends WhiskRulesApi with WhiskServices
 
     class TriggersApi(
         val apiPath: String,
@@ -282,13 +281,12 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String, s
         override val activationStore: ActivationStore,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig,
         override val materializer: ActorMaterializer)
-    extends WhiskTriggersApi with WhiskServices {
-        override def changeCacheCallback(key: CacheKey): Future[Unit] = sendCacheInvalidation(key: CacheKey)
-    }
+    extends WhiskTriggersApi with WhiskServices
 
     protected[controller] class WebActionsApi(
         override val webInvokePathSegments: Seq[String],

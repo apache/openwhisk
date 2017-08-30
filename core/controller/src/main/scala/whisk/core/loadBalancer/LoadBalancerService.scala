@@ -18,6 +18,8 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
+
+import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -25,31 +27,33 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
+
 import org.apache.kafka.clients.producer.RecordMetadata
+
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.pattern.ask
 import akka.util.Timeout
+import akka.pattern.ask
+
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.MessagingProvider
 import whisk.core.connector.{ ActivationMessage, CompletionMessage }
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
+import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ ActivationId, WhiskActivation }
-import whisk.core.entity.InstanceId
+import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
+import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
-import scala.annotation.tailrec
-import whisk.core.entity.EntityName
-import whisk.core.entity.Identity
 import whisk.spi.SpiLoader
 
 trait LoadBalancer {
@@ -162,9 +166,9 @@ class LoadBalancerService(
     private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
         implicit val tid = TransactionId.loadbalancer
         WhiskAction.get(db, action.docid).flatMap { oldAction =>
-            WhiskAction.put(db, action.revision(oldAction.rev))
+            WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
         }.recover {
-            case _: NoDocumentException => WhiskAction.put(db, action)
+            case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
         }.map(_ => {}).andThen {
             case Success(_) => logging.info(this, "test action for invoker health now exists")
             case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")

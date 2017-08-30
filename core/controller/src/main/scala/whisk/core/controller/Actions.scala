@@ -39,6 +39,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.actions.PostActionActivation
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -83,6 +84,9 @@ trait WhiskActionsApi
 
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
+
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore

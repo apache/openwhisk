@@ -31,6 +31,7 @@ import spray.json._
 
 import whisk.common.TransactionId
 import whisk.core.database.DocumentTypeMismatchException
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -45,6 +46,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
     /** Database service to CRUD packages. */
     protected val entityStore: EntityStore
+
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
     /** Route directives for API. The methods that are supported on packages. */
     protected override lazy val entityOps = put | get | delete

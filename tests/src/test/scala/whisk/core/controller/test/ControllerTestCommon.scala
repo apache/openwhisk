@@ -42,6 +42,7 @@ import whisk.core.connector.ActivationMessage
 import whisk.core.controller.RestApiCommons
 import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.test.DbUtils
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -85,7 +86,11 @@ protected trait ControllerTestCommon
         override def make = fixedId
     }
 
-    def changeCacheCallback(key: CacheKey): Future[Unit] = Future.successful(())
+    implicit val cacheChangeNotification = Some {
+        new CacheChangeNotification {
+            override def apply(k: CacheKey): Future[Unit] = Future.successful(())
+        }
+    }
 
     val entityStore = WhiskEntityStore.datastore(whiskConfig)
     val activationStore = WhiskActivationStore.datastore(whiskConfig)

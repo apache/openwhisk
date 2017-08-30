@@ -45,6 +45,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 
 import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.EntityPath
@@ -57,9 +58,9 @@ import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
-import whisk.http.ErrorResponse.terminate
 import whisk.core.entity.Identity
 import whisk.core.entity.FullyQualifiedEntityName
+import whisk.http.ErrorResponse.terminate
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -72,6 +73,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
     /** Database service to CRUD triggers. */
     protected val entityStore: EntityStore
+
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore

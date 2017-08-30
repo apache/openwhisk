@@ -30,6 +30,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entity.Attachments._
 import whisk.core.entity.types.EntityStore
 
@@ -217,8 +218,8 @@ object WhiskAction
     override val cacheEnabled = true
 
     // overriden to store attached code
-    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, changeCacheCallback: CacheKey => Future[Unit])(
-        implicit transid: TransactionId): Future[DocInfo] = {
+    override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
         Try {
             require(db != null, "db undefined")
@@ -236,12 +237,12 @@ object WhiskAction
                     val manifest = exec.manifest.attached.get
 
                     for (
-                        i1 <- super.put(db, newDoc, changeCacheCallback);
-                        i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream, changeCacheCallback)
+                        i1 <- super.put(db, newDoc);
+                        i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream)
                     ) yield i2
 
                 case _ =>
-                    super.put(db, doc, changeCacheCallback)
+                    super.put(db, doc)
             }
         } match {
             case Success(f) => f

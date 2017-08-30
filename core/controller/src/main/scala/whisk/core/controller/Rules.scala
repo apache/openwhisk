@@ -30,6 +30,7 @@ import spray.json.DeserializationException
 
 import whisk.common.TransactionId
 import whisk.core.database.DocumentConflictException
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
@@ -54,11 +55,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     /** JSON response formatter. */
     import RestApiCommons.jsonDefaultResponsePrinter
 
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
+
     /** Path to Rules REST API. */
     protected val rulesPath = "rules"
-
-    /** Action to perform on changing a cache entry. */
-    def changeCacheCallback(key: CacheKey): Future[Unit]
 
     /**
      * Creates or updates rule if it already exists. The PUT content is deserialized into a WhiskRulePut
@@ -137,7 +138,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                             WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                                 val newTrigger = trigger.removeRule(ruleName)
                                 val triggerLink = ReducedRule(rule.action, newStatus)
-                                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), changeCacheCallback)
+                                WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                             }
                     }
 
@@ -183,7 +184,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             } flatMap {
                 case (status, triggerOpt) =>
                     triggerOpt map { trigger =>
-                        WhiskTrigger.put(entityStore, trigger.removeRule(ruleName), changeCacheCallback) map { _ => {} }
+                        WhiskTrigger.put(entityStore, trigger.removeRule(ruleName)) map { _ => {} }
                     } getOrElse Future.successful({})
             }
         }, postProcess = Some { rule: WhiskRule =>
@@ -262,7 +263,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
                     val triggerLink = ReducedRule(actionName, Status.ACTIVE)
                     logging.info(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
-                    WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink), changeCacheCallback) map { _ => rule }
+                    WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ => rule }
             }
         } else Future.failed(RejectRequest(BadRequest, "rule requires a valid trigger and a valid action"))
     }
@@ -298,11 +299,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
                         isDifferentTrigger <- content.trigger.filter(_ => newTriggerName != oldTriggerName)
                         oldTrigger <- oldTriggerOpt
                     } yield {
-                        WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName), changeCacheCallback)
+                        WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
                     }
 
                     val triggerLink = ReducedRule(actionName, Status.INACTIVE)
-                    val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink), changeCacheCallback)
+                    val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
                     Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
             }
         }

@@ -91,6 +91,8 @@ private object MultipleReadersSingleWriterCache {
     case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to $actualState.")
 }
 
+trait CacheChangeNotification extends (CacheKey => Future[Unit])
+
 trait MultipleReadersSingleWriterCache[W, Winfo] {
     import MultipleReadersSingleWriterCache._
     import MultipleReadersSingleWriterCache.State._
@@ -154,12 +156,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method posts a delete to the backing store, and either directly invalidates the cache entry
      * or informs any outstanding transaction that it must invalidate the cache on completion.
      */
-    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
-        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
+    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R])(
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, notifier: Option[CacheChangeNotification]): Future[R] = {
         if (cacheEnabled) {
             logger.info(this, s"invalidating $key on delete")
 
-            changeCacheCallback(key)
+            notifier.foreach(_(key))
 
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, InvalidateInProgress, None)
@@ -254,11 +256,11 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo], changeCacheCallback: CacheKey => Future[Unit] = CacheKey => Future.successful(()))(
-        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
+    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, notifier: Option[CacheChangeNotification]): Future[Winfo] = {
         if (cacheEnabled) {
 
-            changeCacheCallback(key)
+            notifier.foreach(_(key))
 
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
@@ -295,9 +297,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method removes an entry from the cache immediately. You can use this method
      * if you do not need to perform any updates on the backing store but only to the cache.
      */
-    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext): Unit = {
-        cache.remove(key)
-    }
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext): Unit = cache.remove(key)
 
     /**
      * Log a cache hit
