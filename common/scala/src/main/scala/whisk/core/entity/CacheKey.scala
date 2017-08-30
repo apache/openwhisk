@@ -47,8 +47,8 @@ object CacheKey extends DefaultJsonProtocol {
             }
             case w: WhiskEntity => CacheKey(w.docid.asDocInfo)
             case s: String      => CacheKey(s, None)
-            case e: Any => {
-                throw new UnsupportedCacheKeyTypeException(s"Unable to apply the entity ${e.getClass} on CacheKey.")
+            case others => {
+                throw new UnsupportedCacheKeyTypeException(s"Unable to apply the entity ${others.getClass} on CacheKey.")
             }
         }
     }

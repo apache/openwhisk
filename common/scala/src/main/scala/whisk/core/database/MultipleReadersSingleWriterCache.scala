@@ -295,10 +295,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method removes an entry from the cache immediately. You can use this method
      * if you do not need to perform any updates on the backing store but only to the cache.
      */
-    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext) = {
-        cache.remove(key).map { cacheEntry =>
-            cacheEntry.flatMap(_.unpack())
-        }
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext): Unit = {
+        cache.remove(key)
     }
 
     /**
