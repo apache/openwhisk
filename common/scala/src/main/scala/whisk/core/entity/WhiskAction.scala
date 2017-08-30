@@ -256,16 +256,15 @@ object WhiskAction
 
         implicit val ec = db.executionContext
 
-        val fa = super.get(db, doc, rev, fromCache = fromCache)
+        val fa = super.get(db, doc, rev, fromCache)
 
         fa.flatMap { action =>
             action.exec match {
-                case exec @ CodeExecAsAttachment(_, Attached(_, _), _) =>
+                case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _), _) =>
                     val boas = new ByteArrayOutputStream()
                     val b64s = Base64.getEncoder().wrap(boas)
-                    val manifest = exec.manifest.attached.get
 
-                    getAttachment[A](db, action.docinfo, manifest.attachmentName, b64s).map { _ =>
+                    getAttachment[A](db, action.docinfo, attachmentName, b64s).map { _ =>
                         b64s.close()
                         val newAction = action.copy(exec = exec.inline(boas.toByteArray))
                         newAction.revision(action.rev)
