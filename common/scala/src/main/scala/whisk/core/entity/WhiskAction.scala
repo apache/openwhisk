@@ -30,6 +30,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entity.Attachments._
 import whisk.core.entity.types.EntityStore
 
@@ -215,11 +216,10 @@ object WhiskAction
     override implicit val serdes = jsonFormat(WhiskAction.apply, "namespace", "name", "exec", "parameters", "limits", "version", "publish", "annotations")
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskAction) = w.docid.asDocInfo
 
     // overriden to store attached code
     override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
         Try {
             require(db != null, "db undefined")

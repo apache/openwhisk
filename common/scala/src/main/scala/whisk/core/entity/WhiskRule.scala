@@ -233,7 +233,6 @@ object WhiskRule
     }
 
     override val cacheEnabled = false
-    override def cacheKeyForUpdate(w: WhiskRule) = w.docid.asDocInfo
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {

@@ -117,5 +117,4 @@ object WhiskActivation
     // Caching activations doesn't make much sense in the common case as usually,
     // an activation is only asked for once.
     override val cacheEnabled = false
-    override def cacheKeyForUpdate(w: WhiskActivation) = w.docid.asDocInfo
 }

@@ -17,31 +17,31 @@
 
 package whisk.core.controller
 
+import scala.concurrent.ExecutionContext
+
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.stream.ActorMaterializer
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
-import scala.concurrent.ExecutionContext
-
+import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.WhiskConfig.whiskVersionDate
-import whisk.core.entity.WhiskAuthStore
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.entity._
-import whisk.core.entity.types._
 import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.WhiskAuthStore
+import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerService
 
 /**
@@ -89,10 +89,10 @@ protected[controller] object RestApiCommons {
         Authenticate.requiredProperties ++
         Collection.requiredProperties
 
+    import akka.http.scaladsl.model.HttpCharsets
+    import akka.http.scaladsl.model.MediaTypes.`application/json`
     import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
     import akka.http.scaladsl.unmarshalling.Unmarshaller
-    import akka.http.scaladsl.model.MediaTypes.`application/json`
-    import akka.http.scaladsl.model.HttpCharsets
 
     /**
      * Extract an empty entity into a JSON object. This is useful for the
@@ -140,6 +140,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     implicit val entitlementProvider: EntitlementProvider,
     implicit val activationIdFactory: ActivationIdGenerator,
     implicit val loadBalancer: LoadBalancerService,
+    implicit val cacheChangeNotification: Some[CacheChangeNotification],
     implicit val activationStore: ActivationStore,
     implicit val whiskConfig: WhiskConfig)
     extends SwaggerDocs(Uri.Path(apiPath) / apiVersion, "apiv1swagger.json")
@@ -208,12 +209,12 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
 
     class NamespacesApi(
-       val apiPath: String,
-       val apiVersion: String)(
-       implicit override val entityStore: EntityStore,
-       override val entitlementProvider: EntitlementProvider,
-       override val executionContext: ExecutionContext,
-       override val logging: Logging)
+        val apiPath: String,
+        val apiVersion: String)(
+        implicit override val entityStore: EntityStore,
+        override val entitlementProvider: EntitlementProvider,
+        override val executionContext: ExecutionContext,
+        override val logging: Logging)
     extends WhiskNamespacesApi
 
     class ActionsApi(
@@ -226,6 +227,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -250,6 +252,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -263,6 +266,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -277,6 +281,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val activationStore: ActivationStore,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancer: LoadBalancerService,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig,

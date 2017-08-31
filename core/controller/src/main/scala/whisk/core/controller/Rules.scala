@@ -30,6 +30,7 @@ import spray.json.DeserializationException
 
 import whisk.common.TransactionId
 import whisk.core.database.DocumentConflictException
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
@@ -53,6 +54,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
 
     /** JSON response formatter. */
     import RestApiCommons.jsonDefaultResponsePrinter
+
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
     /** Path to Rules REST API. */
     protected val rulesPath = "rules"

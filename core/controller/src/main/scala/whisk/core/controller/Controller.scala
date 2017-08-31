@@ -29,11 +29,14 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.database.RemoteCacheInvalidation
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -96,6 +99,10 @@ class Controller(
     private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
     private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+    private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
+        val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+        override def apply(k: CacheKey) = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
+    })
 
     // initialize backend services
     private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
