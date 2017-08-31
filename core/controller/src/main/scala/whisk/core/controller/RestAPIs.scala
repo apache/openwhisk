@@ -232,7 +232,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
     extends WhiskActionsApi with WhiskServices {
-        logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")
+        logging.info(this, s"actionSequenceLimit '${whiskConfig.actionSequenceLimit}'")(TransactionId.controller)
         assert(whiskConfig.actionSequenceLimit.toInt > 0)
     }
 
