@@ -87,7 +87,7 @@ object Invoker {
             abort()
         }
 
-        val msgProvider = SpiLoader.get[MessagingProvider]()
+        val msgProvider = SpiLoader.get[MessagingProvider]
         val producer = msgProvider.getProducer(config, ec)
         val invoker = new InvokerReactive(config, invokerInstance, producer)
 

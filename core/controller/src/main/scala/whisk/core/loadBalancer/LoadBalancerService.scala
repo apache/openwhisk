@@ -176,8 +176,8 @@ class LoadBalancerService(
     }
 
     /** Gets a producer which can publish messages to the kafka bus. */
-    private val messasgingProvider = SpiLoader.get[MessagingProvider]()
-    private val messageProducer = messasgingProvider.getProducer(config, executionContext)
+    private val messagingProvider = SpiLoader.get[MessagingProvider]
+    private val messageProducer = messagingProvider.getProducer(config, executionContext)
 
     private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invoker: InstanceId): Future[RecordMetadata] = {
         implicit val transid = msg.transid
@@ -202,7 +202,7 @@ class LoadBalancerService(
         }
 
         val maxPingsPerPoll = 128
-        val pingConsumer = messasgingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+        val pingConsumer = messagingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
         val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) => f.actorOf(InvokerActor.props(invokerInstance, instance))
 
         actorSystem.actorOf(InvokerPool.props(
@@ -216,7 +216,7 @@ class LoadBalancerService(
      */
     val maxActiveAcksPerPoll = 128
     val activeAckPollDuration = 1.second
-    private val activeAckConsumer = messasgingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    private val activeAckConsumer = messagingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
     val activationFeed = actorSystem.actorOf(Props {
         new MessageFeed("activeack", logging,
             activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
