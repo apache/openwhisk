@@ -57,7 +57,7 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
     private val topic = "cacheInvalidation"
     private val instanceId = s"$component${instance.toInt}"
 
-    private val msgProvider = SpiLoader.get[MessagingProvider]()
+    private val msgProvider = SpiLoader.get[MessagingProvider]
     private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
     private val cacheInvalidationProducer = msgProvider.getProducer(config, ec)
 
