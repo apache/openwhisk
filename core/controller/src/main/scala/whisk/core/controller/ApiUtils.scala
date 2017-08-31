@@ -118,6 +118,9 @@ trait ReadOps extends Directives {
 
     protected implicit val logging: Logging
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /**
      * Get all entities of type A from datastore that match key. Terminates HTTP request.
      *
@@ -231,6 +234,9 @@ trait WriteOps extends Directives {
     protected implicit val executionContext: ExecutionContext
 
     protected implicit val logging: Logging
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /**
      * A predicate future that completes with true iff the entity should be

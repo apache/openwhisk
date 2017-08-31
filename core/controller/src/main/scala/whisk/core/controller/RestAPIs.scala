@@ -24,6 +24,7 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -112,6 +113,12 @@ protected[controller] object RestApiCommons {
             }
         }
     }
+
+    /** Pretty print JSON response. */
+    implicit val jsonPrettyResponsePrinter = PrettyPrinter
+
+    /** Standard compact JSON printer. */
+    implicit val jsonDefaultResponsePrinter = CompactPrinter
 }
 
 /**
@@ -148,7 +155,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
      * Describes details of a particular API path.
      */
     val info = (pathEndOrSingleSlash & get) {
-        complete(OK, JsObject(
+        complete(JsObject(
             "description" -> "OpenWhisk API".toJson,
             "api_version" -> SemVer(1, 0, 0).toJson,
             "api_version_path" -> apiVersion.toJson,
@@ -156,7 +163,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
             "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
             "swagger_paths" -> JsObject(
                 "ui" -> s"/$swaggeruipath".toJson,
-                "api-docs" -> s"/$swaggerdocpath".toJson)).toString)
+                "api-docs" -> s"/$swaggerdocpath".toJson)))
     }
 
     def routes(implicit transid: TransactionId): Route = {

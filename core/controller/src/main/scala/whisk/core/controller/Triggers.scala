@@ -76,6 +76,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
 

@@ -51,6 +51,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     /** Database service to CRUD rules. */
     protected val entityStore: EntityStore
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /** Path to Rules REST API. */
     protected val rulesPath = "rules"
 

@@ -126,7 +126,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
             val msg = CompletionMessage(transid, res, instance)
             producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
                 case Success(_) =>
-                    logging.info(this, s"posted ${if (recovery) "recovery" else ""} completion of activation ${activationResult.activationId}")
+                    logging.info(this, s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
             }
         }
 
