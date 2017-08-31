@@ -131,7 +131,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
             }
         }
 
-        send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResponse)).recoverWith {
+        send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
             case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
                 send(Left(activationResult.activationId), recovery = true)
         }
