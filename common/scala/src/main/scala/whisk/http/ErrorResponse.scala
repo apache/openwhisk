@@ -169,13 +169,15 @@ case class ErrorResponse(error: String, code: TransactionId)
 
 object ErrorResponse extends Directives with DefaultJsonProtocol {
 
-    def terminate(status: StatusCode, error: String)(implicit transid: TransactionId): StandardRoute = {
+    def terminate(status: StatusCode, error: String)(
+        implicit transid: TransactionId, jsonPrinter: JsonPrinter): StandardRoute = {
         terminate(status, Option(error) filter { _.trim.nonEmpty } map {
             e => Some(ErrorResponse(e.trim, transid))
         } getOrElse None)
     }
 
-    def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(implicit transid: TransactionId): StandardRoute = {
+    def terminate(status: StatusCode, error: Option[ErrorResponse] = None, asJson: Boolean = true)(
+        implicit transid: TransactionId, jsonPrinter: JsonPrinter): StandardRoute = {
         val errorResponse = error getOrElse response(status)
         if (asJson) {
             complete(status, errorResponse)

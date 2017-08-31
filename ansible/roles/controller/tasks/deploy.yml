@@ -49,15 +49,11 @@
       "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
       "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
 
-      "DEFAULTLIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ defaultLimits.actions.invokes.perMinute }}"
-      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ defaultLimits.actions.invokes.concurrent }}"
-      "DEFAULTLIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ defaultLimits.triggers.fires.perMinute }}"
-      "DEFAULTLIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ defaultLimits.actions.invokes.concurrentInSystem }}"
-      "DEFAULTLIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ defaultLimits.actions.sequence.maxLength }}"
-      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.actions.invokes.perMinute }}"
-      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.actions.invokes.concurrent }}"
-      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.actions.invokes.concurrentInSystem }}"
-      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.triggers.fires.perMinute }}"
+      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.concurrentInvocationsSystem }}"
+      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
+      "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
       "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
@@ -69,7 +65,7 @@
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
+    url: "http://{{ ansible_host }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

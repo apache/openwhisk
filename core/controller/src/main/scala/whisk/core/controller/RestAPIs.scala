@@ -17,29 +17,30 @@
 
 package whisk.core.controller
 
+import scala.concurrent.ExecutionContext
+
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.stream.ActorMaterializer
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
-import scala.concurrent.ExecutionContext
-
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.WhiskConfig.whiskVersionDate
-import whisk.core.entity.WhiskAuthStore
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.entity._
-import whisk.core.entity.types._
 import whisk.core.entitlement._
+import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
+import whisk.core.entity.WhiskAuthStore
+import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerResolver
 
 /**
@@ -87,10 +88,10 @@ protected[controller] object RestApiCommons {
         Authenticate.requiredProperties ++
         Collection.requiredProperties
 
+    import akka.http.scaladsl.model.HttpCharsets
+    import akka.http.scaladsl.model.MediaTypes.`application/json`
     import akka.http.scaladsl.unmarshalling.FromEntityUnmarshaller
     import akka.http.scaladsl.unmarshalling.Unmarshaller
-    import akka.http.scaladsl.model.MediaTypes.`application/json`
-    import akka.http.scaladsl.model.HttpCharsets
 
     /**
      * Extract an empty entity into a JSON object. This is useful for the
@@ -111,6 +112,12 @@ protected[controller] object RestApiCommons {
             }
         }
     }
+
+    /** Pretty print JSON response. */
+    implicit val jsonPrettyResponsePrinter = PrettyPrinter
+
+    /** Standard compact JSON printer. */
+    implicit val jsonDefaultResponsePrinter = CompactPrinter
 }
 
 /**
@@ -126,18 +133,19 @@ protected[controller] trait RespondWithHeaders extends Directives {
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     implicit val activeAckTopicIndex: InstanceId,
     implicit val actorSystem: ActorSystem,
+    implicit val materializer: ActorMaterializer,
     implicit val logging: Logging,
     implicit val entityStore: EntityStore,
     implicit val entitlementProvider: EntitlementProvider,
     implicit val activationIdFactory: ActivationIdGenerator,
     implicit val loadBalancerResolver: LoadBalancerResolver,
+    implicit val cacheChangeNotification: Some[CacheChangeNotification],
     implicit val activationStore: ActivationStore,
     implicit val whiskConfig: WhiskConfig)
     extends SwaggerDocs(Uri.Path(apiPath) / apiVersion, "apiv1swagger.json")
     with Authenticate
     with AuthenticatedRoute
     with RespondWithHeaders {
-    implicit val materializer = ActorMaterializer()
     implicit val executionContext = actorSystem.dispatcher
     implicit val authStore = WhiskAuthStore.datastore(config)
 
@@ -147,7 +155,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
      * Describes details of a particular API path.
      */
     val info = (pathEndOrSingleSlash & get) {
-        complete(OK, JsObject(
+        complete(JsObject(
             "description" -> "OpenWhisk API".toJson,
             "api_version" -> SemVer(1, 0, 0).toJson,
             "api_version_path" -> apiVersion.toJson,
@@ -155,7 +163,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
             "buildno" -> whiskConfig(whiskVersionBuildno).toJson,
             "swagger_paths" -> JsObject(
                 "ui" -> s"/$swaggeruipath".toJson,
-                "api-docs" -> s"/$swaggerdocpath".toJson)).toString)
+                "api-docs" -> s"/$swaggerdocpath".toJson)))
     }
 
     def routes(implicit transid: TransactionId): Route = {
@@ -177,9 +185,9 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
                 // web actions are distinct to separate the cors header
                 // and allow the actions themselves to respond to options
                 basicAuth(validateCredentials) { user =>
-                    web.routes(user) ~ webexp.routes(user)
+                    web.routes(user)
                 } ~ {
-                    web.routes() ~ webexp.routes()
+                    web.routes()
                 } ~ options {
                     sendCorsHeaders {
                         complete(OK)
@@ -196,16 +204,16 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     private val triggers = new TriggersApi(apiPath, apiVersion)
     private val activations = new ActivationsApi(apiPath, apiVersion)
     private val rules = new RulesApi(apiPath, apiVersion)
-    private val webexp = new WebActionsApi(Seq("experimental", "web"), WebApiDirectives.exp)
-    private val web = new WebActionsApi(Seq("web"), WebApiDirectives.web)
+    private val WebApiDirectives = new WebApiDirectives()
+    private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
 
     class NamespacesApi(
-       val apiPath: String,
-       val apiVersion: String)(
-       implicit override val entityStore: EntityStore,
-       override val entitlementProvider: EntitlementProvider,
-       override val executionContext: ExecutionContext,
-       override val logging: Logging)
+        val apiPath: String,
+        val apiVersion: String)(
+        implicit override val entityStore: EntityStore,
+        override val entitlementProvider: EntitlementProvider,
+        override val executionContext: ExecutionContext,
+        override val logging: Logging)
     extends WhiskNamespacesApi
 
     class ActionsApi(
@@ -218,6 +226,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancerResolver: LoadBalancerResolver,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -242,6 +251,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancerResolver: LoadBalancerResolver,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -255,6 +265,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val entitlementProvider: EntitlementProvider,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancerResolver: LoadBalancerResolver,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig)
@@ -269,6 +280,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         override val activationStore: ActivationStore,
         override val activationIdFactory: ActivationIdGenerator,
         override val loadBalancerResolver: LoadBalancerResolver,
+        override val cacheChangeNotification: Some[CacheChangeNotification],
         override val executionContext: ExecutionContext,
         override val logging: Logging,
         override val whiskConfig: WhiskConfig,

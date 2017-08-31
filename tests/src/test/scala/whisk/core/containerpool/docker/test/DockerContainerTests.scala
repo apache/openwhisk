@@ -41,16 +41,12 @@ import spray.json._
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
 import whisk.common.TransactionId
-import whisk.core.container.Interval
-import whisk.core.container.RunResult
 import whisk.core.containerpool._
 import whisk.core.containerpool.docker._
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
-import whisk.core.invoker.ActionLogDriver
-import whisk.core.invoker.LogLine
 import whisk.http.Messages
 
 /**
@@ -375,8 +371,8 @@ class DockerContainerTests extends FlatSpec
         val appendedLog = if (appendSentinel) {
             val lastTime = log.lastOption.map { case LogLine(time, _, _) => time }.getOrElse(Instant.EPOCH.toString)
             log :+
-                LogLine(lastTime, "stderr", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n") :+
-                LogLine(lastTime, "stdout", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n")
+                LogLine(lastTime, "stderr", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}\n") :+
+                LogLine(lastTime, "stdout", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}\n")
         } else {
             log
         }

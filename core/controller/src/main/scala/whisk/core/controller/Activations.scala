@@ -25,23 +25,22 @@ import scala.util.Success
 import scala.util.Try
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-
-import spray.json.DeserializationException
-import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json._
-
+import spray.json.DefaultJsonProtocol.RootJsObjectFormat
+import spray.json.DeserializationException
 import whisk.common.TransactionId
+import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Collection
 import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
-import whisk.http.Messages
 import whisk.http.ErrorResponse.terminate
+import whisk.http.Messages
 
 object WhiskActivationsApi {
     protected[core] val maxActivationLimit = 200
@@ -55,6 +54,9 @@ trait WhiskActivationsApi
     with ReadOps {
 
     protected override val collection = Collection(Collection.ACTIVATIONS)
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /** Database service to GET activations. */
     protected val activationStore: ActivationStore
@@ -122,16 +124,18 @@ trait WhiskActivationsApi
                 if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
                     val activations = name match {
                         case Some(action) =>
-                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)
+                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                         case None =>
-                            WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto)
+                            WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                     }
 
                     listEntities {
                         activations map {
-                            l => if (docs) l.right.get map {
-                                _.toExtendedJson
-                            } else l.left.get
+                            l =>
+                                if (docs) l.right.get map {
+                                    _.toExtendedJson
+                                }
+                                else l.left.get
                         }
                     }
                 } else {

@@ -53,11 +53,9 @@ class WhiskConfig(
         properties
     }
 
-    val logsDir = this(WhiskConfig.logsDir)
     val servicePort = this(WhiskConfig.servicePort)
     val dockerRegistry = this(WhiskConfig.dockerRegistry)
     val dockerEndpoint = this(WhiskConfig.dockerEndpoint)
-    val selfDockerEndpoint = this(WhiskConfig.selfDockerEndpoint)
     val dockerPort = this(WhiskConfig.dockerPort)
 
     val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
@@ -68,10 +66,6 @@ class WhiskConfig(
     val invokerContainerDns = if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
     val invokerNumCore = this(WhiskConfig.invokerNumCore)
     val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
-    val invokerSerializeDockerOp = this(WhiskConfig.invokerSerializeDockerOp)
-    val invokerSerializeDockerPull = this(WhiskConfig.invokerSerializeDockerPull)
-    val invokerUseRunc = this(WhiskConfig.invokerUseRunc)
-    val invokerUseReactivePool = this(WhiskConfig.invokerUseReactivePool)
 
     val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(WhiskConfig.wskApiPort)
     val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
@@ -101,11 +95,11 @@ class WhiskConfig(
 
     val runtimesManifest = this(WhiskConfig.runtimesManifest)
 
-    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteDefaultLimit, WhiskConfig.actionInvokePerMinuteLimit)
-    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentDefaultLimit, WhiskConfig.actionInvokeConcurrentLimit)
-    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteDefaultLimit, WhiskConfig.triggerFirePerMinuteLimit)
-    val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadDefaultLimit, WhiskConfig.actionInvokeSystemOverloadLimit)
-    val actionSequenceLimit = this(WhiskConfig.actionSequenceDefaultLimit)
+    val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
+    val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
+    val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
+    val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
+    val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
 }
 
 object WhiskConfig {
@@ -158,13 +152,11 @@ object WhiskConfig {
             key.replace('.', '_').toUpperCase
         else null
 
-    val logsDir = "whisk.logs.dir"
     val servicePort = "port"
     val dockerRegistry = "docker.registry"
     val dockerPort = "docker.port"
 
     val dockerEndpoint = "main.docker.endpoint"
-    val selfDockerEndpoint = "self.docker.endpoint"
 
     val dbProvider = "db.provider"
     val dbProtocol = "db.protocol"
@@ -194,10 +186,6 @@ object WhiskConfig {
     val invokerContainerDns = "invoker.container.dns"
     val invokerNumCore = "invoker.numcore"
     val invokerCoreShare = "invoker.coreshare"
-    val invokerSerializeDockerOp = "invoker.serializeDockerOp"
-    val invokerSerializeDockerPull = "invoker.serializeDockerPull"
-    val invokerUseRunc = "invoker.useRunc"
-    val invokerUseReactivePool = "invoker.useReactivePool"
 
     val wskApiProtocol = "whisk.api.host.proto"
     val wskApiPort = "whisk.api.host.port"
@@ -226,11 +214,7 @@ object WhiskConfig {
 
     val runtimesManifest = "runtimes.manifest"
 
-    val actionInvokePerMinuteDefaultLimit = "defaultLimits.actions.invokes.perMinute"
-    val actionInvokeConcurrentDefaultLimit = "defaultLimits.actions.invokes.concurrent"
-    val actionInvokeSystemOverloadDefaultLimit = "defaultLimits.actions.invokes.concurrentInSystem"
-    val triggerFirePerMinuteDefaultLimit = "defaultLimits.triggers.fires.perMinute"
-    val actionSequenceDefaultLimit = "defaultLimits.actions.sequence.maxLength"
+    val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
     val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
     val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
     val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"

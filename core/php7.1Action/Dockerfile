@@ -27,12 +27,12 @@ RUN \
        bcmath \
        zip \
        gd \
-       soap \
+       soap
 
-   && \
-
-    # install Composer
-    cd /tmp && curl -sS https://getcomposer.org/installer | php  -- --install-dir=/usr/bin --filename=composer
+# install composer
+RUN curl -s -f -L -o /tmp/installer.php https://getcomposer.org/installer \
+    && php /tmp/installer.php --no-ansi --install-dir=/usr/bin --filename=composer \
+    && composer --ansi --version --no-interaction
 
 # create src directory to store action files
 RUN mkdir -p /action/src

@@ -42,13 +42,14 @@ import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH}
+import akka.http.scaladsl.model.HttpMethods.{ OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH }
 import akka.http.scaladsl.model.HttpCharsets
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import WhiskWebActionsApi.MediaExtension
+import RestApiCommons.{ jsonPrettyResponsePrinter => jsonPrettyPrinter }
 
 import whisk.common.TransactionId
 import whisk.core.controller.actions.PostActionActivation
@@ -59,7 +60,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
-protected[controller] sealed class WebApiDirectives private (prefix: String) {
+protected[controller] sealed class WebApiDirectives (prefix: String = "__ow_") {
     // enforce the presence of an extension (e.g., .http) in the URI path
     val enforceExtension = false
 
@@ -76,20 +77,6 @@ protected[controller] sealed class WebApiDirectives private (prefix: String) {
 
     lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
     protected final def fields(f: String) = s"$prefix$f"
-}
-
-// field names for /web with raw-http action
-protected[controller] object WebApiDirectives {
-    // field names for /web
-    val web = new WebApiDirectives("__ow_")
-
-    // field names used for /experimental/web
-    val exp = new WebApiDirectives("__ow_meta_") {
-        override val enforceExtension = true
-        override val method = fields("verb")
-        override val namespace = fields("namespace")
-        override val statusCode = "code"
-    }
 }
 
 private case class Context(
@@ -192,12 +179,12 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
     private def resultAsHtml(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
         case JsString(html) => complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, html))
-        case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid)
+        case _              => terminate(BadRequest, Messages.invalidMedia(`text/html`))(transid, jsonPrettyPrinter)
     }
 
     private def resultAsSvg(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = result match {
         case JsString(svg) => complete(HttpEntity(`image/svg+xml`, svg.getBytes))
-        case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid)
+        case _             => terminate(BadRequest, Messages.invalidMedia(`image/svg+xml`))(transid, jsonPrettyPrinter)
     }
 
     private def resultAsText(result: JsValue, transid: TransactionId, rp: WebApiDirectives) = {
@@ -215,7 +202,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
         result match {
             case r: JsObject => complete(OK, r)
             case r: JsArray  => complete(OK, r)
-            case _           => terminate(BadRequest, Messages.invalidMedia(`application/json`))(transid)
+            case _           => terminate(BadRequest, Messages.invalidMedia(`application/json`))(transid, jsonPrettyPrinter)
         }
     }
 
@@ -241,9 +228,9 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
             fields.get("body") map {
                 case JsString(str) => interpretHttpResponse(code, headers, str, transid)
-                case _             => terminate(BadRequest, Messages.httpContentTypeError)(transid)
+                case js            => interpretHttpResponseAsJson(code, headers, js, transid)
             } getOrElse {
-                respondWithHeaders(headers) {
+                respondWithHeaders(removeContentTypeHeader(headers)) {
                     // note that if header defined a content-type, it will be ignored
                     // since the type must be compatible with the data response
                     complete(code, HttpEntity.Empty)
@@ -252,11 +239,11 @@ protected[core] object WhiskWebActionsApi extends Directives {
         } getOrElse {
             // either the result was not a JsObject or there was an exception validting the
             // response as an http result
-            terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid)
+            terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid, jsonPrettyPrinter)
         }
     }
 
-    private def headersFromJson(k: String, v: JsValue) : Seq[RawHeader] = v match {
+    private def headersFromJson(k: String, v: JsValue): Seq[RawHeader] = v match {
         case JsString(v)  => Seq(RawHeader(k, v))
         case JsBoolean(v) => Seq(RawHeader(k, v.toString))
         case JsNumber(v)  => Seq(RawHeader(k, v.toString))
@@ -264,8 +251,12 @@ protected[core] object WhiskWebActionsApi extends Directives {
         case _            => throw new Throwable("Invalid header")
     }
 
-    private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId) = {
-        val parsedHeader: Try[MediaType] = headers.find(_.lowercaseName == `Content-Type`.lowercaseName) match {
+    /**
+     * Finds the content-type in the header list and maps it to a known media type. If it is not
+     * recognized, construct a failure with appropriate message.
+     */
+    private def findContentTypeInHeader(headers: List[RawHeader], transid: TransactionId, defaultType: MediaType): Try[MediaType] = {
+        headers.find(_.lowercaseName == `Content-Type`.lowercaseName) match {
             case Some(header) =>
                 MediaType.parse(header.value) match {
                     case Right(mediaType: MediaType) =>
@@ -276,10 +267,25 @@ protected[core] object WhiskWebActionsApi extends Directives {
                         }
                     case _ => Failure(RejectRequest(BadRequest, Messages.httpUnknownContentType)(transid))
                 }
-            case None => Success(`text/html`)
+            case None => Success(defaultType)
         }
+    }
 
-        parsedHeader.flatMap { mediaType =>
+    private def interpretHttpResponseAsJson(code: StatusCode, headers: List[RawHeader], js: JsValue, transid: TransactionId) = {
+        findContentTypeInHeader(headers, transid, `application/json`) match {
+            case Success(mediaType) if (mediaType == `application/json`) =>
+                respondWithHeaders(removeContentTypeHeader(headers)) {
+                    complete(code, js)
+                }
+
+            case _ =>
+                terminate(BadRequest, Messages.httpContentTypeError)(transid, jsonPrettyPrinter)
+        }
+    }
+
+    private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId) = {
+        findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
+            // base64 encoded json response supported for legacy reasons
             if (mediaType.binary || mediaType == `application/json`) {
                 Try(new String(Base64.getDecoder().decode(str), StandardCharsets.UTF_8)).map((mediaType, _))
             } else {
@@ -287,17 +293,20 @@ protected[core] object WhiskWebActionsApi extends Directives {
             }
         } match {
             case Success((mediaType, data: String)) =>
-                respondWithHeaders(headers) {
+                respondWithHeaders(removeContentTypeHeader(headers)) {
                     complete(code, HttpEntity(ContentType(MediaType.customWithFixedCharset(mediaType.mainType, mediaType.subType, HttpCharsets.`UTF-8`)), data))
                 }
 
             case Failure(RejectRequest(code, message)) =>
-                terminate(code, message)(transid)
+                terminate(code, message)(transid, jsonPrettyPrinter)
 
             case _ =>
-                terminate(BadRequest, Messages.httpContentTypeError)(transid)
+                terminate(BadRequest, Messages.httpContentTypeError)(transid, jsonPrettyPrinter)
         }
     }
+
+    private def removeContentTypeHeader(headers: List[RawHeader]) =
+        headers.filter(_.lowercaseName != `Content-Type`.lowercaseName)
 }
 
 trait WhiskWebActionsApi
@@ -350,7 +359,7 @@ trait WhiskWebActionsApi
     /**
      * Adds route to web based activations. Actions invoked this way are anonymous in that the
      * caller is not authenticated. The intended action must be named in the path as a fully qualified
-     * name as in /experimental/web/some-namespace/some-package/some-action. The package is optional
+     * name as in /web/some-namespace/some-package/some-action. The package is optional
      * in that the action may be in the default package, in which case, the string "default" must be used.
      * If the action doesn't exist (or the namespace is not valid) NotFound is generated. Following the
      * action name, an "extension" is required to specify the desired content type for the response. This
@@ -358,7 +367,7 @@ trait WhiskWebActionsApi
      * an text/html response.
      *
      * Optionally, the result form the action may be projected based on a named property. As in
-     * /experimental/web/some-namespace/some-package/some-action/some-property. If the property
+     * /web/some-namespace/some-package/some-action/some-property. If the property
      * does not exist in the result then a NotFound error is generated. A path of properties may
      * be supplied to project nested properties.
      *
@@ -418,7 +427,7 @@ trait WhiskWebActionsApi
                 // as the context body which may be the incoming request when the content type is JSON or formdata, or
                 // the raw body as __ow_body (and query parameters as __ow_query) otherwise
                 extract(_.request.entity) { e =>
-                    validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid) {
+                    validateSize(isWhithinRange(e.contentLengthOption.getOrElse(0)))(transid, jsonPrettyPrinter) {
                         requestMethodParamsAndPath { context =>
                             provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
@@ -510,7 +519,7 @@ trait WhiskWebActionsApi
                         process(Some(body), isRawHttpAction)
                     }
 
-                case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, Some(HttpCharsets.`UTF-8`)), _) if !isRawHttpAction =>
+                case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, _), _) if !isRawHttpAction =>
                     entity(as[FormData]) { form =>
                         val body = form.fields.toMap.toJson.asJsObject
                         process(Some(body), isRawHttpAction)

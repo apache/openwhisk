@@ -23,7 +23,6 @@ import scala.collection.parallel.immutable.ParSeq
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.Try
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -45,6 +44,7 @@ import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import org.scalatest.BeforeAndAfterAll
 import common.RunWskAdminCmd
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class ThrottleTests
@@ -65,22 +65,18 @@ class ThrottleTests
 
     val throttleWindow = 1.minute
 
-    val maximumInvokesPerMinute = getLimit("defaultLimits.actions.invokes.perMinute", "limits.actions.invokes.perMinute")
-    val maximumFiringsPerMinute = getLimit("defaultLimits.triggers.fires.perMinute", "limits.triggers.fires.perMinute")
-    val maximumConcurrentInvokes = getLimit("defaultLimits.actions.invokes.concurrent", "limits.actions.invokes.concurrent")
+    val maximumInvokesPerMinute = getLimit("limits.actions.invokes.perMinute")
+    val maximumFiringsPerMinute = getLimit("limits.triggers.fires.perMinute")
+    val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
 
     println(s"maximumInvokesPerMinute  = $maximumInvokesPerMinute")
     println(s"maximumFiringsPerMinute  = $maximumFiringsPerMinute")
     println(s"maximumConcurrentInvokes = $maximumConcurrentInvokes")
 
     /*
-     * Retrieve a numeric limit for the key from the property set.  If the overrideKey is present, use that.
+     * Retrieve a numeric limit for the key from the property set.
      */
-    def getLimit(key: String, overrideKey: String) = Try {
-        WhiskProperties.getProperty(overrideKey).toInt
-    } getOrElse {
-        WhiskProperties.getProperty(key).toInt
-    }
+    def getLimit(key: String) = WhiskProperties.getProperty(key).toInt
 
     /**
      * Extracts the number of throttled results from a sequence of <code>RunResult</code>
@@ -349,12 +345,24 @@ class NamespaceSpecificThrottleTests
             }
 
             // One invoke should be allowed, the second one throttled
-            wsk.action.invoke(actionName)
-            wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+            // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+            retry({
+                val results = (1 to 2).map { _ =>
+                    wsk.action.invoke(actionName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+                }
+                results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+                results.map(_.stderr).mkString should include(tooManyRequests)
+            }, 2, Some(1.second))
 
             // One fire should be allowed, the second one throttled
-            wsk.trigger.fire(triggerName)
-            wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+            // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+            retry({
+                val results = (1 to 2).map { _ =>
+                    wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+                }
+                results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+                results.map(_.stderr).mkString should include(tooManyRequests)
+            }, 2, Some(1.second))
     }
 
     it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) {

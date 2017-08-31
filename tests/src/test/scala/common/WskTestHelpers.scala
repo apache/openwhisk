@@ -17,6 +17,10 @@
 
 package common
 
+import java.time.Instant
+
+import org.scalatest.Matchers
+
 import scala.collection.mutable.ListBuffer
 import scala.util.Failure
 import scala.util.Try
@@ -24,11 +28,93 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import org.scalatest.Matchers
-
-import TestUtils._
 import spray.json._
-import java.time.Instant
+
+import TestUtils.RunResult
+import TestUtils.CONFLICT
+
+/**
+ * An arbitrary response of a whisk action. Includes the result as a JsObject as the
+ * structure of "result" is not defined.
+ *
+ * @param result a JSON object used to save the result of the execution of the action
+ * @param status a string used to indicate the status of the action
+ * @param success a boolean value used to indicate whether the action is executed successfully or not
+ */
+case class ActivationResponse(result: Option[JsObject], status: String, success: Boolean)
+
+object ActivationResponse extends DefaultJsonProtocol {
+    implicit val serdes = jsonFormat3(ActivationResponse.apply)
+}
+
+/**
+ * Activation record as it is returned from the OpenWhisk service.
+ *
+ * @param activationId a String to save the ID of the activation
+ * @param logs a list of String to save the logs of the activation
+ * @param response an Object of ActivationResponse to save the response of the activation
+ * @param start an Instant to save the start time of activation
+ * @param end an Instant to save the end time of activation
+ * @param duration a Long to save the duration of the activation
+ * @param cases String to save the cause of failure if the activation fails
+ * @param annotations a list of JSON objects to save the annotations of the activation
+ */
+case class ActivationResult(
+    activationId: String,
+    logs: Option[List[String]],
+    response: ActivationResponse,
+    start: Instant,
+    end: Instant,
+    duration: Long,
+    cause: Option[String],
+    annotations: Option[List[JsObject]]) {
+
+    def getAnnotationValue(key: String): Option[JsValue] = {
+        Try {
+            val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
+            assert(annotation.size == 1) // only one annotation with this value
+            val value = annotation(0).getFields("value")
+            assert(value.size == 1)
+            value(0)
+        } toOption
+    }
+}
+
+object ActivationResult extends DefaultJsonProtocol {
+    private implicit val instantSerdes = new RootJsonFormat[Instant] {
+        def write(t: Instant) = t.toEpochMilli.toJson
+
+        def read(value: JsValue) = Try {
+            value match {
+                case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
+                case _           => deserializationError("timetsamp malformed")
+            }
+        } getOrElse deserializationError("timetsamp malformed 2")
+    }
+
+    implicit val serdes = new RootJsonFormat[ActivationResult] {
+        private val format = jsonFormat8(ActivationResult.apply)
+
+        def write(result: ActivationResult) = format.write(result)
+
+        def read(value: JsValue) = {
+            val obj = value.asJsObject
+            obj.getFields("activationId", "response", "start") match {
+                case Seq(JsString(activationId), response, start) =>
+                    Try {
+                        val logs = obj.fields.get("logs").map(_.convertTo[List[String]])
+                        val end = obj.fields.get("end").map(_.convertTo[Instant]).getOrElse(Instant.EPOCH)
+                        val duration = obj.fields.get("duration").map(_.convertTo[Long]).getOrElse(0L)
+                        val cause = obj.fields.get("cause").map(_.convertTo[String])
+                        val annotations = obj.fields.get("annotations").map(_.convertTo[List[JsObject]])
+                        new ActivationResult(activationId, logs, response.convertTo[ActivationResponse],
+                            start.convertTo[Instant], end, duration, cause, annotations)
+                    } getOrElse deserializationError("Failed to deserialize the activation result.")
+                case _ => deserializationError("Failed to deserialize the activation ID, response or start.")
+            }
+        }
+    }
+}
 
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
@@ -98,55 +184,6 @@ trait WskTestHelpers extends Matchers {
     }
 
     /**
-     * An arbitrary response of a whisk action. Includes the result as a JsObject as the
-     * structure of "result" is not defined.
-     */
-    case class CliActivationResponse(result: Option[JsObject], status: String, success: Boolean)
-
-    object CliActivationResponse extends DefaultJsonProtocol {
-        implicit val serdes = jsonFormat3(CliActivationResponse.apply)
-    }
-
-    /**
-     * Activation record as it is returned by the CLI.
-     */
-    case class CliActivation(
-        activationId: String,
-        logs: Option[List[String]],
-        response: CliActivationResponse,
-        start: Instant,
-        end: Instant,
-        duration: Long,
-        cause: Option[String],
-        annotations: Option[List[JsObject]]) {
-
-        def getAnnotationValue(key: String): Option[JsValue] = {
-            Try {
-                val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
-                assert(annotation.size == 1) // only one annotation with this value
-                val value = annotation(0).getFields("value")
-                assert(value.size == 1)
-                value(0)
-            } toOption
-        }
-    }
-
-    object CliActivation extends DefaultJsonProtocol {
-        private implicit val instantSerdes = new RootJsonFormat[Instant] {
-            def write(t: Instant) = t.toEpochMilli.toJson
-
-            def read(value: JsValue) = Try {
-                value match {
-                    case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-                    case _           => deserializationError("timetsamp malformed")
-                }
-            } getOrElse deserializationError("timetsamp malformed 2")
-        }
-
-        implicit val serdes = jsonFormat8(CliActivation.apply)
-    }
-
-    /**
      * Extracts an activation id from a wsk command producing a RunResult with such an id.
      * If id is found, polls activations until one matching id is found. If found, pass
      * the activation to the post processor which then check for expected values.
@@ -157,7 +194,7 @@ trait WskTestHelpers extends Matchers {
         initialWait: Duration = 1 second,
         pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
-            check: CliActivation => Unit)(
+            check: ActivationResult => Unit)(
                 implicit wskprops: WskProps): Unit = {
         val activationId = wsk.extractActivationId(run)
 
@@ -178,14 +215,14 @@ trait WskTestHelpers extends Matchers {
         initialWait: Duration,
         pollPeriod: Duration,
         totalWait: Duration)(
-            check: CliActivation => Unit)(
+            check: ActivationResult => Unit)(
                 implicit wskprops: WskProps): Unit = {
         val id = activationId
         val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
         if (activation.isLeft) {
             assert(false, s"error waiting for activation $id: ${activation.left.get}")
         } else try {
-            check(activation.right.get.convertTo[CliActivation])
+            check(activation.right.get.convertTo[ActivationResult])
         } catch {
             case error: Throwable =>
                 println(s"check failed for activation $id: ${activation.right.get}")
@@ -205,7 +242,7 @@ trait WskTestHelpers extends Matchers {
         since: Option[Instant] = None,
         pollPeriod: Duration = 1 second,
         totalWait: Duration = 30 seconds)(
-            check: Seq[CliActivation] => Unit)(
+            check: Seq[ActivationResult] => Unit)(
                 implicit wskprops: WskProps): Unit = {
 
         val activationIds = wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
@@ -214,7 +251,7 @@ trait WskTestHelpers extends Matchers {
         }
 
         val parsed = activationIds.map { id =>
-            wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[CliActivation]
+            wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[ActivationResult]
         }
         try {
             check(parsed)

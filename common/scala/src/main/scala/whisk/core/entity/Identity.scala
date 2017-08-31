@@ -18,6 +18,7 @@
 package whisk.core.entity
 
 import scala.concurrent.Future
+import scala.util.Try
 
 import spray.json._
 import types.AuthStore
@@ -25,9 +26,9 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
+import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.Privilege
-import scala.util.Try
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None, concurrentInvocations: Option[Int] = None, firesPerMinute: Option[Int] = None)
 
@@ -44,7 +45,6 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
     private val viewName = "subjects/identities"
 
     override val cacheEnabled = true
-    override def cacheKeyForUpdate(i: Identity) = i.authkey
     implicit val serdes = jsonFormat5(Identity.apply)
 
     /**
@@ -57,8 +57,9 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
         val ns = namespace.asString
+        val key = CacheKey(namespace)
 
-        cacheLookup(ns, {
+        cacheLookup(key, {
             list(datastore, List(ns), limit = 1) map { list =>
                 list.length match {
                     case 1 =>
@@ -79,7 +80,7 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
         implicit val logger: Logging = datastore.logging
         implicit val ec = datastore.executionContext
 
-        cacheLookup(authkey, {
+        cacheLookup(CacheKey(authkey), {
             list(datastore, List(authkey.uuid.asString, authkey.key.asString)) map { list =>
                 list.length match {
                     case 1 =>
@@ -104,7 +105,8 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
             limit = limit,
             includeDocs = true,
             descending = true,
-            reduce = false)
+            reduce = false,
+            stale = StaleParameter.No)
     }
 
     private def rowToIdentity(row: JsObject, key: String)(

@@ -39,6 +39,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.actions.PostActionActivation
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
 import whisk.core.entity._
@@ -57,7 +58,7 @@ import whisk.core.entitlement.Privilege._
  * in order to implement the actions API.
  */
 object WhiskActionsApi {
-    def requiredProperties = Map(WhiskConfig.actionSequenceDefaultLimit -> null)
+    def requiredProperties = Map(WhiskConfig.actionSequenceMaxLimit -> null)
 
     /** Grace period after action timeout limit to poll for result. */
     protected[core] val blockingInvokeGrace = 5 seconds
@@ -84,10 +85,17 @@ trait WhiskActionsApi
     /** Database service to CRUD actions. */
     protected val entityStore: EntityStore
 
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
+
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
 
+    /** Entity normalizer to JSON object. */
     import RestApiCommons.emptyEntityToJsObject
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /**
      * Handles operations on action resources, which encompass these cases:

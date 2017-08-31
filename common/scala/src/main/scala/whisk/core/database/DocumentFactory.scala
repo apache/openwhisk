@@ -30,6 +30,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import whisk.common.TransactionId
+import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -129,10 +130,11 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
      * @param db the datastore client to fetch entity from
      * @param doc the entity to store
      * @param transid the transaction id for logging
+     * @param notifier an optional callback when cache changes
      * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
      */
     def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
@@ -140,7 +142,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = cacheKeyForUpdate(doc)
+            val key = CacheKey(doc)
 
             cacheUpdate(doc, key, db.put(doc) map { docinfo =>
                 doc match {
@@ -157,7 +159,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     }
 
     def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
-        implicit transid: TransactionId): Future[DocInfo] = {
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
         Try {
             require(db != null, "db undefined")
@@ -166,7 +168,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo
+            val key = CacheKey(doc.id.asDocInfo)
             // invalidate the key because attachments update the revision;
             // do not cache the new attachment (controller does not need it)
             cacheInvalidate(key, {
@@ -180,7 +182,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     }
 
     def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
-        implicit transid: TransactionId): Future[Boolean] = {
+        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[Boolean] = {
         Try {
             require(db != null, "db undefined")
             require(doc != null, "doc undefined")
@@ -188,7 +190,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
 
-            val key = doc.id.asDocInfo
+            val key = CacheKey(doc.id.asDocInfo)
             cacheInvalidate(key, db.del(doc))
         } match {
             case Success(f) => f
@@ -221,7 +223,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
             implicit val logger = db.logging
             implicit val ec = db.executionContext
             val key = doc.asDocInfo(rev)
-            _ => cacheLookup(key, db.get[W](key), fromCache)
+            _ => cacheLookup(CacheKey(key), db.get[W](key), fromCache)
         } match {
             case Success(f) => f
             case Failure(t) => Future.failed(t)

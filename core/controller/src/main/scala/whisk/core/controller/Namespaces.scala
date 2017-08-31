@@ -56,6 +56,9 @@ trait WhiskNamespacesApi
     /** Database service to lookup entities in a namespace. */
     protected val entityStore: EntityStore
 
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
+
     /**
      * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
      *

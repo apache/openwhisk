@@ -38,6 +38,7 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.CouchDbRestClient
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
+import whisk.core.database.StaleParameter
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
@@ -99,7 +100,7 @@ trait DbUtils extends TransactionCounter {
         val success = retry(() => {
             val startKey = List(namespace.toString)
             val endKey = List(namespace.toString, WhiskEntityQueries.TOP)
-            db.query(WhiskEntityQueries.viewname(WhiskEntityQueries.ALL), startKey, endKey, 0, 0, false, true, false) map { l =>
+            db.query(WhiskEntityQueries.viewname(WhiskEntityQueries.ALL), startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
                 if (l.length != count) {
                     throw RetryOp()
                 } else true

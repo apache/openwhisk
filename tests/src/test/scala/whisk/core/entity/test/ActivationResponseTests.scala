@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package whisk.core.dispatcher.test
+package whisk.core.entity.test
 
 import scala.Vector
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import spray.json.pimpAny
 import spray.json.pimpString
 import whisk.common.PrintStreamLogging
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.size.SizeInt
 import whisk.http.Messages._
+import scala.Left
+import scala.Right
 
 @RunWith(classOf[JUnitRunner])
 class ActivationResponseTests extends FlatSpec with Matchers {

@@ -469,7 +469,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 action.parameters, action.limits, action.version,
                 action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
         }
-        stream.toString should include regex (s"caching*.*${action.docid.asDocInfo}")
+        stream.toString should include(s"caching ${CacheKey(action)}")
         stream.reset()
 
         // second request should fetch from cache
@@ -481,7 +481,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
         }
 
-        stream.toString should include regex (s"serving from cache:*.*${action.docid.asDocInfo}")
+        stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.reset()
 
         // delete should invalidate cache
@@ -492,7 +492,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
                 action.parameters, action.limits, action.version,
                 action.publish, action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
         }
-        stream.toString should include regex (s"invalidating*.*${action.docid.asDocInfo}")
+        stream.toString should include(s"invalidating ${CacheKey(action)}")
         stream.reset()
     }
 

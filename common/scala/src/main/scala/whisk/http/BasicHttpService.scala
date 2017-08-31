@@ -17,58 +17,41 @@
 
 package whisk.http
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 import scala.collection.immutable.Seq
-import scala.concurrent.Future
-
-import akka.actor.Actor
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 import akka.actor.ActorSystem
-import akka.actor.Props
 import akka.event.Logging
-import akka.japi.Creator
-import akka.util.Timeout
-import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.server._
+import akka.http.scaladsl.server.RouteResult.Rejected
 import akka.http.scaladsl.server.directives.DebuggingDirectives
 import akka.http.scaladsl.server.directives.LogEntry
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.RejectionHandler
-import akka.http.scaladsl.server.UnacceptedResponseContentTypeRejection
-import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.Http
-
+import akka.stream.ActorMaterializer
 import spray.json._
-
 import whisk.common.LogMarker
 import whisk.common.LogMarkerToken
-import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
-import akka.stream.ActorMaterializer
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
  * facilities common to all OpenWhisk REST services.
  */
-trait BasicHttpService extends Directives with Actor with TransactionCounter {
-    implicit def logging: Logging
-    implicit val materializer = ActorMaterializer()
-    implicit val actorSystem = context.system
-    implicit val executionContext = actorSystem.dispatcher
-
-    val port: Int
+trait BasicHttpService extends Directives with TransactionCounter {
 
     /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
-    implicit def customRejectionHandler(implicit transid: TransactionId) =
+    implicit def customRejectionHandler(implicit transid: TransactionId) = {
         RejectionHandler.default.mapRejectionResponse {
-                case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
-                    val error = ErrorResponse(ent.data.utf8String, transid).toJson
-                    res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
-                case x => x
-            }
+            case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
+                val error = ErrorResponse(ent.data.utf8String, transid).toJson
+                res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
+            case x => x
+        }
+    }
 
     /**
      * Gets the routes implemented by the HTTP service.
@@ -81,7 +64,7 @@ trait BasicHttpService extends Directives with Actor with TransactionCounter {
      * Gets the log level for a given route. The default is
      * InfoLevel so override as needed.
      *
-     * @param the route
+     * @param route the route to determine the loglevel for
      * @return a log level for the route
      */
     def loglevelForRoute(route: String): Logging.LogLevel = Logging.InfoLevel
@@ -101,11 +84,11 @@ trait BasicHttpService extends Directives with Actor with TransactionCounter {
      */
     def route: Route = {
         assignId { implicit transid =>
-            handleRejections(customRejectionHandler) {
-                prioritizeRejections {
-                    DebuggingDirectives.logRequest(logRequestInfo _) {
-                        DebuggingDirectives.logRequestResult(logResponseInfo _) {
-                            toStrictEntity(1.second) {
+            DebuggingDirectives.logRequest(logRequestInfo _) {
+                DebuggingDirectives.logRequestResult(logResponseInfo _) {
+                    handleRejections(customRejectionHandler) {
+                        prioritizeRejections {
+                            toStrictEntity(30.seconds) {
                                 routes
                             }
                         }
@@ -115,25 +98,21 @@ trait BasicHttpService extends Directives with Actor with TransactionCounter {
         }
     }
 
-    def receive = {
-        case _ =>
-    }
-
     /** Assigns transaction id to every request. */
     protected val assignId = extract(_ => transid())
 
     /** Generates log entry for every request. */
     protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
-        val m = req.method.name.toString
+        val m = req.method.name
         val p = req.uri.path.toString
         val q = req.uri.query().toString
         val l = loglevelForRoute(p)
         LogEntry(s"[$tid] $m $p $q", l)
     }
 
-    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): Any => Option[LogEntry] = {
-        case res: HttpResponse =>
-            val m = req.method.toString
+    protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): RouteResult => Option[LogEntry] = {
+        case RouteResult.Complete(res: HttpResponse) =>
+            val m = req.method.name
             val p = req.uri.path.toString
             val l = loglevelForRoute(p)
 
@@ -145,19 +124,19 @@ trait BasicHttpService extends Directives with Actor with TransactionCounter {
             Some(LogEntry(s"[$tid] [$name] $marker", l))
         case _ => None // other kind of responses
     }
-
-    val bindingFuture = {
-        Http().bindAndHandle(route, "0.0.0.0", port)
-    }
-
-    def shutdown(): Future[Unit] = {
-        bindingFuture.flatMap(_.unbind()).map(_ => ())
-    }
 }
 
-object BasicHttpService extends Directives {
-    def startService[T <: Actor](system: ActorSystem, name: String, interface: String, service: Creator[T]) = {
-        val actor = system.actorOf(Props.create(service), s"$name-service")
-        implicit val timeout = Timeout(5 seconds)
+object BasicHttpService {
+    /**
+     * Starts an HTTP route handler on given port and registers a shutdown hook.
+     */
+    def startService(route: Route, port: Int)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer): Unit = {
+        implicit val executionContext = actorSystem.dispatcher
+        val httpBinding = Http().bindAndHandle(route, "0.0.0.0", port)
+        sys.addShutdownHook {
+            Await.result(httpBinding.map(_.unbind()), 30.seconds)
+            actorSystem.terminate()
+            Await.result(actorSystem.whenTerminated, 30.seconds)
+        }
     }
 }

@@ -5,7 +5,7 @@
   tasks:
     - name: add header to hosts file
       copy:
-        content: "; the first parameter in a host is the inventory_hostname which has to be\n; either an ip\n; or a resolvable hostname\n\n; used for local actions only\nansible ansible_connection=local\n"
+        content: "; the first parameter in a host is the inventory_hostname\n\nansible ansible_connection=local\n"
         dest: "{{inventory_dir}}/hosts"
 
     - name: Create instances
