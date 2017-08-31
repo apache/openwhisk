@@ -18,13 +18,12 @@
 package whisk.core.database
 
 import akka.actor.ActorSystem
-import scala.collection.mutable
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.spi.SpiInstanceCaching
 
-object CouchDbStoreProvider extends ArtifactStoreProvider {
-    val stores =  mutable.Map [String, CouchDbRestStore[_]]()
+object CouchDbStoreProvider extends ArtifactStoreProvider with SpiInstanceCaching[String, ArtifactStore[_]] {
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
         actorSystem: ActorSystem,
@@ -33,7 +32,9 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
         require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
         val storeName = name(config)
         assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, storeName).forall(_.nonEmpty), "At least one expected property is missing")
-        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config), ()=>stores.remove(storeName))
+        getInstanceOrCreate(storeName, {
+            new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config), ()=>removeInstance(storeName))
+        }).asInstanceOf[ArtifactStore[D]]
     }
 
 }

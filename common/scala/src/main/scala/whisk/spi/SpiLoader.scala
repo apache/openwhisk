@@ -18,6 +18,7 @@
 package whisk.spi
 
 import com.typesafe.config.ConfigFactory
+import scala.collection.concurrent.TrieMap
 
 /** Marker trait to mark an Spi */
 trait Spi
@@ -45,4 +46,13 @@ object TypesafeConfigClassResolver extends SpiClassResolver {
     private val config = ConfigFactory.load()
 
     override def getClassNameForType[T : Manifest]: String = config.getString("whisk.spi." + manifest[T].runtimeClass.getSimpleName)
+}
+
+/** Allow for caching of instances returned from Spi that otherwise behave as factories (new instance per invocation) */
+trait SpiInstanceCaching[K, I] {
+    val instances = TrieMap[K, I]()
+
+    def getInstanceOrCreate(key: K, create: => I) = instances.getOrElseUpdate(key, create)
+
+    def removeInstance(key: K) = instances.remove(key)
 }
