@@ -91,13 +91,9 @@ trait LoadBalancer {
 
 }
 
-class LoadBalancerServiceProvider extends LoadBalancerProvider {
+object LoadBalancerServiceProvider extends LoadBalancerProvider {
     override def getLoadBalancers(config: WhiskConfig, instance: InstanceId)
             (implicit logging: Logging, actorSystem: ActorSystem) = List(new LoadBalancerService(config, instance))
-}
-
-object LoadBalancerServiceProvider extends SpiFactory[LoadBalancerProvider]{
-    override def apply(dependencies: Dependencies): LoadBalancerProvider = new LoadBalancerServiceProvider
 }
 
 class LoadBalancerService(

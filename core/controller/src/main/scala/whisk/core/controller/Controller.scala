@@ -110,7 +110,7 @@ class Controller(
     })
 
     // initialize backend services
-    val loadBalancers = SpiLoader.get[LoadBalancerProvider]().getLoadBalancers(whiskConfig, instance)
+    val loadBalancers = SpiLoader.get[LoadBalancerProvider].getLoadBalancers(whiskConfig, instance)
     private implicit val loadBalancerResolver = new SingleLoadBalancerResolver(loadBalancers)
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
