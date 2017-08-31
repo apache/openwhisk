@@ -44,7 +44,7 @@ class CouchDBStoreProviderTests extends FlatSpec
         dbActivations -> "activations_fake"))
 
 
-    val artifactStoreProvider = SpiLoader.get[ArtifactStoreProvider]()
+    val artifactStoreProvider = SpiLoader.get[ArtifactStoreProvider]
     val store1FirstLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
     val store1SecondLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
 
