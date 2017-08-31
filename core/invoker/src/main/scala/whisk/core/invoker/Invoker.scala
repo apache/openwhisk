@@ -96,8 +96,6 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startService(new InvokerServer(invokerInstance, invokerInstance.toInt).route, port)(
-      actorSystem,
-      ActorMaterializer.create(actorSystem))
+    BasicHttpService.startService(new InvokerServer().route, port)(actorSystem, ActorMaterializer.create(actorSystem))
   }
 }
