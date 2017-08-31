@@ -42,7 +42,7 @@ object CacheKey extends DefaultJsonProtocol {
             case e: EntityName => CacheKey(e.asString, None)
             case a: AuthKey    => CacheKey(a.uuid.asString, Some(a.key.asString))
             case d: DocInfo => {
-                val revision = if (d.rev.empty) None else Some(d.rev.toString())
+                val revision = if (d.rev.empty) None else Some(d.rev.asString)
                 CacheKey(d.id.asString, revision)
             }
             case w: WhiskEntity => CacheKey(w.docid.asDocInfo)

@@ -34,7 +34,6 @@ import whisk.core.connector.Message
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessagingProvider
 import whisk.core.entity.CacheKey
-import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskPackage
@@ -80,7 +79,6 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
                     WhiskPackage.removeId(msg.key)
                     WhiskRule.removeId(msg.key)
                     WhiskTrigger.removeId(msg.key)
-                    Identity.removeId(msg.key)
                 }
             }
             case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
