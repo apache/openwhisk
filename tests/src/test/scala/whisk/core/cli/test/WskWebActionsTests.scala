@@ -18,6 +18,7 @@
 package whisk.core.cli.test
 
 import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 import scala.util.Failure
 import scala.util.Try
@@ -247,6 +248,30 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
             response.statusCode shouldBe 200
             response.header("Content-type") shouldBe "application/json"
             response.body.asString.parseJson.asJsObject shouldBe JsObject("status" -> "success".toJson)
+    }
+
+    it should "handle http web action with base64 encoded binary response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "binaryWeb"
+            val file = Some(TestUtils.getTestActionFilename("pngWeb.js"))
+            val host = getServiceURL
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
+            val png = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAA/klEQVQYGWNgAAEHBxaG//+ZQMyyn581Pfas+cRQnf1LfF" +
+                "Ljf+62smUgcUbt0FA2Zh7drf/ffMy9vLn3RurrW9e5hCU11i2azfD4zu1/DHz8TAy/foUxsXBrFzHzC7r8+M9S1vn1qxQT07dDjL" +
+                "9fdemrqKxlYGT6z8AIMo6hgeUfA0PUvy9fGFh5GWK3z7vNxSWt++jX99+8SoyiGQwsW38w8PJEM7x5v5SJ8f+/xv8MDAzffv9hev" +
+                "fkWjiXBGMpMx+j2awovjcMjFztDO8+7GF49LkbZDCDeXLTWnZO7qDfn1/+5jbw/8pjYWS4wZLztXnuEuYTk2M+MzIw/AcA36Vewa" +
+                "D6fzsAAAAASUVORK5CYII="
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("true"))
+            }
+
+            val response = RestAssured.given().config(sslconfig).get(url)
+
+            response.statusCode shouldBe 200
+            response.header("Content-type") shouldBe "image/png"
+            response.body.asByteArray shouldBe Base64.getDecoder().decode(png)
     }
 
     private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
