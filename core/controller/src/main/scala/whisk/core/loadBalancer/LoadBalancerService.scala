@@ -91,7 +91,7 @@ class LoadBalancerService(
 
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
-    logging.info(this, s"blackboxFraction = $blackboxFraction")
+    logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
     private val loadBalancerData = new LoadBalancerData()
 
@@ -230,7 +230,7 @@ class LoadBalancerService(
 
             case Failure(t) =>
                 activationFeed ! MessageFeed.Processed
-                logging.error(this, s"failed processing message: $raw with $t")
+                logging.error(this, s"failed processing message: $raw with $t")(TransactionId.loadbalancer)
         }
     }
 

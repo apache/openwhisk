@@ -23,6 +23,7 @@ import scala.io.Source
 
 import whisk.common.Config
 import whisk.common.Logging
+import whisk.common.TransactionId
 
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
@@ -130,7 +131,7 @@ object WhiskConfig {
      */
     def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File)(implicit logging: Logging) = {
         if (file != null && file.exists) {
-            logging.info(this, s"reading properties from file $file")
+            logging.info(this, s"reading properties from file $file")(TransactionId.unknown)
             for (line <- Source.fromFile(file).getLines if line.trim != "") {
                 val parts = line.split('=')
                 if (parts.length >= 1) {

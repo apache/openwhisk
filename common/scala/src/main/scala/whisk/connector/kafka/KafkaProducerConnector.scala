@@ -37,6 +37,7 @@ import whisk.common.Counter
 import whisk.common.Logging
 import whisk.core.connector.Message
 import whisk.core.connector.MessageProducer
+import whisk.common.TransactionId
 
 class KafkaProducerConnector(
     kafkahost: String,
@@ -72,7 +73,7 @@ class KafkaProducerConnector(
 
     /** Closes producer. */
     override def close() = {
-        logging.info(this, "closing producer")
+        logging.info(this, "closing producer")(TransactionId.unknown)
         producer.close()
     }
 

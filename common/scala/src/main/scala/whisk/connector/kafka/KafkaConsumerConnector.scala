@@ -31,6 +31,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import whisk.common.Logging
 import whisk.core.connector.MessageConsumer
+import whisk.common.TransactionId
 
 class KafkaConsumerConnector(
     kafkahost: String,
@@ -61,7 +62,7 @@ class KafkaConsumerConnector(
     def commit() = consumer.commitSync()
 
     override def close() = {
-        logging.info(this, s"closing '$topic' consumer")
+        logging.info(this, s"closing '$topic' consumer")(TransactionId.unknown)
     }
 
     private def getProps: Properties = {

@@ -252,13 +252,13 @@ trait WhiskActionsApi
                                             complete(InternalServerError, response)
                                         }
                                     case Failure(t: RecordTooLargeException) =>
-                                        logging.info(this, s"[POST] action payload was too large")
+                                        logging.info(this, "[POST] action payload was too large")
                                         terminate(RequestEntityTooLarge)
                                     case Failure(RejectRequest(code, message)) =>
-                                        logging.info(this, s"[POST] action rejected with code $code: $message")
+                                        logging.info(this, "[POST] action rejected with code {}: {}", code, message)
                                         terminate(code, message)
                                     case Failure(t: Throwable) =>
-                                        logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
+                                        logging.error(this, "[POST] action activation failed: {}", t.getMessage)
                                         terminate(InternalServerError)
                                 }
 

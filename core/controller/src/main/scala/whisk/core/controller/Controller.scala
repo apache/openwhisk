@@ -170,7 +170,7 @@ object Controller {
         val instance = args(0).toInt
 
         def abort() = {
-            logger.error(this, "Bad configuration, cannot start.")
+            logger.error(this, "Bad configuration, cannot start.")(TransactionId.controller)
             actorSystem.terminate()
             Await.result(actorSystem.whenTerminated, 30.seconds)
             sys.exit(1)
@@ -186,7 +186,7 @@ object Controller {
                 BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
 
             case Failure(t) =>
-                logger.error(this, s"Invalid runtimes manifest: $t")
+                logger.error(this, s"Invalid runtimes manifest: $t")(TransactionId.controller)
                 abort()
         }
     }
