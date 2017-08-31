@@ -53,6 +53,8 @@ trait WhiskActivationsApi
     with AuthorizedRouteProvider
     with ReadOps {
 
+    private implicit val jsonPrettyPrinter = PrettyPrinter
+
     protected override val collection = Collection(Collection.ACTIVATIONS)
 
     /** Database service to GET activations. */

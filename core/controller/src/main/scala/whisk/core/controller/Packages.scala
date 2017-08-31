@@ -41,6 +41,8 @@ import whisk.http.Messages
 trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
 
+    private implicit val jsonPrettyPrinter = PrettyPrinter
+
     protected override val collection = Collection(Collection.PACKAGES)
 
     /** Database service to CRUD packages. */

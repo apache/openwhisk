@@ -27,6 +27,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.StandardRoute
 
 import spray.json.DeserializationException
+import spray.json._
 
 import whisk.common.TransactionId
 import whisk.core.database.DocumentConflictException
@@ -42,6 +43,8 @@ import whisk.core.entitlement.ReferencedEntities
 /** A trait implementing the rules API */
 trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     services: WhiskServices =>
+
+    private implicit val jsonPrettyPrinter = PrettyPrinter
 
     protected override val collection = Collection(Collection.RULES)
 

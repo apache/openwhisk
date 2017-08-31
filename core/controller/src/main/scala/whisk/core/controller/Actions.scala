@@ -76,6 +76,8 @@ trait WhiskActionsApi
     with ReferencedEntities {
     services: WhiskServices =>
 
+    private implicit val jsonPrettyPrinter = PrettyPrinter
+
     protected override val collection = Collection(Collection.ACTIONS)
 
     /** An actor system for timed based futures. */
