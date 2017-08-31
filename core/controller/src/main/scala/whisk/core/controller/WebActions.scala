@@ -43,6 +43,7 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
 import akka.http.scaladsl.model.HttpCharsets
+import akka.http.scaladsl.model.HttpResponse
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -222,6 +223,8 @@ protected[core] object WhiskWebActionsApi extends Directives {
         case _ => throw new Throwable("Invalid header")
       } getOrElse List()
 
+      val body = fields.get("body")
+
       val code = fields.get(rp.statusCode).map {
         case JsNumber(c) =>
           // the following throws an exception if the code is
@@ -229,22 +232,26 @@ protected[core] object WhiskWebActionsApi extends Directives {
           StatusCode.int2StatusCode(c.toIntExact)
 
         case _ => throw new Throwable("Illegal code")
-      } getOrElse (OK)
-
-      fields.get("body") map {
-        case JsString(str) => interpretHttpResponse(code, headers, str, transid)
-        case js            => interpretHttpResponseAsJson(code, headers, js, transid)
-      } getOrElse {
-        respondWithHeaders(removeContentTypeHeader(headers)) {
-          // note that if header defined a content-type, it will be ignored
-          // since the type must be compatible with the data response
-          complete(code, HttpEntity.Empty)
-        }
       }
+
+      body.collect {
+        case JsString(str) if str.nonEmpty   => interpretHttpResponse(code.getOrElse(OK), headers, str, transid)
+        case JsString(str) /* str.isEmpty */ => respondWithEmptyEntity(code.getOrElse(NoContent), headers)
+        case js if js != JsNull              => interpretHttpResponseAsJson(code.getOrElse(OK), headers, js, transid)
+      } getOrElse respondWithEmptyEntity(code.getOrElse(NoContent), headers)
+
     } getOrElse {
-      // either the result was not a JsObject or there was an exception validting the
+      // either the result was not a JsObject or there was an exception validating the
       // response as an http result
       terminate(BadRequest, Messages.invalidMedia(`message/http`))(transid, jsonPrettyPrinter)
+    }
+  }
+
+  private def respondWithEmptyEntity(code: StatusCode, headers: List[RawHeader]) = {
+    respondWithHeaders(removeContentTypeHeader(headers)) {
+      // note that if header defined a content-type, it will be ignored
+      // since the type must be compatible with the data response
+      complete(HttpResponse(code, entity = HttpEntity.Empty))
     }
   }
 

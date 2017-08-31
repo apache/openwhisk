@@ -205,8 +205,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   private val triggers = new TriggersApi(apiPath, apiVersion)
   private val activations = new ActivationsApi(apiPath, apiVersion)
   private val rules = new RulesApi(apiPath, apiVersion)
-  private val WebApiDirectives = new WebApiDirectives()
-  private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
+  private val web = new WebActionsApi(Seq("web"), new WebApiDirectives())
 
   class NamespacesApi(val apiPath: String, val apiVersion: String)(
     implicit override val entityStore: EntityStore,
