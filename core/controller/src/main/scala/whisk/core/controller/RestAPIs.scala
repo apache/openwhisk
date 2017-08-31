@@ -178,9 +178,9 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
                 // web actions are distinct to separate the cors header
                 // and allow the actions themselves to respond to options
                 basicAuth(validateCredentials) { user =>
-                    web.routes(user) ~ webexp.routes(user)
+                    web.routes(user)
                 } ~ {
-                    web.routes() ~ webexp.routes()
+                    web.routes()
                 } ~ options {
                     sendCorsHeaders {
                         complete(OK)
@@ -197,8 +197,8 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     private val triggers = new TriggersApi(apiPath, apiVersion)
     private val activations = new ActivationsApi(apiPath, apiVersion)
     private val rules = new RulesApi(apiPath, apiVersion)
-    private val webexp = new WebActionsApi(Seq("experimental", "web"), WebApiDirectives.exp)
-    private val web = new WebActionsApi(Seq("web"), WebApiDirectives.web)
+    private val WebApiDirectives = new WebApiDirectives()
+    private val web = new WebActionsApi(Seq("web"), this.WebApiDirectives)
 
     class NamespacesApi(
        val apiPath: String,
