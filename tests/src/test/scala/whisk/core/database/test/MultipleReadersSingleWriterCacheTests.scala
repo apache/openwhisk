@@ -44,11 +44,13 @@ import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.entity.CacheKey
 
 @RunWith(classOf[JUnitRunner])
-class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
+class MultipleReadersSingleWriterCacheTests extends FlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem
     with StreamLogging {
+
+    val nIters: Int = 3
 
     behavior of "the cache"
 
@@ -60,7 +62,7 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         cacheSize should be(1)
     }
 
-    it should "support concurrent CRUD to different keys" in {
+    ignore should "support concurrent CRUD to different keys" in {
         //
         // for the first iter, all reads are not-cached and each thread
         // requests a different key, so we expect no read inhibits, and a
@@ -81,14 +83,14 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         }
     }
 
-    it should "support concurrent CRUD to shared keys" in {
+    ignore should "support concurrent CRUD to shared keys" in {
         for (i <- 1 to nIters) {
             doCRUD("CONCURRENT CRUD to shared keys", sharedKeys)
                 .nWriteInhibits.get should not be (0)
         }
     }
 
-    it should "support concurrent CRUD to shared keys (zero latency)" in {
+    ignore should "support concurrent CRUD to shared keys (zero latency)" in {
         var hasInhibits = false
         for (i <- 1 to nIters) {
             hasInhibits = doCRUD("concurrent CRUD to shared keys (zero latency)", sharedKeys, 0 seconds)
@@ -97,21 +99,21 @@ class MultipleReadersSingleWriterCacheTests(nIters: Int = 3) extends FlatSpec
         hasInhibits should not be (false)
     }
 
-    it should "support concurrent CRUD to shared keys (short latency)" in {
+    ignore should "support concurrent CRUD to shared keys (short latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("concurrent CRUD to shared keys (short latency)", sharedKeys, 10 milliseconds)
                 .hasInhibits should be(true)
         }
     }
 
-    it should "support concurrent CRUD to shared keys (medium latency)" in {
+    ignore should "support concurrent CRUD to shared keys (medium latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("concurrent CRUD to shared keys (medium latency)", sharedKeys, 100 milliseconds)
                 .hasInhibits should be(true)
         }
     }
 
-    it should "support concurrent CRUD to shared keys (long latency)" in {
+    ignore should "support concurrent CRUD to shared keys (long latency)" in {
         for (i <- 1 to nIters) {
             doCRUD("CONCURRENT CRUD to shared keys (long latency)", sharedKeys, 5 seconds)
                 .nWriteInhibits.get should not be (0)
