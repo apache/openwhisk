@@ -43,7 +43,6 @@ import whisk.core.connector.MessageProducer
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ ActivationId, WhiskActivation }
 import whisk.core.entity.InstanceId
-import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
@@ -51,6 +50,7 @@ import scala.annotation.tailrec
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
 import whisk.spi.SpiLoader
+import scala.concurrent.duration.FiniteDuration
 
 trait LoadBalancer {
 
@@ -74,8 +74,7 @@ trait LoadBalancer {
      *         The future is guaranteed to complete within the declared action time limit
      *         plus a grace period (see activeAckTimeoutGrace).
      */
-    def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
-
+    def publish(pull: Boolean, fullyQualifiedName: String, actionTimeoutDuration: FiniteDuration, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 }
 
 class LoadBalancerService(
@@ -99,10 +98,10 @@ class LoadBalancerService(
 
     override def totalActiveActivations = loadBalancerData.totalActivationCount
 
-    override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+    override def publish(pull: Boolean, fullyQualifiedName: String, actionTimeoutDuration: FiniteDuration, msg: ActivationMessage)(
         implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-        chooseInvoker(msg.user, action).flatMap { invokerName =>
-            val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
+        chooseInvoker(msg.user, pull, fullyQualifiedName).flatMap { invokerName =>
+            val entry = setupActivation(actionTimeoutDuration, msg.activationId, msg.user.uuid, invokerName, transid)
             sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
                 entry.promise.future
             }
@@ -139,8 +138,8 @@ class LoadBalancerService(
     /**
      * Creates an activation entry and insert into various maps.
      */
-    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: InstanceId, transid: TransactionId): ActivationEntry = {
-        val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+    private def setupActivation(actionDuration: FiniteDuration, activationId: ActivationId, namespaceId: UUID, invokerName: InstanceId, transid: TransactionId): ActivationEntry = {
+        val timeout = actionDuration + activeAckTimeoutGrace
         // Install a timeout handler for the catastrophic case where an active ack is not received at all
         // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
         // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
@@ -253,11 +252,11 @@ class LoadBalancerService(
     }
 
     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
-        val hash = generateHash(user.namespace, action)
+    private def chooseInvoker(user: Identity, pull: Boolean, fullyQualifiedName: String): Future[InstanceId] = {
+        val hash = generateHash(user.namespace, fullyQualifiedName)
 
         allInvokers.flatMap { invokers =>
-            val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+            val invokersToUse = if (pull) blackboxInvokers(invokers) else managedInvokers(invokers)
             val invokersWithUsage = invokersToUse.view.map {
                 // Using a view defers the comparably expensive lookup to actual access of the element
                 case (instance, state) => (instance, state, loadBalancerData.activationCountOn(instance))
@@ -273,8 +272,8 @@ class LoadBalancerService(
     }
 
     /** Generates a hash based on the string representation of namespace and action */
-    private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
-        (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
+    private def generateHash(namespace: EntityName, fullyQualifiedName: String): Int = {
+        (namespace.asString.hashCode() ^ fullyQualifiedName.hashCode()).abs
     }
 }
 

@@ -93,18 +93,25 @@ protected[actions] trait PrimitiveActions {
      */
     protected[actions] def invokeSingleAction(
         user: Identity,
-        action: ExecutableWhiskAction,
+        rev: DocRevision,
+        parameters: Parameters,
+        namespace: EntityPath,
+        name: EntityName,
+        version: SemVer,
+        pull: Boolean,
+        fullyQualifiedName: String,
+        duration: FiniteDuration,
         payload: Option[JsObject],
         waitForResponse: Option[FiniteDuration],
         cause: Option[ActivationId])(
             implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
         // merge package parameters with action (action parameters supersede), then merge in payload
-        val args = action.parameters merge payload
+        val args = parameters merge payload
         val message = ActivationMessage(
             transid,
-            FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
-            action.rev,
+            FullyQualifiedEntityName(namespace, name, Some(version)),
+            rev,
             user,
             activationIdFactory.make(), // activation id created here
             activationNamespace = user.namespace.toPath,
@@ -114,7 +121,7 @@ protected[actions] trait PrimitiveActions {
 
         val startActivation = transid.started(this, waitForResponse.map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING).getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
         val startLoadbalancer = transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
-        val postedFuture = loadBalancer.publish(action, message)
+        val postedFuture = loadBalancer.publish(pull, fullyQualifiedName, duration, message)
 
         postedFuture.flatMap { activeAckResponse =>
             // successfully posted activation request to the message bus
