@@ -64,8 +64,8 @@ class ApiGwTests
     val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
 
     /**
-     * Expected to be called before each CLI API command since these invoke an action.
-     * As a convenience, assume that each test will not invoke more than 5 actions and
+     * Expected to be called before each test.
+     * Assumes that each test will not invoke more than 5 actions and
      * settle the throttle when there isn't enough capacity to handle the test.
      */
     def checkThrottle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin, expectedActivationsPerTest: Int = 5) = {
@@ -169,13 +169,13 @@ class ApiGwTests
         val badpath = "badpath"
 
         var rr = apiCreate(basepath = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), action = Some("action"), expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
 
         rr = apiDelete(basepathOrApiName = "/basepath", relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
 
         rr = apiList(basepathOrApiName = Some("/basepath"), relpath = Some(badpath), operation = Some("GET"), expectedExitCode = ANY_ERROR_EXIT)
-        rr.stderr should include (s"'${badpath}' must begin with '/'")
+        rr.stderr should include(s"'${badpath}' must begin with '/'")
     }
 
     it should "reject an api commands with an invalid verb parameter" in {
@@ -927,9 +927,9 @@ class ApiGwTests
         } finally {
             // Clean up Apis
             for (i <- 1 to 3) {
-                val deleteApis = apiDelete(basepathOrApiName = s"${baseName}$i", expectedExitCode = DONTCARE_EXIT)
+                apiDelete(basepathOrApiName = s"${baseName}$i", expectedExitCode = DONTCARE_EXIT)
             }
-            val deleteAction = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
+            wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
         }
     }
 }
