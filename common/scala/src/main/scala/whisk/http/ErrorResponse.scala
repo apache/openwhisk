@@ -59,10 +59,12 @@ object Messages {
   val resourceDoesNotExist = "The requested resource does not exist."
 
   /** Standard message for too many activation requests within a rolling time window. */
-  val tooManyRequests = "Too many requests in a given amount of time for namespace."
+  def tooManyRequests(count: Int, allowed: Int) =
+    s"Too many requests in the last minute (count: $count, allowed: $allowed)."
 
   /** Standard message for too many concurrent activation requests within a time window. */
-  val tooManyConcurrentRequests = "Too many concurrent requests in flight for namespace."
+  def tooManyConcurrentRequests(count: Int, allowed: Int) =
+    s"Too many concurrent requests in flight (count: $count, allowed: $allowed)."
 
   /** System overload message. */
   val systemOverloaded = "System is overloaded, try again later."

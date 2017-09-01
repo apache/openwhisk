@@ -23,6 +23,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
 import whisk.core.entity.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A class tracking the rate of invocation (or any operation) by subject (any key really).
@@ -46,15 +47,13 @@ class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPe
    * @param user the identity to check
    * @return true iff subject namespace is below allowed limit
    */
-  def check(user: Identity)(implicit transid: TransactionId): Boolean = {
+  def check(user: Identity)(implicit transid: TransactionId): RateLimit = {
     val uuid = user.uuid // this is namespace identifier
-    val rate = rateMap.getOrElseUpdate(uuid, new RateInfo)
+    val throttle = rateMap.getOrElseUpdate(uuid, new RateInfo)
     val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
-    val belowLimit = rate.check(limit)
-    logging.debug(
-      this,
-      s"namespace = ${uuid.asString} rate = ${rate.count()}, limit = $limit, below limit = $belowLimit")
-    belowLimit
+    val rate = TimedRateLimit(throttle.update(limit), limit)
+    logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count}, limit = $limit")
+    rate
   }
 }
 
@@ -62,10 +61,8 @@ class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPe
  * Tracks the activation rate of one subject at minute-granularity.
  */
 private class RateInfo {
-  var lastMin = getCurrentMinute
-  var lastMinCount = 0
-
-  def count() = lastMinCount
+  @volatile var lastMin = getCurrentMinute
+  val lastMinCount = new AtomicInteger()
 
   /**
    * Increments operation count in the current time window by
@@ -73,18 +70,18 @@ private class RateInfo {
    *
    * @param maxPerMinute the current maximum allowed requests
    *                     per minute (might change over time)
+   * @return current count
    */
-  def check(maxPerMinute: Int): Boolean = {
+  def update(maxPerMinute: Int): Int = {
     roll()
-    lastMinCount = lastMinCount + 1
-    lastMinCount <= maxPerMinute
+    lastMinCount.incrementAndGet()
   }
 
   def roll() = {
     val curMin = getCurrentMinute
     if (curMin != lastMin) {
       lastMin = curMin
-      lastMinCount = 0
+      lastMinCount.set(0)
     }
   }
 

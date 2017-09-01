@@ -129,14 +129,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   protected[core] def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
 
     logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
-
-    checkSystemOverload(ACTIVATE) orElse {
-      checkThrottleOverload(!invokeRateThrottler.check(user), tooManyRequests)
-    } orElse {
-      checkThrottleOverload(!concurrentInvokeThrottler.check(user), tooManyConcurrentRequests)
-    } map {
-      Future.failed(_)
-    } getOrElse Future.successful({})
+    checkSystemOverload(ACTIVATE)
+      .flatMap(_ => checkThrottleOverload(invokeRateThrottler.check(user)))
+      .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user)))
   }
 
   /**
@@ -176,13 +171,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
         logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
-        checkSystemOverload(right) orElse {
-          checkUserThrottle(user, right, resources)
-        } orElse {
-          checkConcurrentUserThrottle(user, right, resources)
-        } map {
-          Future.failed(_)
-        } getOrElse checkPrivilege(user, right, resources)
+        checkSystemOverload(right)
+          .flatMap(_ => checkUserThrottle(user, right, resources))
+          .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
+          .flatMap(_ => checkPrivilege(user, right, resources))
       } else Future.successful(true)
     } else if (right != REJECT) {
       logging.info(
@@ -236,14 +228,14 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * Limits activations if the system is overloaded.
    *
    * @param right the privilege, if ACTIVATE then check quota else return None
-   * @return None if system is not overloaded else a rejection
+   * @return future completing successfully if system is not overloaded else failing with a rejection
    */
-  protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Option[RejectRequest] = {
+  protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Future[Unit] = {
     val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
     if (systemOverload) {
       logging.error(this, "system is overloaded")
-      Some(RejectRequest(TooManyRequests, systemOverloaded))
-    } else None
+      Future.failed(RejectRequest(TooManyRequests, systemOverloaded))
+    } else Future.successful(())
   }
 
   /**
@@ -255,17 +247,17 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @param user the subject identity to check rights for
    * @param right the privilege, if ACTIVATE then check quota else return None
    * @param resource the set of resources must contain at least one resource that can be activated else return None
-   * @return None if subject is not throttled else a rejection
+   * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Option[RejectRequest] = {
-    def userThrottled = {
-      val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-      val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
-      (isInvocation && !invokeRateThrottler.check(user)) || (isTrigger && !triggerRateThrottler.check(user))
-    }
-
-    checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyRequests)
+    implicit transid: TransactionId): Future[Unit] = {
+    if (right == ACTIVATE) {
+      if (resources.exists(_.collection.path == Collection.ACTIONS)) {
+        checkThrottleOverload(invokeRateThrottler.check(user))
+      } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
+        checkThrottleOverload(triggerRateThrottler.check(user))
+      } else Future.successful(())
+    } else Future.successful(())
   }
 
   /**
@@ -277,24 +269,21 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @param user the subject identity to check rights for
    * @param right the privilege, if ACTIVATE then check quota else return None
    * @param resource the set of resources must contain at least one resource that can be activated else return None
-   * @return None if subject is not throttled else a rejection
+   * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkConcurrentUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Option[RejectRequest] = {
-    def userThrottled = {
-      val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-      (isInvocation && !concurrentInvokeThrottler.check(user))
-    }
-
-    checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyConcurrentRequests)
+    implicit transid: TransactionId): Future[Unit] = {
+    if (right == ACTIVATE && resources.exists(_.collection.path == Collection.ACTIONS)) {
+      checkThrottleOverload(concurrentInvokeThrottler.check(user))
+    } else Future.successful(())
   }
 
-  /** Helper. */
-  private def checkThrottleOverload(hasTooMany: Boolean, message: String)(
-    implicit transid: TransactionId): Option[RejectRequest] = {
-    if (hasTooMany) {
-      Some(RejectRequest(TooManyRequests, message))
-    } else None
+  private def checkThrottleOverload(throttle: RateLimit)(implicit transid: TransactionId): Future[Unit] = {
+    if (throttle.ok) {
+      Future.successful(())
+    } else {
+      Future.failed(RejectRequest(TooManyRequests, throttle.errorMsg))
+    }
   }
 }
 
