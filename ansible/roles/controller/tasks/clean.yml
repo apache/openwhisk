@@ -13,17 +13,3 @@
     path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: absent
   become: true
-
-# Remove controller without prefix
-- name: remove controller
-  docker_container:
-    name: controller
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
-    state: absent
-  ignore_errors: True
-
-- name: remove controller log directory
-  file:
-    path: "{{ whisk_logs_dir }}/controller"
-    state: absent
-  become: true
