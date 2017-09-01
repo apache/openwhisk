@@ -44,6 +44,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.ContentType
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -811,6 +812,31 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
+        it should s"handle http web action with base64 encoded binary response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            val png = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAA/klEQVQYGWNgAAEHBxaG//+ZQMyyn581Pfas+cRQnf1LfF" +
+                "Ljf+62smUgcUbt0FA2Zh7drf/ffMy9vLn3RurrW9e5hCU11i2azfD4zu1/DHz8TAy/foUxsXBrFzHzC7r8+M9S1vn1qxQT07dDjL" +
+                "9fdemrqKxlYGT6z8AIMo6hgeUfA0PUvy9fGFh5GWK3z7vNxSWt++jX99+8SoyiGQwsW38w8PJEM7x5v5SJ8f+/xv8MDAzffv9hev" +
+                "fkWjiXBGMpMx+j2awovjcMjFztDO8+7GF49LkbZDCDeXLTWnZO7qDfn1/+5jbw/8pjYWS4wZLztXnuEuYTk2M+MzIw/AcA36Vewa" +
+                "D6fzsAAAAASUVORK5CYII="
+            val expectedEntity = HttpEntity(ContentType(MediaTypes.`image/png`), Base64.getDecoder().decode(png))
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "headers" -> JsObject(`Content-Type`.lowercaseName -> MediaTypes.`image/png`.toString.toJson),
+                            "body" -> png.toJson))
+
+                        m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                            status should be(OK)
+                            response.entity shouldBe expectedEntity
+                        }
+                    }
+                }
+        }
+
         it should s"handle http web action with html/text response (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
@@ -1303,7 +1329,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
                     Get(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
                         status should be(NotAcceptable)
-                        response shouldBe HttpResponse(NotAcceptable, entity = "Resource representation is only available with these types:\ntext/html")
+                        response shouldBe HttpResponse(NotAcceptable, entity = "Resource representation is only available with these types:\ntext/html; charset=UTF-8")
                     }
                 }
         }

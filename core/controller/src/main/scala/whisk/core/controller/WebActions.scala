@@ -17,7 +17,6 @@
 
 package whisk.core.controller
 
-import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 import scala.concurrent.Future
@@ -60,7 +59,7 @@ import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.utils.JsHelpers._
 
-protected[controller] sealed class WebApiDirectives (prefix: String = "__ow_") {
+protected[controller] sealed class WebApiDirectives(prefix: String = "__ow_") {
     // enforce the presence of an extension (e.g., .http) in the URI path
     val enforceExtension = false
 
@@ -285,16 +284,18 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
     private def interpretHttpResponse(code: StatusCode, headers: List[RawHeader], str: String, transid: TransactionId) = {
         findContentTypeInHeader(headers, transid, `text/html`).flatMap { mediaType =>
-            // base64 encoded json response supported for legacy reasons
-            if (mediaType.binary || mediaType == `application/json`) {
-                Try(new String(Base64.getDecoder().decode(str), StandardCharsets.UTF_8)).map((mediaType, _))
-            } else {
-                Success(mediaType, str)
+            val ct = ContentType(mediaType, () => HttpCharsets.`UTF-8`)
+            ct match {
+                case _: ContentType.Binary | ContentType(`application/json`, _) =>
+                    // base64 encoded json response supported for legacy reasons
+                    Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
+
+                case nonbinary: ContentType.NonBinary => Success(HttpEntity(nonbinary, str))
             }
         } match {
-            case Success((mediaType, data: String)) =>
+            case Success(entity) =>
                 respondWithHeaders(removeContentTypeHeader(headers)) {
-                    complete(code, HttpEntity(ContentType(MediaType.customWithFixedCharset(mediaType.mainType, mediaType.subType, HttpCharsets.`UTF-8`)), data))
+                    complete(code, entity)
                 }
 
             case Failure(RejectRequest(code, message)) =>
