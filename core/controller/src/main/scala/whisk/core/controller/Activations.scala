@@ -130,13 +130,7 @@ trait WhiskActivationsApi
                     }
 
                     listEntities {
-                        activations map {
-                            l =>
-                                if (docs) l.right.get map {
-                                    _.toExtendedJson
-                                }
-                                else l.left.get
-                        }
+                        activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
                     }
                 } else {
                     terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))

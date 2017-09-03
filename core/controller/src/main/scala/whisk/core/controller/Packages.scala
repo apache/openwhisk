@@ -166,9 +166,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                         // any subject is entitled to list packages in any namespace
                         // however, they shall only observe public packages if the packages
                         // are not in one of the namespaces the subject is entitled to
-                        val packages = if (docs) {
-                            list.right.get map { WhiskPackage.serdes.write(_) }
-                        } else list.left.get
+                        val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
+
                         FilterEntityList.filter(packages, excludePrivate,
                             additionalFilter = { // additionally exclude bindings
                                 case pkg: JsObject => Try {
@@ -176,7 +175,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
                                 } getOrElse false
                             })
                     }
-
                 }
         }
     }

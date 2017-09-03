@@ -37,7 +37,6 @@ import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
 import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
@@ -105,7 +104,7 @@ trait WhiskNamespacesApi
     private def getAllInNamespace(namespace: EntityPath)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         onComplete(listAllInNamespace(entityStore, namespace, false)) {
             case Success(entities) => {
-                complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)
+                complete(OK, Namespaces.emptyNamespace ++ entities)
             }
             case Failure(t) =>
                 logging.error(this, s"[GET] namespaces failed: ${t.getMessage}")
