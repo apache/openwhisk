@@ -248,9 +248,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) { (skip, limit, count) =>
       listEntities {
         WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
-          val rules = if (docs) {
-            list.right.get map { WhiskRule.serdes.write(_) }
-          } else list.left.get
+          val rules = list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
           FilterEntityList.filter(rules, excludePrivate)
         }
       }

@@ -19,12 +19,16 @@ package whisk.core.entity
 
 import java.time.Instant
 
+import scala.concurrent.Future
 import scala.util.Try
 
+import spray.json._
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
-import spray.json._
+import whisk.common.TransactionId
+import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.StaleParameter
 
 /**
  * A WhiskActivation provides an abstraction of the meta-data
@@ -119,4 +123,28 @@ object WhiskActivation
   // Caching activations doesn't make much sense in the common case as usually,
   // an activation is only asked for once.
   override val cacheEnabled = false
+
+  /**
+   * Queries datastore for activation records which have an entity name matching the
+   * given parameter.
+   *
+   * @return list of records as JSON object if docs parameter is false, as Left
+   *         and a list of the WhiskActivations if including the full record, as Right
+   */
+  def listActivationsMatchingName(db: ArtifactStore[WhiskActivation],
+                                  namespace: EntityPath,
+                                  name: EntityName,
+                                  skip: Int,
+                                  limit: Int,
+                                  docs: Boolean = false,
+                                  since: Option[Instant] = None,
+                                  upto: Option[Instant] = None,
+                                  stale: StaleParameter = StaleParameter.No)(
+    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] = {
+    import WhiskEntityQueries._
+    val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
+    val startKey = List(namespace.addPath(name).asString, since map { _.toEpochMilli } getOrElse 0)
+    val endKey = List(namespace.addPath(name).asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+    query(db, viewname(collectionName), startKey, endKey, skip, limit, reduce = false, stale, convert)
+  }
 }
