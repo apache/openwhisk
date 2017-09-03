@@ -96,7 +96,7 @@ class ViewTests extends FlatSpec
 
     def getEntitiesInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val map = Await.result(listEntitiesInNamespace(entityStore, ns, false), dbOpTimeout)
+        val map = Await.result(listAllInNamespace(entityStore, ns, false), dbOpTimeout)
         val result = map.values.toList flatMap { t => t }
         val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root.toPath == ns }
         map.get(WhiskActivation.collectionName) should be(None)

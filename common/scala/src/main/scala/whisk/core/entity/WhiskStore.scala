@@ -166,7 +166,6 @@ object WhiskEntityQueries {
     val TOP = "\ufff0"
     val WHISKVIEW = "whisks"
     val ALL = "all"
-    val ENTITIES = "entities"
 
     /**
      * Determines the view name for the collection. There are two cases: a view
@@ -180,7 +179,8 @@ object WhiskEntityQueries {
 
     /**
      * Queries the datastore for all entities in a namespace, and converts the list of entities
-     * to a map that collects the entities by their type.
+     * to a map that collects the entities by their type. This method applies to both the main
+     * asset database and the activation records because they both have an "all" view.
      */
     def listAllInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
@@ -189,32 +189,9 @@ object WhiskEntityQueries {
         stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
         implicit val ec = db.executionContext
-        val startKey = List(namespace.toString)
-        val endKey = List(namespace.toString, TOP)
+        val startKey = List(namespace.asString)
+        val endKey = List(namespace.asString, TOP)
         db.query(viewname(ALL), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
-            _ map {
-                row =>
-                    val value = row.fields("value").asJsObject
-                    val JsString(collection) = value.fields("collection")
-                    (collection, JsObject(value.fields.filterNot { _._1 == "collection" }))
-            } groupBy { _._1 } mapValues { _.map(_._2) }
-        }
-    }
-
-    /**
-     * Queries the datastore for all entities without activations in a namespace, and converts the list of entities
-     * to a map that collects the entities by their type.
-     */
-    def listEntitiesInNamespace[A <: WhiskEntity](
-        db: ArtifactStore[A],
-        namespace: EntityPath,
-        includeDocs: Boolean,
-        stale: StaleParameter = StaleParameter.No)(
-            implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
-        implicit val ec = db.executionContext
-        val startKey = List(namespace.toString)
-        val endKey = List(namespace.toString, TOP)
-        db.query(viewname(ENTITIES), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
             _ map {
                 row =>
                     val value = row.fields("value").asJsObject
@@ -251,8 +228,8 @@ object WhiskEntityQueries {
         stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.toString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+        val startKey = List(namespace.asString, since map { _.toEpochMilli } getOrElse 0)
+        val endKey = List(namespace.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
     }
 
@@ -268,8 +245,8 @@ object WhiskEntityQueries {
         stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.addPath(name).toString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.addPath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+        val startKey = List(namespace.addPath(name).asString, since map { _.toEpochMilli } getOrElse 0)
+        val endKey = List(namespace.addPath(name).asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
         query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
     }
 
