@@ -171,11 +171,7 @@ object WhiskEntityQueries {
      * Determines the view name for the collection. There are two cases: a view
      * that is namespace specific, or namespace agnostic..
      */
-    def viewname(collection: String, allNamespaces: Boolean = false): String = {
-        if (!allNamespaces) {
-            s"$WHISKVIEW/$collection"
-        } else s"$WHISKVIEW/$collection-all"
-    }
+    def viewname(collection: String): String = s"$WHISKVIEW/$collection"
 
     /**
      * Queries the datastore for all entities in a namespace, and converts the list of entities
@@ -199,22 +195,6 @@ object WhiskEntityQueries {
                     (collection, JsObject(value.fields.filterNot { _._1 == "collection" }))
             } groupBy { _._1 } mapValues { _.map(_._2) }
         }
-    }
-
-    def listCollectionInAnyNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
-        collection: String,
-        skip: Int,
-        limit: Int,
-        reduce: Boolean,
-        since: Option[Instant] = None,
-        upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No,
-        convert: Option[JsObject => Try[T]])(
-            implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection, true), startKey, endKey, skip, limit, reduce, stale, convert)
     }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
@@ -287,20 +267,6 @@ object WhiskEntityQueries {
 trait WhiskEntityQueries[T] {
     val collectionName: String
     val serdes: RootJsonFormat[T]
-
-    def listCollectionInAnyNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
-        skip: Int,
-        limit: Int,
-        docs: Boolean = false,
-        reduce: Boolean = false,
-        since: Option[Instant] = None,
-        upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No)(
-            implicit transid: TransactionId) = {
-        val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionInAnyNamespace(db, collectionName, skip, limit, reduce, since, upto, stale, convert)
-    }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
         db: ArtifactStore[A],

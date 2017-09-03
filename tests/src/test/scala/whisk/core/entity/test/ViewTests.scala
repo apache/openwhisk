@@ -112,14 +112,6 @@ class ViewTests extends FlatSpec
         expected forall { e => result contains e.summaryAsJson } should be(true)
     }
 
-    def getPublicPackages(implicit entities: Seq[WhiskEntity]) = {
-        implicit val tid = transid()
-        val result = Await.result(listCollectionInAnyNamespace(entityStore, "packages", 0, 0, true, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
-        val expected = entities filter { case (e: WhiskPackage) => e.publish && e.binding.isEmpty case _ => false }
-        result.length should be >= (expected.length)
-        expected forall { e => result contains e.summaryAsJson } should be(true)
-    }
-
     def getKindInNamespaceWithDoc[T](ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean, convert: Option[JsObject => Try[T]])(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
         val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, stale = StaleParameter.No, convert = convert) map { _.right.get }, dbOpTimeout)
@@ -303,24 +295,5 @@ class ViewTests extends FlatSpec
         }, Some {
             case (o: JsObject) => Try { WhiskAction.serdes.read(o) }
         })
-    }
-
-    it should "query whisk for public packages in all namespaces" in {
-        implicit val tid = transid()
-        implicit val entities = Seq(
-            WhiskPackage(namespace1, aname, publish = true),
-            WhiskPackage(namespace1, aname, publish = false),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname)), publish = true),
-            WhiskPackage(namespace1, aname, Some(Binding(namespace2.root, aname))),
-
-            WhiskPackage(namespace2, aname, publish = true),
-            WhiskPackage(namespace2, aname, publish = false),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname)), publish = true),
-            WhiskPackage(namespace2, aname, Some(Binding(namespace1.root, aname))))
-
-        entities foreach { put(entityStore, _) }
-        waitOnView(entityStore, namespace1, entities.length / 2)
-        waitOnView(entityStore, namespace2, entities.length / 2)
-        getPublicPackages(entities)
     }
 }
