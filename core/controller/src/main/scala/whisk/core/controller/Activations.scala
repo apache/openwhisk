@@ -124,7 +124,7 @@ trait WhiskActivationsApi
                 if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
                     val activations = name match {
                         case Some(action) =>
-                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
+                            WhiskActivation.listActivationsMatchingName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                         case None =>
                             WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                     }

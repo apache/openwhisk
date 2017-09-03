@@ -196,41 +196,37 @@ object WhiskEntityQueries {
             } groupBy { _._1 } mapValues { _.map(_._2) }
         }
     }
+}
 
-    def listCollectionInNamespace[A <: WhiskEntity, T](
+trait WhiskEntityQueries[T] {
+    val collectionName: String
+    val serdes: RootJsonFormat[T]
+    import WhiskEntityQueries._
+
+    /**
+     * Queries the datastore for records from a specific collection (i.e., type) matching
+     * the given path (which should be one namespace, or namespace + package name).
+     *
+     * @return list of records as JSON object if docs parameter is false, as Left
+     *         and a list of the records as their type T if including the full record, as Right
+     */
+    def listCollectionInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
-        collection: String,
-        namespace: EntityPath,
+        path: EntityPath,
         skip: Int,
         limit: Int,
+        docs: Boolean = false,
         since: Option[Instant] = None,
         upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No,
-        convert: Option[JsObject => Try[T]])(
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.asString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
+        val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
+        val startKey = List(path.asString, since map { _.toEpochMilli } getOrElse 0)
+        val endKey = List(path.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+        query(db, viewname(collectionName), startKey, endKey, skip, limit, reduce = false, stale, convert)
     }
 
-    def listCollectionByName[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
-        collection: String,
-        namespace: EntityPath,
-        name: EntityName,
-        skip: Int,
-        limit: Int,
-        since: Option[Instant] = None,
-        upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No,
-        convert: Option[JsObject => Try[T]])(
-            implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
-        val startKey = List(namespace.addPath(name).asString, since map { _.toEpochMilli } getOrElse 0)
-        val endKey = List(namespace.addPath(name).asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
-    }
-
-    private def query[A <: WhiskEntity, T](
+    protected[entity] def query[A <: WhiskEntity](
         db: ArtifactStore[A],
         view: String,
         startKey: List[Any],
@@ -243,13 +239,12 @@ object WhiskEntityQueries {
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
         implicit val ec = db.executionContext
         val includeDocs = convert.isDefined
-        db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map {
-            rows =>
-                convert map { fn =>
-                    Right(rows flatMap { row => fn(row.fields("doc").asJsObject) toOption })
-                } getOrElse {
-                    Left(rows flatMap { normalizeRow(_, reduce) toOption })
-                }
+        db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map { rows =>
+            convert map { fn =>
+                Right(rows flatMap { row => fn(row.fields("doc").asJsObject) toOption })
+            } getOrElse {
+                Left(rows flatMap { normalizeRow(_, reduce) toOption })
+            }
         }
     }
 
@@ -261,39 +256,5 @@ object WhiskEntityQueries {
         if (!reduce) {
             row.fields("value").asJsObject
         } else row
-    }
-}
-
-trait WhiskEntityQueries[T] {
-    val collectionName: String
-    val serdes: RootJsonFormat[T]
-
-    def listCollectionInNamespace[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
-        namespace: EntityPath,
-        skip: Int,
-        limit: Int,
-        docs: Boolean = false,
-        since: Option[Instant] = None,
-        upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No)(
-            implicit transid: TransactionId) = {
-        val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionInNamespace(db, collectionName, namespace, skip, limit, since, upto, stale, convert)
-    }
-
-    def listCollectionByName[A <: WhiskEntity, T](
-        db: ArtifactStore[A],
-        namespace: EntityPath,
-        name: EntityName,
-        skip: Int,
-        limit: Int,
-        docs: Boolean = false,
-        since: Option[Instant] = None,
-        upto: Option[Instant] = None,
-        stale: StaleParameter = StaleParameter.No)(
-            implicit transid: TransactionId) = {
-        val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionByName(db, collectionName, namespace, name, skip, limit, since, upto, stale, convert)
     }
 }
