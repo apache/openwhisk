@@ -57,6 +57,7 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
         // Try to login with each specific namespace
         namespaces.foreach { ns =>
             println(s"Trying to login to $ns")
+            waitOnView(authStore, ns.authkey, 1) // wait for the view to be updated
             val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
             val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
             user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
