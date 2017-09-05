@@ -90,6 +90,7 @@ case class WhiskActivation(
         }
     }
 
+    def withoutLogsOrResult = copy(response = response.withoutResult, logs = ActivationLogs()).revision[WhiskActivation](rev)
     def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
     def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
 }

@@ -119,18 +119,19 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     }
 
     /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activationResult: WhiskActivation, controllerInstance: InstanceId) => {
+    val ack = (tid: TransactionId, activationResult: WhiskActivation, blockingInvoke: Boolean, controllerInstance: InstanceId) => {
         implicit val transid = tid
 
         def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
             val msg = CompletionMessage(transid, res, instance)
+
             producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
                 case Success(_) =>
                     logging.info(this, s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
             }
         }
 
-        send(Right(activationResult)).recoverWith {
+        send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
             case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
                 send(Left(activationResult.activationId), recovery = true)
         }
@@ -220,7 +221,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                             })
 
                         activationFeed ! MessageFeed.Processed
-                        ack(msg.transid, activation, msg.rootControllerIndex)
+                        ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex)
                         store(msg.transid, activation)
                         Future.successful(())
                 }

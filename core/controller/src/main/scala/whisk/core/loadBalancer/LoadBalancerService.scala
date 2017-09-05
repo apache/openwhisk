@@ -95,7 +95,7 @@ class LoadBalancerService(
 
     /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
     private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
-    logging.info(this, s"blackboxFraction = $blackboxFraction")
+    logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
     private val loadBalancerData = new LoadBalancerData()
 

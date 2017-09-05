@@ -55,6 +55,7 @@ case class ActivationMessage(
     activationId: ActivationId,
     activationNamespace: EntityPath,
     rootControllerIndex: InstanceId,
+    blocking: Boolean,
     content: Option[JsObject],
     cause: Option[ActivationId] = None)
     extends Message {
@@ -82,7 +83,7 @@ object ActivationMessage extends DefaultJsonProtocol {
     def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
     private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat9(ActivationMessage.apply)
+    implicit val serdes = jsonFormat10(ActivationMessage.apply)
 }
 
 /**

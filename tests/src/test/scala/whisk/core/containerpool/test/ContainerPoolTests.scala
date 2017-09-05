@@ -78,7 +78,8 @@ class ContainerPoolTests extends TestKit(ActorSystem("ContainerPool"))
             ActivationId(),
             invocationNamespace.toPath,
             InstanceId(0),
-            None)
+            blocking = false,
+            content = None)
         Run(action, message)
     }
 

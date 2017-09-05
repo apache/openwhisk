@@ -308,6 +308,7 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
                 activationId = new ActivationIdGenerator {}.make(),
                 activationNamespace = action.namespace,
                 rootControllerIndex = controllerInstance,
+                blocking = false,
                 content = None)
 
             context.parent ! ActivationRequest(activationMessage, invokerInstance)
