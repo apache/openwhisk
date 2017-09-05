@@ -50,6 +50,8 @@ docker-machine create -d virtualbox \
    --virtualbox-boot2docker-url=https://github.com/boot2docker/boot2docker/releases/download/v1.12.0/boot2docker.iso \
     whisk # the name of your docker machine
 ```
+Note that by default the third octet chosen by docker-machine will be 99. If you've multiple docker machines
+and want to ensure that the ip of the created whisk vm isn't dependent of the machine start order then provide `--virtualbox-hostonly-cidr "192.168.<third_octet>.1/24"` in order to create a dedicated virtual network interface.
 
 The Docker virtual machine requires some tweaking to work from the Mac host with OpenWhisk.
 The following [script](./tweak-dockermachine.sh) will disable TLS, add port forwarding
