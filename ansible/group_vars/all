@@ -199,7 +199,7 @@ docker:
   # docker commands on a machine setup with prereq_build.yml
   #user:
   image:
-    prefix: "{{ docker_image_prefix | default('whisk') }}"
+    prefix: "{{ docker_image_prefix | default('openwhisk') }}"
     tag: "{{ docker_image_tag | default('latest') }}"
   version: 1.12.0-0~trusty
   storagedriver: overlay
