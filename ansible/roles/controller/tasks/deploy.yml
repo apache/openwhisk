@@ -14,7 +14,7 @@
     path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
-  become: true
+  become: logs.dir.become
 
 - name: (re)start controller
   docker_container:

@@ -21,7 +21,7 @@
         echo "Handled $TOTAL remaining actions."
   register: runc_output
   ignore_errors: True
-  become: True
+  become: invoker.docker.become
 
 - debug: msg="{{ runc_output.stdout }}"
 
@@ -37,4 +37,4 @@
   file:
     path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: absent
-  become: true
+  become: logs.dir.become

@@ -5,4 +5,4 @@
   file:
     path: "{{ nginx.confdir }}/blackbox-0.1.0.tar.gz"
     state: absent
-  become: true
+  become: sdk.dir.become
