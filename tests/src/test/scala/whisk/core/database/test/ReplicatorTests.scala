@@ -104,7 +104,8 @@ class ReplicatorTests extends FlatSpec
 
     /** Wait for a replication to finish */
     def waitForReplication(dbName: String) = {
-        waitfor(() => {
+        val timeout = 5.minutes
+        val replicationResult = waitfor(() => {
             val replicatorDoc = replicatorClient.getDoc(dbName).futureValue
             replicatorDoc shouldBe 'right
 
@@ -112,7 +113,9 @@ class ReplicatorTests extends FlatSpec
             println(s"Waiting for replication, state: $state")
 
             state.contains("completed".toJson)
-        }, totalWait = 2.minutes)
+        }, totalWait = timeout)
+
+        assert(replicationResult, s"replication did not finish in $timeout")
     }
 
     /** Compares to databases to full equality */
