@@ -92,17 +92,12 @@ runtimesManifest:
   blackboxes:
     - name: "dockerskeleton"
 
-defaultLimits:
-  actions:
-    invokes:
-      perMinute: 120
-      concurrent: 100
-      concurrentInSystem: 5000
-    sequence:
-      maxLength: 50
-  triggers:
-    fires:
-      perMinute: 60
+limits:
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
+  concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
+  concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
+  firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
+  sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
 # port means outer port
 controller:
@@ -146,11 +141,9 @@ invoker:
   numcore: 2
   coreshare: 2
   busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
-  serializeDockerOp: true
-  serializeDockerPull: true
-  useRunc: false
-  useReactivePool: "{{ invoker_use_reactive_pool | default(true) }}"
   instances: "{{ groups['invokers'] | length }}"
+  # Specify if it is allowed to deploy more than 1 invoker on a single machine.
+  allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"

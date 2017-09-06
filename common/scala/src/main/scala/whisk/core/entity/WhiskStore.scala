@@ -18,6 +18,11 @@
 package whisk.core.entity
 
 import java.time.Instant
+
+import scala.concurrent.Future
+import scala.language.postfixOps
+import scala.util.Try
+
 import akka.actor.ActorSystem
 import spray.json.JsObject
 import spray.json.JsString
@@ -38,9 +43,7 @@ import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
 import whisk.core.database.DocumentSerializer
-import scala.concurrent.Future
-import scala.language.postfixOps
-import scala.util.Try
+import whisk.core.database.StaleParameter
 import whisk.spi.SpiLoader
 
 package object types {
@@ -95,7 +98,7 @@ object WhiskAuthStore {
             dbAuths -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskAuth](config, _.dbAuths)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
 }
 
 object WhiskEntityStore {
@@ -109,7 +112,7 @@ object WhiskEntityStore {
             dbWhisk -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
 
 }
 
@@ -124,9 +127,8 @@ object WhiskActivationStore {
             dbActivations -> null)
 
     def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-        SpiLoader.get[ArtifactStoreProvider]().makeStore[WhiskActivation](config, _.dbActivations)
+        SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations)
 }
-
 
 /**
  * This object provides some utilities that query the whisk datastore.
@@ -183,12 +185,13 @@ object WhiskEntityQueries {
     def listAllInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
         namespace: EntityPath,
-        includeDocs: Boolean)(
+        includeDocs: Boolean,
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
         implicit val ec = db.executionContext
         val startKey = List(namespace.toString)
         val endKey = List(namespace.toString, TOP)
-        db.query(viewname(ALL), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false) map {
+        db.query(viewname(ALL), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
             _ map {
                 row =>
                     val value = row.fields("value").asJsObject
@@ -205,12 +208,13 @@ object WhiskEntityQueries {
     def listEntitiesInNamespace[A <: WhiskEntity](
         db: ArtifactStore[A],
         namespace: EntityPath,
-        includeDocs: Boolean)(
+        includeDocs: Boolean,
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
         implicit val ec = db.executionContext
         val startKey = List(namespace.toString)
         val endKey = List(namespace.toString, TOP)
-        db.query(viewname(ENTITIES), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false) map {
+        db.query(viewname(ENTITIES), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
             _ map {
                 row =>
                     val value = row.fields("value").asJsObject
@@ -228,11 +232,12 @@ object WhiskEntityQueries {
         reduce: Boolean,
         since: Option[Instant] = None,
         upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
         val startKey = List(since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection, true), startKey, endKey, skip, limit, reduce, convert)
+        query(db, viewname(collection, true), startKey, endKey, skip, limit, reduce, stale, convert)
     }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
@@ -243,11 +248,12 @@ object WhiskEntityQueries {
         limit: Int,
         since: Option[Instant] = None,
         upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
         val startKey = List(namespace.toString, since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(namespace.toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
+        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
     }
 
     def listCollectionByName[A <: WhiskEntity, T](
@@ -259,11 +265,12 @@ object WhiskEntityQueries {
         limit: Int,
         since: Option[Instant] = None,
         upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
         val startKey = List(namespace.addPath(name).toString, since map { _.toEpochMilli } getOrElse 0)
         val endKey = List(namespace.addPath(name).toString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, convert)
+        query(db, viewname(collection), startKey, endKey, skip, limit, reduce = false, stale, convert)
     }
 
     private def query[A <: WhiskEntity, T](
@@ -274,11 +281,12 @@ object WhiskEntityQueries {
         skip: Int,
         limit: Int,
         reduce: Boolean,
+        stale: StaleParameter = StaleParameter.No,
         convert: Option[JsObject => Try[T]])(
             implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
         implicit val ec = db.executionContext
         val includeDocs = convert.isDefined
-        db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce) map {
+        db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map {
             rows =>
                 convert map { fn =>
                     Right(rows flatMap { row => fn(row.fields("doc").asJsObject) toOption })
@@ -310,10 +318,11 @@ trait WhiskEntityQueries[T] {
         docs: Boolean = false,
         reduce: Boolean = false,
         since: Option[Instant] = None,
-        upto: Option[Instant] = None)(
+        upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId) = {
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionInAnyNamespace(db, collectionName, skip, limit, reduce, since, upto, convert)
+        WhiskEntityQueries.listCollectionInAnyNamespace(db, collectionName, skip, limit, reduce, since, upto, stale, convert)
     }
 
     def listCollectionInNamespace[A <: WhiskEntity, T](
@@ -323,10 +332,11 @@ trait WhiskEntityQueries[T] {
         limit: Int,
         docs: Boolean = false,
         since: Option[Instant] = None,
-        upto: Option[Instant] = None)(
+        upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId) = {
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionInNamespace(db, collectionName, namespace, skip, limit, since, upto, convert)
+        WhiskEntityQueries.listCollectionInNamespace(db, collectionName, namespace, skip, limit, since, upto, stale, convert)
     }
 
     def listCollectionByName[A <: WhiskEntity, T](
@@ -337,9 +347,10 @@ trait WhiskEntityQueries[T] {
         limit: Int,
         docs: Boolean = false,
         since: Option[Instant] = None,
-        upto: Option[Instant] = None)(
+        upto: Option[Instant] = None,
+        stale: StaleParameter = StaleParameter.No)(
             implicit transid: TransactionId) = {
         val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
-        WhiskEntityQueries.listCollectionByName(db, collectionName, namespace, name, skip, limit, since, upto, convert)
+        WhiskEntityQueries.listCollectionByName(db, collectionName, namespace, name, skip, limit, since, upto, stale, convert)
     }
 }

@@ -46,6 +46,7 @@ protected[core] case class ActivationResponse private (
     def isApplicationError = statusCode == ActivationResponse.ApplicationError
     def isContainerError = statusCode == ActivationResponse.ContainerError
     def isWhiskError = statusCode == ActivationResponse.WhiskError
+    def withoutResult = ActivationResponse(statusCode, None)
 
     override def toString = toJsonObject.compactPrint
 }

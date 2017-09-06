@@ -19,15 +19,14 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 import akka.actor._
 import akka.actor.ActorSystem
-import akka.japi.Creator
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.server.Route
+import akka.stream.ActorMaterializer
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
@@ -36,6 +35,8 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.database.RemoteCacheInvalidation
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -73,9 +74,10 @@ import scala.util.{Failure, Success}
  */
 class Controller(
     override val instance: InstanceId,
-    override val port: Int,
     runtimes: Runtimes,
     implicit val whiskConfig: WhiskConfig,
+    implicit val actorSystem: ActorSystem,
+    implicit val materializer: ActorMaterializer,
     implicit val logging: Logging)
     extends BasicRasService {
 
@@ -84,11 +86,11 @@ class Controller(
     TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
 
     /**
-      * A Route in Akka is technically a function taking a RequestContext as a parameter.
-      *
-      * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
-      * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
-      */
+     * A Route in Akka is technically a function taking a RequestContext as a parameter.
+     *
+     * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+     * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
+     */
     override def routes(implicit transid: TransactionId): Route = {
         super.routes ~ {
             (pathEndOrSingleSlash & get) {
@@ -101,9 +103,13 @@ class Controller(
     private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
     private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
     private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+    private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
+        val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+        override def apply(k: CacheKey) = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
+    })
 
     // initialize backend services
-    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider]().getLoadBalancer(whiskConfig, instance)
+    private implicit val loadBalancer = SpiLoader.get[LoadBalancerProvider].getLoadBalancer(whiskConfig, instance)
     private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
     private implicit val activationIdFactory = new ActivationIdGenerator {}
 
@@ -121,6 +127,8 @@ class Controller(
      * @return JSON of invoker health
      */
     private val internalInvokerHealth = {
+        implicit val executionContext = actorSystem.dispatcher
+
         (path("invokers") & get) {
             complete {
                 loadBalancer.healthStatus
@@ -146,8 +154,6 @@ object Controller {
         LoadBalancerService.requiredProperties ++
         EntitlementProvider.requiredProperties
 
-    def optionalProperties = EntitlementProvider.optionalProperties
-
     private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) = JsObject(
         "description" -> "OpenWhisk".toJson,
         "support" -> JsObject(
@@ -160,18 +166,12 @@ object Controller {
             "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
         "runtimes" -> runtimes.toJson)
 
-    // akka-style factory to create a Controller object
-    private class ServiceBuilder(config: WhiskConfig, instance: InstanceId, logging: Logging, port: Int) extends Creator[Controller] {
-        // this method is not reached unless ExecManifest was initialized successfully
-        def create = new Controller(instance, port, ExecManifest.runtimesManifest, config, logging)
-    }
-
     def main(args: Array[String]): Unit = {
         implicit val actorSystem = ActorSystem("controller-actor-system")
         implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
         // extract configuration data from the environment
-        val config = new WhiskConfig(requiredProperties, optionalProperties)
+        val config = new WhiskConfig(requiredProperties)
         val port = config.servicePort.toInt
 
         // if deploying multiple instances (scale out), must pass the instance number as the
@@ -191,7 +191,8 @@ object Controller {
 
         ExecManifest.initialize(config) match {
             case Success(_) =>
-                BasicHttpService.startService(actorSystem, "controller", "0.0.0.0", new ServiceBuilder(config, InstanceId(instance), logger, port))
+                val controller = new Controller(InstanceId(instance), ExecManifest.runtimesManifest, config, actorSystem, ActorMaterializer.create(actorSystem), logger)
+                BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
 
             case Failure(t) =>
                 logger.error(this, s"Invalid runtimes manifest: $t")

@@ -26,6 +26,7 @@ import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.TOO_LARGE
@@ -133,7 +134,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
                 val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
 
-                def checkResponse(activation: CliActivation) = {
+                def checkResponse(activation: ActivationResult) = {
                     val response = activation.response
                     response.success shouldBe false
                     response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ContainerError)
@@ -150,7 +151,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
                 val code = if (blocking) TestUtils.APP_ERROR else TestUtils.SUCCESS_EXIT
                 val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
                 if (blocking) {
-                    checkResponse(wsk.parseJsonString(rr.stderr).convertTo[CliActivation])
+                    checkResponse(wsk.parseJsonString(rr.stderr).convertTo[ActivationResult])
                 } else {
                     withActivation(wsk.activation, rr, totalWait = 120 seconds) { checkResponse(_) }
                 }

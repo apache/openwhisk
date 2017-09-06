@@ -37,6 +37,7 @@ import spray.json.JsObject
 import whisk.core.WhiskConfig
 import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.database.ArtifactStore
+import whisk.core.database.StaleParameter
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 import whisk.core.entity.WhiskEntityQueries._
@@ -87,7 +88,7 @@ class ViewTests extends FlatSpec
 
     def getAllInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listAllInNamespace(store, ns, false), dbOpTimeout).values.toList.flatten
+        val result = Await.result(listAllInNamespace(store, ns, false, StaleParameter.No), dbOpTimeout).values.toList.flatten
         val expected = entities filter { _.namespace.root.toPath == ns }
         result.length should be(expected.length)
         result should contain theSameElementsAs expected.map(_.summaryAsJson)
@@ -105,7 +106,7 @@ class ViewTests extends FlatSpec
 
     def getKindInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(store, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(store, kind, ns, 0, 0, stale = StaleParameter.No, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -121,7 +122,7 @@ class ViewTests extends FlatSpec
 
     def getKindInNamespaceWithDoc[T](ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean, convert: Option[JsObject => Try[T]])(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, convert = convert) map { _.right.get }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, stale = StaleParameter.No, convert = convert) map { _.right.get }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e } should be(true)
@@ -129,7 +130,7 @@ class ViewTests extends FlatSpec
 
     def getKindInNamespaceByName[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath, kind: String, name: EntityName, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionByName(store, kind, ns, name, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionByName(store, kind, ns, name, 0, 0, stale = StaleParameter.No, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -137,7 +138,7 @@ class ViewTests extends FlatSpec
 
     def getKindInPackage(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionInNamespace(entityStore, kind, ns, 0, 0, stale = StaleParameter.No, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace == ns }
         result.length should be(expected.length)
         expected forall { e => result contains e.summaryAsJson } should be(true)
@@ -147,7 +148,7 @@ class ViewTests extends FlatSpec
         store: ArtifactStore[Au], ns: EntityPath, kind: String, name: EntityName, skip: Int, count: Int, start: Option[Instant], end: Option[Instant], f: (WhiskEntity) => Boolean)(
             implicit entities: Seq[WhiskEntity]) = {
         implicit val tid = transid()
-        val result = Await.result(listCollectionByName(store, kind, ns, name, skip, count, start, end, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
+        val result = Await.result(listCollectionByName(store, kind, ns, name, skip, count, start, end, StaleParameter.No, convert = None) map { _.left.get map { e => e } }, dbOpTimeout)
         val expected = entities filter { e => f(e) && e.namespace.root.toPath == ns } sortBy { case (e: WhiskActivation) => e.start.toEpochMilli; case _ => 0 } map { _.summaryAsJson }
         result.length should be(expected.length)
         result should be(expected reverse)

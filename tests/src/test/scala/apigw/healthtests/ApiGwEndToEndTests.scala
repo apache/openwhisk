@@ -97,11 +97,10 @@ class ApiGwEndToEndTests
                 action = Some(actionName),
                 apiname = Some(testapiname),
                 responsetype = Some("http"),
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
             rr.stdout should include("ok: created API")
             val apiurl = rr.stdout.split("\n")(1)
-            println(s"apiurl: '${apiurl}'")
+            println(s"apiurl: '$apiurl'")
 
             // Validate the API was successfully created
             // List result will look like:
@@ -112,17 +111,15 @@ class ApiGwEndToEndTests
                 basepathOrApiName = Some(testbasepath),
                 relpath = Some(testrelpath),
                 operation = Some(testurlop),
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
             rr.stdout should include("ok: APIs")
-            rr.stdout should include regex (s"${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
+            rr.stdout should include regex (s"$actionName\\s+$testurlop\\s+$testapiname\\s+")
             rr.stdout should include(testbasepath + testrelpath)
 
             // Recreate the API using a JSON swagger file
             rr = wsk.api.get(
                 basepathOrApiName = Some(testbasepath),
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
             val swaggerfile = File.createTempFile("api", ".json")
             swaggerfile.deleteOnExit()
             val bw = new BufferedWriter(new FileWriter(swaggerfile))
@@ -133,14 +130,12 @@ class ApiGwEndToEndTests
             val deleteApiResult = wsk.api.delete(
                 basepathOrApiName = testbasepath,
                 expectedExitCode = DONTCARE_EXIT,
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
 
             // Create the API again, but use the swagger file this time
             rr = wsk.api.create(
                 swagger = Some(swaggerfile.getAbsolutePath()),
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
             rr.stdout should include("ok: created API")
             val swaggerapiurl = rr.stdout.split("\n")(1)
             println(s"Returned api url: '${swaggerapiurl}'")
@@ -169,8 +164,7 @@ class ApiGwEndToEndTests
             val finallydeleteApiResult = wsk.api.delete(
                 basepathOrApiName = testbasepath,
                 expectedExitCode = DONTCARE_EXIT,
-                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath())
-            )
+                cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
         }
     }
 }

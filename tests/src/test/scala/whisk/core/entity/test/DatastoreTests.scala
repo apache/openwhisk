@@ -32,6 +32,7 @@ import common.StreamLogging
 import common.WskActorSystem
 import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
+import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
@@ -49,6 +50,8 @@ class DatastoreTests extends FlatSpec
     val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
     val datastore = WhiskEntityStore.datastore(config)
     val authstore = WhiskAuthStore.datastore(config)
+
+    implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
 
     override def afterAll() {
         println("Shutting down store connections")

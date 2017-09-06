@@ -24,13 +24,14 @@
         - subjects
       when: "'db' not in exclude_logs_from"
 
-- hosts: shared,core,invokers
+- hosts: all:!ansible
+  serial: 1
   tasks:
   - name: get all docker containers
-    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
+    local_action: shell docker --host tcp://{{ ansible_host }}:{{ docker.port }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
     register: container_names
   - name: get logs from all containers
-    local_action: shell docker --host tcp://{{inventory_hostname}}:{{docker.port}} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
+    local_action: shell docker --host tcp://{{ ansible_host }}:{{ docker.port }} logs {{ item }} > "{{ openwhisk_home }}/logs/{{ item }}.log"; exit 0
     with_items: "{{ container_names.stdout_lines | difference('whisk_docker_registry') }}"
     when: "'docker' not in exclude_logs_from"
   - name: workaround to make synchronize work

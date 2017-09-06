@@ -43,7 +43,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.container.Interval
 import whisk.core.containerpool._
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.RuntimeManifest
@@ -80,7 +79,8 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
         ActivationId(),
         invocationNamespace.toPath,
         InstanceId(0),
-        None)
+        blocking = false,
+        content = None)
 
     /*
      * Helpers for assertions and actor lifecycles
@@ -130,7 +130,7 @@ class ContainerProxyTests extends TestKit(ActorSystem("ContainerProxys"))
     }
 
     /** Creates an inspectable version of the ack method, which records all calls in a buffer */
-    def createAcker = LoggedFunction { (_: TransactionId, _: WhiskActivation, _: InstanceId) => Future.successful(()) }
+    def createAcker = LoggedFunction { (_: TransactionId, _: WhiskActivation, _: Boolean, _: InstanceId) => Future.successful(()) }
 
     /** Creates an inspectable factory */
     def createFactory(response: Future[Container]) = LoggedFunction {

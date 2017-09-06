@@ -44,6 +44,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.ContentType
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -79,30 +80,9 @@ import whisk.http.Messages
  */
 
 @RunWith(classOf[JUnitRunner])
-class WebActionsApiTestsV1 extends FlatSpec with Matchers with WebActionsApiTests {
-    override lazy val webInvokePathSegments = Seq("experimental", "web")
-    override lazy val webApiDirectives = WebApiDirectives.exp
-
-    "properties" should "match verion" in {
-        webApiDirectives.method shouldBe "__ow_meta_verb"
-        webApiDirectives.headers shouldBe "__ow_meta_headers"
-        webApiDirectives.path shouldBe "__ow_meta_path"
-        webApiDirectives.namespace shouldBe "__ow_meta_namespace"
-        webApiDirectives.query shouldBe "__ow_meta_query"
-        webApiDirectives.body shouldBe "__ow_meta_body"
-        webApiDirectives.statusCode shouldBe "code"
-        webApiDirectives.enforceExtension shouldBe true
-        webApiDirectives.reservedProperties shouldBe {
-            Set("__ow_meta_verb", "__ow_meta_headers", "__ow_meta_path", "__ow_meta_namespace",
-                "__ow_meta_query", "__ow_meta_body")
-        }
-    }
-}
-
-@RunWith(classOf[JUnitRunner])
-class WebActionsApiTestsV2 extends FlatSpec with Matchers with WebActionsApiTests {
+class WebActionsApiPropertiesTests extends FlatSpec with Matchers with WebActionsApiTests {
     override lazy val webInvokePathSegments = Seq("web")
-    override lazy val webApiDirectives = WebApiDirectives.web
+    override lazy val webApiDirectives = new WebApiDirectives()
 
     "properties" should "match verion" in {
         webApiDirectives.method shouldBe "__ow_method"
@@ -157,12 +137,12 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
     behavior of "Web actions API"
 
-    var failActionLookup = false                        // toggle to cause action lookup to fail
-    var failActivation = 0                              // toggle to cause action to fail
-    var failThrottleForSubject: Option[Subject] = None  // toggle to cause throttle to fail for subject
+    var failActionLookup = false // toggle to cause action lookup to fail
+    var failActivation = 0 // toggle to cause action to fail
+    var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
     var actionResult: Option[JsObject] = None
-    var requireAuthentication = false                   // toggle require-whisk-auth annotation on action
-    var customOptions = true                            // toogle web-custom-options annotation on action
+    var requireAuthentication = false // toggle require-whisk-auth annotation on action
+    var customOptions = true // toogle web-custom-options annotation on action
     var invocationCount = 0
     var invocationsAllowed = 0
 
@@ -362,24 +342,6 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                     }
                 }
         }
-
-        /*
-         * All of the verbs supported by Spray have been added to Web Actions, so comment this test out
-         * as it is no longer valid.
-         *
-         it should s"reject unsupported http verbs (auth? ${creds.isDefined})" in {
-            implicit val tid = transid()
-
-            Seq((???, MethodNotAllowed)).
-                foreach {
-                    case (m, code) =>
-                        m(s"$testRoutePath/$systemId/proxy/export_c.json") ~> Route.seal(routes(creds)) ~> check {
-                            status should be(code)
-                        }
-                }
-         }
-         *
-         */
 
         it should s"reject requests when identity, package or action lookup fail or missing annotation (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
@@ -623,6 +585,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                         m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                             status should be(NotFound)
                             confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
+                            // ensure that error message is pretty printed as { error, code }
+                            responseAs[String].lines should have size 4
                         }
                     }
                 }
@@ -688,6 +652,13 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                             status should be(OK)
                             val response = responseAs[JsObject]
                             response shouldBe actionResult.get
+
+                            // ensure response is pretty printed
+                            responseAs[String] shouldBe {
+                                """{
+                                  |  "foobar": "foobar"
+                                  |}""".stripMargin
+                            }
                         }
                     }
                 }
@@ -771,7 +742,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 }
         }
 
-        it should s"handle http web action with base64 encoded response (auth? ${creds.isDefined})" in {
+        it should s"handle http web action with base64 encoded JSON response (auth? ${creds.isDefined})" in {
             implicit val tid = transid()
 
             Seq(s"$systemId/proxy/export_c.http").
@@ -788,8 +759,79 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
                         m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                             status should be(OK)
-                            header("content-type").get.toString shouldBe "content-type: application/json"
                             responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                        }
+                    }
+                }
+        }
+
+        it should s"handle http web action without base64 encoded JSON response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+
+            Seq((JsObject("content-type" -> "application/json".toJson), OK),
+                (JsObject(), OK),
+                (JsObject("content-type" -> "text/html".toJson), BadRequest)).foreach {
+                    case (headers, expectedCode) =>
+                        Seq(s"$systemId/proxy/export_c.http").
+                            foreach { path =>
+                                allowedMethods.foreach { m =>
+                                    invocationsAllowed += 1
+                                    actionResult = Some(JsObject(
+                                        "headers" -> headers,
+                                        webApiDirectives.statusCode -> OK.intValue.toJson,
+                                        "body" -> JsObject("field" -> "value".toJson)))
+
+                                    m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                                        status should be(expectedCode)
+
+                                        if (expectedCode == OK) {
+                                            header("content-type").map(_.toString shouldBe "content-type: application/json")
+                                            responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+                                        } else {
+                                            confirmErrorWithTid(responseAs[JsObject], Some(Messages.httpContentTypeError))
+                                        }
+                                    }
+                                }
+                            }
+                }
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            webApiDirectives.statusCode -> OK.intValue.toJson,
+                            "body" -> JsNumber(3)))
+
+                        m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                            status should be(OK)
+                            header("content-type").map(_.toString shouldBe "content-type: application/json")
+                            responseAs[String].toInt shouldBe 3
+                        }
+                    }
+                }
+        }
+
+        it should s"handle http web action with base64 encoded binary response (auth? ${creds.isDefined})" in {
+            implicit val tid = transid()
+            val png = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAA/klEQVQYGWNgAAEHBxaG//+ZQMyyn581Pfas+cRQnf1LfF" +
+                "Ljf+62smUgcUbt0FA2Zh7drf/ffMy9vLn3RurrW9e5hCU11i2azfD4zu1/DHz8TAy/foUxsXBrFzHzC7r8+M9S1vn1qxQT07dDjL" +
+                "9fdemrqKxlYGT6z8AIMo6hgeUfA0PUvy9fGFh5GWK3z7vNxSWt++jX99+8SoyiGQwsW38w8PJEM7x5v5SJ8f+/xv8MDAzffv9hev" +
+                "fkWjiXBGMpMx+j2awovjcMjFztDO8+7GF49LkbZDCDeXLTWnZO7qDfn1/+5jbw/8pjYWS4wZLztXnuEuYTk2M+MzIw/AcA36Vewa" +
+                "D6fzsAAAAASUVORK5CYII="
+            val expectedEntity = HttpEntity(ContentType(MediaTypes.`image/png`), Base64.getDecoder().decode(png))
+
+            Seq(s"$systemId/proxy/export_c.http").
+                foreach { path =>
+                    allowedMethods.foreach { m =>
+                        invocationsAllowed += 1
+                        actionResult = Some(JsObject(
+                            "headers" -> JsObject(`Content-Type`.lowercaseName -> MediaTypes.`image/png`.toString.toJson),
+                            "body" -> png.toJson))
+
+                        m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+                            status should be(OK)
+                            response.entity shouldBe expectedEntity
                         }
                     }
                 }
@@ -923,9 +965,14 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 foreach { path =>
 
                     val form = FormData(Map("field1" -> "value1", "field2" -> "value2"))
-                    invocationsAllowed += 1
+                    invocationsAllowed += 2
 
-                    Post(s"$testRoutePath/$path", form) ~> Route.seal(routes(creds)) ~> check {
+                    Post(s"$testRoutePath/$path", form.toEntity) ~> Route.seal(routes(creds)) ~> check {
+                        status should be(OK)
+                        responseAs[String] should (be("value1") or be("value2"))
+                    }
+
+                    Post(s"$testRoutePath/$path", form.toEntity(HttpCharsets.`US-ASCII`)) ~> Route.seal(routes(creds)) ~> check {
                         status should be(OK)
                         responseAs[String] should (be("value1") or be("value2"))
                     }
@@ -1149,8 +1196,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                     Options(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
                         headers should contain allOf (
                             RawHeader("Set-Cookie", "a=b"),
-                            RawHeader("Set-Cookie", "c=d; Path = /")
-                        )
+                            RawHeader("Set-Cookie", "c=d; Path = /"))
                     }
                 }
         }
@@ -1283,7 +1329,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
                     Get(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
                         status should be(NotAcceptable)
-                        response shouldBe HttpResponse(NotAcceptable, entity = "Resource representation is only available with these types:\ntext/html")
+                        response shouldBe HttpResponse(NotAcceptable, entity = "Resource representation is only available with these types:\ntext/html; charset=UTF-8")
                     }
                 }
         }

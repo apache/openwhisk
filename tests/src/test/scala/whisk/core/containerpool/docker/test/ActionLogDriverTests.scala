@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.core.containerpool.docker.test
 
 import java.nio.charset.StandardCharsets
 
@@ -30,20 +30,22 @@ import spray.json.pimpAny
 import whisk.common.TransactionId
 import whisk.core.entity.size._
 import whisk.http.Messages
+import whisk.core.containerpool.docker.DockerActionLogDriver
+import whisk.core.containerpool.docker.LogLine
 
 @RunWith(classOf[JUnitRunner])
 class ActionLogDriverTests
     extends FlatSpec
     with BeforeAndAfter
     with Matchers
-    with ActionLogDriver
+    with DockerActionLogDriver
     with StreamLogging {
 
     private def makeLogMsgs(lines: Seq[String], stream: String = "stdout", addSentinel: Boolean = true) = {
         val msgs = if (addSentinel) {
             lines.map((stream, _)) :+
-                ("stdout", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}") :+
-                ("stderr", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}")
+                ("stdout", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}") :+
+                ("stderr", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}")
         } else {
             lines.map((stream, _))
         }
@@ -78,8 +80,8 @@ class ActionLogDriverTests
             raw"""|{"time":"","stream":"stdout","log":"a"}
                   |{"time":"","stream":"stdout","log":"b"}
                   |{"time":"","stream":"stdout","log":"c"}
-                  |{"time":"","stream":"stdout","log":"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}"}
-                  |{"time":"","stream":"stderr","log":"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}"}""".stripMargin('|')
+                  |{"time":"","stream":"stdout","log":"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}"}
+                  |{"time":"","stream":"stderr","log":"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}"}""".stripMargin('|')
         }
     }
 

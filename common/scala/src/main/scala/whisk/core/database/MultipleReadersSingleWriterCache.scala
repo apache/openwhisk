@@ -15,24 +15,31 @@
  * limitations under the License.
  */
 
+/*
+ * Cache base implementation:
+ * Copyright (C) 2017 Lightbend Inc. <http://www.lightbend.com/>
+ */
+
 package whisk.core.database
 
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
+import scala.util.control.NonFatal
 
-import spray.caching.Cache
-import spray.caching.ValueMagnet.fromAny
+import com.github.benmanes.caffeine.cache.Caffeine
+
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import com.github.benmanes.caffeine.cache.Caffeine
+import whisk.core.entity.CacheKey
 
 /**
  * A cache that allows multiple readers, but only a single writer, at
@@ -84,15 +91,14 @@ private object MultipleReadersSingleWriterCache {
     case class StaleRead(actualState: State) extends Exception(s"Attempted read of invalid entry due to $actualState.")
 }
 
+trait CacheChangeNotification extends (CacheKey => Future[Unit])
+
 trait MultipleReadersSingleWriterCache[W, Winfo] {
     import MultipleReadersSingleWriterCache._
     import MultipleReadersSingleWriterCache.State._
 
     /** Subclasses: Toggle this to enable/disable caching for your entity type. */
     protected val cacheEnabled = true
-
-    /** Subclasses: tell me what key to use for updates. */
-    protected def cacheKeyForUpdate(w: W): Any
 
     private object Entry {
         def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
@@ -150,10 +156,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * This method posts a delete to the backing store, and either directly invalidates the cache entry
      * or informs any outstanding transaction that it must invalidate the cache on completion.
      */
-    protected def cacheInvalidate[R](key: Any, invalidator: => Future[R])(
-        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
+    protected def cacheInvalidate[R](key: CacheKey, invalidator: => Future[R])(
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, notifier: Option[CacheChangeNotification]): Future[R] = {
         if (cacheEnabled) {
             logger.info(this, s"invalidating $key on delete")
+
+            notifier.foreach(_(key))
 
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, InvalidateInProgress, None)
@@ -205,7 +213,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method may initiate a read from the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheLookup[Wsuper >: W](key: Any, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
+    protected def cacheLookup[Wsuper >: W](key: CacheKey, generator: => Future[W], fromCache: Boolean = cacheEnabled)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[W] = {
         if (fromCache) {
             val promise = Promise[W] // this promise completes with the generator value
@@ -248,9 +256,12 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     /**
      * This method posts an update to the backing store, and potentially stores the result in the cache.
      */
-    protected def cacheUpdate(doc: W, key: Any, generator: => Future[Winfo])(
-        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
+    protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
+        implicit ec: ExecutionContext, transid: TransactionId, logger: Logging, notifier: Option[CacheChangeNotification]): Future[Winfo] = {
         if (cacheEnabled) {
+
+            notifier.foreach(_(key))
+
             // try inserting our desired entry...
             val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
             cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -283,10 +294,16 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     def cacheSize: Int = cache.size
 
     /**
+     * This method removes an entry from the cache immediately. You can use this method
+     * if you do not need to perform any updates on the backing store but only to the cache.
+     */
+    protected[database] def removeId(key: CacheKey)(implicit ec: ExecutionContext): Unit = cache.remove(key)
+
+    /**
      * Log a cache hit
      *
      */
-    private def makeNoteOfCacheHit(key: Any)(implicit transid: TransactionId, logger: Logging) = {
+    private def makeNoteOfCacheHit(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
     }
 
@@ -294,7 +311,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * Log a cache miss
      *
      */
-    private def makeNoteOfCacheMiss(key: Any)(implicit transid: TransactionId, logger: Logging) = {
+    private def makeNoteOfCacheMiss(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
         transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
     }
 
@@ -303,7 +320,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * 1. either cache the result if there is no intervening delete or update, or
      * 2. invalidate the cache because there was an intervening delete or update.
      */
-    private def listenForReadDone(key: Any, entry: Entry, generator: => Future[W], promise: Promise[W])(
+    private def listenForReadDone(key: CacheKey, entry: Entry, generator: => Future[W], promise: Promise[W])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Unit = {
 
         generator onComplete {
@@ -357,7 +374,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
      * 1. either cache the result if there is no intervening delete or update, or
      * 2. invalidate the cache cache because there was an intervening delete or update
      */
-    private def listenForWriteDone(key: Any, entry: Entry, generator: => Future[Winfo])(
+    private def listenForWriteDone(key: CacheKey, entry: Entry, generator: => Future[Winfo])(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[Winfo] = {
 
         generator andThen {
@@ -393,7 +410,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** Immediately invalidates the given entry. */
-    private def invalidateEntry(key: Any, entry: Entry)(
+    private def invalidateEntry(key: CacheKey, entry: Entry)(
         implicit transid: TransactionId, logger: Logging): Unit = {
         logger.info(this, s"invalidating $key")
         entry.invalidate()
@@ -401,7 +418,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** Invalidates the given entry after a given invalidator completes. */
-    private def invalidateEntryAfter[R](invalidator: => Future[R], key: Any, entry: Entry)(
+    private def invalidateEntryAfter[R](invalidator: => Future[R], key: CacheKey, entry: Entry)(
         implicit ec: ExecutionContext, transid: TransactionId, logger: Logging): Future[R] = {
 
         entry.grabInvalidationLock()
@@ -411,7 +428,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     }
 
     /** This is the backing store. */
-    private val cache: Cache[Entry] = new ConcurrentMapBackedCache(
+    private val cache: ConcurrentMapBackedCache[Entry] = new ConcurrentMapBackedCache(
         Caffeine.newBuilder().asInstanceOf[Caffeine[Any, Future[Entry]]]
             .expireAfterWrite(5, TimeUnit.MINUTES)
             .softValues()
@@ -422,35 +439,42 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
  * A thread-safe implementation of [[spray.caching.cache]] backed by a plain
  * [[java.util.concurrent.ConcurrentMap]].
  *
- * The implementation is entirely copied from [[spray.caching.SimpleLruCache]]
- * the only difference being the store type. Implementation is identical.
- *
- * The unimplemented methods are not needed for our internal implementation.
+ * The implementation is entirely copied from Spray's [[spray.caching.Cache]] and
+ * [[spray.caching.SimpleLruCache]] respectively, the only difference being the store type.
+ * Implementation otherwise is identical.
  */
-private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) extends Cache[V] {
+private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) {
+    val cache = this
 
-    def get(key: Any) = Option(store.get(key))
+    def apply(key: Any) = new Keyed(key)
 
-    def apply(key: Any, genValue: () ⇒ Future[V])(implicit ec: ExecutionContext): Future[V] = {
+    class Keyed(key: Any) {
+        def apply(magnet: => ValueMagnet[V])(implicit ec: ExecutionContext): Future[V] =
+            cache.apply(key, () => try magnet.future catch { case NonFatal(e) => Future.failed(e) })
+    }
+
+    def apply(key: Any, genValue: () => Future[V])(implicit ec: ExecutionContext): Future[V] = {
         val promise = Promise[V]()
         store.putIfAbsent(key, promise.future) match {
-            case null ⇒
+            case null =>
                 val future = genValue()
-                future.onComplete { value ⇒
+                future.onComplete { value =>
                     promise.complete(value)
                     // in case of exceptions we remove the cache entry (i.e. try again later)
                     if (value.isFailure) store.remove(key, promise.future)
                 }
                 future
-            case existingFuture ⇒ existingFuture
+            case existingFuture => existingFuture
         }
     }
 
     def remove(key: Any) = Option(store.remove(key))
 
-    def clear(): Unit = store.clear()
-    def keys: Set[Any] = ???
-    def ascendingKeys(limit: Option[Int] = None) = ???
-
     def size = store.size
+}
+
+class ValueMagnet[V](val future: Future[V])
+object ValueMagnet {
+    implicit def fromAny[V](block: V): ValueMagnet[V] = fromFuture(Future.successful(block))
+    implicit def fromFuture[V](future: Future[V]): ValueMagnet[V] = new ValueMagnet(future)
 }

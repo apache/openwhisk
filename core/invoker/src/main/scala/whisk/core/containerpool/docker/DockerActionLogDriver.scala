@@ -15,13 +15,10 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
-
-import scala.Vector
 import scala.util.{ Failure, Success, Try }
-
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import whisk.common.{ Logging, TransactionId }
@@ -45,12 +42,12 @@ protected[core] object LogLine extends DefaultJsonProtocol {
     implicit val serdes = jsonFormat3(LogLine.apply)
 }
 
-protected[core] object ActionLogDriver {
+protected[core] object DockerActionLogDriver {
     // The action proxies inserts this line in the logs at the end of each activation for stdout/stderr
     val LOG_ACTIVATION_SENTINEL = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
 }
 
-protected[core] trait ActionLogDriver {
+protected[core] trait DockerActionLogDriver {
 
     /**
      * Given the JSON driver's raw output of a docker container, convert it into our own
@@ -80,7 +77,7 @@ protected[core] trait ActionLogDriver {
             Try(lines.next().parseJson.convertTo[LogLine]) match {
                 case Success(t) =>
                     // if sentinels are expected, do not account for their size, otherwise, all bytes are accounted for
-                    if (requireSentinel && t.log.trim != ActionLogDriver.LOG_ACTIVATION_SENTINEL || !requireSentinel) {
+                    if (requireSentinel && t.log.trim != DockerActionLogDriver.LOG_ACTIVATION_SENTINEL || !requireSentinel) {
                         // ignore empty log lines
                         if (t.log.nonEmpty) {
                             bytesSoFar += t.log.sizeInBytes

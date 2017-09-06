@@ -33,7 +33,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
-import whisk.core.container.Interval
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.common.Counter
@@ -90,7 +89,7 @@ case object ContainerRemoved
  */
 class ContainerProxy(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-    sendActiveAck: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
+    sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
     instance: InstanceId,
     unusedTimeout: FiniteDuration,
@@ -148,7 +147,7 @@ class ContainerProxy(
                     // implicitly via a FailureMessage which will be processed later when the state
                     // transitions to Running
                     val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
-                    sendActiveAck(transid, activation, job.msg.rootControllerIndex)
+                    sendActiveAck(transid, activation, job.msg.blocking, job.msg.rootControllerIndex)
                     storeActivation(transid, activation)
             }.flatMap {
                 container =>
@@ -350,7 +349,7 @@ class ContainerProxy(
         // asynchronous.
         activation.andThen {
             // the activation future will always complete with Success
-            case Success(ack) => sendActiveAck(tid, ack, job.msg.rootControllerIndex)
+            case Success(ack) => sendActiveAck(tid, ack, job.msg.blocking, job.msg.rootControllerIndex)
         }.flatMap { activation =>
             container.logs(job.action.limits.logs.asMegaBytes, job.action.exec.sentinelledLogs).map { logs =>
                 activation.withLogs(ActivationLogs(logs.toVector))
@@ -368,7 +367,7 @@ class ContainerProxy(
 
 object ContainerProxy {
     def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-              ack: (TransactionId, WhiskActivation, InstanceId) => Future[Any],
+              ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
               store: (TransactionId, WhiskActivation) => Future[Any],
               instance: InstanceId,
               unusedTimeout: FiniteDuration = 10.minutes,

@@ -22,13 +22,8 @@ import scala.collection.mutable
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.spi.Dependencies
-import whisk.spi.SingletonSpiFactory
 
-/**
- * A CouchDB implementation of ArtifactStoreProvider
- */
-class CouchDbStoreProvider extends ArtifactStoreProvider {
+object CouchDbStoreProvider extends ArtifactStoreProvider {
     private val stores =  mutable.Map [String, CouchDbRestStore[_]]()
     def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
         implicit jsonFormat: RootJsonFormat[D],
@@ -44,8 +39,4 @@ class CouchDbStoreProvider extends ArtifactStoreProvider {
         ).asInstanceOf[CouchDbRestStore[D]]
 
     }
-}
-
-object CouchDbStoreProvider extends SingletonSpiFactory[ArtifactStoreProvider] {
-    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDbStoreProvider
 }

@@ -24,12 +24,10 @@ import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.model.StatusCodes.InternalServerError
-import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.server.RouteResult
@@ -40,14 +38,14 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpResponse
-import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 
 import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 
 import whisk.common.TransactionId
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.EntityPath
@@ -60,9 +58,9 @@ import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.WhiskTriggerPut
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
-import whisk.http.ErrorResponse.terminate
 import whisk.core.entity.Identity
 import whisk.core.entity.FullyQualifiedEntityName
+import whisk.http.ErrorResponse.terminate
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -76,8 +74,14 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     /** Database service to CRUD triggers. */
     protected val entityStore: EntityStore
 
+    /** Notification service for cache invalidation. */
+    protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
+
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
+
+    /** JSON response formatter. */
+    import RestApiCommons.jsonDefaultResponsePrinter
 
     /** Path to Triggers REST API. */
     protected val triggersPath = "triggers"
@@ -144,6 +148,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                         val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map {
                             _ => triggerActivationId
                         }
+
                         val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
 
                         trigger.rules.map {
@@ -173,6 +178,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                             Path.SingleSlash + rule.action.name.asString
                                         }
                                     }.toString
+
                                     val actionUrl = Path("/api/v1") / "namespaces" / actionNamespace / "actions"
                                     val request = HttpRequest(
                                         method = POST,
@@ -180,13 +186,18 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                                         headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
                                         entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint))
 
-                                    Http().singleRequest(request).map {
-                                        case HttpResponse(StatusCodes.OK, headers, entity, _) =>
-                                            logging.info(this, s"successfully invoked ${rule.action} -> ")
-                                        case HttpResponse(StatusCodes.NotFound, _, _, _) =>
-                                            logging.info(this, s"action ${rule.action} could not be found")
-                                        case HttpResponse(code, _, entity, _) =>
-                                            logging.warn(this, s"action ${rule.action} could not be invoked due to ${entity.getDataBytes.toString}")
+                                    Http().singleRequest(request).map { response =>
+                                        response.status match {
+                                            case OK | Accepted => Unmarshal(response.entity).to[JsObject].map { a =>
+                                                logging.info(this, s"${rule.action} activated ${a.fields("activationId")}")
+                                            }
+                                            case NotFound =>
+                                                response.discardEntityBytes()
+                                                logging.info(this, s"${rule.action} failed, action not found")
+                                            case _ => Unmarshal(response.entity).to[String].map { error =>
+                                                logging.warn(this, s"${rule.action} failed due to $error")
+                                            }
+                                        }
                                     }
                             }
                         }

@@ -37,6 +37,8 @@ import whisk.common.TransactionId
 import whisk.core.containerpool.docker.ContainerId
 import whisk.core.containerpool.docker.ContainerIp
 import whisk.core.containerpool.docker.DockerClient
+import scala.concurrent.Promise
+import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
@@ -51,7 +53,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     val dockerCommand = "docker"
 
     /** Returns a DockerClient with a mocked result for 'executeProcess' */
-    def dockerClient(execResult: Future[String]) = new DockerClient()(global) {
+    def dockerClient(execResult: => Future[String]) = new DockerClient()(global) {
         override val dockerCmd = Seq(dockerCommand)
         override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
     }
@@ -79,6 +81,35 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
         val dc = dockerClient { Future.successful("<no value>") }
 
         a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
+    }
+
+    it should "collapse multiple parallel pull calls into just one" in {
+        // Delay execution of the pull command
+        val pullPromise = Promise[String]()
+        var commandsRun = 0
+        val dc = dockerClient {
+            commandsRun += 1
+            pullPromise.future
+        }
+
+        val image = "testimage"
+
+        // Pull first, command should be run
+        dc.pull(image)
+        commandsRun shouldBe 1
+
+        // Pull again, command should not be run
+        dc.pull(image)
+        commandsRun shouldBe 1
+
+        // Finish the pulls above
+        pullPromise.success("pulled")
+
+        retry {
+            // Pulling again should execute the command again
+            await(dc.pull(image))
+            commandsRun shouldBe 2
+        }
     }
 
     it should "write proper log markers on a successful command" in {

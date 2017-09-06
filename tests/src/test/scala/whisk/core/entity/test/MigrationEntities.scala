@@ -58,7 +58,6 @@ object OldWhiskRule
 
     override val collectionName = "rules"
     override implicit val serdes = jsonFormat8(OldWhiskRule.apply)
-    override def cacheKeyForUpdate(t: OldWhiskRule) = t.docid.asDocInfo
 }
 
 /**
@@ -86,5 +85,4 @@ object OldWhiskTrigger
 
     override val collectionName = "triggers"
     override implicit val serdes = jsonFormat7(OldWhiskTrigger.apply)
-    override def cacheKeyForUpdate(t: OldWhiskTrigger) = t.docid.asDocInfo
 }
