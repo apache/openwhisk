@@ -12,10 +12,10 @@
   file:
     path: "{{ nginx.confdir }}"
     state: absent
-  become: true
+  become: nginx.dir.become
 
 - name: remove nginx log directory
   file:
     path: "{{ whisk_logs_dir }}/nginx"
     state: absent
-  become: true
+  become: logs.dir.become

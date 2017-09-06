@@ -5,6 +5,7 @@
   file:
     path: "{{ nginx.confdir }}"
     state: directory
+  become: nginx.dir.become
 
 - name: copy template from local to remote in nginx config directory
   template:
@@ -31,7 +32,7 @@
     path: "{{ whisk_logs_dir }}/nginx"
     state: directory
     mode: 0777
-  become: true
+  become: logs.dir.become
 
 - name: "pull the nginx:{{ nginx.version }} image"
   shell: "docker pull nginx:{{ nginx.version }}"

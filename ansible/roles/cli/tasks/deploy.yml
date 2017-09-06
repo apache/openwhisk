@@ -5,6 +5,7 @@
   file:
     path: "{{ cli.nginxdir  }}"
     state: directory
+  become: cli.dir.become
 
 - set_fact:
     cli_installation_mode="{{ openwhisk_cli.installation_mode }}"

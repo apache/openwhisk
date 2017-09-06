@@ -35,7 +35,7 @@
     path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
-  become: true
+  become: logs.dir.become
 
 - name: define options when deploying invoker on Ubuntu
   set_fact:

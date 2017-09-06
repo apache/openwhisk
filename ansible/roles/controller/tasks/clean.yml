@@ -12,4 +12,4 @@
   file:
     path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: absent
-  become: true
+  become: logs.dir.become

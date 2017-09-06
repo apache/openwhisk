@@ -144,9 +144,14 @@ invoker:
   instances: "{{ groups['invokers'] | length }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.
   allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
+  docker:
+    become: "{{ invoker_docker_become | default(false) }}"
+
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
+  dir:
+    become: "{{ nginx_dir_become | default(false) }}"
   version: 1.11
   port:
     http: 80
@@ -210,9 +215,15 @@ docker:
     retries: 10
     delay: 10
 
+sdk:
+  dir:
+    become: "{{ sdk_dir_become | default(false) }}"
+
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
   nginxdir: "{{ nginx.confdir }}/cli/go/download"
+  dir:
+    become: "{{ cli_dir_become | default(false) }}"
 
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"
@@ -291,3 +302,8 @@ cli_os:
 cli_arch:
   - amd64
   - 386
+
+# Controls access to log directories
+logs:
+  dir:
+    become: "{{ logs_dir_become | default(false) }}"
