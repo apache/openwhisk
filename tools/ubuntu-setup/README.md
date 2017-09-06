@@ -37,6 +37,14 @@ Follow the instructions in [ansible/README.md](../../ansible/README.md) to deplo
 Once deployed, several Docker containers will be running in your machine.
 You can check that containers are running by using the docker cli with the command `docker ps`.
 
+## Run wskdev edge
+
+At this point, you should have all the docker containers running except for the nginx container.  To launch the nginx container, run:
+
+```
+$ ./bin/wskdev edge
+```
+
 ### Configure the CLI
 Follow instructions in [Configure CLI](../../docs/cli.md). The API host
 should be `172.17.0.1` or more formally, the IP of the `edge` host from the
