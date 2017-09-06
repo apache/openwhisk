@@ -167,4 +167,5 @@ class ApiGwEndToEndTests
                 cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
         }
     }
+
 }

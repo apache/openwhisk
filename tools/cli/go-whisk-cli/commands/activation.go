@@ -93,11 +93,37 @@ var activationListCmd = &cobra.Command{
         if options.Docs == true {
             printFullActivationList(activations)
         } else {
+            activations = makeListableActs(activations)
             printList(activations, false)   // Default sorting for Activations are by creation time, hence sortByName is always false
         }
 
         return nil
     },
+}
+
+func makeListableActs(activations []whisk.Activation) []whisk.Activation {
+    maxEntityLength := len("name")
+    for i := range activations {
+        if len(activations[i].Name) > maxEntityLength {
+            maxEntityLength = len(activations[i].Name)
+        }
+    }
+    if maxEntityLength > 50 {
+        maxEntityLength = 50
+    }
+    for i, activation := range activations {
+        activationInfo, _, err := client.Activations.Get(activation.ActivationID)
+        if err != nil {}
+        activations[i].Status = activationInfo.Status
+        activations[i].Start = activationInfo.Start
+        activations[i].End = activationInfo.End
+        activations[i].Duration = activationInfo.Duration
+        activations[i].Response.Status = activationInfo.Response.Status
+        activations[i].Cause = activationInfo.Cause
+        activations[i].EntityType = activationInfo.EntityType
+        activations[i].BufferSize = maxEntityLength
+    }
+    return activations
 }
 
 var activationGetCmd = &cobra.Command{

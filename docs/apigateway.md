@@ -147,6 +147,8 @@ Action: deleteBooks
   URL: https://${APIHOST}:9001/api/21ef035/club/books
 ```
 
+**Note**: You can order the list of APIs alphabetically (by order of `Base Path`, then `Path`, and then `Verb`) by using the flag `--order`. Furthermore, you can sort by action name alphabetically using `--order` in conjunction with `--order-action`. For a detailed example, see [listing actions](./actions.md#listing-actions)
+
 Now just for fun let's add a new book `JavaScript: The Good Parts` with a HTTP __POST__
 ```
 curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}' https://${APIHOST}:9001/api/21ef035/club/books

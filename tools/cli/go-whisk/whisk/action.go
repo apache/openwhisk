@@ -22,9 +22,9 @@ import (
     "net/http"
     "errors"
     "net/url"
-    "strings"
 
     "../wski18n"
+    "strings"
 )
 
 type ActionService struct {
@@ -42,6 +42,7 @@ type Action struct {
     Error       string      `json:"error,omitempty"`
     Code        int         `json:"code,omitempty"`
     Publish     *bool       `json:"publish,omitempty"`
+    Flag        string
 }
 
 type Exec struct {

@@ -41,6 +41,8 @@ const (
 
     formatOptionYaml = "yaml"
     formatOptionJson = "json"
+
+    orderActionFlag = "a"
 )
 
 var apiCmd = &cobra.Command{
