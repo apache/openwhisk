@@ -46,34 +46,36 @@ import whisk.core.entity.DocRevision
  * the datastore is declared as a var for that purpose.
  */
 trait Document {
-    /** The document id, this is the primary key for the document and must be unique. */
-    protected var _id: String = null
-    /** The document revision as determined by the datastore; an opaque value. */
-    protected[database] var _rev: String = null
 
-    /** Gets the document id and revision as an instance of DocInfo. */
-    protected[database] def docinfo: DocInfo
+  /** The document id, this is the primary key for the document and must be unique. */
+  protected var _id: String = null
 
-    /**
-     * Checks if the document has a valid revision set, in which case
-     * this is an update operation.
-     *
-     * @return true iff document has a valid revision
-     */
-    protected[database] final def update: Boolean = _rev != null
+  /** The document revision as determined by the datastore; an opaque value. */
+  protected[database] var _rev: String = null
 
-    /**
-     * Confirms the document has a valid id set.
-     *
-     * @return true iff document has a valid id
-     * @throws IllegalArgumentException iff document does not have a valid id
-     */
-    @throws[IllegalArgumentException]
-    protected[database] final def confirmId: Boolean = {
-        require(_id != null, "document id undefined")
-        require(_id.trim.nonEmpty, "document id undefined")
-        true
-    }
+  /** Gets the document id and revision as an instance of DocInfo. */
+  protected[database] def docinfo: DocInfo
+
+  /**
+   * Checks if the document has a valid revision set, in which case
+   * this is an update operation.
+   *
+   * @return true iff document has a valid revision
+   */
+  protected[database] final def update: Boolean = _rev != null
+
+  /**
+   * Confirms the document has a valid id set.
+   *
+   * @return true iff document has a valid id
+   * @throws IllegalArgumentException iff document does not have a valid id
+   */
+  @throws[IllegalArgumentException]
+  protected[database] final def confirmId: Boolean = {
+    require(_id != null, "document id undefined")
+    require(_id.trim.nonEmpty, "document id undefined")
+    true
+  }
 }
 
 /**
@@ -82,20 +84,21 @@ trait Document {
  * need to update the revision on a document.
  */
 protected[core] trait DocumentRevisionProvider {
-    /**
-     * Sets the revision number when a document is deserialized from datastore. The
-     * _rev is an opaque value, needed to update the record in the datastore. It is
-     * not part of the core properties of this class. It is not required when saving
-     * a new instance of this type to the datastore.
-     */
-    protected[core] final def revision[W](r: DocRevision): W = {
-        _rev = r
-        this.asInstanceOf[W]
-    }
 
-    protected[core] def rev = _rev
+  /**
+   * Sets the revision number when a document is deserialized from datastore. The
+   * _rev is an opaque value, needed to update the record in the datastore. It is
+   * not part of the core properties of this class. It is not required when saving
+   * a new instance of this type to the datastore.
+   */
+  protected[core] final def revision[W](r: DocRevision): W = {
+    _rev = r
+    this.asInstanceOf[W]
+  }
 
-    private var _rev: DocRevision = DocRevision.empty
+  protected[core] def rev = _rev
+
+  private var _rev: DocRevision = DocRevision.empty
 }
 
 /**
@@ -103,12 +106,13 @@ protected[core] trait DocumentRevisionProvider {
  * the datastore, where the document id is a generated unique identifier.
  */
 trait DocumentSerializer {
-    /**
-     * A JSON view including the document metadata, for writing to the datastore.
-     *
-     * @return JsObject
-     */
-    def toDocumentRecord: JsObject
+
+  /**
+   * A JSON view including the document metadata, for writing to the datastore.
+   *
+   * @return JsObject
+   */
+  def toDocumentRecord: JsObject
 }
 
 /**
@@ -120,137 +124,150 @@ trait DocumentSerializer {
  * may be used for multiple types (because the types are stored in the same database for example).
  */
 trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
-    /**
-     * Puts a record of type W in the datastore.
-     *
-     * The type parameters for the database are bounded from below to allow gets from a database that
-     * contains several different but related types (for example entities are stored in the same database
-     * and share common super types EntityRecord and WhiskEntity.
-     *
-     * @param db the datastore client to fetch entity from
-     * @param doc the entity to store
-     * @param transid the transaction id for logging
-     * @param notifier an optional callback when cache changes
-     * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
-     */
-    def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
-        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
-        Try {
-            require(db != null, "db undefined")
-            require(doc != null, "doc undefined")
-        } map { _ =>
-            implicit val logger = db.logging
-            implicit val ec = db.executionContext
 
-            val key = CacheKey(doc)
+  /**
+   * Puts a record of type W in the datastore.
+   *
+   * The type parameters for the database are bounded from below to allow gets from a database that
+   * contains several different but related types (for example entities are stored in the same database
+   * and share common super types EntityRecord and WhiskEntity.
+   *
+   * @param db the datastore client to fetch entity from
+   * @param doc the entity to store
+   * @param transid the transaction id for logging
+   * @param notifier an optional callback when cache changes
+   * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
+   */
+  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+    Try {
+      require(db != null, "db undefined")
+      require(doc != null, "doc undefined")
+    } map { _ =>
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
 
-            cacheUpdate(doc, key, db.put(doc) map { docinfo =>
-                doc match {
-                    // if doc has a revision id, update it with new version
-                    case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
-                }
-                docinfo
-            })
+      val key = CacheKey(doc)
 
-        } match {
-            case Success(f) => f
-            case Failure(t) => Future.failed(t)
+      cacheUpdate(doc, key, db.put(doc) map { docinfo =>
+        doc match {
+          // if doc has a revision id, update it with new version
+          case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
         }
+        docinfo
+      })
+
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
     }
+  }
 
-    def attach[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, contentType: ContentType, bytes: InputStream)(
-        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+  def attach[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: DocInfo,
+    attachmentName: String,
+    contentType: ContentType,
+    bytes: InputStream)(implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
-        Try {
-            require(db != null, "db undefined")
-            require(doc != null, "doc undefined")
-        } map { _ =>
-            implicit val logger = db.logging
-            implicit val ec = db.executionContext
+    Try {
+      require(db != null, "db undefined")
+      require(doc != null, "doc undefined")
+    } map { _ =>
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
 
-            val key = CacheKey(doc.id.asDocInfo)
-            // invalidate the key because attachments update the revision;
-            // do not cache the new attachment (controller does not need it)
-            cacheInvalidate(key, {
-                val src = StreamConverters.fromInputStream(() => bytes)
-                db.attach(doc, attachmentName, contentType, src)
-            })
-        } match {
-            case Success(f) => f
-            case Failure(t) => Future.failed(t)
-        }
+      val key = CacheKey(doc.id.asDocInfo)
+      // invalidate the key because attachments update the revision;
+      // do not cache the new attachment (controller does not need it)
+      cacheInvalidate(key, {
+        val src = StreamConverters.fromInputStream(() => bytes)
+        db.attach(doc, attachmentName, contentType, src)
+      })
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
     }
+  }
 
-    def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
-        implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-        Try {
-            require(db != null, "db undefined")
-            require(doc != null, "doc undefined")
-        } map { _ =>
-            implicit val logger = db.logging
-            implicit val ec = db.executionContext
+  def del[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean] = {
+    Try {
+      require(db != null, "db undefined")
+      require(doc != null, "doc undefined")
+    } map { _ =>
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
 
-            val key = CacheKey(doc.id.asDocInfo)
-            cacheInvalidate(key, db.del(doc))
-        } match {
-            case Success(f) => f
-            case Failure(t) => Future.failed(t)
-        }
+      val key = CacheKey(doc.id.asDocInfo)
+      cacheInvalidate(key, db.del(doc))
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
     }
+  }
 
-    /**
-     * Fetches a raw record of type R from the datastore by its id (and revision if given)
-     * and converts it to Success(W) or Failure(Throwable) if there is an error fetching
-     * the record or deserializing it.
-     *
-     * The type parameters for the database are bounded from below to allow gets from a database that
-     * contains several different but related types (for example entities are stored in the same database
-     * and share common super types EntityRecord and WhiskEntity.
-     *
-     * @param db the datastore client to fetch entity from
-     * @param doc the entity document information (must contain a valid id)
-     * @param rev the document revision (optional)
-     * @param fromCache will only query cache if true (defaults to collection settings)
-     * @param transid the transaction id for logging
-     * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
-     * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
-     */
-    def get[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocId, rev: DocRevision = DocRevision.empty, fromCache: Boolean = cacheEnabled)(
-        implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
-        Try {
-            require(db != null, "db undefined")
-        } map {
-            implicit val logger = db.logging
-            implicit val ec = db.executionContext
-            val key = doc.asDocInfo(rev)
-            _ => cacheLookup(CacheKey(key), db.get[W](key), fromCache)
-        } match {
-            case Success(f) => f
-            case Failure(t) => Future.failed(t)
-        }
+  /**
+   * Fetches a raw record of type R from the datastore by its id (and revision if given)
+   * and converts it to Success(W) or Failure(Throwable) if there is an error fetching
+   * the record or deserializing it.
+   *
+   * The type parameters for the database are bounded from below to allow gets from a database that
+   * contains several different but related types (for example entities are stored in the same database
+   * and share common super types EntityRecord and WhiskEntity.
+   *
+   * @param db the datastore client to fetch entity from
+   * @param doc the entity document information (must contain a valid id)
+   * @param rev the document revision (optional)
+   * @param fromCache will only query cache if true (defaults to collection settings)
+   * @param transid the transaction id for logging
+   * @param mw a manifest for W (hint to compiler to preserve type R for runtime)
+   * @return Future[W] with completion to Success(W), or Failure(Throwable) if the raw record cannot be converted into W
+   */
+  def get[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: DocId,
+    rev: DocRevision = DocRevision.empty,
+    fromCache: Boolean = cacheEnabled)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
+    Try {
+      require(db != null, "db undefined")
+    } map {
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
+      val key = doc.asDocInfo(rev)
+      _ =>
+        cacheLookup(CacheKey(key), db.get[W](key), fromCache)
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
     }
+  }
 
-    def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo, attachmentName: String, outputStream: OutputStream)(
-        implicit transid: TransactionId): Future[Unit] = {
+  def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper],
+                                 doc: DocInfo,
+                                 attachmentName: String,
+                                 outputStream: OutputStream)(implicit transid: TransactionId): Future[Unit] = {
 
-        implicit val ec = db.executionContext
+    implicit val ec = db.executionContext
 
-        Try {
-            require(db != null, "db defined")
-            require(doc != null, "doc undefined")
-        } map { _ =>
-            val sink = StreamConverters.fromOutputStream(() => outputStream)
-            db.readAttachment[IOResult](doc, attachmentName, sink).map {
-                case (_, r) =>
-                    if (!r.wasSuccessful) {
-                        // FIXME...
-                        // Figure out whether OutputStreams are even a decent model.
-                    }
-                    ()
-            }
-        } match {
-            case Success(f) => f
-            case Failure(t) => Future.failed(t)
-        }
+    Try {
+      require(db != null, "db defined")
+      require(doc != null, "doc undefined")
+    } map { _ =>
+      val sink = StreamConverters.fromOutputStream(() => outputStream)
+      db.readAttachment[IOResult](doc, attachmentName, sink).map {
+        case (_, r) =>
+          if (!r.wasSuccessful) {
+            // FIXME...
+            // Figure out whether OutputStreams are even a decent model.
+          }
+          ()
+      }
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
     }
+  }
 }

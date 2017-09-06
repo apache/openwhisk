@@ -56,183 +56,207 @@ import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 
-class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(implicit actorSystem: ActorSystem, logging: Logging) {
+class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
+  implicit actorSystem: ActorSystem,
+  logging: Logging) {
 
-    implicit val ec = actorSystem.dispatcher
+  implicit val ec = actorSystem.dispatcher
 
-    /** Initialize needed databases */
-    private val entityStore = WhiskEntityStore.datastore(config)
-    private val activationStore = WhiskActivationStore.datastore(config)
+  /** Initialize needed databases */
+  private val entityStore = WhiskEntityStore.datastore(config)
+  private val activationStore = WhiskActivationStore.datastore(config)
 
-    /** Initialize message consumers */
-    val topic = s"invoker${instance.toInt}"
-    val maximumContainers = config.invokerNumCore.toInt * config.invokerCoreShare.toInt
-    val msgProvider = SpiLoader.get[MessagingProvider]
-    val consumer = msgProvider.getConsumer(config, "invokers", topic, maximumContainers, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+  /** Initialize message consumers */
+  val topic = s"invoker${instance.toInt}"
+  val maximumContainers = config.invokerNumCore.toInt * config.invokerCoreShare.toInt
+  val msgProvider = SpiLoader.get[MessagingProvider]
+  val consumer = msgProvider.getConsumer(
+    config,
+    "invokers",
+    topic,
+    maximumContainers,
+    maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
-    val activationFeed = actorSystem.actorOf(Props {
-        new MessageFeed("activation", logging,
-            consumer, maximumContainers, 500.milliseconds, processActivationMessage)
-    })
+  val activationFeed = actorSystem.actorOf(Props {
+    new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
+  })
 
-    /** Initialize container clients */
-    implicit val docker = new DockerClientWithFileAccess()(ec)
-    implicit val runc = new RuncClient(ec)
+  /** Initialize container clients */
+  implicit val docker = new DockerClientWithFileAccess()(ec)
+  implicit val runc = new RuncClient(ec)
 
-    /** Cleans up all running wsk_ containers */
-    def cleanup() = {
-        val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap { containers =>
-            val removals = containers.map { id =>
-                runc.resume(id)(TransactionId.invokerNanny).recoverWith {
-                    // Ignore resume failures and try to remove anyway
-                    case _ => Future.successful(())
-                }.flatMap {
-                    _ => docker.rm(id)(TransactionId.invokerNanny)
-                }
+  /** Cleans up all running wsk_ containers */
+  def cleanup() = {
+    val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap {
+      containers =>
+        val removals = containers.map { id =>
+          runc
+            .resume(id)(TransactionId.invokerNanny)
+            .recoverWith {
+              // Ignore resume failures and try to remove anyway
+              case _ => Future.successful(())
             }
-            Future.sequence(removals)
-        }
-
-        Await.ready(cleaning, 30.seconds)
-    }
-    cleanup()
-    sys.addShutdownHook(cleanup())
-
-    /** Factory used by the ContainerProxy to physically create a new container. */
-    val containerFactory = (tid: TransactionId, name: String, actionImage: ImageName, userProvidedImage: Boolean, memory: ByteSize) => {
-        val image = if (userProvidedImage) {
-            actionImage.publicImageName
-        } else {
-            actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
-        }
-
-        DockerContainer.create(
-            tid,
-            image = image,
-            userProvidedImage = userProvidedImage,
-            memory = memory,
-            cpuShares = config.invokerCoreShare.toInt,
-            environment = Map("__OW_API_HOST" -> config.wskApiHost),
-            network = config.invokerContainerNetwork,
-            dnsServers = config.invokerContainerDns,
-            name = Some(name))
-    }
-
-    /** Sends an active-ack. */
-    val ack = (tid: TransactionId, activationResult: WhiskActivation, blockingInvoke: Boolean, controllerInstance: InstanceId) => {
-        implicit val transid = tid
-
-        def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
-            val msg = CompletionMessage(transid, res, instance)
-
-            producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
-                case Success(_) =>
-                    logging.info(this, s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
+            .flatMap { _ =>
+              docker.rm(id)(TransactionId.invokerNanny)
             }
         }
-
-        send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
-            case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
-                send(Left(activationResult.activationId), recovery = true)
-        }
+        Future.sequence(removals)
     }
 
-    /** Stores an activation in the database. */
-    val store = (tid: TransactionId, activation: WhiskActivation) => {
-        implicit val transid = tid
-        logging.info(this, "recording the activation result to the data store")
-        WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
-            case Success(id) => logging.info(this, s"recorded activation")
-            case Failure(t)  => logging.error(this, s"failed to record activation")
-        }
+    Await.ready(cleaning, 30.seconds)
+  }
+  cleanup()
+  sys.addShutdownHook(cleanup())
+
+  /** Factory used by the ContainerProxy to physically create a new container. */
+  val containerFactory =
+    (tid: TransactionId, name: String, actionImage: ImageName, userProvidedImage: Boolean, memory: ByteSize) => {
+      val image = if (userProvidedImage) {
+        actionImage.publicImageName
+      } else {
+        actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+      }
+
+      DockerContainer.create(
+        tid,
+        image = image,
+        userProvidedImage = userProvidedImage,
+        memory = memory,
+        cpuShares = config.invokerCoreShare.toInt,
+        environment = Map("__OW_API_HOST" -> config.wskApiHost),
+        network = config.invokerContainerNetwork,
+        dnsServers = config.invokerContainerDns,
+        name = Some(name))
     }
 
-    /** Creates a ContainerProxy Actor when being called. */
-    val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store, instance))
+  /** Sends an active-ack. */
+  val ack = (tid: TransactionId,
+             activationResult: WhiskActivation,
+             blockingInvoke: Boolean,
+             controllerInstance: InstanceId) => {
+    implicit val transid = tid
 
-    val prewarmKind = "nodejs:6"
-    val prewarmExec = ExecManifest.runtimesManifest.resolveDefaultRuntime(prewarmKind).map { manifest =>
-        new CodeExecAsString(manifest, "", None)
-    }.get
+    def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
+      val msg = CompletionMessage(transid, res, instance)
 
-    val pool = actorSystem.actorOf(ContainerPool.props(
-        childFactory,
-        maximumContainers,
-        maximumContainers,
-        activationFeed,
-        Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
+      producer.send(s"completed${controllerInstance.toInt}", msg).andThen {
+        case Success(_) =>
+          logging.info(
+            this,
+            s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
+      }
+    }
 
-    /** Is called when an ActivationMessage is read from Kafka */
-    def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
-        Future(ActivationMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
-            .flatMap(Future.fromTry(_))
-            .filter(_.action.version.isDefined)
-            .flatMap { msg =>
-                implicit val transid = msg.transid
+    send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
+      case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
+        send(Left(activationResult.activationId), recovery = true)
+    }
+  }
 
-                val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
-                val namespace = msg.action.path
-                val name = msg.action.name
-                val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
-                val subject = msg.user.subject
+  /** Stores an activation in the database. */
+  val store = (tid: TransactionId, activation: WhiskActivation) => {
+    implicit val transid = tid
+    logging.info(this, "recording the activation result to the data store")
+    WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
+      case Success(id) => logging.info(this, s"recorded activation")
+      case Failure(t)  => logging.error(this, s"failed to record activation")
+    }
+  }
 
-                logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
+  /** Creates a ContainerProxy Actor when being called. */
+  val childFactory = (f: ActorRefFactory) => f.actorOf(ContainerProxy.props(containerFactory, ack, store, instance))
 
-                // caching is enabled since actions have revision id and an updated
-                // action will not hit in the cache due to change in the revision id;
-                // if the doc revision is missing, then bypass cache
-                if (actionid.rev == DocRevision.empty) {
-                    logging.warn(this, s"revision was not provided for ${actionid.id}")
-                }
+  val prewarmKind = "nodejs:6"
+  val prewarmExec = ExecManifest.runtimesManifest
+    .resolveDefaultRuntime(prewarmKind)
+    .map { manifest =>
+      new CodeExecAsString(manifest, "", None)
+    }
+    .get
 
-                WhiskAction.get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty).flatMap { action =>
-                    action.toExecutableWhiskAction match {
-                        case Some(executable) =>
-                            pool ! Run(executable, msg)
-                            Future.successful(())
-                        case None =>
-                            logging.error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
-                            Future.failed(new IllegalStateException("non-executable action reached the invoker"))
-                    }
-                }.recoverWith {
-                    case t =>
-                        // If the action cannot be found, the user has concurrently deleted it,
-                        // making this an application error. All other errors are considered system
-                        // errors and should cause the invoker to be considered unhealthy.
-                        val response = t match {
-                            case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                            case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
-                        }
-                        val now = Instant.now
-                        val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
-                        val activation = WhiskActivation(
-                            activationId = msg.activationId,
-                            namespace = msg.activationNamespace,
-                            subject = msg.user.subject,
-                            cause = msg.cause,
-                            name = msg.action.name,
-                            version = msg.action.version.getOrElse(SemVer()),
-                            start = now,
-                            end = now,
-                            duration = Some(0),
-                            response = response,
-                            annotations = {
-                                Parameters("path", msg.action.toString.toJson) ++ causedBy
-                            })
+  val pool = actorSystem.actorOf(
+    ContainerPool.props(
+      childFactory,
+      maximumContainers,
+      maximumContainers,
+      activationFeed,
+      Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
-                        activationFeed ! MessageFeed.Processed
-                        ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex)
-                        store(msg.transid, activation)
-                        Future.successful(())
-                }
-            }.recoverWith {
-                case t =>
-                    // Iff everything above failed, we have a terminal error at hand. Either the message failed
-                    // to deserialize, or something threw an error where it is not expected to throw.
-                    activationFeed ! MessageFeed.Processed
-                    logging.error(this, s"terminal failure while processing message: $t")
-                    Future.successful(())
+  /** Is called when an ActivationMessage is read from Kafka */
+  def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
+    Future(ActivationMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
+      .flatMap(Future.fromTry(_))
+      .filter(_.action.version.isDefined)
+      .flatMap { msg =>
+        implicit val transid = msg.transid
+
+        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
+        val namespace = msg.action.path
+        val name = msg.action.name
+        val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
+        val subject = msg.user.subject
+
+        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
+
+        // caching is enabled since actions have revision id and an updated
+        // action will not hit in the cache due to change in the revision id;
+        // if the doc revision is missing, then bypass cache
+        if (actionid.rev == DocRevision.empty) {
+          logging.warn(this, s"revision was not provided for ${actionid.id}")
+        }
+
+        WhiskAction
+          .get(entityStore, actionid.id, actionid.rev, fromCache = actionid.rev != DocRevision.empty)
+          .flatMap { action =>
+            action.toExecutableWhiskAction match {
+              case Some(executable) =>
+                pool ! Run(executable, msg)
+                Future.successful(())
+              case None =>
+                logging.error(this, s"non-executable action reached the invoker ${action.fullyQualifiedName(false)}")
+                Future.failed(new IllegalStateException("non-executable action reached the invoker"))
             }
-    }
+          }
+          .recoverWith {
+            case t =>
+              // If the action cannot be found, the user has concurrently deleted it,
+              // making this an application error. All other errors are considered system
+              // errors and should cause the invoker to be considered unhealthy.
+              val response = t match {
+                case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+                case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+              }
+              val now = Instant.now
+              val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+              val activation = WhiskActivation(
+                activationId = msg.activationId,
+                namespace = msg.activationNamespace,
+                subject = msg.user.subject,
+                cause = msg.cause,
+                name = msg.action.name,
+                version = msg.action.version.getOrElse(SemVer()),
+                start = now,
+                end = now,
+                duration = Some(0),
+                response = response,
+                annotations = {
+                  Parameters("path", msg.action.toString.toJson) ++ causedBy
+                })
+
+              activationFeed ! MessageFeed.Processed
+              ack(msg.transid, activation, msg.blocking, msg.rootControllerIndex)
+              store(msg.transid, activation)
+              Future.successful(())
+          }
+      }
+      .recoverWith {
+        case t =>
+          // Iff everything above failed, we have a terminal error at hand. Either the message failed
+          // to deserialize, or something threw an error where it is not expected to throw.
+          activationFeed ! MessageFeed.Processed
+          logging.error(this, s"terminal failure while processing message: $t")
+          Future.successful(())
+      }
+  }
 
 }

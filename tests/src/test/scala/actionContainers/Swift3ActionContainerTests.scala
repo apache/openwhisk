@@ -31,13 +31,13 @@ import common.TestUtils
 @RunWith(classOf[JUnitRunner])
 class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    // note: "out" will likely not be empty in some swift build as the compiler
-    // prints status messages and there doesn't seem to be a way to quiet them
-    val enforceEmptyOutputStream = false
-    lazy val swiftContainerImageName = "swift3action"
-    lazy val envCode = makeEnvCode("ProcessInfo.processInfo")
+  // note: "out" will likely not be empty in some swift build as the compiler
+  // prints status messages and there doesn't seem to be a way to quiet them
+  val enforceEmptyOutputStream = false
+  lazy val swiftContainerImageName = "swift3action"
+  lazy val envCode = makeEnvCode("ProcessInfo.processInfo")
 
-    def makeEnvCode(processInfo: String) = ("""
+  def makeEnvCode(processInfo: String) = ("""
          |func main(args: [String: Any]) -> [String: Any] {
          |     let env = """ + processInfo + """.environment
          |     var a = "???"
@@ -68,7 +68,7 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
          |}
          """).stripMargin
 
-    lazy val errorCode = """
+  lazy val errorCode = """
                 | // You need an indirection, or swiftc detects the div/0
                 | // at compile-time. Smart.
                 | func div(x: Int, y: Int) -> Int {
@@ -78,7 +78,7 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |     return [ "divBy0": div(x:5, y:0) ]
                 | }
             """.stripMargin
-    lazy val watsonCode ="""
+  lazy val watsonCode = """
                 | import RestKit
                 | import WeatherCompanyData
                 | import AlchemyVision
@@ -87,28 +87,30 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 |     return ["message": "I compiled and was able to import Watson SDKs"]
                 | }
             """.stripMargin
-    lazy val swiftBinaryName = "helloSwift3.zip"
+  lazy val swiftBinaryName = "helloSwift3.zip"
 
-    // Helpers specific to swift actions
-    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer(swiftContainerImageName, env)(code)
-    }
+  // Helpers specific to swift actions
+  override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+    withContainer(swiftContainerImageName, env)(code)
+  }
 
-    behavior of swiftContainerImageName
+  behavior of swiftContainerImageName
 
-    // remove this test: it will not even compile under Swift 3 anymore
-    // so it should not be possible to write an action that does not return
-    // a [String:Any]
-    /*testNotReturningJson(
+  // remove this test: it will not even compile under Swift 3 anymore
+  // so it should not be possible to write an action that does not return
+  // a [String:Any]
+  /*testNotReturningJson(
         """
         |func main(args: [String: Any]) -> String {
         |    return "not a json object"
         |}
         """.stripMargin)
-    */
+   */
 
-    testEcho(Seq {
-        ("swift", """
+  testEcho(Seq {
+    (
+      "swift",
+      """
          | import Foundation
          |
          | extension FileHandle : TextOutputStream {
@@ -125,10 +127,12 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
          |     return args
          | }
         """.stripMargin)
-    })
+  })
 
-    testUnicode(Seq {
-        ("swift", """
+  testUnicode(Seq {
+    (
+      "swift",
+      """
          | func main(args: [String: Any]) -> [String: Any] {
          |     if let str = args["delimiter"] as? String {
          |         let msg = "\(str) ☃ \(str)"
@@ -139,139 +143,139 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
          |     }
          | }
          """.stripMargin.trim)
-    })
+  })
 
-    testEnv(Seq {
-        ("swift", envCode)
-    }, enforceEmptyOutputStream)
+  testEnv(Seq {
+    ("swift", envCode)
+  }, enforceEmptyOutputStream)
 
-    it should "support actions using non-default entry points" in {
-        withActionContainer() { c =>
-            val code = """
+  it should "support actions using non-default entry points" in {
+    withActionContainer() { c =>
+      val code = """
                 | func niam(args: [String: Any]) -> [String: Any] {
                 |     return [ "result": "it works" ]
                 | }
                 |""".stripMargin
 
-            val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
-            initCode should be(200)
+      val (initCode, initRes) = c.init(initPayload(code, main = "niam"))
+      initCode should be(200)
 
-            val (_, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
-        }
+      val (_, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
+    }
+  }
+
+  it should "return some error on action error" in {
+    val (out, err) = withActionContainer() { c =>
+      val code = errorCode
+
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
+
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(502)
+
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
     }
 
-    it should "return some error on action error" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = errorCode
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
-
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(502)
-
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
-    }
-
-    it should "log compilation errors" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = """
+  it should "log compilation errors" in {
+    val (out, err) = withActionContainer() { c =>
+      val code = """
               | 10 PRINT "Hello!"
               | 20 GOTO 10
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should not be (200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e.toLowerCase should include("error")
-        })
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should not be (200)
     }
 
-    it should "support application errors" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e.toLowerCase should include("error")
+    })
+  }
+
+  it should "support application errors" in {
+    val (out, err) = withActionContainer() { c =>
+      val code = """
                 | func main(args: [String: Any]) -> [String: Any] {
                 |     return [ "error": "sorry" ]
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200) // action writer returning an error is OK
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200) // action writer returning an error is OK
 
-            runRes shouldBe defined
-            runRes should be(Some(JsObject("error" -> JsString("sorry"))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
+      runRes shouldBe defined
+      runRes should be(Some(JsObject("error" -> JsString("sorry"))))
     }
 
-    it should "support support multiple files in a zip file" in {
-        val zip = new File(TestUtils.getTestActionFilename("multiSwift.zip")).toPath
-        val code = ResourceHelpers.readAsBase64(zip)
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, initRes) = c.init(initPayload(code))
-            initCode should be(200)
+  it should "support support multiple files in a zip file" in {
+    val zip = new File(TestUtils.getTestActionFilename("multiSwift.zip")).toPath
+    val code = ResourceHelpers.readAsBase64(zip)
 
-            val args = JsObject()
-            val (runCode, runRes) = c.run(runPayload(args))
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, initRes) = c.init(initPayload(code))
+      initCode should be(200)
 
-            runCode should be(200)
-            runRes.get shouldBe JsObject("greeting" -> (JsString("Hello stranger!")))
-        }
+      val args = JsObject()
+      val (runCode, runRes) = c.run(runPayload(args))
 
-        checkStreams(out, err, {
-            case (o, e) =>
-            	if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get shouldBe JsObject("greeting" -> (JsString("Hello stranger!")))
     }
 
-    it should "support pre-compiled binary in a zip file" in {
-        val zip = new File(TestUtils.getTestActionFilename(swiftBinaryName)).toPath
-        val code = ResourceHelpers.readAsBase64(zip)
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, initRes) = c.init(initPayload(code))
-            initCode should be(200)
+  it should "support pre-compiled binary in a zip file" in {
+    val zip = new File(TestUtils.getTestActionFilename(swiftBinaryName)).toPath
+    val code = ResourceHelpers.readAsBase64(zip)
 
-            val args = JsObject()
-            val (runCode, runRes) = c.run(runPayload(args))
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, initRes) = c.init(initPayload(code))
+      initCode should be(200)
 
-            runCode should be(200)
-            runRes.get shouldBe JsObject("greeting" -> (JsString("Hello stranger!")))
-        }
+      val args = JsObject()
+      val (runCode, runRes) = c.run(runPayload(args))
 
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get shouldBe JsObject("greeting" -> (JsString("Hello stranger!")))
     }
 
-    it should "properly use KituraNet and Dispatch" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "properly use KituraNet and Dispatch" in {
+    val (out, err) = withActionContainer() { c =>
+      val code = """
                 | import KituraNet
                 | import Foundation
                 | import Dispatch
@@ -315,46 +319,45 @@ class Swift3ActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
+      val (initCode, _) = c.init(initPayload(code))
 
-            initCode should be(200)
+      initCode should be(200)
 
-            val argss = List(
-                JsObject("getUrl" -> JsString("https://openwhisk.ng.bluemix.net/api/v1")))
+      val argss = List(JsObject("getUrl" -> JsString("https://openwhisk.ng.bluemix.net/api/v1")))
 
-            for (args <- argss) {
-                val (runCode, out) = c.run(runPayload(args))
-                runCode should be(200)
-            }
-        }
-
-        // in side try catch finally print (out file)
-        // in catch block an error has occurred, get docker logs and print
-        // throw
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
+      for (args <- argss) {
+        val (runCode, out) = c.run(runPayload(args))
+        runCode should be(200)
+      }
     }
 
-    it should "make Watson SDKs available to action authors" in {
-        val (out, err) = withActionContainer() { c =>
-            val code = watsonCode
+    // in side try catch finally print (out file)
+    // in catch block an error has occurred, get docker logs and print
+    // throw
 
-            val (initCode, _) = c.init(initPayload(code))
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-            initCode should be(200)
+  it should "make Watson SDKs available to action authors" in {
+    val (out, err) = withActionContainer() { c =>
+      val code = watsonCode
 
-            val (runCode, out) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-        }
+      val (initCode, _) = c.init(initPayload(code))
 
-        checkStreams(out, err, {
-            case (o, e) =>
-                if (enforceEmptyOutputStream) o shouldBe empty
-                e shouldBe empty
-        })
+      initCode should be(200)
+
+      val (runCode, out) = c.run(runPayload(JsObject()))
+      runCode should be(200)
     }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
 }

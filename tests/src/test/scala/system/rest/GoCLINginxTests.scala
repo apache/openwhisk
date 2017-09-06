@@ -32,52 +32,54 @@ import DefaultJsonProtocol._
  */
 @RunWith(classOf[JUnitRunner])
 class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
-    val ProductName = "OpenWhisk_CLI"
-    val DownloadLinkGoCli = "cli/go/download"
-    val OperatingSystems = List("mac", "linux", "windows")
-    val Architectures = List("386", "amd64")
-    val ServiceURL = getServiceURL()
+  val ProductName = "OpenWhisk_CLI"
+  val DownloadLinkGoCli = "cli/go/download"
+  val OperatingSystems = List("mac", "linux", "windows")
+  val Architectures = List("386", "amd64")
+  val ServiceURL = getServiceURL()
 
-    it should s"respond to all files in root directory" in {
-        val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli")
+  it should s"respond to all files in root directory" in {
+    val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli")
+    response.statusCode should be(200)
+    val responseString = response.body.asString
+    responseString should include("""<a href="content.json">content.json</a>""")
+    val responseJSON = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
+    responseJSON.statusCode should be(200)
+    val cli = responseJSON.body.asString.parseJson.asJsObject
+      .fields("cli")
+      .convertTo[Map[String, Map[String, Map[String, String]]]]
+    cli.foreach {
+      case (os, arch) => responseString should include(s"""<a href="$os/">$os/</a>""")
+    }
+  }
+
+  it should "respond to all operating systems and architectures in HTML index" in {
+    val responseJSON = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
+    responseJSON.statusCode should be(200)
+    val cli = responseJSON.body.asString.parseJson.asJsObject
+      .fields("cli")
+      .convertTo[Map[String, Map[String, Map[String, String]]]]
+    cli.foreach {
+      case (os, arch) =>
+        val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/$os")
         response.statusCode should be(200)
         val responseString = response.body.asString
-        responseString should include("""<a href="content.json">content.json</a>""")
-        val responseJSON = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
-        responseJSON.statusCode should be(200)
-        val cli = responseJSON.body.asString.parseJson.asJsObject.fields("cli").convertTo[Map[String, Map[String,
-          Map[String, String]]]]
-        cli.foreach {
-            case(os, arch) => responseString should include(s"""<a href="$os/">$os/</a>""")
+        arch.foreach {
+          case (arch, path) =>
+            if (arch != "default") {
+              responseString should include(s"""<a href="$arch/">$arch/</a>""")
+            }
         }
     }
+  }
 
-    it should "respond to all operating systems and architectures in HTML index" in {
-        val responseJSON = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
-        responseJSON.statusCode should be(200)
-        val cli = responseJSON.body.asString.parseJson.asJsObject.fields("cli").convertTo[Map[String, Map[String,
-          Map[String, String]]]]
-        cli.foreach {
-            case(os, arch) =>
-                val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/$os")
-                response.statusCode should be(200)
-                val responseString = response.body.asString
-                arch.foreach {
-                    case (arch, path) =>
-                        if (arch != "default") {
-                            responseString should include(s"""<a href="$arch/">$arch/</a>""")
-                        }
-                }
-        }
+  it should "respond to the download paths in content.json" in {
+    val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
+    response.statusCode should be(200)
+    val cli =
+      response.body.asString.parseJson.asJsObject.fields("cli").convertTo[Map[String, Map[String, Map[String, String]]]]
+    cli.values.flatMap(_.values).flatMap(_.values).foreach { path =>
+      RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/$path").statusCode should be(200)
     }
-
-    it should "respond to the download paths in content.json" in {
-        val response = RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/content.json")
-        response.statusCode should be(200)
-        val cli = response.body.asString.parseJson.asJsObject.fields("cli").convertTo[Map[String, Map[String,
-          Map[String, String]]]]
-        cli.values.flatMap(_.values).flatMap(_.values).foreach { path =>
-            RestAssured.given().config(sslconfig).get(s"$ServiceURL/$DownloadLinkGoCli/$path").statusCode should be(200)
-        }
-    }
+  }
 }

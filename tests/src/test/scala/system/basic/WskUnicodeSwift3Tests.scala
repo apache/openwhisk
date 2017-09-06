@@ -24,12 +24,9 @@ import common.JsHelpers
 import common.WskTestHelpers
 
 @RunWith(classOf[JUnitRunner])
-class WskUnicodeSwift3Tests
-    extends WskUnicodeTests
-    with WskTestHelpers
-    with JsHelpers {
+class WskUnicodeSwift3Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
-    override lazy val actionKind = "swift:3"
-    override lazy val actionSource = "unicode.swift"
+  override lazy val actionKind = "swift:3"
+  override lazy val actionSource = "unicode.swift"
 
 }

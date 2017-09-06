@@ -53,143 +53,137 @@ class MessageFeedTests
     with MockFactory
     with StreamLogging {
 
-    val system = ActorSystem("MessageFeedTestSystem")
-    val actorsToDestroyAfterEach: Buffer[ActorRef] = Buffer.empty
+  val system = ActorSystem("MessageFeedTestSystem")
+  val actorsToDestroyAfterEach: Buffer[ActorRef] = Buffer.empty
 
-    override def afterEach() = {
-        actorsToDestroyAfterEach.foreach { _ ! PoisonPill }
-        actorsToDestroyAfterEach.clear()
+  override def afterEach() = {
+    actorsToDestroyAfterEach.foreach { _ ! PoisonPill }
+    actorsToDestroyAfterEach.clear()
+  }
+
+  override def afterAll() = TestKit.shutdownActorSystem(system)
+
+  case class Connector(autoStart: Boolean = true) extends TestKit(system) {
+    val peekCount = new AtomicInteger()
+
+    val consumer = new TestConnector("feedtest", 4, true) {
+      override def peek(duration: Duration) = {
+        peekCount.incrementAndGet()
+        super.peek(duration)
+      }
     }
 
-    override def afterAll() = TestKit.shutdownActorSystem(system)
+    val sentCount = new AtomicInteger()
 
-    case class Connector(autoStart: Boolean = true) extends TestKit(system) {
-        val peekCount = new AtomicInteger()
-
-        val consumer = new TestConnector("feedtest", 4, true) {
-            override def peek(duration: Duration) = {
-                peekCount.incrementAndGet()
-                super.peek(duration)
-            }
+    def fill(n: Int) = {
+      val msgs = (1 to n).map { _ =>
+        new Message {
+          override def serialize = {
+            sentCount.incrementAndGet().toString
+          }
+          override def toString = {
+            s"message${sentCount.get}"
+          }
         }
-
-        val sentCount = new AtomicInteger()
-
-        def fill(n: Int) = {
-            val msgs = (1 to n).map { _ =>
-                new Message {
-                    override def serialize = {
-                        sentCount.incrementAndGet().toString
-                    }
-                    override def toString = {
-                        s"message${sentCount.get}"
-                    }
-                }
-            }
-            consumer.send(msgs)
-        }
-
-        val receivedCount = new AtomicInteger()
-
-        def handler(bytes: Array[Byte]): Future[Unit] = {
-            Future.successful(receivedCount.incrementAndGet())
-        }
-
-        val fsm = childActorOf(Props(new MessageFeed(
-            "test",
-            logging,
-            consumer,
-            consumer.maxPeek,
-            200.milliseconds,
-            handler,
-            autoStart)))
-
-        actorsToDestroyAfterEach += (fsm, testActor)
-
-        def monitorTransitionsAndStart() = {
-            fsm ! SubscribeTransitionCallBack(testActor)
-            expectMsg(CurrentState(fsm, Idle))
-            fsm ! Ready
-            expectMsg(Transition(fsm, Idle, FillingPipeline))
-            this
-        }
+      }
+      consumer.send(msgs)
     }
 
-    def timeout(actor: ActorRef) = actor ! FSM.StateTimeout
+    val receivedCount = new AtomicInteger()
 
-    it should "wait for ready before accepting messages" in {
-        val connector = Connector(autoStart = false)
-        connector.fsm ! SubscribeTransitionCallBack(connector.testActor)
-
-        // start idle
-        connector.expectMsg(CurrentState(connector.fsm, Idle))
-
-        // stay until received ready
-        connector.fsm ! FSM.StateTimeout // should be ignored
-        connector.fsm ! Processed // should be ignored
-        Thread.sleep(500.milliseconds.toMillis)
-        connector.peekCount.get shouldBe 0
-
-        // start filling
-        connector.fsm ! Ready
-        connector.expectMsg(Transition(connector.fsm, Idle, FillingPipeline))
-        retry(connector.peekCount.get should be > 0)
+    def handler(bytes: Array[Byte]): Future[Unit] = {
+      Future.successful(receivedCount.incrementAndGet())
     }
 
-    it should "auto start and start polling for messages" in {
-        val connector = Connector(autoStart = true)
-        // automatically start filling
-        retry(connector.peekCount.get should be > 0, 5, Some(200.milliseconds))
+    val fsm = childActorOf(
+      Props(new MessageFeed("test", logging, consumer, consumer.maxPeek, 200.milliseconds, handler, autoStart)))
+
+    actorsToDestroyAfterEach += (fsm, testActor)
+
+    def monitorTransitionsAndStart() = {
+      fsm ! SubscribeTransitionCallBack(testActor)
+      expectMsg(CurrentState(fsm, Idle))
+      fsm ! Ready
+      expectMsg(Transition(fsm, Idle, FillingPipeline))
+      this
     }
+  }
 
-    it should "stop polling for messages when the pipeline is full" in {
-        val connector = Connector(autoStart = false).monitorTransitionsAndStart()
-        // push enough to cause pipeline to exceed fill mark
-        connector.fill(connector.consumer.maxPeek * 2 + 1)
-        retry(connector.peekCount.get should be > 0)
-        retry(connector.receivedCount.get shouldBe connector.consumer.maxPeek, 10, Some(200.milliseconds))
+  def timeout(actor: ActorRef) = actor ! FSM.StateTimeout
 
-        val peeks = connector.peekCount.get
-        connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
+  it should "wait for ready before accepting messages" in {
+    val connector = Connector(autoStart = false)
+    connector.fsm ! SubscribeTransitionCallBack(connector.testActor)
 
-        connector.peekCount.get shouldBe peeks
-        connector.expectNoMsg(500.milliseconds)
-    }
+    // start idle
+    connector.expectMsg(CurrentState(connector.fsm, Idle))
 
-    it should "transition from drain to fill mode" in {
-        val connector = Connector(autoStart = false).monitorTransitionsAndStart()
-        println(connector.fsm.toString())
-        // push enough to cause pipeline to exceed fill mark
-        val sendCount = connector.consumer.maxPeek * 2 + 2
-        connector.fill(sendCount)
-        retry(connector.peekCount.get should be > 0)
-        retry(connector.receivedCount.get shouldBe connector.consumer.maxPeek, 10, Some(200.milliseconds))
+    // stay until received ready
+    connector.fsm ! FSM.StateTimeout // should be ignored
+    connector.fsm ! Processed // should be ignored
+    Thread.sleep(500.milliseconds.toMillis)
+    connector.peekCount.get shouldBe 0
 
-        val peeks = connector.peekCount.get
-        connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
+    // start filling
+    connector.fsm ! Ready
+    connector.expectMsg(Transition(connector.fsm, Idle, FillingPipeline))
+    retry(connector.peekCount.get should be > 0)
+  }
 
-        // stay in drain mode, no more peeking
-        timeout(connector.fsm) // should be ignored
-        connector.expectNoMsg(500.milliseconds)
-        connector.peekCount.get shouldBe peeks // no new reads
+  it should "auto start and start polling for messages" in {
+    val connector = Connector(autoStart = true)
+    // automatically start filling
+    retry(connector.peekCount.get should be > 0, 5, Some(200.milliseconds))
+  }
 
-        // expecting overflow of 2 in the queue, which is true if all expected messages were sent
-        retry(connector.sentCount.get shouldBe sendCount, 5, Some(200.milliseconds))
+  it should "stop polling for messages when the pipeline is full" in {
+    val connector = Connector(autoStart = false).monitorTransitionsAndStart()
+    // push enough to cause pipeline to exceed fill mark
+    connector.fill(connector.consumer.maxPeek * 2 + 1)
+    retry(connector.peekCount.get should be > 0)
+    retry(connector.receivedCount.get shouldBe connector.consumer.maxPeek, 10, Some(200.milliseconds))
 
-        // drain one, should stay in draining state
-        connector.fsm ! Processed
-        connector.expectNoMsg(500.milliseconds)
-        connector.peekCount.get shouldBe peeks // no new reads
+    val peeks = connector.peekCount.get
+    connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
 
-        // back to fill mode
-        connector.fsm ! Processed
-        connector.expectMsg(Transition(connector.fsm, DrainingPipeline, FillingPipeline))
-        retry(connector.peekCount.get should be >= (peeks + 1))
+    connector.peekCount.get shouldBe peeks
+    connector.expectNoMsg(500.milliseconds)
+  }
 
-        // should send back to drain mode
-        connector.fill(1)
-        connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
+  it should "transition from drain to fill mode" in {
+    val connector = Connector(autoStart = false).monitorTransitionsAndStart()
+    println(connector.fsm.toString())
+    // push enough to cause pipeline to exceed fill mark
+    val sendCount = connector.consumer.maxPeek * 2 + 2
+    connector.fill(sendCount)
+    retry(connector.peekCount.get should be > 0)
+    retry(connector.receivedCount.get shouldBe connector.consumer.maxPeek, 10, Some(200.milliseconds))
 
-        connector.expectNoMsg(500.milliseconds)
-    }
+    val peeks = connector.peekCount.get
+    connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
+
+    // stay in drain mode, no more peeking
+    timeout(connector.fsm) // should be ignored
+    connector.expectNoMsg(500.milliseconds)
+    connector.peekCount.get shouldBe peeks // no new reads
+
+    // expecting overflow of 2 in the queue, which is true if all expected messages were sent
+    retry(connector.sentCount.get shouldBe sendCount, 5, Some(200.milliseconds))
+
+    // drain one, should stay in draining state
+    connector.fsm ! Processed
+    connector.expectNoMsg(500.milliseconds)
+    connector.peekCount.get shouldBe peeks // no new reads
+
+    // back to fill mode
+    connector.fsm ! Processed
+    connector.expectMsg(Transition(connector.fsm, DrainingPipeline, FillingPipeline))
+    retry(connector.peekCount.get should be >= (peeks + 1))
+
+    // should send back to drain mode
+    connector.fill(1)
+    connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
+
+    connector.expectNoMsg(500.milliseconds)
+  }
 }

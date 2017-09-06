@@ -24,12 +24,9 @@ import common.JsHelpers
 import common.WskTestHelpers
 
 @RunWith(classOf[JUnitRunner])
-class WskUnicodePython3Tests
-    extends WskUnicodeTests
-    with WskTestHelpers
-    with JsHelpers {
+class WskUnicodePython3Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
-    override lazy val actionKind = "python:3"
-    override lazy val actionSource = "unicode3.py"
+  override lazy val actionKind = "python:3"
+  override lazy val actionSource = "unicode3.py"
 
 }

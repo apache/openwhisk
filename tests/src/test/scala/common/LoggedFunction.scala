@@ -28,46 +28,45 @@ import scala.collection.mutable
  *     func.calls should have size 1
  *     func.calls.head shouldBe (1, 2)
  */
-
 class LoggedFunction2[A1, A2, B](body: (A1, A2) => B) extends Function2[A1, A2, B] {
-    val calls = mutable.Buffer[(A1, A2)]()
+  val calls = mutable.Buffer[(A1, A2)]()
 
-    override def apply(v1: A1, v2: A2): B = {
-        calls += ((v1, v2))
-        body(v1, v2)
-    }
+  override def apply(v1: A1, v2: A2): B = {
+    calls += ((v1, v2))
+    body(v1, v2)
+  }
 }
 
 class LoggedFunction3[A1, A2, A3, B](body: (A1, A2, A3) => B) extends Function3[A1, A2, A3, B] {
-    val calls = mutable.Buffer[(A1, A2, A3)]()
+  val calls = mutable.Buffer[(A1, A2, A3)]()
 
-    override def apply(v1: A1, v2: A2, v3: A3): B = {
-        calls += ((v1, v2, v3))
-        body(v1, v2, v3)
-    }
+  override def apply(v1: A1, v2: A2, v3: A3): B = {
+    calls += ((v1, v2, v3))
+    body(v1, v2, v3)
+  }
 }
 
 class LoggedFunction4[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) extends Function4[A1, A2, A3, A4, B] {
-    val calls = mutable.Buffer[(A1, A2, A3, A4)]()
+  val calls = mutable.Buffer[(A1, A2, A3, A4)]()
 
-    override def apply(v1: A1, v2: A2, v3: A3, v4: A4): B = {
-        calls += ((v1, v2, v3, v4))
-        body(v1, v2, v3, v4)
-    }
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4): B = {
+    calls += ((v1, v2, v3, v4))
+    body(v1, v2, v3, v4)
+  }
 }
 
 class LoggedFunction5[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) extends Function5[A1, A2, A3, A4, A5, B] {
-    val calls = mutable.Buffer[(A1, A2, A3, A4, A5)]()
+  val calls = mutable.Buffer[(A1, A2, A3, A4, A5)]()
 
-    override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5): B = {
-        calls += ((v1, v2, v3, v4, v5))
-        body(v1, v2, v3, v4, v5)
-    }
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5): B = {
+    calls += ((v1, v2, v3, v4, v5))
+    body(v1, v2, v3, v4, v5)
+  }
 }
 
 object LoggedFunction {
-    def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2(body)
-    def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3(body)
-    def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4(body)
-    def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5(body)
+  def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2(body)
+  def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3(body)
+  def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4(body)
+  def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5(body)
 }

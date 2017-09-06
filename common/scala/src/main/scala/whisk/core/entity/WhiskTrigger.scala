@@ -25,12 +25,11 @@ import spray.json._
  * WhiskTriggerPut is a restricted WhiskTrigger view that eschews properties
  * that are auto-assigned or derived from URI: namespace and name.
  */
-case class WhiskTriggerPut(
-    parameters: Option[Parameters] = None,
-    limits: Option[TriggerLimits] = None,
-    version: Option[SemVer] = None,
-    publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None)
+case class WhiskTriggerPut(parameters: Option[Parameters] = None,
+                           limits: Option[TriggerLimits] = None,
+                           version: Option[SemVer] = None,
+                           publish: Option[Boolean] = None,
+                           annotations: Option[Parameters] = None)
 
 /**
  * Representation of a rule to be stored inside a trigger. Contains all
@@ -40,9 +39,7 @@ case class WhiskTriggerPut(
  * @param action the fully qualified name of the action to be fired
  * @param status status of the rule
  */
-case class ReducedRule(
-    action: FullyQualifiedEntityName,
-    status: Status)
+case class ReducedRule(action: FullyQualifiedEntityName, status: Status)
 
 /**
  * A WhiskTrigger provides an abstraction of the meta-data
@@ -62,50 +59,49 @@ case class ReducedRule(
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
-case class WhiskTrigger(
-    namespace: EntityPath,
-    override val name: EntityName,
-    parameters: Parameters = Parameters(),
-    limits: TriggerLimits = TriggerLimits(),
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters(),
-    rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None)
+case class WhiskTrigger(namespace: EntityPath,
+                        override val name: EntityName,
+                        parameters: Parameters = Parameters(),
+                        limits: TriggerLimits = TriggerLimits(),
+                        version: SemVer = SemVer(),
+                        publish: Boolean = false,
+                        annotations: Parameters = Parameters(),
+                        rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None)
     extends WhiskEntity(name) {
 
-    require(limits != null, "limits undefined")
+  require(limits != null, "limits undefined")
 
-    def toJson = WhiskTrigger.serdes.write(this).asJsObject
+  def toJson = WhiskTrigger.serdes.write(this).asJsObject
 
-    def withoutRules = copy(rules = None).revision[WhiskTrigger](rev)
+  def withoutRules = copy(rules = None).revision[WhiskTrigger](rev)
 
-    /**
-     * Inserts the rulename, its status and the action to be fired into the trigger.
-     *
-     * @param rulename The fully qualified name of the rule, that will be fired by this trigger.
-     * @param rule The rule, that will be fired by this trigger. It's from type ReducedRule. This type
-     * contains the fully qualified name of the action to be fired by the rule and the status of the rule.
-     */
-    def addRule(rulename: FullyQualifiedEntityName, rule: ReducedRule) = {
-        val entry = rulename -> rule
-        val links = rules getOrElse Map.empty[FullyQualifiedEntityName, ReducedRule]
-        copy(rules = Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
-    }
+  /**
+   * Inserts the rulename, its status and the action to be fired into the trigger.
+   *
+   * @param rulename The fully qualified name of the rule, that will be fired by this trigger.
+   * @param rule The rule, that will be fired by this trigger. It's from type ReducedRule. This type
+   * contains the fully qualified name of the action to be fired by the rule and the status of the rule.
+   */
+  def addRule(rulename: FullyQualifiedEntityName, rule: ReducedRule) = {
+    val entry = rulename -> rule
+    val links = rules getOrElse Map.empty[FullyQualifiedEntityName, ReducedRule]
+    copy(rules = Some(links + entry)).revision[WhiskTrigger](docinfo.rev)
+  }
 
-    /**
-     * Removes the rule from the trigger.
-     *
-     * @param rule The fully qualified name of the rule, that should be removed from the
-     * trigger. After removing the rule, it won't be fired anymore by this trigger.
-     */
-    def removeRule(rule: FullyQualifiedEntityName) = {
-        copy(rules = rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
-    }
+  /**
+   * Removes the rule from the trigger.
+   *
+   * @param rule The fully qualified name of the rule, that should be removed from the
+   * trigger. After removing the rule, it won't be fired anymore by this trigger.
+   */
+  def removeRule(rule: FullyQualifiedEntityName) = {
+    copy(rules = rules.map(_ - rule)).revision[WhiskTrigger](docinfo.rev)
+  }
 }
 
 object ReducedRule extends DefaultJsonProtocol {
-    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat2(ReducedRule.apply)
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  implicit val serdes = jsonFormat2(ReducedRule.apply)
 }
 
 object WhiskTrigger
@@ -113,14 +109,14 @@ object WhiskTrigger
     with WhiskEntityQueries[WhiskTrigger]
     with DefaultJsonProtocol {
 
-    override val collectionName = "triggers"
+  override val collectionName = "triggers"
 
-    private implicit val fqnSerdesAsDocId = FullyQualifiedEntityName.serdesAsDocId
-    override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
+  private implicit val fqnSerdesAsDocId = FullyQualifiedEntityName.serdesAsDocId
+  override implicit val serdes = jsonFormat8(WhiskTrigger.apply)
 
-    override val cacheEnabled = true
+  override val cacheEnabled = true
 }
 
 object WhiskTriggerPut extends DefaultJsonProtocol {
-    implicit val serdes = jsonFormat5(WhiskTriggerPut.apply)
+  implicit val serdes = jsonFormat5(WhiskTriggerPut.apply)
 }

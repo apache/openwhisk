@@ -26,3 +26,8 @@ gradle.ext.scala = [
     version: '2.11.8',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
+
+gradle.ext.scalafmt = [
+    version: '1.5.0',
+    config: new File(rootProject.projectDir, '.scalafmt.conf')
+]

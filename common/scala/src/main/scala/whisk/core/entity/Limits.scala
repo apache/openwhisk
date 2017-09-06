@@ -29,8 +29,8 @@ import spray.json.DefaultJsonProtocol
  * that require global knowledge).
  */
 protected[entity] abstract class Limits {
-    protected[entity] def toJson: JsValue
-    override def toString = toJson.compactPrint
+  protected[entity] def toJson: JsValue
+  override def toString = toJson.compactPrint
 }
 
 /**
@@ -45,46 +45,43 @@ protected[entity] abstract class Limits {
  * @param memory the memory limit in megabytes, assured to be non-null because it is a value
  * @param logs the limit for logs written by the container and stored in the activation record, assured to be non-null because it is a value
  */
-protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: LogLimit) extends Limits {
-    override protected[entity] def toJson = ActionLimits.serdes.write(this)
+protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: LogLimit)
+    extends Limits {
+  override protected[entity] def toJson = ActionLimits.serdes.write(this)
 }
 
 /**
  * Limits on a specific trigger. None yet.
  */
 protected[core] case class TriggerLimits protected[core] () extends Limits {
-    override protected[entity] def toJson: JsValue = TriggerLimits.serdes.write(this)
+  override protected[entity] def toJson: JsValue = TriggerLimits.serdes.write(this)
 }
 
-protected[core] object ActionLimits
-    extends ArgNormalizer[ActionLimits]
-    with DefaultJsonProtocol {
+protected[core] object ActionLimits extends ArgNormalizer[ActionLimits] with DefaultJsonProtocol {
 
-    /** Creates a ActionLimits instance with default duration, memory and log limits. */
-    protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit(), LogLimit())
+  /** Creates a ActionLimits instance with default duration, memory and log limits. */
+  protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit(), LogLimit())
 
-    override protected[core] implicit val serdes = new RootJsonFormat[ActionLimits] {
-        val helper = jsonFormat3(ActionLimits.apply)
+  override protected[core] implicit val serdes = new RootJsonFormat[ActionLimits] {
+    val helper = jsonFormat3(ActionLimits.apply)
 
-        def read(value: JsValue) = {
-            val obj = Try {
-                value.asJsObject.convertTo[Map[String, JsValue]]
-            } getOrElse deserializationError("no valid json object passed")
+    def read(value: JsValue) = {
+      val obj = Try {
+        value.asJsObject.convertTo[Map[String, JsValue]]
+      } getOrElse deserializationError("no valid json object passed")
 
-            val time = TimeLimit.serdes.read(obj.get("timeout") getOrElse deserializationError("'timeout' is missing"))
-            val memory = MemoryLimit.serdes.read(obj.get("memory") getOrElse deserializationError("'memory' is missing"))
-            val logs = obj.get("logs") map { LogLimit.serdes.read(_) } getOrElse LogLimit()
+      val time = TimeLimit.serdes.read(obj.get("timeout") getOrElse deserializationError("'timeout' is missing"))
+      val memory = MemoryLimit.serdes.read(obj.get("memory") getOrElse deserializationError("'memory' is missing"))
+      val logs = obj.get("logs") map { LogLimit.serdes.read(_) } getOrElse LogLimit()
 
-            ActionLimits(time, memory, logs)
-        }
-
-        def write(a: ActionLimits) = helper.write(a)
+      ActionLimits(time, memory, logs)
     }
+
+    def write(a: ActionLimits) = helper.write(a)
+  }
 }
 
-protected[core] object TriggerLimits
-    extends ArgNormalizer[TriggerLimits]
-    with DefaultJsonProtocol {
+protected[core] object TriggerLimits extends ArgNormalizer[TriggerLimits] with DefaultJsonProtocol {
 
-    override protected[core] implicit val serdes = jsonFormat0(TriggerLimits.apply)
+  override protected[core] implicit val serdes = jsonFormat0(TriggerLimits.apply)
 }

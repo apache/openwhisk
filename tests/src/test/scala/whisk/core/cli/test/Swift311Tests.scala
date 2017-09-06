@@ -21,8 +21,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class Swift311Tests
-    extends Swift3Tests {
+class Swift311Tests extends Swift3Tests {
 
-    override lazy val runtimeContainer = "swift:3.1.1"
+  override lazy val runtimeContainer = "swift:3.1.1"
 }

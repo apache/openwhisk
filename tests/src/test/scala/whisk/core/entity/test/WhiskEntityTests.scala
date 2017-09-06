@@ -41,122 +41,97 @@ import whisk.core.entity.Status
 @RunWith(classOf[JUnitRunner])
 class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
-    val namespace = EntityPath("testspace")
-    val name = EntityName("testname")
-    val revision = DocRevision("test")
+  val namespace = EntityPath("testspace")
+  val name = EntityName("testname")
+  val revision = DocRevision("test")
 
-    behavior of "WhiskAction"
+  behavior of "WhiskAction"
 
-    it should "correctly inherit parameters and preserve revision through the process" in {
-        def withParameters(p: Parameters) = WhiskAction(
-            namespace,
-            name,
-            jsDefault("js1"), parameters = p).revision[WhiskAction](revision)
+  it should "correctly inherit parameters and preserve revision through the process" in {
+    def withParameters(p: Parameters) =
+      WhiskAction(namespace, name, jsDefault("js1"), parameters = p).revision[WhiskAction](revision)
 
-        val toInherit = Parameters("testParam", "testValue")
-        Seq(Parameters(),
-            Parameters("testParam2", "testValue"),
-            Parameters("testParam", "testValue2")
-        ).foreach { params =>
-                val action = withParameters(params)
-                val inherited = action.inherit(toInherit)
-                inherited shouldBe action.copy(parameters = toInherit ++ action.parameters)
-                inherited.rev shouldBe action.rev
-            }
+    val toInherit = Parameters("testParam", "testValue")
+    Seq(Parameters(), Parameters("testParam2", "testValue"), Parameters("testParam", "testValue2")).foreach { params =>
+      val action = withParameters(params)
+      val inherited = action.inherit(toInherit)
+      inherited shouldBe action.copy(parameters = toInherit ++ action.parameters)
+      inherited.rev shouldBe action.rev
     }
+  }
 
-    it should "correctly resolve default namespace and preserve its revision through the process" in {
-        val user = "testuser"
-        val sequenceAction = FullyQualifiedEntityName(EntityPath("_"), EntityName("testaction"))
-        val action = WhiskAction(
-            namespace,
-            name,
-            sequence(Vector(sequenceAction))).revision[WhiskAction](revision)
+  it should "correctly resolve default namespace and preserve its revision through the process" in {
+    val user = "testuser"
+    val sequenceAction = FullyQualifiedEntityName(EntityPath("_"), EntityName("testaction"))
+    val action = WhiskAction(namespace, name, sequence(Vector(sequenceAction))).revision[WhiskAction](revision)
 
-        val resolved = action.resolve(EntityName(user))
-        resolved.exec.asInstanceOf[SequenceExec].components.head shouldBe sequenceAction.copy(path = EntityPath(user))
-        action.rev shouldBe resolved.rev
+    val resolved = action.resolve(EntityName(user))
+    resolved.exec.asInstanceOf[SequenceExec].components.head shouldBe sequenceAction.copy(path = EntityPath(user))
+    action.rev shouldBe resolved.rev
+  }
+
+  behavior of "WhiskPackage"
+
+  it should "correctly inherit parameters and preserve revision through the process" in {
+    def withParameters(p: Parameters) = WhiskPackage(namespace, name, parameters = p).revision[WhiskPackage](revision)
+
+    val toInherit = Parameters("testParam", "testValue")
+    Seq(Parameters(), Parameters("testParam2", "testValue"), Parameters("testParam", "testValue2")).foreach { params =>
+      val pkg = withParameters(params)
+      val inherited = pkg.inherit(toInherit)
+      inherited shouldBe pkg.copy(parameters = toInherit ++ pkg.parameters)
+      inherited.rev shouldBe pkg.rev
     }
+  }
 
-    behavior of "WhiskPackage"
+  it should "correctly merge parameters and preserve revision through the process" in {
+    def withParameters(p: Parameters) = WhiskPackage(namespace, name, parameters = p).revision[WhiskPackage](revision)
 
-    it should "correctly inherit parameters and preserve revision through the process" in {
-        def withParameters(p: Parameters) = WhiskPackage(
-            namespace,
-            name, parameters = p).revision[WhiskPackage](revision)
-
-        val toInherit = Parameters("testParam", "testValue")
-        Seq(Parameters(),
-            Parameters("testParam2", "testValue"),
-            Parameters("testParam", "testValue2")
-        ).foreach { params =>
-                val pkg = withParameters(params)
-                val inherited = pkg.inherit(toInherit)
-                inherited shouldBe pkg.copy(parameters = toInherit ++ pkg.parameters)
-                inherited.rev shouldBe pkg.rev
-            }
+    val toOverride = Parameters("testParam", "testValue")
+    Seq(Parameters(), Parameters("testParam2", "testValue"), Parameters("testParam", "testValue2")).foreach { params =>
+      val pkg = withParameters(params)
+      val inherited = pkg.mergeParameters(toOverride)
+      inherited shouldBe pkg.copy(parameters = pkg.parameters ++ toOverride)
+      inherited.rev shouldBe pkg.rev
     }
+  }
 
-    it should "correctly merge parameters and preserve revision through the process" in {
-        def withParameters(p: Parameters) = WhiskPackage(
-            namespace,
-            name, parameters = p).revision[WhiskPackage](revision)
+  behavior of "WhiskActivation"
 
-        val toOverride = Parameters("testParam", "testValue")
-        Seq(Parameters(),
-            Parameters("testParam2", "testValue"),
-            Parameters("testParam", "testValue2")
-        ).foreach { params =>
-                val pkg = withParameters(params)
-                val inherited = pkg.mergeParameters(toOverride)
-                inherited shouldBe pkg.copy(parameters = pkg.parameters ++ toOverride)
-                inherited.rev shouldBe pkg.rev
-            }
-    }
+  it should "add and remove logs and preserve revision in the process" in {
+    val activation = WhiskActivation(namespace, name, Subject(), ActivationId(), Instant.now(), Instant.now())
+      .revision[WhiskActivation](revision)
+    val logs = ActivationLogs(Vector("testlog"))
 
-    behavior of "WhiskActivation"
+    val withLogs = activation.withLogs(logs)
+    withLogs shouldBe activation.copy(logs = logs)
+    withLogs.rev shouldBe activation.rev
 
-    it should "add and remove logs and preserve revision in the process" in {
-        val activation = WhiskActivation(
-            namespace,
-            name,
-            Subject(),
-            ActivationId(),
-            Instant.now(),
-            Instant.now()).revision[WhiskActivation](revision)
-        val logs = ActivationLogs(Vector("testlog"))
+    val withoutLogs = withLogs.withoutLogs
+    withoutLogs shouldBe activation
+    withoutLogs.rev shouldBe activation.rev
+  }
 
-        val withLogs = activation.withLogs(logs)
-        withLogs shouldBe activation.copy(logs = logs)
-        withLogs.rev shouldBe activation.rev
+  behavior of "WhiskTrigger"
 
-        val withoutLogs = withLogs.withoutLogs
-        withoutLogs shouldBe activation
-        withoutLogs.rev shouldBe activation.rev
-    }
+  it should "add and remove rules and preserve revision in the process" in {
+    val fqn = FullyQualifiedEntityName(namespace, name)
+    val trigger = WhiskTrigger(namespace, name).revision[WhiskTrigger](revision)
+    val rule = ReducedRule(fqn, Status.ACTIVE)
 
-    behavior of "WhiskTrigger"
+    // Add a rule
+    val ruleAdded = trigger.addRule(fqn, rule)
+    ruleAdded.rules shouldBe Some(Map(fqn -> rule))
+    ruleAdded.rev shouldBe trigger.rev
 
-    it should "add and remove rules and preserve revision in the process" in {
-        val fqn = FullyQualifiedEntityName(namespace, name)
-        val trigger = WhiskTrigger(
-            namespace,
-            name).revision[WhiskTrigger](revision)
-        val rule = ReducedRule(fqn, Status.ACTIVE)
+    // Remove the rule
+    val ruleRemoved = ruleAdded.removeRule(fqn)
+    ruleRemoved.rules shouldBe Some(Map.empty[FullyQualifiedEntityName, ReducedRule])
+    ruleRemoved.rev shouldBe trigger.rev
 
-        // Add a rule
-        val ruleAdded = trigger.addRule(fqn, rule)
-        ruleAdded.rules shouldBe Some(Map(fqn -> rule))
-        ruleAdded.rev shouldBe trigger.rev
-
-        // Remove the rule
-        val ruleRemoved = ruleAdded.removeRule(fqn)
-        ruleRemoved.rules shouldBe Some(Map.empty[FullyQualifiedEntityName, ReducedRule])
-        ruleRemoved.rev shouldBe trigger.rev
-
-        // Remove all rules
-        val rulesRemoved = ruleAdded.withoutRules
-        rulesRemoved.rules shouldBe None
-        rulesRemoved.rev shouldBe trigger.rev
-    }
+    // Remove all rules
+    val rulesRemoved = ruleAdded.withoutRules
+    rulesRemoved.rules shouldBe None
+    rulesRemoved.rev shouldBe trigger.rev
+  }
 }

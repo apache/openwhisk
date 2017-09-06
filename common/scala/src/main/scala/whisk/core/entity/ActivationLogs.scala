@@ -30,22 +30,23 @@ import spray.json.deserializationError
 import spray.json.pimpAny
 
 protected[core] case class ActivationLogs(val logs: Vector[String] = Vector()) extends AnyVal {
-    def toJsonObject = JsObject("logs" -> toJson)
-    def toJson = JsArray(logs map { _.toJson })
+  def toJsonObject = JsObject("logs" -> toJson)
+  def toJson = JsArray(logs map { _.toJson })
 
-    override def toString = logs mkString ("[", ", ", "]")
+  override def toString = logs mkString ("[", ", ", "]")
 }
 
 protected[core] object ActivationLogs {
-    protected[core] implicit val serdes = new RootJsonFormat[ActivationLogs] {
-        def write(l: ActivationLogs) = l.toJson
+  protected[core] implicit val serdes = new RootJsonFormat[ActivationLogs] {
+    def write(l: ActivationLogs) = l.toJson
 
-        def read(value: JsValue) = Try {
-            val JsArray(logs) = value
-            ActivationLogs(logs map {
-                case JsString(s) => s
-                case _           => deserializationError("activation logs malformed")
-            })
-        } getOrElse deserializationError("activation logs malformed")
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsArray(logs) = value
+        ActivationLogs(logs map {
+          case JsString(s) => s
+          case _           => deserializationError("activation logs malformed")
+        })
+      } getOrElse deserializationError("activation logs malformed")
+  }
 }

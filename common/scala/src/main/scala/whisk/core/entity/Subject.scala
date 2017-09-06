@@ -25,45 +25,47 @@ import spray.json.RootJsonFormat
 import spray.json.deserializationError
 
 protected[core] class Subject private (private val subject: String) extends AnyVal {
-    protected[core] def asString = subject // to make explicit that this is a string conversion
-    protected[entity] def toJson = JsString(subject)
-    override def toString = subject
+  protected[core] def asString = subject // to make explicit that this is a string conversion
+  protected[entity] def toJson = JsString(subject)
+  override def toString = subject
 }
 
 protected[core] object Subject extends ArgNormalizer[Subject] {
-    /** Minimum subject length */
-    protected[core] val MIN_LENGTH = 5
 
-    /**
-     * Creates a Subject from a string.
-     *
-     * @param str the subject name, at least 6 characters
-     * @return Subject instance
-     * @throws IllegalArgumentException is argument is undefined
-     */
-    @throws[IllegalArgumentException]
-    override protected[entity] def factory(str: String): Subject = {
-        require(str.length >= MIN_LENGTH, s"subject must be at least $MIN_LENGTH characters")
-        new Subject(str)
-    }
+  /** Minimum subject length */
+  protected[core] val MIN_LENGTH = 5
 
-    /**
-     * Creates a random subject
-     *
-     * @return Subject
-     */
-    protected[core] def apply(): Subject = {
-        Subject("anon-" + rand.alphanumeric.take(27).mkString)
-    }
+  /**
+   * Creates a Subject from a string.
+   *
+   * @param str the subject name, at least 6 characters
+   * @return Subject instance
+   * @throws IllegalArgumentException is argument is undefined
+   */
+  @throws[IllegalArgumentException]
+  override protected[entity] def factory(str: String): Subject = {
+    require(str.length >= MIN_LENGTH, s"subject must be at least $MIN_LENGTH characters")
+    new Subject(str)
+  }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[Subject] {
-        def write(s: Subject) = s.toJson
+  /**
+   * Creates a random subject
+   *
+   * @return Subject
+   */
+  protected[core] def apply(): Subject = {
+    Subject("anon-" + rand.alphanumeric.take(27).mkString)
+  }
 
-        def read(value: JsValue) = Try {
-            val JsString(s) = value
-            Subject(s)
-        } getOrElse deserializationError("subject malformed")
-    }
+  override protected[core] implicit val serdes = new RootJsonFormat[Subject] {
+    def write(s: Subject) = s.toJson
 
-    private val rand = new scala.util.Random()
+    def read(value: JsValue) =
+      Try {
+        val JsString(s) = value
+        Subject(s)
+      } getOrElse deserializationError("subject malformed")
+  }
+
+  private val rand = new scala.util.Random()
 }

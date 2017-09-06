@@ -17,9 +17,9 @@
 
 package whisk.core.controller.test
 
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
 
 import org.scalatest.BeforeAndAfter
@@ -61,146 +61,144 @@ protected trait ControllerTestCommon
     with WhiskServices
     with StreamLogging {
 
-    override val instance = InstanceId(0)
-    override val numberOfInstances = 1
-    val activeAckTopicIndex = InstanceId(0)
+  override val instance = InstanceId(0)
+  override val numberOfInstances = 1
+  val activeAckTopicIndex = InstanceId(0)
 
-    implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
+  implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
-    override implicit val actorSystem = system // defined in ScalatestRouteTest
-    override val executionContext = actorSystem.dispatcher
+  override implicit val actorSystem = system // defined in ScalatestRouteTest
+  override val executionContext = actorSystem.dispatcher
 
-    override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
-    assert(whiskConfig.isValid)
+  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
+  assert(whiskConfig.isValid)
 
-    // initialize runtimes manifest
-    ExecManifest.initialize(whiskConfig)
+  // initialize runtimes manifest
+  ExecManifest.initialize(whiskConfig)
 
-    override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
+  override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
-    override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
 
-    override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
-        // need a static activation id to test activations api
-        private val fixedId = ActivationId()
-        override def make = fixedId
+  override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
+    // need a static activation id to test activations api
+    private val fixedId = ActivationId()
+    override def make = fixedId
+  }
+
+  implicit val cacheChangeNotification = Some {
+    new CacheChangeNotification {
+      override def apply(k: CacheKey): Future[Unit] = Future.successful(())
     }
+  }
 
-    implicit val cacheChangeNotification = Some {
-        new CacheChangeNotification {
-            override def apply(k: CacheKey): Future[Unit] = Future.successful(())
-        }
+  val entityStore = WhiskEntityStore.datastore(whiskConfig)
+  val activationStore = WhiskActivationStore.datastore(whiskConfig)
+  val authStore = WhiskAuthStore.datastore(whiskConfig)
+
+  def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
+      logging.info(this, s"deleting ${doc.docinfo}")
+      WhiskAction.del(entityStore, doc.docinfo)
+    }, dbOpTimeout)
+  }
+
+  def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
+      logging.info(this, s"deleting ${doc.docinfo}")
+      WhiskActivation.del(activationStore, doc.docinfo)
+    }, dbOpTimeout)
+  }
+
+  def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskTrigger.get(entityStore, doc) flatMap { doc =>
+      logging.info(this, s"deleting ${doc.docinfo}")
+      WhiskAction.del(entityStore, doc.docinfo)
+    }, dbOpTimeout)
+  }
+
+  def deleteRule(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
+      logging.info(this, s"deleting ${doc.docinfo}")
+      WhiskRule.del(entityStore, doc.docinfo)
+    }, dbOpTimeout)
+  }
+
+  def deletePackage(doc: DocId)(implicit transid: TransactionId) = {
+    Await.result(WhiskPackage.get(entityStore, doc) flatMap { doc =>
+      logging.info(this, s"deleting ${doc.docinfo}")
+      WhiskPackage.del(entityStore, doc.docinfo)
+    }, dbOpTimeout)
+  }
+
+  def stringToFullyQualifiedName(s: String) = FullyQualifiedEntityName.serdes.read(JsString(s))
+
+  object MakeName {
+    @volatile var counter = 1
+    def next(prefix: String = "test")(): EntityName = {
+      counter = counter + 1
+      EntityName(s"${prefix}_name$counter")
     }
+  }
 
-    val entityStore = WhiskEntityStore.datastore(whiskConfig)
-    val activationStore = WhiskActivationStore.datastore(whiskConfig)
-    val authStore = WhiskAuthStore.datastore(whiskConfig)
+  Collection.initialize(entityStore)
 
-    def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskAction.del(entityStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
+  val ACTIONS = Collection(Collection.ACTIONS)
+  val TRIGGERS = Collection(Collection.TRIGGERS)
+  val RULES = Collection(Collection.RULES)
+  val ACTIVATIONS = Collection(Collection.ACTIVATIONS)
+  val NAMESPACES = Collection(Collection.NAMESPACES)
+  val PACKAGES = Collection(Collection.PACKAGES)
 
-    def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskActivation.del(activationStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
+  after {
+    cleanup()
+  }
 
-    def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskTrigger.get(entityStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskAction.del(entityStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
+  override def afterAll() {
+    println("Shutting down db connections");
+    entityStore.shutdown()
+    activationStore.shutdown()
+    authStore.shutdown()
+  }
 
-    def deleteRule(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskRule.del(entityStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
+  protected case class BadEntity(namespace: EntityPath,
+                                 override val name: EntityName,
+                                 version: SemVer = SemVer(),
+                                 publish: Boolean = false,
+                                 annotations: Parameters = Parameters())
+      extends WhiskEntity(name) {
+    override def toJson = BadEntity.serdes.write(this).asJsObject
+  }
 
-    def deletePackage(doc: DocId)(implicit transid: TransactionId) = {
-        Await.result(WhiskPackage.get(entityStore, doc) flatMap { doc =>
-            logging.info(this, s"deleting ${doc.docinfo}")
-            WhiskPackage.del(entityStore, doc.docinfo)
-        }, dbOpTimeout)
-    }
-
-    def stringToFullyQualifiedName(s: String) = FullyQualifiedEntityName.serdes.read(JsString(s))
-
-    object MakeName {
-        @volatile var counter = 1
-        def next(prefix: String = "test")(): EntityName = {
-            counter = counter + 1
-            EntityName(s"${prefix}_name$counter")
-        }
-    }
-
-    Collection.initialize(entityStore)
-
-    val ACTIONS = Collection(Collection.ACTIONS)
-    val TRIGGERS = Collection(Collection.TRIGGERS)
-    val RULES = Collection(Collection.RULES)
-    val ACTIVATIONS = Collection(Collection.ACTIVATIONS)
-    val NAMESPACES = Collection(Collection.NAMESPACES)
-    val PACKAGES = Collection(Collection.PACKAGES)
-
-    after {
-        cleanup()
-    }
-
-    override def afterAll() {
-        println("Shutting down db connections");
-        entityStore.shutdown()
-        activationStore.shutdown()
-        authStore.shutdown()
-    }
-
-    protected case class BadEntity(
-        namespace: EntityPath,
-        override val name: EntityName,
-        version: SemVer = SemVer(),
-        publish: Boolean = false,
-        annotations: Parameters = Parameters())
-        extends WhiskEntity(name) {
-        override def toJson = BadEntity.serdes.write(this).asJsObject
-    }
-
-    protected object BadEntity
-        extends DocumentFactory[BadEntity]
-        with DefaultJsonProtocol {
-        implicit val serdes = jsonFormat5(BadEntity.apply)
-        override val cacheEnabled = true
-    }
+  protected object BadEntity extends DocumentFactory[BadEntity] with DefaultJsonProtocol {
+    implicit val serdes = jsonFormat5(BadEntity.apply)
+    override val cacheEnabled = true
+  }
 }
 
-class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext)
-    extends LoadBalancer {
-    import scala.concurrent.blocking
+class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionContext) extends LoadBalancer {
+  import scala.concurrent.blocking
 
-    // unit tests that need an activation via active ack/fast path should set this to value expected
-    var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
+  // unit tests that need an activation via active ack/fast path should set this to value expected
+  var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
-    override def totalActiveActivations = 0
-    override def activeActivationsFor(namespace: UUID) = 0
+  override def totalActiveActivations = 0
+  override def activeActivationsFor(namespace: UUID) = 0
 
-    override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
-        Future.successful {
-            whiskActivationStub map {
-                case (timeout, activation) => Future {
-                    blocking {
-                        println("waiting.....")
-                        Thread.sleep(timeout.toMillis)
-                        println(".... done waiting")
-                    }
-                    Right(activation)
-                }
-            } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
-        }
+  override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
+    Future.successful {
+      whiskActivationStub map {
+        case (timeout, activation) =>
+          Future {
+            blocking {
+              println("waiting.....")
+              Thread.sleep(timeout.toMillis)
+              println(".... done waiting")
+            }
+            Right(activation)
+          }
+      } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
+    }
 
 }

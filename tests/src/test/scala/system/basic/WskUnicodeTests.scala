@@ -29,38 +29,33 @@ import common.WskTestHelpers
 import spray.json._
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskUnicodeTests
-    extends TestHelpers
-    with WskTestHelpers
-    with JsHelpers {
+abstract class WskUnicodeTests extends TestHelpers with WskTestHelpers with JsHelpers {
 
-    val actionKind:String
-    val actionSource:String
+  val actionKind: String
+  val actionSource: String
 
-    implicit val wskprops = WskProps()
-    val wsk = new Wsk
+  implicit val wskprops = WskProps()
+  val wsk = new Wsk
 
+  s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val name = s"unicodeGalore.${actionKind.replace(":", "")}"
 
-    s"$actionKind action" should "Ensure that UTF-8 in supported in source files, input params, logs, and output results" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = s"unicodeGalore.${actionKind.replace(":", "")}"
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(
-                        name,
-                        Some(TestUtils.getTestActionFilename(actionSource)),
-                        main = if (actionKind == "java") Some("Unicode") else None,
-                        kind = Some(actionKind))
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄")))) {
-                activation =>
-                    val response = activation.response
-                    response.result.get.fields.get("error") shouldBe empty
-                    response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
-
-                    activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
-            }
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(
+        name,
+        Some(TestUtils.getTestActionFilename(actionSource)),
+        main = if (actionKind == "java") Some("Unicode") else None,
+        kind = Some(actionKind))
     }
+
+    withActivation(wsk.activation, wsk.action.invoke(name, parameters = Map("delimiter" -> JsString("❄")))) {
+      activation =>
+        val response = activation.response
+        response.result.get.fields.get("error") shouldBe empty
+        response.result.get.fields.get("winter") should be(Some(JsString("❄ ☃ ❄")))
+
+        activation.logs.toList.flatten.mkString(" ") should include("❄ ☃ ❄")
+    }
+  }
 }

@@ -47,29 +47,27 @@ import whisk.core.entity.Identity
 @RunWith(classOf[JUnitRunner])
 class AuthenticateV2Tests extends ControllerTestCommon with Authenticate {
 
-    // Creates a new unique name each time its called
-    def aname = MakeName.next("authenticatev2_tests")
+  // Creates a new unique name each time its called
+  def aname = MakeName.next("authenticatev2_tests")
 
-    behavior of "Authenticate V2"
+  behavior of "Authenticate V2"
 
-    it should "authorize a known user using the new database schema in different namespaces" in {
-        implicit val tid = transid()
-        val subject = Subject()
+  it should "authorize a known user using the new database schema in different namespaces" in {
+    implicit val tid = transid()
+    val subject = Subject()
 
-        val namespaces = Set(
-            WhiskNamespace(aname, AuthKey()),
-            WhiskNamespace(aname, AuthKey()))
+    val namespaces = Set(WhiskNamespace(aname, AuthKey()), WhiskNamespace(aname, AuthKey()))
 
-        val entry = WhiskAuth(subject, namespaces)
+    val entry = WhiskAuth(subject, namespaces)
 
-        put(authStore, entry)
+    put(authStore, entry)
 
-        // Try to login with each specific namespace
-        namespaces.foreach { ns =>
-            println(s"Trying to login to $ns")
-            val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
-            val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
-            user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
-        }
+    // Try to login with each specific namespace
+    namespaces.foreach { ns =>
+      println(s"Trying to login to $ns")
+      val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
+      val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+      user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
     }
+  }
 }

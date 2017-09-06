@@ -33,82 +33,80 @@ import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.database.CouchDbRestClient
 
-trait DatabaseScriptTestUtils extends ScalaFutures
-    with Matchers
-    with WaitFor
-    with IntegrationPatience {
+trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor with IntegrationPatience {
 
-    val python = WhiskProperties.python
+  val python = WhiskProperties.python
 
-    val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
-    val dbHost = WhiskProperties.getProperty(WhiskConfig.dbHost)
-    val dbPort = WhiskProperties.getProperty(WhiskConfig.dbPort)
-    val dbUsername = WhiskProperties.getProperty(WhiskConfig.dbUsername)
-    val dbPassword = WhiskProperties.getProperty(WhiskConfig.dbPassword)
-    val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
-    val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
+  val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
+  val dbHost = WhiskProperties.getProperty(WhiskConfig.dbHost)
+  val dbPort = WhiskProperties.getProperty(WhiskConfig.dbPort)
+  val dbUsername = WhiskProperties.getProperty(WhiskConfig.dbUsername)
+  val dbPassword = WhiskProperties.getProperty(WhiskConfig.dbPassword)
+  val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
+  val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
 
-    def retry[T](task: => T) = whisk.utils.retry(task, 10, Some(500.milliseconds))
+  def retry[T](task: => T) = whisk.utils.retry(task, 10, Some(500.milliseconds))
 
-    /** Creates a new database with the given name */
-    def createDatabase(name: String, designDocPath: Option[String])(implicit as: ActorSystem, logging: Logging) = {
-        // Implicitly remove database for sanitization purposes
-        removeDatabase(name, true)
+  /** Creates a new database with the given name */
+  def createDatabase(name: String, designDocPath: Option[String])(implicit as: ActorSystem, logging: Logging) = {
+    // Implicitly remove database for sanitization purposes
+    removeDatabase(name, true)
 
-        println(s"Creating database: $name")
-        val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
-        retry(db.createDb().futureValue shouldBe 'right)
+    println(s"Creating database: $name")
+    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
+    retry(db.createDb().futureValue shouldBe 'right)
 
-        retry {
-            val list = db.dbs().futureValue.right.get
-            list should contain(name)
-        }
-
-        designDocPath.map { path =>
-            val designDoc = Source.fromFile(path).mkString.parseJson.asJsObject
-            db.putDoc(designDoc.fields("_id").convertTo[String], designDoc).futureValue
-        }
-
-        db
+    retry {
+      val list = db.dbs().futureValue.right.get
+      list should contain(name)
     }
 
-    /** Wait for database to appear */
-    def waitForDatabase(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
-        val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
-        waitfor(() => {
-            client.getAllDocs(includeDocs = Some(true)).futureValue.isRight
-        })
-        client
+    designDocPath.map { path =>
+      val designDoc = Source.fromFile(path).mkString.parseJson.asJsObject
+      db.putDoc(designDoc.fields("_id").convertTo[String], designDoc).futureValue
     }
 
-    /** Removes the database with the given name */
-    def removeDatabase(name: String, ignoreFailure: Boolean = false)(implicit as: ActorSystem, logging: Logging) = {
-        println(s"Removing database: $name")
-        val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
-        retry {
-            val delete = db.deleteDb().futureValue
-            if (!ignoreFailure) delete shouldBe 'right
-        }
-        db
-    }
+    db
+  }
 
-    /** Wait for a document to appear */
-    def waitForDocument(client: ExtendedCouchDbRestClient, id: String) = waitfor(() => client.getDoc(id).futureValue.isRight)
+  /** Wait for database to appear */
+  def waitForDatabase(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
+    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
+    waitfor(() => {
+      client.getAllDocs(includeDocs = Some(true)).futureValue.isRight
+    })
+    client
+  }
 
-    /** Get all docs within one database */
-    def getAllDocs(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
-        val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
-        val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
-        documents shouldBe 'right
-        documents.right.get
+  /** Removes the database with the given name */
+  def removeDatabase(name: String, ignoreFailure: Boolean = false)(implicit as: ActorSystem, logging: Logging) = {
+    println(s"Removing database: $name")
+    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
+    retry {
+      val delete = db.deleteDb().futureValue
+      if (!ignoreFailure) delete shouldBe 'right
     }
+    db
+  }
 
-    /** wait until all documents are processed by the view */
-    def waitForView(db: CouchDbRestClient, designDoc: String, viewName: String, numDocuments: Int) = {
-        waitfor(() => {
-            val view = db.executeView(designDoc, viewName)().futureValue
-            view shouldBe 'right
-            view.right.get.fields("rows").convertTo[List[JsObject]].length == numDocuments
-        }, totalWait = 2.minutes)
-    }
+  /** Wait for a document to appear */
+  def waitForDocument(client: ExtendedCouchDbRestClient, id: String) =
+    waitfor(() => client.getDoc(id).futureValue.isRight)
+
+  /** Get all docs within one database */
+  def getAllDocs(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
+    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
+    val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
+    documents shouldBe 'right
+    documents.right.get
+  }
+
+  /** wait until all documents are processed by the view */
+  def waitForView(db: CouchDbRestClient, designDoc: String, viewName: String, numDocuments: Int) = {
+    waitfor(() => {
+      val view = db.executeView(designDoc, viewName)().futureValue
+      view shouldBe 'right
+      view.right.get.fields("rows").convertTo[List[JsObject]].length == numDocuments
+    }, totalWait = 2.minutes)
+  }
 }

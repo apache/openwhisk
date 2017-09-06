@@ -31,90 +31,90 @@ import whisk.core.entity.WhiskActivation
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
-    /**
-     * A transaction id to attach to the message.
-     */
-    val transid = TransactionId.unknown
 
-    /**
-     * Serializes message to string. Must be idempotent.
-     */
-    def serialize: String
+  /**
+   * A transaction id to attach to the message.
+   */
+  val transid = TransactionId.unknown
 
-    /**
-     * String representation of the message. Delegates to serialize.
-     */
-    override def toString = serialize
+  /**
+   * Serializes message to string. Must be idempotent.
+   */
+  def serialize: String
+
+  /**
+   * String representation of the message. Delegates to serialize.
+   */
+  override def toString = serialize
 }
 
-case class ActivationMessage(
-    override val transid: TransactionId,
-    action: FullyQualifiedEntityName,
-    revision: DocRevision,
-    user: Identity,
-    activationId: ActivationId,
-    activationNamespace: EntityPath,
-    rootControllerIndex: InstanceId,
-    blocking: Boolean,
-    content: Option[JsObject],
-    cause: Option[ActivationId] = None)
+case class ActivationMessage(override val transid: TransactionId,
+                             action: FullyQualifiedEntityName,
+                             revision: DocRevision,
+                             user: Identity,
+                             activationId: ActivationId,
+                             activationNamespace: EntityPath,
+                             rootControllerIndex: InstanceId,
+                             blocking: Boolean,
+                             content: Option[JsObject],
+                             cause: Option[ActivationId] = None)
     extends Message {
 
-    def meta = JsObject("meta" -> {
-        cause map {
-            c => JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
-        } getOrElse {
-            activationId.toJsObject
-        }
+  def meta =
+    JsObject("meta" -> {
+      cause map { c =>
+        JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
+      } getOrElse {
+        activationId.toJsObject
+      }
     })
 
-    override def serialize = ActivationMessage.serdes.write(this).compactPrint
+  override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
-    override def toString = {
-        val value = (content getOrElse JsObject()).compactPrint
-        s"$action?message=$value"
-    }
+  override def toString = {
+    val value = (content getOrElse JsObject()).compactPrint
+    s"$action?message=$value"
+  }
 
-    def causedBySequence: Boolean = cause.isDefined
+  def causedBySequence: Boolean = cause.isDefined
 }
 
 object ActivationMessage extends DefaultJsonProtocol {
 
-    def parse(msg: String) = Try(serdes.read(msg.parseJson))
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
-    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat10(ActivationMessage.apply)
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  implicit val serdes = jsonFormat10(ActivationMessage.apply)
 }
 
 /**
  * When adding fields, the serdes of the companion object must be updated also.
  * The whisk activation field will have its logs stripped.
  */
-case class CompletionMessage(
-    override val transid: TransactionId,
-    response: Either[ActivationId, WhiskActivation],
-    invoker: InstanceId)
+case class CompletionMessage(override val transid: TransactionId,
+                             response: Either[ActivationId, WhiskActivation],
+                             invoker: InstanceId)
     extends Message {
 
-    override def serialize: String = {
-        CompletionMessage.serdes.write(this).compactPrint
-    }
+  override def serialize: String = {
+    CompletionMessage.serdes.write(this).compactPrint
+  }
 
-    override def toString = {
-        response.fold(l => l, r => r.activationId).asString
-    }
+  override def toString = {
+    response.fold(l => l, r => r.activationId).asString
+  }
 }
 
 object CompletionMessage extends DefaultJsonProtocol {
-    def parse(msg: String): Try[CompletionMessage] = Try(serdes.read(msg.parseJson))
-    private val serdes = jsonFormat3(CompletionMessage.apply)
+  def parse(msg: String): Try[CompletionMessage] = Try(serdes.read(msg.parseJson))
+  private val serdes = jsonFormat3(CompletionMessage.apply)
 }
 
 case class PingMessage(instance: InstanceId) extends Message {
-    override def serialize = PingMessage.serdes.write(this).compactPrint
+  override def serialize = PingMessage.serdes.write(this).compactPrint
 }
 
 object PingMessage extends DefaultJsonProtocol {
-    def parse(msg: String) = Try(serdes.read(msg.parseJson))
-    implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat(PingMessage.apply _, "name")
 }

@@ -51,85 +51,87 @@ trait WhiskNamespacesApi
     with BasicAuthorizedRouteProvider
     with ReadOps {
 
-    protected override val collection = Collection(Collection.NAMESPACES)
+  protected override val collection = Collection(Collection.NAMESPACES)
 
-    /** Database service to lookup entities in a namespace. */
-    protected val entityStore: EntityStore
+  /** Database service to lookup entities in a namespace. */
+  protected val entityStore: EntityStore
 
-    /** JSON response formatter. */
-    import RestApiCommons.jsonDefaultResponsePrinter
+  /** JSON response formatter. */
+  import RestApiCommons.jsonDefaultResponsePrinter
 
-    /**
-     * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
-     *
-     * GET  namespaces[/] -- gets namespaces for authenticated user
-     * GET  namespaces/_[/] -- gets all entities in implicit namespace
-     * GET  namespaces/namespace[/] -- gets all entities in explicit namespace
-     *
-     * @param user the authenticated user for this route
-     */
-    override def routes(user: Identity)(implicit transid: TransactionId) = {
-        pathPrefix(collection.path) {
-            (collectionOps & requestMethod) { m =>
-                getNamespaces(user)
-            } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
-                namespace(user, segment) { ns =>
-                    val resource = Resource(ns, collection, None)
-                    authorizeAndDispatch(m, user, resource)
-                }
-            }
+  /**
+   * Rest API for managing namespaces. Defines all the routes handled by this API. They are:
+   *
+   * GET  namespaces[/] -- gets namespaces for authenticated user
+   * GET  namespaces/_[/] -- gets all entities in implicit namespace
+   * GET  namespaces/namespace[/] -- gets all entities in explicit namespace
+   *
+   * @param user the authenticated user for this route
+   */
+  override def routes(user: Identity)(implicit transid: TransactionId) = {
+    pathPrefix(collection.path) {
+      (collectionOps & requestMethod) { m =>
+        getNamespaces(user)
+      } ~ (entityOps & entityPrefix & pathEndOrSingleSlash & requestMethod) { (segment, m) =>
+        namespace(user, segment) { ns =>
+          val resource = Resource(ns, collection, None)
+          authorizeAndDispatch(m, user, resource)
         }
+      }
     }
+  }
 
-    /**
-     * GET  / -- gets namespaces for authenticated user
-     * GET  /namespace -- gets all entities in namespace
-     *
-     * The namespace of the resource is derived from the authenticated user. The
-     * resource entity name, if it is defined, may be a different namespace.
-     */
-    protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(implicit transid: TransactionId) = {
-        resource.entity match {
-            case None if op == READ => getAllInNamespace(resource.namespace)
-            case _                  => reject // should not get here
-        }
+  /**
+   * GET  / -- gets namespaces for authenticated user
+   * GET  /namespace -- gets all entities in namespace
+   *
+   * The namespace of the resource is derived from the authenticated user. The
+   * resource entity name, if it is defined, may be a different namespace.
+   */
+  protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(
+    implicit transid: TransactionId) = {
+    resource.entity match {
+      case None if op == READ => getAllInNamespace(resource.namespace)
+      case _                  => reject // should not get here
     }
+  }
 
-    /**
-     * Gets all entities in namespace.
-     *
-     * Responses are one of (Code, Message)
-     * - 200 Map [ String (collection name), List[EntitySummary] ] as JSON
-     * - 500 Internal Server Error
-     */
-    private def getAllInNamespace(namespace: EntityPath)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-        onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
-            case Success(entities) => {
-                complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)
-            }
-            case Failure(t) =>
-                logging.error(this, s"[GET] namespaces failed: ${t.getMessage}")
-                terminate(InternalServerError)
-        }
+  /**
+   * Gets all entities in namespace.
+   *
+   * Responses are one of (Code, Message)
+   * - 200 Map [ String (collection name), List[EntitySummary] ] as JSON
+   * - 500 Internal Server Error
+   */
+  private def getAllInNamespace(namespace: EntityPath)(
+    implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+    onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
+      case Success(entities) => {
+        complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)
+      }
+      case Failure(t) =>
+        logging.error(this, s"[GET] namespaces failed: ${t.getMessage}")
+        terminate(InternalServerError)
     }
+  }
 
-    /**
-     * Gets namespaces for subject from entitlement service.
-     *
-     * Responses are one of (Code, Message)
-     * - 200 [ Namespaces (as String) ] as JSON
-     * - 401 Unauthorized
-     * - 500 Internal Server Error
-     */
-    private def getNamespaces(user: Identity)(implicit transid: TransactionId) = {
-        complete(OK, List(user.namespace))
-    }
+  /**
+   * Gets namespaces for subject from entitlement service.
+   *
+   * Responses are one of (Code, Message)
+   * - 200 [ Namespaces (as String) ] as JSON
+   * - 401 Unauthorized
+   * - 500 Internal Server Error
+   */
+  private def getNamespaces(user: Identity)(implicit transid: TransactionId) = {
+    complete(OK, List(user.namespace))
+  }
 }
 
 object Namespaces {
-    val emptyNamespace = Map(
-        WhiskAction.collectionName -> List(),
-        WhiskPackage.collectionName -> List(),
-        WhiskRule.collectionName -> List(),
-        WhiskTrigger.collectionName -> List())
+  val emptyNamespace = Map(
+    WhiskAction.collectionName -> List(),
+    WhiskPackage.collectionName -> List(),
+    WhiskRule.collectionName -> List(),
+    WhiskTrigger.collectionName -> List())
 }

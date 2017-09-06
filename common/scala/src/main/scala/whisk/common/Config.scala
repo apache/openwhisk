@@ -42,113 +42,116 @@ import scala.util.Try
  * @param optionalProperties a Set of optional properties which may or not be defined.
  * @param env an optional environment to read from (defaults to sys.env).
  */
-class Config(
-    requiredProperties: Map[String, String],
-    optionalProperties: Set[String] = Set())(
-        env: Map[String, String] = sys.env)(
-            implicit logging: Logging) {
+class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set())(
+  env: Map[String, String] = sys.env)(implicit logging: Logging) {
 
-    private val settings = getProperties().toMap.filter {
-        case (k, v) => requiredProperties.contains(k) ||
-            (optionalProperties.contains(k) && v != null)
+  private val settings = getProperties().toMap.filter {
+    case (k, v) =>
+      requiredProperties.contains(k) ||
+        (optionalProperties.contains(k) && v != null)
+  }
+
+  lazy val isValid: Boolean = Config.validateProperties(requiredProperties, settings)
+
+  /**
+   * Gets value for key if it exists else the empty string.
+   * The value of the override key will instead be returned if its value is present in the map.
+   *
+   * @param key to lookup
+   * @param overrideKey the property whose value will be returned if the map contains the override key.
+   * @return value for the key or the empty string if the key does not have a value/does not exist
+   */
+  def apply(key: String, overrideKey: String = ""): String = {
+    Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
+  }
+
+  /**
+   * Returns the value of a given key.
+   *
+   * @param key the property that has to be returned.
+   */
+  def getProperty(key: String): String = {
+    this(key)
+  }
+
+  /**
+   * Returns the value of a given key parsed as a double.
+   * If parsing fails, return the default value.
+   *
+   * @param key the property that has to be returned.
+   */
+  def getAsDouble(key: String, defaultValue: Double): Double = {
+    Try { getProperty(key).toDouble } getOrElse { defaultValue }
+  }
+
+  /**
+   * Returns the value of a given key parsed as an integer.
+   * If parsing fails, return the default value.
+   *
+   * @param key the property that has to be returned.
+   */
+  def getAsInt(key: String, defaultValue: Int): Int = {
+    Try { getProperty(key).toInt } getOrElse { defaultValue }
+  }
+
+  /**
+   * Converts the set of property to a string for debugging.
+   */
+  def mkString: String = settings.mkString("\n")
+
+  /**
+   * Loads the properties from the environment into a mutable map.
+   *
+   * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
+   */
+  protected def getProperties(): scala.collection.mutable.Map[String, String] = {
+    val required = scala.collection.mutable.Map[String, String]() ++= requiredProperties
+    Config.readPropertiesFromEnvironment(required, env)
+
+    // for optional value, assign them a default from the required properties list
+    // to prevent loss of a default value on a required property that may not otherwise be defined
+    val optional = scala.collection.mutable.Map[String, String]() ++= optionalProperties.map { k =>
+      k -> required.getOrElse(k, null)
     }
+    Config.readPropertiesFromEnvironment(optional, env)
 
-    lazy val isValid: Boolean = Config.validateProperties(requiredProperties, settings)
-
-    /**
-     * Gets value for key if it exists else the empty string.
-     * The value of the override key will instead be returned if its value is present in the map.
-     *
-     * @param key to lookup
-     * @param overrideKey the property whose value will be returned if the map contains the override key.
-     * @return value for the key or the empty string if the key does not have a value/does not exist
-     */
-    def apply(key: String, overrideKey: String = ""): String = {
-        Try(settings(overrideKey)).orElse(Try(settings(key))).getOrElse("")
-    }
-
-    /**
-     * Returns the value of a given key.
-     *
-     * @param key the property that has to be returned.
-     */
-    def getProperty(key: String): String = {
-        this(key)
-    }
-
-    /**
-     * Returns the value of a given key parsed as a double.
-     * If parsing fails, return the default value.
-     *
-     * @param key the property that has to be returned.
-     */
-    def getAsDouble(key: String, defaultValue: Double): Double = {
-        Try { getProperty(key).toDouble } getOrElse { defaultValue }
-    }
-
-    /**
-     * Returns the value of a given key parsed as an integer.
-     * If parsing fails, return the default value.
-     *
-     * @param key the property that has to be returned.
-     */
-    def getAsInt(key: String, defaultValue: Int): Int = {
-        Try { getProperty(key).toInt } getOrElse { defaultValue }
-    }
-
-    /**
-     * Converts the set of property to a string for debugging.
-     */
-    def mkString: String = settings.mkString("\n")
-
-    /**
-     * Loads the properties from the environment into a mutable map.
-     *
-     * @return a pair which is the Map defining the properties, and a boolean indicating whether validation succeeded.
-     */
-    protected def getProperties(): scala.collection.mutable.Map[String, String] = {
-        val required = scala.collection.mutable.Map[String, String]() ++= requiredProperties
-        Config.readPropertiesFromEnvironment(required, env)
-
-        // for optional value, assign them a default from the required properties list
-        // to prevent loss of a default value on a required property that may not otherwise be defined
-        val optional = scala.collection.mutable.Map[String, String]() ++= optionalProperties.map { k => k -> required.getOrElse(k, null) }
-        Config.readPropertiesFromEnvironment(optional, env)
-
-        required ++ optional
-    }
+    required ++ optional
+  }
 }
 
 /**
  * Singleton object which provides global methods to manage configuration.
  */
 object Config {
-    /**
-     * Reads a Map of key-value pairs from the environment -- store them in the
-     * mutable properties object.
-     */
-    def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String])(implicit logging: Logging) = {
-        for (p <- properties.keys) {
-            val envp = p.replace('.', '_').toUpperCase
-            val envv = env.get(envp)
-            if (envv.isDefined) {
-                logging.info(this, s"environment set value for $p")
-                properties += p -> envv.get.trim
-            }
-        }
-    }
 
-    /**
-     * Checks that the properties object defines all the required properties.
-     *
-     * @param required a key-value map where the keys are required properties
-     * @param properties a set of properties to check
-     */
-    def validateProperties(required: Map[String, String], properties: Map[String, String])(implicit logging: Logging): Boolean = {
-        required.keys.forall { key =>
-            val value = properties(key)
-            if (value == null) logging.error(this, s"required property $key still not set")
-            value != null
-        }
+  /**
+   * Reads a Map of key-value pairs from the environment -- store them in the
+   * mutable properties object.
+   */
+  def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String])(
+    implicit logging: Logging) = {
+    for (p <- properties.keys) {
+      val envp = p.replace('.', '_').toUpperCase
+      val envv = env.get(envp)
+      if (envv.isDefined) {
+        logging.info(this, s"environment set value for $p")
+        properties += p -> envv.get.trim
+      }
     }
+  }
+
+  /**
+   * Checks that the properties object defines all the required properties.
+   *
+   * @param required a key-value map where the keys are required properties
+   * @param properties a set of properties to check
+   */
+  def validateProperties(required: Map[String, String], properties: Map[String, String])(
+    implicit logging: Logging): Boolean = {
+    required.keys.forall { key =>
+      val value = properties(key)
+      if (value == null) logging.error(this, s"required property $key still not set")
+      value != null
+    }
+  }
 }

@@ -21,8 +21,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicSwift311Tests
-    extends WskBasicSwift3Tests {
+class WskBasicSwift311Tests extends WskBasicSwift3Tests {
 
-    override lazy val currentSwiftDefaultKind = "swift:3.1.1"
+  override lazy val currentSwiftDefaultKind = "swift:3.1.1"
 }

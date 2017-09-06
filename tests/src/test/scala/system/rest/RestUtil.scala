@@ -33,50 +33,52 @@ import spray.json.pimpString
  */
 trait RestUtil {
 
-    private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
+  private val trustStorePassword = WhiskProperties.getSslCertificateChallenge
 
-    // force RestAssured to allow all hosts in SSL certificates
-    protected val sslconfig = {
-        new RestAssuredConfig().
-            sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames())
-    }
+  // force RestAssured to allow all hosts in SSL certificates
+  protected val sslconfig = {
+    new RestAssuredConfig().sslConfig(new SSLConfig().keystore("keystore", trustStorePassword).allowAllHostnames())
+  }
 
-    /**
-     * @return the URL for the whisk service as a hostname (this is the edge/router as a hostname)
-     */
-    def getServiceApiHost(subdomain: String, withProtocol: Boolean): String = {
-        WhiskProperties.getApiHostForClient(subdomain, withProtocol)
-    }
+  /**
+   * @return the URL for the whisk service as a hostname (this is the edge/router as a hostname)
+   */
+  def getServiceApiHost(subdomain: String, withProtocol: Boolean): String = {
+    WhiskProperties.getApiHostForClient(subdomain, withProtocol)
+  }
 
-    /**
-     * @return the URL and port for the whisk service using the main router or the edge router ip address
-     */
-    def getServiceURL(): String = {
-        val apiPort = WhiskProperties.getEdgeHostApiPort()
-        val protocol = if (apiPort == 443) "https" else "http"
-        protocol + "://" + WhiskProperties.getEdgeHost() + ":" + apiPort
-    }
+  /**
+   * @return the URL and port for the whisk service using the main router or the edge router ip address
+   */
+  def getServiceURL(): String = {
+    val apiPort = WhiskProperties.getEdgeHostApiPort()
+    val protocol = if (apiPort == 443) "https" else "http"
+    protocol + "://" + WhiskProperties.getEdgeHost() + ":" + apiPort
+  }
 
-    /**
-     * @return the base URL for the whisk REST API
-     */
-    def getBaseURL(path: String = "/api/v1"): String = {
-        getServiceURL() + path
-    }
+  /**
+   * @return the base URL for the whisk REST API
+   */
+  def getBaseURL(path: String = "/api/v1"): String = {
+    getServiceURL() + path
+  }
 
-    /**
-     * construct the Json schema for a particular model type in the swagger model,
-     * and return it as a string.
-     */
-    def getJsonSchema(model: String, path: String = "/api/v1"): JsValue = {
-        val response = RestAssured.given().config(sslconfig).get(getServiceURL() + s"${if (path.endsWith("/")) path else path + "/"}api-docs")
+  /**
+   * construct the Json schema for a particular model type in the swagger model,
+   * and return it as a string.
+   */
+  def getJsonSchema(model: String, path: String = "/api/v1"): JsValue = {
+    val response = RestAssured
+      .given()
+      .config(sslconfig)
+      .get(getServiceURL() + s"${if (path.endsWith("/")) path else path + "/"}api-docs")
 
-        assert(response.statusCode() == 200)
+    assert(response.statusCode() == 200)
 
-        val body = Try { response.body().asString().parseJson.asJsObject }
-        val schema = body map { _.fields("definitions").asJsObject }
-        val t = schema map { _.fields(model).asJsObject } getOrElse JsObject()
-        val d = JsObject("definitions" -> (schema getOrElse JsObject()))
-        JsObject(t.fields ++ d.fields)
-    }
+    val body = Try { response.body().asString().parseJson.asJsObject }
+    val schema = body map { _.fields("definitions").asJsObject }
+    val t = schema map { _.fields(model).asJsObject } getOrElse JsObject()
+    val d = JsObject("definitions" -> (schema getOrElse JsObject()))
+    JsObject(t.fields ++ d.fields)
+  }
 }
