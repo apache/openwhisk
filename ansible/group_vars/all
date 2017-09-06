@@ -291,3 +291,65 @@ cli_os:
 cli_arch:
   - amd64
   - 386
+
+# The exposed ports of the container for the providers
+providers:
+  alarmstrigger:
+    port: 11001
+  cloudanttrigger:
+    port: 11002
+  kafkatrigger:
+    port: 11003
+
+# The provider_repos is used to specify all the provider names and repository URLs,
+# so that openwhisk knows where to download the providers and install them. The key
+# specifies the provider name and the url saves the URL of the repository. The location
+# specifies the destination to save the code of the catalog. The version specifies the hash
+# of the commit to be cloned. If it is omitted or set to HEAD, the latest commit will be
+# selected. The repo_update specifies whether to retrieve new revisions from the origin
+# repository. The default value is yes, meaning that it will retrieve the new
+# revisions. The install_actions key, when set to true, will install the provider actions.
+# In the case of the kafka provider the messagehub_only key, when set to true, will only
+# install the actions for message hub and will skip the actions for generic kafka. When
+# messagehub_only is set to false, the actions for message hub and generic kafka will both
+# be installed. The keys url and location are mandatory while version and repo_update
+# are optional. To add a new repository, please follow the template by adding:
+#
+# provider_repos:
+#   ...
+#   <provider-name>:
+#     url: <URL of repository>, mandatory.
+#     location: <local location to save the provider>, mandatory.
+#     version: <hash of the commit>, optional, default to HEAD.
+#     repo_update: <whether to retrieve new revisions from the origin repository>,
+#                  optional, default to yes. Yes means to retrieve the new revisions, and
+#                  no means not to retrieve the new revisions.
+#     trigger_port: <the port to expose for the provider container>, mandatory.
+#
+provider_repos:
+  openwhisk_package_alarms:
+    url: https://github.com/apache/incubator-openwhisk-package-alarms.git
+    location: "{{ openwhisk_home }}/../openwhisk-package-alarms"
+    version: "HEAD"
+    docker_tag: "latest"
+    repo_update: "no"
+    install_actions: true
+    trigger_port: "{{ providers.alarmstrigger.port }}"
+  openwhisk_package_cloudant:
+    url: https://github.com/apache/incubator-openwhisk-package-cloudant.git
+    location: "{{ openwhisk_home }}/../openwhisk-package-cloudant"
+    version: "HEAD"
+    docker_tag: "latest"
+    repo_update: "no"
+    install_actions: true
+    trigger_port: "{{ providers.cloudanttrigger.port }}"
+  openwhisk_package_kafka:
+    url: https://github.com/apache/incubator-openwhisk-package-kafka.git
+    location: "{{ openwhisk_home }}/../openwhisk-package-kafka"
+    version: "HEAD"
+    docker_tag: "latest"
+    repo_update: "no"
+    install_actions: true
+    messagehub_only: false
+    trigger_port: "{{ providers.kafkatrigger.port }}"
+    

@@ -1,0 +1,48 @@
+
+# This task will download the provider repositories and install their actions
+
+- set_fact:
+    provider_location={{ item.location }}
+    provider_repo_url={{ item.url }}
+    edge_host={{ groups['edge'] | first }}
+    version="HEAD"
+    repo_update="yes"
+    install_actions=true
+    api_host={{ whisk_api_host_name | default(groups['edge'] | first) }}
+    db_url="{{ db_protocol }}://{{ db_username }}:{{ db_password }}@{{ db_host }}:{{ db_port }}"
+
+- set_fact:
+    version={{ item.version }}
+  when: item.version is defined
+
+- set_fact:
+    repo_update={{ item.repo_update }}
+  when: item.repo_update is defined
+
+- set_fact:
+    install_actions={{ item.install_actions }}
+  when: item.install_actions is defined
+
+- set_fact:
+    messagehub_only={{ item.messagehub_only }}
+  when: item.messagehub_only is defined
+
+- name: download the provider repository to the provider location if neccessary
+  git:
+    depth: 1
+    repo: "{{ provider_repo_url }}"
+    dest: "{{ provider_location }}"
+    update: "{{ repo_update }}"
+    version: "{{ version }}"
+
+- name: install the actions from the provider location
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ edge_host }} {{ db_url }} {{ db_prefix }} {{ api_host }} chdir={{ provider_location }}
+  environment:
+    OPENWHISK_HOME: "{{ openwhisk_home }}"
+  when: install_actions == true
+
+- name: install the kafka actions
+  shell: ./installKafka.sh {{ catalog_auth_key }} {{ edge_host }} {{ db_url }} {{ db_prefix }} {{ api_host }} chdir={{ provider_location }}
+  environment:
+    OPENWHISK_HOME: "{{ openwhisk_home }}"
+  when: install_actions == true and messagehub_only is defined and messagehub_only != true

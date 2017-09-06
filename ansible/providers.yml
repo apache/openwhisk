@@ -1,0 +1,9 @@
+
+- include: alarmstrigger.yml
+  when: "'openwhisk_package_alarms' in provider_repos"
+
+- include: cloudanttrigger.yml
+  when: "'openwhisk_package_cloudant' in provider_repos"
+
+- include: kafkatrigger.yml
+  when: "'openwhisk_package_kafka' in provider_repos"

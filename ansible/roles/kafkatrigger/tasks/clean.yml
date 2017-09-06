@@ -1,0 +1,15 @@
+
+# Remove the kafka trigger service and logs directory.
+
+- name: remove kafka trigger
+  docker_container:
+    name: catalog_kafka
+    state: absent
+  ignore_errors: true
+
+- name: remove kafka trigger logs directory
+  file:
+    path: "{{ whisk_logs_dir }}/kafka-trigger"
+    state: absent
+  become: true
+  

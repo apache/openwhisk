@@ -1,0 +1,38 @@
+
+- name: pull the cloudanttrigger image from dockerhub
+  shell: "docker pull openwhisk/cloudantprovider:{{ provider_repos.openwhisk_package_cloudant.docker_tag }}"
+
+- name: ensure cloudant-trigger log directory is created with permissions
+  file:
+    path: "{{ whisk_logs_dir }}/cloudant-trigger"
+    state: directory
+    mode: 0777
+  become: true
+
+- name: (re)start cloudant trigger
+  docker_container:
+    name: catalog_cloudant
+    image: "openwhisk/cloudantprovider:{{provider_repos.openwhisk_package_cloudant.docker_tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: cloudanttrigger
+    env:
+      "ROUTER_HOST": "{{ groups['edge'] | first }}"
+      "DB_PREFIX": "{{ db_prefix }}"
+      "DB_USERNAME": "{{ db_username }}"
+      "DB_PASSWORD": "{{ db_password }}"
+      "DB_HOST": "{{ db_host }}"
+      "DB_PROTOCOL": "{{ db_protocol }}"
+    ports:
+    - "{{ providers.cloudanttrigger.port }}:8080"
+    volumes:
+    - "{{ whisk_logs_dir }}/cloudant-trigger:/logs"
+
+- name: wait until cloudant trigger on this host is up and running
+  wait_for:
+    delay: 2
+    host: "{{ inventory_hostname }}"
+    port: "{{ providers.cloudanttrigger.port }}"
+    timeout: 60
+  

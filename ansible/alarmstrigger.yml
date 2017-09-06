@@ -1,0 +1,14 @@
+
+# This playbook deploys the alarms trigger service
+
+# Deploy alarms trigger
+- hosts: edge
+  roles:
+  - alarmstrigger
+
+- hosts: ansible
+  tasks:
+  - include: "{{ playbook_dir }}/tasks/installProviderActions.yml"
+    with_items: 
+    - "{{ provider_repos.openwhisk_package_alarms }}"
+    when: mode == "deploy"

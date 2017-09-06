@@ -1,0 +1,14 @@
+
+# This playbook deploys the kafka trigger service
+
+# Deploy kafka trigger
+- hosts: edge
+  roles:
+  - kafkatrigger
+
+- hosts: ansible
+  tasks:
+  - include: "{{ playbook_dir }}/tasks/installProviderActions.yml"
+    with_items: 
+    - "{{ provider_repos.openwhisk_package_kafka }}"
+    when: mode == "deploy"
