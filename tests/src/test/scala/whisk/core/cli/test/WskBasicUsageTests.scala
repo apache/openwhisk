@@ -57,6 +57,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
   val wsk = new Wsk
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
+  val usrAgentHeaderRegEx = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
   behavior of "Wsk CLI usage"
 
@@ -114,6 +115,11 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
       wsk.action.invoke(fullQualifiedName).stdout should include(s"ok: invoked /$fullQualifiedName")
       wsk.action.get(fullQualifiedName).stdout should include(s"ok: got action ${packageName}/${actionName}")
+  }
+
+  it should "include CLI user agent headers with outbound requests" in {
+    val stdout = wsk.cli(Seq("list", "--auth", wskprops.authKey) ++ wskprops.overrides, verbose = true).stdout
+    stdout should include regex (usrAgentHeaderRegEx)
   }
 
   behavior of "Wsk actions"
