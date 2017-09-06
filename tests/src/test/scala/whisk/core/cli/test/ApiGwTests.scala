@@ -75,7 +75,7 @@ class ApiGwTests
         val invocationCount = invocationsLast60Seconds.length
         println(s"Action invokes within last minute: ${invocationCount}")
 
-        if (invocationCount + expectedActivationsPerTest >= maxInvocationsBeforeThrottle) {
+        if (invocationCount >= maxInvocationsBeforeThrottle) {
             // Instead of waiting a fixed 60 seconds to settle the throttle,
             // calculate a wait time that will clear out about half of the
             // current invocations (assuming even distribution) from the
@@ -97,7 +97,7 @@ class ApiGwTests
     }
 
     override def beforeEach() = {
-        checkThrottle()
+        //checkThrottle()
     }
 
     /*
@@ -129,6 +129,8 @@ class ApiGwTests
         responsetype: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()))(implicit wskpropsOverride: WskProps): RunResult = {
+
+        checkThrottle()
         wsk.api.create(basepath, relpath, operation, action, apiname, swagger, responsetype, expectedExitCode, cliCfgFile)(wskpropsOverride)
     }
 
@@ -142,6 +144,8 @@ class ApiGwTests
         nameSort: Option[Boolean] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+
+        checkThrottle()
         wsk.api.list(basepathOrApiName, relpath, operation, limit, since, full, nameSort, expectedExitCode, cliCfgFile)
     }
 
@@ -151,6 +155,8 @@ class ApiGwTests
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()),
         format: Option[String] = None): RunResult = {
+
+        checkThrottle()
         wsk.api.get(basepathOrApiName, full, expectedExitCode, cliCfgFile, format)
     }
 
@@ -160,6 +166,8 @@ class ApiGwTests
         operation: Option[String] = None,
         expectedExitCode: Int = SUCCESS_EXIT,
         cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath())): RunResult = {
+
+        checkThrottle()
         wsk.api.delete(basepathOrApiName, relpath, operation, expectedExitCode, cliCfgFile)
     }
 
