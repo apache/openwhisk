@@ -47,6 +47,7 @@ class CouchDBStoreProviderTests extends FlatSpec
     val artifactStoreProvider = SpiLoader.get[ArtifactStoreProvider]
     val store1FirstLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
     val store1SecondLoad = artifactStoreProvider.makeStore[WhiskActivation](config, _.dbActivations)
+    val store2 = artifactStoreProvider.makeStore[WhiskActivation](config, (_) => "aDifferentName")
 
     behavior of "CouchDBStoreProvider"
     override def afterAll() {
@@ -58,6 +59,10 @@ class CouchDBStoreProviderTests extends FlatSpec
     }
     it should "load the same store from config for a specific artifact type" in {
         store1FirstLoad shouldBe store1SecondLoad
+    }
+
+    it should "load a different store if different name is specified for a specific artifact type" in {
+        store1FirstLoad should not be store2
     }
 
 }
