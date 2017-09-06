@@ -124,19 +124,13 @@ trait WhiskActivationsApi
                 if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
                     val activations = name match {
                         case Some(action) =>
-                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
+                            WhiskActivation.listActivationsMatchingName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                         case None =>
                             WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto, StaleParameter.UpdateAfter)
                     }
 
                     listEntities {
-                        activations map {
-                            l =>
-                                if (docs) l.right.get map {
-                                    _.toExtendedJson
-                                }
-                                else l.left.get
-                        }
+                        activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
                     }
                 } else {
                     terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))

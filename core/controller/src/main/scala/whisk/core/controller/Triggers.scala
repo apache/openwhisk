@@ -258,12 +258,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) {
             (skip, limit, count) =>
                 listEntities {
-                    WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map {
-                        list =>
-                            val triggers = if (docs) {
-                                list.right.get map { WhiskTrigger.serdes.write(_) }
-                            } else list.left.get
-                            FilterEntityList.filter(triggers, excludePrivate)
+                    WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
+                        val triggers = list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
+                        FilterEntityList.filter(triggers, excludePrivate)
                     }
                 }
         }

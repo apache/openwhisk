@@ -159,34 +159,21 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
         // Actions API for more.
         val docs = false
 
-        // disable listing all public (shared) packages in all namespaces until
-        // there exists a process in place to curate and rank these packages
-        val publicPackagesInAnyNamespace = false
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) {
             (skip, limit, count) =>
-                if (publicPackagesInAnyNamespace && docs) {
-                    terminate(BadRequest, "Parameters 'public' and 'docs' may not both be true at the same time")
-                } else listEntities {
-                    if (!publicPackagesInAnyNamespace) {
-                        WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map {
-                            list =>
-                                // any subject is entitled to list packages in any namespace
-                                // however, they shall only observe public packages if the packages
-                                // are not in one of the namespaces the subject is entitled to
-                                val packages = if (docs) {
-                                    list.right.get map { WhiskPackage.serdes.write(_) }
-                                } else list.left.get
-                                FilterEntityList.filter(packages, excludePrivate,
-                                    additionalFilter = { // additionally exclude bindings
-                                        case pkg: JsObject => Try {
-                                            pkg.fields(WhiskPackage.bindingFieldName) == JsBoolean(false)
-                                        } getOrElse false
-                                    })
-                        }
-                    } else {
-                        WhiskPackage.listCollectionInAnyNamespace(entityStore, skip, limit, docs = false, reduce = publicPackagesInAnyNamespace) map {
-                            _.left.get
-                        }
+                listEntities {
+                    WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
+                        // any subject is entitled to list packages in any namespace
+                        // however, they shall only observe public packages if the packages
+                        // are not in one of the namespaces the subject is entitled to
+                        val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
+
+                        FilterEntityList.filter(packages, excludePrivate,
+                            additionalFilter = { // additionally exclude bindings
+                                case pkg: JsObject => Try {
+                                    pkg.fields(WhiskPackage.bindingFieldName) == JsBoolean(false)
+                                } getOrElse false
+                            })
                     }
                 }
         }

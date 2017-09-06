@@ -322,12 +322,9 @@ trait WhiskActionsApi
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) {
             (skip, limit, count) =>
                 listEntities {
-                    WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map {
-                        list =>
-                            val actions = if (docs) {
-                                list.right.get map { WhiskAction.serdes.write(_) }
-                            } else list.left.get
-                            FilterEntityList.filter(actions, excludePrivate)
+                    WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
+                        val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+                        FilterEntityList.filter(actions, excludePrivate)
                     }
                 }
         }
