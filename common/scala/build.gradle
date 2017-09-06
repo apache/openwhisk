@@ -1,8 +1,5 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
-apply plugin: 'scalafmt'
-
-scalafmt.configFilePath = gradle.scalafmt.config
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
