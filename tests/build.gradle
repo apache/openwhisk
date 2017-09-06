@@ -1,12 +1,3 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
-    }
-}
-
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'scalafmt'
