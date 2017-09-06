@@ -66,7 +66,6 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
     withActivation(wsk.activation, run, totalWait = duration.get) { activation =>
       val console = wsk.activation.console(10 seconds, since = duration)
-      println(console.stdout)
       console.stdout should include(payload)
     }
   }

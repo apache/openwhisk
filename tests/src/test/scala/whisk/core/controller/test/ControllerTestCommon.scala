@@ -192,7 +192,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
         case (timeout, activation) =>
           Future {
             blocking {
-              println("waiting.....")
+              println(s"load balancer active ack stub: waiting for $timeout...")
               Thread.sleep(timeout.toMillis)
               println(".... done waiting")
             }
