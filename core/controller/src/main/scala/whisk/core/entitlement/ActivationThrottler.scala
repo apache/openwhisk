@@ -21,6 +21,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.http.Messages
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -41,13 +42,13 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
   /**
    * Checks whether the operation should be allowed to proceed.
    */
-  def check(user: Identity)(implicit tid: TransactionId): Boolean = {
+  def check(user: Identity)(implicit tid: TransactionId): RateLimit = {
     val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
     val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
     logging.info(
       this,
-      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
-    concurrentActivations < concurrencyLimit
+      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, limit = $concurrencyLimit")
+    ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
   }
 
   /**
@@ -58,4 +59,19 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
     logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
     concurrentActivations > systemOverloadLimit
   }
+}
+
+sealed trait RateLimit {
+  def ok: Boolean
+  def errorMsg: String
+}
+
+case class ConcurrentRateLimit(count: Int, allowed: Int) extends RateLimit {
+  val ok = count < allowed // must have slack for the current activation request
+  override def errorMsg = Messages.tooManyConcurrentRequests(count, allowed)
+}
+
+case class TimedRateLimit(count: Int, allowed: Int) extends RateLimit {
+  val ok = count <= allowed // the count is already updated to account for the current request
+  override def errorMsg = Messages.tooManyRequests(count, allowed)
 }

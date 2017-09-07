@@ -1297,7 +1297,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           failThrottleForSubject = Some(systemId)
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(TooManyRequests)
-            confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests))
+            confirmErrorWithTid(responseAs[JsObject], Some(Messages.tooManyRequests(2, 1)))
           }
           failThrottleForSubject = None
         }
@@ -1492,7 +1492,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
       failThrottleForSubject match {
         case Some(subject) if subject == user.subject =>
-          Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests))
+          Future.failed(RejectRequest(TooManyRequests, Messages.tooManyRequests(2, 1)))
         case _ => Future.successful({})
       }
     }

@@ -46,6 +46,10 @@ import org.scalatest.BeforeAndAfterAll
 import common.RunWskAdminCmd
 import whisk.utils.retry
 
+protected[limits] trait LocalHelper {
+  def prefix(msg: String) = msg.substring(0, msg.indexOf('('))
+}
+
 @RunWith(classOf[JUnitRunner])
 class ThrottleTests
     extends FlatSpec
@@ -53,7 +57,8 @@ class ThrottleTests
     with WskTestHelpers
     with WskActorSystem
     with ScalaFutures
-    with Matchers {
+    with Matchers
+    with LocalHelper {
 
   // use an infinite thread pool so that activations do not wait to send the activation requests
   override implicit val executionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
@@ -86,7 +91,7 @@ class ThrottleTests
    */
   def throttledActivations(results: List[RunResult], message: String) = {
     val count = results.count { result =>
-      result.exitCode == TestUtils.THROTTLED && result.stderr.contains(message)
+      result.exitCode == TestUtils.THROTTLED && result.stderr.contains(prefix(message))
     }
     println(s"number of throttled activations: $count out of ${results.length}")
     count
@@ -190,7 +195,7 @@ class ThrottleTests
     val afterInvokes = Instant.now
 
     try {
-      val throttledCount = throttledActivations(results, tooManyRequests)
+      val throttledCount = throttledActivations(results, tooManyRequests(0, 0))
       throttledCount should be > 0
     } finally {
       val alreadyWaited = durationBetween(afterInvokes, Instant.now)
@@ -216,7 +221,7 @@ class ThrottleTests
     val afterFirings = Instant.now
 
     try {
-      val throttledCount = throttledActivations(results, tooManyRequests)
+      val throttledCount = throttledActivations(results, tooManyRequests(0, 0))
       throttledCount should be > 0
     } finally {
       // no need to wait for activations of triggers since they consume no resources
@@ -267,7 +272,7 @@ class ThrottleTests
 
     val combinedResults = slowResults ++ fastResults
     try {
-      val throttledCount = throttledActivations(combinedResults, tooManyConcurrentRequests)
+      val throttledCount = throttledActivations(combinedResults, tooManyConcurrentRequests(0, 0))
       throttledCount should be > 0
     } finally {
       val alreadyWaited = durationBetween(afterSlowInvokes, Instant.now)
@@ -287,7 +292,8 @@ class NamespaceSpecificThrottleTests
     with TestHelpers
     with WskTestHelpers
     with Matchers
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with LocalHelper {
 
   val wskadmin = new RunWskAdminCmd {}
   val wsk = new Wsk
@@ -340,8 +346,12 @@ class NamespaceSpecificThrottleTests
       trigger.create(triggerName)
     }
 
-    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
-    wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should include(tooManyRequests)
+    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+      include(prefix(tooManyRequests(0, 0))) and include("allowed: 0")
+    }
+    wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+      include(prefix(tooManyRequests(0, 0))) and include("allowed: 0")
+    }
   }
 
   it should "respect overridden rate-throttles of 1" in withAssetCleaner(oneProps) { (wp, assetHelper) =>
@@ -356,24 +366,30 @@ class NamespaceSpecificThrottleTests
       trigger.create(triggerName)
     }
 
-    // One invoke should be allowed, the second one throttled
-    // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+    // One invoke should be allowed, the second one throttled.
+    // Due to the current implementation of the rate throttling,
+    // it is possible that the counter gets deleted, because the minute switches.
     retry({
       val results = (1 to 2).map { _ =>
         wsk.action.invoke(actionName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
-      results.map(_.stderr).mkString should include(tooManyRequests)
+      results.map(_.stderr).mkString should {
+        include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
+      }
     }, 2, Some(1.second))
 
-    // One fire should be allowed, the second one throttled
-    // Due to the current implementation of the rate throttling, it could be possible, that the counter gets deleted, because the minute switches
+    // One fire should be allowed, the second one throttled.
+    // Due to the current implementation of the rate throttling,
+    // it is possible, that the counter gets deleted, because the minute switches.
     retry({
       val results = (1 to 2).map { _ =>
         wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
-      results.map(_.stderr).mkString should include(tooManyRequests)
+      results.map(_.stderr).mkString should {
+        include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
+      }
     }, 2, Some(1.second))
   }
 
@@ -385,8 +401,8 @@ class NamespaceSpecificThrottleTests
       action.create(actionName, defaultAction)
     }
 
-    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should include(
-      tooManyConcurrentRequests)
+    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+      include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed: 0")
+    }
   }
-
 }
