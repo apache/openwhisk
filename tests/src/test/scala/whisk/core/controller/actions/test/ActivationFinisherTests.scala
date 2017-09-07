@@ -76,7 +76,7 @@ class ActivationFinisherTests
   }
 
   behavior of "activation finisher"
-  override lazy val printstream = Console.out
+
   val slowPoll = 200.milliseconds
   val fastPoll = Seq()
 

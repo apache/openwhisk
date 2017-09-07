@@ -72,7 +72,6 @@ class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestH
         }
       }
 
-      println(s"Sequence $actions")
       assetHelper.withCleaner(wsk.action, name) {
         val sequence = actions.mkString(",")
         (action, _) =>
@@ -93,7 +92,6 @@ class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestH
 
       // update action sequence and run it with normal payload
       val newSequence = Seq("split", "sort").mkString(",")
-      println(s"Update sequence to $newSequence")
       wsk.action.create(
         name,
         Some(newSequence),
@@ -108,7 +106,6 @@ class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestH
         result.fields.get("lines") shouldBe Some(args.sortWith(_.compareTo(_) < 0).toArray.toJson)
       }
 
-      println("Run sequence with error in payload")
       // run sequence with error in the payload
       // sequence should run with no problems, error should be ignored in this test case
       // result of sequence should be identical to previous invocation above
@@ -197,7 +194,7 @@ class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestH
     val args = Array("what time is it?", now)
     val argsJson = args.mkString("\n").toJson
     val run = wsk.action.invoke(sName, Map("payload" -> argsJson))
-    println(s"RUN: ${run.stdout}")
+
     withActivation(wsk.activation, run, totalWait = 2 * allowedActionDuration) { activation =>
       checkSequenceLogsAndAnnotations(activation, 3) // 3 activations in this sequence
       val result = activation.response.result.get
@@ -530,10 +527,11 @@ class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestH
       val componentId = activation.logs.get(atomicActionIdx)
       val getComponentActivation = wsk.activation.get(Some(componentId))
       withActivation(wsk.activation, getComponentActivation, totalWait = allowedActionDuration) { componentActivation =>
-        println(componentActivation)
-        componentActivation.logs shouldBe defined
-        val logs = componentActivation.logs.get.mkString(" ")
-        regex.findFirstIn(logs) shouldBe defined
+        withClue(componentActivation) {
+          componentActivation.logs shouldBe defined
+          val logs = componentActivation.logs.get.mkString(" ")
+          regex.findFirstIn(logs) shouldBe defined
+        }
       }
     }
   }

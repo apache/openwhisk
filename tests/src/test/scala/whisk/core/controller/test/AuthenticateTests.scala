@@ -56,22 +56,23 @@ class AuthenticateTests extends ControllerTestCommon with Authenticate {
 
     // Try to login with each specific namespace
     namespaces.foreach { ns =>
-      println(s"Trying to login to $ns")
-      waitOnView(authStore, ns.authkey, 1) // wait for the view to be updated
-      val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
-      val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
-      user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+      withClue(s"Trying to login to $ns") {
+        waitOnView(authStore, ns.authkey, 1) // wait for the view to be updated
+        val pass = BasicHttpCredentials(ns.authkey.uuid.asString, ns.authkey.key.asString)
+        val user = Await.result(validateCredentials(Some(pass)), dbOpTimeout)
+        user.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
 
-      // first lookup should have been from datastore
-      stream.toString should include(s"serving from datastore: ${CacheKey(ns.authkey)}")
-      stream.reset()
+        // first lookup should have been from datastore
+        stream.toString should include(s"serving from datastore: ${CacheKey(ns.authkey)}")
+        stream.reset()
 
-      // repeat query, now should be served from cache
-      val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
-      cachedUser.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
+        // repeat query, now should be served from cache
+        val cachedUser = Await.result(validateCredentials(Some(pass))(transid()), dbOpTimeout)
+        cachedUser.get shouldBe Identity(subject, ns.name, ns.authkey, Privilege.ALL)
 
-      stream.toString should include(s"serving from cache: ${CacheKey(ns.authkey)}")
-      stream.reset()
+        stream.toString should include(s"serving from cache: ${CacheKey(ns.authkey)}")
+        stream.reset()
+      }
     }
 
     // check that invalid keys are rejected
