@@ -7,58 +7,19 @@ configure(cliProject) {
 // Because of how Dockerfiles only know about files in the current
 // direcotry or sub directories, we need to copy the previously built
 // CLI images to this directory.
-task copyCLI(dependsOn: ':tools:cli:copyCLIShortcut') {
+task copyCLI(type: Copy, dependsOn: ':tools:cli:copyCLIShortcut') {
   doLast {
-    // executables
-    copy {
-      from "${projectDir}/../../bin/linux/386/wsk"
-      into "${projectDir}/build/linux/386/"
+    copyLinux {
+      from "${projectDir}/../../bin/linux"
+      into "${projectDir}/build/linux"
     }
-    copy {
-      from "${projectDir}/../../bin/linux/amd64/wsk"
-      into "${projectDir}/build/linux/amd64/"
+    copyMac {
+      from "${projectDir}/../../bin/mac"
+      into "${projectDir}/build/mac"
     }
-    copy {
-      from "${projectDir}/../../bin/mac/386/wsk"
-      into "${projectDir}/build/mac/386/"
-    }
-    copy {
-      from "${projectDir}/../../bin/mac/amd64/wsk"
-      into "${projectDir}/build/mac/amd64/"
-    }
-    copy {
-      from "${projectDir}/../../bin/windows/386/wsk.exe"
-      into "${projectDir}/build/windows/386/"
-    }
-    copy {
-      from "${projectDir}/../../bin/windows/amd64/wsk.exe"
-      into "${projectDir}/build/windows/amd64/"
-    }
-
-    // zip files
-    copy {
-      from "${projectDir}/../../bin/linux/386/OpenWhisk_CLI-linux-32bit.tgz"
-      into "${projectDir}/build/linux/386/"
-    }
-    copy {
-      from "${projectDir}/../../bin/linux/amd64/OpenWhisk_CLI-linux.tgz"
-      into "${projectDir}/build/linux/amd64/"
-    }
-    copy {
-      from "${projectDir}/../../bin/mac/386/OpenWhisk_CLI-mac-32bit.zip"
-      into "${projectDir}/build/mac/386/"
-    }
-    copy {
-      from "${projectDir}/../../bin/mac/amd64/OpenWhisk_CLI-mac.zip"
-      into "${projectDir}/build/mac/amd64/"
-    }
-    copy {
-      from "${projectDir}/../../bin/windows/386/OpenWhisk_CLI-windows-32bit.zip"
-      into "${projectDir}/build/windows/386/"
-    }
-    copy {
-      from "${projectDir}/../../bin/windows/amd64/OpenWhisk_CLI-windows.zip"
-      into "${projectDir}/build/windows/amd64/"
+    copyWindows {
+      from "${projectDir}/../../bin/windows"
+      into "${projectDir}/build/windows"
     }
   }
 }
