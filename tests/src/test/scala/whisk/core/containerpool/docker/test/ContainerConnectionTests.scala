@@ -17,30 +17,28 @@
 
 package whisk.core.containerpool.docker.test
 
-import java.time.Instant
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 
 import scala.concurrent.duration._
 
+import org.apache.http.HttpRequest
+import org.apache.http.HttpResponse
+import org.apache.http.entity.StringEntity
+import org.apache.http.localserver.LocalServerTestBase
+import org.apache.http.protocol.HttpContext
+import org.apache.http.protocol.HttpRequestHandler
 import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-
-import org.apache.http.localserver.LocalServerTestBase
-import org.apache.http.protocol.HttpRequestHandler
-import org.apache.http.HttpResponse
-import org.apache.http.HttpRequest
-import org.apache.http.protocol.HttpContext
-import org.apache.http.entity.StringEntity
 
 import spray.json.JsObject
-
-import whisk.core.entity.size._
-import whisk.core.entity.ActivationResponse._
 import whisk.core.containerpool.docker.HttpUtils
+import whisk.core.entity.ActivationResponse._
+import whisk.core.entity.size._
 
 /**
  * Unit tests for HttpUtils which communicate with containers.
@@ -49,7 +47,7 @@ import whisk.core.containerpool.docker.HttpUtils
 class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfter with BeforeAndAfterAll {
 
   var testHang: FiniteDuration = 0.second
-  var testStatusOK: Boolean = true
+  var testStatusCode: Int = 200
   var testResponse: String = null
 
   val mockServer = new LocalServerTestBase {
@@ -60,7 +58,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
           if (testHang.length > 0) {
             Thread.sleep(testHang.toMillis)
           }
-          response.setStatusCode(if (testStatusOK) 200 else 500);
+          response.setStatusCode(testStatusCode);
           if (testResponse != null) {
             response.setEntity(new StringEntity(testResponse, StandardCharsets.UTF_8))
           }
@@ -75,7 +73,7 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
 
   before {
     testHang = 0.second
-    testStatusOK = true
+    testStatusCode = 200
     testResponse = null
   }
 
@@ -93,9 +91,17 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
     val result = connection.post("/init", JsObject(), retry = true)
     val end = Instant.now()
     val waited = end.toEpochMilli - start.toEpochMilli
-    result.isLeft shouldBe true
+    result shouldBe 'left
     waited should be > timeout.toMillis
     waited should be < (timeout * 2).toMillis
+  }
+
+  it should "handle empty entity response" in {
+    val timeout = 5.seconds
+    val connection = new HttpUtils(hostWithPort, timeout, 1.B)
+    testStatusCode = 204
+    val result = connection.post("/init", JsObject(), retry = true)
+    result shouldBe Left(NoResponseReceived())
   }
 
   it should "not truncate responses within limit" in {
@@ -103,11 +109,11 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
     val connection = new HttpUtils(hostWithPort, timeout.millis, 50.B)
     Seq(true, false).foreach { code =>
       Seq(null, "", "abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusOK = code
+        testStatusCode = if (code) 200 else 500
         testResponse = r
         val result = connection.post("/init", JsObject(), retry = true)
         result shouldBe Right {
-          ContainerResponse(okStatus = testStatusOK, if (r != null) r else "", None)
+          ContainerResponse(okStatus = code, if (r != null) r else "", None)
         }
       }
     }
@@ -120,11 +126,11 @@ class ContainerConnectionTests extends FlatSpec with Matchers with BeforeAndAfte
     val connection = new HttpUtils(hostWithPort, timeout.millis, limit)
     Seq(true, false).foreach { code =>
       Seq("abc", """{"a":"B"}""", """["a", "b"]""").foreach { r =>
-        testStatusOK = code
+        testStatusCode = if (code) 200 else 500
         testResponse = r
         val result = connection.post("/init", JsObject(), retry = true)
         result shouldBe Right {
-          ContainerResponse(okStatus = testStatusOK, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
+          ContainerResponse(okStatus = code, r.take(limit.toBytes.toInt), Some((r.length.B, limit)))
         }
       }
     }

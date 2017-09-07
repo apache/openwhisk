@@ -96,7 +96,6 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
    * Class of errors for invoker-container communication.
    */
   protected[core] sealed abstract class ContainerConnectionError
-  protected[core] case class NoHost() extends ContainerConnectionError
   protected[core] case class ConnectionError(t: Throwable) extends ContainerConnectionError
   protected[core] case class NoResponseReceived() extends ContainerConnectionError
   protected[core] case class Timeout() extends ContainerConnectionError
