@@ -4,4 +4,4 @@
   file:
     path: "{{ cli.nginxdir }}"
     state: absent
-  become: cli.dir.become
+  become: "{{ cli.dir.become }}"
