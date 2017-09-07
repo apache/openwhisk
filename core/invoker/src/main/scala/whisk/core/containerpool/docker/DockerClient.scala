@@ -97,7 +97,7 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
   private val pullsInFlight = TrieMap[String, Future[Unit]]()
   def pull(image: String)(implicit transid: TransactionId): Future[Unit] =
     pullsInFlight.getOrElseUpdate(image, {
-      runCmd("pull", image).map(_ => pullsInFlight.remove(image))
+      runCmd("pull", image).map(_ => ()).andThen { case _ => pullsInFlight.remove(image) }
     })
 
   private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
