@@ -92,7 +92,7 @@ protected[actions] trait PrimitiveActions {
    */
   protected[actions] def invokeSingleAction(
     user: Identity,
-    action: ExecutableWhiskAction,
+    action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {

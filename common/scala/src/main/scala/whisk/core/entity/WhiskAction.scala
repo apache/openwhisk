@@ -100,6 +100,10 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       "annotations" -> annotations.toJson)
 }
 
+abstract class WhiskActionLikeMetaData(override val name: EntityName) extends WhiskActionLike(name) {
+  override def exec: ExecMetaDataBase
+}
+
 /**
  * A WhiskAction provides an abstraction of the meta-data
  * for a whisk action.
@@ -161,6 +165,51 @@ case class WhiskAction(namespace: EntityPath,
   }
 }
 
+@throws[IllegalArgumentException]
+case class WhiskActionMetaData(namespace: EntityPath,
+                               override val name: EntityName,
+                               exec: ExecMetaDataBase,
+                               parameters: Parameters = Parameters(),
+                               limits: ActionLimits = ActionLimits(),
+                               version: SemVer = SemVer(),
+                               publish: Boolean = false,
+                               annotations: Parameters = Parameters())
+    extends WhiskActionLikeMetaData(name) {
+
+  require(exec != null, "exec undefined")
+  require(limits != null, "limits undefined")
+
+  /**
+   * Merges parameters (usually from package) with existing action parameters.
+   * Existing parameters supersede those in p.
+   */
+  def inherit(p: Parameters) = copy(parameters = p ++ parameters).revision[WhiskActionMetaData](rev)
+
+  /**
+   * Resolves sequence components if they contain default namespace.
+   */
+  protected[core] def resolve(userNamespace: EntityName): WhiskActionMetaData = {
+    exec match {
+      case SequenceExecMetaData(components) =>
+        val newExec = SequenceExecMetaData(components map { c =>
+          FullyQualifiedEntityName(c.path.resolveNamespace(userNamespace), c.name)
+        })
+        copy(exec = newExec).revision[WhiskActionMetaData](rev)
+      case _ => this
+    }
+  }
+
+  def toExecutableWhiskAction = exec match {
+    case execMetaData: ExecMetaData =>
+      Some(
+        ExecutableWhiskActionMetaData(namespace, name, execMetaData, parameters, limits, version, publish, annotations)
+          .revision[ExecutableWhiskActionMetaData](rev))
+    case _ =>
+      None
+  }
+
+}
+
 /**
  * Variant of WhiskAction which only includes information necessary to be
  * executed by an Invoker.
@@ -204,6 +253,25 @@ case class ExecutableWhiskAction(namespace: EntityPath,
 
   def toWhiskAction =
     WhiskAction(namespace, name, exec, parameters, limits, version, publish, annotations).revision[WhiskAction](rev)
+}
+
+@throws[IllegalArgumentException]
+case class ExecutableWhiskActionMetaData(namespace: EntityPath,
+                                         override val name: EntityName,
+                                         exec: ExecMetaData,
+                                         parameters: Parameters = Parameters(),
+                                         limits: ActionLimits = ActionLimits(),
+                                         version: SemVer = SemVer(),
+                                         publish: Boolean = false,
+                                         annotations: Parameters = Parameters())
+    extends WhiskActionLikeMetaData(name) {
+
+  require(exec != null, "exec undefined")
+  require(limits != null, "limits undefined")
+
+  def toWhiskAction =
+    WhiskActionMetaData(namespace, name, exec, parameters, limits, version, publish, annotations)
+      .revision[WhiskActionMetaData](rev)
 }
 
 object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[WhiskAction] with DefaultJsonProtocol {
@@ -337,6 +405,85 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
         // get the whisk action associate with it and inherit the parameters from the package/binding
         WhiskAction.get(entityStore, fqnAction.toDocId) map { _.inherit(resolvedPkg.parameters) }
+      }
+    }
+  }
+}
+
+object WhiskActionMetaData
+    extends DocumentFactory[WhiskActionMetaData]
+    with WhiskEntityQueries[WhiskActionMetaData]
+    with DefaultJsonProtocol {
+
+  val execFieldName = "exec"
+  val finalParamsAnnotationName = "final"
+
+  override val collectionName = "actions"
+
+  override implicit val serdes = jsonFormat(
+    WhiskActionMetaData.apply,
+    "namespace",
+    "name",
+    "exec",
+    "parameters",
+    "limits",
+    "version",
+    "publish",
+    "annotations")
+
+  override val cacheEnabled = true
+
+  /**
+   * Resolves an action name if it is contained in a package.
+   * Look up the package to determine if it is a binding or the actual package.
+   * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+   * If it's the actual package, use its name directly as the package path name.
+   */
+  def resolveAction(db: EntityStore, fullyQualifiedActionName: FullyQualifiedEntityName)(
+    implicit ec: ExecutionContext,
+    transid: TransactionId): Future[FullyQualifiedEntityName] = {
+    // first check that there is a package to be resolved
+    val entityPath = fullyQualifiedActionName.path
+    if (entityPath.defaultPackage) {
+      // this is the default package, nothing to resolve
+      Future.successful(fullyQualifiedActionName)
+    } else {
+      // there is a package to be resolved
+      val pkgDocId = fullyQualifiedActionName.path.toDocId
+      val actionName = fullyQualifiedActionName.name
+      WhiskPackage.resolveBinding(db, pkgDocId) map {
+        _.fullyQualifiedName(withVersion = false).add(actionName)
+      }
+    }
+  }
+
+  /**
+   * Resolves an action name if it is contained in a package.
+   * Look up the package to determine if it is a binding or the actual package.
+   * If it's a binding, rewrite the fully qualified name of the action using the actual package path name.
+   * If it's the actual package, use its name directly as the package path name.
+   * While traversing the package bindings, merge the parameters.
+   */
+  def resolveActionAndMergeParameters(entityStore: EntityStore, fullyQualifiedName: FullyQualifiedEntityName)(
+    implicit ec: ExecutionContext,
+    transid: TransactionId): Future[WhiskActionMetaData] = {
+    // first check that there is a package to be resolved
+    val entityPath = fullyQualifiedName.path
+    if (entityPath.defaultPackage) {
+      // this is the default package, nothing to resolve
+      WhiskActionMetaData.get(entityStore, fullyQualifiedName.toDocId)
+    } else {
+      // there is a package to be resolved
+      val pkgDocid = fullyQualifiedName.path.toDocId
+      val actionName = fullyQualifiedName.name
+      val wp = WhiskPackage.resolveBinding(entityStore, pkgDocid, mergeParameters = true)
+      wp flatMap { resolvedPkg =>
+        // fully resolved name for the action
+        val fqnAction = resolvedPkg.fullyQualifiedName(withVersion = false).add(actionName)
+        // get the whisk action associate with it and inherit the parameters from the package/binding
+        WhiskActionMetaData.get(entityStore, fqnAction.toDocId) map {
+          _.inherit(resolvedPkg.parameters)
+        }
       }
     }
   }

@@ -36,6 +36,7 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskDocument
 import whisk.http.Messages
+import whisk.core.entity.DocumentReader
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -58,7 +59,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
-  materializer: ActorMaterializer)
+  materializer: ActorMaterializer,
+  docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
@@ -223,7 +225,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       e match {
         case Right(response) =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
-          val asFormat = jsonFormat.read(response)
+
+          val asFormat = try {
+            docReader.read(ma, response)
+          } catch {
+            case e: Exception => jsonFormat.read(response)
+          }
+
           if (asFormat.getClass != ma.runtimeClass) {
             throw DocumentTypeMismatchException(
               s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
