@@ -5,7 +5,7 @@
   file:
     path: "{{ nginx.confdir }}"
     state: directory
-  become: sdk.dir.become
+  become: "{{ sdk.dir.become }}"
 
 # Blackbox
 
