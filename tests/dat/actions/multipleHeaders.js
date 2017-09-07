@@ -3,6 +3,6 @@ function main() {
         headers: {
             "Set-Cookie": ["a=b", "c=d"]
         },
-        code: 200
+        statusCode: 200
     }
 }

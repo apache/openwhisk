@@ -709,16 +709,31 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
     it should s"handle http web action and provide defaults (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
-      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          actionResult = Some(JsObject())
+      def confirmEmptyResponse() = {
+        status should be(NoContent)
+        response.entity shouldBe HttpEntity.Empty
+        withClue(headers) {
+          headers.length shouldBe 0
+        }
+      }
 
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            status should be(OK)
-            response.entity shouldBe HttpEntity.Empty
-            withClue(headers) {
-              headers.length shouldBe 0
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        Set(JsObject(), JsObject("body" -> "".toJson), JsObject("body" -> JsNull)).foreach { bodyResult =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 2
+            actionResult = Some(bodyResult)
+
+            m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+              withClue(s"failed for: $bodyResult") {
+                confirmEmptyResponse()
+              }
+            }
+
+            // repeat with accept header, which should be ignored for content-negotiation
+            m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
+              withClue(s"with accept header, failed for: $bodyResult") {
+                confirmEmptyResponse()
+              }
             }
           }
         }
@@ -755,12 +770,36 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       implicit val tid = transid()
 
       Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        Seq(OK, Created).foreach { statusCode =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 1
+            actionResult = Some(
+              JsObject(
+                "headers" -> JsObject("content-type" -> "application/json".toJson),
+                webApiDirectives.statusCode -> statusCode.intValue.toJson,
+                "body" -> Base64.getEncoder.encodeToString {
+                  JsObject("field" -> "value".toJson).compactPrint.getBytes
+                }.toJson))
+
+            m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+              status should be(statusCode)
+              responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+            }
+          }
+        }
+      }
+    }
+
+    it should s"handle http web action with partially specified result (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        // omit status code
         allowedMethods.foreach { m =>
           invocationsAllowed += 1
           actionResult = Some(
             JsObject(
               "headers" -> JsObject("content-type" -> "application/json".toJson),
-              webApiDirectives.statusCode -> OK.intValue.toJson,
               "body" -> Base64.getEncoder.encodeToString {
                 JsObject("field" -> "value".toJson).compactPrint.getBytes
               }.toJson))
@@ -768,6 +807,105 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             responseAs[JsObject] shouldBe JsObject("field" -> "value".toJson)
+          }
+        }
+
+        // omit status code and headers
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          actionResult = Some(JsObject("body" -> Base64.getEncoder.encodeToString {
+            JsObject("field" -> "value".toJson).compactPrint.getBytes
+          }.toJson))
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            responseAs[String] shouldBe actionResult.get.fields("body").convertTo[String]
+            contentType shouldBe MediaTypes.`text/html`.withCharset(HttpCharsets.`UTF-8`)
+          }
+        }
+
+        // omit headers only
+        allowedMethods.foreach { m =>
+          invocationsAllowed += 1
+          actionResult = Some(
+            JsObject(
+              webApiDirectives.statusCode -> Created.intValue.toJson,
+              "body" -> Base64.getEncoder.encodeToString {
+                JsObject("field" -> "value".toJson).compactPrint.getBytes
+              }.toJson))
+
+          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+            status should be(Created)
+            responseAs[String] shouldBe actionResult.get.fields("body").convertTo[String]
+            contentType shouldBe MediaTypes.`text/html`.withCharset(HttpCharsets.`UTF-8`)
+          }
+        }
+
+        // omit body and headers
+        Seq(OK, Created, NoContent).foreach { statusCode =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 1
+            actionResult = Some(JsObject(webApiDirectives.statusCode -> statusCode.intValue.toJson))
+
+            m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+              status should be(statusCode)
+              headers shouldBe empty
+              response.entity shouldBe HttpEntity.Empty
+            }
+          }
+        }
+
+        // omit body but include headers
+        Seq(OK, Created, NoContent).foreach { statusCode =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 1
+            actionResult = Some(
+              JsObject(
+                "headers" -> JsObject("Set-Cookie" -> "a=b".toJson, "content-type" -> "application/json".toJson),
+                webApiDirectives.statusCode -> statusCode.intValue.toJson))
+
+            m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
+              status should be(statusCode)
+              headers shouldBe List(RawHeader("Set-Cookie", "a=b"))
+              response.entity shouldBe HttpEntity.Empty
+            }
+          }
+        }
+      }
+    }
+
+    it should s"handle http web action with no body when status code is set (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq(s"$systemId/proxy/export_c.http").foreach { path =>
+        // omit body and headers, but add accept header on the request
+        Seq(OK, Created, NoContent).foreach { statusCode =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 1
+            actionResult = Some(JsObject(webApiDirectives.statusCode -> statusCode.intValue.toJson))
+
+            m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
+              status should be(statusCode)
+              headers shouldBe empty
+              response.entity shouldBe HttpEntity.Empty
+            }
+          }
+        }
+
+        // omit body but include headers, and add accept header on the request
+        Seq(OK, Created, NoContent).foreach { statusCode =>
+          allowedMethods.foreach { m =>
+            invocationsAllowed += 1
+            actionResult = Some(
+              JsObject(
+                "headers" -> JsObject("Set-Cookie" -> "a=b".toJson, "content-type" -> "application/json".toJson),
+                webApiDirectives.statusCode -> statusCode.intValue.toJson))
+
+            m(s"$testRoutePath/$path") ~> addHeader("Accept", "application/json") ~> Route.seal(routes(creds)) ~> check {
+              status should be(statusCode)
+              headers shouldBe List(RawHeader("Set-Cookie", "a=b"))
+              response.entity shouldBe HttpEntity.Empty
+            }
           }
         }
       }
@@ -1014,7 +1152,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         s"$systemId/proxy/export_c.xyzz/",
         s"$systemId/proxy/export_c.xyzz/content").foreach { path =>
         allowedMethods.foreach { m =>
-          actionResult = Some(JsObject("statusCode" -> 201.toJson))
+          actionResult = Some(JsObject(webApiDirectives.statusCode -> Created.intValue.toJson))
 
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             if (webApiDirectives.enforceExtension) {
@@ -1242,6 +1380,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
             Get(s"$testRoutePath/$path") ~> addHeader("Accept", expectedMediaType.value) ~> Route.seal(routes(creds)) ~> check {
               status should be(OK)
+              contentType shouldBe ContentTypes.`text/html(UTF-8)`
               responseAs[String] shouldBe res
               mediaType shouldBe expectedMediaType
             }
