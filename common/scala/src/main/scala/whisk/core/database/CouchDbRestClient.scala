@@ -118,27 +118,27 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
   // WARNING: make sure that if the future response is not failed, its entity
   // be drained entirely or the connection will be kept open until timeouts kick in.
   private def request0(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
-    require(!materializer.isShutdown, "db client was shutdown and cannot be used again") futureRequest flatMap {
-      request =>
-        val promise = Promise[HttpResponse]
+    require(!materializer.isShutdown, "db client was shutdown and cannot be used again")
+    futureRequest flatMap { request =>
+      val promise = Promise[HttpResponse]
 
-        // When the future completes, we know whether the request made it
-        // through the queue.
-        requestQueue.offer(request -> promise).flatMap { buffered =>
-          buffered match {
-            case QueueOfferResult.Enqueued =>
-              promise.future
+      // When the future completes, we know whether the request made it
+      // through the queue.
+      requestQueue.offer(request -> promise).flatMap { buffered =>
+        buffered match {
+          case QueueOfferResult.Enqueued =>
+            promise.future
 
-            case QueueOfferResult.Dropped =>
-              Future.failed(new Exception("DB request queue is full."))
+          case QueueOfferResult.Dropped =>
+            Future.failed(new Exception("DB request queue is full."))
 
-            case QueueOfferResult.QueueClosed =>
-              Future.failed(new Exception("DB request queue was closed."))
+          case QueueOfferResult.QueueClosed =>
+            Future.failed(new Exception("DB request queue was closed."))
 
-            case QueueOfferResult.Failure(f) =>
-              Future.failed(f)
-          }
+          case QueueOfferResult.Failure(f) =>
+            Future.failed(f)
         }
+      }
     }
   }
 
