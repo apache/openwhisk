@@ -3,6 +3,7 @@
   roles:
   - redis
 
+
 - hosts: apigateway
   roles:
   - apigateway
