@@ -4,6 +4,6 @@
 - name: remove CouchDB
   docker_container:
     name: couchdb
-    image: couchdb
+    image: klaemo/couchdb
     state: absent
   ignore_errors: True

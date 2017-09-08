@@ -197,7 +197,7 @@ linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 1.6
+  version: 2.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run

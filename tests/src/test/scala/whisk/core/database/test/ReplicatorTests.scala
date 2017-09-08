@@ -52,6 +52,7 @@ class ReplicatorTests
 
   val replicatorClient =
     new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, "_replicator")
+  replicatorClient.createDb().futureValue
 
   val replicator = WhiskProperties.getFileRelativeToWhiskHome("tools/db/replicateDbs.py").getAbsolutePath
   val designDocPath =
