@@ -49,7 +49,6 @@ import whisk.spi.SpiLoader
 import scala.util.{Failure, Success}
 import whisk.core.loadBalancer.SingleLoadBalancerResolver
 
-
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
  *
@@ -111,10 +110,11 @@ class Controller(override val instance: InstanceId,
     override def apply(k: CacheKey) = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
   })
 
-    // initialize backend services
-    val loadBalancers = SpiLoader.get[LoadBalancerProvider].getLoadBalancers(whiskConfig, instance)private implicit val loadBalancerResolver = new SingleLoadBalancerResolver(loadBalancers)
-    private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig)
-    private implicit val activationIdFactory = new ActivationIdGenerator {}
+  // initialize backend services
+  val loadBalancers = SpiLoader.get[LoadBalancerProvider].getLoadBalancers(whiskConfig, instance)
+  private implicit val loadBalancerResolver = new SingleLoadBalancerResolver(loadBalancers)
+  private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig)
+  private implicit val activationIdFactory = new ActivationIdGenerator {}
 
   // register collections
   Collection.initialize(entityStore)
@@ -132,14 +132,14 @@ class Controller(override val instance: InstanceId,
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
 
-        (path("invokers") & get) {
-            complete {
+    (path("invokers") & get) {
+      complete {
         //                loadBalancers.foldLeft(JsArray()){a => a.}
 //        loadBalancer.healthStatus
-                    loadBalancers.head.healthStatus
-            }
-        }
+        loadBalancers.head.healthStatus
+      }
     }
+  }
 
   // controller top level info
   private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))

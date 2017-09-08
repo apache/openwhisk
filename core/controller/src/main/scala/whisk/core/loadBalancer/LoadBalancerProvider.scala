@@ -27,5 +27,6 @@ import whisk.spi.Spi
  * Spi for a LoadBalancer factory
  */
 trait LoadBalancerProvider extends Spi {
-    def getLoadBalancers(config: WhiskConfig, instance: InstanceId)(implicit logging:Logging, actorSystem:ActorSystem): Seq[LoadBalancer]
+  def getLoadBalancers(config: WhiskConfig, instance: InstanceId)(implicit logging: Logging,
+                                                                  actorSystem: ActorSystem): Seq[LoadBalancer]
 }

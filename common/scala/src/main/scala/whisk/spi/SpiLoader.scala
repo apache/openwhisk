@@ -53,9 +53,9 @@ object TypesafeConfigClassResolver extends SpiClassResolver {
 
 /** Allow for caching of instances returned from Spi that otherwise behave as factories (new instance per invocation) */
 trait SpiInstanceCaching[K, I] {
-    val instances = TrieMap[K, I]()
+  val instances = TrieMap[K, I]()
 
-    def getInstanceOrCreate(key: K, create: => I) = instances.getOrElseUpdate(key, create)
+  def getInstanceOrCreate(key: K, create: => I) = instances.getOrElseUpdate(key, create)
 
-    def removeInstance(key: K) = instances.remove(key)
+  def removeInstance(key: K) = instances.remove(key)
 }

@@ -26,7 +26,7 @@ import whisk.core.entity.ExecutableWhiskAction
 import scala.collection.JavaConverters._
 import whisk.common.Logging
 trait LoadBalancerResolver {
-    def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage): Option[LoadBalancer]
+  def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage): Option[LoadBalancer]
 }
 
 /**
@@ -34,29 +34,31 @@ trait LoadBalancerResolver {
  * @param loadBalancers
  */
 class SingleLoadBalancerResolver(loadBalancers: Seq[LoadBalancer]) extends LoadBalancerResolver {
-    require(loadBalancers.size == 1)
-    val singleLoadBalancer = Some(loadBalancers.head)
-    override def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage) = singleLoadBalancer
+  require(loadBalancers.size == 1)
+  val singleLoadBalancer = Some(loadBalancers.head)
+  override def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage) = singleLoadBalancer
 }
 
 /**
  * A LoadBalancer that returns the LoadBalancer configured for a specific action kind, or else a default
  * @param loadBalancers
  */
-class KindBasedLoadBalancerResolver(loadBalancers: Seq[LoadBalancer])(implicit logging:Logging) extends LoadBalancerResolver {
-    val config = ConfigFactory.load()
+class KindBasedLoadBalancerResolver(loadBalancers: Seq[LoadBalancer])(implicit logging: Logging)
+    extends LoadBalancerResolver {
+  val config = ConfigFactory.load()
 
-    val lbMap = loadBalancers.map(lb => (lb.getClass.getName -> lb)).toMap
+  val lbMap = loadBalancers.map(lb => (lb.getClass.getName -> lb)).toMap
 
-    val defaultLb = config.getString("whisk.loadbalancer.kindbased.default")
+  val defaultLb = config.getString("whisk.loadbalancer.kindbased.default")
 
-    val kindMap = (for {
-        kindMapping: ConfigObject <- config.getObjectList("whisk.loadbalancer.kindbased.kinds").asScala
-        entry : Entry[String, ConfigValue] <- kindMapping.entrySet().asScala
-    } yield (entry.getKey, entry.getValue.unwrapped().toString)).toMap
+  val kindMap = (for {
+    kindMapping: ConfigObject <- config.getObjectList("whisk.loadbalancer.kindbased.kinds").asScala
+    entry: Entry[String, ConfigValue] <- kindMapping.entrySet().asScala
+  } yield (entry.getKey, entry.getValue.unwrapped().toString)).toMap
 
-    logging.info(this, s"default load balancer is ${defaultLb}")
-    kindMap.foreach(k => logging.info(this, s" kind ${k._1} is mapped to load balancer ${k._2}"))
-    override def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage) = lbMap.get(kindMap.getOrElse(action.exec.kind, defaultLb))
+  logging.info(this, s"default load balancer is ${defaultLb}")
+  kindMap.foreach(k => logging.info(this, s" kind ${k._1} is mapped to load balancer ${k._2}"))
+  override def loadBalancer(action: ExecutableWhiskAction, msg: ActivationMessage) =
+    lbMap.get(kindMap.getOrElse(action.exec.kind, defaultLb))
 
 }
