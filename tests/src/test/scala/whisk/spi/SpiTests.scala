@@ -28,62 +28,61 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class SpiTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
 
-    behavior of "SpiProvider"
+  behavior of "SpiProvider"
 
-    it should "load an Spi from SpiLoader via typesafe config" in {
-        val simpleSpi = SpiLoader.get[SimpleSpi]
-        simpleSpi shouldBe a[SimpleSpi]
-    }
+  it should "load an Spi from SpiLoader via typesafe config" in {
+    val simpleSpi = SpiLoader.get[SimpleSpi]
+    simpleSpi shouldBe a[SimpleSpi]
+  }
 
-    it should "throw an exception if the impl defined in application.conf is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]
-    }
+  it should "throw an exception if the impl defined in application.conf is missing" in {
+    a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingSpi]
+  }
 
-    it should "throw an exception if the module is missing" in {
-        a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]
-    }
+  it should "throw an exception if the module is missing" in {
+    a[ClassNotFoundException] should be thrownBy SpiLoader.get[MissingModule]
+  }
 
-    it should "throw an exception if the config key is missing" in {
-        a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]
-    }
-    it should "create a single cached instance when accessing a caching SPI with same key" in {
-        val first = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value1")
-        val second = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value2")
-        first shouldBe "value1"
-        first shouldBe second
-    }
-    it should "create a separate instance when accessing a caching Spi with different keys" in {
-        val first = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value1")
-        val second = SpiLoader.get[CachedValueProvider[String]].getOrInit("key2", "value2")
-        first should not be second
-        first shouldBe "value1"
-        second shouldBe "value2"
-    }
-    it should "recreate a cached instance when accessing a caching SPI with same key after removal" in {
-        val loader = SpiLoader.get[CachedValueProvider[String]]
-        val first = loader.getOrInit("key", "value1")
-        val second = loader.getOrInit("key", "value2")
-        first shouldBe "value1"
-        second shouldBe "value1"
-        //now remove
-        loader.cleanup("key")
-        val third = loader.getOrInit("key", "value2")
-        third shouldBe "value2"
-    }
+  it should "throw an exception if the config key is missing" in {
+    a[ConfigException] should be thrownBy SpiLoader.get[MissingKey]
+  }
+  it should "create a single cached instance when accessing a caching SPI with same key" in {
+    val first = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value1")
+    val second = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value2")
+    first shouldBe "value1"
+    first shouldBe second
+  }
+  it should "create a separate instance when accessing a caching Spi with different keys" in {
+    val first = SpiLoader.get[CachedValueProvider[String]].getOrInit("key", "value1")
+    val second = SpiLoader.get[CachedValueProvider[String]].getOrInit("key2", "value2")
+    first should not be second
+    first shouldBe "value1"
+    second shouldBe "value2"
+  }
+  it should "recreate a cached instance when accessing a caching SPI with same key after removal" in {
+    val loader = SpiLoader.get[CachedValueProvider[String]]
+    val first = loader.getOrInit("key", "value1")
+    val second = loader.getOrInit("key", "value2")
+    first shouldBe "value1"
+    second shouldBe "value1"
+    //now remove
+    loader.cleanup("key")
+    val third = loader.getOrInit("key", "value2")
+    third shouldBe "value2"
+  }
 }
 
 trait SimpleSpi extends Spi
 object SimpleSpiImpl extends SimpleSpi
 
 trait CachedValueProvider[D] extends Spi {
-    def getOrInit(key: String, value: D): D
-    def cleanup(key:String): Option[D]
+  def getOrInit(key: String, value: D): D
+  def cleanup(key: String): Option[D]
 }
 object CachedValueProviderImpl extends CachedValueProvider[String] with SpiInstanceCaching[String, String] {
-    override def getOrInit(key: String,  value: String): String = getInstanceOrCreate(key, value)
-    override def cleanup(key: String) = removeInstance(key)
+  override def getOrInit(key: String, value: String): String = getInstanceOrCreate(key, value)
+  override def cleanup(key: String) = removeInstance(key)
 }
-
 
 trait MissingSpi extends Spi
 trait MissingModule extends Spi

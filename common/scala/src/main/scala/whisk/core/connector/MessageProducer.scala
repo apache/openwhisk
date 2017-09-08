@@ -22,12 +22,13 @@ import scala.concurrent.Future
 import org.apache.kafka.clients.producer.RecordMetadata
 
 trait MessageProducer {
-    /** Count of messages sent. */
-    def sentCount(): Long
 
-    /** Sends msg to topic. This is an asynchronous operation. */
-    def send(topic: String, msg: Message): Future[RecordMetadata]
+  /** Count of messages sent. */
+  def sentCount(): Long
 
-    /** Closes producer. */
-    def close(): Unit
+  /** Sends msg to topic. This is an asynchronous operation. */
+  def send(topic: String, msg: Message): Future[RecordMetadata]
+
+  /** Closes producer. */
+  def close(): Unit
 }

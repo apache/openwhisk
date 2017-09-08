@@ -33,49 +33,51 @@ import spray.json.deserializationError
  * @param key the secret key, required not null or empty
  */
 protected[core] class Secret private (val key: String) extends AnyVal {
-    protected[core] def asString = toString
-    protected[entity] def toJson = JsString(toString)
-    override def toString = key
+  protected[core] def asString = toString
+  protected[entity] def toJson = JsString(toString)
+  override def toString = key
 }
 
 protected[core] object Secret extends ArgNormalizer[Secret] {
-    /** Minimum secret length */
-    private val MIN_LENGTH = 64
 
-    /** Maximum secret length */
-    private val MAX_LENGTH = 64
+  /** Minimum secret length */
+  private val MIN_LENGTH = 64
 
-    /**
-     * Creates a Secret from a string. The string must be a valid secret already.
-     *
-     * @param str the secret as string, at least 64 characters
-     * @return Secret instance
-     * @throws IllegalArgumentException is argument is not a valid Secret
-     */
-    @throws[IllegalArgumentException]
-    override protected[entity] def factory(str: String): Secret = {
-        require(str.length >= MIN_LENGTH, s"secret must be at least $MIN_LENGTH characters")
-        require(str.length <= MAX_LENGTH, s"secret must be at most $MAX_LENGTH characters")
-        new Secret(str)
-    }
+  /** Maximum secret length */
+  private val MAX_LENGTH = 64
 
-    /**
-     * Creates a new random secret.
-     *
-     * @return Secret
-     */
-    protected[core] def apply(): Secret = {
-        Secret(rand.alphanumeric.take(MIN_LENGTH).mkString)
-    }
+  /**
+   * Creates a Secret from a string. The string must be a valid secret already.
+   *
+   * @param str the secret as string, at least 64 characters
+   * @return Secret instance
+   * @throws IllegalArgumentException is argument is not a valid Secret
+   */
+  @throws[IllegalArgumentException]
+  override protected[entity] def factory(str: String): Secret = {
+    require(str.length >= MIN_LENGTH, s"secret must be at least $MIN_LENGTH characters")
+    require(str.length <= MAX_LENGTH, s"secret must be at most $MAX_LENGTH characters")
+    new Secret(str)
+  }
 
-    implicit val serdes = new RootJsonFormat[Secret] {
-        def write(s: Secret) = s.toJson
+  /**
+   * Creates a new random secret.
+   *
+   * @return Secret
+   */
+  protected[core] def apply(): Secret = {
+    Secret(rand.alphanumeric.take(MIN_LENGTH).mkString)
+  }
 
-        def read(value: JsValue) = Try {
-            val JsString(s) = value
-            Secret(s)
-        } getOrElse deserializationError("secret malformed")
-    }
+  implicit val serdes = new RootJsonFormat[Secret] {
+    def write(s: Secret) = s.toJson
 
-    private val rand = new scala.util.Random(new java.security.SecureRandom())
+    def read(value: JsValue) =
+      Try {
+        val JsString(s) = value
+        Secret(s)
+      } getOrElse deserializationError("secret malformed")
+  }
+
+  private val rand = new scala.util.Random(new java.security.SecureRandom())
 }

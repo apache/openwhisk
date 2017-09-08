@@ -34,107 +34,101 @@ import spray.json.JsString
 import whisk.common.TransactionId
 
 @RunWith(classOf[JUnitRunner])
-class CacheConcurrencyTests extends FlatSpec
-    with WskTestHelpers
-    with BeforeAndAfter {
+class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndAfter {
 
-    println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
+  println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
 
-    implicit private val transId = TransactionId.testing
-    implicit private val wp = WskProps()
-    private val wsk = new Wsk
+  implicit private val transId = TransactionId.testing
+  implicit private val wp = WskProps()
+  private val wsk = new Wsk
 
-    val nExternalIters = 1
-    val nInternalIters = 5
-    val nThreads = nInternalIters * 30
+  val nExternalIters = 1
+  val nInternalIters = 5
+  val nThreads = nInternalIters * 30
 
-    val parallel = (1 to nInternalIters).par
-    parallel.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+  val parallel = (1 to nInternalIters).par
+  parallel.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
 
-    def run[W](phase: String)(block: String => W) = parallel.map { i =>
-        val name = s"testy${i}"
-        withClue(s"$phase: failed for $name") { (name, block(name)) }
+  def run[W](phase: String)(block: String => W) = parallel.map { i =>
+    val name = s"testy${i}"
+    withClue(s"$phase: failed for $name") { (name, block(name)) }
+  }
+
+  before {
+    run("pre-test sanitize") { name =>
+      wsk.action.sanitize(name)
     }
+  }
 
-    before {
-        run("pre-test sanitize") {
-            name => wsk.action.sanitize(name)
-        }
+  after {
+    run("post-test sanitize") { name =>
+      wsk.action.sanitize(name)
     }
+  }
 
-    after {
-        run("post-test sanitize") {
-            name => wsk.action.sanitize(name)
+  for (n <- 1 to nExternalIters)
+    "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${n}" in {
+      val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
+      val actionFile = TestUtils.getTestActionFilename("empty.js")
+
+      run("create") { name =>
+        wsk.action.create(name, Some(actionFile))
+      }
+
+      run("update") { name =>
+        wsk.action.create(name, None, update = true)
+      }
+
+      run("delete+get") { name =>
+        // run 30 operations in parallel: 15 get, 1 delete, 14 more get
+        val para = (1 to 30).par
+        para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+        para.map { i =>
+          if (i != 16) {
+            val rr = wsk.action.get(name, expectedExitCode = DONTCARE_EXIT)
+            withClue(s"expecting get to either succeed or fail with not found: $rr") {
+              // some will succeed and some should fail with not found
+              rr.exitCode should (be(SUCCESS_EXIT) or be(NOT_FOUND))
+            }
+          } else {
+            wsk.action.delete(name)
+          }
         }
+      }
+
+      run("get after delete") { name =>
+        wsk.action.get(name, expectedExitCode = NOT_FOUND)
+      }
+
+      run("recreate") { name =>
+        wsk.action.create(name, Some(actionFile))
+      }
+
+      run("reupdate") { name =>
+        wsk.action.create(name, None, parameters = Map("color" -> JsString("red")), update = true)
+      }
+
+      run("update+get") { name =>
+        // run 30 operations in parallel: 15 get, 1 update, 14 more get
+        val para = (1 to 30).par
+        para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
+        para.map { i =>
+          if (i != 16) {
+            wsk.action.get(name)
+          } else {
+            wsk.action.create(name, None, parameters = Map("color" -> JsString("blue")), update = true)
+          }
+        }
+      }
+
+      run("get after update") { name =>
+        wsk.action.get(name)
+      } map {
+        case (name, rr) =>
+          withClue(s"get after update: failed check for $name") {
+            rr.stdout should include("blue")
+            rr.stdout should not include ("red")
+          }
+      }
     }
-
-    for (n <- 1 to nExternalIters)
-        "the cache" should s"support concurrent CRUD without bogus residual cache entries, iter ${n}" in {
-            val scriptPath = TestUtils.getTestActionFilename("CacheConcurrencyTests.sh")
-            val actionFile = TestUtils.getTestActionFilename("empty.js")
-
-            run("create") {
-                name => wsk.action.create(name, Some(actionFile))
-            }
-
-            run("update") {
-                name => wsk.action.create(name, None, update = true)
-            }
-
-            run("delete+get") {
-                name =>
-                    // run 30 operations in parallel: 15 get, 1 delete, 14 more get
-                    val para = (1 to 30).par
-                    para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
-                    para.map {
-                        i =>
-                            if (i != 16) {
-                                val rr = wsk.action.get(name, expectedExitCode = DONTCARE_EXIT)
-                                withClue(s"expecting get to either succeed or fail with not found: $rr") {
-                                    // some will succeed and some should fail with not found
-                                    rr.exitCode should (be(SUCCESS_EXIT) or be(NOT_FOUND))
-                                }
-                            } else {
-                                wsk.action.delete(name)
-                            }
-                    }
-            }
-
-            run("get after delete") {
-                name => wsk.action.get(name, expectedExitCode = NOT_FOUND)
-            }
-
-            run("recreate") {
-                name => wsk.action.create(name, Some(actionFile))
-            }
-
-            run("reupdate") {
-                name => wsk.action.create(name, None, parameters = Map("color" -> JsString("red")), update = true)
-            }
-
-            run("update+get") {
-                name =>
-                    // run 30 operations in parallel: 15 get, 1 update, 14 more get
-                    val para = (1 to 30).par
-                    para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
-                    para.map {
-                        i =>
-                            if (i != 16) {
-                                wsk.action.get(name)
-                            } else {
-                                wsk.action.create(name, None, parameters = Map("color" -> JsString("blue")), update = true)
-                            }
-                    }
-            }
-
-            run("get after update") {
-                name => wsk.action.get(name)
-            } map {
-                case (name, rr) =>
-                    withClue(s"get after update: failed check for $name") {
-                        rr.stdout should include("blue")
-                        rr.stdout should not include ("red")
-                    }
-            }
-        }
 }

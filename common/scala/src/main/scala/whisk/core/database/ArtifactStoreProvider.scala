@@ -26,10 +26,9 @@ import whisk.spi.Spi
 /**
  * An Spi for providing ArtifactStore implementations
  */
-
 trait ArtifactStoreProvider extends Spi {
-    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
-        implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem,
-        logging: Logging): ArtifactStore[D]
+  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+    implicit jsonFormat: RootJsonFormat[D],
+    actorSystem: ActorSystem,
+    logging: Logging): ArtifactStore[D]
 }

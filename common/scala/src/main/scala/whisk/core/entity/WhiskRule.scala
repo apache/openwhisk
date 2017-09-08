@@ -34,21 +34,20 @@ import whisk.core.database.DocumentFactory
  * WhiskRulePut is a restricted WhiskRule view that eschews properties
  * that are auto-assigned or derived from URI: namespace, name, status.
  */
-case class WhiskRulePut(
-    trigger: Option[FullyQualifiedEntityName] = None,
-    action: Option[FullyQualifiedEntityName] = None,
-    version: Option[SemVer] = None,
-    publish: Option[Boolean] = None,
-    annotations: Option[Parameters] = None) {
+case class WhiskRulePut(trigger: Option[FullyQualifiedEntityName] = None,
+                        action: Option[FullyQualifiedEntityName] = None,
+                        version: Option[SemVer] = None,
+                        publish: Option[Boolean] = None,
+                        annotations: Option[Parameters] = None) {
 
-    /**
-     * Resolves the trigger and action name if they contains the default namespace.
-     */
-    protected[core] def resolve(namespace: EntityName): WhiskRulePut = {
-        val t = trigger map { _.resolve(namespace) }
-        val a = action map { _.resolve(namespace) }
-        WhiskRulePut(t, a, version, publish, annotations)
-    }
+  /**
+   * Resolves the trigger and action name if they contains the default namespace.
+   */
+  protected[core] def resolve(namespace: EntityName): WhiskRulePut = {
+    val t = trigger map { _.resolve(namespace) }
+    val a = action map { _.resolve(namespace) }
+    WhiskRulePut(t, a, version, publish, annotations)
+  }
 }
 
 /**
@@ -70,19 +69,18 @@ case class WhiskRulePut(
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
-case class WhiskRule(
-    namespace: EntityPath,
-    override val name: EntityName,
-    trigger: FullyQualifiedEntityName,
-    action: FullyQualifiedEntityName,
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters())
+case class WhiskRule(namespace: EntityPath,
+                     override val name: EntityName,
+                     trigger: FullyQualifiedEntityName,
+                     action: FullyQualifiedEntityName,
+                     version: SemVer = SemVer(),
+                     publish: Boolean = false,
+                     annotations: Parameters = Parameters())
     extends WhiskEntity(name) {
 
-    def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
+  def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
 
-    def toJson = WhiskRule.serdes.write(this).asJsObject
+  def toJson = WhiskRule.serdes.write(this).asJsObject
 }
 
 /**
@@ -99,17 +97,16 @@ case class WhiskRule(
  * @param publish true to share the action or false otherwise
  * @param annotation the set of annotations to attribute to the rule
  */
-case class WhiskRuleResponse(
-    namespace: EntityPath,
-    name: EntityName,
-    status: Status,
-    trigger: FullyQualifiedEntityName,
-    action: FullyQualifiedEntityName,
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters()) {
+case class WhiskRuleResponse(namespace: EntityPath,
+                             name: EntityName,
+                             status: Status,
+                             trigger: FullyQualifiedEntityName,
+                             action: FullyQualifiedEntityName,
+                             version: SemVer = SemVer(),
+                             publish: Boolean = false,
+                             annotations: Parameters = Parameters()) {
 
-    def toWhiskRule = WhiskRule(namespace, name, trigger, action, version, publish, annotations)
+  def toWhiskRule = WhiskRule(namespace, name, trigger, action, version, publish, annotations)
 }
 
 /**
@@ -130,117 +127,117 @@ case class WhiskRuleResponse(
  * @param status, one of allowed status strings
  */
 class Status private (private val status: String) extends AnyVal {
-    override def toString = status
+  override def toString = status
 }
 
 protected[core] object Status extends ArgNormalizer[Status] {
-    val ACTIVE = new Status("active")
-    val INACTIVE = new Status("inactive")
+  val ACTIVE = new Status("active")
+  val INACTIVE = new Status("inactive")
 
-    protected[core] def next(status: Status): Status = {
-        status match {
-            case ACTIVE   => INACTIVE
-            case INACTIVE => ACTIVE
-        }
+  protected[core] def next(status: Status): Status = {
+    status match {
+      case ACTIVE   => INACTIVE
+      case INACTIVE => ACTIVE
     }
+  }
 
-    /**
-     * Creates a rule Status from a string.
-     *
-     * @param str the rule status as string
-     * @return Status instance
-     * @throws IllegalArgumentException is argument is undefined or not a valid status
-     */
-    @throws[IllegalArgumentException]
-    override protected[entity] def factory(str: String): Status = {
-        val status = new Status(str)
-        require(status == ACTIVE || status == INACTIVE,
-            s"$str is not a recognized rule state")
-        status
-    }
+  /**
+   * Creates a rule Status from a string.
+   *
+   * @param str the rule status as string
+   * @return Status instance
+   * @throws IllegalArgumentException is argument is undefined or not a valid status
+   */
+  @throws[IllegalArgumentException]
+  override protected[entity] def factory(str: String): Status = {
+    val status = new Status(str)
+    require(status == ACTIVE || status == INACTIVE, s"$str is not a recognized rule state")
+    status
+  }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[Status] {
-        def write(s: Status) = JsString(s.status)
+  override protected[core] implicit val serdes = new RootJsonFormat[Status] {
+    def write(s: Status) = JsString(s.status)
 
-        def read(value: JsValue) = Try {
-            val JsString(v) = value
-            Status(v)
-        } match {
-            case Success(s) => s
-            case Failure(t) => deserializationError(t.getMessage)
-        }
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsString(v) = value
+        Status(v)
+      } match {
+        case Success(s) => s
+        case Failure(t) => deserializationError(t.getMessage)
+      }
+  }
 
-    /**
-     * A serializer for status POST entities. This is a restricted
-     * Status view with only ACTIVE and INACTIVE values allowed.
-     */
-    protected[core] val serdesRestricted = new RootJsonFormat[Status] {
-        def write(s: Status) = JsObject("status" -> JsString(s.status))
+  /**
+   * A serializer for status POST entities. This is a restricted
+   * Status view with only ACTIVE and INACTIVE values allowed.
+   */
+  protected[core] val serdesRestricted = new RootJsonFormat[Status] {
+    def write(s: Status) = JsObject("status" -> JsString(s.status))
 
-        def read(value: JsValue) = Try {
-            val JsObject(fields) = value
-            val JsString(s) = fields("status")
-            Status(s)
-        } match {
-            case Success(status) =>
-                if (status == ACTIVE || status == INACTIVE) {
-                    status
-                } else {
-                    val msg = s"""'$status' is not a recognized rule state, must be one of ['${Status.ACTIVE}', '${Status.INACTIVE}']"""
-                    deserializationError(msg)
-                }
-            case Failure(t) => deserializationError(t.getMessage)
-        }
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsObject(fields) = value
+        val JsString(s) = fields("status")
+        Status(s)
+      } match {
+        case Success(status) =>
+          if (status == ACTIVE || status == INACTIVE) {
+            status
+          } else {
+            val msg =
+              s"""'$status' is not a recognized rule state, must be one of ['${Status.ACTIVE}', '${Status.INACTIVE}']"""
+            deserializationError(msg)
+          }
+        case Failure(t) => deserializationError(t.getMessage)
+      }
+  }
 }
 
-object WhiskRule
-    extends DocumentFactory[WhiskRule]
-    with WhiskEntityQueries[WhiskRule]
-    with DefaultJsonProtocol {
+object WhiskRule extends DocumentFactory[WhiskRule] with WhiskEntityQueries[WhiskRule] with DefaultJsonProtocol {
 
-    override val collectionName = "rules"
+  override val collectionName = "rules"
 
-    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    private val caseClassSerdes = jsonFormat7(WhiskRule.apply)
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  private val caseClassSerdes = jsonFormat7(WhiskRule.apply)
 
-    override implicit val serdes = new RootJsonFormat[WhiskRule] {
-        def write(r: WhiskRule) = caseClassSerdes.write(r)
+  override implicit val serdes = new RootJsonFormat[WhiskRule] {
+    def write(r: WhiskRule) = caseClassSerdes.write(r)
 
-        def read(value: JsValue) = Try {
-            caseClassSerdes.read(value)
-        } recover {
-            case DeserializationException(_, _, List("trigger")) | DeserializationException(_, _, List("action")) =>
-                val namespace = value.asJsObject.fields("namespace").convertTo[EntityPath]
-                val actionName = value.asJsObject.fields("action")
-                val triggerName = value.asJsObject.fields("trigger")
+    def read(value: JsValue) =
+      Try {
+        caseClassSerdes.read(value)
+      } recover {
+        case DeserializationException(_, _, List("trigger")) | DeserializationException(_, _, List("action")) =>
+          val namespace = value.asJsObject.fields("namespace").convertTo[EntityPath]
+          val actionName = value.asJsObject.fields("action")
+          val triggerName = value.asJsObject.fields("trigger")
 
-                val refs = Seq(actionName, triggerName).map { name =>
-                    Try {
-                        FullyQualifiedEntityName(namespace, EntityName.serdes.read(name))
-                    } match {
-                        case Success(n) => n
-                        case Failure(t) => deserializationError(t.getMessage)
-                    }
-                }
-                val fields = value.asJsObject.fields + ("action" -> refs(0).toDocId.toJson) + ("trigger" -> refs(1).toDocId.toJson)
-                caseClassSerdes.read(JsObject(fields))
-        } match {
-            case Success(r) => r
-            case Failure(t) => deserializationError(t.getMessage)
-        }
-    }
+          val refs = Seq(actionName, triggerName).map { name =>
+            Try {
+              FullyQualifiedEntityName(namespace, EntityName.serdes.read(name))
+            } match {
+              case Success(n) => n
+              case Failure(t) => deserializationError(t.getMessage)
+            }
+          }
+          val fields = value.asJsObject.fields + ("action" -> refs(0).toDocId.toJson) + ("trigger" -> refs(1).toDocId.toJson)
+          caseClassSerdes.read(JsObject(fields))
+      } match {
+        case Success(r) => r
+        case Failure(t) => deserializationError(t.getMessage)
+      }
+  }
 
-    override val cacheEnabled = false
+  override val cacheEnabled = false
 }
 
 object WhiskRuleResponse extends DefaultJsonProtocol {
-    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat8(WhiskRuleResponse.apply)
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  implicit val serdes = jsonFormat8(WhiskRuleResponse.apply)
 }
 
 object WhiskRulePut extends DefaultJsonProtocol {
-    private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    implicit val serdes = jsonFormat5(WhiskRulePut.apply)
+  private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
+  implicit val serdes = jsonFormat5(WhiskRulePut.apply)
 }

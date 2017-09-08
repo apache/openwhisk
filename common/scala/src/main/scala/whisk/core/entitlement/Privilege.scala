@@ -26,21 +26,22 @@ import spray.json.RootJsonFormat
 
 /** An enumeration of privileges available to subjects. */
 protected[core] object Privilege extends Enumeration {
-    type Privilege = Value
+  type Privilege = Value
 
-    val READ, PUT, DELETE, ACTIVATE, REJECT = Value
+  val READ, PUT, DELETE, ACTIVATE, REJECT = Value
 
-    val CRUD = Set(READ, PUT, DELETE)
-    val ALL = CRUD + ACTIVATE
+  val CRUD = Set(READ, PUT, DELETE)
+  val ALL = CRUD + ACTIVATE
 
-    implicit val serdes = new RootJsonFormat[Privilege] {
-        def write(p: Privilege) = JsString(p.toString)
+  implicit val serdes = new RootJsonFormat[Privilege] {
+    def write(p: Privilege) = JsString(p.toString)
 
-        def read(json: JsValue) = Try {
-            val JsString(str) = json
-            Privilege.withName(str.trim.toUpperCase)
-        } getOrElse {
-            throw new DeserializationException("Privilege must be a valid string")
-        }
-    }
+    def read(json: JsValue) =
+      Try {
+        val JsString(str) = json
+        Privilege.withName(str.trim.toUpperCase)
+      } getOrElse {
+        throw new DeserializationException("Privilege must be a valid string")
+      }
+  }
 }

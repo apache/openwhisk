@@ -26,10 +26,10 @@ import scala.concurrent.duration._
  */
 object TimingUtil {
 
-    def time[T](blk: => T): (Duration, T) = {
-        val start = System.currentTimeMillis
-        val res = blk
-        ((System.currentTimeMillis - start).millis, res)
-    }
+  def time[T](blk: => T): (Duration, T) = {
+    val start = System.currentTimeMillis
+    val res = blk
+    ((System.currentTimeMillis - start).millis, res)
+  }
 
 }

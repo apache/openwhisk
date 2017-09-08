@@ -25,5 +25,5 @@ import whisk.core.entity.size.SizeInt
  * parameters for triggers.
  */
 protected[core] object ActivationEntityLimit {
-    protected[core] val MAX_ACTIVATION_ENTITY_LIMIT = 1.MB
+  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT = 1.MB
 }

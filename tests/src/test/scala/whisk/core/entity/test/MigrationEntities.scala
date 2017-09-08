@@ -25,30 +25,32 @@ import whisk.core.entity._
  * Contains types which represent former versions of database schemas
  * to be able to test migration path
  */
-
 /**
  * Old schema of rules, containing the rules' status in the rule record
  * itself
  */
-case class OldWhiskRule(
-    namespace: EntityPath,
-    override val name: EntityName,
-    trigger: EntityName,
-    action: EntityName,
-    status: Status,
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters())
+case class OldWhiskRule(namespace: EntityPath,
+                        override val name: EntityName,
+                        trigger: EntityName,
+                        action: EntityName,
+                        status: Status,
+                        version: SemVer = SemVer(),
+                        publish: Boolean = false,
+                        annotations: Parameters = Parameters())
     extends WhiskEntity(name) {
 
-    def toJson = OldWhiskRule.serdes.write(this).asJsObject
+  def toJson = OldWhiskRule.serdes.write(this).asJsObject
 
-    def toWhiskRule = {
-        WhiskRule(namespace, name,
-            FullyQualifiedEntityName(namespace, trigger),
-            FullyQualifiedEntityName(namespace, action),
-            version, publish, annotations)
-    }
+  def toWhiskRule = {
+    WhiskRule(
+      namespace,
+      name,
+      FullyQualifiedEntityName(namespace, trigger),
+      FullyQualifiedEntityName(namespace, action),
+      version,
+      publish,
+      annotations)
+  }
 }
 
 object OldWhiskRule
@@ -56,26 +58,25 @@ object OldWhiskRule
     with WhiskEntityQueries[OldWhiskRule]
     with DefaultJsonProtocol {
 
-    override val collectionName = "rules"
-    override implicit val serdes = jsonFormat8(OldWhiskRule.apply)
+  override val collectionName = "rules"
+  override implicit val serdes = jsonFormat8(OldWhiskRule.apply)
 }
 
 /**
  * Old schema of triggers, not containing a map of ReducedRules
  */
-case class OldWhiskTrigger(
-    namespace: EntityPath,
-    override val name: EntityName,
-    parameters: Parameters = Parameters(),
-    limits: TriggerLimits = TriggerLimits(),
-    version: SemVer = SemVer(),
-    publish: Boolean = false,
-    annotations: Parameters = Parameters())
+case class OldWhiskTrigger(namespace: EntityPath,
+                           override val name: EntityName,
+                           parameters: Parameters = Parameters(),
+                           limits: TriggerLimits = TriggerLimits(),
+                           version: SemVer = SemVer(),
+                           publish: Boolean = false,
+                           annotations: Parameters = Parameters())
     extends WhiskEntity(name) {
 
-    def toJson = OldWhiskTrigger.serdes.write(this).asJsObject
+  def toJson = OldWhiskTrigger.serdes.write(this).asJsObject
 
-    def toWhiskTrigger = WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations)
+  def toWhiskTrigger = WhiskTrigger(namespace, name, parameters, limits, version, publish, annotations)
 }
 
 object OldWhiskTrigger
@@ -83,6 +84,6 @@ object OldWhiskTrigger
     with WhiskEntityQueries[OldWhiskTrigger]
     with DefaultJsonProtocol {
 
-    override val collectionName = "triggers"
-    override implicit val serdes = jsonFormat7(OldWhiskTrigger.apply)
+  override val collectionName = "triggers"
+  override implicit val serdes = jsonFormat7(OldWhiskTrigger.apply)
 }

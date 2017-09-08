@@ -32,55 +32,54 @@ import whisk.core.entity.EntityPath
  * Tests creation and retrieval of a sequence action
  */
 @RunWith(classOf[JUnitRunner])
-class WskActionSequenceTests
-    extends TestHelpers
-    with WskTestHelpers {
+class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
 
-    implicit val wskprops = WskProps()
-    val wsk = new Wsk
-    val defaultNamespace = EntityPath.DEFAULT.asString
-    val namespace = wsk.namespace.whois()
+  implicit val wskprops = WskProps()
+  val wsk = new Wsk
+  val defaultNamespace = EntityPath.DEFAULT.asString
+  val namespace = wsk.namespace.whois()
 
-    behavior of "Wsk Action Sequence"
+  behavior of "Wsk Action Sequence"
 
-    it should "create, and get an action sequence" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "actionSeq"
-            val packageName = "samples"
-            val helloName = "hello"
-            val catName = "cat"
-            val fullHelloActionName = s"/$defaultNamespace/$packageName/$helloName"
-            val fullCatActionName = s"/$defaultNamespace/$packageName/$catName"
+  it should "create, and get an action sequence" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "actionSeq"
+    val packageName = "samples"
+    val helloName = "hello"
+    val catName = "cat"
+    val fullHelloActionName = s"/$defaultNamespace/$packageName/$helloName"
+    val fullCatActionName = s"/$defaultNamespace/$packageName/$catName"
 
-            assetHelper.withCleaner(wsk.pkg, packageName) {
-                (pkg, _) => pkg.create(packageName, shared = Some(true))(wp)
-            }
-
-            assetHelper.withCleaner(wsk.action, fullHelloActionName) {
-                val file = Some(TestUtils.getTestActionFilename("hello.js"))
-                (action, _) => action.create(fullHelloActionName, file)(wp)
-            }
-
-            assetHelper.withCleaner(wsk.action, fullCatActionName) {
-                val file = Some(TestUtils.getTestActionFilename("cat.js"))
-                (action, _) => action.create(fullCatActionName, file)(wp)
-            }
-
-            val artifacts = s"$fullHelloActionName,$fullCatActionName"
-            val kindValue = JsString("sequence")
-            val compValue = JsArray(
-                JsString(resolveDefaultNamespace(fullHelloActionName)),
-                JsString(resolveDefaultNamespace(fullCatActionName)))
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, Some(artifacts), kind = Some("sequence"))
-            }
-
-            val stdout = wsk.action.get(name).stdout
-            assert(stdout.startsWith(s"ok: got action $name\n"))
-            wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
-            wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
+    assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
+      pkg.create(packageName, shared = Some(true))(wp)
     }
 
-    private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$namespace/")
+    assetHelper.withCleaner(wsk.action, fullHelloActionName) {
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+      (action, _) =>
+        action.create(fullHelloActionName, file)(wp)
+    }
+
+    assetHelper.withCleaner(wsk.action, fullCatActionName) {
+      val file = Some(TestUtils.getTestActionFilename("cat.js"))
+      (action, _) =>
+        action.create(fullCatActionName, file)(wp)
+    }
+
+    val artifacts = s"$fullHelloActionName,$fullCatActionName"
+    val kindValue = JsString("sequence")
+    val compValue = JsArray(
+      JsString(resolveDefaultNamespace(fullHelloActionName)),
+      JsString(resolveDefaultNamespace(fullCatActionName)))
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(artifacts), kind = Some("sequence"))
+    }
+
+    val stdout = wsk.action.get(name).stdout
+    assert(stdout.startsWith(s"ok: got action $name\n"))
+    wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
+    wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
+  }
+
+  private def resolveDefaultNamespace(actionName: String) = actionName.replace("/_/", s"/$namespace/")
 }

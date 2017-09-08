@@ -35,26 +35,26 @@ import scala.language.reflectiveCalls // Needed to invoke run() method of struct
 @RunWith(classOf[JUnitRunner])
 class ProcessRunnerTests extends FlatSpec with Matchers {
 
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
-    val processRunner = new ProcessRunner {
-        def run(args: String*)(implicit ec: ExecutionContext) = executeProcess(args: _*)
-    }
+  val processRunner = new ProcessRunner {
+    def run(args: String*)(implicit ec: ExecutionContext) = executeProcess(args: _*)
+  }
 
-    behavior of "ProcessRunner"
+  behavior of "ProcessRunner"
 
-    it should "run an external command successfully and capture its output" in {
-        val stdout = "Output"
-        await(processRunner.run("echo", stdout)) shouldBe stdout
-    }
+  it should "run an external command successfully and capture its output" in {
+    val stdout = "Output"
+    await(processRunner.run("echo", stdout)) shouldBe stdout
+  }
 
-    it should "run an external command unsuccessfully and capture its output" in {
-        val exitCode = 1
-        val stdout = "Output"
-        val stderr = "Error"
+  it should "run an external command unsuccessfully and capture its output" in {
+    val exitCode = 1
+    val stdout = "Output"
+    val stderr = "Error"
 
-        val future = processRunner.run("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitCode}")
+    val future = processRunner.run("/bin/sh", "-c", s"echo ${stdout}; echo ${stderr} 1>&2; exit ${exitCode}")
 
-        the[ProcessRunningException] thrownBy await(future) shouldBe ProcessRunningException(exitCode, stdout, stderr)
-    }
+    the[ProcessRunningException] thrownBy await(future) shouldBe ProcessRunningException(exitCode, stdout, stderr)
+  }
 }

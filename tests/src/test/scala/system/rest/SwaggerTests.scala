@@ -32,27 +32,24 @@ import common.WhiskProperties
 @RunWith(classOf[JUnitRunner])
 class SwaggerTests extends FlatSpec with Matchers with RestUtil {
 
-    "Whisk API service" should "respond to /docs with Swagger UI" in {
-        val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + "/api/v1/docs/index.html")
+  "Whisk API service" should "respond to /docs with Swagger UI" in {
+    val response = RestAssured.given().config(sslconfig).get(getServiceURL() + "/api/v1/docs/index.html")
 
-        response.statusCode() should be(200)
-        response.body().asString().contains("<title>Swagger UI</title>") should be(true)
-    }
+    response.statusCode() should be(200)
+    response.body().asString().contains("<title>Swagger UI</title>") should be(true)
+  }
 
-    it should "respond to /api-docs with Swagger XML" in {
-        val response = RestAssured.given().config(sslconfig).
-            get(getServiceURL() + "/api/v1/api-docs")
+  it should "respond to /api-docs with Swagger XML" in {
+    val response = RestAssured.given().config(sslconfig).get(getServiceURL() + "/api/v1/api-docs")
 
-        response.statusCode() should be(200)
-        response.body().asString().contains("\"swagger\":") should be(true)
-    }
+    response.statusCode() should be(200)
+    response.body().asString().contains("\"swagger\":") should be(true)
+  }
 
-    it should "respond to invalid URI with status code 404" in {
-        val auth = WhiskProperties.getBasicAuth
-        val response = RestAssured.given().config(sslconfig).
-            auth().basic(auth.fst, auth.snd).
-            get(getServiceURL() + "/api/v1/docs/dummy")
-        response.statusCode() should be(404)
-    }
+  it should "respond to invalid URI with status code 404" in {
+    val auth = WhiskProperties.getBasicAuth
+    val response =
+      RestAssured.given().config(sslconfig).auth().basic(auth.fst, auth.snd).get(getServiceURL() + "/api/v1/docs/dummy")
+    response.statusCode() should be(404)
+  }
 }

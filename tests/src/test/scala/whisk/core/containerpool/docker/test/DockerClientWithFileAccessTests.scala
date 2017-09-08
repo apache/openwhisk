@@ -35,7 +35,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-import org.scalatest.fixture.{ FlatSpec => FixtureFlatSpec }
+import org.scalatest.fixture.{FlatSpec => FixtureFlatSpec}
 
 import common.StreamLogging
 import spray.json._
@@ -47,65 +47,67 @@ import whisk.core.containerpool.docker.DockerClientWithFileAccess
 @RunWith(classOf[JUnitRunner])
 class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
 
-    override def beforeEach = stream.reset()
+  override def beforeEach = stream.reset()
 
-    implicit val transid = TransactionId.testing
-    val id = ContainerId("Id")
+  implicit val transid = TransactionId.testing
+  val id = ContainerId("Id")
 
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
-    val dockerCommand = "docker"
-    val networkInConfigFile = "networkConfig"
-    val networkInDockerInspect = "networkInspect"
-    val ipInConfigFile = ContainerIp("10.0.0.1")
-    val ipInDockerInspect = ContainerIp("10.0.0.2")
-    val dockerConfig =
-        JsObject("NetworkSettings" ->
-            JsObject("Networks" ->
-                JsObject(networkInConfigFile ->
-                    JsObject("IPAddress" -> JsString(ipInConfigFile.asString)))))
+  val dockerCommand = "docker"
+  val networkInConfigFile = "networkConfig"
+  val networkInDockerInspect = "networkInspect"
+  val ipInConfigFile = ContainerIp("10.0.0.1")
+  val ipInDockerInspect = ContainerIp("10.0.0.2")
+  val dockerConfig =
+    JsObject(
+      "NetworkSettings" ->
+        JsObject(
+          "Networks" ->
+            JsObject(networkInConfigFile ->
+              JsObject("IPAddress" -> JsString(ipInConfigFile.asString)))))
 
-    /** Returns a DockerClient with mocked results */
-    def dockerClient(
-        execResult: Future[String] = Future.successful(ipInDockerInspect.asString),
-        readResult: Future[JsObject] = Future.successful(dockerConfig)) =
-        new DockerClientWithFileAccess()(global) {
-            override val dockerCmd = Seq(dockerCommand)
-            override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
-            override def configFileContents(configFile: File) = readResult
-            // Make protected ipAddressFromFile available for testing - requires reflectiveCalls
-            def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerIp] = ipAddressFromFile(id, network)
-        }
-
-    behavior of "DockerClientWithFileAccess - ipAddressFromFile"
-
-    it should "throw NoSuchElementException if specified network is not in configuration file" in {
-        val dc = dockerClient()
-
-        a[NoSuchElementException] should be thrownBy await(dc.publicIpAddressFromFile(id, "foo network"))
+  /** Returns a DockerClient with mocked results */
+  def dockerClient(execResult: Future[String] = Future.successful(ipInDockerInspect.asString),
+                   readResult: Future[JsObject] = Future.successful(dockerConfig)) =
+    new DockerClientWithFileAccess()(global) {
+      override val dockerCmd = Seq(dockerCommand)
+      override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
+      override def configFileContents(configFile: File) = readResult
+      // Make protected ipAddressFromFile available for testing - requires reflectiveCalls
+      def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerIp] =
+        ipAddressFromFile(id, network)
     }
 
-    behavior of "DockerClientWithFileAccess - inspectIPAddress"
+  behavior of "DockerClientWithFileAccess - ipAddressFromFile"
 
-    it should "read from config file" in {
-        val dc = dockerClient()
+  it should "throw NoSuchElementException if specified network is not in configuration file" in {
+    val dc = dockerClient()
 
-        await(dc.inspectIPAddress(id, networkInConfigFile)) shouldBe ipInConfigFile
-        logLines.foreach { _ should not include (s"${dockerCommand} inspect") }
-    }
+    a[NoSuchElementException] should be thrownBy await(dc.publicIpAddressFromFile(id, "foo network"))
+  }
 
-    it should "fall back to 'docker inspect' if config file cannot be read" in {
-        val dc = dockerClient(readResult = Future.failed(new RuntimeException()))
+  behavior of "DockerClientWithFileAccess - inspectIPAddress"
 
-        await(dc.inspectIPAddress(id, networkInDockerInspect)) shouldBe ipInDockerInspect
-        logLines.head should include(s"${dockerCommand} inspect")
-    }
+  it should "read from config file" in {
+    val dc = dockerClient()
 
-    it should "throw NoSuchElementException if specified network does not exist" in {
-        val dc = dockerClient(execResult = Future.successful("<no value>"))
+    await(dc.inspectIPAddress(id, networkInConfigFile)) shouldBe ipInConfigFile
+    logLines.foreach { _ should not include (s"${dockerCommand} inspect") }
+  }
 
-        a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
-    }
+  it should "fall back to 'docker inspect' if config file cannot be read" in {
+    val dc = dockerClient(readResult = Future.failed(new RuntimeException()))
+
+    await(dc.inspectIPAddress(id, networkInDockerInspect)) shouldBe ipInDockerInspect
+    logLines.head should include(s"${dockerCommand} inspect")
+  }
+
+  it should "throw NoSuchElementException if specified network does not exist" in {
+    val dc = dockerClient(execResult = Future.successful("<no value>"))
+
+    a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
+  }
 }
 
 /**
@@ -118,92 +120,96 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
  * a temporary file for each test and cleans it up afterwards.
  */
 @RunWith(classOf[JUnitRunner])
-class DockerClientWithFileAccessTestsLogs extends FixtureFlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+class DockerClientWithFileAccessTestsLogs
+    extends FixtureFlatSpec
+    with Matchers
+    with StreamLogging
+    with BeforeAndAfterEach {
 
-    override def beforeEach = stream.reset()
+  override def beforeEach = stream.reset()
 
-    implicit val transid = TransactionId.testing
+  implicit val transid = TransactionId.testing
 
-    behavior of "DockerClientWithFileAccess - rawContainerLogs"
+  behavior of "DockerClientWithFileAccess - rawContainerLogs"
 
-    /** Returns a DockerClient with mocked results */
-    def dockerClient(logFile: File) = new DockerClientWithFileAccess()(global) {
-        override def containerLogFile(containerId: ContainerId) = logFile
+  /** Returns a DockerClient with mocked results */
+  def dockerClient(logFile: File) = new DockerClientWithFileAccess()(global) {
+    override def containerLogFile(containerId: ContainerId) = logFile
+  }
+
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+
+  /** The fixture parameter must be of type FixtureParam. This is hard-wired in fixture suits. */
+  case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess) {
+    def writeLogFile(content: String) = {
+      writer.write(content)
+      writer.flush()
     }
+  }
 
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+  /** This overridden method gets control for each test and actually invokes the test. */
+  override def withFixture(test: OneArgTest) = {
+    val file = File.createTempFile(this.getClass.getName, test.name.replaceAll("[^a-zA-Z0-9.-]", "_"))
+    val writer = new FileWriter(file)
+    val docker = dockerClient(file)
 
-    /** The fixture parameter must be of type FixtureParam. This is hard-wired in fixture suits. */
-    case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess) {
-        def writeLogFile(content: String) = {
-            writer.write(content)
-            writer.flush()
-        }
+    val fixture = FixtureParam(file, writer, docker)
+
+    try {
+      super.withFixture(test.toNoArgTest(fixture))
+    } finally {
+      writer.close()
+      file.delete()
     }
+  }
 
-    /** This overridden method gets control for each test and actually invokes the test. */
-    override def withFixture(test: OneArgTest) = {
-        val file = File.createTempFile(this.getClass.getName, test.name.replaceAll("[^a-zA-Z0-9.-]", "_"))
-        val writer = new FileWriter(file)
-        val docker = dockerClient(file)
+  val containerId = ContainerId("Id")
 
-        val fixture = FixtureParam(file, writer, docker)
+  it should "tolerate an empty log file" in { fixture =>
+    val logText = ""
+    fixture.writeLogFile(logText)
 
-        try {
-            super.withFixture(test.toNoArgTest(fixture))
-        } finally {
-            writer.close()
-            file.delete()
-        }
-    }
+    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
+    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
-    val containerId = ContainerId("Id")
+    logContent shouldBe logText
+    stream should have size 0
+  }
 
-    it should "tolerate an empty log file" in { fixture =>
-        val logText = ""
-        fixture.writeLogFile(logText)
+  it should "read a full log file" in { fixture =>
+    val logText = "text"
+    fixture.writeLogFile(logText)
 
-        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-        val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
+    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
+    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
-        logContent shouldBe logText
-        stream should have size 0
-    }
+    logContent shouldBe logText
+    stream should have size 0
+  }
 
-    it should "read a full log file" in { fixture =>
-        val logText = "text"
-        fixture.writeLogFile(logText)
-
-        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-        val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
-
-        logContent shouldBe logText
-        stream should have size 0
-    }
-
-    it should "read a log file portion" in { fixture =>
-        val logText =
-            """Hey, dude-it'z true not sad
+  it should "read a log file portion" in { fixture =>
+    val logText =
+      """Hey, dude-it'z true not sad
               |Take a thrash song and make it better
               |Admit it! Beatallica'z under your skin!
               |So now begin to be a shredder""".stripMargin
-        val from = 66 // start at third line...
-        val expectedText = logText.substring(from)
+    val from = 66 // start at third line...
+    val expectedText = logText.substring(from)
 
-        fixture.writeLogFile(logText)
+    fixture.writeLogFile(logText)
 
-        val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = from))
-        val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
+    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = from))
+    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
 
-        logContent shouldBe expectedText
-        stream should have size 0
-    }
+    logContent shouldBe expectedText
+    stream should have size 0
+  }
 
-    it should "provide an empty result on failure" in { fixture =>
-        fixture.writer.close()
-        fixture.file.delete()
+  it should "provide an empty result on failure" in { fixture =>
+    fixture.writer.close()
+    fixture.file.delete()
 
-        an[IOException] should be thrownBy await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-        stream should have size 0
-    }
+    an[IOException] should be thrownBy await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
+    stream should have size 0
+  }
 }

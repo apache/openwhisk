@@ -38,68 +38,66 @@ import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 
 object Invoker {
-    /**
-     * An object which records the environment variables required for this component to run.
-     */
-    def requiredProperties = Map(
-        servicePort -> 8080.toString(),
-        dockerRegistry -> null,
-        dockerImagePrefix -> null) ++
-        ExecManifest.requiredProperties ++
-        WhiskEntityStore.requiredProperties ++
-        WhiskActivationStore.requiredProperties ++
-        kafkaHost ++
-        wskApiHost ++ Map(
-            dockerImageTag -> "latest",
-            invokerNumCore -> "4",
-            invokerCoreShare -> "2",
-            invokerContainerPolicy -> "",
-            invokerContainerDns -> "",
-            invokerContainerNetwork -> null)
 
-    def main(args: Array[String]): Unit = {
-        require(args.length == 1, "invoker instance required")
-        val invokerInstance = InstanceId(args(0).toInt)
+  /**
+   * An object which records the environment variables required for this component to run.
+   */
+  def requiredProperties =
+    Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
+      ExecManifest.requiredProperties ++
+      WhiskEntityStore.requiredProperties ++
+      WhiskActivationStore.requiredProperties ++
+      kafkaHost ++
+      wskApiHost ++ Map(
+      dockerImageTag -> "latest",
+      invokerNumCore -> "4",
+      invokerCoreShare -> "2",
+      invokerContainerPolicy -> "",
+      invokerContainerDns -> "",
+      invokerContainerNetwork -> null)
 
-        implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
-        implicit val actorSystem: ActorSystem = ActorSystem(
-            name = "invoker-actor-system",
-            defaultExecutionContext = Some(ec))
-        implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+  def main(args: Array[String]): Unit = {
+    require(args.length == 1, "invoker instance required")
+    val invokerInstance = InstanceId(args(0).toInt)
 
-        // load values for the required properties from the environment
-        implicit val config = new WhiskConfig(requiredProperties)
+    implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
+    implicit val actorSystem: ActorSystem =
+      ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
-        def abort() = {
-            logger.error(this, "Bad configuration, cannot start.")
-            actorSystem.terminate()
-            Await.result(actorSystem.whenTerminated, 30.seconds)
-            sys.exit(1)
-        }
+    // load values for the required properties from the environment
+    implicit val config = new WhiskConfig(requiredProperties)
 
-        if (!config.isValid) {
-            abort()
-        }
-
-        val execManifest = ExecManifest.initialize(config)
-        if (execManifest.isFailure) {
-            logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
-            abort()
-        }
-
-        val msgProvider = SpiLoader.get[MessagingProvider]
-        val producer = msgProvider.getProducer(config, ec)
-        val invoker = new InvokerReactive(config, invokerInstance, producer)
-
-        Scheduler.scheduleWaitAtMost(1.seconds)(() => {
-            producer.send("health", PingMessage(invokerInstance)).andThen {
-                case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
-            }
-        })
-
-        val port = config.servicePort.toInt
-        BasicHttpService.startService(
-            new InvokerServer(invokerInstance, invokerInstance.toInt).route, port)(
-                actorSystem, ActorMaterializer.create(actorSystem))
+    def abort() = {
+      logger.error(this, "Bad configuration, cannot start.")
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
+      sys.exit(1)
     }
+
+    if (!config.isValid) {
+      abort()
+    }
+
+    val execManifest = ExecManifest.initialize(config)
+    if (execManifest.isFailure) {
+      logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
+      abort()
+    }
+
+    val msgProvider = SpiLoader.get[MessagingProvider]
+    val producer = msgProvider.getProducer(config, ec)
+    val invoker = new InvokerReactive(config, invokerInstance, producer)
+
+    Scheduler.scheduleWaitAtMost(1.seconds)(() => {
+      producer.send("health", PingMessage(invokerInstance)).andThen {
+        case Failure(t) => logger.error(this, s"failed to ping the controller: $t")
+      }
+    })
+
+    val port = config.servicePort.toInt
+    BasicHttpService.startService(new InvokerServer(invokerInstance, invokerInstance.toInt).route, port)(
+      actorSystem,
+      ActorMaterializer.create(actorSystem))
+  }
 }

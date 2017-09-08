@@ -41,115 +41,106 @@ class ActionLogDriverTests
     with DockerActionLogDriver
     with StreamLogging {
 
-    private def makeLogMsgs(lines: Seq[String], stream: String = "stdout", addSentinel: Boolean = true) = {
-        val msgs = if (addSentinel) {
-            lines.map((stream, _)) :+
-                ("stdout", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}") :+
-                ("stderr", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}")
-        } else {
-            lines.map((stream, _))
-        }
-
-        msgs.map(p => LogLine("", p._1, p._2).toJson.compactPrint)
-            .mkString("\n")
+  private def makeLogMsgs(lines: Seq[String], stream: String = "stdout", addSentinel: Boolean = true) = {
+    val msgs = if (addSentinel) {
+      lines.map((stream, _)) :+
+        ("stdout", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}") :+
+        ("stderr", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}")
+    } else {
+      lines.map((stream, _))
     }
 
-    private def makeLogLines(lines: Seq[String], stream: String = "stdout") = {
-        lines.map(LogLine("", stream, _)).filter(_.log.nonEmpty).map(_.toFormattedString).toVector
+    msgs
+      .map(p => LogLine("", p._1, p._2).toJson.compactPrint)
+      .mkString("\n")
+  }
+
+  private def makeLogLines(lines: Seq[String], stream: String = "stdout") = {
+    lines.map(LogLine("", stream, _)).filter(_.log.nonEmpty).map(_.toFormattedString).toVector
+  }
+
+  behavior of "LogLine"
+
+  it should "truncate log line" in {
+    "❄".sizeInBytes shouldBe 3.B
+
+    Seq("abcdef", "❄ ☃ ❄").foreach { logline =>
+      val bytes = logline.sizeInBytes
+      LogLine("", "", logline).dropRight(0.B).log shouldBe logline
+      LogLine("", "", logline).dropRight(1.B).log shouldBe {
+        val truncated = logline.getBytes(StandardCharsets.UTF_8).dropRight(1)
+        new String(truncated, StandardCharsets.UTF_8)
+      }
     }
+  }
 
-    behavior of "LogLine"
+  behavior of "ActionLogDriver"
 
-    it should "truncate log line" in {
-        "❄".sizeInBytes shouldBe 3.B
-
-        Seq("abcdef", "❄ ☃ ❄").foreach { logline =>
-            val bytes = logline.sizeInBytes
-            LogLine("", "", logline).dropRight(0.B).log shouldBe logline
-            LogLine("", "", logline).dropRight(1.B).log shouldBe {
-                val truncated = logline.getBytes(StandardCharsets.UTF_8).dropRight(1)
-                new String(truncated, StandardCharsets.UTF_8)
-            }
-        }
-    }
-
-    behavior of "ActionLogDriver"
-
-    it should "mock container log drain" in {
-        makeLogMsgs(Seq("a", "b", "c")) shouldBe {
-            raw"""|{"time":"","stream":"stdout","log":"a"}
+  it should "mock container log drain" in {
+    makeLogMsgs(Seq("a", "b", "c")) shouldBe {
+      raw"""|{"time":"","stream":"stdout","log":"a"}
                   |{"time":"","stream":"stdout","log":"b"}
                   |{"time":"","stream":"stdout","log":"c"}
                   |{"time":"","stream":"stdout","log":"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}"}
-                  |{"time":"","stream":"stderr","log":"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}"}""".stripMargin('|')
-        }
+                  |{"time":"","stream":"stderr","log":"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}"}"""
+        .stripMargin('|')
+    }
+  }
+
+  it should "handle empty logs" in {
+    implicit val tid = TransactionId.testing
+    processJsonDriverLogContents("", true, 0.B) shouldBe {
+      (false, false, Vector())
     }
 
-    it should "handle empty logs" in {
-        implicit val tid = TransactionId.testing
-        processJsonDriverLogContents("", true, 0.B) shouldBe {
-            (false, false, Vector())
-        }
-
-        processJsonDriverLogContents("", false, 0.B) shouldBe {
-            (true, false, Vector())
-        }
+    processJsonDriverLogContents("", false, 0.B) shouldBe {
+      (true, false, Vector())
     }
+  }
 
-    it should "not truncate logs within limit" in {
-        implicit val tid = TransactionId.testing
+  it should "not truncate logs within limit" in {
+    implicit val tid = TransactionId.testing
 
-        Seq(
-            (Seq("\n"), 1),
-            (Seq("a"), 1),
-            (Seq("❄"), 3),
-            (Seq("", "a", "❄"), 4),
-            (Seq("abc\n", "abc\n"), 8))
-            .foreach {
-                case (msgs, l) =>
-                    Seq(false).foreach { sentinel =>
-                        processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = sentinel), sentinel, l.B) shouldBe {
-                            (true, false, makeLogLines(msgs))
-                        }
-                    }
+    Seq((Seq("\n"), 1), (Seq("a"), 1), (Seq("❄"), 3), (Seq("", "a", "❄"), 4), (Seq("abc\n", "abc\n"), 8))
+      .foreach {
+        case (msgs, l) =>
+          Seq(false).foreach { sentinel =>
+            processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = sentinel), sentinel, l.B) shouldBe {
+              (true, false, makeLogLines(msgs))
             }
-    }
+          }
+      }
+  }
 
-    it should "account for sentinels when logs are not from a sentinelled action runtime" in {
-        implicit val tid = TransactionId.testing
+  it should "account for sentinels when logs are not from a sentinelled action runtime" in {
+    implicit val tid = TransactionId.testing
 
-        Seq(
-            (Seq(""), 0),
-            (Seq("\n"), 1),
-            (Seq("a"), 1),
-            (Seq("❄"), 3),
-            (Seq("", "a", "❄"), 4),
-            (Seq("abc\n", "abc\n"), 8))
-            .foreach {
-                case (msgs, l) =>
-                    processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = true), false, l.B) shouldBe {
-                        (true, true, makeLogLines(msgs) ++ Vector(Messages.truncateLogs(l.B)))
-                    }
+    Seq((Seq(""), 0), (Seq("\n"), 1), (Seq("a"), 1), (Seq("❄"), 3), (Seq("", "a", "❄"), 4), (Seq("abc\n", "abc\n"), 8))
+      .foreach {
+        case (msgs, l) =>
+          processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = true), false, l.B) shouldBe {
+            (true, true, makeLogLines(msgs) ++ Vector(Messages.truncateLogs(l.B)))
+          }
+      }
+  }
+
+  it should "truncate logs exceeding limit" in {
+    implicit val tid = TransactionId.testing
+
+    Seq(
+      (Seq("\n"), Seq(), 0),
+      (Seq("a"), Seq(), 0),
+      (Seq("ab"), Seq("a"), 1),
+      (Seq("❄"), Seq("�"), 1),
+      (Seq("❄"), Seq("�"), 2),
+      (Seq("abc\n", "abc\n", "abc\n"), Seq("abc\n", "abc\n"), 8))
+      .foreach {
+        case (msgs, exp, l) =>
+          Seq(true, false).foreach { sentinel =>
+            processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = sentinel), sentinel, l.B) shouldBe {
+              (!sentinel, true, makeLogLines(exp) ++ Vector(Messages.truncateLogs(l.B)))
             }
-    }
-
-    it should "truncate logs exceeding limit" in {
-        implicit val tid = TransactionId.testing
-
-        Seq(
-            (Seq("\n"), Seq(), 0),
-            (Seq("a"), Seq(), 0),
-            (Seq("ab"), Seq("a"), 1),
-            (Seq("❄"), Seq("�"), 1),
-            (Seq("❄"), Seq("�"), 2),
-            (Seq("abc\n", "abc\n", "abc\n"), Seq("abc\n", "abc\n"), 8))
-            .foreach {
-                case (msgs, exp, l) =>
-                    Seq(true, false).foreach { sentinel =>
-                        processJsonDriverLogContents(makeLogMsgs(msgs, addSentinel = sentinel), sentinel, l.B) shouldBe {
-                            (!sentinel, true, makeLogLines(exp) ++ Vector(Messages.truncateLogs(l.B)))
-                        }
-                    }
-            }
-    }
+          }
+      }
+  }
 }

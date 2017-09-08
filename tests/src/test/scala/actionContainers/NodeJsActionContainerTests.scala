@@ -29,45 +29,50 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    lazy val nodejsContainerImageName = "nodejs6action"
+  lazy val nodejsContainerImageName = "nodejs6action"
 
-    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer(nodejsContainerImageName, env)(code)
-    }
+  override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+    withContainer(nodejsContainerImageName, env)(code)
+  }
 
-    def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
+  def withNodeJsContainer(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    behavior of nodejsContainerImageName
+  behavior of nodejsContainerImageName
 
-    testNotReturningJson(
-        """
+  testNotReturningJson("""
         |function main(args) {
         |    return "not a json object"
         |}
         """.stripMargin)
 
-    testEcho(Seq {
-        ("node", """
+  testEcho(Seq {
+    (
+      "node",
+      """
           |function main(args) {
           |    console.log('hello stdout')
           |    console.error('hello stderr')
           |    return args
           |}
           """.stripMargin)
-    })
+  })
 
-    testUnicode(Seq {
-        ("node", """
+  testUnicode(Seq {
+    (
+      "node",
+      """
          |function main(args) {
          |    var str = args.delimiter + " ☃ " + args.delimiter;
          |    console.log(str);
          |    return { "winter": str };
          |}
          """.stripMargin.trim)
-    })
+  })
 
-    testEnv(Seq {
-        ("node", """
+  testEnv(Seq {
+    (
+      "node",
+      """
          |function main(args) {
          |    return {
          |       "api_host": process.env['__OW_API_HOST'],
@@ -79,83 +84,83 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
          |    }
          |}
          """.stripMargin.trim)
-    })
+  })
 
-    it should "fail to initialize with bad code" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+  it should "fail to initialize with bad code" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | 10 PRINT "Hello world!"
                 | 20 GOTO 10
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
+      val (initCode, _) = c.init(initPayload(code))
 
-            initCode should not be (200)
-        }
-
-        // Somewhere, the logs should mention an error occurred.
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("syntax")
-        })
+      initCode should not be (200)
     }
 
-    it should "fail to initialize with no code" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = ""
+    // Somewhere, the logs should mention an error occurred.
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("syntax")
+    })
+  }
 
-            val (initCode, error) = c.init(initPayload(code))
+  it should "fail to initialize with no code" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = ""
 
-            initCode should not be (200)
-            error shouldBe a[Some[_]]
-            error.get shouldBe a[JsObject]
-            error.get.fields("error").toString should include("no code to execute")
-        }
+      val (initCode, error) = c.init(initPayload(code))
+
+      initCode should not be (200)
+      error shouldBe a[Some[_]]
+      error.get shouldBe a[JsObject]
+      error.get.fields("error").toString should include("no code to execute")
     }
+  }
 
-    it should "return some error on action error" in {
-        withNodeJsContainer { c =>
-            val code = """
+  it should "return some error on action error" in {
+    withNodeJsContainer { c =>
+      val code = """
                 | function main(args) {
                 |     throw "nooooo";
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should not be (200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should not be (200)
 
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-            runRes.get.fields("error").toString.toLowerCase should include("nooooo")
-        }
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
+      runRes.get.fields("error").toString.toLowerCase should include("nooooo")
     }
+  }
 
-    it should "support application errors" in {
-        withNodeJsContainer { c =>
-            val code = """
+  it should "support application errors" in {
+    withNodeJsContainer { c =>
+      val code = """
                 | function main(args) {
                 |     return { "error" : "sorry" };
                 | }
             """.stripMargin;
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200) // action writer returning an error is OK
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200) // action writer returning an error is OK
 
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-        }
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
     }
+  }
 
-    it should "support the documentation examples (1)" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+  it should "support the documentation examples (1)" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | // an action in which each path results in a synchronous activation
                 | function main(params) {
                 |     if (params.payload == 0) {
@@ -168,33 +173,33 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 | }
             """.stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
+      c.init(initPayload(code))._1 should be(200)
 
-            val (c1, r1) = c.run(runPayload(JsObject("payload" -> JsNumber(0))))
-            val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsNumber(1))))
-            val (c3, r3) = c.run(runPayload(JsObject("payload" -> JsNumber(2))))
+      val (c1, r1) = c.run(runPayload(JsObject("payload" -> JsNumber(0))))
+      val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsNumber(1))))
+      val (c3, r3) = c.run(runPayload(JsObject("payload" -> JsNumber(2))))
 
-            c1 should be(200)
-            r1 should be(Some(JsObject()))
+      c1 should be(200)
+      r1 should be(Some(JsObject()))
 
-            c2 should be(200)
-            r2 should be(Some(JsObject("payload" -> JsString("Hello, World!"))))
+      c2 should be(200)
+      r2 should be(Some(JsObject("payload" -> JsString("Hello, World!"))))
 
-            c3 should be(200) // application error, not container or system
-            r3.get.fields.get("error") shouldBe Some(JsString("payload must be 0 or 1"))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        }, 3)
-
+      c3 should be(200) // application error, not container or system
+      r3.get.fields.get("error") shouldBe Some(JsString("payload must be 0 or 1"))
     }
 
-    it should "support the documentation examples (2)" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    }, 3)
+
+  }
+
+  it should "support the documentation examples (2)" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | function main(params) {
                 |     if (params.payload) {
                 |         // asynchronous activation
@@ -210,82 +215,82 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 | }
             """.stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
+      c.init(initPayload(code))._1 should be(200)
 
-            val (c1, r1) = c.run(runPayload(JsObject()))
-            val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsBoolean(true))))
+      val (c1, r1) = c.run(runPayload(JsObject()))
+      val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsBoolean(true))))
 
-            c1 should be(200)
-            r1 should be(Some(JsObject("done" -> JsBoolean(true))))
+      c1 should be(200)
+      r1 should be(Some(JsObject("done" -> JsBoolean(true))))
 
-            c2 should be(200)
-            r2 should be(Some(JsObject("done" -> JsBoolean(true))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        }, 2)
+      c2 should be(200)
+      r2 should be(Some(JsObject("done" -> JsBoolean(true))))
     }
 
-    it should "error when requiring a non-existent package" in {
-        // NPM package names cannot start with a dot, and so there is no danger
-        // of the package below ever being valid.
-        // https://docs.npmjs.com/files/package.json
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    }, 2)
+  }
+
+  it should "error when requiring a non-existent package" in {
+    // NPM package names cannot start with a dot, and so there is no danger
+    // of the package below ever being valid.
+    // https://docs.npmjs.com/files/package.json
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | function main(args) {
                 |     require('.mildlyinvalidnameofanonexistentpackage');
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
+      val (initCode, _) = c.init(initPayload(code))
 
-            initCode should be(200)
+      initCode should be(200)
 
-            val (runCode, out) = c.run(runPayload(JsObject()))
+      val (runCode, out) = c.run(runPayload(JsObject()))
 
-            runCode should not be (200)
-        }
-
-        // Somewhere, the logs should mention an error occurred.
-        checkStreams(out, err, {
-            case (o, e) => (o + e) should include("MODULE_NOT_FOUND")
-        })
+      runCode should not be (200)
     }
 
-    it should "have ws and socket.io-client packages available" in {
-        // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    // Somewhere, the logs should mention an error occurred.
+    checkStreams(out, err, {
+      case (o, e) => (o + e) should include("MODULE_NOT_FOUND")
+    })
+  }
+
+  it should "have ws and socket.io-client packages available" in {
+    // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | function main(args) {
                 |     require('ws');
                 |     require('socket.io-client');
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
+      val (initCode, _) = c.init(initPayload(code))
 
-            initCode should be(200)
+      initCode should be(200)
 
-            // WHEN I run an action that requires ws and socket.io.client
-            val (runCode, out) = c.run(runPayload(JsObject()))
+      // WHEN I run an action that requires ws and socket.io.client
+      val (runCode, out) = c.run(runPayload(JsObject()))
 
-            // THEN it should pass only when these packages are available
-            runCode should be(200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      // THEN it should pass only when these packages are available
+      runCode should be(200)
     }
 
-    it should "support resolved promises" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "support resolved promises" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
             | function main(args) {
             |     return new Promise(function(resolve, reject) {
             |       setTimeout(function() {
@@ -295,23 +300,23 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             | }
             """.stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-            runRes should be(Some(JsObject("done" -> JsBoolean(true))))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200)
+      runRes should be(Some(JsObject("done" -> JsBoolean(true))))
     }
 
-    it should "support rejected promises" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "support rejected promises" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
             | function main(args) {
             |     return new Promise(function(resolve, reject) {
             |       setTimeout(function() {
@@ -321,41 +326,41 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             | }
             """.stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            runCode should be(200)
-            runRes.get.fields.get("error") shouldBe defined
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get.fields.get("error") shouldBe defined
     }
 
-    it should "support rejected promises with no message" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "support rejected promises with no message" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                 | function main(args) {
                 |     return new Promise(function (resolve, reject) {
                 |         reject();
                 |     });
                 | }""".stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("error") shouldBe defined
-        }
+      c.init(initPayload(code))._1 should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("error") shouldBe defined
     }
+  }
 
-    it should "support large-ish actions" in {
-        val thought = " I took the one less traveled by, and that has made all the difference."
-        val assignment = "    x = \"" + thought + "\";\n"
+  it should "support large-ish actions" in {
+    val thought = " I took the one less traveled by, and that has made all the difference."
+    val assignment = "    x = \"" + thought + "\";\n"
 
-        val code = """
+    val code = """
             | function main(args) {
             |     var x = "hello";
             """.stripMargin + (assignment * 7000) + """
@@ -364,26 +369,26 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
             | }
             """.stripMargin
 
-        // Lest someone should make it too easy.
-        code.length should be >= 500000
+    // Lest someone should make it too easy.
+    code.length should be >= 500000
 
-        val (out, err) = withNodeJsContainer { c =>
-            c.init(initPayload(code))._1 should be(200)
+    val (out, err) = withNodeJsContainer { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            runCode should be(200)
-            runRes.get.fields.get("message") shouldBe Some(JsString("world"))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get.fields.get("message") shouldBe Some(JsString("world"))
     }
 
-    val examplePackageDotJson: String = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  val examplePackageDotJson: String = """
         | {
         |   "name": "wskaction",
         |   "version": "1.0.0",
@@ -394,10 +399,10 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
         | }
     """.stripMargin
 
-    it should "support zip-encoded npm package actions" in {
-        val srcs = Seq(
-            Seq("package.json") -> examplePackageDotJson,
-            Seq("index.js") -> """
+  it should "support zip-encoded npm package actions" in {
+    val srcs = Seq(
+      Seq("package.json") -> examplePackageDotJson,
+      Seq("index.js") -> """
                 | exports.main = function (args) {
                 |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
                 |
@@ -407,27 +412,27 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withNodeJsContainer { c =>
-            c.init(initPayload(code))._1 should be(200)
+    val (out, err) = withNodeJsContainer { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            runCode should be(200)
-            runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action."))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action."))
     }
 
-    it should "support zip-encoded npm package actions without a package.json file" in {
-        val srcs = Seq(
-            Seq("index.js") -> """
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "support zip-encoded npm package actions without a package.json file" in {
+    val srcs = Seq(
+      Seq("index.js") -> """
                 | exports.main = function (args) {
                 |     var name = typeof args["name"] === "string" ? args["name"] : "stranger";
                 |
@@ -437,114 +442,114 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withNodeJsContainer { c =>
-            c.init(initPayload(code))._1 should be(200)
+    val (out, err) = withNodeJsContainer { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            runCode should be(200)
-            runRes.get.fields.get("greeting") shouldBe Some(JsString("Hello stranger, from an npm package action without a package.json."))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+      runCode should be(200)
+      runRes.get.fields.get("greeting") shouldBe Some(
+        JsString("Hello stranger, from an npm package action without a package.json."))
     }
 
-    it should "fail gracefully on invalid zip files" in {
-        // Some text-file encoded to base64.
-        val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-        val (out, err) = withNodeJsContainer { c =>
-            c.init(initPayload(code))._1 should not be (200)
-        }
+  it should "fail gracefully on invalid zip files" in {
+    // Some text-file encoded to base64.
+    val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
 
-        // Somewhere, the logs should mention the connection to the archive.
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("uncompressing")
-        })
+    val (out, err) = withNodeJsContainer { c =>
+      c.init(initPayload(code))._1 should not be (200)
     }
 
-    it should "fail gracefully on valid zip files that are not actions" in {
-        val srcs = Seq(
-            Seq("hello") -> """
+    // Somewhere, the logs should mention the connection to the archive.
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("uncompressing")
+    })
+  }
+
+  it should "fail gracefully on valid zip files that are not actions" in {
+    val srcs = Seq(Seq("hello") -> """
                 | Hello world!
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withNodeJsContainer { c =>
-            c.init(initPayload(code))._1 should not be (200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("zipped actions must contain either package.json or index.js at the root.")
-        })
+    val (out, err) = withNodeJsContainer { c =>
+      c.init(initPayload(code))._1 should not be (200)
     }
 
-    it should "support actions using non-default entry point" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("zipped actions must contain either package.json or index.js at the root.")
+    })
+  }
+
+  it should "support actions using non-default entry point" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
             | function niam(args) {
             |     return { result: "it works" };
             | }
             """.stripMargin
 
-            c.init(initPayload(code, main = "niam"))._1 should be(200)
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
-        }
+      c.init(initPayload(code, main = "niam"))._1 should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
     }
+  }
 
-    it should "support zipped actions using non-default entry point" in {
-        val srcs = Seq(
-            Seq("package.json") -> examplePackageDotJson,
-            Seq("index.js") -> """
+  it should "support zipped actions using non-default entry point" in {
+    val srcs = Seq(
+      Seq("package.json") -> examplePackageDotJson,
+      Seq("index.js") -> """
                 | exports.niam = function (args) {
                 |     return { result: "it works" };
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        withNodeJsContainer { c =>
-            c.init(initPayload(code, main = "niam"))._1 should be(200)
+    withNodeJsContainer { c =>
+      c.init(initPayload(code, main = "niam"))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
-        }
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
     }
+  }
 
-    it should "support default function parameters" in {
-        val (out, err) = withNodeJsContainer { c =>
-            val code = """
+  it should "support default function parameters" in {
+    val (out, err) = withNodeJsContainer { c =>
+      val code = """
                          | function main(args) {
                          |     let foo = 3;
                          |     return {isValid: (function (a, b = 2) {return a === 3 && b === 2;}(foo))};
                          | }
                        """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200)
-            runRes should be(Some(JsObject("isValid" -> JsBoolean(true))))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200)
+      runRes should be(Some(JsObject("isValid" -> JsBoolean(true))))
 
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
     }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
 }

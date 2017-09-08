@@ -41,93 +41,94 @@ import whisk.http.Messages
  * @param id the activation id, required not null
  */
 protected[whisk] class ActivationId private (private val id: java.util.UUID) extends AnyVal {
-    def asString = toString
-    override def toString = id.toString.replaceAll("-", "")
-    def toJsObject = JsObject("activationId" -> toString.toJson)
+  def asString = toString
+  override def toString = id.toString.replaceAll("-", "")
+  def toJsObject = JsObject("activationId" -> toString.toJson)
 }
 
 protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
 
-    protected[core] trait ActivationIdGenerator {
-        def make(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
-    }
+  protected[core] trait ActivationIdGenerator {
+    def make(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
+  }
 
-    /**
-     * Unapply method for convenience of case matching.
-     */
-    protected[core] def unapply(name: String): Option[ActivationId] = {
-        Try { ActivationId(name) } toOption
-    }
+  /**
+   * Unapply method for convenience of case matching.
+   */
+  protected[core] def unapply(name: String): Option[ActivationId] = {
+    Try { ActivationId(name) } toOption
+  }
 
-    /**
-     * Creates an activation id from a java.util.UUID.
-     *
-     * @param uuid the activation id as UUID
-     * @return ActivationId instance
-     * @throws IllegalArgumentException is argument is not defined
-     */
-    @throws[IllegalArgumentException]
-    private def apply(uuid: java.util.UUID): ActivationId = {
-        require(uuid != null, "argument undefined")
-        new ActivationId(uuid)
-    }
+  /**
+   * Creates an activation id from a java.util.UUID.
+   *
+   * @param uuid the activation id as UUID
+   * @return ActivationId instance
+   * @throws IllegalArgumentException is argument is not defined
+   */
+  @throws[IllegalArgumentException]
+  private def apply(uuid: java.util.UUID): ActivationId = {
+    require(uuid != null, "argument undefined")
+    new ActivationId(uuid)
+  }
 
-    /**
-     * Generates a random activation id using java.util.UUID factory.
-     *
-     * @return new ActivationId
-     */
-    protected[core] def apply(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
+  /**
+   * Generates a random activation id using java.util.UUID factory.
+   *
+   * @return new ActivationId
+   */
+  protected[core] def apply(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
 
-    /**
-     * Overrides factory method so that string is not interpreted as number
-     * e.g., 2e11.
-     */
-    override protected[entity] def factory(s: String): ActivationId = {
-        serdes.read(JsString(s))
-    }
+  /**
+   * Overrides factory method so that string is not interpreted as number
+   * e.g., 2e11.
+   */
+  override protected[entity] def factory(s: String): ActivationId = {
+    serdes.read(JsString(s))
+  }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
-        def write(d: ActivationId) = JsString(d.toString)
+  override protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
+    def write(d: ActivationId) = JsString(d.toString)
 
-        def read(value: JsValue) = Try {
-            value match {
-                case JsString(s) => stringToActivationId(s)
-                case JsNumber(n) => bigIntToActivationId(n.toBigInt)
-                case _           => deserializationError(Messages.activationIdIllegal)
-            }
-        } match {
-            case Success(a)                                 => a
-            case Failure(DeserializationException(t, _, _)) => deserializationError(t)
-            case Failure(t)                                 => deserializationError(Messages.activationIdIllegal)
+    def read(value: JsValue) =
+      Try {
+        value match {
+          case JsString(s) => stringToActivationId(s)
+          case JsNumber(n) => bigIntToActivationId(n.toBigInt)
+          case _           => deserializationError(Messages.activationIdIllegal)
         }
-    }
+      } match {
+        case Success(a)                                 => a
+        case Failure(DeserializationException(t, _, _)) => deserializationError(t)
+        case Failure(t)                                 => deserializationError(Messages.activationIdIllegal)
+      }
+  }
 
-    private def bigIntToActivationId(n: BigInt): ActivationId = {
-        // print the bigint using base 10 then convert to base 16
-        val bn = new BigInteger(n.bigInteger.toString(10), 16)
-        // mask out the upper 16 ints
-        val lb = bn.and(new BigInteger("f" * 16, 16))
-        // drop the lower 16 ints
-        val up = bn.shiftRight(16)
+  private def bigIntToActivationId(n: BigInt): ActivationId = {
+    // print the bigint using base 10 then convert to base 16
+    val bn = new BigInteger(n.bigInteger.toString(10), 16)
+    // mask out the upper 16 ints
+    val lb = bn.and(new BigInteger("f" * 16, 16))
+    // drop the lower 16 ints
+    val up = bn.shiftRight(16)
+    val uuid = new java.util.UUID(lb.longValue, up.longValue)
+    ActivationId(uuid)
+  }
+
+  private def stringToActivationId(s: String): ActivationId = {
+    if (!s.contains("-")) {
+      if (s.length == 32) {
+        val lb = new BigInteger(s.substring(0, 16), 16)
+        val up = new BigInteger(s.substring(16, 32), 16)
         val uuid = new java.util.UUID(lb.longValue, up.longValue)
         ActivationId(uuid)
-    }
-
-    private def stringToActivationId(s: String): ActivationId = {
-        if (!s.contains("-")) {
-            if (s.length == 32) {
-                val lb = new BigInteger(s.substring(0, 16), 16)
-                val up = new BigInteger(s.substring(16, 32), 16)
-                val uuid = new java.util.UUID(lb.longValue, up.longValue)
-                ActivationId(uuid)
-            } else deserializationError {
-                Messages.activationIdLengthError(
-                    SizeError("Activation id", s.length.B, 32.B))
-            }
-        } else {
-            ActivationId(java.util.UUID.fromString(s))
+      } else
+        deserializationError {
+          Messages.activationIdLengthError(SizeError("Activation id", s.length.B, 32.B))
         }
-
+    } else {
+      ActivationId(java.util.UUID.fromString(s))
     }
+
+  }
 }

@@ -26,17 +26,17 @@ import com.fasterxml.jackson.databind.ObjectMapper
  */
 trait JsonSchema {
 
-    /**
-     * Check whether a JSON document (represented as a String) conforms to a JSON schema (also a String).
-     *
-     * @return true if the document is valid, false otherwise
-     */
-    def check(doc: String, schema: String): Boolean = {
-        val mapper = new ObjectMapper()
-        val docNode = mapper.readTree(doc)
-        val schemaNode = mapper.readTree(schema)
+  /**
+   * Check whether a JSON document (represented as a String) conforms to a JSON schema (also a String).
+   *
+   * @return true if the document is valid, false otherwise
+   */
+  def check(doc: String, schema: String): Boolean = {
+    val mapper = new ObjectMapper()
+    val docNode = mapper.readTree(doc)
+    val schemaNode = mapper.readTree(schema)
 
-        val validator = JsonSchemaFactory.byDefault().getValidator
-        validator.validate(schemaNode, docNode).isSuccess
-    }
+    val validator = JsonSchemaFactory.byDefault().getValidator
+    validator.validate(schemaNode, docNode).isSuccess
+  }
 }

@@ -39,57 +39,57 @@ import whisk.common.LoggingMarkers.INVOKER_RUNC_CMD
 @RunWith(classOf[JUnitRunner])
 class RuncClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
 
-    override def beforeEach = stream.reset()
+  override def beforeEach = stream.reset()
 
-    implicit val transid = TransactionId.testing
-    val id = ContainerId("Id")
+  implicit val transid = TransactionId.testing
+  val id = ContainerId("Id")
 
-    def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
-    val runcCommand = "docker-runc"
+  val runcCommand = "docker-runc"
 
-    /** Returns a RuncClient with a mocked result for 'executeProcess' */
-    def runcClient(result: Future[String]) = new RuncClient(global) {
-        override val runcCmd = Seq(runcCommand)
-        override def executeProcess(args: String*)(implicit ec: ExecutionContext) = result
+  /** Returns a RuncClient with a mocked result for 'executeProcess' */
+  def runcClient(result: Future[String]) = new RuncClient(global) {
+    override val runcCmd = Seq(runcCommand)
+    override def executeProcess(args: String*)(implicit ec: ExecutionContext) = result
+  }
+
+  /** Calls a runc method based on the name of the method. */
+  def runcProxy(runc: RuncClient, method: String) = {
+    method match {
+      case "pause"  => runc.pause(id)
+      case "resume" => runc.resume(id)
+    }
+  }
+
+  /** Verifies start and end logs are written correctly. */
+  def verifyLogs(cmd: String, failed: Boolean = false) = {
+    logLines.head should include(s"${runcCommand} ${cmd} ${id.asString}")
+
+    // start log maker must be found
+    val start = LogMarker.parse(logLines.head)
+    start.token should be(INVOKER_RUNC_CMD(cmd))
+
+    // end log marker must be found
+    val expectedEnd = if (failed) INVOKER_RUNC_CMD(cmd).asError else INVOKER_RUNC_CMD(cmd).asFinish
+    val end = LogMarker.parse(logLines.last)
+    end.token shouldBe expectedEnd
+  }
+
+  behavior of "RuncClient"
+
+  Seq("pause", "resume").foreach { cmd =>
+    it should s"$cmd a container successfully and create log entries" in {
+      val rc = runcClient { Future.successful("") }
+      await(runcProxy(rc, cmd))
+      verifyLogs(cmd)
     }
 
-    /** Calls a runc method based on the name of the method. */
-    def runcProxy(runc: RuncClient, method: String) = {
-        method match {
-            case "pause"  => runc.pause(id)
-            case "resume" => runc.resume(id)
-        }
+    it should s"write error markers when $cmd fails" in {
+      val rc = runcClient { Future.failed(new RuntimeException()) }
+      a[RuntimeException] should be thrownBy await(runcProxy(rc, cmd))
+      verifyLogs(cmd, failed = true)
     }
 
-    /** Verifies start and end logs are written correctly. */
-    def verifyLogs(cmd: String, failed: Boolean = false) = {
-        logLines.head should include(s"${runcCommand} ${cmd} ${id.asString}")
-
-        // start log maker must be found
-        val start = LogMarker.parse(logLines.head)
-        start.token should be(INVOKER_RUNC_CMD(cmd))
-
-        // end log marker must be found
-        val expectedEnd = if (failed) INVOKER_RUNC_CMD(cmd).asError else INVOKER_RUNC_CMD(cmd).asFinish
-        val end = LogMarker.parse(logLines.last)
-        end.token shouldBe expectedEnd
-    }
-
-    behavior of "RuncClient"
-
-    Seq("pause", "resume").foreach { cmd =>
-        it should s"$cmd a container successfully and create log entries" in {
-            val rc = runcClient { Future.successful("") }
-            await(runcProxy(rc, cmd))
-            verifyLogs(cmd)
-        }
-
-        it should s"write error markers when $cmd fails" in {
-            val rc = runcClient { Future.failed(new RuntimeException()) }
-            a[RuntimeException] should be thrownBy await(runcProxy(rc, cmd))
-            verifyLogs(cmd, failed = true)
-        }
-
-    }
+  }
 }

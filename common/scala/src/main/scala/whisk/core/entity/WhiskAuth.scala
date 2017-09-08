@@ -28,19 +28,18 @@ import scala.util.Try
 protected[core] case class WhiskNamespace(name: EntityName, authkey: AuthKey)
 
 protected[core] object WhiskNamespace extends DefaultJsonProtocol {
-    implicit val serdes = new RootJsonFormat[WhiskNamespace] {
-        def write(w: WhiskNamespace) = JsObject(
-            "name" -> w.name.toJson,
-            "uuid" -> w.authkey.uuid.toJson,
-            "key" -> w.authkey.key.toJson)
+  implicit val serdes = new RootJsonFormat[WhiskNamespace] {
+    def write(w: WhiskNamespace) =
+      JsObject("name" -> w.name.toJson, "uuid" -> w.authkey.uuid.toJson, "key" -> w.authkey.key.toJson)
 
-        def read(value: JsValue) = Try {
-            value.asJsObject.getFields("name", "uuid", "key") match {
-                case Seq(JsString(n), JsString(u), JsString(k)) =>
-                    WhiskNamespace(EntityName(n), AuthKey(UUID(u), Secret(k)))
-            }
-        } getOrElse deserializationError("namespace record malformed")
-    }
+    def read(value: JsValue) =
+      Try {
+        value.asJsObject.getFields("name", "uuid", "key") match {
+          case Seq(JsString(n), JsString(u), JsString(k)) =>
+            WhiskNamespace(EntityName(n), AuthKey(UUID(u), Secret(k)))
+        }
+      } getOrElse deserializationError("namespace record malformed")
+  }
 }
 
 /**
@@ -48,20 +47,15 @@ protected[core] object WhiskNamespace extends DefaultJsonProtocol {
  * top-level authkey is given but each subject has a set of namespaces,
  * which in turn have the keys.
  */
-protected[core] case class WhiskAuth(
-    subject: Subject,
-    namespaces: Set[WhiskNamespace])
-    extends WhiskDocument {
+protected[core] case class WhiskAuth(subject: Subject, namespaces: Set[WhiskNamespace]) extends WhiskDocument {
 
-    override def docid = DocId(subject.asString)
+  override def docid = DocId(subject.asString)
 
-    def toJson = JsObject(
-        "subject" -> subject.toJson,
-        "namespaces" -> namespaces.toJson)
+  def toJson = JsObject("subject" -> subject.toJson, "namespaces" -> namespaces.toJson)
 }
 
 protected[core] object WhiskAuth extends DefaultJsonProtocol {
-    // Need to explicitly set field names since WhiskAuth extends WhiskDocument
-    // which defines more than the 2 "standard" fields
-    implicit val serdes = jsonFormat(WhiskAuth.apply, "subject", "namespaces")
+  // Need to explicitly set field names since WhiskAuth extends WhiskDocument
+  // which defines more than the 2 "standard" fields
+  implicit val serdes = jsonFormat(WhiskAuth.apply, "subject", "namespaces")
 }

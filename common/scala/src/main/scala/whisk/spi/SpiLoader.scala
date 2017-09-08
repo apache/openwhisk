@@ -24,35 +24,38 @@ import scala.collection.concurrent.TrieMap
 trait Spi
 
 trait SpiClassResolver {
-    /** Resolves the implementation for a given type */
-    def getClassNameForType[T : Manifest]: String
+
+  /** Resolves the implementation for a given type */
+  def getClassNameForType[T: Manifest]: String
 }
 
 object SpiLoader {
-    /**
-     * Instantiates an object of the given type.
-     *
-     * The ClassName to load is resolved via the SpiClassResolver in scode, which defaults to
-     * a TypesafeConfig based resolver.
-     */
-    def get[A <: Spi : Manifest](implicit resolver: SpiClassResolver = TypesafeConfigClassResolver): A = {
-        val clazz = Class.forName(resolver.getClassNameForType[A] + "$")
-        clazz.getField("MODULE$").get(clazz).asInstanceOf[A]
-    }
+
+  /**
+   * Instantiates an object of the given type.
+   *
+   * The ClassName to load is resolved via the SpiClassResolver in scode, which defaults to
+   * a TypesafeConfig based resolver.
+   */
+  def get[A <: Spi: Manifest](implicit resolver: SpiClassResolver = TypesafeConfigClassResolver): A = {
+    val clazz = Class.forName(resolver.getClassNameForType[A] + "$")
+    clazz.getField("MODULE$").get(clazz).asInstanceOf[A]
+  }
 }
 
 /** Lookup the classname for the SPI impl based on a key in the provided Config */
 object TypesafeConfigClassResolver extends SpiClassResolver {
-    private val config = ConfigFactory.load()
+  private val config = ConfigFactory.load()
 
-    override def getClassNameForType[T : Manifest]: String = config.getString("whisk.spi." + manifest[T].runtimeClass.getSimpleName)
+  override def getClassNameForType[T: Manifest]: String =
+    config.getString("whisk.spi." + manifest[T].runtimeClass.getSimpleName)
 }
 
 /** Allow for caching of instances returned from Spi that otherwise behave as factories (new instance per invocation) */
 trait SpiInstanceCaching[K, I] {
-    val instances = TrieMap[K, I]()
+  val instances = TrieMap[K, I]()
 
-    def getInstanceOrCreate(key: K, create: => I) = instances.getOrElseUpdate(key, create)
+  def getInstanceOrCreate(key: K, create: => I) = instances.getOrElseUpdate(key, create)
 
-    def removeInstance(key: K) = instances.remove(key)
+  def removeInstance(key: K) = instances.remove(key)
 }
