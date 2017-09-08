@@ -48,7 +48,8 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   implicit val transid = TransactionId.testing
   val id = ContainerId("Id")
 
-  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+  val commandTimeout = 500.milliseconds
+  def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
 
   val dockerCommand = "docker"
 
@@ -108,6 +109,35 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     retry {
       // Pulling again should execute the command again
       await(dc.pull(image))
+      commandsRun shouldBe 2
+    }
+  }
+
+  it should "properly clean up failed pulls" in {
+    // Delay execution of the pull command
+    val pullPromise = Promise[String]()
+    var commandsRun = 0
+    val dc = dockerClient {
+      commandsRun += 1
+      pullPromise.future
+    }
+
+    val image = "testimage"
+
+    // Pull first, command should be run
+    dc.pull(image)
+    commandsRun shouldBe 1
+
+    // Pull again, command should not be run
+    dc.pull(image)
+    commandsRun shouldBe 1
+
+    // Finish the pulls above
+    pullPromise.failure(new Throwable())
+
+    retry {
+      // Pulling again should execute the command again
+      Await.ready(dc.pull(image), commandTimeout)
       commandsRun shouldBe 2
     }
   }
