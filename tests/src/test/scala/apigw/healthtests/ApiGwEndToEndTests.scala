@@ -85,6 +85,12 @@ class ApiGwEndToEndTests
     try {
       println("cli namespace: " + clinamespace)
 
+      // Delete any lingering stale api from previous run that may not have been deleted properly
+      wsk.api.delete(
+        basepathOrApiName = testbasepath,
+        expectedExitCode = DONTCARE_EXIT,
+        cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
+
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
       wsk.action.create(
