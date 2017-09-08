@@ -73,7 +73,9 @@ protected trait ControllerTestCommon
   // initialize runtimes manifest
   ExecManifest.initialize(whiskConfig)
 
-  //need to expose loadBalancer for tests to inject behavior (ActionsApiTests) val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)override val loadBalancerResolver = new SingleLoadBalancerResolver(List(loadBalancer))
+  //need to expose loadBalancer for tests to inject behavior (ActionsApiTests)
+  val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
+  override val loadBalancerResolver = new SingleLoadBalancerResolver(List(loadBalancer))
 
   override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig)
 
@@ -200,5 +202,5 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
 
   override def healthStatus: Future[JsObject] = Future.successful(JsObject())
 
-  override def check(user: Identity)(implicit tid: TransactionId) = None
+  override def check(user: Identity)(implicit tid: TransactionId) = Future.successful(Unit)
 }

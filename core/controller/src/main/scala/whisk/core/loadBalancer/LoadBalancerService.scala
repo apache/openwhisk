@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -27,19 +26,15 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import akka.util.Timeout
 import akka.pattern.ask
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -57,10 +52,13 @@ import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import whisk.core.controller.RejectRequest
+import whisk.core.entitlement.ConcurrentRateLimit
+import whisk.core.entitlement.RateLimit
+import whisk.core.entitlement.RateThrottler
 import whisk.core.entity.EntityName
 import whisk.core.entity.Identity
 import whisk.core.entity.WhiskEntityStore
-import whisk.http.Messages._
+import whisk.http.Messages
 import whisk.spi.SpiLoader
 
 trait LoadBalancer {
@@ -88,7 +86,7 @@ trait LoadBalancer {
    */
   def healthStatus: Future[JsObject]
 
-  def check(user: Identity)(implicit tid: TransactionId): Option[RejectRequest]
+  def check(user: Identity)(implicit tid: TransactionId): Future[Unit]
 
 }
 
@@ -339,26 +337,32 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId)(implicit va
 
   override def check(user: Identity)(implicit tid: TransactionId) = {
     if (isSystemOverloaded()) {
-      Some(RejectRequest(TooManyRequests, systemOverloaded))
-    } else if (isUserOverloaded(user)) {
-      Some(RejectRequest(TooManyRequests, tooManyConcurrentRequests))
+      logging.error(this, "system is overloaded")
+      Future.failed(RejectRequest(TooManyRequests, Messages.systemOverloaded))
     } else {
-      None
+      RateThrottler.checkThrottleOverload(checkConcurrentUserThrottle(user))
     }
   }
 
-  private def isUserOverloaded(user: Identity)(implicit tid: TransactionId): Boolean = {
-    val concurrentActivations = activeActivationsFor(user.uuid)
-    val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
-    logging.info(
-      this,
-      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
-    concurrentActivations > concurrencyLimit
-  }
+  /**
+   * Checks whether the system is in a generally overloaded state.
+   */
   private def isSystemOverloaded()(implicit tid: TransactionId) = {
     val concurrentActivations = totalActiveActivations
     logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
     concurrentActivations > systemOverloadLimit
+  }
+
+  /**
+   * Checks whether the operation should be allowed to proceed.
+   */
+  def checkConcurrentUserThrottle(user: Identity)(implicit tid: TransactionId): RateLimit = {
+    val concurrentActivations = activeActivationsFor(user.uuid)
+    val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+    logging.info(
+      this,
+      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, limit = $concurrencyLimit")
+    ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
   }
 }
 

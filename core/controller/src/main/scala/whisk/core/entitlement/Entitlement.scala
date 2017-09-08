@@ -24,7 +24,6 @@ import scala.util.Success
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.Forbidden
-import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege._
@@ -34,7 +33,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
-import whisk.http.Messages._
 
 package object types {
   type Entitlements = TrieMap[(Subject, String), Set[Privilege]]
@@ -44,7 +42,7 @@ package object types {
  * Resource is a type that encapsulates details relevant to identify a specific resource.
  * It may be an entire collection, or an element in a collection.
  *
- * @param ns the namespace the resource resides in
+ * @param namespace the namespace the resource resides in
  * @param collection the collection (e.g., actions, triggers) identifying a resource
  * @param entity an optional entity name that identifies a specific item in the collection
  * @param env an optional environment to bind to the resource during an activation
@@ -123,10 +121,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig)(implicit
   protected[core] def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
 
     logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
-    checkThrottleOverload(!invokeRateThrottler.check(user), tooManyRequests)
-      .map {
-        Future.failed(_)
-      } getOrElse Future.successful({})
+    RateThrottler.checkThrottleOverload(invokeRateThrottler.check(user))
   }
 
   /**
@@ -167,9 +162,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig)(implicit
       if (resources.nonEmpty) {
         logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
         checkUserThrottle(user, right, resources)
-          .map {
-            Future.failed(_)
-          } getOrElse checkPrivilege(user, right, resources)
+          .flatMap(_ => checkPrivilege(user, right, resources))
       } else Future.successful(true)
     } else if (right != REJECT) {
       logging.info(
@@ -227,27 +220,20 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig)(implicit
    *
    * @param user the subject identity to check rights for
    * @param right the privilege, if ACTIVATE then check quota else return None
-   * @param resource the set of resources must contain at least one resource that can be activated else return None
-   * @return None if subject is not throttled else a rejection
+   * @param resources the set of resources must contain at least one resource that can be activated else return None
+   * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Option[RejectRequest] = {
-    def userThrottled = {
-      val isInvocation = resources.exists(_.collection.path == Collection.ACTIONS)
-      val isTrigger = resources.exists(_.collection.path == Collection.TRIGGERS)
-      (isInvocation && !invokeRateThrottler.check(user)) || (isTrigger && !triggerRateThrottler.check(user))
-    }
-
-    checkThrottleOverload(right == ACTIVATE && userThrottled, tooManyRequests)
+    implicit transid: TransactionId): Future[Unit] = {
+    if (right == ACTIVATE) {
+      if (resources.exists(_.collection.path == Collection.ACTIONS)) {
+        RateThrottler.checkThrottleOverload(invokeRateThrottler.check(user))
+      } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
+        RateThrottler.checkThrottleOverload(triggerRateThrottler.check(user))
+      } else Future.successful(())
+    } else Future.successful(())
   }
 
-  /** Helper. */
-  private def checkThrottleOverload(hasTooMany: Boolean, message: String)(
-    implicit transid: TransactionId): Option[RejectRequest] = {
-    if (hasTooMany) {
-      Some(RejectRequest(TooManyRequests, message))
-    } else None
-  }
 }
 
 /**
