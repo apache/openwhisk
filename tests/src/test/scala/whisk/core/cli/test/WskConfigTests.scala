@@ -259,6 +259,27 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     }
   }
 
+  it should "set api host with or without http prefix" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    try {
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      Seq("", "http://", "https://").foreach { prefix =>
+        Seq("10", "10:123", "aaa", "aaa:123").foreach { host =>
+          val apihost = s"$prefix$host"
+          withClue(apihost) {
+            val rr = wsk.cli(Seq("property", "set", "--apihost", apihost), env = env)
+            rr.stdout.trim shouldBe s"ok: whisk API host set to $apihost"
+            rr.stderr shouldBe 'empty
+            val fileContent = FileUtils.readFileToString(tmpwskprops)
+            fileContent should include(s"APIHOST=$apihost")
+          }
+        }
+      }
+    } finally {
+      tmpwskprops.delete()
+    }
+  }
+
   it should "set auth in property file" in {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
