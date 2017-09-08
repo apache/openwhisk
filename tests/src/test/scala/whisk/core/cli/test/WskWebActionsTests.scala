@@ -268,6 +268,26 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       response.body.asByteArray shouldBe Base64.getDecoder().decode(png)
   }
 
+  it should "not report authorization required when an url does not match any paths" in {
+    val host = getServiceURL()
+    val url = host + s"$testRoutePath//namespace/default/action"
+
+    val response = RestAssured.given().config(sslconfig).get(url)
+    response.statusCode shouldBe 404
+    response.body.asString shouldBe whisk.http.Messages.resourceDoesNotExist
+
+    val authorizedResponse = RestAssured
+      .given()
+      .config(sslconfig)
+      .auth()
+      .preemptive()
+      .basic(wskprops.authKey.split(":")(0), wskprops.authKey.split(":")(1))
+      .get(url)
+
+    authorizedResponse.statusCode shouldBe 404
+    response.body.asString shouldBe whisk.http.Messages.resourceDoesNotExist
+  }
+
   private val subdomainRegex = Seq.fill(WhiskProperties.getPartsInVanitySubdomain)("[a-zA-Z0-9]+").mkString("-")
 
   private val (vanitySubdomain, vanityNamespace, makeTestSubject) = {
