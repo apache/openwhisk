@@ -316,7 +316,11 @@ protected[core] object WhiskWebActionsApi extends Directives {
       ct match {
         // base64 encoded json response supported for legacy reasons
         case nonbinary: ContentType.NonBinary if !isJsonFamily(mediaType) => Success(HttpEntity(nonbinary, str))
-        case _                                                            => Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
+
+        // because of the default charset provided to the content type constructor
+        // the remaining content types to match against are binary at this point, or
+        // the legacy base64 encoded json
+        case _ /* ContentType.Binary */ => Try(Base64.getDecoder().decode(str)).map(HttpEntity(ct, _))
       }
     } match {
       case Success(entity) =>
