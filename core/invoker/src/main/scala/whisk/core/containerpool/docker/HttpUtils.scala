@@ -51,102 +51,104 @@ import scala.Right
  * @param timeoutMsec the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
-protected[core] class HttpUtils(
-    hostname: String,
-    timeout: FiniteDuration,
-    maxResponse: ByteSize) {
+protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize) {
 
-    def close() = Try(connection.close())
+  def close() = Try(connection.close())
 
-    /**
-     * Posts to hostname/endpoint the given JSON object.
-     * Waits up to timeout before aborting on a good connection.
-     * If the endpoint is not ready, retry up to timeout.
-     * Every retry reduces the available timeout so that this method should not
-     * wait longer than the total timeout (within a small slack allowance).
-     *
-     * @param endpoint the path the api call relative to hostname
-     * @param body the JSON value to post (this is usually a JSON objecT)
-     * @param retry whether or not to retry on connection failure
-     * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
-     */
-    def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
-        val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
-        entity.setContentType("application/json")
+  /**
+   * Posts to hostname/endpoint the given JSON object.
+   * Waits up to timeout before aborting on a good connection.
+   * If the endpoint is not ready, retry up to timeout.
+   * Every retry reduces the available timeout so that this method should not
+   * wait longer than the total timeout (within a small slack allowance).
+   *
+   * @param endpoint the path the api call relative to hostname
+   * @param body the JSON value to post (this is usually a JSON objecT)
+   * @param retry whether or not to retry on connection failure
+   * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
+   */
+  def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
+    val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
+    entity.setContentType("application/json")
 
-        val request = new HttpPost(baseUri.setPath(endpoint).build)
-        request.addHeader(HttpHeaders.ACCEPT, "application/json")
-        request.setEntity(entity)
+    val request = new HttpPost(baseUri.setPath(endpoint).build)
+    request.addHeader(HttpHeaders.ACCEPT, "application/json")
+    request.setEntity(entity)
 
-        execute(request, timeout.toMillis.toInt, retry)
-    }
+    execute(request, timeout.toMillis.toInt, retry)
+  }
 
-    private def execute(request: HttpRequestBase, timeoutMsec: Integer, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
-        Try(connection.execute(request)).map { response =>
-            val containerResponse = Option(response.getEntity).map { entity =>
-                val statusCode = response.getStatusLine.getStatusCode
-                val contentLength = entity.getContentLength
+  private def execute(request: HttpRequestBase,
+                      timeoutMsec: Integer,
+                      retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
+    Try(connection.execute(request)).map { response =>
+      val containerResponse = Option(response.getEntity)
+        .map { entity =>
+          val statusCode = response.getStatusLine.getStatusCode
+          val contentLength = entity.getContentLength
 
-                if (contentLength >= 0) {
-                    val bytesToRead = Math.min(contentLength, maxResponseBytes)
-                    val bytes = IOUtils.toByteArray(entity.getContent, bytesToRead)
-                    val str = new String(bytes, StandardCharsets.UTF_8)
-                    val truncated = if (contentLength <= maxResponseBytes) None else Some(contentLength.B, maxResponse)
-                    Right(ContainerResponse(statusCode, str, truncated))
-                } else {
-                    Left(NoResponseReceived())
-                }
-            }.getOrElse {
-                // entity is null
-                Left(NoResponseReceived())
-            }
-
-            response.close()
-            containerResponse
-        } match {
-            case Success(r) => r
-            case Failure(t: HttpHostConnectException) if retry =>
-                if (timeoutMsec > 0) {
-                    Thread sleep 100
-                    val newTimeout = timeoutMsec - 100
-                    execute(request, newTimeout, retry)
-                } else {
-                    Left(Timeout())
-                }
-            case Failure(t: Throwable) => Left(ConnectionError(t))
+          if (contentLength >= 0) {
+            val bytesToRead = Math.min(contentLength, maxResponseBytes)
+            val bytes = IOUtils.toByteArray(entity.getContent, bytesToRead)
+            val str = new String(bytes, StandardCharsets.UTF_8)
+            val truncated = if (contentLength <= maxResponseBytes) None else Some(contentLength.B, maxResponse)
+            Right(ContainerResponse(statusCode, str, truncated))
+          } else {
+            Left(NoResponseReceived())
+          }
         }
+        .getOrElse {
+          // entity is null
+          Left(NoResponseReceived())
+        }
+
+      response.close()
+      containerResponse
+    } match {
+      case Success(r) => r
+      case Failure(t: HttpHostConnectException) if retry =>
+        if (timeoutMsec > 0) {
+          Thread sleep 100
+          val newTimeout = timeoutMsec - 100
+          execute(request, newTimeout, retry)
+        } else {
+          Left(Timeout())
+        }
+      case Failure(t: Throwable) => Left(ConnectionError(t))
     }
+  }
 
-    private val maxResponseBytes = maxResponse.toBytes
+  private val maxResponseBytes = maxResponse.toBytes
 
-    private val baseUri = new URIBuilder()
-        .setScheme("http")
-        .setHost(hostname)
+  private val baseUri = new URIBuilder()
+    .setScheme("http")
+    .setHost(hostname)
 
-    private val httpconfig = RequestConfig.custom
-        .setConnectTimeout(timeout.toMillis.toInt)
-        .setConnectionRequestTimeout(timeout.toMillis.toInt)
-        .setSocketTimeout(timeout.toMillis.toInt)
-        .build
+  private val httpconfig = RequestConfig.custom
+    .setConnectTimeout(timeout.toMillis.toInt)
+    .setConnectionRequestTimeout(timeout.toMillis.toInt)
+    .setSocketTimeout(timeout.toMillis.toInt)
+    .build
 
-    private val connection = HttpClientBuilder
-        .create
-        .setDefaultRequestConfig(httpconfig)
-        .useSystemProperties()
-        .build
+  private val connection = HttpClientBuilder.create
+    .setDefaultRequestConfig(httpconfig)
+    .useSystemProperties()
+    .build
 }
 
 object HttpUtils {
-    /** A helper method to post one single request to a connection. Used for container tests. */
-    def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
-        val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
-        val response = connection.post(endPoint, content, retry = true)
-        connection.close()
-        response match {
-            case Right(r) => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
-            case Left(Timeout()) => throw new java.util.concurrent.TimeoutException()
-            case Left(ConnectionError(t: java.net.SocketTimeoutException)) => throw new java.util.concurrent.TimeoutException()
-            case _ => throw new IllegalStateException()
-        }
+
+  /** A helper method to post one single request to a connection. Used for container tests. */
+  def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
+    val connection = new HttpUtils(s"$host:$port", 90.seconds, 1.MB)
+    val response = connection.post(endPoint, content, retry = true)
+    connection.close()
+    response match {
+      case Right(r)        => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+      case Left(Timeout()) => throw new java.util.concurrent.TimeoutException()
+      case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
+        throw new java.util.concurrent.TimeoutException()
+      case _ => throw new IllegalStateException()
     }
+  }
 }

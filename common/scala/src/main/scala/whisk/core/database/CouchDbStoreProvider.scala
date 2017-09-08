@@ -24,17 +24,31 @@ import whisk.core.WhiskConfig
 import whisk.spi.SpiInstanceCaching
 
 object CouchDbStoreProvider extends ArtifactStoreProvider with SpiInstanceCaching[String, ArtifactStore[_]] {
-    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
-        implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem,
-        logging: Logging): ArtifactStore[D] = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
-        val storeName = name(config)
-        assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, storeName).forall(_.nonEmpty), "At least one expected property is missing")
-        getInstanceOrCreate(storeName, {
-            new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config), ()=>removeInstance(storeName))
-        }).asInstanceOf[ArtifactStore[D]]
-    }
+
+  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+    implicit jsonFormat: RootJsonFormat[D],
+    actorSystem: ActorSystem,
+    logging: Logging): ArtifactStore[D] = {
+    require(config != null && config.isValid, "config is undefined or not valid")
+    require(
+      config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB",
+      "Unsupported db.provider: " + config.dbProvider)
+    val storeName = name(config)
+    assume(
+      Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, storeName)
+        .forall(_.nonEmpty),
+      "At least one expected property is missing")
+    getInstanceOrCreate(
+      storeName, {
+        new CouchDbRestStore[D](
+          config.dbProtocol,
+          config.dbHost,
+          config.dbPort.toInt,
+          config.dbUsername,
+          config.dbPassword,
+          name(config),
+          () => removeInstance(storeName))
+      }).asInstanceOf[ArtifactStore[D]]
+  }
 
 }

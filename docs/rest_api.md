@@ -80,11 +80,14 @@ wsk namespace list -v
 ```
 ```
 REQUEST:
-[GET]	https://openwhisk.ng.bluemix.net/api/v1/namespaces
+[GET]  https://openwhisk.ng.bluemix.net/api/v1/namespaces
 Req Headers
 {
   "Authorization": [
     "Basic XXXYYYY"
+  ],
+  "User-Agent": [
+    "OpenWhisk-CLI/1.0 (2017-08-10T20:09:30+00:00)"
   ]
 }
 RESPONSE:Got response with code 200
@@ -99,7 +102,7 @@ Response body received:
 ["john@example.com_dev"]
 ```
 
-As you can see you the printed information provides the properties of the HTTP request, it performs a HTTP method `GET` on the URL `https://openwhisk.ng.bluemix.net/api/v1/namespaces` using a Basic Authorization header `Basic XXXYYYY`.
+As you can see you the printed information provides the properties of the HTTP request, it performs a HTTP method `GET` on the URL `https://openwhisk.ng.bluemix.net/api/v1/namespaces` using a User-Agent header `OpenWhisk-CLI/1.0 (<CLI-Build-version>)` and Basic Authorization header `Basic XXXYYYY`.
 Notice that the authorization value is your base64-encoded OpenWhisk authorization string.
 The response is of content type `application/json`.
 

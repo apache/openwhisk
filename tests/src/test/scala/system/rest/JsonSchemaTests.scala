@@ -28,7 +28,7 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema with RestUtil {
 
-    def TEST_SCHEMA = """{
+  def TEST_SCHEMA = """{
       "type" : "object",
       "properties" : {
         "price" : {"type" : "number"},
@@ -36,30 +36,30 @@ class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema with RestUt
        }
     }"""
 
-    "JSON schema validator" should "accept a correct object" in {
-        def GOOD = """ {"name" : "Eggs", "price" : 34.99} """
-        assert(check(GOOD, TEST_SCHEMA))
-    }
-    it should "reject a bad object" in {
-        def BAD = """ {"name" : "Eggs", "price" : "Invalid"} """
-        assert(!check(BAD, TEST_SCHEMA))
-    }
+  "JSON schema validator" should "accept a correct object" in {
+    def GOOD = """ {"name" : "Eggs", "price" : 34.99} """
+    assert(check(GOOD, TEST_SCHEMA))
+  }
+  it should "reject a bad object" in {
+    def BAD = """ {"name" : "Eggs", "price" : "Invalid"} """
+    assert(!check(BAD, TEST_SCHEMA))
+  }
 
-    it should "accept a properly structured Action" in {
-        val schema = getJsonSchema("Action").compactPrint
-        def ACTION = """ {"namespace":"_",
+  it should "accept a properly structured Action" in {
+    val schema = getJsonSchema("Action").compactPrint
+    def ACTION = """ {"namespace":"_",
                        | "name":"foo",
                        | "version":"1.1.1",
                        | "publish":false,
                        | "exec":{ "code": "foo", "kind": "nodejs" },
                        | "parameters":["key1","value1"],
                        | "limits":{ "timeout":1000, "memory":200 } }""".stripMargin
-        assert(check(ACTION, schema))
-    }
+    assert(check(ACTION, schema))
+  }
 
-    it should "reject an improperly structured Action" in {
-        val schema = getJsonSchema("Action").compactPrint
-        def ACTION = """ {"sname" : "foo", "spublish" : false} """
-        assert(!check(ACTION, schema))
-    }
+  it should "reject an improperly structured Action" in {
+    val schema = getJsonSchema("Action").compactPrint
+    def ACTION = """ {"sname" : "foo", "spublish" : false} """
+    assert(!check(ACTION, schema))
+  }
 }

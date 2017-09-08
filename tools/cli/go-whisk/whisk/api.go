@@ -45,7 +45,6 @@ type ApiListRequestOptions struct {
     Skip            int       `url:"skip"`
     Docs            bool      `url:"docs,omitempty"`
 }
-//type ApiListResponse RetApiArray
 type ApiListResponse RetApiArray
 
 // wsk api get : Request, Response
@@ -105,7 +104,7 @@ type RetApiArray struct {
 type ApiItem struct {
     ApiId           string    `json:"id,omitempty"`
     QueryKey        string    `json:"key,omitempty"`
-    ApiValue        *RetApi `json:"value,omitempty"`
+    ApiValue        *RetApi   `json:"value,omitempty"`
 }
 
 type RetApi struct {

@@ -31,37 +31,36 @@ import whisk.core.entity._
 import whisk.http.Messages
 
 protected[core] trait PostActionActivation extends PrimitiveActions with SequenceActions {
-    /** The core collections require backend services to be injected in this trait. */
-    services: WhiskServices =>
+  /** The core collections require backend services to be injected in this trait. */
+  services: WhiskServices =>
 
-    /**
-     * Invokes an action which may be a sequence or a primitive (single) action.
-     *
-     * @param user the user posting the activation
-     * @param action the action to activate (parameters for packaged actions must already be merged)
-     * @param payload the parameters to pass to the action
-     * @param waitForResponse if not empty, wait up to specified duration for a response (this is used for blocking activations)
-     * @return a future that resolves with Left(activation id) when the request is queued, or Right(activation) for a blocking request
-     *         which completes in time iff waiting for an response
-     */
-    protected[controller] def invokeAction(
-        user: Identity,
-        action: WhiskAction,
-        payload: Option[JsObject],
-        waitForResponse: Option[FiniteDuration],
-        cause: Option[ActivationId])(
-            implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-        action.toExecutableWhiskAction match {
-            // this is a topmost sequence
-            case None =>
-                val SequenceExec(components) = action.exec
-                invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
-            // a non-deprecated ExecutableWhiskAction
-            case Some(executable) if !executable.exec.deprecated =>
-                invokeSingleAction(user, executable, payload, waitForResponse, cause)
-            // a deprecated exec
-            case _ =>
-                Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(action.exec)))
-        }
+  /**
+   * Invokes an action which may be a sequence or a primitive (single) action.
+   *
+   * @param user the user posting the activation
+   * @param action the action to activate (parameters for packaged actions must already be merged)
+   * @param payload the parameters to pass to the action
+   * @param waitForResponse if not empty, wait up to specified duration for a response (this is used for blocking activations)
+   * @return a future that resolves with Left(activation id) when the request is queued, or Right(activation) for a blocking request
+   *         which completes in time iff waiting for an response
+   */
+  protected[controller] def invokeAction(
+    user: Identity,
+    action: WhiskAction,
+    payload: Option[JsObject],
+    waitForResponse: Option[FiniteDuration],
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    action.toExecutableWhiskAction match {
+      // this is a topmost sequence
+      case None =>
+        val SequenceExec(components) = action.exec
+        invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
+      // a non-deprecated ExecutableWhiskAction
+      case Some(executable) if !executable.exec.deprecated =>
+        invokeSingleAction(user, executable, payload, waitForResponse, cause)
+      // a deprecated exec
+      case _ =>
+        Future.failed(RejectRequest(BadRequest, Messages.runtimeDeprecated(action.exec)))
     }
+  }
 }

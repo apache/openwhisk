@@ -42,47 +42,54 @@ import whisk.core.entity.WhiskTrigger
 import whisk.spi.SpiLoader
 
 case class CacheInvalidationMessage(key: CacheKey, instanceId: String) extends Message {
-    override def serialize = CacheInvalidationMessage.serdes.write(this).compactPrint
+  override def serialize = CacheInvalidationMessage.serdes.write(this).compactPrint
 }
 
 object CacheInvalidationMessage extends DefaultJsonProtocol {
-    def parse(msg: String) = Try(serdes.read(msg.parseJson))
-    implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "instanceId")
+  def parse(msg: String) = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "instanceId")
 }
 
-class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging, as: ActorSystem) {
+class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging,
+                                                                                            as: ActorSystem) {
 
-    implicit private val ec = as.dispatcher
+  implicit private val ec = as.dispatcher
 
-    private val topic = "cacheInvalidation"
-    private val instanceId = s"$component${instance.toInt}"
+  private val topic = "cacheInvalidation"
+  private val instanceId = s"$component${instance.toInt}"
 
-    private val msgProvider = SpiLoader.get[MessagingProvider]
-    private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
-    private val cacheInvalidationProducer = msgProvider.getProducer(config, ec)
+  private val msgProvider = SpiLoader.get[MessagingProvider]
+  private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
+  private val cacheInvalidationProducer = msgProvider.getProducer(config, ec)
 
-    def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
-        cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
-    }
+  def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
+    cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
+  }
 
-    private val invalidationFeed = as.actorOf(Props {
-        new MessageFeed("cacheInvalidation", logging, cacheInvalidationConsumer, cacheInvalidationConsumer.maxPeek, 1.second, removeFromLocalCache)
-    })
+  private val invalidationFeed = as.actorOf(Props {
+    new MessageFeed(
+      "cacheInvalidation",
+      logging,
+      cacheInvalidationConsumer,
+      cacheInvalidationConsumer.maxPeek,
+      1.second,
+      removeFromLocalCache)
+  })
 
-    private def removeFromLocalCache(bytes: Array[Byte]): Future[Unit] = Future {
-        val raw = new String(bytes, StandardCharsets.UTF_8)
+  private def removeFromLocalCache(bytes: Array[Byte]): Future[Unit] = Future {
+    val raw = new String(bytes, StandardCharsets.UTF_8)
 
-        CacheInvalidationMessage.parse(raw) match {
-            case Success(msg: CacheInvalidationMessage) => {
-                if (msg.instanceId != instanceId) {
-                    WhiskAction.removeId(msg.key)
-                    WhiskPackage.removeId(msg.key)
-                    WhiskRule.removeId(msg.key)
-                    WhiskTrigger.removeId(msg.key)
-                }
-            }
-            case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
+    CacheInvalidationMessage.parse(raw) match {
+      case Success(msg: CacheInvalidationMessage) => {
+        if (msg.instanceId != instanceId) {
+          WhiskAction.removeId(msg.key)
+          WhiskPackage.removeId(msg.key)
+          WhiskRule.removeId(msg.key)
+          WhiskTrigger.removeId(msg.key)
         }
-        invalidationFeed ! MessageFeed.Processed
+      }
+      case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
     }
+    invalidationFeed ! MessageFeed.Processed
+  }
 }

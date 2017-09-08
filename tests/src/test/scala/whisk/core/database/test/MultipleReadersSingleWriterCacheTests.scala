@@ -35,40 +35,41 @@ import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.entity.CacheKey
 
 @RunWith(classOf[JUnitRunner])
-class MultipleReadersSingleWriterCacheTests extends FlatSpec
+class MultipleReadersSingleWriterCacheTests
+    extends FlatSpec
     with Matchers
     with MultipleReadersSingleWriterCache[String, String]
     with WskActorSystem
     with StreamLogging {
 
-    behavior of "the cache"
+  behavior of "the cache"
 
-    it should "execute the callback on invalidating and updating an entry" in {
-        val ctr = new AtomicInteger(0)
-        val key = CacheKey("key")
+  it should "execute the callback on invalidating and updating an entry" in {
+    val ctr = new AtomicInteger(0)
+    val key = CacheKey("key")
 
-        implicit val transId = TransactionId.testing
-        lazy implicit val cacheUpdateNotifier = Some {
-            new CacheChangeNotification {
-                override def apply(key: CacheKey) = {
-                    ctr.incrementAndGet()
-                    Future.successful(())
-                }
-            }
+    implicit val transId = TransactionId.testing
+    lazy implicit val cacheUpdateNotifier = Some {
+      new CacheChangeNotification {
+        override def apply(key: CacheKey) = {
+          ctr.incrementAndGet()
+          Future.successful(())
         }
-
-        // Create an cache entry
-        cacheUpdate("doc", key, Future.successful("db save successful"))
-        ctr.get shouldBe 1
-
-        // Callback should be called if entry exists
-        cacheInvalidate(key, Future.successful(()))
-        ctr.get shouldBe 2
-        cacheUpdate("docdoc", key, Future.successful("update in db successful"))
-        ctr.get shouldBe 3
-
-        // Callback should be called if entry does not exist
-        cacheInvalidate(CacheKey("abc"), Future.successful(()))
-        ctr.get shouldBe 4
+      }
     }
+
+    // Create an cache entry
+    cacheUpdate("doc", key, Future.successful("db save successful"))
+    ctr.get shouldBe 1
+
+    // Callback should be called if entry exists
+    cacheInvalidate(key, Future.successful(()))
+    ctr.get shouldBe 2
+    cacheUpdate("docdoc", key, Future.successful("update in db successful"))
+    ctr.get shouldBe 3
+
+    // Callback should be called if entry does not exist
+    cacheInvalidate(CacheKey("abc"), Future.successful(()))
+    ctr.get shouldBe 4
+  }
 }

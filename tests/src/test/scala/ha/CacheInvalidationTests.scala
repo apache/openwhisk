@@ -28,11 +28,7 @@ import org.scalatest.junit.JUnitRunner
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.RequestEntity
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -43,137 +39,138 @@ import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
-import akka.http.scaladsl.model.StatusCode
 
 @RunWith(classOf[JUnitRunner])
-class CacheInvalidationTests
-    extends FlatSpec
-    with Matchers
-    with WskTestHelpers
-    with WskActorSystem {
+class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem {
 
-    implicit val materializer = ActorMaterializer()
+  implicit val materializer = ActorMaterializer()
 
-    val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
-    val authKey = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting)
+  val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
+  def ports(instance: Int) = WhiskProperties.getControllerBasePort + instance
 
-    val timeout = 15.seconds
+  def controllerUri(instance: Int) = {
+    require(instance >= 0 && instance < hosts.length, "Controller instance not known.")
+    Uri().withScheme("http").withHost(hosts(instance)).withPort(ports(instance))
+  }
+  def actionPath(name: String) = Uri.Path(s"/api/v1/namespaces/_/actions/$name")
 
-    def retry[T](fn: => T) = whisk.utils.retry(fn, 15, Some(1.second))
+  val Array(username, password) = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting).split(":")
+  val authHeader = Authorization(BasicHttpCredentials(username, password))
 
-    def updateAction(name: String, code: String, controllerInstance: Int = 0) = {
-        require(controllerInstance >= 0 && controllerInstance < hosts.length, "Controller instance not known.")
+  val timeout = 15.seconds
 
-        val host = hosts(controllerInstance)
-        val port = WhiskProperties.getControllerBasePort + controllerInstance
+  def retry[T](fn: => T) = whisk.utils.retry(fn, 15, Some(1.second))
 
-        val body = JsObject("namespace" -> JsString("_"), "name" -> JsString(name), "exec" -> JsObject("kind" -> JsString("nodejs:default"), "code" -> JsString(code)))
+  def updateAction(name: String, code: String, controllerInstance: Int = 0) = {
+    val body = JsObject(
+      "namespace" -> JsString("_"),
+      "name" -> JsString(name),
+      "exec" -> JsObject("kind" -> JsString("nodejs:default"), "code" -> JsString(code)))
 
-        val request = Marshal(body).to[RequestEntity].flatMap { entity =>
-            Http().singleRequest(HttpRequest(
-                method = HttpMethods.PUT,
-                uri = Uri().withScheme("http").withHost(host).withPort(port).withPath(Uri.Path(s"/api/v1/namespaces/_/actions/$name")).withQuery(Uri.Query("overwrite" -> true.toString)),
-                headers = List(Authorization(BasicHttpCredentials(authKey.split(":")(0), authKey.split(":")(1)))),
-                entity = entity)).flatMap { response =>
-                val action = Unmarshal(response).to[JsObject].map { resBody =>
-                    withClue(s"Error in Body: $resBody")(response.status shouldBe StatusCodes.OK)
-                    resBody
-                }
-                action
-            }
+    val request = Marshal(body).to[RequestEntity].flatMap { entity =>
+      Http()
+        .singleRequest(HttpRequest(
+          method = HttpMethods.PUT,
+          uri = controllerUri(controllerInstance)
+            .withPath(actionPath(name))
+            .withQuery(Uri.Query("overwrite" -> true.toString)),
+          headers = List(authHeader),
+          entity = entity))
+        .flatMap { response =>
+          Unmarshal(response).to[JsObject].map { resBody =>
+            withClue(s"Error in Body: $resBody")(response.status shouldBe StatusCodes.OK)
+            resBody
+          }
         }
-
-        Await.result(request, timeout)
     }
 
-    def getAction(name: String, controllerInstance: Int = 0, expectedCode: StatusCode = StatusCodes.OK) = {
-        require(controllerInstance >= 0 && controllerInstance < hosts.length, "Controller instance not known.")
+    Await.result(request, timeout)
+  }
 
-        val host = hosts(controllerInstance)
-        val port = WhiskProperties.getControllerBasePort + controllerInstance
-
-        val request = Http().singleRequest(HttpRequest(
-            method = HttpMethods.GET,
-            uri = Uri().withScheme("http").withHost(host).withPort(port).withPath(Uri.Path(s"/api/v1/namespaces/_/actions/$name")),
-            headers = List(Authorization(BasicHttpCredentials(authKey.split(":")(0), authKey.split(":")(1)))))).flatMap { response =>
-            val action = Unmarshal(response).to[JsObject].map { resBody =>
-                withClue(s"Wrong statuscode from controller. Body is: $resBody")(response.status shouldBe expectedCode)
-                resBody
-            }
-            action
+  def getAction(name: String, controllerInstance: Int = 0, expectedCode: StatusCode = StatusCodes.OK) = {
+    val request = Http()
+      .singleRequest(
+        HttpRequest(
+          method = HttpMethods.GET,
+          uri = controllerUri(controllerInstance).withPath(actionPath(name)),
+          headers = List(authHeader)))
+      .flatMap { response =>
+        Unmarshal(response).to[JsObject].map { resBody =>
+          withClue(s"Wrong statuscode from controller. Body is: $resBody")(response.status shouldBe expectedCode)
+          resBody
         }
+      }
 
-        Await.result(request, timeout)
-    }
+    Await.result(request, timeout)
+  }
 
-    def deleteAction(name: String, controllerInstance: Int = 0, expectedCode: Option[StatusCode] = Some(StatusCodes.OK)) = {
-        require(controllerInstance >= 0 && controllerInstance < hosts.length, "Controller instance not known.")
-
-        val host = hosts(controllerInstance)
-        val port = WhiskProperties.getControllerBasePort + controllerInstance
-
-        val request = Http().singleRequest(HttpRequest(
-            method = HttpMethods.DELETE,
-            uri = Uri().withScheme("http").withHost(host).withPort(port).withPath(Uri.Path(s"/api/v1/namespaces/_/actions/$name")),
-            headers = List(Authorization(BasicHttpCredentials(authKey.split(":")(0), authKey.split(":")(1)))))).flatMap { response =>
-            val action = Unmarshal(response).to[JsObject].map { resBody =>
-                expectedCode.map { code =>
-                    withClue(s"Wrong statuscode from controller. Body is: $resBody")(response.status shouldBe code)
-                }
-                resBody
-            }
-            action
+  def deleteAction(name: String,
+                   controllerInstance: Int = 0,
+                   expectedCode: Option[StatusCode] = Some(StatusCodes.OK)) = {
+    val request = Http()
+      .singleRequest(
+        HttpRequest(
+          method = HttpMethods.DELETE,
+          uri = controllerUri(controllerInstance).withPath(actionPath(name)),
+          headers = List(authHeader)))
+      .flatMap { response =>
+        Unmarshal(response).to[JsObject].map { resBody =>
+          expectedCode.map { code =>
+            withClue(s"Wrong statuscode from controller. Body is: $resBody")(response.status shouldBe code)
+          }
+          resBody
         }
+      }
 
-        Await.result(request, timeout)
-    }
+    Await.result(request, timeout)
+  }
 
-    behavior of "the cache"
+  behavior of "The cache"
+
+  if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
 
     it should "be invalidated on updating an entity" in {
-        if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
-            val actionName = "invalidateRemoteCacheOnUpdate"
+      val actionName = "invalidateRemoteCacheOnUpdate"
 
-            deleteAction(actionName, 0, None)
-            deleteAction(actionName, 1, None)
+      deleteAction(actionName, 0, None)
+      deleteAction(actionName, 1, None)
 
-            // Create an action on controller0
-            val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
+      // Create an action on controller0
+      val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
 
-            // Get action from controller1
-            val actionFromController1 = getAction(actionName, 1)
-            createdAction shouldBe actionFromController1
+      // Get action from controller1
+      val actionFromController1 = getAction(actionName, 1)
+      createdAction shouldBe actionFromController1
 
-            // Update the action on controller0
-            val updatedAction = updateAction(actionName, "CODE_CODE", 0)
+      // Update the action on controller0
+      val updatedAction = updateAction(actionName, "CODE_CODE", 0)
 
-            retry({
-                // Get action from controller1
-                val updatedActionFromController1 = getAction(actionName, 1)
-                updatedAction shouldBe updatedActionFromController1
-            })
-        }
+      retry({
+        // Get action from controller1
+        val updatedActionFromController1 = getAction(actionName, 1)
+        updatedAction shouldBe updatedActionFromController1
+      })
     }
 
     it should "be invalidated on deleting an entity" in {
-        if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
-            val actionName = "invalidateRemoteCacheOnDelete"
+      val actionName = "invalidateRemoteCacheOnDelete"
 
-            deleteAction(actionName, 0, None)
-            deleteAction(actionName, 1, None)
+      deleteAction(actionName, 0, None)
+      deleteAction(actionName, 1, None)
 
-            // Create an action on controller0
-            val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
-            // Get action from controller1 (Now its in the cache of controller 0 and 1)
-            val actionFromController1 = getAction(actionName, 1)
-            createdAction shouldBe actionFromController1
+      // Create an action on controller0
+      val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
+      // Get action from controller1 (Now its in the cache of controller 0 and 1)
+      val actionFromController1 = getAction(actionName, 1)
+      createdAction shouldBe actionFromController1
 
-            retry({
-                // Delete the action on controller0 (It should be deleted automatically from the cache of controller1)
-                val updatedAction = deleteAction(actionName, 0)
-                // Get action from controller1 should fail with 404
-                getAction(actionName, 1, StatusCodes.NotFound)
-            })
-        }
+      // Delete the action on controller0 (It should be deleted automatically from the cache of controller1)
+      val updatedAction = deleteAction(actionName, 0)
+
+      retry({
+        // Get action from controller1 should fail with 404
+        getAction(actionName, 1, StatusCodes.NotFound)
+      })
     }
+  }
 }

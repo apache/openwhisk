@@ -26,15 +26,16 @@ import whisk.core.loadBalancer.LoadBalancerResolver
  * A trait which defines a few services which a whisk microservice may rely on.
  */
 trait WhiskServices {
-    /** Whisk configuration object. */
-    protected val whiskConfig: WhiskConfig
 
-    /** An entitlement service to check access rights. */
-    protected val entitlementProvider: EntitlementProvider
+  /** Whisk configuration object. */
+  protected val whiskConfig: WhiskConfig
 
-    /** A generator for new activation ids. */
-    protected val activationIdFactory: ActivationIdGenerator
+  /** An entitlement service to check access rights. */
+  protected val entitlementProvider: EntitlementProvider
 
-    /** A service that acquires the LoadBalancer for a particular request. */
-    protected val loadBalancerResolver: LoadBalancerResolver
+  /** A generator for new activation ids. */
+  protected val activationIdFactory: ActivationIdGenerator
+
+  /** A service that acquires the LoadBalancer for a particular request. */
+  protected val loadBalancerResolver: LoadBalancerResolver
 }

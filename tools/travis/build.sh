@@ -14,6 +14,10 @@ git clone https://github.com/apache/incubator-openwhisk-utilities.git
 # run the scancode util. against project source code starting at its root
 incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/tools/build/scanCode.cfg
 
+# run scalafmt checks
+cd $ROOTDIR
+TERM=dumb ./gradlew checkScalafmtAll
+
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"

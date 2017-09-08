@@ -41,42 +41,43 @@ import whisk.core.entity.size.SizeInt
  * @param megabytes the memory limit in megabytes for the action
  */
 protected[core] class LogLimit private (val megabytes: Int) extends AnyVal {
-    protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
+  protected[core] def asMegaBytes: ByteSize = megabytes.megabytes
 }
 
 protected[core] object LogLimit extends ArgNormalizer[LogLimit] {
-    protected[core] val MIN_LOGSIZE = 0 MB
-    protected[core] val MAX_LOGSIZE = 10 MB
-    protected[core] val STD_LOGSIZE = 10 MB
+  protected[core] val MIN_LOGSIZE = 0 MB
+  protected[core] val MAX_LOGSIZE = 10 MB
+  protected[core] val STD_LOGSIZE = 10 MB
 
-    /** Gets LogLimit with default log limit */
-    protected[core] def apply(): LogLimit = LogLimit(STD_LOGSIZE)
+  /** Gets LogLimit with default log limit */
+  protected[core] def apply(): LogLimit = LogLimit(STD_LOGSIZE)
 
-    /**
-     * Creates LogLimit for limit. Only the default limit is allowed currently.
-     *
-     * @param megabytes the limit in megabytes, must be within permissible range
-     * @return LogLimit with limit set
-     * @throws IllegalArgumentException if limit does not conform to requirements
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(megabytes: ByteSize): LogLimit = {
-        require(megabytes >= MIN_LOGSIZE, s"log size $megabytes below allowed threshold of $MIN_LOGSIZE")
-        require(megabytes <= MAX_LOGSIZE, s"log size $megabytes exceeds allowed threshold of $MAX_LOGSIZE")
-        new LogLimit(megabytes.toMB.toInt);
-    }
+  /**
+   * Creates LogLimit for limit. Only the default limit is allowed currently.
+   *
+   * @param megabytes the limit in megabytes, must be within permissible range
+   * @return LogLimit with limit set
+   * @throws IllegalArgumentException if limit does not conform to requirements
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(megabytes: ByteSize): LogLimit = {
+    require(megabytes >= MIN_LOGSIZE, s"log size $megabytes below allowed threshold of $MIN_LOGSIZE")
+    require(megabytes <= MAX_LOGSIZE, s"log size $megabytes exceeds allowed threshold of $MAX_LOGSIZE")
+    new LogLimit(megabytes.toMB.toInt);
+  }
 
-    override protected[core] implicit val serdes = new RootJsonFormat[LogLimit] {
-        def write(m: LogLimit) = JsNumber(m.megabytes)
+  override protected[core] implicit val serdes = new RootJsonFormat[LogLimit] {
+    def write(m: LogLimit) = JsNumber(m.megabytes)
 
-        def read(value: JsValue) = Try {
-            val JsNumber(mb) = value
-            require(mb.isWhole(), "log limit must be whole number")
-            LogLimit(mb.intValue MB)
-        } match {
-            case Success(limit)                       => limit
-            case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
-            case Failure(e: Throwable)                => deserializationError("log limit malformed", e)
-        }
-    }
+    def read(value: JsValue) =
+      Try {
+        val JsNumber(mb) = value
+        require(mb.isWhole(), "log limit must be whole number")
+        LogLimit(mb.intValue MB)
+      } match {
+        case Success(limit)                       => limit
+        case Failure(e: IllegalArgumentException) => deserializationError(e.getMessage, e)
+        case Failure(e: Throwable)                => deserializationError("log limit malformed", e)
+      }
+  }
 }

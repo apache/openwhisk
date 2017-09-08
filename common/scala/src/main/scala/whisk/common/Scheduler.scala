@@ -33,99 +33,93 @@ import akka.actor.Props
  * even for asynchronous tasks.
  */
 object Scheduler {
-    case object WorkOnceNow
-    private case object ScheduledWork
+  case object WorkOnceNow
+  private case object ScheduledWork
 
-    /**
-     * Sets up an Actor to send itself a message to mimic schedulers behavior in a more controllable way.
-     *
-     * @param interval the time to wait between two runs
-     * @param alwaysWait always wait for the given amount of time or calculate elapsed time to wait
-     * @param closure the closure to be executed
-     */
-    private class Worker(
-        initialDelay: FiniteDuration,
-        interval: FiniteDuration,
-        alwaysWait: Boolean,
-        name: String,
-        closure: () => Future[Any])(
-            implicit logging: Logging,
-            transid: TransactionId) extends Actor {
-        implicit val ec = context.dispatcher
+  /**
+   * Sets up an Actor to send itself a message to mimic schedulers behavior in a more controllable way.
+   *
+   * @param interval the time to wait between two runs
+   * @param alwaysWait always wait for the given amount of time or calculate elapsed time to wait
+   * @param closure the closure to be executed
+   */
+  private class Worker(initialDelay: FiniteDuration,
+                       interval: FiniteDuration,
+                       alwaysWait: Boolean,
+                       name: String,
+                       closure: () => Future[Any])(implicit logging: Logging, transid: TransactionId)
+      extends Actor {
+    implicit val ec = context.dispatcher
 
-        var lastSchedule: Option[Cancellable] = None
+    var lastSchedule: Option[Cancellable] = None
 
-        override def preStart() = {
-            if (initialDelay != Duration.Zero) {
-                lastSchedule = Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
-            } else {
-                self ! ScheduledWork
+    override def preStart() = {
+      if (initialDelay != Duration.Zero) {
+        lastSchedule = Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
+      } else {
+        self ! ScheduledWork
+      }
+    }
+    override def postStop() = {
+      logging.info(this, s"$name shutdown")
+      lastSchedule.foreach(_.cancel())
+    }
+
+    def receive = {
+      case WorkOnceNow => Try(closure())
+
+      case ScheduledWork =>
+        val deadline = interval.fromNow
+        Try(closure()) match {
+          case Success(result) =>
+            result onComplete { _ =>
+              val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
+              // context might be null here if a PoisonPill is sent while doing computations
+              lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
             }
-        }
-        override def postStop() = {
-            logging.info(this, s"$name shutdown")
-            lastSchedule.foreach(_.cancel())
-        }
 
-        def receive = {
-            case WorkOnceNow => Try(closure())
-
-            case ScheduledWork =>
-                val deadline = interval.fromNow
-                Try(closure()) match {
-                    case Success(result) =>
-                        result onComplete { _ =>
-                            val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
-                            // context might be null here if a PoisonPill is sent while doing computations
-                            lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
-                        }
-
-                    case Failure(e) =>
-                        logging.error(name, s"halted because ${e.getMessage}")
-                }
+          case Failure(e) =>
+            logging.error(name, s"halted because ${e.getMessage}")
         }
     }
+  }
 
-    /**
-     * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
-     * This waits until the Future of the closure has finished, ignores its result and waits for at most the
-     * time specified. If the closure took as long or longer than the time specified, the next iteration
-     * is immediately fired.
-     *
-     * @param interval the time to wait at most between two runs of the closure
-     * @param initialDelay optionally delay the first scheduled iteration by given duration
-     * @param f the function to run
-     */
-    def scheduleWaitAtMost(
-        interval: FiniteDuration,
-        initialDelay: FiniteDuration = Duration.Zero,
-        name: String = "Scheduler")(
-            f: () => Future[Any])(
-                implicit system: ActorSystem,
-                logging: Logging,
-                transid: TransactionId = TransactionId.unknown) = {
-        require(interval > Duration.Zero)
-        system.actorOf(Props(new Worker(initialDelay, interval, false, name, f)))
-    }
+  /**
+   * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
+   * This waits until the Future of the closure has finished, ignores its result and waits for at most the
+   * time specified. If the closure took as long or longer than the time specified, the next iteration
+   * is immediately fired.
+   *
+   * @param interval the time to wait at most between two runs of the closure
+   * @param initialDelay optionally delay the first scheduled iteration by given duration
+   * @param f the function to run
+   */
+  def scheduleWaitAtMost(interval: FiniteDuration,
+                         initialDelay: FiniteDuration = Duration.Zero,
+                         name: String = "Scheduler")(f: () => Future[Any])(implicit system: ActorSystem,
+                                                                           logging: Logging,
+                                                                           transid: TransactionId =
+                                                                             TransactionId.unknown) = {
+    require(interval > Duration.Zero)
+    system.actorOf(Props(new Worker(initialDelay, interval, false, name, f)))
+  }
 
-    /**
-     * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
-     * This waits until the Future of the closure has finished, ignores its result and then waits for the
-     * given interval.
-     *
-     * @param interval the time to wait between two runs of the closure
-     * @param initialDelay optionally delay the first scheduled iteration by given duration
-     * @param f the function to run
-     */
-    def scheduleWaitAtLeast(
-        interval: FiniteDuration,
-        initialDelay: FiniteDuration = Duration.Zero,
-        name: String = "Scheduler")(
-            f: () => Future[Any])(
-                implicit system: ActorSystem,
-                logging: Logging,
-                transid: TransactionId = TransactionId.unknown) = {
-        require(interval > Duration.Zero)
-        system.actorOf(Props(new Worker(initialDelay, interval, true, name, f)))
-    }
+  /**
+   * Schedules a closure to run continuously scheduled, with at least the given interval in between runs.
+   * This waits until the Future of the closure has finished, ignores its result and then waits for the
+   * given interval.
+   *
+   * @param interval the time to wait between two runs of the closure
+   * @param initialDelay optionally delay the first scheduled iteration by given duration
+   * @param f the function to run
+   */
+  def scheduleWaitAtLeast(interval: FiniteDuration,
+                          initialDelay: FiniteDuration = Duration.Zero,
+                          name: String = "Scheduler")(f: () => Future[Any])(implicit system: ActorSystem,
+                                                                            logging: Logging,
+                                                                            transid: TransactionId =
+                                                                              TransactionId.unknown) = {
+    require(interval > Duration.Zero)
+    system.actorOf(Props(new Worker(initialDelay, interval, true, name, f)))
+  }
 }

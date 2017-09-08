@@ -39,45 +39,42 @@ import whisk.core.entity.size.SizeInt
 @RunWith(classOf[JUnitRunner])
 class CompletionMessageTests extends FlatSpec with Matchers {
 
-    behavior of "completion message"
+  behavior of "completion message"
 
-    val activation = WhiskActivation(
-        namespace = EntityPath("ns"),
-        name = EntityName("a"),
-        Subject(),
-        activationId = ActivationId(),
-        start = Instant.now(),
-        end = Instant.now(),
-        response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
-        annotations = Parameters("limits", ActionLimits(
-            TimeLimit(1.second),
-            MemoryLimit(128.MB),
-            LogLimit(1.MB)).toJson),
-        duration = Some(123))
+  val activation = WhiskActivation(
+    namespace = EntityPath("ns"),
+    name = EntityName("a"),
+    Subject(),
+    activationId = ActivationId(),
+    start = Instant.now(),
+    end = Instant.now(),
+    response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
+    annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson),
+    duration = Some(123))
 
-    it should "serialize a left completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
-        m.serialize shouldBe JsObject(
-            "transid" -> m.transid.toJson,
-            "response" -> m.response.left.get.toJson,
-            "invoker" -> m.invoker.toJson).compactPrint
-    }
+  it should "serialize a left completion message" in {
+    val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
+    m.serialize shouldBe JsObject(
+      "transid" -> m.transid.toJson,
+      "response" -> m.response.left.get.toJson,
+      "invoker" -> m.invoker.toJson).compactPrint
+  }
 
-    it should "serialize a right completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
-        m.serialize shouldBe JsObject(
-            "transid" -> m.transid.toJson,
-            "response" -> m.response.right.get.toJson,
-            "invoker" -> m.invoker.toJson).compactPrint
-    }
+  it should "serialize a right completion message" in {
+    val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
+    m.serialize shouldBe JsObject(
+      "transid" -> m.transid.toJson,
+      "response" -> m.response.right.get.toJson,
+      "invoker" -> m.invoker.toJson).compactPrint
+  }
 
-    it should "deserialize a left completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
-        CompletionMessage.parse(m.serialize) shouldBe Success(m)
-    }
+  it should "deserialize a left completion message" in {
+    val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
+    CompletionMessage.parse(m.serialize) shouldBe Success(m)
+  }
 
-    it should "deserialize a right completion message" in {
-        val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
-        CompletionMessage.parse(m.serialize) shouldBe Success(m)
-    }
+  it should "deserialize a right completion message" in {
+    val m = CompletionMessage(TransactionId.testing, Right(activation), InstanceId(0))
+    CompletionMessage.parse(m.serialize) shouldBe Success(m)
+  }
 }
