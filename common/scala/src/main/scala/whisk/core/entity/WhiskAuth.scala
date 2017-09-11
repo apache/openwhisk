@@ -17,73 +17,51 @@
 
 package whisk.core.entity
 
-import scala.concurrent.Future
+import spray.json._
 import scala.util.Try
 
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import whisk.common.TransactionId
-import whisk.core.database.ArtifactStore
-import whisk.core.database.DocumentFactory
+/**
+ * Represents a namespace for a subject as stored in the authentication
+ * database. Each namespace has its own key which is used to determine
+ * the {@ Identity} of the user calling.
+ */
+protected[core] case class WhiskNamespace(name: EntityName, authkey: AuthKey)
+
+protected[core] object WhiskNamespace extends DefaultJsonProtocol {
+    implicit val serdes = new RootJsonFormat[WhiskNamespace] {
+        def write(w: WhiskNamespace) = JsObject(
+            "name" -> w.name.toJson,
+            "uuid" -> w.authkey.uuid.toJson,
+            "key" -> w.authkey.key.toJson)
+
+        def read(value: JsValue) = Try {
+            value.asJsObject.getFields("name", "uuid", "key") match {
+                case Seq(JsString(n), JsString(u), JsString(k)) =>
+                    WhiskNamespace(EntityName(n), AuthKey(UUID(u), Secret(k)))
+            }
+        } getOrElse deserializationError("namespace record malformed")
+    }
+}
 
 /**
- * A WhiskAuth provides an abstraction of the meta-data
- * for a whisk subject authentication record.
- *
- * The WhiskAuth object is used as a helper to adapt objects between
- * the schema used by the database and the WhiskAuth abstraction.
- *
- * @param subject the subject identifier
- * @param authkey the uuid and key pair for subject
- * @throws IllegalArgumentException if any argument is undefined
+ * Represents the new version of entries in the subjects database. No
+ * top-level authkey is given but each subject has a set of namespaces,
+ * which in turn have the keys.
  */
-@throws[IllegalArgumentException]
-case class WhiskAuth(
+protected[core] case class WhiskAuth(
     subject: Subject,
-    authkey: AuthKey)
+    namespaces: Set[WhiskNamespace])
     extends WhiskDocument {
-
-    def uuid = authkey.uuid
-    def key = authkey.key
-    def revoke = WhiskAuth(subject, authkey.revoke)
-
-    override def toString = {
-        s"""|subject: $subject
-            |auth: $authkey""".stripMargin.replace("\n", ", ")
-    }
 
     override def docid = DocId(subject.asString)
 
     def toJson = JsObject(
         "subject" -> subject.toJson,
-        "uuid" -> authkey.uuid.toJson,
-        "key" -> authkey.key.toJson)
-
-    def toIdentity = subject.toIdentity(authkey)
+        "namespaces" -> namespaces.toJson)
 }
 
-object WhiskAuth extends DocumentFactory[WhiskAuth] {
-
-    implicit val serdes = new RootJsonFormat[WhiskAuth] {
-        def write(w: WhiskAuth) = w.toJson
-
-        def read(value: JsValue) = Try {
-            value.asJsObject.getFields("subject", "uuid", "key") match {
-                case Seq(JsString(s), JsString(u), JsString(k)) =>
-                    WhiskAuth(Subject(s), AuthKey(UUID(u), Secret(k)))
-            }
-        } getOrElse deserializationError("auth record malformed")
-    }
-
-    override val cacheEnabled = true
-    override def cacheKeyForUpdate(w: WhiskAuth) = w.uuid
-
-    def get(datastore: ArtifactStore[WhiskAuth], subject: Subject, fromCache: Boolean)(
-        implicit transid: TransactionId): Future[Identity] = {
-        implicit val ec = datastore.executionContext
-        super.get(datastore, DocId(subject.asString), fromCache = fromCache).map(_.toIdentity)
-    }
+protected[core] object WhiskAuth extends DefaultJsonProtocol {
+    // Need to explicitly set field names since WhiskAuth extends WhiskDocument
+    // which defines more than the 2 "standard" fields
+    implicit val serdes = jsonFormat(WhiskAuth.apply, "subject", "namespaces")
 }

@@ -17,14 +17,9 @@
 
 package whisk.core.entitlement
 
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-
-import akka.actor.ActorSystem
 import whisk.common.Logging
-import whisk.common.Scheduler
 import whisk.common.TransactionId
-import whisk.core.entity.Subject
+import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
 
 /**
@@ -33,31 +28,21 @@ import whisk.core.loadBalancer.LoadBalancer
  * to calculate and determine whether the namespace currently invoking a new action should
  * be allowed to do so.
  *
- * @param config containing the config information needed (consulServer)
+ * @param loadbalancer contains active quotas
+ * @param defaultConcurrencyLimit the default max allowed concurrent operations
+ * @param systemOverloadLimit the limit when the system is considered overloaded
  */
-class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, concurrencyLimit: Int, systemOverloadLimit: Int)(
-    implicit val system: ActorSystem, logging: Logging) {
+class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(implicit logging: Logging) {
 
-    logging.info(this, s"concurrencyLimit = $concurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
-
-    implicit private val executionContext = system.dispatcher
-
-    /**
-     * holds the values of the last run of the scheduler below to be gettable by outside
-     * services to be able to determine whether a namespace should be throttled or not based on
-     * the number of concurrent invocations it has in the system
-     */
-    @volatile
-    private var userActivationCounter = Map.empty[String, Int]
-
-    private val healthCheckInterval = 5.seconds
+    logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
     /**
      * Checks whether the operation should be allowed to proceed.
      */
-    def check(subject: Subject)(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = userActivationCounter.getOrElse(subject.asString, 0)
-        logging.info(this, s"subject = ${subject.toString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
+    def check(user: Identity)(implicit tid: TransactionId): Boolean = {
+        val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
+        val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+        logging.info(this, s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
         concurrentActivations < concurrencyLimit
     }
 
@@ -65,13 +50,8 @@ class ActivationThrottler(consulServer: String, loadBalancer: LoadBalancer, conc
      * Checks whether the system is in a generally overloaded state.
      */
     def isOverloaded()(implicit tid: TransactionId): Boolean = {
-        val concurrentActivations = userActivationCounter.values.sum
+        val concurrentActivations = loadBalancer.totalActiveActivations
         logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
         concurrentActivations > systemOverloadLimit
-    }
-
-    Scheduler.scheduleWaitAtLeast(healthCheckInterval) { () =>
-        userActivationCounter = loadBalancer.getActiveUserActivationCounts
-        Future.successful(Unit)
     }
 }

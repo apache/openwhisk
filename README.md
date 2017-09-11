@@ -4,19 +4,21 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 [![Join Slack](https://img.shields.io/badge/join-slack-9B69A0.svg)](http://slack.openwhisk.org/)
 
-OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at http://openwhisk.org or try it on [IBM Bluemix](https://ibm.biz/openwhisk).
+OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at [http://openwhisk.incubator.apache.org](http://openwhisk.incubator.apache.org).
 
 
 * [Quick Start](#quick-start) (Vagrant)
 * [Native development](#native-development) (Mac and Ubuntu)
 * [Learn concepts and commands](#learn-concepts-and-commands)
-* [License](#license)
 * [Issues](#issues)
+* [Slack](#slack)
 
 ### Quick Start
 
 A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac, Windows PC or GNU/Linux.
 Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html) for your operating system and architecture.
+
+**Note:** For Windows, you may need to install an ssh client in order to use the command `vagrant ssh`. Cygwin works well for this, and Git Bash comes with an ssh client you can point to. If you run the command and no ssh is installed, Vagrant will give you some options to try.
 
 Follow these step to run your first OpenWhisk Action:
 ```
@@ -42,7 +44,7 @@ These steps were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows u
 For more information about using OpenWhisk on Vagrant see the [tools/vagrant/README.md](tools/vagrant/README.md)
 
 ### Native development
- 
+
 Docker must be natively installed in order to build and deploy OpenWhisk.
 If you plan to make contributions to OpenWhisk, we recommend either a Mac or Ubuntu environment.
 
@@ -64,17 +66,10 @@ interested in:
 - [OpenWhisk system details](docs/reference.md)
 - [Implementing feeds](docs/feeds.md)
 
-
-### License
-
-Copyright 2015-2016 IBM Corporation
-
-Licensed under the [Apache License, Version 2.0 (the "License")](http://www.apache.org/licenses/LICENSE-2.0.html).
-
-Unless required by applicable law or agreed to in writing, software distributed under the license is distributed on an "as is" basis, without warranties or conditions of any kind, either express or implied. See the license for the specific language governing permissions and limitations under the license.
-
 ### Issues
 
 Report bugs, ask questions and request features [here on GitHub](../../issues).
 
-You can also join our slack channel and chat with developers. To get access to our slack channel, request an invite [here](http://slack.openwhisk.org).
+### Slack
+
+You can also join the OpenWhisk Team on Slack [https://openwhisk-team.slack.com](https://openwhisk-team.slack.com) and chat with developers. To get access to our public slack team, request an invite [https://openwhisk.incubator.apache.org/slack.html](https://openwhisk.incubator.apache.org/slack.html).

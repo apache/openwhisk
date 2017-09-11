@@ -355,5 +355,4 @@ class WskActionTests
                     activation.logs.get.mkString(" ") should include(s"hello $utf8")
             }
     }
-
 }

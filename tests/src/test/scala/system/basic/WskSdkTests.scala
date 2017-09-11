@@ -108,4 +108,10 @@ class WskSdkTests
         }
     }
 
+    it should "print bash command completion script to STDOUT" in {
+        val msg = "bash completion for wsk"    // Subject to change, dependent on Cobra script
+
+        val stdout = wsk.cli(Seq("sdk", "install", "bashauto", "--stdout")).stdout
+        stdout should include(msg)
+    }
 }

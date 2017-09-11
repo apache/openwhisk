@@ -9,7 +9,8 @@ docker_dns: ""
 # a hostname that is resolved on the client, via /etc/hosts for example.
 whisk_api_localhost_name: "openwhisk"
 
-db_prefix: "{{ ansible_user_id|lower }}_{{ ansible_hostname|lower }}_"
+# Hardcoded for docker-machine since db init runs on host not inside VM
+db_prefix: whisk_dockermachine_
 
 # Auto lookup to find the db credentials
 db_provider: "{{ lookup('ini', 'db_provider section=db_creds file={{ playbook_dir }}/db_local.ini') }}"
@@ -35,6 +36,5 @@ apigw_auth_pwd: ""
 apigw_host: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v1"
 apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"
 
-# RunC enablement
-invoker_use_runc: true
-invoker_use_reactive_pool: false
+controller_arguments: '-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=1098'
+invoker_arguments: "{{ controller_arguments }}"

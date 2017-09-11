@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,6 +23,7 @@ import (
     "net/url"
     "errors"
     "../wski18n"
+    "strings"
 )
 
 type PackageService struct {
@@ -45,6 +47,7 @@ type Package struct {
     Actions     []Action            `json:"actions,omitempty"`
     Feeds       []Action            `json:"feeds,omitempty"`
 }
+
 func (p *Package) GetName() string {
     return p.Name
 }
@@ -83,13 +86,50 @@ type PackageListOptions struct {
     Docs        bool                `url:"docs,omitempty"`
 }
 
+// Compare(sortable) compares xPackage to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Package.
+// ***Method of type Sortable***
+func(xPackage Package) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> PACKAGE_NAME
+    packageToCompare := sortable.(Package)
+
+    var packageString string
+    var compareString string
+
+    packageString = strings.ToLower(fmt.Sprintf("%s%s",xPackage.Namespace,
+        xPackage.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", packageToCompare.Namespace,
+        packageToCompare.Name))
+
+    return packageString < compareString
+}
+
+// ToHeaderString() returns the header for a list of actions
+func(pkg Package) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "packages")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk package list`.
+// ***Method of type Sortable***
+func(xPackage Package) ToSummaryRowString() string{
+    publishState := wski18n.T("private")
+
+    if xPackage.Publish != nil && *xPackage.Publish {
+        publishState = wski18n.T("shared")
+    }
+
+    return fmt.Sprintf("%-70s %s\n", fmt.Sprintf("/%s/%s", xPackage.Namespace,
+        xPackage.Name), publishState)
+}
+
 func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Response, error) {
     route := fmt.Sprintf("packages")
     routeUrl, err := addRouteOptions(route, options)
     if err != nil {
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := wski18n.T("Unable to build request URL: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -98,7 +138,7 @@ func (s *PackageService) List(options *PackageListOptions) ([]Package, *http.Res
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -124,7 +164,7 @@ func (s *PackageService) Get(packageName string) (*Package, *http.Response, erro
         Debug(DbgError, "http.NewRequest(GET, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create GET HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -150,7 +190,7 @@ func (s *PackageService) Insert(x_package PackageInterface, overwrite bool) (*Pa
         Debug(DbgError, "http.NewRequest(PUT, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create PUT HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -175,7 +215,7 @@ func (s *PackageService) Delete(packageName string) (*http.Response, error) {
         Debug(DbgError, "http.NewRequest(DELETE, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create DELETE HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -196,7 +236,7 @@ func (s *PackageService) Refresh() (*BindingUpdates, *http.Response, error) {
         Debug(DbgError, "http.NewRequest(POST, %s); error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create POST HTTP request for '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 

@@ -17,30 +17,29 @@
 package whisk.common.tracing
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.mutable.Map
+
+import scala.collection.mutable
+import scala.collection.concurrent.TrieMap
 import akka.actor.ActorSystem
 import com.github.levkhomich.akka.tracing._
 import whisk.common.{LoggingMarkers, TransactionId}
+
 
 /**
   * Trace Utility Class which provides all methods to trace a given service.
   */
 object TraceUtil{
 
-  private lazy val trace: TracingExtensionImpl = traceVar;
+  private var trace: Option[TracingExtensionImpl] = None;
 
-  private var traceVar: TracingExtensionImpl = null;
-
-  private val traceMap : Map[Long, TracedRequest] =  Map[Long, TracedRequest]()
+  private val traceMap : mutable.Map[Long, TracedRequest] =  TrieMap[Long, TracedRequest]()
 
   var requestCounter: AtomicInteger = new AtomicInteger(1);
 
-  def init (actorSystem: ActorSystem): TracingExtensionImpl = {
+  def init (actorSystem: ActorSystem): Unit = {
 
-    if(traceVar == null)
-      traceVar = TracingExtension.apply(actorSystem);
-
-    return trace;
+    if(! trace.isDefined)
+      trace = Some(TracingExtension.apply(actorSystem));
   }
 
   /**
@@ -50,39 +49,23 @@ object TraceUtil{
     * @return TracedRequest which provides details about current service being traced.
     */
   def startTrace(serviceName: String, spanName: String, transactionId: TransactionId): Unit = {
-    traceMap.get(transactionId.meta.id) match {
-      case Some(tracedRequest) => {
-        startChildTrace(serviceName, spanName, tracedRequest, transactionId)
-      }
-      case None => {
-        var tracedRequest = createTracedRequest(spanName)
-        var metadata = trace.sample(tracedRequest.request, serviceName)
-        if (metadata != None) {
-          trace.start(tracedRequest.request, serviceName)
-          tracedRequest = new TracedRequest(tracedRequest.request, null, metadata)
-          traceMap.put(transactionId.meta.id, tracedRequest)
-        }
-      }
-    }
-
-  }
-
-  /**
-    * Start a Child Trace
-    * @param serviceName Name of service to be traced
-    * @param parent Parent TracedRequest to continue span propagation and create span hierarchy.
-    * @param transactionId transactionId to which this Trace belongs.
-    * @return TracedRequest which provides details about current service being traced.
-    */
-  def startChildTrace(serviceName: String, spanName: String, parent: TracedRequest, transactionId: TransactionId): Unit = {
-    val tracedReq: TracedRequest = createTracedRequest(spanName)
-    var metadata =  trace.sample(tracedReq.request, serviceName)
-    if(metadata.isDefined){
-      trace.createChild(tracedReq.request, parent.request)
-      trace.start(tracedReq.request, serviceName)
-      val tracedRequest = new TracedRequest(tracedReq.request, Some(parent), metadata)
-      traceMap.put(transactionId.meta.id, tracedRequest)
-    }
+    trace.foreach(tracer => {
+      val req: BasicTraceRequest = new BasicTraceRequest(spanName)
+      var metadata = tracer.sample(req, serviceName)
+      metadata.foreach(mData => {
+        val tracedReq = createTracedRequest(spanName, mData)
+        traceMap.get(transactionId.meta.id) match {
+          case Some(parentReq) => {
+            //create a child trace
+            tracer.createChild(req, parentReq.request)
+            tracedReq.parent = Some(parentReq)
+          }
+          case None =>
+          }
+        tracer.start(req, serviceName)
+        traceMap.put(transactionId.meta.id, tracedReq)
+      })
+    })
   }
 
   /**
@@ -92,50 +75,48 @@ object TraceUtil{
   def finish(transactionId: TransactionId): Unit = {
     traceMap.get(transactionId.meta.id) match {
       case Some(tracedRequest) => {
-        trace.record(tracedRequest.request, TracingAnnotations.ServerSend)
-        traceMap.remove(transactionId.meta.id)
-        if(tracedRequest.parent.isDefined)
-          traceMap.put(transactionId.meta.id, tracedRequest.parent.get)
+        trace.foreach(tracer => {
+          tracer.record(tracedRequest.request, TracingAnnotations.ServerSend)
+          traceMap.remove(transactionId.meta.id)
+          tracedRequest.parent.map(traceMap.put(transactionId.meta.id, _))
+//          if(tracedRequest.parent.isDefined)
+//            traceMap.put(transactionId.meta.id, tracedRequest.parent.get)
+        })
+
       }
       case _ =>
     }
   }
 
   def error(transactionId: TransactionId, t: Throwable) : Unit = {
-    val tracedRequest = traceMap.get(transactionId.meta.id)
-    if(tracedRequest.isDefined){
-      trace.record(tracedRequest.get.request, t)
-    }
-  }
-
-  private def createTracedRequest(spanName: String, metadata: Option[SpanMetadata] = None) : TracedRequest = {
-    val headers: Map[String, Integer] = Map[String, Integer]()
-    headers.put("id", requestCounter.getAndIncrement())
-    val req: BasicTraceRequest = new BasicTraceRequest(headers, spanName)
-
-    if(metadata.isDefined)
-      trace.importMetadata(req, metadata.get, spanName)
-
-    return TracedRequest(req, null, metadata)
-  }
-
-  def getTraceMetadata(transactionId: TransactionId): Option[SpanMetadata] = {
     traceMap.get(transactionId.meta.id) match {
       case Some(tracedRequest) => {
-       return tracedRequest.metadata
+        trace.foreach(tracer => {
+          tracer.record(tracedRequest.request, t)
+        })
       }
       case _ =>
     }
-    return None
   }
 
-  def setTracedRequestForTrasactionId(transactionId: TransactionId, metadata: Option[SpanMetadata]) = {
+  private def createTracedRequest(spanName: String, metadata: SpanMetadata) : TracedRequest = {
 
-    if(metadata.isDefined)
+    val req: BasicTraceRequest = new BasicTraceRequest(spanName)
+    trace.foreach(tracer => {
+        tracer.importMetadata(req, metadata, spanName)
+    })
+    TracedRequest(req, metadata, None)
+  }
+
+  def getTraceMetadata(transactionId: TransactionId): Option[SpanMetadata] = {
+    traceMap.get(transactionId.meta.id).map(_.metadata)
+  }
+
+  def setTracedRequestForTrasactionId(transactionId: TransactionId, metadata: SpanMetadata) = {
       traceMap.put(transactionId.meta.id, TraceUtil.createTracedRequest(LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING.action, metadata))
   }
 }
 
-case class BasicTraceRequest(val headers: Map[String, Integer], override val spanName: String) extends TracingSupport with Serializable
+case class BasicTraceRequest(override val spanName: String) extends TracingSupport with Serializable
 
-case class TracedRequest(val request: BasicTraceRequest, val parent: Option[TracedRequest], val metadata: Option[SpanMetadata])
+case class TracedRequest(val request: BasicTraceRequest, val metadata: SpanMetadata, var parent: Option[TracedRequest])

@@ -1,0 +1,76 @@
+{
+    "swagger": "2.0",
+    "basePath": "/NoActions",
+    "info": {
+        "title": "A descriptive name",
+        "version": "1.0"
+    },
+    "paths": {
+        "/": {
+            "delete": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "get": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "head": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "options": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "",
+                "responses": {
+                    "200": {
+                        "description": "A successful invocation response"
+                    }
+                }
+            }
+        }
+    },
+    "x-ibm-configuration": {
+        "assembly": {
+            "execute": []
+        },
+        "cors": {
+            "enabled": true
+        }
+    }
+}

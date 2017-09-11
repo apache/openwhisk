@@ -18,6 +18,7 @@
   with_items:
         - "{{ nginx.ssl.cert }}"
         - "{{ nginx.ssl.key }}"
+        - "{{ nginx.ssl.client_ca_cert }}"
 
 - name: copy password files for cert from local to remote in nginx config directory
   copy:
@@ -34,7 +35,8 @@
 
 - name: "pull the nginx:{{ nginx.version }} image"
   shell: "docker pull nginx:{{ nginx.version }}"
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: (re)start nginx
   docker_container:

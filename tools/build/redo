@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 #
-# Copyright 2015-2016 IBM Corporation
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -238,10 +239,6 @@ Components = [
                   'teardown all deployed containers',
                   yaml = 'teardown.yml'),
 
-    makeComponent('consul',
-                  'build/deploy consul (includes registrator)',
-                  modes = 'clean'),
-
     makeComponent('kafka',
                   'build/deploy kafka',
                   modes = 'clean'),
@@ -300,6 +297,11 @@ Components = [
                   'build java action container',
                   yaml = False,
                   gradle = 'core:javaAction'),
+
+    makeComponent('action-php-v7.1',
+                  'build PHP v7.1 action container',
+                  yaml = False,
+                  gradle = 'core:php7.1Action'),
 
     makeComponent('dockersdk',
                   'build docker action SDK (to deploy, use edge component)',

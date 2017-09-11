@@ -27,12 +27,12 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.junit.JUnitRunner
 
 import com.jayway.restassured.RestAssured
+import com.jayway.restassured.response.Header
 
 import common.TestHelpers
 import common.TestUtils
 import common.WhiskProperties
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -86,11 +86,10 @@ class WskWebActionsTestsV2 extends WskWebActionsTests with BeforeAndAfterAll {
     "vanity subdomain" should "access a web action via namespace subdomain" in withAssetCleaner(wskPropsForSubdomainTest) {
         (wp, assetHelper) =>
             val actionName = "webaction"
-
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+
             assetHelper.withCleaner(wsk.action, actionName) {
-                (action, _) =>
-                    action.create(actionName, file, web = Some(true.toString))(wp)
+                (action, _) => action.create(actionName, file, web = Some(true.toString))(wp)
             }
 
             val url = getServiceApiHost(vanitySubdomain, true) + s"/default/$actionName.text/a?a=A"
@@ -133,7 +132,7 @@ trait WskWebActionsTests
 
     val wsk = new Wsk
     private implicit val wskprops = WskProps()
-    val namespace = WskAdmin.getUser(wskprops.authKey)._2
+    val namespace = wsk.namespace.whois()
 
     protected val testRoutePath: String
 
@@ -146,15 +145,14 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val host = getServiceURL()
+            val requestPath = host + s"$testRoutePath/$namespace/default/$name.text/a?a="
+            val padAmount = MAX_URL_LENGTH - requestPath.length
 
             assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
-            val host = getServiceURL()
-            val requestPath = host + s"$testRoutePath/$namespace/default/webaction.text/a?a="
-            val padAmount = MAX_URL_LENGTH - requestPath.length
             Seq(("A", 200),
                 ("A" * padAmount, 200),
                 // ideally the bad case is just +1 but there's some differences
@@ -185,17 +183,16 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
+            val host = getServiceURL()
+            val url = if (testRoutePath == "/api/v1/experimental/web") {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_meta_namespace"
+            } else {
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_user"
+            }
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, web = Some("true"), annotations = Map("require-whisk-auth" -> true.toJson))
-            }
-
-            val host = getServiceURL()
-            val url = if (testRoutePath == "/api/v1/experimental/web") {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_namespace"
-            } else {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_user"
             }
 
             val unauthorizedResponse = RestAssured.given().config(sslconfig).get(url)
@@ -215,19 +212,47 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
                     action.create(name, file, web = Some("true"), annotations = Map("web-custom-options" -> true.toJson))
             }
 
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
-
             val response = RestAssured.given().config(sslconfig).options(url)
+
             response.statusCode shouldBe 200
             response.header("Access-Control-Allow-Origin") shouldBe "Origin set from Web Action"
+            response.header("Access-Control-Allow-Methods") shouldBe "Methods set from Web Action"
             response.header("Access-Control-Allow-Headers") shouldBe "Headers set from Web Action"
+            response.header("Location") shouldBe "openwhisk.org"
+            response.header("Set-Cookie") shouldBe "cookie-cookie-cookie"
+    }
+
+    it should "ensure that default CORS header is preserved" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("corsHeaderMod.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/$name"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"))
+            }
+
+            val responses = Seq(
+                RestAssured.given().config(sslconfig).options(s"$url.http"),
+                RestAssured.given().config(sslconfig).get(s"$url.json"))
+
+            responses.foreach { response =>
+                response.statusCode shouldBe 200
+                response.header("Access-Control-Allow-Origin") shouldBe "*"
+                response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                response.header("Access-Control-Allow-Headers") shouldBe "Authorization, Content-Type"
+                response.header("Location") shouldBe null
+                response.header("Set-Cookie") shouldBe null
+            }
     }
 
     it should "invoke web action to ensure the returned body argument is correct" in withAssetCleaner(wskprops) {
@@ -235,17 +260,15 @@ trait WskWebActionsTests
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("echo.js"))
             val bodyContent = "This is the body"
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, web = Some("true"))
-            }
-
             val host = getServiceURL()
             val url = if (testRoutePath == "/api/v1/experimental/web") {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_meta_body"
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_meta_body"
             } else {
-                s"$host$testRoutePath/$namespace/default/webaction.text/__ow_body"
+                s"$host$testRoutePath/$namespace/default/$name.text/__ow_body"
+            }
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"))
             }
 
             val paramRes = RestAssured.given().contentType("text/html").param("key", "value").config(sslconfig).post(url)
@@ -261,16 +284,56 @@ trait WskWebActionsTests
         (wp, assetHelper) =>
             val name = "webaction"
             val file = Some(TestUtils.getTestActionFilename("textBody.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) => action.create(name, file, web = Some("true"))
+            }
+
+            val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
+            response.statusCode shouldBe 406
+            response.body.asString should include("Resource representation is only available with these types:\\ntext/html")
+    }
+
+    it should "support multiple response header values" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "webaction"
+            val file = Some(TestUtils.getTestActionFilename("multipleHeaders.js"))
+            val host = getServiceURL()
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
 
             assetHelper.withCleaner(wsk.action, name) {
                 (action, _) =>
-                    action.create(name, file, web = Some("true"))
+                    action.create(name, file, web = Some("true"), annotations = Map("web-custom-options" -> true.toJson))
             }
 
-            val host = getServiceURL()
-            val url = host + s"$testRoutePath/$namespace/default/webaction.http"
-            val response = RestAssured.given().header("accept", "application/json").config(sslconfig).get(url)
-            response.statusCode shouldBe 406
-            response.body.asString should include("Resource representation is only available with these Content-Types:\\ntext/html")
+            val response = RestAssured.given().config(sslconfig).options(url)
+
+            response.statusCode shouldBe 200
+            val cookieHeaders = response.headers.getList("Set-Cookie")
+            cookieHeaders should contain allOf (
+                new Header("Set-Cookie", "a=b"),
+                new Header("Set-Cookie", "c=d")
+            )
+    }
+
+    it should "handle http web action with base64 encoded response" in withAssetCleaner(wskprops) {
+        (wp, assetHelper) =>
+            val name = "base64Web"
+            val file = Some(TestUtils.getTestActionFilename("base64Web.js"))
+            val host = getServiceURL
+            val url = host + s"$testRoutePath/$namespace/default/$name.http"
+
+            assetHelper.withCleaner(wsk.action, name) {
+                (action, _) =>
+                    action.create(name, file, web = Some("raw"))
+            }
+
+            val response = RestAssured.given().config(sslconfig).get(url)
+
+            response.statusCode shouldBe 200
+            response.header("Content-type") shouldBe "application/json"
+            response.body.asString.parseJson.asJsObject shouldBe JsObject("status" -> "success".toJson)
     }
 }

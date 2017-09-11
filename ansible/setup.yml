@@ -30,7 +30,10 @@
     local_action: template src="db_local.ini.j2" dest="{{ playbook_dir }}/db_local.ini"
     when: not db.stat.exists
 
-  - name: gen untrusted certificate for host
-    local_action: shell "{{ playbook_dir }}/roles/nginx/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}"
-    when: nginx.ssl.cert == "openwhisk-cert.pem"
+  - name: gen untrusted server certificate for host
+    local_action: shell "{{ playbook_dir }}/roles/nginx/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}" "server"
+    when: nginx.ssl.cert == "openwhisk-server-cert.pem"
     
+  - name: gen untrusted client certificate for host
+    local_action: shell "{{ playbook_dir }}/roles/nginx/files/genssl.sh" "*.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}" "client"
+    when: nginx.ssl.client_ca_cert == "openwhisk-client-ca-cert.pem"

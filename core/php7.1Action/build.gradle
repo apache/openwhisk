@@ -1,0 +1,2 @@
+ext.dockerImageName = 'action-php-v7.1'
+apply from: '../../gradle/docker.gradle'

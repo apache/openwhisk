@@ -35,9 +35,7 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.Wsk
-import common.WskAdmin
 import common.WskProps
-import common.WskPropsV2
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -57,7 +55,7 @@ class ApiGwEndToEndTests
 
     implicit val wskprops = WskProps()
     val wsk = new Wsk
-    val (cliuser, clinamespace) = WskAdmin.getUser(wskprops.authKey)
+    val clinamespace = wsk.namespace.whois()
 
     // Custom CLI properties file
     val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
@@ -67,79 +65,9 @@ class ApiGwEndToEndTests
      */
     override def beforeAll() = {
         cliWskPropsFile.deleteOnExit()
-        val wskprops = WskPropsV2(token = "SOME TOKEN")
+        val wskprops = WskProps(token = "SOME TOKEN")
         wskprops.writeFile(cliWskPropsFile)
         println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
-    }
-
-    behavior of "Wsk api-experimental"
-
-    it should s"create an API and successfully invoke that API" in {
-        val testName = "APIGWe_HEALTHTEST1"
-        val testbasepath = "/" + testName + "_bp"
-        val testrelpath = "/path"
-        val testurlop = "get"
-        val testapiname = testName + " API Name"
-        val actionName = testName + "_echo"
-        val urlqueryparam = "name"
-        val urlqueryvalue = "test"
-
-        try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
-
-            // Create the action for the API
-            val file = TestUtils.getTestActionFilename(s"echo.js")
-            wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT)
-
-            // Create the API
-            var rr = wsk.apiexperimental.create(basepath = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop), action = Some(actionName), apiname = Some(testapiname))
-            rr.stdout should include("ok: created API")
-            val apiurl = rr.stdout.split("\n")(1)
-            println(s"apiurl: '${apiurl}'")
-
-            // Validate the API was successfully created
-            // List result will look like:
-            // ok: APIs
-            // Action                            Verb             API Name  URL
-            // /_//whisk.system/utils/echo          get  APIGW_HEALTHTEST1 API Name  http://172.17.0.1:9001/api/ab9082cd-ea8e-465a-8a65-b491725cc4ef/APIGW_HEALTHTEST1_bp/path
-            rr = wsk.apiexperimental.list(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-            rr.stdout should include("ok: APIs")
-            rr.stdout should include regex (s"${actionName}\\s+${testurlop}\\s+${testapiname}\\s+")
-            rr.stdout should include(testbasepath + testrelpath)
-
-            // Recreate the API using a JSON swagger file
-            rr = wsk.apiexperimental.get(basepathOrApiName = Some(testbasepath))
-            val swaggerfile = File.createTempFile("api", ".json")
-            swaggerfile.deleteOnExit()
-            val bw = new BufferedWriter(new FileWriter(swaggerfile))
-            bw.write(rr.stdout)
-            bw.close()
-
-            // Delete API to that it can be recreated again using the generated swagger file
-            val deleteApiResult = wsk.apiexperimental.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-
-            // Create the API again, but use the swagger file this time
-            rr = wsk.apiexperimental.create(swagger = Some(swaggerfile.getAbsolutePath()))
-            rr.stdout should include("ok: created API")
-            val swaggerapiurl = rr.stdout.split("\n")(1)
-            println(s"apiurl: '${swaggerapiurl}'")
-
-            // Call the API URL and validate the results
-            val response = whisk.utils.retry({
-                val response = RestAssured.given().config(sslconfig).get(s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue")
-                response.statusCode should be(200)
-                response
-            }, 5, Some(1.second))
-            val responseString = response.body.asString
-            println("URL invocation response: " + responseString)
-            responseString.parseJson.asJsObject.fields(urlqueryparam).convertTo[String] should be(urlqueryvalue)
-
-        } finally {
-            println("Deleting action: " + actionName)
-            val finallydeleteActionResult = wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
-            println("Deleting API: " + testbasepath)
-            val finallydeleteApiResult = wsk.apiexperimental.delete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
-        }
     }
 
     behavior of "Wsk api"
@@ -152,10 +80,10 @@ class ApiGwEndToEndTests
         val testapiname = testName + " API Name"
         val actionName = testName + "_echo"
         val urlqueryparam = "name"
-        val urlqueryvalue = "test"
+        val urlqueryvalue = testName
 
         try {
-            println("cli user: " + cliuser + "; cli namespace: " + clinamespace)
+            println("cli namespace: " + clinamespace)
 
             // Create the action for the API.  It must be a "web-action" action.
             val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
@@ -215,14 +143,21 @@ class ApiGwEndToEndTests
             )
             rr.stdout should include("ok: created API")
             val swaggerapiurl = rr.stdout.split("\n")(1)
-            println(s"apiurl: '${swaggerapiurl}'")
+            println(s"Returned api url: '${swaggerapiurl}'")
 
             // Call the API URL and validate the results
+            val start = java.lang.System.currentTimeMillis
+            val apiToInvoke = s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue&guid=$start"
+            println(s"Invoking: '${apiToInvoke}'")
             val response = whisk.utils.retry({
-                val response = RestAssured.given().config(sslconfig).get(s"$swaggerapiurl?$urlqueryparam=$urlqueryvalue")
+                val response = RestAssured.given().config(sslconfig).get(s"$apiToInvoke")
+                println("URL invocation response status: " + response.statusCode)
                 response.statusCode should be(200)
                 response
-            }, 5, Some(1.second))
+            }, 6, Some(2.second))
+            val end = java.lang.System.currentTimeMillis
+            val elapsed = end - start
+            println("Elapsed time (milliseconds) for a successful response: " + elapsed)
             val responseString = response.body.asString
             println("URL invocation response: " + responseString)
             responseString.parseJson.asJsObject.fields(urlqueryparam).convertTo[String] should be(urlqueryvalue)

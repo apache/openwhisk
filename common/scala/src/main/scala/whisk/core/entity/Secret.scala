@@ -42,6 +42,9 @@ protected[core] object Secret extends ArgNormalizer[Secret] {
     /** Minimum secret length */
     private val MIN_LENGTH = 64
 
+    /** Maximum secret length */
+    private val MAX_LENGTH = 64
+
     /**
      * Creates a Secret from a string. The string must be a valid secret already.
      *
@@ -52,6 +55,7 @@ protected[core] object Secret extends ArgNormalizer[Secret] {
     @throws[IllegalArgumentException]
     override protected[entity] def factory(str: String): Secret = {
         require(str.length >= MIN_LENGTH, s"secret must be at least $MIN_LENGTH characters")
+        require(str.length <= MAX_LENGTH, s"secret must be at most $MAX_LENGTH characters")
         new Secret(str)
     }
 

@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +29,21 @@ import (
     "../wski18n"
 )
 
+// Sortable items are anything that needs to be sorted for listing purposes.
+type Sortable interface {
+    // Compare(sortable) compares an two sortables and returns true
+    //      if the item calling the Compare method is less than toBeCompared.
+    //      Sorts alphabetically by default, can have other parameters to sort by
+    //      passed by sortByName.
+    Compare(toBeCompared Sortable) (bool)
+}
+
+// Printable items are anything that need to be printed for listing purposes.
+type Printable interface {
+    ToHeaderString() string   // Prints header information of a Printable
+    ToSummaryRowString() string     // Prints summary info of one Printable
+}
+
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
 // must be a struct whose fields may contain "url" tags.
 func addRouteOptions(route string, options interface{}) (*url.URL, error) {
@@ -37,7 +53,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"url.Parse(%s) error: %s\n", route, err)
         errStr := wski18n.T("Unable to parse URL '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -51,7 +67,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"query.Values(%#v) error: %s\n", options, err)
         errStr := wski18n.T("Unable to process URL query options '{{.options}}': {{.err}}",
             map[string]interface{}{"options": fmt.Sprintf("%#v", options), "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -60,7 +76,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
     return u, nil
 }
 
-func printJSON(v interface{}) {
+func PrintJSON(v interface{}) {
     output, _ := prettyjson.Marshal(v)
     fmt.Fprintln(color.Output, string(output))
 }

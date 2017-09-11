@@ -26,7 +26,7 @@ import org.scalatest.junit.JUnitRunner
  * Basic tests of API calls for actions
  */
 @RunWith(classOf[JUnitRunner])
-class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema {
+class JsonSchemaTests extends FlatSpec with Matchers with JsonSchema with RestUtil {
 
     def TEST_SCHEMA = """{
       "type" : "object",

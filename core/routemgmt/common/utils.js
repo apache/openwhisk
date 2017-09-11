@@ -1,25 +1,27 @@
-/**
- * Copyright 2015-2016 IBM Corporation
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+/**
  * Route management action common utilities
- *
- **/
+ */
 var request = require('request');
 var utils2 = require('./apigw-utils.js');
 
-/*
+/**
  * Register a tenant with the API GW.
  * A new tenant is created for each unique namespace/tenantinstance.  If the
  * tenant already exists, the tenant is left as-is
@@ -35,6 +37,7 @@ var utils2 = require('./apigw-utils.js');
 function createTenant(gwInfo, namespace, tenantInstance) {
   var instance = tenantInstance || 'openwhisk';  // Default to a fixed instance so all openwhisk tenants have a common instance
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants',
     headers: {
       'Accept': 'application/json'
@@ -91,6 +94,7 @@ function getTenants(gwInfo, ns, tenantInstance) {
   var qs = qsNsOnly;
   if (tenantInstance) qs = qsNsAndInstance;
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants',
     qs: qs,
     headers: {
@@ -172,6 +176,7 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
   gwApi.tenantId = tenantId;
 
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/apis',
     headers: {
       'Accept': 'application/json'
@@ -230,6 +235,7 @@ function addApiToGateway(gwInfo, tenantId, swaggerApi, gwApiId) {
  */
 function deleteApiFromGateway(gwInfo, gwApiId) {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/apis/'+gwApiId,
     agentOptions: {rejectUnauthorized: false},
     headers: {
@@ -266,7 +272,7 @@ function deleteApiFromGateway(gwInfo, gwApiId) {
   });
 }
 
-/*
+/**
  * Return an array of APIs
  */
 function getApis(gwInfo, tenantId, bpOrApiName) {
@@ -283,6 +289,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
     }
   }
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/tenants/'+tenantId+'/apis',
     headers: {
       'Accept': 'application/json'
@@ -336,7 +343,7 @@ function getApis(gwInfo, tenantId, bpOrApiName) {
   });
 }
 
-/*
+/**
  * Convert API object array into specified format
  * Parameters:
  *  apis    : array of 0 or more APIs
@@ -366,7 +373,7 @@ function transformApis(apis, format) {
   return apisOutput;
 }
 
-/*
+/**
  * Convert API object into swagger JSON format
  * Parameters:
  *  gwApi  : API object as returned from the API Gateway
@@ -426,7 +433,7 @@ function generateSwaggerApiFromGwApi(gwApi) {
   return swaggerApi;
 }
 
-/*
+/**
  * Create a base swagger API object containing the API basepath, but no endpoints
  * Parameters:
  *   basepath   - Required. API basepath
@@ -447,7 +454,7 @@ function generateBaseSwaggerApi(basepath, apiname) {
   return swaggerApi;
 }
 
-/*
+/**
  * Take an API in JSON swagger format and create an API GW compatible
  * API configuration JSON object
  * Parameters:
@@ -476,7 +483,7 @@ function generateGwApiFromSwaggerApi(swaggerApi) {
   return gwApi;
 }
 
-/*
+/**
  * Take an existing API in JSON swagger format, and update it with a single path/operation.
  * The addition can be an entirely new path or a new operation under an existing path.
  * Parameters:
@@ -579,7 +586,7 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint) {
   return swaggerApi;
 }
 
-/*
+/**
  * Update an existing DB API document by removing the specified relpath/operation section.
  *   swaggerApi - API from which to remove the specified endpoint.  This object will be updated.
  *   endpoint   - JSON object describing new path/operation.  Required fields
@@ -632,7 +639,8 @@ function confidentialPrint(str) {
     return printStr;
 }
 
-/* Create the CLI response payload from an array of GW API objects
+/**
+ * Create the CLI response payload from an array of GW API objects
  * Parameters:
  *  gwApis    - Array of JSON GW API objects
  * Returns:
@@ -651,7 +659,8 @@ function generateCliResponse(gwApis) {
   return respApis;
 }
 
-/* Use the specified GW API object to create an API JSON object in for format the CLI expects.
+/**
+ * Use the specified GW API object to create an API JSON object in for format the CLI expects.
  * Parameters:
  *  gwApi      - JSON GW API object
  * Returns:

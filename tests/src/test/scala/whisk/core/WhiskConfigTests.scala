@@ -21,23 +21,17 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
 import common.StreamLogging
-import common.WskActorSystem
-import whisk.common.ConsulClient
 
 @RunWith(classOf[JUnitRunner])
 class WhiskConfigTests
     extends FlatSpec
     with Matchers
-    with WskActorSystem
     with StreamLogging {
 
     behavior of "WhiskConfig"
@@ -97,21 +91,4 @@ class WhiskConfigTests
         println(s"${WhiskConfig.dockerRegistry} is: '${config.dockerRegistry}'")
         assert(config.isValid)
     }
-
-    it should "read properties from consulserver" in {
-        val tester = new WhiskConfig(WhiskConfig.consulServer);
-        val consul = new ConsulClient(tester.consulServer)
-
-        val key = "whiskprops/CONSUL_TEST_CASE"
-        Await.result(consul.kv.put(key, "thiswastested"), 10.seconds)
-
-        // set optional value which will not be available in environment, it should still be read from consul
-        val config = new WhiskConfig(WhiskConfig.consulServer ++ Map("consul.test.case" -> null), Set("consul.test.case"))
-
-        assert(config.isValid)
-        assert(config("consul.test.case").equals("thiswastested"))
-
-        consul.kv.del(key)
-    }
-
 }

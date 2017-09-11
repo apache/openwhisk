@@ -2,7 +2,7 @@
 
 OpenWhisk offers a powerful command line interface that allows complete management of all aspects of the system.
 
-## Setting up the OpenWhisk CLI 
+## Setting up the OpenWhisk CLI
 
 - Building OpenWhisk from a cloned repository results in the generation of the command line interface. The generated CLIs are located in `openwhisk/bin/`. The main CLI is located in `openwhisk/bin/wsk` that runs on the operating system, and CPU architecture on which it was built. Executables for other operating system, and CPU architectures are located in the following directories: `openwhisk/bin/mac/`, `openwhisk/bin/linux/`, `openwhisk/bin/windows/`.
 
@@ -38,6 +38,35 @@ you can run the following command from your `openwhisk` directory:
 
 To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
 
+### Configure command completion for Openwhisk CLI
+
+For bash command completion to work, bash 4.1 or newer is required. The most recent Linux distributions should have the correct version of bash but Mac users will most likely have an older version.
+Mac users can check their bash version and update it by running the following commands:
+
+```
+bash --version
+brew install bash-completion
+```
+
+To download the bash command completion to your local directory, run the following command:
+
+```
+wsk sdk install bashauto
+```
+The command script `wsk_cli_bash_completion.sh` will now be in your current directory. To enable command line completion of wsk commands, source the auto completion script into your bash environment.
+
+```
+source wsk_cli_bash_completion.sh
+```
+
+Alternatively, to install bash command completion, run the following command:
+
+```
+eval "`wsk sdk install bashauto --stdout`"
+```
+
+**Note:** Every time a new terminal is opened, this command must run to enable bash command completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.
+
 ## Using the OpenWhisk CLI
 
 After you have configured your environment, you can begin using the OpenWhisk CLI to do the following:
@@ -52,3 +81,11 @@ After you have configured your environment, you can begin using the OpenWhisk CL
 The CLI can be setup to use an HTTPS proxy. To setup an HTTPS proxy, an environment variable called `HTTPS_PROXY` must be created. The variable must be set to the address of the HTTPS proxy, and its port using the following format:
 `{PROXY IP}:{PROXY PORT}`.
 
+## Configure the CLI to use client certificate
+The CLI has an extra level of security from client to apihost, system provides default client certificate configuration which deployment process generated, then you can refer to below steps to use client certificate:
+* The client certificate verification is off default, you can configure `nginx_ssl_verify_client` to `on` or `optional` to open it for your corresponding environment configuration.
+* Create your own client certificate instead of system provides if you want, after created, you can configure `openwhisk_client_ca_cert` to your own ca cert path for your corresponding environment configuration.
+* Run the follwing command to pass client certificate:
+```
+./bin/wsk property set --cert <client_cert_path> --key <client_key_path>
+```

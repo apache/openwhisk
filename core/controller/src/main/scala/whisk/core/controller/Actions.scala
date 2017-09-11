@@ -20,33 +20,37 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 import org.apache.kafka.common.errors.RecordTooLargeException
 
 import akka.actor.ActorSystem
-import spray.http.HttpMethod
-import spray.http.HttpMethods._
-import spray.http.StatusCodes._
-import spray.httpx.SprayJsonSupport._
-import spray.httpx.unmarshalling._
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.RequestContext
+import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.unmarshalling._
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.routing.RequestContext
+
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement._
-import whisk.core.entitlement.Privilege._
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 import whisk.http.Messages._
+import whisk.core.entitlement.Resource
+import whisk.core.entitlement.Collection
+import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Privilege._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -82,6 +86,8 @@ trait WhiskActionsApi
 
     /** Database service to get activations. */
     protected val activationStore: ActivationStore
+
+    import RestApiCommons.emptyEntityToJsObject
 
     /**
      * Handles operations on action resources, which encompass these cases:
@@ -133,24 +139,19 @@ trait WhiskActionsApi
                         // matched /namespace/collection/package-name/action-name
                         // this is an action in a named package
                         val packageDocId = FullyQualifiedEntityName(ns, EntityName(outername)).toDocId
-                        val packageResource = Resource(ns, Collection(Collection.PACKAGES), Some(outername))
+                        val packageResource = Resource(ns.addPath(EntityName(outername)), collection, Some(innername))
 
-                        val right = if (m == GET || m == POST) Privilege.READ else collection.determineRight(m, Some(innername))
+                        val right = collection.determineRight(m, Some(innername))
                         onComplete(entitlementProvider.check(user, right, packageResource)) {
                             case Success(_) =>
                                 getEntity(WhiskPackage, entityStore, packageDocId, Some {
-                                    if (right == Privilege.READ) {
+                                    if (right == Privilege.READ || right == Privilege.ACTIVATE) {
                                         // need to merge package with action, hence authorize subject for package
                                         // access (if binding, then subject must be authorized for both the binding
                                         // and the referenced package)
                                         //
                                         // NOTE: it is an error if either the package or the action does not exist,
                                         // the former manifests as unauthorized and the latter as not found
-                                        //
-                                        // a GET (READ) and POST (ACTIVATE) resolve to a READ right on the package;
-                                        // it may be desirable to separate these but currently the PACKAGES collection
-                                        // does not allow ACTIVATE since it does not make sense to activate a package
-                                        // but rather an action in the package
                                         mergeActionWithPackageAndDispatch(m, user, EntityName(innername)) _
                                     } else {
                                         // these packaged action operations do not need merging with the package,
@@ -214,7 +215,7 @@ trait WhiskActionsApi
      * - 500 Internal Server Error
      */
     override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(implicit transid: TransactionId) = {
-        parameter('blocking ? false, 'result ? false, 'timeout ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
+        parameter('blocking ? false, 'result ? false, 'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
             entity(as[Option[JsObject]]) { payload =>
                 getEntity(WhiskAction, entityStore, entityName.toDocId, Some {
                     act: WhiskAction =>
@@ -505,7 +506,7 @@ trait WhiskActionsApi
      * namespace.
      */
     private def mergeActionWithPackageAndDispatch(method: HttpMethod, user: Identity, action: EntityName, ref: Option[WhiskPackage] = None)(wp: WhiskPackage)(
-        implicit transid: TransactionId): RequestContext => Unit = {
+        implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
         wp.binding map {
             case b: Binding =>
                 val docid = b.fullyQualifiedName.toDocId
@@ -622,18 +623,16 @@ trait WhiskActionsApi
         Parameters(WhiskAction.execFieldName, exec.kind)
     }
 
-    /** Max atomic action count allowed for sequences */
+    /** Max atomic action count allowed for sequences. */
     private lazy val actionSequenceLimit = whiskConfig.actionSequenceLimit.toInt
 
-    /** Custom deserializer for timeout query parameter. */
-    private implicit val stringToTimeoutDeserializer = new FromStringDeserializer[FiniteDuration] {
-        val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
-        def apply(msecs: String): Either[DeserializationError, FiniteDuration] = {
-            Try { msecs.toInt } match {
-                case Success(i) if i > 0 && i <= max => Right(i.milliseconds)
-                case _ => Left {
-                    MalformedContent(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
-                }
+    implicit val stringToFiniteDuration: Unmarshaller[String, FiniteDuration] = {
+        Unmarshaller.strict[String, FiniteDuration] { value =>
+            val max = WhiskActionsApi.maxWaitForBlockingActivation.toMillis
+
+            Try { value.toInt } match {
+                case Success(i) if i > 0 && i <= max => i.milliseconds
+                case _                               => throw new IllegalArgumentException(Messages.invalidTimeout(WhiskActionsApi.maxWaitForBlockingActivation))
             }
         }
     }

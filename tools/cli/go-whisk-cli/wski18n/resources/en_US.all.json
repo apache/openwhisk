@@ -221,8 +221,8 @@
     "translation": "package visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "summarize package details",
-    "translation": "summarize package details"
+    "id": "summarize package details; parameters with prefix \"*\" are bound",
+    "translation": "summarize package details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "include publicly shared entities in the result",
@@ -251,6 +251,14 @@
   {
     "id": "Unable to set the property value: {{.err}}",
     "translation": "Unable to set the property value: {{.err}}"
+  },
+  {
+    "id": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n",
+    "translation": "{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n"
+  },
+  {
+    "id": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n",
+    "translation": "{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n"
   },
   {
     "id": "{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
@@ -293,6 +301,14 @@
     "translation": "Unable to unset the property value: {{.err}}"
   },
   {
+    "id": "{{.ok}} client cert unset.\n",
+    "translation": "{{.ok}} client cert unset.\n"
+  },
+  {
+    "id": "{{.ok}} client key unset.\n",
+    "translation": "{{.ok}} client key unset.\n"
+  },
+  {
     "id": "{{.ok}} whisk auth unset.\n",
     "translation": "{{.ok}} whisk auth unset.\n"
   },
@@ -319,6 +335,14 @@
   {
     "id": "get property",
     "translation": "get property"
+  },
+  {
+    "id": "client cert",
+    "translation": "client cert"
+  },
+  {
+    "id": "client key",
+    "translation": "client key"
   },
   {
     "id": "whisk auth",
@@ -379,6 +403,10 @@
   {
     "id": "Unable to read the properties file '{{.filename}}': {{.err}}",
     "translation": "Unable to read the properties file '{{.filename}}': {{.err}}"
+  },
+  {
+    "id": "Unable to access configuration properties: {{.err}}",
+    "translation": "Unable to access configuration properties: {{.err}}"
   },
   {
     "id": "Invalid host address '{{.host}}': {{.err}}",
@@ -672,8 +700,8 @@
     "translation": "trigger feed `ACTION_NAME`"
   },
   {
-    "id": "summarize trigger details",
-    "translation": "summarize trigger details"
+    "id": "summarize trigger details; parameters with prefix \"*\" are bound",
+    "translation": "summarize trigger details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "parameter values in `KEY VALUE` format",
@@ -924,8 +952,8 @@
     "translation": "only return `LIMIT` number of actions from the collection"
   },
   {
-    "id": "summarize action details",
-    "translation": "summarize action details"
+    "id": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized",
+    "translation": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"
   },
   {
     "id": "work with activations",
@@ -948,6 +976,10 @@
     "translation": "get activation"
   },
   {
+    "id": "Unable to get activation: {{.err}}",
+    "translation": "Unable to get activation: {{.err}}"
+  },
+  {
     "id": "Unable to get activation '{{.id}}': {{.err}}",
     "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
@@ -964,8 +996,16 @@
     "translation": "get the logs of an activation"
   },
   {
+    "id": "Unable to get logs for activation: {{.err}}",
+    "translation": "Unable to get logs for activation: {{.err}}"
+  },
+  {
     "id": "Unable to get logs for activation '{{.id}}': {{.err}}",
     "translation": "Unable to get logs for activation '{{.id}}': {{.err}}"
+  },
+  {
+    "id": "Unable to get result for activation: {{.err}}",
+    "translation": "Unable to get result for activation: {{.err}}"
   },
   {
     "id": "Unable to get result for activation '{{.id}}': {{.err}}",
@@ -992,12 +1032,16 @@
     "translation": "\nActivation: {{.name}} ({{.id}})\n"
   },
   {
+    "id": "Activation list does not contain any activations.",
+    "translation": "Activation list does not contain any activations."
+  },
+  {
     "id": "exclude the first `SKIP` number of activations from the result",
     "translation": "exclude the first `SKIP` number of activations from the result"
   },
   {
-    "id": "only return `LIMIT` number of activations from the collection",
-    "translation": "only return `LIMIT` number of activations from the collection"
+    "id": "only return `LIMIT` number of activations from the collection with a maximum LIMIT of {{.max}} activations",
+    "translation": "only return `LIMIT` number of activations from the collection with a maximum LIMIT of {{.max}} activations"
   },
   {
     "id": "include full activation description",
@@ -1014,6 +1058,10 @@
   {
     "id": "summarize activation details",
     "translation": "summarize activation details"
+  },
+  {
+    "id": "retrieves the last activation",
+    "translation": "retrieves the last activation"
   },
   {
     "id": "stop polling after `SECONDS` seconds",
@@ -1188,6 +1236,10 @@
     "translation": "{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n"
   },
   {
+    "id": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n",
+    "translation": "{{.ok}} created API {{.path}} {{.verb}}\n{{.fullpath}}\n"
+  },
+  {
     "id": "Unable to parse api command arguments: {{.err}}",
     "translation": "Unable to parse api command arguments: {{.err}}"
   },
@@ -1246,18 +1298,6 @@
   {
     "id": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
     "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
-  },
-  {
-    "id": "`ACTION` to invoke when API is called",
-    "translation": "`ACTION` to invoke when API is called"
-  },
-  {
-    "id": "relative `API_PATH` of API",
-    "translation": "relative `API_PATH` of API"
-  },
-  {
-    "id": "API `API_VERB`",
-    "translation": "API `API_VERB`"
   },
   {
     "id": "API collection `NAME` (default NAMESPACE)",
@@ -1360,8 +1400,8 @@
     "translation": "display full description of each API"
   },
   {
-    "id": "An API host must be provided.",
-    "translation": "An API host must be provided."
+    "id": "order API list by action name first followed by base-path/rel-path/verb",
+    "translation": "order API list by action name first followed by base-path/rel-path/verb."
   },
   {
     "id": "Request accepted, but processing not completed yet.",
@@ -1380,12 +1420,8 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "API action '{{.name}}' does not exist",
-    "translation": "API action '{{.name}}' does not exist"
-  },
-  {
-    "id": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
-    "translation": "API action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
+    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",
@@ -1466,5 +1502,24 @@
   {
     "id": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE.",
     "translation": "An entity name, '{{.name}}', was provided instead of a namespace. Valid namespaces are of the following format: /NAMESPACE."
-  }
-]
+  },
+  {
+    "id": "get action url",
+    "translation": "get action url"
+  },
+  {
+    "id": "Unable to output bash command completion {{.err}}",
+    "translation": "Unable to output bash command completion {{.err}}"
+  },
+  {
+    "id": "prints bash command completion script to stdout",
+    "translation": "prints bash command completion script to stdout"
+  },
+  {
+    "id": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"
+  },
+  {
+    "id": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block"
+  }]

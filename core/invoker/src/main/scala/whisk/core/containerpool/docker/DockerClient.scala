@@ -31,6 +31,7 @@ import akka.event.Logging.ErrorLevel
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import scala.collection.concurrent.TrieMap
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -86,8 +87,16 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
         runCmd(cmd: _*).map(_.lines.toSeq.map(ContainerId.apply))
     }
 
+    /**
+     * Stores pulls that are currently being executed and collapses multiple
+     * pulls into just one. After a pull is finished, the cached future is removed
+     * to enable constant updates of an image without changing its tag.
+     */
+    private val pullsInFlight = TrieMap[String, Future[Unit]]()
     def pull(image: String)(implicit transid: TransactionId): Future[Unit] =
-        runCmd("pull", image).map(_ => ())
+        pullsInFlight.getOrElseUpdate(image, {
+            runCmd("pull", image).map(_ => pullsInFlight.remove(image))
+        })
 
     private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
         val cmd = dockerCmd ++ args

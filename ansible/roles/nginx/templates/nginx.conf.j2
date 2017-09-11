@@ -45,7 +45,8 @@ http {
         {% if nginx.ssl.password_enabled %}
         ssl_password_file   "/etc/nginx/{{ nginx.ssl.password_file }}";
         {% endif %}
-        ssl_verify_client off;
+        ssl_client_certificate /etc/nginx/{{ nginx.ssl.client_ca_cert }};
+        ssl_verify_client {{ nginx.ssl.verify_client }};
         ssl_protocols        TLSv1 TLSv1.1 TLSv1.2;
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers on;

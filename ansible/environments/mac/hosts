@@ -14,10 +14,6 @@ ansible ansible_connection=local
 [kafka]
 172.17.0.1 ansible_connection=local
 
-; the consul_servers group has maximum 5 machines
-[consul_servers]
-172.17.0.1 ansible_connection=local
-
 [invokers]
 172.17.0.1 ansible_connection=local
 

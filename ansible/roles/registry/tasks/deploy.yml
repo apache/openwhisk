@@ -3,7 +3,8 @@
 
 - name: "pull the {{ registry.version }} image of registry"
   shell: "docker pull registry:{{ registry.version }}"
-  retries: 3
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: "create {{ registry.confdir }} on registry {{ inventory_hostname }}"
   file:

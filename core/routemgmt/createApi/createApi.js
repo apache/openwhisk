@@ -1,54 +1,56 @@
-/**
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Copyright 2015-2016 IBM Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Add a new or update an existing API configuration in the API Gateway
- * https://docs.cloudant.com/document.html#documentCreate
- *
- * Parameters (all as fields in the message JSON object)
- *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
- *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
- *   gwUser               Optional. The API Gateway authentication
- *   gwPwd                Optional. The API Gateway authentication
- *   __ow_user            Required. Namespace of API author.  Set by controller
- *                          The value overrides namespace values in the apidoc
- *                          Don't override namespace values in the swagger though
- *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
- *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
- *   spaceguid            Optional. Namespace unique id.
- *   responsetype         Optional. web action response .extension to use.  default to json
- *   apidoc               Required. The API Gateway mapping document
- *      namespace           Required.  Namespace of user/caller
- *      apiName             Optional if swagger not specified.  API descriptive name
- *      gatewayBasePath     Required if swagger not specified.  API base path
- *      gatewayPath         Required if swagger not specified.  Specific API path (relative to base path)
- *      gatewayMethod       Required if swagger not specified.  API path operation
- *      id                  Optional if swagger not specified.  Unique id of API
- *      action              Required. if swagger not specified
- *           name             Required.  Action name (includes package)
- *           namespace        Required.  Action namespace
- *           backendMethod    Required.  Action invocation REST verb.  "POST"
- *           backendUrl       Required.  Action invocation REST url
- *           authkey          Required.  Action invocation auth key
- *      swagger             Required if gatewayBasePath not provided.  API swagger JSON
- *
- * NOTE: The package containing this action will be bound to the following values:
- *         gwUrl, gwAuth
- *       As such, the caller to this action should normally avoid explicitly setting
- *       these values
- **/
+ */
+
+ /*
+  * Add a new or update an existing API configuration in the API Gateway
+  * https://docs.cloudant.com/document.html#documentCreate
+  *
+  * Parameters (all as fields in the message JSON object)
+  *   gwUrlV2              Required when accesstoken is provided. The V2 API Gateway base path (i.e. http://gw.com)
+  *   gwUrl                Required. The API Gateway base path (i.e. http://gw.com)
+  *   gwUser               Optional. The API Gateway authentication
+  *   gwPwd                Optional. The API Gateway authentication
+  *   __ow_user            Required. Namespace of API author.  Set by controller
+  *                          The value overrides namespace values in the apidoc
+  *                          Don't override namespace values in the swagger though
+  *   tenantInstance       Optional. Instance identifier used when creating the specific API GW Tenant
+  *   accesstoken          Optional. Dynamic API GW auth.  Overrides gwUser/gwPwd
+  *   spaceguid            Optional. Namespace unique id.
+  *   responsetype         Optional. web action response .extension to use.  default to json
+  *   apidoc               Required. The API Gateway mapping document
+  *      namespace           Required.  Namespace of user/caller
+  *      apiName             Optional if swagger not specified.  API descriptive name
+  *      gatewayBasePath     Required if swagger not specified.  API base path
+  *      gatewayPath         Required if swagger not specified.  Specific API path (relative to base path)
+  *      gatewayMethod       Required if swagger not specified.  API path operation
+  *      id                  Optional if swagger not specified.  Unique id of API
+  *      action              Required. if swagger not specified
+  *           name             Required.  Action name (includes package)
+  *           namespace        Required.  Action namespace
+  *           backendMethod    Required.  Action invocation REST verb.  "POST"
+  *           backendUrl       Required.  Action invocation REST url
+  *           authkey          Required.  Action invocation auth key
+  *      swagger             Required if gatewayBasePath not provided.  API swagger JSON
+  *
+  * NOTE: The package containing this action will be bound to the following values:
+  *         gwUrl, gwAuth
+  *       As such, the caller to this action should normally avoid explicitly setting
+  *       these values
+  */
 var utils = require('./utils.js');
 var utils2 = require('./apigw-utils.js');
 
@@ -56,7 +58,7 @@ function main(message) {
   //console.log('message: '+JSON.stringify(message));  // ONLY FOR TEMPORARY/LOCAL DEBUG; DON'T ENABLE PERMANENTLY
   var badArgMsg = validateArgs(message);
   if (badArgMsg) {
-    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method != undefined)));
+    return Promise.reject(utils2.makeErrorResponseObject(badArgMsg, (message.__ow_method !== undefined)));
   }
 
   var gwInfo = {
@@ -64,10 +66,16 @@ function main(message) {
   };
 
   // Replace the CLI provided namespace values with the controller provided namespace value
+  // If __ow_user is not set, the namespace values are left alone
   if (message.accesstoken) {
     utils2.updateNamespace(message.apidoc, message.__ow_user);
   } else {
     utils.updateNamespace(message.apidoc, message.__ow_user);
+  }
+
+  // Set the User-Agent header value
+  if (message.__ow_headers && message.__ow_headers['user-agent']) {
+    utils2.setSubUserAgent(message.__ow_headers['user-agent']);
   }
 
   // message.apidoc already validated; creating shortcut to it
@@ -92,7 +100,7 @@ function main(message) {
   var tenantInstance = message.tenantInstance || 'openwhisk';
 
   // This can be invoked as either a standard web action or as a normal action
-  var calledAsWebAction = message.__ow_method != undefined;
+  var calledAsWebAction = message.__ow_method !== undefined;
 
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
@@ -130,7 +138,7 @@ function main(message) {
     .then(function(endpointDocs) {
       console.log('Got '+endpointDocs.length+' APIs');
       if (endpointDocs.length === 0) {
-        console.log('No API found for namespace '+doc.namespace + ' with basePath '+ basepath)
+        console.log('No API found for namespace '+doc.namespace + ' with basePath '+ basepath);
         return Promise.resolve(utils2.generateBaseSwaggerApi(basepath, doc.apiName));
       } else {
         apiDocId = endpointDocs[0].artifact_id;
@@ -232,12 +240,12 @@ function validateArgs(message) {
     return 'Internal error.  A message parameter was not supplied.';
   }
 
-  if (!message.gwUrl) {
+  if (!message.gwUrl && !message.gwUrlV2) {
     return 'gwUrl is required.';
   }
 
   if (!message.__ow_user) {
-    return '__ow_user is required.';
+    return 'A valid auth key is required.';
   }
 
   if(!message.apidoc) {

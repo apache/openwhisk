@@ -71,12 +71,6 @@ class DatastoreTests extends FlatSpec
 
     behavior of "Datastore"
 
-    it should "CRD auth" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        putGetCheck(authstore, auth, WhiskAuth)
-    }
-
     it should "CRD action blackbox" in {
         implicit val tid = transid()
         implicit val basename = EntityName("create action blackbox")
@@ -178,14 +172,6 @@ class DatastoreTests extends FlatSpec
         }
     }
 
-    it should "update auth with a revision" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        val docinfo = putGetCheck(authstore, auth, WhiskAuth, false)._2.docinfo
-        val revAuth = auth.revoke.revision[WhiskAuth](docinfo.rev)
-        putGetCheck(authstore, revAuth, WhiskAuth)
-    }
-
     it should "update action with a revision" in {
         implicit val tid = transid()
         implicit val basename = EntityName("update action")
@@ -221,15 +207,6 @@ class DatastoreTests extends FlatSpec
         val docinfo = putGetCheck(datastore, activation, WhiskActivation, false)._2.docinfo
         val revActivation = WhiskActivation(namespace, aname, activation.subject, activation.activationId, start = Instant.now, end = Instant.now).revision[WhiskActivation](docinfo.rev)
         putGetCheck(datastore, revActivation, WhiskActivation)
-    }
-
-    it should "fail with document conflict when trying to write the same auth twice without a revision" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        putGetCheck(authstore, auth, WhiskAuth)
-        intercept[DocumentConflictException] {
-            putGetCheck(authstore, auth, WhiskAuth)
-        }
     }
 
     it should "fail with document conflict when trying to write the same action twice without a revision" in {
@@ -270,17 +247,6 @@ class DatastoreTests extends FlatSpec
         putGetCheck(datastore, activation, WhiskActivation)
         intercept[DocumentConflictException] {
             putGetCheck(datastore, activation, WhiskActivation)
-        }
-    }
-
-    it should "fail with document does not exist when trying to delete the same auth twice" in {
-        implicit val tid = transid()
-        val auth = WhiskAuth(Subject(), AuthKey())
-        val doc = putGetCheck(authstore, auth, WhiskAuth, false)._1
-        assert(Await.result(WhiskAuth.del(authstore, doc), dbOpTimeout))
-        intercept[NoDocumentException] {
-            assert(Await.result(WhiskAuth.del(authstore, doc), dbOpTimeout))
-            assert(false)
         }
     }
 

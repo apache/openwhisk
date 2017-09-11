@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,7 +43,6 @@ type Activation struct {
     Logs            []string    `json:"logs"`
     Annotations     KeyValueArr `json:"annotations"`
     Publish         *bool       `json:"publish,omitempty"`
-
 }
 
 type Response struct {
@@ -70,6 +70,26 @@ type Log struct {
     Time   string `json:"time,omitempty"`
 }
 
+// Compare(sortable) compares activation to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Activation.
+// ***Method of type Sortable***
+// ***Currently, no method of sorting defined***
+func(activation Activation) Compare(sortable Sortable) (bool) {
+    return true
+}
+
+// ToHeaderString() returns the header for a list of activations
+func(activation Activation) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "activations")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk activation list`.
+// ***Method of type Sortable***
+func(activation Activation) ToSummaryRowString() string {
+    return fmt.Sprintf("%s %-20s\n", activation.ActivationID, activation.Name)
+}
+
 func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, *http.Response, error) {
     // TODO :: for some reason /activations only works with "_" as namespace
     s.client.Namespace = "_"
@@ -79,7 +99,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errStr := wski18n.T("Unable to append options '{{.options}}' to URL route '{{.route}}': {{.err}}",
             map[string]interface{}{"options": fmt.Sprintf("%#v", options), "route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -88,7 +108,7 @@ func (s *ActivationService) List(options *ActivationListOptions) ([]Activation, 
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -119,7 +139,7 @@ func (s *ActivationService) Get(activationID string) (*Activation, *http.Respons
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -148,7 +168,7 @@ func (s *ActivationService) Logs(activationID string) (*Activation, *http.Respon
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -177,7 +197,7 @@ func (s *ActivationService) Result(activationID string) (*Response, *http.Respon
         Debug(DbgError, "http.NewRequest(GET, %s) error: '%s'\n", route, err)
         errStr := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 

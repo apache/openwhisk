@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,12 +17,13 @@
 
 package whisk
 
-const EXITCODE_ERR_GENERAL      int = 1
-const EXITCODE_ERR_USAGE        int = 2
-const EXITCODE_ERR_NETWORK      int = 3
-const EXITCODE_ERR_HTTP_RESP    int = 4
+const EXIT_CODE_ERR_GENERAL     int = 1
+const EXIT_CODE_ERR_USAGE       int = 2
+const EXIT_CODE_ERR_NETWORK     int = 3
+const EXIT_CODE_ERR_HTTP_RESP   int = 4
 const NOT_ALLOWED               int = 149
-const EXITCODE_TIMED_OUT        int = 202
+const EXIT_CODE_TIMED_OUT       int = 202
+const EXIT_CODE_NOT_FOUND       int = 148
 
 const DISPLAY_MSG               bool = true
 const NO_DISPLAY_MSG            bool = false

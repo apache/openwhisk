@@ -5,7 +5,7 @@ The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LT
 *Requirements*
 - Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.1.22)
 - Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 1.9.5)
- 
+
 ### Clone the repository and change directory to `tools/vagrant`
 ```
 git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
@@ -47,7 +47,7 @@ wsk action invoke /whisk.system/utils/echo -p message hello --result
     "message": "hello"
 }
 ```
-**Tip:** The very first build may take 30 minutes or more depending on network speed. 
+**Tip:** The very first build may take 30 minutes or more depending on network speed.
 If there are any build failures, it might be due to network timeouts, to recover follow the manual
 process to build and deploy in [ansible/README.md](../../ansible/README.md)
 
@@ -87,7 +87,7 @@ You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk sd
 
 
 **Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to configure the CLI with new values for __apihost__, and __auth__ key.
- 
+
 ### Use the wsk CLI inside the VM
 For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
 
@@ -226,6 +226,6 @@ Create VM with Desktop GUI. The `username` and `password` are both set to `vagra
   gui=true ./hello
   gui=true vagrant reload
 ```
-**Tip**: Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when 
+**Tip**: Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when
 creating Vagrant VM using `gui-true`. Remember to use `gui=true` every time you do `vagrant reload`.
 Or, you can enable the GUI directly by editing the Vagrant file.

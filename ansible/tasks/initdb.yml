@@ -24,8 +24,10 @@
       {
         "_id": "{{ item }}",
         "subject": "{{ item }}",
-        "uuid": "{{ key.split(":")[0] }}",
-        "key": "{{ key.split(":")[1] }}",
-        "namespaces": []
+        "namespaces": [{
+          "name": "{{ item }}",
+          "uuid": "{{ key.split(":")[0] }}",
+          "key": "{{ key.split(":")[1] }}"
+        }]
       }
   with_items: "{{ db.authkeys }}"

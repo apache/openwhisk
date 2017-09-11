@@ -1,23 +1,28 @@
-/**
- * Copyright 2015-2017 IBM Corporation
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
+ */
+
+/**
  * Route management action common API GW utilities
- *
- **/
+ */
 var request = require('request');
 var _ = require('lodash');
+
+const ApimgmtUserAgent = "OpenWhisk-apimgmt/1.0.0";
+var UserAgent = ApimgmtUserAgent;
 
 /**
  * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
@@ -37,17 +42,20 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
   console.log('addApiToGateway: ');
   try {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
     json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
+    headers: {
+      'User-Agent': UserAgent
+    }
   };
   if (gwInfo.gwAuth) {
     _.set(options, "headers.Authorization", 'Bearer ' + gwInfo.gwAuth);
   }
-  console.log('addApiToGateway: ');
 
   if (apiId) {
     console.log("addApiToGateway: Updating existing API");
-    options.url = gwInfo.gwUrl + '/' + encodeURIComponent(spaceGuid) + '/apis/' + encodeURIComponent(apiId)
+    options.url = gwInfo.gwUrl + '/' + encodeURIComponent(spaceGuid) + '/apis/' + encodeURIComponent(apiId);
     requestFcn = request.put;
   }
 
@@ -61,8 +69,8 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
       var statusCode = response ? response.statusCode : undefined;
       console.log('addApiToGateway: response status:'+ statusCode);
       if (error) console.error('Warning: addRouteToGateway request failed: '+ makeJsonString(error));
+      if (response && response.headers) console.log('addApiToGateway: response headers: '+makeJsonString(response.headers));
       if (body) console.log('addApiToGateway: response body: '+makeJsonString(body));
-
       if (error) {
         console.error('addApiToGateway: Unable to configure the API Gateway');
         reject('Unable to configure the API Gateway: '+makeJsonString(error));
@@ -96,10 +104,12 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
  */
 function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis/'+encodeURIComponent(apiId),
     agentOptions: {rejectUnauthorized: false},
     headers: {
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'User-Agent': UserAgent
     }
   };
   if (gwInfo.gwAuth) {
@@ -113,6 +123,7 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
       console.log('deleteApiFromGateway: response status:'+ statusCode);
       if (error) console.error('Warning: deleteGatewayApi request failed: '+ makeJsonString(error));
       if (body) console.log('deleteApiFromGateway: response body: '+makeJsonString(body));
+      if (response && response.headers) console.log('deleteApiFromGateway: response headers: '+makeJsonString(response.headers));
       if (error) {
         console.error('deleteApiFromGateway: Unable to delete the API Gateway');
         reject('Unable to delete the API Gateway: '+makeJsonString(error));
@@ -131,7 +142,7 @@ function deleteApiFromGateway(gwInfo, spaceGuid, apiId) {
   });
 }
 
-/*
+/**
  * Return an array of APIs
  */
 function getApis(gwInfo, spaceGuid, bpOrApiName) {
@@ -148,9 +159,11 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
     }
   }
   var options = {
+    followAllRedirects: true,
     url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid)+'/apis',
     headers: {
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'User-Agent': UserAgent
     },
     json: true
   };
@@ -370,7 +383,7 @@ function generateBaseSwaggerApi(basepath, apiname) {
 function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
   var operation = endpoint.gatewayMethod.toLowerCase();
   var operationId = makeOperationId(operation, endpoint.gatewayPath);
-  var responsetype = responsetype || 'json';
+  responsetype = responsetype || 'json';
   console.log('addEndpointToSwaggerApi: operationid = '+operationId);
   try {
     var auth_base64 = Buffer.from(endpoint.action.authkey,'ascii').toString('base64');
@@ -472,9 +485,8 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
   if (!operation) {
       console.log('removeEndpointFromSwaggerApi: No operation; removing entire relpath '+relpath);
       if (swaggerApi.paths[relpath]) {
-          for (var operation in swaggerApi.paths[relpath]) {
-            var operationId = makeOperationId(operation, relpath);
-            deleteActionOperationInvocationDetails(swaggerApi, operationId);
+          for (var op in swaggerApi.paths[relpath]) {
+            deleteActionOperationInvocationDetails(swaggerApi, makeOperationId(op, relpath));
           }
           delete swaggerApi.paths[relpath];
       } else {
@@ -482,14 +494,13 @@ function removeEndpointFromSwaggerApi(swaggerApi, endpoint) {
           return 'path \''+relpath+'\' does not exist in the API';
       }
   } else { // relpath and operation are specified, just delete the specific operation
-      var operationId = makeOperationId(operation, relpath);
       if (swaggerApi.paths[relpath] && swaggerApi.paths[relpath][operation]) {
           delete swaggerApi.paths[relpath][operation];
           if (Object.keys(swaggerApi.paths[relpath]).length === 0) {
             console.log('removeEndpointFromSwaggerApi: after deleting operation '+operation+', relpath '+relpath+' has no more operations; so deleting entire relpath '+relpath);
             delete swaggerApi.paths[relpath];
           }
-          deleteActionOperationInvocationDetails(swaggerApi, operationId);
+          deleteActionOperationInvocationDetails(swaggerApi, makeOperationId(operation, relpath));
       } else {
           console.log('removeEndpointFromSwaggerApi: relpath '+relpath+' with operation '+operation+' does not exist in the API');
           return 'path \''+relpath+'\' with operation \''+operation+'\' does not exist in the API';
@@ -641,7 +652,6 @@ function getHostFromActionUrl(actionUrl) {
  *             result[1] : action name
  *             result[2] : ''
  *             result[3] : ''
-
  */
 function parseActionName(fqname) {
   console.log('parseActionName: parsing action: '+fqname);
@@ -861,6 +871,11 @@ function makeCamelCase(str) {
   return str.charAt(0).toUpperCase() + str.substr(1).toLowerCase();
 }
 
+function setSubUserAgent(subAgent) {
+  if (subAgent && subAgent.length > 0) {
+    UserAgent = UserAgent + " " + subAgent;
+  }
+}
 
 module.exports.getApis = getApis;
 module.exports.addApiToGateway = addApiToGateway;
@@ -878,3 +893,4 @@ module.exports.updateNamespace = updateNamespace;
 module.exports.makeErrorResponseObject = makeErrorResponseObject;
 module.exports.makeResponseObject = makeResponseObject;
 module.exports.makeJsonString = makeJsonString;
+module.exports.setSubUserAgent = setSubUserAgent;

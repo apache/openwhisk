@@ -24,11 +24,12 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
-import spray.httpx.unmarshalling.DeserializationError
-import spray.httpx.unmarshalling.FromStringDeserializer
-import spray.httpx.unmarshalling.MalformedContent
-import spray.routing.Directives
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
+import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.unmarshalling._
+import akka.http.scaladsl.model.StatusCodes.BadRequest
+
+import spray.json.DeserializationException
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json._
 
@@ -40,6 +41,11 @@ import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.http.Messages
+import whisk.http.ErrorResponse.terminate
+
+object WhiskActivationsApi {
+    protected[core] val maxActivationLimit = 200
+}
 
 /** A trait implementing the activations API. */
 trait WhiskActivationsApi
@@ -110,19 +116,26 @@ trait WhiskActivationsApi
     private def list(namespace: EntityPath)(implicit transid: TransactionId) = {
         parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false, 'docs ? false, 'name.as[EntityName]?, 'since.as[Instant]?, 'upto.as[Instant]?) {
             (skip, limit, count, docs, name, since, upto) =>
-                // regardless of limit, cap at 200 records, client must paginate
-                val cappedLimit = if (limit == 0 || limit > 200) 200 else limit
-                val activations = name match {
-                    case Some(action) =>
-                        WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)
-                    case None =>
-                        WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto)
-                }
+                val cappedLimit = if (limit == 0) WhiskActivationsApi.maxActivationLimit else limit
 
-                listEntities {
-                    activations map {
-                        l => if (docs) l.right.get map { _.toExtendedJson } else l.left.get
+                // regardless of limit, cap at maxActivationLimit (200) records, client must paginate
+                if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
+                    val activations = name match {
+                        case Some(action) =>
+                            WhiskActivation.listCollectionByName(activationStore, namespace, action, skip, cappedLimit, docs, since, upto)
+                        case None =>
+                            WhiskActivation.listCollectionInNamespace(activationStore, namespace, skip, cappedLimit, docs, since, upto)
                     }
+
+                    listEntities {
+                        activations map {
+                            l => if (docs) l.right.get map {
+                                _.toExtendedJson
+                            } else l.left.get
+                        }
+                    }
+                } else {
+                    terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))
                 }
         }
     }
@@ -171,33 +184,30 @@ trait WhiskActivationsApi
             (activation: WhiskActivation) => activation.logs.toJsonObject)
     }
 
-    /** Custom deserializer for query parameters "name" into valid entity name. */
-    private implicit val stringToEntityName = new FromStringDeserializer[EntityName] {
-        def apply(value: String): Either[DeserializationError, EntityName] = {
+    /** Custom unmarshaller for query parameters "name" into valid entity name. */
+    private implicit val stringToEntityName: Unmarshaller[String, EntityName] =
+        Unmarshaller.strict[String, EntityName] { value =>
             Try { EntityName(value) } match {
-                case Success(e) => Right(e)
-                case Failure(t) => Left(MalformedContent(t.getMessage))
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(Messages.badEntityName(value))
             }
         }
-    }
 
-    /** Custom deserializer for query parameters "name" into valid namespace. */
-    private implicit val stringToNamespace = new FromStringDeserializer[EntityPath] {
-        def apply(value: String): Either[DeserializationError, EntityPath] = {
+    /** Custom unmarshaller for query parameters "name" into valid namespace. */
+    private implicit val stringToNamespace: Unmarshaller[String, EntityPath] =
+        Unmarshaller.strict[String, EntityPath] { value =>
             Try { EntityPath(value) } match {
-                case Success(e) => Right(e)
-                case Failure(t) => Left(MalformedContent(t.getMessage))
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(Messages.badNamespace(value))
             }
         }
-    }
 
-    /** Custom deserializer for query parameters "since" and "upto" into a valid Instant. */
-    private implicit val stringToInstantDeserializer = new FromStringDeserializer[Instant] {
-        def apply(secs: String): Either[DeserializationError, Instant] = {
-            Try { Instant.ofEpochMilli(secs.toLong) } match {
-                case Success(i) => Right(i)
-                case Failure(t) => Left(MalformedContent(s"Parameter is not a valid value for epoch seconds: $secs", Some(t)))
+    /** Custom unmarshaller for query parameters "since" and "upto" into a valid Instant. */
+    private implicit val stringToInstantDeserializer: Unmarshaller[String, Instant] =
+        Unmarshaller.strict[String, Instant] { value =>
+            Try { Instant.ofEpochMilli(value.toLong) } match {
+                case Success(e) => e
+                case Failure(t) => throw new IllegalArgumentException(Messages.badEpoch(value))
             }
         }
-    }
 }

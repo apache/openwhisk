@@ -24,7 +24,8 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes._
+import akka.http.scaladsl.model.StatusCodes._
+
 import whisk.core.controller.RejectRequest
 import whisk.core.entitlement._
 import whisk.core.entitlement.Privilege._
@@ -51,9 +52,9 @@ class EntitlementProviderTests
     behavior of "Entitlement Provider"
 
     val requestTimeout = 10.seconds
-    val someUser = Subject().toIdentity(AuthKey())
-    val adminUser = Subject("admin").toIdentity(AuthKey())
-    val guestUser = Subject("anonym").toIdentity(AuthKey())
+    val someUser = WhiskAuthHelpers.newIdentity()
+    val adminUser = WhiskAuthHelpers.newIdentity(Subject("admin"))
+    val guestUser = WhiskAuthHelpers.newIdentity(Subject("anonym"))
 
     it should "authorize a user to only read from their collection" in {
         implicit val tid = transid()

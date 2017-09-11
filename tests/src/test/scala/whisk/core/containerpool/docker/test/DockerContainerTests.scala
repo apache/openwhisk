@@ -41,16 +41,12 @@ import spray.json._
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
 import whisk.common.TransactionId
-import whisk.core.container.Interval
-import whisk.core.container.RunResult
 import whisk.core.containerpool._
 import whisk.core.containerpool.docker._
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
-import whisk.core.invoker.ActionLogDriver
-import whisk.core.invoker.LogLine
 import whisk.http.Messages
 
 /**
@@ -144,7 +140,7 @@ class DockerContainerTests extends FlatSpec
         args should contain inOrder ("--name", name)
 
         // Assert proper environment passing
-        args should contain allOf ("-e", "test=hi", "SERVICE_IGNORE=true")
+        args should contain allOf ("-e", "test=hi")
     }
 
     it should "pull a user provided image before creating the container" in {
@@ -271,13 +267,14 @@ class DockerContainerTests extends FlatSpec
         implicit val docker = stub[DockerApiWithFileAccess]
         implicit val runc = stub[RuncApi]
 
+        val initTimeout = 1.second
         val interval = intervalOf(1.millisecond)
         val container = dockerContainer() {
             Future.successful(RunResult(interval, Right(ContainerResponse(true, "", None))))
         }
 
-        val initInterval = container.initialize(JsObject(), 1.second)
-        await(initInterval) shouldBe interval
+        val initInterval = container.initialize(JsObject(), initTimeout)
+        await(initInterval, initTimeout) shouldBe interval
 
         // assert the starting log is there
         val start = LogMarker.parse(logLines.head)
@@ -302,7 +299,7 @@ class DockerContainerTests extends FlatSpec
 
         val init = container.initialize(JsObject(), initTimeout)
 
-        val error = the[InitializationError] thrownBy await(init)
+        val error = the[InitializationError] thrownBy await(init, initTimeout)
         error.interval shouldBe interval
         error.response.statusCode shouldBe ActivationResponse.ApplicationError
 
@@ -374,8 +371,8 @@ class DockerContainerTests extends FlatSpec
         val appendedLog = if (appendSentinel) {
             val lastTime = log.lastOption.map { case LogLine(time, _, _) => time }.getOrElse(Instant.EPOCH.toString)
             log :+
-                LogLine(lastTime, "stderr", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n") :+
-                LogLine(lastTime, "stdout", s"${ActionLogDriver.LOG_ACTIVATION_SENTINEL}\n")
+                LogLine(lastTime, "stderr", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}\n") :+
+                LogLine(lastTime, "stdout", s"${DockerActionLogDriver.LOG_ACTIVATION_SENTINEL}\n")
         } else {
             log
         }

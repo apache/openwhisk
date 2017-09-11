@@ -10,6 +10,13 @@ default.props
 results
 *.retry
 
+# Environments
+/ansible/environments/*
+!/ansible/environments/distributed
+!/ansible/environments/docker-machine
+!/ansible/environments/local
+!/ansible/environments/mac
+
 # Eclipse
 bin/
 **/.project
@@ -41,11 +48,13 @@ node_modules
 
 # IntelliJ
 .idea
+*.class
 
 # Ansible
 ansible/environments/docker-machine/hosts
 ansible/db_local.ini*
 ansible/tmp/*
+ansible/roles/nginx/files/openwhisk-client*
 ansible/roles/nginx/files/*.csr
 ansible/roles/nginx/files/*cert.pem
 

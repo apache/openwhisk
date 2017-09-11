@@ -35,6 +35,7 @@ import org.scalatest.junit.JUnitRunner
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.entitlement.Privilege
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
@@ -77,12 +78,13 @@ class SchemaTests
     behavior of "Identity"
 
     it should "serdes an identity" in {
-        val i = WhiskAuth(Subject(), AuthKey()).toIdentity
+        val i = WhiskAuthHelpers.newIdentity()
         val expected = JsObject(
             "subject" -> i.subject.asString.toJson,
             "namespace" -> i.namespace.toJson,
             "authkey" -> i.authkey.compact.toJson,
-            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson)
+            "rights" -> Array("READ", "PUT", "DELETE", "ACTIVATE").toJson,
+            "limits" -> JsObject())
         Identity.serdes.write(i) shouldBe expected
         Identity.serdes.read(expected) shouldBe i
     }
@@ -366,14 +368,14 @@ class SchemaTests
     }
 
     it should "exclude undefined code in whisk action initializer" in {
-        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer shouldBe {
-            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson))
+        ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1")).containerInitializer shouldBe {
+            JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson)
         }
-        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer shouldBe {
-            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson))
+        ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "xyz")).containerInitializer shouldBe {
+            JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "main".toJson, "code" -> "xyz".toJson)
         }
-        WhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
-            Some(JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson))
+        ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
+            JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson)
         }
     }
 

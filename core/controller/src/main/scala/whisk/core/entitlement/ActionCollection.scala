@@ -17,10 +17,11 @@
 
 package whisk.core.entitlement
 
+import whisk.core.entitlement.Privilege._
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import Privilege.Privilege
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
 import whisk.core.entity.types.EntityStore

@@ -19,7 +19,18 @@ function main({name}) {
 You may create a _web action_ `hello` in the package `demo` for the namespace `guest` using the CLI's `--web` flag with a value of `true` or `yes`:
 ```bash
 $ wsk package create demo
+ok: created package demo
+```
+
+```
 $ wsk action create /guest/demo/hello hello.js --web true
+ok: created action /guest/demo/hello
+```
+
+```
+$ wsk action get /guest/demo/hello --url
+ok: got action hello
+https://${APIHOST}/api/v1/web/guest/demo/hello
 ```
 
 Using the `--web` flag with a value of `true` or `yes` allows an action to be accessible via REST interface without the
@@ -59,6 +70,22 @@ function main() {
 }
 ```
 
+Or sets multiple cookies:
+```javascript
+function main() {
+  return { 
+    headers: { 
+      'Set-Cookie': [
+        'UserID=Jane; Max-Age=3600; Version=',
+        'SessionID=asdfgh123456; Path = /'
+      ],
+      'Content-Type': 'text/html'
+    }, 
+    statusCode: 200,
+    body: '<html><body><h3>hello</h3></body></html>' }
+}
+```
+
 Or returns an `image/png`:
 ```javascript
 function main() {
@@ -75,10 +102,12 @@ function main(params) {
     return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: new Buffer(JSON.stringify(params)).toString('base64'),
+        body: params
     };
 }
 ```
+
+The default content-type for an HTTP response is `application/json` and the body may be any allowed JSON value. The default content-type may be omitted from the headers.
 
 It is important to be aware of the [response size limit](reference.md) for actions since a response that exceeds the predefined system limits will fail. Large objects should not be sent inline through OpenWhisk, but instead deferred to an object store, for example.
 
@@ -86,7 +115,7 @@ It is important to be aware of the [response size limit](reference.md) for actio
 
 An OpenWhisk action that is not a web action requires both authentication and must respond with a JSON object. In contrast, web actions may be invoked without authentication, and may be used to implement HTTP handlers that respond with _headers_, _statusCode_, and _body_ content of different types. The web action must still return a JSON object, but the OpenWhisk system (namely the `controller`) will treat a web action differently if its result includes one or more of the following as top level JSON properties:
 
-1. `headers`: a JSON object where the keys are header-names and the values are string values for those headers (default is no headers).
+1. `headers`: a JSON object where the keys are header-names and the values are string, number, or boolean values for those headers (default is no headers). To send multiple values for a single header, the header's value should be a JSON array of values.
 2. `statusCode`: a valid HTTP status code (default is 200 OK).
 3. `body`: a string which is either plain text or a base64 encoded string for binary data (default is empty response).
 
@@ -282,7 +311,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H 
 }
 ```
 
-Notice in this case the JSON content is base64 encoded because it is treated as a binary value. The action must base64 decode and JSON parse this value to recover the JSON object. OpenWhisk uses the [Spray](https://github.com/spray/spray) framework to [determine](https://github.com/spray/spray/blob/master/spray-http/src/main/scala/spray/http/MediaType.scala#L282) which content types are binary and which are plain text.
+OpenWhisk uses the [Akka Http](http://doc.akka.io/docs/akka-http/current/scala/http/) framework to [determine](http://doc.akka.io/api/akka-http/10.0.4/akka/http/scaladsl/model/MediaTypes$.html) which content types are binary and which are plain text.
 
 
 ### Enabling raw HTTP handling
