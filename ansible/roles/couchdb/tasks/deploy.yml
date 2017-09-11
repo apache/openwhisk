@@ -41,12 +41,13 @@
       COUCHDB_PASSWORD: "{{ db_password }}"
       NODENAME: "{{ nodeName }}"
 
-- name: wait until the CouchDB in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ ansible_host }}"
-    port: "{{ db_port }}"
-    timeout: 60
+- name: wait until CouchDB in this host is up and running
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_utils/"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
 
 - name: disable reduce limit on views
   uri:
