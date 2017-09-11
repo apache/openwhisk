@@ -1,5 +1,7 @@
 {# this template is used to generate a nginx.conf for booting a nginx server based on the given environment inventory #}
 
+worker_processes {{ nginx.wpn.router }};
+
 events {
 {# default: 1024 #}
     worker_connections  4096;
