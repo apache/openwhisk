@@ -35,7 +35,6 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common.TestUtils
-import common.WaitFor
 import common.WhiskProperties
 import common.Wsk
 import common.WskActorSystem
@@ -45,13 +44,7 @@ import whisk.core.WhiskConfig
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class ShootComponentsTests
-    extends FlatSpec
-    with Matchers
-    with WaitFor
-    with WskTestHelpers
-    with ScalaFutures
-    with WskActorSystem {
+class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers with ScalaFutures with WskActorSystem {
 
   implicit val wskprops = WskProps()
   val wsk = new Wsk
@@ -59,6 +52,9 @@ class ShootComponentsTests
 
   implicit val materializer = ActorMaterializer()
   implicit val testConfig = PatienceConfig(1.minute)
+
+  val controller0DockerHost = WhiskProperties.getBaseControllerHost() + ":" + WhiskProperties.getProperty(
+    WhiskConfig.dockerPort)
 
   def restartComponent(host: String, component: String) = {
     def file(path: String) = Try(new File(path)).filter(_.exists).map(_.getAbsolutePath).toOption
@@ -85,7 +81,7 @@ class ShootComponentsTests
     val port = WhiskProperties.getControllerBasePort + instance
 
     val res = ping(host, port)
-    res.isDefined && res.get._1 == StatusCodes.OK && res.get._2 == "pong"
+    res == Some((StatusCodes.OK, "pong"))
   }
 
   def doRequests(amount: Int, actionName: String): Seq[(Int, Int)] = {
@@ -115,13 +111,13 @@ class ShootComponentsTests
         action.create(actionName, defaultAction)
       }
 
-      // Produce some load on the system for 90 seconds. Kill the controller after 4 requests
+      // Produce some load on the system for 100 seconds (each second one request). Kill the controller after 4 requests
+      val totalRequests = 100
+
       val requestsBeforeRestart = doRequests(4, actionName)
 
       // Kill the controller
-      val dockerHost = WhiskProperties.getBaseControllerHost() + ":" + WhiskProperties.getProperty(
-        WhiskConfig.dockerPort)
-      restartComponent(dockerHost, "controller0")
+      restartComponent(controller0DockerHost, "controller0")
       // Wait until down
       retry({
         isControllerAlive(0) shouldBe false
@@ -129,7 +125,7 @@ class ShootComponentsTests
       // Check that second controller is still up
       isControllerAlive(1) shouldBe true
 
-      val requestsAfterRestart = doRequests(96, actionName)
+      val requestsAfterRestart = doRequests(totalRequests - 4, actionName)
 
       val requests = requestsBeforeRestart ++ requestsAfterRestart
 
