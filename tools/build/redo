@@ -207,6 +207,12 @@ Components = [
                   yaml = False,
                   steps = 'setup, prereq, couchdb, initdb, wipedb, deploy, catalog'),
 
+    makeComponent('fmt',
+                  'apply source code formats',
+                  gradle = True,
+                  yaml = False,
+                  tasks = 'scalafmtAll'),
+
     makeComponent('setup',
                   'system setup'),
 
