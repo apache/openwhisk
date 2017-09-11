@@ -4,7 +4,7 @@ worker_processes {{ nginx.wpn.router }};
 
 events {
 {# default: 1024 #}
-    worker_connections  4096;
+    worker_connections 4096;
 }
 
 http {
@@ -18,6 +18,9 @@ http {
         '$http_referer $http_user_agent $upstream_addr';
     access_log /logs/nginx_access.log combined-upstream;
 
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+
     upstream controllers {
         # fail_timeout: period of time the server will be considered unavailable
         # Mark the controller as unavailable for at least 60 seconds, to not get any requests during restart.
@@ -30,6 +33,7 @@ http {
         server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} backup;
 {% endif %}
 {% endfor %}
+        keepalive 512;
     }
 
     server {
