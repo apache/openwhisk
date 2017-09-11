@@ -34,5 +34,5 @@ RUN rm -rf /javaAction/.classpath /javaAction/.gitignore /javaAction/.gradle /ja
 RUN cd /javaAction; ./gradlew oneJar
 
 RUN rm -rf /javaAction/src
-
+EXPOSE 8080
 CMD ["java", "-jar", "/javaAction/build/libs/javaAction-all.jar"]
