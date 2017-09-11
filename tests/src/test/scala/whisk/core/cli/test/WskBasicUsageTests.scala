@@ -57,7 +57,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
   val wsk = new Wsk
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
-  val usrAgentHeaderRegEx = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
+  lazy val usrAgentHeaderRegEx = """\bUser-Agent\b": \[\s+"OpenWhisk\-CLI/1.\d+.*"""
 
   behavior of "Wsk CLI usage"
 
