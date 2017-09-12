@@ -26,7 +26,6 @@ import scala.util.Failure
 import scala.util.Try
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import spray.json._
 
@@ -75,7 +74,7 @@ case class ActivationResult(activationId: String,
       val value = annotation(0).getFields("value")
       assert(value.size == 1)
       value(0)
-    } toOption
+    }.toOption
   }
 }
 
@@ -199,9 +198,9 @@ trait WskTestHelpers extends Matchers {
   def withActivation(
     wsk: WskActivation,
     run: RunResult,
-    initialWait: Duration = 1 second,
-    pollPeriod: Duration = 1 second,
-    totalWait: Duration = 30 seconds)(check: ActivationResult => Unit)(implicit wskprops: WskProps): Unit = {
+    initialWait: Duration = 1.second,
+    pollPeriod: Duration = 1.second,
+    totalWait: Duration = 60.seconds)(check: ActivationResult => Unit)(implicit wskprops: WskProps): Unit = {
     val activationId = wsk.extractActivationId(run)
 
     withClue(s"did not find an activation id in '$run'") {
@@ -244,8 +243,8 @@ trait WskTestHelpers extends Matchers {
     entity: String,
     N: Int = 1,
     since: Option[Instant] = None,
-    pollPeriod: Duration = 1 second,
-    totalWait: Duration = 30 seconds)(check: Seq[ActivationResult] => Unit)(implicit wskprops: WskProps): Unit = {
+    pollPeriod: Duration = 1.second,
+    totalWait: Duration = 60.seconds)(check: Seq[ActivationResult] => Unit)(implicit wskprops: WskProps): Unit = {
 
     val activationIds =
       wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
