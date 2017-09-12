@@ -40,10 +40,12 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
 
   override def peek(duration: Duration) = {
     val msgs = new ArrayList[Message]
-    queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
-    msgs map { m =>
-      offset += 1
-      (topic, -1, offset, m.serialize.getBytes)
+    queue.synchronized {
+      queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
+      msgs map { m =>
+        offset += 1
+        (topic, -1, offset, m.serialize.getBytes)
+      }
     }
   }
 
@@ -73,24 +75,28 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
 
   private val producer = new MessageProducer {
     def send(topic: String, msg: Message): Future[RecordMetadata] = {
-      if (queue.offer(msg)) {
-        logging.info(this, s"put: $msg")
-        Future.successful(
-          new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
-      } else {
-        logging.error(this, s"put failed: $msg")
-        Future.failed(new IllegalStateException("failed to write msg"))
+      queue.synchronized {
+        if (queue.offer(msg)) {
+          logging.info(this, s"put: $msg")
+          Future.successful(
+            new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+        } else {
+          logging.error(this, s"put failed: $msg")
+          Future.failed(new IllegalStateException("failed to write msg"))
+        }
       }
     }
 
     def sendBulk(topic: String, msgs: Seq[Message]): Future[RecordMetadata] = {
-      if (queue.addAll(msgs)) {
-        logging.info(this, s"put: ${msgs.length} messages")
-        Future.successful(
-          new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
-      } else {
-        logging.error(this, s"put failed: ${msgs.length} messages")
-        Future.failed(new IllegalStateException("failed to write msg"))
+      queue.synchronized {
+        if (queue.addAll(msgs)) {
+          logging.info(this, s"put: ${msgs.length} messages")
+          Future.successful(
+            new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+        } else {
+          logging.error(this, s"put failed: ${msgs.length} messages")
+          Future.failed(new IllegalStateException("failed to write msg"))
+        }
       }
     }
 
