@@ -23,7 +23,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpecLike
@@ -50,7 +49,6 @@ class MessageFeedTests
     with Matchers
     with BeforeAndAfterEach
     with BeforeAndAfterAll
-    with MockFactory
     with StreamLogging {
 
   val system = ActorSystem("MessageFeedTestSystem")
