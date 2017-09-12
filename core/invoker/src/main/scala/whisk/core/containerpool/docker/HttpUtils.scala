@@ -18,11 +18,15 @@
 package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
-import scala.concurrent.duration.FiniteDuration
+
+import scala.Left
+import scala.Right
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import org.apache.commons.io.IOUtils
 import org.apache.http.HttpHeaders
 import org.apache.http.client.config.RequestConfig
@@ -32,12 +36,11 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
+
 import spray.json._
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
-import scala.Left
-import scala.Right
 
 /**
  * This HTTP client is used only in the invoker to communicate with the action container.
@@ -133,6 +136,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
     .useSystemProperties()
+    .disableAutomaticRetries()
     .build
 }
 
@@ -144,11 +148,12 @@ object HttpUtils {
     val response = connection.post(endPoint, content, retry = true)
     connection.close()
     response match {
-      case Right(r)        => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
-      case Left(Timeout()) => throw new java.util.concurrent.TimeoutException()
+      case Right(r)                   => (r.statusCode, Try(r.entity.parseJson.asJsObject).toOption)
+      case Left(NoResponseReceived()) => throw new IllegalStateException("no response from container")
+      case Left(Timeout())            => throw new java.util.concurrent.TimeoutException()
       case Left(ConnectionError(t: java.net.SocketTimeoutException)) =>
         throw new java.util.concurrent.TimeoutException()
-      case _ => throw new IllegalStateException()
+      case Left(ConnectionError(t)) => throw new IllegalStateException(t.getMessage)
     }
   }
 }
