@@ -290,11 +290,14 @@ protected[core] object WhiskWebActionsApi extends Directives {
                                           js: JsValue,
                                           transid: TransactionId) = {
     findContentTypeInHeader(headers, transid, `application/json`) match {
+      // use the default akka-http response marshaler for standard application/json
       case Success(mediaType) if mediaType == `application/json` =>
         respondWithHeaders(removeContentTypeHeader(headers)) {
           complete(code, js)
         }
 
+      // for all other json-family content-type, explicitly marshal the response;
+      // the order of the case statement matters; isJsonFamily returns true for application/json
       case Success(mediaType) if isJsonFamily(mediaType) =>
         respondWithHeaders(removeContentTypeHeader(headers)) {
           complete(
