@@ -68,7 +68,7 @@ import whisk.http.BasicRasService
  * @param verbosity logging verbosity
  * @param executionContext Scala runtime support for concurrent operations
  */
-class Controller(override val instance: InstanceId,
+class Controller(val instance: InstanceId,
                  runtimes: Runtimes,
                  implicit val whiskConfig: WhiskConfig,
                  implicit val actorSystem: ActorSystem,
@@ -77,6 +77,7 @@ class Controller(override val instance: InstanceId,
     extends BasicRasService {
 
   override val numberOfInstances = whiskConfig.controllerInstances.toInt
+  override val instanceOrdinal = instance.toInt
 
   TransactionId.controller.mark(
     this,
