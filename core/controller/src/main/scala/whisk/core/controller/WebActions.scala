@@ -282,7 +282,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
   }
 
   private def isJsonFamily(mt: MediaType) = {
-    mt == `application/json` || Option(mt.value).map(_.endsWith("+json")).exists(identity)
+    mt == `application/json` || mt.value.endsWith("+json")
   }
 
   private def interpretHttpResponseAsJson(code: StatusCode,
