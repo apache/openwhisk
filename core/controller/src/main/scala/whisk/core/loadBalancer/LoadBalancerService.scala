@@ -102,9 +102,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
   /** Feature switch for shared load balancer data **/
   private val loadBalancerData = {
-    if (config.controllerLocalBookkeeping.equalsIgnoreCase("true")) {
-      new LoadBalancerDataLocal()
-    } else new LoadBalancerData()
+    if (config.controllerLocalBookkeeping) {
+      new LocalLoadBalancerData()
+    } else new DistributedLoadBalancerData()
   }
 
   override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)

@@ -30,16 +30,16 @@ case class IncreaseCounter(key: String, value: Long)
 case class DecreaseCounter(key: String, value: Long)
 case class ReadCounter(key: String)
 case class RemoveCounter(key: String)
-case class GetTheMap()
-case class MapWithCounters(dataMap: Map[String, BigInt])
-case class InSync()
+case object GetMap
 
 /**
  * Companion object to specify actor properties from the outside, e.g. name of the shared map
  */
 object SharedDataService {
   val requiredProperties = Map(WhiskConfig.controllerSeedNodes -> null)
-  def props(storageName: String): Props = Props(new SharedDataService(storageName))
+
+  def props(storageName: String): Props = Props(new SharedDataService
+  (storageName))
 
   /**
    * Add seed nodes if cluster provider is specified, otherwhise return the existing config.
@@ -55,7 +55,7 @@ object SharedDataService {
 
     if (cluster == "cluster") {
       val seedNodes = whiskConf.controllerSeedNodes
-      val nodes = seedNodes.split(' ').map(x => "\"akka.tcp://controller-actor-system@" + x + "\"")
+      val nodes = seedNodes.split(' ').map(x => s""""akka.tcp://controller-actor-system@$x"""")
       val configWithSeedNodes = ConfigFactory.parseString(s"akka.cluster.seed-nodes=[${nodes.mkString(",")}]")
       configWithSeedNodes.withFallback(conf)
     } else conf
@@ -102,7 +102,7 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
       replicator ! Update(storage, PNCounterMap[String], writeLocal)(_.remove(node, key))
     }
 
-    case GetTheMap() => {
+    case GetMap => {
       replicator ! Get(storage, readLocal, request = Some((sender())))
     }
     case MemberUp(member) =>
@@ -112,11 +112,11 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
       logging.warn(this, s"Member is Removed: ${member.address} after $previousStatus")
 
     case c @ Changed(_) =>
-      logging.debug(this, "Current elements: " + c.dataValue)
+      logging.debug(this, "Current elements: " + c)
 
     case g @ GetSuccess(_, Some((replyTo: ActorRef))) =>
       val map = g.get(storage).entries
-      replyTo ! MapWithCounters(map.asInstanceOf[Map[String, BigInt]])
+      replyTo ! map
 
     case g @ GetSuccess(_, Some((replyTo: ActorRef, key: String))) =>
       if (g.get(storage).contains(key)) {

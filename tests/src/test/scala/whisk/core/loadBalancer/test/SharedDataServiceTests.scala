@@ -24,6 +24,7 @@ import com.typesafe.config.ConfigValueFactory
 import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import whisk.core.loadBalancer._
+import org.scalatest.FlatSpecLike
 
 import scala.concurrent.duration._
 
@@ -41,7 +42,7 @@ object TestKitConfig {
 class SharedDataServiceTests()
     extends TestKit(ActorSystem("ControllerCluster", ConfigFactory.parseString(TestKitConfig.config)))
     with ImplicitSender
-    with WordSpecLike
+    with FlatSpecLike
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
@@ -50,12 +51,11 @@ class SharedDataServiceTests()
     TestKit.shutdownActorSystem(system)
   }
 
-  "A Shared Data Service" must {
+  behavior of "SharedDataService"
 
     val port = 2552
     val config = ConfigFactory
-      .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0" +
-        s".1:$port" + "\"] }")
+      .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0.1:"+ port + "\"] }")
       .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
       .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.auto-down-unreachable-after", ConfigValueFactory.fromAnyRef("10s"))
@@ -63,51 +63,44 @@ class SharedDataServiceTests()
       .withValue("akka.remote.log-remote-lifecycle-events", ConfigValueFactory.fromAnyRef("off"))
       .withFallback(ConfigFactory.load())
 
-    val system = ActorSystem("controller-actor-system", config)
+    val s = ActorSystem("controller-actor-system", config)
 
-    val sharedDataService = system.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
+    val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
     implicit val timeout = Timeout(5.seconds)
 
-    "retrieve an empty map after initialization" in {
-      sharedDataService ! GetTheMap()
+    it should "retrieve an empty map after initialization" in {
+      sharedDataService ! GetMap
       expectMsgPF() {
-        case x: MapWithCounters if x.dataMap.size == 0 => true
+        case x: Map[String, BigInt] if x.size == 0 => true
       }
     }
-    "increase the counter" in {
+    it should "increase the counter" in {
       sharedDataService ! (IncreaseCounter("Donald", 1))
       sharedDataService ! ReadCounter("Donald")
       expectMsg(1)
     }
-    "decrease the counter" in {
+    it should "decrease the counter" in {
       sharedDataService ! (IncreaseCounter("Donald", 2))
       sharedDataService ! (DecreaseCounter("Donald", 2))
-      Thread.sleep(500)
       sharedDataService ! ReadCounter("Donald")
-      Thread.sleep(500)
       expectMsg(1)
     }
-    "return None for non existing keys" in {
+    it should "return None for non existing keys" in {
       sharedDataService ! (IncreaseCounter("Donald", 1))
-      Thread.sleep(500)
       sharedDataService ! (ReadCounter("Hilary"))
       expectMsg(None)
     }
-    "remove the entry from the map" in {
+    it should "remove the entry from the map" in {
       sharedDataService ! (IncreaseCounter("Fifi", 2))
       sharedDataService ! (RemoveCounter("Fifi"))
-      Thread.sleep(500)
       sharedDataService ! (ReadCounter("Fifi"))
       expectMsg(None)
     }
-    "receive the map with all counters" in {
+    it should "receive the map with all counters" in {
       sharedDataService ! (IncreaseCounter("Hilary", 1))
-      sharedDataService ! (GetTheMap())
-      Thread.sleep(500)
+      sharedDataService ! GetMap
       expectMsgPF() {
-        case x: MapWithCounters if x.dataMap.size == 2 => true
+        case x: Map[String, BigInt] if x.size == 2 => true
       }
     }
-  }
-
 }

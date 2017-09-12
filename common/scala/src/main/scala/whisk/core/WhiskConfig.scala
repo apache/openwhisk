@@ -20,8 +20,9 @@ package whisk.core
 import java.io.File
 
 import scala.io.Source
-
 import whisk.common.Config
+
+import scala.util.Try
 
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
@@ -48,6 +49,10 @@ class WhiskConfig(requiredProperties: Map[String, String],
     val properties = super.getProperties()
     WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
     properties
+  }
+
+  def getAsBoolean(key: String, defaultValaue :Boolean) :Boolean = {
+    Try(getProperty(key).toBoolean).getOrElse(defaultValaue)
   }
 
   val servicePort = this(WhiskConfig.servicePort)
@@ -94,14 +99,13 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
-
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
   val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
   val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
   val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
-  val controllerLocalBookkeeping = this(WhiskConfig.controllerLocalBookkeeping)
+  val controllerLocalBookkeeping = getAsBoolean(WhiskConfig.controllerLocalBookkeeping, false)
 
 }
 

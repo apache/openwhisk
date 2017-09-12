@@ -23,8 +23,7 @@ import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -37,7 +36,7 @@ import scala.concurrent.Future
  * @param systemOverloadLimit the limit when the system is considered overloaded
  */
 class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
-  implicit logging: Logging) {
+  implicit logging: Logging, executionContext: ExecutionContext) {
 
   logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")(
     TransactionId.controller)

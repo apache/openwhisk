@@ -31,7 +31,7 @@ import whisk.core.entity.InstanceId
  * Note: The state keeping is backed by concurrent data-structures. As such,
  * concurrent reads can return stale values (especially the counters returned).
  */
-class LoadBalancerDataLocal() extends BookkeepingData {
+class LocalLoadBalancerData() extends LoadBalancerData {
 
   private val activationByInvoker = TrieMap[InstanceId, AtomicInteger]()
   private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
