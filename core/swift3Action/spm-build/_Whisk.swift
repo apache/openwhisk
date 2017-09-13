@@ -25,19 +25,32 @@ class Whisk {
         let strBlocking = blocking ? "true" : "false"
         let path = "/api/v1/namespaces/\(parsedAction.namespace)/actions/\(parsedAction.name)?blocking=\(strBlocking)"
 
-        return postSyncronish(uriPath: path, params: params)
+        return sendWhiskRequestSyncronish(uriPath: path, params: params, method: "post")
     }
 
     class func trigger(eventNamed event : String, withParameters params : [String:Any]) -> [String:Any] {
         let parsedEvent = parseQualifiedName(name: event)
         let path = "/api/v1/namespaces/\(parsedEvent.namespace)/triggers/\(parsedEvent.name)?blocking=true"
 
-        return postSyncronish(uriPath: path, params: params)
+        return sendWhiskRequestSyncronish(uriPath: path, params: params, method: "post")
+    }
+
+    class func createTrigger(triggerNamed trigger: String, withParameters params : [String:Any]) -> [String:Any] {
+        let parsedTrigger = parseQualifiedName(name: trigger)
+        let path = "/api/v1/namespaces/\(parsedTrigger.namespace)/triggers/\(parsedTrigger.name)"
+        return sendWhiskRequestSyncronish(uriPath: path, params: params, method: "put")
+    }
+
+    class func createRule(ruleNamed ruleName: String, withTrigger triggerName: String, andAction actionName: String) -> [String:Any] {
+        let parsedRule = parseQualifiedName(name: ruleName)
+        let path = "/api/v1/namespaces/\(parsedRule.namespace)/rules/\(parsedRule.name)"
+        let params = ["trigger":triggerName, "action":actionName]
+        return sendWhiskRequestSyncronish(uriPath: path, params: params, method: "put")
     }
 
     // handle the GCD dance to make the post async, but then obtain/return
     // the result from this function sync
-    private class func postSyncronish(uriPath path: String, params : [String:Any]) -> [String:Any] {
+    private class func sendWhiskRequestSyncronish(uriPath path: String, params : [String:Any], method: String) -> [String:Any] {
         var response : [String:Any]!
 
         let queue = DispatchQueue.global()
@@ -45,7 +58,7 @@ class Whisk {
 
         invokeGroup.enter()
         queue.async {
-            post(uriPath: path, params: params, group: invokeGroup) { result in
+            sendWhiskRequest(uriPath: path, params: params, method: method, group: invokeGroup) { result in
                 response = result
             }
         }
@@ -109,8 +122,8 @@ class Whisk {
         return (httpType, host, port, authKey)
     }
 
-    // actually do the POST call to the specified OpenWhisk URI path
-    private class func post(uriPath: String, params : [String:Any], group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
+    // actually do the call to the specified OpenWhisk URI path
+    private class func sendWhiskRequest(uriPath: String, params : [String:Any], method: String, group: DispatchGroup, callback : @escaping([String:Any]) -> Void) {
         let communicationDetails = initializeCommunication()
 
         let loginData: Data = communicationDetails.authKey.data(using: String.Encoding.utf8, allowLossyConversion: false)!
@@ -126,7 +139,7 @@ class Whisk {
 
         // TODO vary the schema based on the port?
         let requestOptions = [ClientRequest.Options.schema(communicationDetails.httpType),
-                              ClientRequest.Options.method("post"),
+                              ClientRequest.Options.method(method),
                               ClientRequest.Options.hostname(communicationDetails.host),
                               ClientRequest.Options.port(communicationDetails.port),
                               ClientRequest.Options.path(encodedPath),
