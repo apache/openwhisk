@@ -145,14 +145,18 @@ class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
   }
 
   it should "allow Swift actions to create a trigger" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    // create a trigger
-    val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
-
     // create an action that creates the trigger
     val file = TestUtils.getTestActionFilename("createTrigger.swift")
     val actionName = "ActionThatTriggers"
+
+    // the name of the trigger to create
+    val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
+
     assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
-      action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+      assetHelper.withCleaner(wsk.trigger, triggerName) { (_, _) =>
+        // using an asset cleaner on the created trigger name will clean it up at the conclusion of the test
+        action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+      }
     }
 
     // invoke the action
@@ -162,85 +166,51 @@ class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
       activation.response.success shouldBe true
 
       // should have a field named "name" which is the name of the trigger created
-      activation.response.result.get.fields("name").toString.length should be >= 20
+      activation.response.result.get.fields("name") shouldBe triggerName.toJson
     }
   }
 
   it should "allow Swift actions to create a rule" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    // create a trigger name
-    val ruleTriggerName = s"/_/TestTrigger ${System.currentTimeMillis()}"
-
-    // create an action name
-    val ruleActionName = s"/_/TestAction ${System.currentTimeMillis()}"
-
-    // create a name for our rule
+    val ruleTriggerName = s"TestTrigger ${System.currentTimeMillis()}"
+    val ruleActionName = s"TestAction ${System.currentTimeMillis()}"
     val ruleName = s"TestRule ${System.currentTimeMillis()}"
 
-    // create an action that creates the trigger which we will use when creating the rule
-    val createTriggerFile = TestUtils.getTestActionFilename("createTrigger.swift")
-    assetHelper.withCleaner(wsk.action, "ActionThatCreatesTrigger") { (action, _) =>
-      action.create(name = "ActionThatCreatesTrigger", artifact = Some(createTriggerFile), kind = Some("swift:3"))
+    // create a dummy action and trigger for the rule
+    assetHelper.withCleaner(wsk.action, ruleActionName) { (action, name) =>
+      val dummyFile = TestUtils.getTestActionFilename("hello.swift")
+      action.create(name, artifact = Some(dummyFile), kind = Some("swift:3"))
     }
 
-    // invoke the create trigger action
-    val runCreateTrigger = wsk.action.invoke("ActionThatCreatesTrigger", Map("triggerName" -> ruleTriggerName.toJson))
-    withActivation(wsk.activation, runCreateTrigger, initialWait = 5 seconds, totalWait = 60 seconds) { activation =>
-      // should be successful
-      activation.response.success shouldBe true
-    }
-
-    // create a dummy action for the rule
-    val dummyFile = TestUtils.getTestActionFilename("hello.swift")
-    assetHelper.withCleaner(wsk.action, ruleActionName) { (action, _) =>
-      action.create(name = ruleActionName, artifact = Some(dummyFile), kind = Some("swift:3"))
+    assetHelper.withCleaner(wsk.trigger, ruleTriggerName) { (trigger, name) =>
+      assetHelper.withCleaner(wsk.rule, ruleName) { (_, _) =>
+        // using an asset cleaner on the created trigger name will clean it up at the conclusion of the test
+        trigger.create(name)
+      }
     }
 
     // create an action that creates the rule
     val createRuleFile = TestUtils.getTestActionFilename("createRule.swift")
-    assetHelper.withCleaner(wsk.action, "ActionThatCreatesRule") { (action, _) =>
-      action.create(name = "ActionThatCreatesRule", artifact = Some(createRuleFile), kind = Some("swift:3"))
+    assetHelper.withCleaner(wsk.action, "ActionThatCreatesRule") { (action, name) =>
+      action.create(name, artifact = Some(createRuleFile), kind = Some("swift:3"))
     }
 
     // invoke the create rule action
     val runCreateRule = wsk.action.invoke(
       "ActionThatCreatesRule",
       Map(
-        "triggerName" -> ruleTriggerName.toJson,
-        "actionName" -> ruleActionName.toJson,
+        "triggerName" -> s"/_/$ruleTriggerName".toJson,
+        "actionName" -> s"/_/$ruleActionName".toJson,
         "ruleName" -> ruleName.toJson))
+
     withActivation(wsk.activation, runCreateRule, initialWait = 5 seconds, totalWait = 60 seconds) { activation =>
       // should be successful
       activation.response.success shouldBe true
 
       // should have a field named "trigger" which is the name of the trigger associated with the rule
-      activation.response.result.get.fields("trigger").toString.length should be >= 20
+      activation.response.result.get.fields("trigger").asJsObject.fields("name") shouldBe ruleTriggerName.toJson
 
       // should have a field named "action" which is the name of the action associated with the rule
-      activation.response.result.get.fields("action").toString.length should be >= 20
-    }
-
-    // Now fire the trigger
-    val file = TestUtils.getTestActionFilename("trigger.swift")
-    val actionName = "ActionThatTriggersRule"
-    assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
-      action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
-    }
-
-    // invoke the action to fire the trigger for the rule
-    val run = wsk.action.invoke(actionName, Map("triggerName" -> ruleTriggerName.toJson))
-    withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 60 seconds) { activation =>
-      // should be successful
-      activation.response.success shouldBe true
-
-      // should have a field named "activationId" which is the trigger activationId
-      activation.response.result.get.fields("activationId").toString.length should be >= 32
-
-      // should result in an activation for the rule
-      val ruleActivations = wsk.activation.pollFor(1, Some(ruleName), retries = 20)
-      withClue(s"rule activations for $ruleName:") {
-        ruleActivations.length should be(1)
-      }
-
+      activation.response.result.get.fields("action").asJsObject.fields("name") shouldBe ruleActionName.toJson
     }
   }
 }
