@@ -59,6 +59,28 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
   behavior of "Wsk Web Actions"
 
+  it should "ensure received headers contains content-type" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "webContenttype"
+    val file = Some(TestUtils.getTestActionFilename("echo.js"))
+    val bodyContent = JsObject("key" -> "value".toJson)
+    val host = getServiceURL()
+    val url = s"$host$testRoutePath/$namespace/default/$name.json"
+
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, file, web = Some("true"))
+    }
+
+    val response =
+      RestAssured.given().contentType("application/json").body(bodyContent.compactPrint).config(sslconfig).post(url)
+
+    response.statusCode shouldBe 200
+    response.header("Content-type") shouldBe "application/json"
+    response.body.asString.parseJson.asJsObject
+      .fields("__ow_headers")
+      .asJsObject
+      .fields("content-type") shouldBe "application/json".toJson
+  }
+
   /**
    * Tests web actions, plus max url limit.
    */
