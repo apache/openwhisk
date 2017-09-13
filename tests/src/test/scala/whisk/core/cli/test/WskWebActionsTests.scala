@@ -59,7 +59,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
   behavior of "Wsk Web Actions"
 
-  it should "ensure received headers contains content-type" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "ensure received headers contain content-type" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "webContenttype"
     val file = Some(TestUtils.getTestActionFilename("echo.js"))
     val bodyContent = JsObject("key" -> "value".toJson)
