@@ -7,24 +7,19 @@ configure(cliProject) {
 // Because of how Dockerfiles only know about files in the current
 // direcotry or sub directories, we need to copy the previously built
 // CLI images to this directory.
-task copyCLI(type: Copy, dependsOn: ':tools:cli:copyCLIShortcut') {
+task copyCLI(dependsOn: ':tools:cli:copyCLIShortcut') {
   doLast {
-    copyLinux {
-      from "${projectDir}/../../bin/linux"
-      into "${projectDir}/build/linux"
-    }
-    copyMac {
-      from "${projectDir}/../../bin/mac"
-      into "${projectDir}/build/mac"
-    }
-    copyWindows {
-      from "${projectDir}/../../bin/windows"
-      into "${projectDir}/build/windows"
+    copy {
+      from "${projectDir}/../../bin/"
+      into "${projectDir}/build/"
+      include "linux/**"
+      include "mac/**"
+      include "windows/**"
     }
   }
 }
 
-task generateBlackbox(dependsOn: 'copyCLI', type: Exec) {
+task generateBlackbox(type: Exec, dependsOn: 'copyCLI') {
   commandLine './blackbox.sh'
 }
 
