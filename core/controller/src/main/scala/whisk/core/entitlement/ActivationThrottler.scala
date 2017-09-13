@@ -36,7 +36,8 @@ import scala.concurrent.{ExecutionContext, Future}
  * @param systemOverloadLimit the limit when the system is considered overloaded
  */
 class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: Int, systemOverloadLimit: Int)(
-  implicit logging: Logging, executionContext: ExecutionContext) {
+  implicit logging: Logging,
+  executionContext: ExecutionContext) {
 
   logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")(
     TransactionId.controller)

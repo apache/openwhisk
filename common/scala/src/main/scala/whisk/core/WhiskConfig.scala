@@ -22,8 +22,6 @@ import java.io.File
 import scala.io.Source
 import whisk.common.Config
 
-import scala.util.Try
-
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
  * in scala.
@@ -49,10 +47,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
     val properties = super.getProperties()
     WhiskConfig.readPropertiesFromFile(properties, Option(propertiesFile) getOrElse (WhiskConfig.whiskPropertiesFile))
     properties
-  }
-
-  def getAsBoolean(key: String, defaultValaue :Boolean) :Boolean = {
-    Try(getProperty(key).toBoolean).getOrElse(defaultValaue)
   }
 
   val servicePort = this(WhiskConfig.servicePort)

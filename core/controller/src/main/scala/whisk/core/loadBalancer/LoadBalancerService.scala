@@ -83,11 +83,6 @@ trait LoadBalancer {
 
 }
 
-case class ActivationEntry(id: ActivationId,
-                           namespaceId: UUID,
-                           invokerName: InstanceId,
-                           promise: Promise[Either[ActivationId, WhiskActivation]])
-
 class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
   implicit val actorSystem: ActorSystem,
   logging: Logging)

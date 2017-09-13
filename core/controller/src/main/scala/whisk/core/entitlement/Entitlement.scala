@@ -130,7 +130,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
     checkSystemOverload(ACTIVATE)
-      .flatMap(_ => checkThrottleOverload(Future(invokeRateThrottler.check(user))))
+      .flatMap(_ => checkThrottleOverload(Future.successful(invokeRateThrottler.check(user))))
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user)))
   }
 
@@ -254,9 +254,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE) {
       if (resources.exists(_.collection.path == Collection.ACTIONS)) {
-        checkThrottleOverload(Future(invokeRateThrottler.check(user)))
+        checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)))
       } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
-        checkThrottleOverload(Future(triggerRateThrottler.check(user)))
+        checkThrottleOverload(Future.successful(triggerRateThrottler.check(user)))
       } else Future.successful(())
     } else Future.successful(())
   }

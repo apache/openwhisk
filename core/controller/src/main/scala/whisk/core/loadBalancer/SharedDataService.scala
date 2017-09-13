@@ -38,8 +38,7 @@ case object GetMap
 object SharedDataService {
   val requiredProperties = Map(WhiskConfig.controllerSeedNodes -> null)
 
-  def props(storageName: String): Props = Props(new SharedDataService
-  (storageName))
+  def props(storageName: String): Props = Props(new SharedDataService(storageName))
 
   /**
    * Add seed nodes if cluster provider is specified, otherwhise return the existing config.
@@ -88,23 +87,15 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
    */
   def receive = {
 
-    case (IncreaseCounter(key, increment)) => {
+    case (IncreaseCounter(key, increment)) =>
       replicator ! Update(storage, PNCounterMap.empty[String], writeLocal)(_.increment(key, increment))
-    }
-    case (DecreaseCounter(key, decrement)) => {
+
+    case (DecreaseCounter(key, decrement)) =>
       replicator ! Update(storage, PNCounterMap[String], writeLocal)(_.decrement(key, decrement))
-    }
 
-    case ReadCounter(key) => {
-      replicator ! Get(storage, readLocal, request = Some((sender(), key)))
-    }
-    case RemoveCounter(key) => {
-      replicator ! Update(storage, PNCounterMap[String], writeLocal)(_.remove(node, key))
-    }
-
-    case GetMap => {
+    case GetMap =>
       replicator ! Get(storage, readLocal, request = Some((sender())))
-    }
+
     case MemberUp(member) =>
       logging.info(this, "Member is Up: " + member.address)
 
@@ -123,7 +114,6 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
         val response = g.get(storage).getValue(key).intValue()
         replyTo ! response
       } else
-        //      todo: consider returning 0 instead of none
         replyTo ! None
 
     case _ => // ignore

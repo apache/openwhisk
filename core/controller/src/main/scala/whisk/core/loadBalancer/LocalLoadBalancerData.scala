@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import whisk.core.entity.{ActivationId, UUID}
-import whisk.core.entity.InstanceId
 
 /**
  * Loadbalancer bookkeeping data which are stored locally,
@@ -33,7 +32,7 @@ import whisk.core.entity.InstanceId
  */
 class LocalLoadBalancerData() extends LoadBalancerData {
 
-  private val activationByInvoker = TrieMap[InstanceId, AtomicInteger]()
+  private val activationByInvoker = TrieMap[String, AtomicInteger]()
   private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
   private val activationsById = TrieMap[ActivationId, ActivationEntry]()
   private val totalActivations = new AtomicInteger(0)
@@ -45,7 +44,7 @@ class LocalLoadBalancerData() extends LoadBalancerData {
   }
 
   override def activationCountPerInvoker: Future[Map[String, Int]] = {
-    Future.successful(activationByInvoker.map(x => (x._1.toString, x._2.get)).toMap)
+    Future.successful(activationByInvoker.toMap.mapValues(_.get))
   }
 
   override def activationById(activationId: ActivationId): Option[ActivationEntry] = {
@@ -57,7 +56,7 @@ class LocalLoadBalancerData() extends LoadBalancerData {
       val entry = update
       totalActivations.incrementAndGet()
       activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).incrementAndGet()
-      activationByInvoker.getOrElseUpdate(entry.invokerName, new AtomicInteger(0)).incrementAndGet()
+      activationByInvoker.getOrElseUpdate(entry.invokerName.toString, new AtomicInteger(0)).incrementAndGet()
       entry
     })
   }
@@ -66,7 +65,7 @@ class LocalLoadBalancerData() extends LoadBalancerData {
     activationsById.remove(entry.id).map { x =>
       totalActivations.decrementAndGet()
       activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).decrementAndGet()
-      activationByInvoker.getOrElseUpdate(entry.invokerName, new AtomicInteger(0)).decrementAndGet()
+      activationByInvoker.getOrElseUpdate(entry.invokerName.toString, new AtomicInteger(0)).decrementAndGet()
       x
     }
   }

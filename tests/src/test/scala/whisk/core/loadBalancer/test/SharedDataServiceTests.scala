@@ -44,8 +44,7 @@ class SharedDataServiceTests()
     with ImplicitSender
     with FlatSpecLike
     with Matchers
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterAll {
 
   override def afterAll {
     TestKit.shutdownActorSystem(system)
@@ -53,54 +52,43 @@ class SharedDataServiceTests()
 
   behavior of "SharedDataService"
 
-    val port = 2552
-    val config = ConfigFactory
-      .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0.1:"+ port + "\"] }")
-      .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
-      .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
-      .withValue("akka.cluster.auto-down-unreachable-after", ConfigValueFactory.fromAnyRef("10s"))
-      .withValue("akka.actor.provider", ConfigValueFactory.fromAnyRef("cluster"))
-      .withValue("akka.remote.log-remote-lifecycle-events", ConfigValueFactory.fromAnyRef("off"))
-      .withFallback(ConfigFactory.load())
+  val port = 2552
+  val config = ConfigFactory
+    .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0.1:" + port + "\"] }")
+    .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
+    .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
+    .withValue("akka.cluster.auto-down-unreachable-after", ConfigValueFactory.fromAnyRef("10s"))
+    .withValue("akka.actor.provider", ConfigValueFactory.fromAnyRef("cluster"))
+    .withValue("akka.remote.log-remote-lifecycle-events", ConfigValueFactory.fromAnyRef("off"))
+    .withFallback(ConfigFactory.load())
 
-    val s = ActorSystem("controller-actor-system", config)
+  val s = ActorSystem("controller-actor-system", config)
 
-    val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
-    implicit val timeout = Timeout(5.seconds)
+  val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
+  implicit val timeout = Timeout(5.seconds)
 
-    it should "retrieve an empty map after initialization" in {
-      sharedDataService ! GetMap
-      expectMsgPF() {
-        case x: Map[String, BigInt] if x.size == 0 => true
-      }
-    }
-    it should "increase the counter" in {
-      sharedDataService ! (IncreaseCounter("Donald", 1))
-      sharedDataService ! ReadCounter("Donald")
-      expectMsg(1)
-    }
-    it should "decrease the counter" in {
-      sharedDataService ! (IncreaseCounter("Donald", 2))
-      sharedDataService ! (DecreaseCounter("Donald", 2))
-      sharedDataService ! ReadCounter("Donald")
-      expectMsg(1)
-    }
-    it should "return None for non existing keys" in {
-      sharedDataService ! (IncreaseCounter("Donald", 1))
-      sharedDataService ! (ReadCounter("Hilary"))
-      expectMsg(None)
-    }
-    it should "remove the entry from the map" in {
-      sharedDataService ! (IncreaseCounter("Fifi", 2))
-      sharedDataService ! (RemoveCounter("Fifi"))
-      sharedDataService ! (ReadCounter("Fifi"))
-      expectMsg(None)
-    }
-    it should "receive the map with all counters" in {
-      sharedDataService ! (IncreaseCounter("Hilary", 1))
-      sharedDataService ! GetMap
-      expectMsgPF() {
-        case x: Map[String, BigInt] if x.size == 2 => true
-      }
-    }
+  it should "retrieve an empty map after initialization" in {
+    sharedDataService ! GetMap
+    val msg = Map()
+    expectMsg(msg)
+  }
+  it should "increase the counter" in {
+    sharedDataService ! (IncreaseCounter("Donald", 1))
+    sharedDataService ! GetMap
+    val msg = Map("Donald" -> 1)
+    expectMsg(msg)
+  }
+  it should "decrease the counter" in {
+    sharedDataService ! (IncreaseCounter("Donald", 2))
+    sharedDataService ! (DecreaseCounter("Donald", 2))
+    sharedDataService ! GetMap
+    val msg = Map("Donald" -> 1)
+    expectMsg(msg)
+  }
+  it should "receive the map with all counters" in {
+    sharedDataService ! (IncreaseCounter("Hilary", 1))
+    sharedDataService ! GetMap
+    val msg = Map("Hilary" -> 1, "Donald" -> 1)
+    expectMsg(msg)
+  }
 }
