@@ -53,6 +53,12 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     }
   }
 
+  it should "use default cli configuration when an empty string WSK_CONFIG_FILE is supplied" in {
+    val env = Map("WSK_CONFIG_FILE" -> "")
+    val stderr = wsk.cli(Seq("property", "get", "-i"), env = env, expectedExitCode = ERROR_EXIT).stderr
+    stderr should include("The API host is not valid: An API host must be provided.")
+  }
+
   it should "validate default property values" in {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())

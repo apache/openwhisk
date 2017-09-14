@@ -402,8 +402,11 @@ func SetDefaultProperties() {
 func GetPropertiesFilePath() (propsFilePath string, werr error) {
     var envExists bool
 
-    // Environment variable overrides the default properties file path
-    if propsFilePath, envExists = os.LookupEnv("WSK_CONFIG_FILE"); envExists == true || propsFilePath != "" {
+    // WSK_CONFIG_FILE environment variable overrides the default properties file path
+    // NOTE: If this variable is set to an empty string or non-existent/unreadable file
+    // - any existing $HOME/.wskprops is ignored
+    // - a default configuration is used
+    if propsFilePath, envExists = os.LookupEnv("WSK_CONFIG_FILE"); envExists {
         whisk.Debug(whisk.DbgInfo, "Using properties file '%s' from WSK_CONFIG_FILE environment variable\n", propsFilePath)
         return propsFilePath, nil
     } else {
