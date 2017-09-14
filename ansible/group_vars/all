@@ -94,7 +94,6 @@ runtimesManifestDefault:
   blackboxes:
     - name: "dockerskeleton"
 
-
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
   concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
