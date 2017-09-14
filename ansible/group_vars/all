@@ -30,7 +30,7 @@ whisk:
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
 #
-runtimesManifest:
+runtimesManifestDefault:
   defaultImagePrefix: "openwhisk"
   defaultImageTag: "latest"
   runtimes:
@@ -91,6 +91,8 @@ runtimesManifest:
         name: "action-php-v7.1"
   blackboxes:
     - name: "dockerskeleton"
+
+runtimesManifest: "{{ runtimes_Manifest | default(runtimesManifestDefault) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
