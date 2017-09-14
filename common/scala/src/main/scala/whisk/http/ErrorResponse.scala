@@ -126,7 +126,7 @@ object Messages {
     s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."
   }
 
-  /** Error for meta api. */
+  /** Error for web actions. */
   val propertyNotFound = "Response does not include requested property."
   def invalidMedia(m: MediaType) = s"Response is not valid '${m.value}'."
   def contentTypeExtensionNotSupported(extensions: Set[String]) = {
