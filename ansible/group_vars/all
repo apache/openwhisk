@@ -92,7 +92,7 @@ runtimesManifestDefault:
   blackboxes:
     - name: "dockerskeleton"
 
-runtimesManifest: "{{ runtimes_Manifest | default(runtimesManifestDefault) }}"
+runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
