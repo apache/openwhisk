@@ -125,6 +125,22 @@ controller:
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
   ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  jmxremote:
+    port: "{{ jmxBasePortController }}"
+    rmiPort: "{{ jmxRmiBasePortController }}"
+    jvmArgs:  "{% if inventory_hostname in groups['controllers'] %}
+    {{ jmxremoteCommonArgs }} -Djava.rmi.server.hostname={{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list | first }} -Dcom.sun.management.jmxremote.rmi.port={{ jmxRmiBasePortController | int + instanceIndex | int }} -Dcom.sun.management.jmxremote.port={{ jmxBasePortController | int + instanceIndex | int }}
+    {% endif %}"
+
+jmxBasePortController: 11098
+jmxRmiBasePortController: 12098
+jmxBasePortInvoker: 13098
+jmxRmiBasePortInvoker: 14098
+jmxUser: jmxuser
+jmxPass: jmxpass
+jmxremoteCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
+
+jmxremote: "{{ jmxremote_enabled | default('false') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -168,6 +184,12 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  jmxremote:
+    port: "{{ jmxBasePortInvoker }}"
+    rmiPort: "{{ jmxRmiBasePortInvoker }}"
+    jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
+    {{ jmxremoteCommonArgs }} -Djava.rmi.server.hostname={{ groups['invokers'] | map('extract', hostvars, 'ansible_host') | list | first }} -Dcom.sun.management.jmxremote.rmi.port={{ jmxRmiBasePortInvoker | int + instanceIndex | int }} -Dcom.sun.management.jmxremote.port={{ jmxBasePortInvoker | int + instanceIndex | int }}
+    {% endif %}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
