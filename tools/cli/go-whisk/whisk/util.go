@@ -22,6 +22,7 @@ import (
     "fmt"
     "net/url"
     "reflect"
+    "strings"
 
     "github.com/fatih/color"
     "github.com/google/go-querystring/query"
