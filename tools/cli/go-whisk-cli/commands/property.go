@@ -106,7 +106,7 @@ var propertySetCmd = &cobra.Command{
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
-            baseURL, err := getURLBase(apiHost, DefaultOpenWhiskApiPath)
+            baseURL, err := whisk.GetURLBase(apiHost, DefaultOpenWhiskApiPath)
 
             if err != nil {
                 // Not aborting now.  Subsequent commands will result in error
@@ -534,7 +534,7 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
         if client != nil {
             client.Config.Host = apiHost
-            baseURL, err := getURLBase(apiHost, DefaultOpenWhiskApiPath)
+            baseURL, err := whisk.GetURLBase(apiHost, DefaultOpenWhiskApiPath)
 
             if err != nil {
                 whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) failed: %s\n", apiHost, DefaultOpenWhiskApiPath, err)

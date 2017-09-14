@@ -24,8 +24,8 @@ import scala.collection.JavaConversions.asScalaBuffer
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
+import common.TestUtils.ERROR_EXIT
 import common.TestUtils.SUCCESS_EXIT
 import common.WhiskProperties
 import common.Wsk
@@ -39,6 +39,23 @@ class WskSdkTests extends TestHelpers with WskTestHelpers {
   val wsk = new Wsk
 
   behavior of "Wsk SDK"
+
+  it should "prefix https to apihost if no scheme given" in {
+    val result = wsk.cli(Seq("--apihost", "localhost:54321", "sdk", "install", "docker"), expectedExitCode = ERROR_EXIT)
+    result.stderr should include regex ("""(?i)Get https://localhost:54321/""")
+  }
+
+  it should "not prefix https to http apihost" in {
+    val result =
+      wsk.cli(Seq("--apihost", "http://localhost:54321", "sdk", "install", "docker"), expectedExitCode = ERROR_EXIT)
+    result.stderr should include regex ("""(?i)Get http://localhost:54321/""")
+  }
+
+  it should "not double prefix https to https apihost" in {
+    val result =
+      wsk.cli(Seq("--apihost", "https://localhost:54321", "sdk", "install", "docker"), expectedExitCode = ERROR_EXIT)
+    result.stderr should include regex ("""(?i)Get https://localhost:54321/""")
+  }
 
   it should "download docker action sdk" in {
     val dir = File.createTempFile("wskinstall", ".tmp")

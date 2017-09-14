@@ -229,10 +229,16 @@ var actionGetCmd = &cobra.Command{
         }
 
         if flags.action.url {
-            actionURL := action.ActionURL(Properties.APIHost,
+            actionURL, err := action.ActionURL(Properties.APIHost,
                 DefaultOpenWhiskApiPath,
                 Properties.APIVersion,
                 qualifiedName.GetPackageName())
+            if err != nil {
+                errStr := wski18n.T("Invalid host address '{{.host}}': {{.err}}",
+                        map[string]interface{}{"host": Properties.APIHost, "err": err})
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
             printActionGetWithURL(qualifiedName.GetEntity(), actionURL)
         } else if flags.common.summary {
             printSummary(action)

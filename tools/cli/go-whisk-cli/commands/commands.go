@@ -33,7 +33,7 @@ const DefaultOpenWhiskApiPath string = "/api"
 var UserAgent string = "OpenWhisk-CLI"
 
 func setupClientConfig(cmd *cobra.Command, args []string) (error){
-    baseURL, err := getURLBase(Properties.APIHost, DefaultOpenWhiskApiPath)
+    baseURL, err := whisk.GetURLBase(Properties.APIHost, DefaultOpenWhiskApiPath)
 
     // Determine if the parent command will require the API host to be set
     apiHostRequired := (cmd.Parent().Name() == "property" && cmd.Name() == "get" && (flags.property.auth ||
