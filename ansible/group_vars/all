@@ -30,7 +30,9 @@ whisk:
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
 #
-runtimesManifest:
+runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
+
+runtimesManifestDefault:
   defaultImagePrefix: "openwhisk"
   defaultImageTag: "latest"
   runtimes:
