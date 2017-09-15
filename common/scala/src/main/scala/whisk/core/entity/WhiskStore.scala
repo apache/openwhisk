@@ -51,6 +51,7 @@ package object types {
   type EntityStore = ArtifactStore[WhiskEntity]
   type ActivationStore = ArtifactStore[WhiskActivation]
 }
+
 protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevisionProvider {
 
   /**
