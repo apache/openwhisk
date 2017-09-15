@@ -215,7 +215,7 @@ Components = [
 
     makeComponent('setup',
                   'system setup'),
-    
+
     makeComponent('prereq',
                   'install requisites'),
 
