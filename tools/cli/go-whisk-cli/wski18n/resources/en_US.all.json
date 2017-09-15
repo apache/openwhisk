@@ -1528,8 +1528,8 @@
     "translation": "prints bash command completion script to stdout"
   },
   {
-    "id": "save action code to file that corresponds to the action name",
-    "translation": "save action code to file that corresponds to the action name"
+    "id": "save action code to file corresponding with action name",
+    "translation": "save action code to file corresponding with action name"
   },
   {
     "id": "file to save action code to",

@@ -569,7 +569,7 @@ func saveCode(action whisk.Action, filename string) (err error) {
         return err
     }
 
-    printSavedActionCode(filename)
+    printSavedActionCodeSuccess(filename)
 
     return nil
 }
@@ -971,7 +971,7 @@ func printActionDeleted(entityName string) {
             }))
 }
 
-func printSavedActionCode(name string) {
+func printSavedActionCodeSuccess(name string) {
     fmt.Fprintf(
         color.Output,
         wski18n.T(
@@ -1052,7 +1052,7 @@ func init() {
     actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"))
     actionGetCmd.Flags().BoolVarP(&flags.action.url, "url", "r", false, wski18n.T("get action url"))
     actionGetCmd.Flags().StringVar(&flags.action.saveAs, SAVE_AS_FLAG, "", wski18n.T("file to save action code to"))
-    actionGetCmd.Flags().BoolVarP(&flags.action.save, SAVE_FLAG, "", false, wski18n.T("save action code to file that corresponds to the action name"))
+    actionGetCmd.Flags().BoolVarP(&flags.action.save, SAVE_FLAG, "", false, wski18n.T("save action code to file corresponding with action name"))
 
     actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
