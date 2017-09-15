@@ -46,5 +46,5 @@ COPY router.php /action
 COPY runner.php /action
 
 # Run webserver on port 8080
-EXPOSE 8080
+
 CMD [ "php", "-S", "0.0.0.0:8080", "-d", "expose_php=0", "-d", "html_errors=0", "-d", "error_reporting=E_ALL", "/action/router.php" ]

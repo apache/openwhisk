@@ -19,5 +19,5 @@ ADD actionproxy.py /actionProxy/
 RUN mkdir -p /action
 ADD stub.sh /action/exec
 RUN chmod +x /action/exec
-EXPOSE 8080
+
 CMD ["/bin/bash", "-c", "cd actionProxy && python -u actionproxy.py"]

@@ -64,5 +64,5 @@ RUN touch /swift3Action/spm-build/main.swift
 RUN python /swift3Action/buildandrecord.py && rm /swift3Action/spm-build/.build/release/Action
 #RUN cd /swift3Action/spm-build; swift build -c release; rm /swift3Action/spm-build/.build/release/Action
 ENV FLASK_PROXY_PORT 8080
-EXPOSE 8080
+
 CMD ["/bin/bash", "-c", "cd /swift3Action && PYTHONIOENCODING='utf-8' python -u swift3runner.py"]

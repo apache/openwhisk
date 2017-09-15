@@ -215,6 +215,9 @@ Components = [
 
     makeComponent('setup',
                   'system setup'),
+    
+    makeComponent('prereq',
+                  'install requisites'),
 
     makeComponent('couchdb',
                   'deploy couchdb',

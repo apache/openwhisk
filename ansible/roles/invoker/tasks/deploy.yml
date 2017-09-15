@@ -59,7 +59,7 @@
   when: ansible_distribution == "Ubuntu"
 
 - name: get running invoker information
-  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ]}' | urlencode }}" return_content=yes
+  uri: url="http://{{ inventory_hostname }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
   when: whisk_version_name == "mac"
 

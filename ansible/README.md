@@ -30,8 +30,7 @@ You need to depend on the workarounds until Docker provides official methods.
 If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
 
 ##### Enable Docker remote API
-If you want to deploy OpenWhisk in distributed environment, you are required to enable Docker remote API in all Mac hosts.
-Only required when collecting logs using the Ansible playbook [logs.yml](logs.yml)
+The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
 ##### Activate docker0 network
 This is an optional step for local deployment.
@@ -64,9 +63,11 @@ systemProp.http.proxyPort=3128
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
-In all instructions, replace `<environment>` with your target environment. e.g. `docker-machine`if you want to deploy using a local docker-machine setup.
-By default, if you omit the `-i` parameter, the `local` environment will be used.
-If using Docker for Mac use the `local` environment.
+In all instructions, replace `<environment>` with your target environment. The default environment is `local` which works for Ubuntu and
+Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
+use `-i environments/docker-machine`.
+
+
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
@@ -116,7 +117,9 @@ ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #### Install Prerequisites
-This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment. No required for local environments since all prerequisites are already installed.
+This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.`
+
+This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment.
 
 ```
 ansible-playbook -i environments/<environment> prereq.yml
