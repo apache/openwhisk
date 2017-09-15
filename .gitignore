@@ -50,7 +50,6 @@ node_modules
 .idea
 *.class
 *.iml
-out/
 
 # Ansible
 ansible/environments/docker-machine/hosts
