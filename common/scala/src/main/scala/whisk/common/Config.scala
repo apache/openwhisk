@@ -43,7 +43,7 @@ import scala.util.Try
  * @param env an optional environment to read from (defaults to sys.env).
  */
 class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set())(
-  env: Map[String, String] = sys.env) {
+  env: Map[String, String] = sys.env)(implicit logging: Logging) {
 
   private val settings = getProperties().toMap.filter {
     case (k, v) =>
@@ -138,13 +138,13 @@ object Config {
    * Reads a Map of key-value pairs from the environment -- store them in the
    * mutable properties object.
    */
-  def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String],
-                                    env: Map[String, String]) = {
+  def readPropertiesFromEnvironment(properties: scala.collection.mutable.Map[String, String], env: Map[String, String])(
+    implicit logging: Logging) = {
     for (p <- properties.keys) {
       val envp = p.replace('.', '_').toUpperCase
       val envv = env.get(envp)
       if (envv.isDefined) {
-        println(s"environment set value for $p")
+        logging.info(this, s"environment set value for $p")
         properties += p -> envv.get.trim
       }
     }
@@ -156,10 +156,11 @@ object Config {
    * @param required a key-value map where the keys are required properties
    * @param properties a set of properties to check
    */
-  def validateProperties(required: Map[String, String], properties: Map[String, String]): Boolean = {
+  def validateProperties(required: Map[String, String], properties: Map[String, String])(
+    implicit logging: Logging): Boolean = {
     required.keys.forall { key =>
       val value = properties(key)
-      if (value == null) println(s"required property $key still not set")
+      if (value == null) logging.error(this, s"required property $key still not set")
       value != null
     }
   }

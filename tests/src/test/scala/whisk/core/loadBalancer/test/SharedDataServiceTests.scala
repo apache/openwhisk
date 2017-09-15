@@ -17,7 +17,7 @@
 
 package whisk.core.loadBalancer.test
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Address}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
@@ -25,6 +25,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import whisk.core.loadBalancer._
 import org.scalatest.FlatSpecLike
+import scala.collection.immutable.Seq
 
 import scala.concurrent.duration._
 
@@ -53,18 +54,16 @@ class SharedDataServiceTests()
   behavior of "SharedDataService"
 
   val port = 2552
+  val host = "127.0.0.1"
   val config = ConfigFactory
-    .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0.1:" + port + "\"] }")
-    .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
+    .parseString(s"akka.remote.netty.tcp.hostname=$host")
     .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
-    .withValue("akka.cluster.auto-down-unreachable-after", ConfigValueFactory.fromAnyRef("10s"))
     .withValue("akka.actor.provider", ConfigValueFactory.fromAnyRef("cluster"))
-    .withValue("akka.remote.log-remote-lifecycle-events", ConfigValueFactory.fromAnyRef("off"))
     .withFallback(ConfigFactory.load())
 
   val s = ActorSystem("controller-actor-system", config)
-
-  val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
+  val seedNode = Seq(Address("akka.tcp:", "controller-actor-system", host, port))
+  val sharedDataService = s.actorOf(SharedDataService.props("Candidates", seedNode), name = "busyMan")
   implicit val timeout = Timeout(5.seconds)
 
   it should "retrieve an empty map after initialization" in {

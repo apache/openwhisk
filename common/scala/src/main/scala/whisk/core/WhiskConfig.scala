@@ -20,7 +20,7 @@ package whisk.core
 import java.io.File
 
 import scala.io.Source
-import whisk.common.Config
+import whisk.common.{Config, Logging}
 
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
@@ -35,7 +35,7 @@ import whisk.common.Config
 class WhiskConfig(requiredProperties: Map[String, String],
                   optionalProperties: Set[String] = Set(),
                   propertiesFile: File = null,
-                  env: Map[String, String] = sys.env)
+                  env: Map[String, String] = sys.env)(implicit val logging: Logging)
     extends Config(requiredProperties, optionalProperties)(env) {
 
   /**
@@ -129,8 +129,10 @@ object WhiskConfig {
    * Reads a Map of key-value pairs from the environment (sys.env) -- store them in the
    * mutable properties object.
    */
-  def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File) = {
+  def readPropertiesFromFile(properties: scala.collection.mutable.Map[String, String], file: File)(
+    implicit logging: Logging) = {
     if (file != null && file.exists) {
+      logging.info(this, s"reading properties from file $file")
       for (line <- Source.fromFile(file).getLines if line.trim != "") {
         val parts = line.split('=')
         if (parts.length >= 1) {
@@ -138,7 +140,10 @@ object WhiskConfig {
           val v = if (parts.length == 2) parts(1).trim else ""
           if (properties.contains(p)) {
             properties += p -> v
+            logging.debug(this, s"properties file set value for $p")
           }
+        } else {
+          logging.warn(this, s"ignoring properties $line")
         }
       }
     }

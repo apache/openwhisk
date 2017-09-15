@@ -99,7 +99,12 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   private val loadBalancerData = {
     if (config.controllerLocalBookkeeping) {
       new LocalLoadBalancerData()
-    } else new DistributedLoadBalancerData()
+    } else {
+
+      /** Specify how seed nodes are generated */
+      val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
+      new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
+    }
   }
 
   override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
@@ -323,7 +328,8 @@ object LoadBalancerService {
     kafkaHost ++ Map(
       loadbalancerInvokerBusyThreshold -> null,
       controllerBlackboxFraction -> null,
-      controllerLocalBookkeeping -> null)
+      controllerLocalBookkeeping -> null,
+      controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

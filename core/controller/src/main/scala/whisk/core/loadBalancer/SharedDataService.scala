@@ -17,14 +17,13 @@
 
 package whisk.core.loadBalancer
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberRemoved, MemberUp, UnreachableMember}
+import akka.cluster.ClusterEvent._
 import akka.cluster.ddata.{DistributedData, PNCounterMap, PNCounterMapKey}
 import akka.cluster.ddata.Replicator._
 import whisk.common.AkkaLogging
-import whisk.core.WhiskConfig
-import com.typesafe.config.{Config, ConfigFactory}
+import scala.collection.immutable.Seq
 
 case class IncreaseCounter(key: String, value: Long)
 case class DecreaseCounter(key: String, value: Long)
@@ -33,35 +32,14 @@ case class RemoveCounter(key: String)
 case object GetMap
 
 /**
- * Companion object to specify actor properties from the outside, e.g. name of the shared map
+ * Companion object to specify actor properties from the outside, e.g. name of the shared map and cluster seed nodes
  */
 object SharedDataService {
-  val requiredProperties = Map(WhiskConfig.controllerSeedNodes -> null)
-
-  def props(storageName: String): Props = Props(new SharedDataService(storageName))
-
-  /**
-   * Add seed nodes if cluster provider is specified, otherwhise return the existing config.
-   * Parse akka seed nodes this way until either of these 2 issues is resolved:
-   * https://github.com/akka/akka/issues/23600
-   * https://github.com/typesafehub/config/issues/69
-   * @return Updated Config
-   */
-  def addAkkaSeedNodesToConf(whiskConf: WhiskConfig): Config = {
-    val conf = ConfigFactory.load()
-
-    val cluster = conf.getString("akka.actor.provider")
-
-    if (cluster == "cluster") {
-      val seedNodes = whiskConf.controllerSeedNodes
-      val nodes = seedNodes.split(' ').map(x => s""""akka.tcp://controller-actor-system@$x"""")
-      val configWithSeedNodes = ConfigFactory.parseString(s"akka.cluster.seed-nodes=[${nodes.mkString(",")}]")
-      configWithSeedNodes.withFallback(conf)
-    } else conf
-  }
+  def props(storageName: String, seedNodes: Seq[Address]): Props =
+    Props(new SharedDataService(storageName, seedNodes))
 }
 
-class SharedDataService(storageName: String) extends Actor with ActorLogging {
+class SharedDataService(storageName: String, seedNodes: Seq[Address]) extends Actor with ActorLogging {
 
   val replicator = DistributedData(context.system).replicator
 
@@ -75,6 +53,7 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
    * Subscribe this node for the changes in the Map, initialize the Map
    */
   override def preStart(): Unit = {
+    node.joinSeedNodes(seedNodes)
     replicator ! Subscribe(storage, self)
     node.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
     replicator ! Update(storage, PNCounterMap.empty[String], writeLocal)(_.remove(node, "0"))
@@ -103,7 +82,7 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
       logging.warn(this, s"Member is Removed: ${member.address} after $previousStatus")
 
     case c @ Changed(_) =>
-      logging.debug(this, "Current elements: " + c)
+      logging.debug(this, "Current elements: " + c.get(storage))
 
     case g @ GetSuccess(_, Some((replyTo: ActorRef))) =>
       val map = g.get(storage).entries

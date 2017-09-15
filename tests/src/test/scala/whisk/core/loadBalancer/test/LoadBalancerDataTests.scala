@@ -22,7 +22,12 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import common.StreamLogging
 import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
-import whisk.core.loadBalancer.{ActivationEntry, DistributedLoadBalancerData, LocalLoadBalancerData}
+import whisk.core.loadBalancer.{
+  ActivationEntry,
+  DistributedLoadBalancerData,
+  LocalLoadBalancerData,
+  StaticSeedNodesProvider
+}
 
 import scala.concurrent.{Await, Future, Promise}
 import whisk.core.entity.InstanceId
@@ -36,23 +41,25 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
   val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
 
   val port = 2552
+  val host = "127.0.0.1"
   val config = ConfigFactory
-    .parseString("akka.cluster { seed-nodes = [\"akka.tcp://controller-actor-system@127.0.0.1:" + port + "\"] }")
-    .withValue("akka.remote.netty.tcp.hostname", ConfigValueFactory.fromAnyRef("127.0.0.1"))
+    .parseString(s"akka.remote.netty.tcp.hostname = $host")
     .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
-    .withValue("akka.cluster.auto-down-unreachable-after", ConfigValueFactory.fromAnyRef("10s"))
     .withValue("akka.actor.provider", ConfigValueFactory.fromAnyRef("cluster"))
-    .withValue("akka.remote.log-remote-lifecycle-events", ConfigValueFactory.fromAnyRef("off"))
     .withFallback(ConfigFactory.load())
 
-  implicit val actorSystem = ActorSystem("controller-actor-system", config)
+  val actorSystemName = "controller-actor-system"
+
+  implicit val actorSystem = ActorSystem(actorSystemName, config)
+
+  val seedNodesProvider = new StaticSeedNodesProvider(s"$host:$port", actorSystemName)
 
   def await[A](f: Future[A], timeout: FiniteDuration = 1.second) = Await.result(f, timeout)
 
   behavior of "LoadBalancerData"
 
   it should "return the number of activations for a namespace" in {
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 //    test all implementations
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -69,7 +76,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "return the number of activations for each invoker" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -94,7 +101,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "remove activations and reflect that accordingly" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -118,12 +125,11 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "remove activations from all 3 maps by activation id" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
-      val lbd = new DistributedLoadBalancerData()
       lbd.putActivation(firstEntry.id, firstEntry)
 
       val res = await(lbd.activationCountPerInvoker)
@@ -138,7 +144,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
   }
 
   it should "return None if the entry doesn't exist when we remove it" in {
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -154,7 +160,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
     val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
     val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -195,7 +201,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "not add the same entry more then once" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -218,7 +224,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "not evaluate the given block if an entry already exists" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -249,7 +255,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "not evaluate the given block even if an entry is different (but has the same id)" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)

@@ -33,17 +33,35 @@ import scala.concurrent.duration._
  * Note: The state keeping is backed by distributed akka actors. All CRUDs operations are done on local values, thus
  * a stale value might be read.
  */
-class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Logging) extends LoadBalancerData {
+class DistributedLoadBalancerData(seedNodesProvider: SeedNodesProvider,
+                                  implicit val actorSystem: ActorSystem,
+                                  logging: Logging)
+    extends LoadBalancerData {
 
   implicit val timeout = Timeout(5.seconds)
   implicit val executionContext = actorSystem.dispatcher
   private val activationsById = TrieMap[ActivationId, ActivationEntry]()
+
+  private val seedNodes = {
+    val nodes = seedNodesProvider.getSeedNodes()
+    if (nodes.size > 0)
+      nodes
+    else {
+      logging.error(
+        this,
+        "Either seed nodes were not provided or not specified in the correct " +
+          "format, e.g. whitespace " +
+          "separated <IP:PORT>")
+      sys.exit(1)
+    }
+  }
+
   private val sharedStateInvokers = actorSystem.actorOf(
-    SharedDataService.props("Invokers"),
+    SharedDataService.props("Invokers", seedNodes),
     name =
       "SharedDataServiceInvokers" + UUID())
   private val sharedStateNamespaces = actorSystem.actorOf(
-    SharedDataService.props("Namespaces"),
+    SharedDataService.props("Namespaces", seedNodes),
     name =
       "SharedDataServiceNamespaces" + UUID())
 
