@@ -1064,6 +1064,10 @@
     "translation": "retrieves the last activation"
   },
   {
+    "id": "strip timestamp and stream information",
+    "translation": "strip timestamp and stream information"
+  },
+  {
     "id": "stop polling after `SECONDS` seconds",
     "translation": "stop polling after `SECONDS` seconds"
   },

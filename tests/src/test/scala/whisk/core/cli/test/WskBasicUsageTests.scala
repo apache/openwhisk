@@ -307,6 +307,22 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       N = 5)
   }
 
+  it should "ensure timestamp and stream are stripped from log lines" in withAssetCleaner(wskprops) {
+    val name = "activationLogStripTest"
+    val auth: Seq[String] = Seq("--auth", wskprops.authKey)
+
+    (wp, assetHelper) =>
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("log.js")))
+      }
+
+      withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+        val cmd = Seq("activation", "logs", "--strip", activation.activationId)
+        val run = wsk.cli(cmd ++ wskprops.overrides ++ auth, expectedExitCode = SUCCESS_EXIT)
+        run.stdout shouldBe "this is stdout\nthis is stderr\n"
+      }
+  }
+
   it should "ensure keys are not omitted from activation record" in withAssetCleaner(wskprops) {
     val name = "activationRecordTest"
 
@@ -352,7 +368,9 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
           "key" -> JsString("limits"),
           "value" -> ActionLimits(TimeLimit(timeLimit), MemoryLimit(memoryLimit), LogLimit(logLimit)).toJson)
 
-        val path = annotations.find { _.fields("key").convertTo[String] == "path" }.get
+        val path = annotations.find {
+          _.fields("key").convertTo[String] == "path"
+        }.get
 
         path.fields("value").convertTo[String] should fullyMatch regex (s""".*/$name""")
         annotations should contain(limitsObj)

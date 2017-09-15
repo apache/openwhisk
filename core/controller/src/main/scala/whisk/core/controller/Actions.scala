@@ -60,9 +60,6 @@ import whisk.core.entitlement.Privilege._
 object WhiskActionsApi {
   def requiredProperties = Map(WhiskConfig.actionSequenceMaxLimit -> null)
 
-  /** Grace period after action timeout limit to poll for result. */
-  protected[core] val blockingInvokeGrace = 5 seconds
-
   /**
    * Max duration to wait for a blocking activation.
    * This is the default timeout on a POST request.
@@ -593,7 +590,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * the given original sequence.
    *
    * @param origSequence the original sequence that is updated/created which generated the checks
-   * @param the components of the a sequence to check if they reference the original sequence
+   * @param components the components of the a sequence to check if they reference the original sequence
    * @return Future with the number of atomic actions in the current sequence or an appropriate error if there is a cycle or a non-existent action reference
    */
   private def countAtomicActionsAndCheckCycle(
