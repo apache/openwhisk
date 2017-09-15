@@ -25,9 +25,7 @@ import java.time.Instant
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -35,8 +33,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Inspectors._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-
-import common.StreamLogging
+import common.{StreamLogging, WskActorSystem}
 import spray.json._
 import whisk.common.LoggingMarkers._
 import whisk.common.LogMarker
@@ -53,7 +50,13 @@ import whisk.http.Messages
  * Unit tests for ContainerPool schedule
  */
 @RunWith(classOf[JUnitRunner])
-class DockerContainerTests extends FlatSpec with Matchers with MockFactory with StreamLogging with BeforeAndAfterEach {
+class DockerContainerTests
+    extends FlatSpec
+    with Matchers
+    with MockFactory
+    with StreamLogging
+    with BeforeAndAfterEach
+    with WskActorSystem {
 
   override def beforeEach() = {
     stream.reset()
