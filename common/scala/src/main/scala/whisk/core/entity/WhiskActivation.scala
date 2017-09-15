@@ -75,6 +75,7 @@ case class WhiskActivation(namespace: EntityPath,
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
+  /** This the activation summary as computed by the database view. Strictly used for testing. */
   override def summaryAsJson = {
     val JsObject(fields) = super.summaryAsJson
     JsObject(fields + ("activationId" -> activationId.toJson))

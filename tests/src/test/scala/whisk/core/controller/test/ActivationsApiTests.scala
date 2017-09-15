@@ -80,7 +80,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       WhiskActivation(namespace, actionName, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace, 2)
+    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
     whisk.utils.retry {
       Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -152,7 +152,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         response = ActivationResponse.success(Some(JsNumber(5))))
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace, 2)
+    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
 
     whisk.utils.retry {
       Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
@@ -216,7 +216,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = now.plusSeconds(30),
         end = now.plusSeconds(20))) // should match
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace, activations.length)
+    waitOnView(activationStore, namespace.root, activations.length, WhiskActivation.collectionName)
 
     // get between two time stamps
     whisk.utils.retry {
@@ -292,7 +292,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now)
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace, 2)
+    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
 
     whisk.utils.retry {
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {

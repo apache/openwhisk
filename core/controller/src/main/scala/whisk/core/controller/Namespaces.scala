@@ -104,7 +104,7 @@ trait WhiskNamespacesApi
    */
   private def getAllInNamespace(namespace: EntityPath)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-    onComplete(listAllInNamespace(entityStore, namespace, false)) {
+    onComplete(listAllInNamespace(entityStore, namespace.root, false)) {
       case Success(entities) => {
         complete(OK, Namespaces.emptyNamespace ++ entities)
       }

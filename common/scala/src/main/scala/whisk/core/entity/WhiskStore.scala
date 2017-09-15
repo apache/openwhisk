@@ -179,12 +179,12 @@ object WhiskEntityQueries {
 
   /**
    * Queries the datastore for all entities in a namespace, and converts the list of entities
-   * to a map that collects the entities by their type. This method applies to both the main
-   * asset database and the activation records because they both have an "all" view.
+   * to a map that collects the entities by their type. This method applies to only to the main
+   * asset database, not the activations records because it does not offer the required view.
    */
   def listAllInNamespace[A <: WhiskEntity](
     db: ArtifactStore[A],
-    namespace: EntityPath,
+    namespace: EntityName,
     includeDocs: Boolean,
     stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
     implicit val ec = db.executionContext
