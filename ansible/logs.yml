@@ -27,14 +27,13 @@
 - hosts: all:!ansible
   serial: 1
   tasks:
-  - name: set host flag
-    set_fact:
-      docker_host_flag: "--host tcp://{{ ansible_host }}:{{ docker.port }}"
-    when: (whisk_version_name == "mac" or ansible_os_family == "Debian")
-  - name: do not set host flag when Docker mac
+  - name: init var docker_host_flag
     set_fact:
       docker_host_flag: ""
-    when: (whisk_version_name != "mac" and ansible_os_family != "Debian")
+  - name: set host flag when using docker remote API
+    set_fact:
+      docker_host_flag: "--host tcp://{{ ansible_host }}:{{ docker.port }}"
+    when: whisk_version_name != "local"
   - name: get all docker containers
     local_action: shell docker {{ docker_host_flag }} ps -a --format="{% raw %}{{.Names}}{% endraw %}"
     register: container_names
