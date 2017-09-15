@@ -205,7 +205,7 @@ Components = [
     makeComponent('fresh',
                   'setup, build, and deploy a fresh whisk system using couchdb',
                   yaml = False,
-                  steps = 'setup, prereq, couchdb, initdb, wipedb, deploy, catalog'),
+                  steps = 'setup, couchdb, initdb, wipedb, deploy, catalog'),
 
     makeComponent('fmt',
                   'apply source code formats',

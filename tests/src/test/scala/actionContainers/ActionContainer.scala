@@ -90,7 +90,9 @@ object ActionContainer {
   }
 
   private lazy val dockerCmd: String = {
-    val hostStr = if (WhiskProperties.onMacOSX()) {
+    val version = WhiskProperties.getProperty("whisk.version.name")
+    // Check if we are running on docker-machine env.
+    val hostStr = if (version.toLowerCase().contains("mac")) {
       s" --host tcp://${WhiskProperties.getMainDockerEndpoint()} "
     } else {
       " "

@@ -29,10 +29,8 @@ brew cask install java
 brew install scala
 # install pip
 sudo easy_install pip
-# install docker for python
-/usr/local/bin/pip install docker==2.2.1
 # install script prerequisites
-sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 couchdb' | bash
+sudo -H pip install docker==2.2.1 ansible==2.3.0.0 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
 # Build

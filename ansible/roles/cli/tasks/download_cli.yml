@@ -10,9 +10,9 @@
     mode=0755
     validate_certs=False
     force=True
-  when: "'environments/docker-machine' not in inventory_dir and 'environments/mac' not in inventory_dir"
+  when: ('environments/docker-machine' not in inventory_dir) and (ansible_os_family != "Darwin")
 
-- name: "download cli (docker-machine) to openwhisk home at {{ openwhisk_home }}"
+- name: "download cli for mac (docker-machine or Docker for Mac) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
     url="https://{{ groups['edge'] | first }}/cli/go/download/mac/amd64/wsk"
@@ -20,4 +20,4 @@
     mode=0755
     validate_certs=False
     force=True
-  when: "'environments/docker-machine' in inventory_dir or 'environments/mac' in inventory_dir"
+  when: ('environments/docker-machine' in inventory_dir ) or (ansible_os_family == "Darwin")
