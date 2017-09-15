@@ -113,8 +113,7 @@ object Messages {
   val abnormalInitialization = "The action did not initialize and exited unexpectedly."
   val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
   val memoryExhausted = "The action exhausted its memory and was aborted."
-  def badEntityName(value: String) = s"Parameter is not a valid value for a entity name: $value"
-  def badNamespace(value: String) = s"Parameter is not a valid value for a namespace: $value"
+  def badNameFilter(value: String) = s"Parameter may be a 'simple' name or 'package-name/simple' name: $value"
   def badEpoch(value: String) = s"Parameter is not a valid value for epoch seconds: $value"
 
   /** Error message for size conformance. */
