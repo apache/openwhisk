@@ -820,11 +820,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
     val saveName = s"save-as-$name.js"
     val currentDir = System.getProperty("user.dir")
-    val saveDir = if (currentDir.endsWith("tests")) {
-      currentDir
-    } else {
-      s"$currentDir${File.separator}tests"
-    }
+    val saveDir = WhiskProperties.getTestPath
     val badSaveName = s"bad-directory${File.separator}$saveName"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
