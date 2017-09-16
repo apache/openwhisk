@@ -17,11 +17,13 @@
 
 package whisk.core.containerpool.docker
 
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.blocking
-import scala.sys.process._
+import java.nio.ByteBuffer
+
+import akka.util.ByteString
+import com.zaxxer.nuprocess.{NuAbstractProcessHandler, NuProcessBuilder}
+
+import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 trait ProcessRunner {
 
@@ -35,19 +37,30 @@ trait ProcessRunner {
    * @param args command to be run including arguments
    * @return a future completing according to the command's exit code
    */
-  protected def executeProcess(args: String*)(implicit ec: ExecutionContext) =
-    Future(blocking {
-      val out = new mutable.ListBuffer[String]
-      val err = new mutable.ListBuffer[String]
-      val exitCode = args ! ProcessLogger(o => out += o, e => err += e)
+  protected def executeProcess(args: String*)(implicit ec: ExecutionContext): Future[String] = {
+    val promise = Promise[String]()
+    val pb: NuProcessBuilder = new NuProcessBuilder(args.asJava)
+    pb.setProcessListener(new NuAbstractProcessHandler {
+      var out = ByteString.empty
+      var err = ByteString.empty
 
-      (exitCode, out.mkString("\n"), err.mkString("\n"))
-    }).flatMap {
-      case (0, stdout, _) =>
-        Future.successful(stdout)
-      case (code, stdout, stderr) =>
-        Future.failed(ProcessRunningException(code, stdout, stderr))
-    }
+      override def onExit(code: Int): Unit = code match {
+        case 0 => promise.success(out.utf8String.trim)
+        case _ => promise.failure(ProcessRunningException(code, out.utf8String.trim, err.utf8String.trim))
+      }
+
+      override def onStderr(buffer: ByteBuffer, closed: Boolean) = {
+        err = err ++ ByteString.fromByteBuffer(buffer)
+      }
+
+      override def onStdout(buffer: ByteBuffer, closed: Boolean): Unit = {
+        out = out ++ ByteString.fromByteBuffer(buffer)
+      }
+    })
+
+    pb.start()
+    promise.future
+  }
 }
 
 case class ProcessRunningException(exitCode: Int, stdout: String, stderr: String)
