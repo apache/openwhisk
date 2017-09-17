@@ -74,9 +74,10 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       // Time recorded by invoker, some contingency to make query more robust
       val queryTime = activation.start.minusMillis(500)
       // since: poll for activations since specified point in time (absolute)
-      val activations = wsk.activation.pollFor(N = 1, Some(actionName), since = Some(queryTime), retries = 80).length
+      val activations =
+        wsk.activation.pollFor(N = 1, Some(s"$packageName/$actionName"), since = Some(queryTime), retries = 80).length
       withClue(
-        s"expected activations of action '${actionName}' since ${queryTime.toString} / initial activation ${activation.activationId}:") {
+        s"expected activations of action '$fullActionName' since $queryTime, initial activation ${activation.activationId}:") {
         activations should be(1)
       }
 
@@ -108,7 +109,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       // since: poll for activations since specified point in time (absolute)
       val activations = wsk.activation.pollFor(N = 4, Some(name), since = Some(queryTime), retries = 80).length
       withClue(
-        s"expected activations of action '${name}' since ${queryTime.toString} / initial activation ${activation.activationId}:") {
+        s"expected activations of action '$name' since $queryTime, initial activation ${activation.activationId}:") {
         activations should be(count + 1)
       }
       val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)

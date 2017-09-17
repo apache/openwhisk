@@ -40,7 +40,7 @@ import whisk.core.WhiskConfig.dbProvider
 import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.WhiskConfig.dbWhiskDesignDoc
-import whisk.core.WhiskConfig.dbActivationsDesignDoc
+import whisk.core.WhiskConfig.{dbActivationsDesignDoc, dbActivationsFilterDesignDoc}
 import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
@@ -139,7 +139,8 @@ object WhiskActivationStore {
       dbHost -> null,
       dbPort -> null,
       dbActivations -> null,
-      dbActivationsDesignDoc -> null)
+      dbActivationsDesignDoc -> null,
+      dbActivationsFilterDesignDoc -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)
@@ -198,7 +199,7 @@ object WhiskEntityQueries {
   // which are readily available here; rather than introduce significant refactoring,
   // defer this fix until WhiskConfig is refactored itself, which is planned to introduce
   // type safe properties
-  val designDoc = WhiskConfig.readFromEnv(dbWhiskDesignDoc).getOrElse("whisks")
+  val designDoc = WhiskConfig.readFromEnv(dbWhiskDesignDoc).getOrElse("whisks.v2")
 
   /** The view name for the collection, within the design document. */
   def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)

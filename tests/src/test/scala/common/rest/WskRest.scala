@@ -778,7 +778,6 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
 
   def waitForActivationConsole(totalWait: Duration = 30 seconds, sinceTime: Instant)(
     implicit wp: WskProps): RestResult = {
-    Thread.sleep(totalWait.toMillis)
     listActivation(since = Some(sinceTime))(wp)
   }
 
