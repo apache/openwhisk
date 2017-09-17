@@ -544,9 +544,13 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         case Empty =>
           process(None, isRawHttpAction)
 
-        case HttpEntity.Strict(ContentTypes.`application/json`, _) if !isRawHttpAction =>
-          entity(as[JsObject]) { body =>
-            process(Some(body), isRawHttpAction)
+        case HttpEntity.Strict(ContentTypes.`application/json`, json) if !isRawHttpAction =>
+          if (json.nonEmpty) {
+            entity(as[JsValue]) { body =>
+              process(Some(body), isRawHttpAction)
+            }
+          } else {
+            process(None, isRawHttpAction)
           }
 
         case HttpEntity.Strict(ContentType(MediaTypes.`application/x-www-form-urlencoded`, _), _) if !isRawHttpAction =>

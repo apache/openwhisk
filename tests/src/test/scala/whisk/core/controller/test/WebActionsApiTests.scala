@@ -488,6 +488,30 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       }
     }
 
+    it should s"invoke action which receives an empty entity (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq("", JsArray().compactPrint, JsObject().compactPrint, JsNull.compactPrint).foreach { arg =>
+        Seq(s"$systemId/proxy/export_c.json").foreach { path =>
+          allowedMethodsWithEntity.foreach { m =>
+            invocationsAllowed += 1
+            m(s"$testRoutePath/$path", HttpEntity(ContentTypes.`application/json`, arg)) ~> Route.seal(routes(creds)) ~> check {
+              status should be(OK)
+              val response = responseAs[JsObject]
+              response shouldBe JsObject(
+                "pkg" -> s"$systemId/proxy".toJson,
+                "action" -> "export_c".toJson,
+                "content" -> metaPayload(
+                  m.method.name.toLowerCase,
+                  if (arg.nonEmpty && arg != "{}") JsObject(webApiDirectives.body -> arg.parseJson) else JsObject(),
+                  creds,
+                  pkgName = "proxy"))
+            }
+          }
+        }
+      }
+    }
+
     it should s"invoke action and merge query and body parameters (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
 
@@ -1006,7 +1030,6 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                   "body" -> JsObject("field" -> "value".toJson)))
 
               m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-                println(responseAs[String])
                 status should be(expectedCode)
 
                 if (expectedCode == OK) {
