@@ -13,8 +13,6 @@ repositories {
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
-
-    compile "com.zaxxer:nuprocess:1.1.2"
 }
 
 tasks.withType(ScalaCompile) {
