@@ -470,8 +470,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
           val p = if (path.endsWith("/")) "/" else ""
           invocationsAllowed += 1
-          m(s"$testRoutePath/$path", HttpEntity(ContentTypes.`application/json`, content.compactPrint)) ~> Route.seal(
-            routes(creds)) ~> check {
+          m(s"$testRoutePath/$path", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
@@ -522,8 +521,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           val content = JsObject("extra" -> "read all about it".toJson, "yummy" -> true.toJson)
           invocationsAllowed += 1
 
-          m(s"$testRoutePath/$path", HttpEntity(ContentTypes.`application/json`, content.compactPrint)) ~> Route.seal(
-            routes(creds)) ~> check {
+          m(s"$testRoutePath/$path", content) ~> Route.seal(routes(creds)) ~> check {
             status should be(OK)
             val response = responseAs[JsObject]
             response shouldBe JsObject(
@@ -1409,9 +1407,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             pkgName = "proxy"))
       }
 
-      Post(
-        s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d",
-        HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+      Post(s"$testRoutePath/$systemId/proxy/export_c.json?a=b&c=d", JsObject()) ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
         response shouldBe JsObject(
@@ -1546,9 +1542,7 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
       Post(
         s"$testRoutePath/$systemId/proxy/raw_export_c.json",
-        HttpEntity(
-          ContentTypes.`application/json`,
-          JsObject("x" -> "overriden".toJson, "key2" -> "value2".toJson).compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+        JsObject("x" -> "overriden".toJson, "key2" -> "value2".toJson)) ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
         response shouldBe JsObject(

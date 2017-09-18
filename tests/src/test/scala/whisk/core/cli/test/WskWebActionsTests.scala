@@ -59,7 +59,7 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
   behavior of "Wsk Web Actions"
 
-  it should "ensure received headers contain content-type" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "ensure __ow_headers contains the proper content-type" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "webContenttype"
     val file = Some(TestUtils.getTestActionFilename("echo.js"))
     val bodyContent = JsObject("key" -> "value".toJson)
@@ -70,15 +70,24 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       action.create(name, file, web = Some("true"))
     }
 
-    val response =
+    val resWithContentType =
       RestAssured.given().contentType("application/json").body(bodyContent.compactPrint).config(sslconfig).post(url)
 
-    response.statusCode shouldBe 200
-    response.header("Content-type") shouldBe "application/json"
-    response.body.asString.parseJson.asJsObject
+    resWithContentType.statusCode shouldBe 200
+    resWithContentType.header("Content-type") shouldBe "application/json"
+    resWithContentType.body.asString.parseJson.asJsObject
       .fields("__ow_headers")
       .asJsObject
       .fields("content-type") shouldBe "application/json".toJson
+
+    val resWithoutContentType =
+      RestAssured.given().config(sslconfig).get(url)
+
+    resWithoutContentType.statusCode shouldBe 200
+    resWithoutContentType.header("Content-type") shouldBe "application/json"
+    resWithoutContentType.body.asString.parseJson.asJsObject
+      .fields("__ow_headers")
+      .toString should not include ("content-type")
   }
 
   /**
