@@ -17,6 +17,8 @@ include 'tests'
 include 'tests:dat:blackbox:badaction'
 include 'tests:dat:blackbox:badproxy'
 
+include 'tools:benchmark'
+
 rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
