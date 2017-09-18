@@ -482,7 +482,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 creds,
                 body = Some(content),
                 path = p,
-                pkgName = "proxy"))
+                pkgName = "proxy",
+                headers = List(`Content-Type`(ContentTypes.`application/json`))))
           }
         }
       }
@@ -505,7 +506,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                   m.method.name.toLowerCase,
                   if (arg.nonEmpty && arg != "{}") JsObject(webApiDirectives.body -> arg.parseJson) else JsObject(),
                   creds,
-                  pkgName = "proxy"))
+                  pkgName = "proxy",
+                  headers = List(`Content-Type`(ContentTypes.`application/json`))))
             }
           }
         }
@@ -531,7 +533,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                 Map("a" -> "b", "c" -> "d").toJson.asJsObject,
                 creds,
                 body = Some(content),
-                pkgName = "proxy"))
+                pkgName = "proxy",
+                headers = List(`Content-Type`(ContentTypes.`application/json`))))
           }
         }
       }
@@ -1377,9 +1380,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
        *
        */
 
-      Post(s"$testRoutePath/$systemId/proxy/export_c.json", str) ~> addHeader(
-        "Content-type",
-        ContentTypes.`text/html(UTF-8)`.value) ~> Route.seal(routes(creds)) ~> check {
+      Post(s"$testRoutePath/$systemId/proxy/export_c.json", HttpEntity(ContentTypes.`text/html(UTF-8)`, str)) ~> Route
+        .seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
         response shouldBe JsObject(
@@ -1416,7 +1418,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             Post.method.name.toLowerCase,
             Map("a" -> "b", "c" -> "d").toJson.asJsObject,
             creds,
-            pkgName = "proxy"))
+            pkgName = "proxy",
+            headers = List(`Content-Type`(ContentTypes.`application/json`))))
       }
     }
 
@@ -1552,7 +1555,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
               JsObject("x" -> JsString("overriden"), "key2" -> JsString("value2")).compactPrint.getBytes
             }.toJson).toJson.asJsObject,
             creds,
-            pkgName = "proxy"))
+            pkgName = "proxy",
+            headers = List(`Content-Type`(ContentTypes.`application/json`))))
       }
     }
 
@@ -1562,9 +1566,9 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       invocationsAllowed = 1
 
       val queryString = "key1=value1&key2=value2"
-      Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString", str) ~> addHeader(
-        "Content-type",
-        MediaTypes.`application/json`.value) ~> Route.seal(routes(creds)) ~> check {
+      Post(
+        s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString",
+        HttpEntity(ContentTypes.`application/json`, str)) ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[JsObject]
         response shouldBe JsObject(
@@ -1572,7 +1576,9 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
           "action" -> "raw_export_c".toJson,
           "content" -> metaPayload(
             Post.method.name.toLowerCase,
-            Map(webApiDirectives.body -> str.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+            Map(webApiDirectives.body -> Base64.getEncoder.encodeToString {
+              str.getBytes
+            }.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
             creds,
             pkgName = "proxy",
             headers = List(`Content-Type`(ContentTypes.`application/json`))))

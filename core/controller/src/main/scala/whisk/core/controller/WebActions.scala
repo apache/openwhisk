@@ -371,13 +371,18 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
     `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH),
     `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name))
 
+  private def contentTypeFromEntity(entity: HttpEntity) = entity.contentType match {
+    case ct if ct == ContentTypes.NoContentType => None
+    case ct                                     => Some(RawHeader(`Content-Type`.lowercaseName, ct.toString))
+  }
+
   /** Extracts the HTTP method, headers, query params and unmatched (remaining) path. */
   private val requestMethodParamsAndPath = {
     extract { ctx =>
       val method = ctx.request.method
       val query = ctx.request.uri.query()
       val path = ctx.unmatchedPath.toString
-      val headers = ctx.request.headers
+      val headers = ctx.request.headers ++ contentTypeFromEntity(ctx.request.entity)
       Context(webApiDirectives, method, headers, path, query)
     }
   }
