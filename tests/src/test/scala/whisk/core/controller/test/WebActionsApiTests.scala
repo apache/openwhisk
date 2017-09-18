@@ -506,7 +506,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
                   m.method.name.toLowerCase,
                   if (arg.nonEmpty && arg != "{}") JsObject(webApiDirectives.body -> arg.parseJson) else JsObject(),
                   creds,
-                  pkgName = "proxy"))
+                  pkgName = "proxy",
+                  headers = List(`Content-Type`(ContentTypes.`application/json`))))
             }
           }
         }
