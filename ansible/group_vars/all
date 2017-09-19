@@ -106,7 +106,7 @@ controller:
   basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
-  blackboxFraction: 0.10
+  blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
 
 registry:

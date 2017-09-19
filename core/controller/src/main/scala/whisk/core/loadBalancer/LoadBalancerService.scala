@@ -313,7 +313,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 }
 
 object LoadBalancerService {
-  def requiredProperties = kafkaHost ++ Map(loadbalancerInvokerBusyThreshold -> null)
+  def requiredProperties =
+    kafkaHost ++ Map(loadbalancerInvokerBusyThreshold -> null, controllerBlackboxFraction -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

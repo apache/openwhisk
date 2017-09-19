@@ -54,6 +54,7 @@
       "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.concurrentInvocationsSystem }}"
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
       "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
+      "CONTROLLER_BLACKBOXFRACTION": "{{ controller.blackboxFraction }}"
       "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"

@@ -196,7 +196,7 @@ object WhiskConfig {
 
   val mainDockerEndpoint = "main.docker.endpoint"
 
-  private val controllerBlackboxFraction = "controller.blackboxFraction"
+  val controllerBlackboxFraction = "controller.blackboxFraction"
   val controllerInstances = "controller.instances"
 
   val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
