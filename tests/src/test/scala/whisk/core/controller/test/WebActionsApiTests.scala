@@ -1619,6 +1619,30 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         invocationsAllowed shouldBe invocationCount
       }
     }
+
+    it should s"invoke web action ensuring JSON value body arguments are not Base64 encoded (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq("this is a string".toJson, JsArray(1.toJson, "str str".toJson, false.toJson), true.toJson, 99.toJson)
+        .foreach { str =>
+          invocationsAllowed += 1
+          Post(
+            s"$testRoutePath/$systemId/proxy/export_c.json",
+            HttpEntity(ContentTypes.`application/json`, str.compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response shouldBe JsObject(
+              "pkg" -> s"$systemId/proxy".toJson,
+              "action" -> "export_c".toJson,
+              "content" -> metaPayload(
+                Post.method.name.toLowerCase,
+                Map(webApiDirectives.body -> str).toJson.asJsObject,
+                creds,
+                pkgName = "proxy",
+                headers = List(`Content-Type`(ContentTypes.`application/json`))))
+          }
+        }
+    }
   }
 
   class TestingEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)
