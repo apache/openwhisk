@@ -18,7 +18,7 @@
 package whisk.core.connector
 
 import scala.annotation.tailrec
-import scala.collection._
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.concurrent.duration._

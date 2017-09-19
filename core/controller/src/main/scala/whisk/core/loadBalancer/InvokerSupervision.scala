@@ -104,10 +104,10 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
     case GetStatus => sender() ! status
 
-    case msg: InvocationFinishedMessage => {
+    case msg: InvocationFinishedMessage =>
       // Forward message to invoker, if InvokerActor exists
-      instanceToRef.get(msg.invokerInstance).map(_.forward(msg))
-    }
+      instanceToRef.get(msg.invokerInstance).foreach(_.forward(msg))
+
 
     case CurrentState(invoker, currentState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
