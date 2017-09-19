@@ -93,12 +93,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
   def receive = {
     case p: PingMessage =>
-      val invoker = instanceToRef.get(p.instance) match {
-        case Some(ref) ⇒
-          ref
-        case None ⇒
-          registerInvoker(p.instance)
-      }
+      val invoker = instanceToRef.getOrElse(p.instance, registerInvoker(p.instance))
 
       invoker.forward(p)
 
