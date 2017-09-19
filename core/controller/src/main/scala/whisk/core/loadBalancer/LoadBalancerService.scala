@@ -27,15 +27,13 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
+import akka.cluster.Cluster
 import akka.util.Timeout
 import akka.pattern.ask
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -103,7 +101,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
       /** Specify how seed nodes are generated */
       val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-      new DistributedLoadBalancerData(seedNodesProvider, actorSystem, logging)
+      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      new DistributedLoadBalancerData()
     }
   }
 

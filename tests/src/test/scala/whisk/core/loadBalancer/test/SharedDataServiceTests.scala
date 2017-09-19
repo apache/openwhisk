@@ -17,7 +17,7 @@
 
 package whisk.core.loadBalancer.test
 
-import akka.actor.{ActorSystem, Address}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
@@ -25,7 +25,6 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import whisk.core.loadBalancer._
 import org.scalatest.FlatSpecLike
-import scala.collection.immutable.Seq
 
 import scala.concurrent.duration._
 
@@ -62,8 +61,7 @@ class SharedDataServiceTests()
     .withFallback(ConfigFactory.load())
 
   val s = ActorSystem("controller-actor-system", config)
-  val seedNode = Seq(Address("akka.tcp:", "controller-actor-system", host, port))
-  val sharedDataService = s.actorOf(SharedDataService.props("Candidates", seedNode), name = "busyMan")
+  val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
   implicit val timeout = Timeout(5.seconds)
 
   it should "retrieve an empty map after initialization" in {

@@ -17,13 +17,12 @@
 
 package whisk.core.loadBalancer
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import akka.cluster.ddata.{DistributedData, PNCounterMap, PNCounterMapKey}
 import akka.cluster.ddata.Replicator._
 import whisk.common.AkkaLogging
-import scala.collection.immutable.Seq
 
 case class IncreaseCounter(key: String, value: Long)
 case class DecreaseCounter(key: String, value: Long)
@@ -35,11 +34,11 @@ case object GetMap
  * Companion object to specify actor properties from the outside, e.g. name of the shared map and cluster seed nodes
  */
 object SharedDataService {
-  def props(storageName: String, seedNodes: Seq[Address]): Props =
-    Props(new SharedDataService(storageName, seedNodes))
+  def props(storageName: String): Props =
+    Props(new SharedDataService(storageName))
 }
 
-class SharedDataService(storageName: String, seedNodes: Seq[Address]) extends Actor with ActorLogging {
+class SharedDataService(storageName: String) extends Actor with ActorLogging {
 
   val replicator = DistributedData(context.system).replicator
 
@@ -53,7 +52,6 @@ class SharedDataService(storageName: String, seedNodes: Seq[Address]) extends Ac
    * Subscribe this node for the changes in the Map, initialize the Map
    */
   override def preStart(): Unit = {
-    node.joinSeedNodes(seedNodes)
     replicator ! Subscribe(storage, self)
     node.subscribe(self, initialStateMode = InitialStateAsEvents, classOf[MemberEvent], classOf[UnreachableMember])
     replicator ! Update(storage, PNCounterMap.empty[String], writeLocal)(_.remove(node, "0"))
