@@ -23,10 +23,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-import akka.event.Logging.{ DebugLevel, InfoLevel, WarningLevel, ErrorLevel }
+import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
-import whisk.common.tracing.TraceUtil
+import whisk.common.tracing.TracingProvider
+import whisk.spi.SpiLoader
 
 trait Logging {
     /**
@@ -144,6 +145,8 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
   */
 class ZipkinLogging (logger: Logging) extends Logging {
 
+    val tracingProvider = SpiLoader.get[TracingProvider]()
+
     def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
         logger.emit(loglevel, id, from, message)
     }
@@ -153,19 +156,20 @@ class ZipkinLogging (logger: Logging) extends Logging {
         //log message as usual
         emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
 
+
         //tracing support
         logMarker.token.state match {
 
             case LoggingMarkers.start => {
-                TraceUtil.startTrace(logMarker.token.component, logMarker.token.action, id)
+                  tracingProvider.startTrace(logMarker.token.component, logMarker.token.action, id)
             }
 
             case LoggingMarkers.finish => {
-                TraceUtil.finish(id)
+                tracingProvider.finish(id)
             }
 
             case LoggingMarkers.error => {
-                TraceUtil.finish(id)
+                tracingProvider.finish(id)
             }
 
             case _ =>
