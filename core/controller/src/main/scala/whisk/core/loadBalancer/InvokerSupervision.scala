@@ -19,7 +19,7 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 
-import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -85,25 +85,21 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = context.dispatcher
 
-  // State of the actor. It's important not to close over these
-  // references directly, so they don't escape the Actor.
-  val instanceToRef = mutable.Map[InstanceId, ActorRef]()
-  val refToInstance = mutable.Map[ActorRef, InstanceId]()
+  // State of the actor. Mutable vars with immutable collections prevents closures or messages
+  // from leaking the state for external mutation
+  var instanceToRef = immutable.Map.empty[InstanceId, ActorRef]
+  var refToInstance = immutable.Map.empty[ActorRef, InstanceId]
   var status = IndexedSeq[(InstanceId, InvokerState)]()
 
   def receive = {
     case p: PingMessage =>
-      val invoker = instanceToRef.getOrElseUpdate(p.instance, {
-        logging.info(this, s"registered a new invoker: invoker${p.instance.toInt}")(TransactionId.invokerHealth)
+      val invoker = instanceToRef.get(p.instance) match {
+        case Some(ref) ⇒
+          ref
+        case None ⇒
+          registerInvoker(p.instance)
+      }
 
-        status = padToIndexed(status, p.instance.toInt + 1, i => (InstanceId(i), Offline))
-
-        val ref = childFactory(context, p.instance)
-        ref ! SubscribeTransitionCallBack(self) // register for state change events
-
-        refToInstance.update(ref, p.instance)
-        ref
-      })
       invoker.forward(p)
 
     case GetStatus => sender() ! status
@@ -162,6 +158,22 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
   /** Pads a list to a given length using the given function to compute entries */
   def padToIndexed[A](list: IndexedSeq[A], n: Int, f: (Int) => A) = list ++ (list.size until n).map(f)
+
+  // Register a new invoker
+  def registerInvoker(instanceId: InstanceId): ActorRef = {
+    logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
+
+    status = padToIndexed(status, instanceId.toInt + 1, i ⇒ (InstanceId(i), Offline))
+
+    val ref = childFactory(context, instanceId)
+
+    ref ! SubscribeTransitionCallBack(self) // register for state change events
+
+    refToInstance = refToInstance.updated(ref, instanceId)
+
+    ref
+  }
+
 }
 
 object InvokerPool {
