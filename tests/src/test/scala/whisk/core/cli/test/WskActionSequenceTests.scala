@@ -76,7 +76,7 @@ class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
     }
 
     val stdout = wsk.action.get(name).stdout
-    assert(stdout.startsWith(s"ok: got action $name\n"))
+    assert(stdout.startsWith(s"ok: got action '$name'\n"))
     wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
     wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue
   }

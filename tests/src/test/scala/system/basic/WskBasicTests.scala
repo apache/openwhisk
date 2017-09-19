@@ -121,13 +121,13 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       pkg.create(name)
     }
 
-    res.stdout should include(s"ok: created package $name")
+    res.stdout should include(s"ok: created package '$name'")
   }
 
   it should "create a package, and get its individual fields" in withAssetCleaner(wskprops) {
     val name = "packageFields"
     val paramInput = Map("payload" -> "test".toJson)
-    val successMsg = s"ok: got package $name, displaying field"
+    val successMsg = s"ok: got package '$name', displaying field"
 
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
@@ -289,7 +289,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
   it should "create an action, and get its individual fields" in withAssetCleaner(wskprops) {
     val name = "actionFields"
     val paramInput = Map("payload" -> "test".toJson)
-    val successMsg = s"ok: got action $name, displaying field"
+    val successMsg = s"ok: got action '$name', displaying field"
 
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
@@ -419,7 +419,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       action.create(name, defaultAction)
     }
 
-    res.stdout should include(s"ok: created action $name")
+    res.stdout should include(s"ok: created action '$name'")
   }
 
   it should "create an action, and invoke an action that returns an empty JSON object" in withAssetCleaner(wskprops) {
@@ -515,7 +515,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       trigger.create(name)
     }
 
-    res.stdout should include regex (s"ok: created trigger $name")
+    res.stdout should include regex (s"ok: created trigger '$name'")
   }
 
   it should "create, and fire a trigger using a parameter file" in withAssetCleaner(wskprops) {
@@ -538,7 +538,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
   it should "create a trigger, and get its individual fields" in withAssetCleaner(wskprops) {
     val name = "triggerFields"
     val paramInput = Map("payload" -> "test".toJson)
-    val successMsg = s"ok: got trigger $name, displaying field"
+    val successMsg = s"ok: got trigger '$name', displaying field"
 
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.trigger, name) { (trigger, _) =>
@@ -681,7 +681,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     val triggerName = "ruleTriggerFields"
     val actionName = "ruleActionFields"
     val paramInput = Map("payload" -> "test".toJson)
-    val successMsg = s"ok: got rule $ruleName, displaying field"
+    val successMsg = s"ok: got rule '$ruleName', displaying field"
 
     (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.trigger, triggerName) { (trigger, name) =>

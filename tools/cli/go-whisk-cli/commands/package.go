@@ -465,7 +465,7 @@ var packageRefreshCmd = &cobra.Command{
 
     switch resp.StatusCode {
     case http.StatusOK:
-      fmt.Printf(wski18n.T("{{.name}} refreshed successfully\n",
+      fmt.Printf(wski18n.T("'{{.name}}' refreshed successfully\n",
         map[string]interface{}{"name": client.Config.Namespace}))
 
       fmt.Println(wski18n.T("created bindings:"))

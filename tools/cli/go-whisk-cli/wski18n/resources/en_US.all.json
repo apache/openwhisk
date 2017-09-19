@@ -184,8 +184,8 @@
     "translation": "Package refresh for namespace '{{.name}}' failed: {{.err}}"
   },
   {
-    "id": "{{.name}} refreshed successfully\n",
-    "translation": "{{.name}} refreshed successfully\n"
+    "id": "'{{.name}}' refreshed successfully\n",
+    "translation": "'{{.name}}' refreshed successfully\n"
   },
   {
     "id": "created bindings:",
@@ -566,8 +566,8 @@
     "translation": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto"
   },
   {
-    "id": "The file {{.name}} already exists.  Delete it and retry.",
-    "translation": "The file {{.name}} already exists.  Delete it and retry."
+    "id": "The file '{{.name}}' already exists.  Delete it and retry.",
+    "translation": "The file '{{.name}}' already exists.  Delete it and retry."
   },
   {
     "id": "The {{.component}} SDK installation failed: {{.err}}",
@@ -578,8 +578,8 @@
     "translation": "The docker skeleton is now installed at the current directory."
   },
   {
-    "id": "Downloaded OpenWhisk iOS starter app. Unzip {{.name}} and open the project in Xcode.\n",
-    "translation": "Downloaded OpenWhisk iOS starter app. Unzip {{.name}} and open the project in Xcode.\n"
+    "id": "Downloaded OpenWhisk iOS starter app. Unzip '{{.name}}' and open the project in Xcode.\n",
+    "translation": "Downloaded OpenWhisk iOS starter app. Unzip '{{.name}}' and open the project in Xcode.\n"
   },
   {
     "id": "Unable to retrieve '{{.urlpath}}' SDK: {{.err}}",
@@ -590,24 +590,24 @@
     "translation": "Server failed to send the '{{.component}}' SDK: {{.err}}"
   },
   {
-    "id": "Error creating SDK file {{.name}}: {{.err}}",
-    "translation": "Error creating SDK file {{.name}}: {{.err}}"
+    "id": "Error creating SDK file '{{.name}}': {{.err}}",
+    "translation": "Error creating SDK file '{{.name}}': {{.err}}"
   },
   {
     "id": "Error copying server response into file: {{.err}}",
     "translation": "Error copying server response into file: {{.err}}"
   },
   {
-    "id": "The directory {{.name}} already exists.  Delete it and retry.",
-    "translation": "The directory {{.name}} already exists.  Delete it and retry."
+    "id": "The directory '{{.name}}' already exists.  Delete it and retry.",
+    "translation": "The directory '{{.name}}' already exists.  Delete it and retry."
   },
   {
-    "id": "Error unGzipping file {{.name}}: {{.err}}",
-    "translation": "Error unGzipping file {{.name}}: {{.err}}"
+    "id": "Error unGzipping file '{{.name}}': {{.err}}",
+    "translation": "Error unGzipping file '{{.name}}': {{.err}}"
   },
   {
-    "id": "Error untarring file {{.name}}: {{.err}}",
-    "translation": "Error untarring file {{.name}}: {{.err}}"
+    "id": "Error untarring file '{{.name}}': {{.err}}",
+    "translation": "Error untarring file '{{.name}}': {{.err}}"
   },
   {
     "id": "work with triggers",
@@ -984,8 +984,8 @@
     "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
   {
-    "id": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n",
-    "translation": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n"
+    "id": "activation result for '/{{.namespace}}/{{.name}}' ({{.status}} at {{.time}})\n",
+    "translation": "activation result for '/{{.namespace}}/{{.name}}' ({{.status}} at {{.time}})\n"
   },
   {
     "id": "{{.ok}} got activation {{.id}}\n",
@@ -1028,8 +1028,8 @@
     "translation": "Polling for activation logs\n"
   },
   {
-    "id": "\nActivation: {{.name}} ({{.id}})\n",
-    "translation": "\nActivation: {{.name}} ({{.id}})\n"
+    "id": "\nActivation: '{{.name}}' ({{.id}})\n",
+    "translation": "\nActivation: '{{.name}}' ({{.id}})\n"
   },
   {
     "id": "Activation list does not contain any activations.",
@@ -1424,8 +1424,8 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
-    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
+    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update \"{{.name}}\" --web true' to convert the action to a web action.",
+    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update \"{{.name}}\" --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",

@@ -113,8 +113,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
         rule.create(ruleName, trigger = triggerName, action = fullQualifiedName)
       }
 
-      wsk.action.invoke(fullQualifiedName).stdout should include(s"ok: invoked /$fullQualifiedName")
-      wsk.action.get(fullQualifiedName).stdout should include(s"ok: got action ${packageName}/${actionName}")
+      wsk.action.invoke(fullQualifiedName).stdout should include(s"ok: invoked '/$fullQualifiedName'")
+      wsk.action.get(fullQualifiedName).stdout should include(s"ok: got action '${packageName}/${actionName}'")
   }
 
   it should "include CLI user agent headers with outbound requests" in {
@@ -176,7 +176,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.action.get(name).stdout
-      assert(stdout.startsWith(s"ok: got action $name\n"))
+      assert(stdout.startsWith(s"ok: got action '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -199,7 +199,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.action.get(name).stdout
-      assert(stdout.startsWith(s"ok: got action $name\n"))
+      assert(stdout.startsWith(s"ok: got action '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -221,7 +221,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.action.get(name).stdout
-      assert(stdout.startsWith(s"ok: got action $name\n"))
+      assert(stdout.startsWith(s"ok: got action '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -537,7 +537,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       wsk.action.create(name, file, web = Some(flag), update = true)
 
       val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-      assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+      assert(stdout.startsWith(s"ok: got action '$name', displaying field annotations\n"))
       removeCLIHeader(stdout).parseJson shouldBe JsArray(
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
@@ -567,7 +567,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     wsk.action.create(name, file, web = Some("true"), update = true)
 
     val existinAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-    assert(existinAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+    assert(existinAnnots.startsWith(s"ok: got action '$name', displaying field annotations\n"))
     removeCLIHeader(existinAnnots).parseJson shouldBe JsArray(
       JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
       JsObject("key" -> JsString(origKey), "value" -> origValue),
@@ -579,7 +579,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     wsk.action.create(name, file, web = Some("true"), update = true, annotations = updateAnnots)
 
     val updatedAnnots = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-    assert(updatedAnnots.startsWith(s"ok: got action $name, displaying field annotations\n"))
+    assert(updatedAnnots.startsWith(s"ok: got action '$name', displaying field annotations\n"))
     removeCLIHeader(updatedAnnots).parseJson shouldBe JsArray(
       JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
       JsObject("key" -> JsString(origKey), "value" -> overwrittenValue),
@@ -599,7 +599,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.action.get(name, fieldFilter = Some("annotations")).stdout
-      assert(stdout.startsWith(s"ok: got action $name, displaying field annotations\n"))
+      assert(stdout.startsWith(s"ok: got action '$name', displaying field annotations\n"))
       removeCLIHeader(stdout).parseJson shouldBe JsArray(
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(true)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(false)),
@@ -815,8 +815,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
   it should "create, and delete a package" in {
     val name = "createDeletePackage"
-    wsk.pkg.create(name).stdout should include(s"ok: created package $name")
-    wsk.pkg.delete(name).stdout should include(s"ok: deleted package $name")
+    wsk.pkg.create(name).stdout should include(s"ok: created package '$name'")
+    wsk.pkg.delete(name).stdout should include(s"ok: deleted package '$name'")
   }
 
   it should "create, and get a package to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
@@ -828,7 +828,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.pkg.get(name).stdout
-      assert(stdout.startsWith(s"ok: got package $name\n"))
+      assert(stdout.startsWith(s"ok: got package '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -851,7 +851,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.pkg.get(name).stdout
-      assert(stdout.startsWith(s"ok: got package $name\n"))
+      assert(stdout.startsWith(s"ok: got package '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -872,7 +872,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.pkg.get(name).stdout
-      assert(stdout.startsWith(s"ok: got package $name\n"))
+      assert(stdout.startsWith(s"ok: got package '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -968,7 +968,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.trigger.get(name).stdout
-      assert(stdout.startsWith(s"ok: got trigger $name\n"))
+      assert(stdout.startsWith(s"ok: got trigger '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -991,7 +991,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.trigger.get(name).stdout
-      assert(stdout.startsWith(s"ok: got trigger $name\n"))
+      assert(stdout.startsWith(s"ok: got trigger '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
@@ -1025,7 +1025,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
 
       val stdout = wsk.trigger.get(name).stdout
-      assert(stdout.startsWith(s"ok: got trigger $name\n"))
+      assert(stdout.startsWith(s"ok: got trigger '$name'\n"))
 
       val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
       val receivedAnnots = wsk.parseJsonString(stdout).fields("annotations").convertTo[JsArray].elements
