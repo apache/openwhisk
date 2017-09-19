@@ -967,7 +967,7 @@ func ReadProps(path string) (map[string]string, error) {
         }
         props[kv[0]] = kv[1]
     }
-    
+
     return props, nil
 
 }
