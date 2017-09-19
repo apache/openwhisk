@@ -76,6 +76,7 @@ protected[controller] sealed class WebApiDirectives(prefix: String = "__ow_") {
   val body: String = fields("body")
 
   lazy val reservedProperties: Set[String] = Set(method, headers, path, namespace, query, body)
+
   protected final def fields(f: String) = s"$prefix$f"
 }
 
@@ -85,7 +86,6 @@ private case class Context(propertyMap: WebApiDirectives,
                            path: String,
                            query: Query,
                            body: Option[JsValue] = None) {
-
   val queryAsMap = query.toMap
 
   // returns true iff the attached query and body parameters contain a property
@@ -171,9 +171,9 @@ protected[core] object WhiskWebActionsApi extends Directives {
   /**
    * Supported extensions, their default projection and transcoder to complete a request.
    *
-   * @param extension the supported media types for action response
-   * @param defaultProject the default media extensions for action projection
-   * @param transcoder the HTTP decoder and terminator for the extension
+   * @param extension         the supported media types for action response
+   * @param defaultProjection the default media extensions for action projection
+   * @param transcoder        the HTTP decoder and terminator for the extension
    */
   protected case class MediaExtension(extension: String,
                                       defaultProjection: Option[List[String]],
@@ -366,10 +366,18 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private lazy val validNameSegment = pathPrefix(EntityName.REGEX.r)
   private lazy val packagePrefix = pathPrefix("default".r | EntityName.REGEX.r)
 
-  private val defaultCorsResponse = List(
-    `Access-Control-Allow-Origin`.*,
-    `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH),
-    `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name))
+  private val defaultCorsBaseResponse =
+    List(`Access-Control-Allow-Origin`.*, `Access-Control-Allow-Methods`(OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH))
+
+  private val defaultCorsWithAllowHeader = {
+    defaultCorsBaseResponse :+ `Access-Control-Allow-Headers`(`Authorization`.name, `Content-Type`.name)
+  }
+
+  private def defaultCorsResponse(headers: Seq[HttpHeader]): List[HttpHeader] = {
+    headers.find(_.name == `Access-Control-Request-Headers`.name).map { h =>
+      defaultCorsBaseResponse :+ `Access-Control-Allow-Headers`(h.value)
+    } getOrElse defaultCorsWithAllowHeader
+  }
 
   private def contentTypeFromEntity(entity: HttpEntity) = entity.contentType match {
     case ct if ct == ContentTypes.NoContentType => None
@@ -388,6 +396,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   }
 
   def routes(user: Identity)(implicit transid: TransactionId): Route = routes(Some(user))
+
   def routes()(implicit transid: TransactionId): Route = routes(None)
 
   private val maxWaitForWebActionResult = Some(WhiskActionsApi.maxWaitForBlockingActivation)
@@ -469,7 +478,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
                     if (!action.annotations.asBool("web-custom-options").exists(identity)) {
-                      respondWithHeaders(defaultCorsResponse) {
+                      respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
                         } else {
