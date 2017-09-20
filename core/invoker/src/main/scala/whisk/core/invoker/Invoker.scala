@@ -201,10 +201,17 @@ object Invoker {
     }
     val producer = msgProvider.getProducer(config, ec)
     val invoker = try {
-      new InvokerReactive(config, invokerInstance, producer)
+        // TODO
+        if (config.invokerType == "reactive") {
+          new InvokerReactive(config, invokerInstance, producer)
+        } else if (config.invokerType == "noOp") {
+          new InvokerNoOp(config, invokerInstance, producer)
+        } else {
+          abort()
+        }
     } catch {
       case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
-    }
+  }
 
     Scheduler.scheduleWaitAtMost(1.seconds)(() => {
       producer.send("health", PingMessage(invokerInstance)).andThen {
