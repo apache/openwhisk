@@ -52,7 +52,7 @@ class SequenceActionApiMigrationTests
   val creds = WhiskAuthHelpers.newIdentity()
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
-  def aname = MakeName.next("seq_migration_tests")
+  def aname() = MakeName.next("seq_migration_tests")
 
   private def seqParameters(seq: Vector[String]) = Parameters("_actions", seq.toJson)
 
@@ -60,7 +60,7 @@ class SequenceActionApiMigrationTests
     implicit val tid = transid()
     val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
     val actions = (1 to 2).map { i =>
-      WhiskAction(namespace, aname, sequence(components))
+      WhiskAction(namespace, aname(), sequence(components))
     }.toList
     actions foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskAction, namespace, 2)
@@ -78,7 +78,7 @@ class SequenceActionApiMigrationTests
   it should "get old-style sequence action by name in default namespace" in {
     implicit val tid = transid()
     val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(components))
+    val action = WhiskAction(namespace, aname(), sequence(components))
     put(entityStore, action)
     Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -92,7 +92,7 @@ class SequenceActionApiMigrationTests
     implicit val tid = transid()
     val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
     val seqComponents = components.map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
+    val action = WhiskAction(namespace, aname(), sequence(seqComponents), seqParameters(components))
     val content = WhiskActionPut(Some(jsDefault("")), parameters = Some(Parameters("a", "A")))
     put(entityStore, action, false)
 
@@ -111,7 +111,7 @@ class SequenceActionApiMigrationTests
     implicit val tid = transid()
     val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
     val seqComponents = components.map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(seqComponents), seqParameters(components))
+    val action = WhiskAction(namespace, aname(), sequence(seqComponents), seqParameters(components))
     val content = WhiskActionPut(Some(jsDefault("")))
     put(entityStore, action, false)
 
@@ -129,7 +129,7 @@ class SequenceActionApiMigrationTests
     implicit val tid = transid()
     val components = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c")
     val seqComponents = components.map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(seqComponents))
+    val action = WhiskAction(namespace, aname(), sequence(seqComponents))
     val content = """{"annotations":[{"key":"old","value":"new"}]}""".parseJson.asJsObject
     put(entityStore, action, false)
 
@@ -151,14 +151,14 @@ class SequenceActionApiMigrationTests
   it should "update an old-style sequence with new sequence" in {
     implicit val tid = transid()
     // old sequence
-    val seqName = EntityName(s"${aname}_new")
+    val seqName = EntityName(s"${aname()}_new")
     val oldComponents = Vector("/_/a", "/_/x/b", "/n/a", "/n/x/c").map(stringToFullyQualifiedName(_))
     val oldSequence = WhiskAction(namespace, seqName, sequence(oldComponents))
     put(entityStore, oldSequence)
 
     // new sequence
     val limit = 5 // count of bogus actions in sequence
-    val bogus = s"${aname}_bogus"
+    val bogus = s"${aname()}_bogus"
     val bogusActionName = s"/_/${bogus}" // test that default namespace gets properly replaced
     // put the action in the entity store so it exists
     val bogusAction = WhiskAction(namespace, EntityName(bogus), jsDefault("??"), Parameters("x", "y"))

@@ -19,12 +19,16 @@ package whisk.core.entity
 
 import java.time.Instant
 
+import scala.concurrent.Future
 import scala.util.Try
 
+import spray.json._
 import spray.json.DefaultJsonProtocol
 import spray.json.DefaultJsonProtocol._
-import spray.json._
+import whisk.common.TransactionId
+import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
+import whisk.core.database.StaleParameter
 
 /**
  * A WhiskActivation provides an abstraction of the meta-data
@@ -44,7 +48,7 @@ import whisk.core.database.DocumentFactory
  * @param logs the activation logs
  * @param version the semantic version (usually matches the activated entity)
  * @param publish true to share the activation or false otherwise
- * @param annotation the set of annotations to attribute to the activation
+ * @param annotations the set of annotations to attribute to the activation
  * @param duration of the activation in milliseconds
  * @throws IllegalArgumentException if any required argument is undefined
  */
@@ -71,6 +75,7 @@ case class WhiskActivation(namespace: EntityPath,
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
+  /** This the activation summary as computed by the database view. Strictly used for testing. */
   override def summaryAsJson = {
     val JsObject(fields) = super.summaryAsJson
     JsObject(fields + ("activationId" -> activationId.toJson))
@@ -119,4 +124,28 @@ object WhiskActivation
   // Caching activations doesn't make much sense in the common case as usually,
   // an activation is only asked for once.
   override val cacheEnabled = false
+
+  /**
+   * Queries datastore for activation records which have an entity name matching the
+   * given parameter.
+   *
+   * @return list of records as JSON object if docs parameter is false, as Left
+   *         and a list of the WhiskActivations if including the full record, as Right
+   */
+  def listActivationsMatchingName(db: ArtifactStore[WhiskActivation],
+                                  namespace: EntityPath,
+                                  name: EntityName,
+                                  skip: Int,
+                                  limit: Int,
+                                  docs: Boolean = false,
+                                  since: Option[Instant] = None,
+                                  upto: Option[Instant] = None,
+                                  stale: StaleParameter = StaleParameter.No)(
+    implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] = {
+    import WhiskEntityQueries._
+    val convert = if (docs) Some((o: JsObject) => Try { serdes.read(o) }) else None
+    val startKey = List(namespace.addPath(name).asString, since map { _.toEpochMilli } getOrElse 0)
+    val endKey = List(namespace.addPath(name).asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+    query(db, viewname(collectionName), startKey, endKey, skip, limit, reduce = false, stale, convert)
+  }
 }

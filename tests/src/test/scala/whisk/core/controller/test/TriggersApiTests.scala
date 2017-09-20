@@ -61,14 +61,14 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   val creds = WhiskAuthHelpers.newIdentity()
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
-  def aname = MakeName.next("triggers_tests")
+  def aname() = MakeName.next("triggers_tests")
   val parametersLimit = Parameters.sizeLimit
 
   //// GET /triggers
   it should "list triggers by default/explicit namespace" in {
     implicit val tid = transid()
     val triggers = (1 to 2).map { i =>
-      WhiskTrigger(namespace, aname, Parameters("x", "b"))
+      WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     }.toList
     triggers foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskTrigger, namespace, 2)
@@ -102,7 +102,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   ignore should "list triggers by default namespace with full docs" in {
     implicit val tid = transid()
     val triggers = (1 to 2).map { i =>
-      WhiskTrigger(namespace, aname, Parameters("x", "b"))
+      WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     }.toList
     triggers foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskTrigger, namespace, 2)
@@ -119,7 +119,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   //// GET /triggers/name
   it should "get trigger by name in default/explicit namespace" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     put(entityStore, trigger)
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -145,9 +145,9 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     implicit val tid = transid()
     val rule = WhiskRule(
       namespace,
-      aname,
-      FullyQualifiedEntityName(namespace, aname),
-      FullyQualifiedEntityName(namespace, aname))
+      aname(),
+      FullyQualifiedEntityName(namespace, aname()),
+      FullyQualifiedEntityName(namespace, aname()))
     put(entityStore, rule)
     Get(s"/$namespace/${collection.path}/${rule.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(Conflict)
@@ -157,7 +157,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   //// DEL /triggers/name
   it should "delete trigger by name" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     put(entityStore, trigger)
     Delete(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -169,7 +169,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   //// PUT /triggers/name
   it should "put should accept request with missing optional properties" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname)
+    val trigger = WhiskTrigger(namespace, aname())
     val content = WhiskTriggerPut()
     Put(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteTrigger(trigger.docid)
@@ -181,7 +181,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should accept request with valid feed parameter" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, annotations = Parameters(Parameters.Feed, "xyz"))
+    val trigger = WhiskTrigger(namespace, aname(), annotations = Parameters(Parameters.Feed, "xyz"))
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     Put(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteTrigger(trigger.docid)
@@ -193,7 +193,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should reject request with undefined feed parameter" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, annotations = Parameters(Parameters.Feed, ""))
+    val trigger = WhiskTrigger(namespace, aname(), annotations = Parameters(Parameters.Feed, ""))
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     Put(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
@@ -202,7 +202,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should reject request with bad feed parameters" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, annotations = Parameters(Parameters.Feed, "a,b"))
+    val trigger = WhiskTrigger(namespace, aname(), annotations = Parameters(Parameters.Feed, "a,b"))
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     Put(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
@@ -213,7 +213,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     implicit val tid = transid()
     val code = "a" * (allowedActivationEntitySize.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
-    Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+    Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(
@@ -230,7 +230,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
     val content = s"""{"parameters":$parameters}""".parseJson.asJsObject
-    Put(s"$collectionPath/${aname}", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
@@ -246,7 +246,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
     val content = s"""{"annotations":$annotations}""".parseJson.asJsObject
-    Put(s"$collectionPath/${aname}", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
@@ -256,7 +256,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "reject update with parameters which are too big" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname)
+    val trigger = WhiskTrigger(namespace, aname())
     val keys: List[Long] =
       List.range(Math.pow(10, 9) toLong, (parametersLimit.toBytes / 20 + Math.pow(10, 9) + 2) toLong)
     val parameters = keys map { key =>
@@ -274,7 +274,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should accept update request with missing optional properties" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     val content = WhiskTriggerPut()
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
@@ -291,7 +291,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should reject update request for trigger with existing feed" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, annotations = Parameters(Parameters.Feed, "xyz"))
+    val trigger = WhiskTrigger(namespace, aname(), annotations = Parameters(Parameters.Feed, "xyz"))
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
@@ -301,7 +301,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "put should reject update request for trigger with new feed" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname)
+    val trigger = WhiskTrigger(namespace, aname())
     val content = WhiskTriggerPut(annotations = Some(Parameters(Parameters.Feed, "xyz")))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
@@ -312,7 +312,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   //// POST /triggers/name
   it should "fire a trigger" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, trigger)
     Post(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
@@ -332,7 +332,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "fire a trigger without args" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname, Parameters("x", "b"))
+    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
     put(entityStore, trigger)
     Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[JsObject]
@@ -346,7 +346,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   //// invalid resource
   it should "reject invalid resource" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname)
+    val trigger = WhiskTrigger(namespace, aname())
     put(entityStore, trigger)
     Get(s"$collectionPath/${trigger.name}/bar") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -356,7 +356,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   // migration path
   it should "be able to handle a trigger as of the old schema" in {
     implicit val tid = transid()
-    val trigger = OldWhiskTrigger(namespace, aname)
+    val trigger = OldWhiskTrigger(namespace, aname())
     put(entityStore, trigger)
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[WhiskTrigger]
@@ -368,7 +368,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "report proper error when record is corrupted on delete" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     Delete(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -379,7 +379,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "report proper error when record is corrupted on get" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     Get(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -390,7 +390,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "report proper error when record is corrupted on put" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     val content = WhiskTriggerPut()

@@ -58,14 +58,14 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val creds = WhiskAuthHelpers.newIdentity()
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
-  def aname = MakeName.next("package_action_tests")
+  def aname() = MakeName.next("package_action_tests")
 
   //// GET /actions/package/
   it should "list all actions in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
+    val provider = WhiskPackage(namespace, aname())
     val actions = (1 to 2).map { _ =>
-      WhiskAction(provider.fullPath, aname, jsDefault("??"))
+      WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     }
     put(entityStore, provider)
     actions foreach { put(entityStore, _) }
@@ -83,10 +83,10 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "list all actions in package binding" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val reference = WhiskPackage(namespace, aname, provider.bind)
+    val provider = WhiskPackage(namespace, aname())
+    val reference = WhiskPackage(namespace, aname(), provider.bind)
     val actions = (1 to 2).map { _ =>
-      WhiskAction(provider.fullPath, aname, jsDefault("??"))
+      WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     }
     put(entityStore, provider)
     put(entityStore, reference)
@@ -105,9 +105,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "include action in package when listing all actions" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None)
-    val action1 = WhiskAction(namespace, aname, jsDefault("??"), Parameters(), ActionLimits())
-    val action2 = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), None)
+    val action1 = WhiskAction(namespace, aname(), jsDefault("??"), Parameters(), ActionLimits())
+    val action2 = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     put(entityStore, action1)
     put(entityStore, action2)
@@ -124,7 +124,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject ambiguous list actions in package without trailing slash" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None)
+    val provider = WhiskPackage(namespace, aname(), None)
     put(entityStore, provider)
     whisk.utils.retry {
       Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -135,7 +135,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject invalid verb on get package actions" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None)
+    val provider = WhiskPackage(namespace, aname(), None)
     put(entityStore, provider)
     Delete(s"$collectionPath/${provider.name}/") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -145,8 +145,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// PUT /actions/package/name
   it should "put action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = WhiskActionPut(Some(action.exec))
     put(entityStore, provider)
     Put(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
@@ -168,8 +168,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject put action in package that does not exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = WhiskActionPut(Some(action.exec))
     Put(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -178,33 +178,33 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject put action in package binding where package doesn't exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None, publish = true)
-    val binding = WhiskPackage(namespace, aname, provider.bind)
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    val binding = WhiskPackage(namespace, aname(), provider.bind)
     val content = WhiskActionPut(Some(jsDefault("??")))
     put(entityStore, binding)
-    Put(s"$collectionPath/${binding.name}/$aname", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${binding.name}/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
     }
   }
 
   it should "reject put action in package binding" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None, publish = true)
-    val binding = WhiskPackage(namespace, aname, provider.bind)
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    val binding = WhiskPackage(namespace, aname(), provider.bind)
     val content = WhiskActionPut(Some(jsDefault("??")))
     put(entityStore, provider)
     put(entityStore, binding)
-    Put(s"$collectionPath/${binding.name}/$aname", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${binding.name}/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
     }
   }
 
   it should "reject put action in package owned by different subject" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(EntityPath(Subject().asString), aname, publish = true)
+    val provider = WhiskPackage(EntityPath(Subject().asString), aname(), publish = true)
     val content = WhiskActionPut(Some(jsDefault("??")))
     put(entityStore, provider)
-    Put(s"/${provider.namespace}/${collection.path}/${provider.name}/$aname", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"/${provider.namespace}/${collection.path}/${provider.name}/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(Forbidden)
     }
   }
@@ -212,8 +212,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// DEL /actions/package/name
   it should "delete action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     put(entityStore, action)
 
@@ -232,8 +232,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject delete action in package that does not exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, action)
     Delete(s"$collectionPath/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -242,8 +242,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject delete non-existent action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     Delete(s"$collectionPath/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -252,31 +252,31 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject delete action in package binding where package doesn't exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None, publish = true)
-    val binding = WhiskPackage(namespace, aname, provider.bind)
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    val binding = WhiskPackage(namespace, aname(), provider.bind)
     val content = WhiskActionPut(Some(jsDefault("??")))
     put(entityStore, binding)
-    Delete(s"$collectionPath/${binding.name}/$aname") ~> Route.seal(routes(creds)) ~> check {
+    Delete(s"$collectionPath/${binding.name}/${aname()}") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
     }
   }
 
   it should "reject delete action in package binding" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None, publish = true)
-    val binding = WhiskPackage(namespace, aname, provider.bind)
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    val binding = WhiskPackage(namespace, aname(), provider.bind)
     val content = WhiskActionPut(Some(jsDefault("??")))
     put(entityStore, provider)
     put(entityStore, binding)
-    Delete(s"$collectionPath/${binding.name}/$aname") ~> Route.seal(routes(creds)) ~> check {
+    Delete(s"$collectionPath/${binding.name}/${aname()}") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
     }
   }
 
   it should "reject delete action in package owned by different subject" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(EntityPath(Subject().asString), aname, publish = true)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(EntityPath(Subject().asString), aname(), publish = true)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     put(entityStore, action)
     Delete(s"/${provider.namespace}/${collection.path}/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -287,8 +287,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// GET /actions/package/name
   it should "get action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, provider)
     put(entityStore, action)
     whisk.utils.retry {
@@ -303,9 +303,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "get action in package binding with public package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, publish = true)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), None, publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
@@ -321,9 +321,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "get action in package binding with public package with overriding parameters" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A") ++ Parameters("b", "b"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A") ++ Parameters("b", "b"))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
@@ -341,9 +341,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   ignore should "get action in package binding with explicit entitlement grant" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = false)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
@@ -358,8 +358,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject get action in package that does not exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, action)
     Get(s"$collectionPath/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -368,8 +368,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject get non-existent action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     put(entityStore, provider)
     Get(s"$collectionPath/${provider.name}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(NotFound)
@@ -378,11 +378,11 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject get action in package binding that does not exist" in {
     implicit val tid = transid()
-    val name = aname
+    val name = aname()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, provider)
     put(entityStore, action)
     Get(s"$collectionPath/${binding.name}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
@@ -392,11 +392,11 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject get action in package binding with package that does not exist" in {
     implicit val tid = transid()
-    val name = aname
+    val name = aname()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, binding)
     put(entityStore, action)
     Get(s"$collectionPath/${binding.name}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
@@ -406,11 +406,11 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject get non-existing action in package binding" in {
     implicit val tid = transid()
-    val name = aname
+    val name = aname()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = true)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = true)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, provider)
     put(entityStore, binding)
     Get(s"$collectionPath/${binding.name}/${action.name}") ~> Route.seal(routes(auser)) ~> check {
@@ -421,9 +421,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject get action in package binding with private package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, None, Parameters("p", "P"), publish = false)
-    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind, Parameters("b", "B"))
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"), Parameters("a", "A"))
+    val provider = WhiskPackage(namespace, aname(), None, Parameters("p", "P"), publish = false)
+    val binding = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind, Parameters("b", "B"))
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"), Parameters("a", "A"))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
@@ -435,8 +435,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// POST /actions/name
   it should "allow owner to invoke an action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname())
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, provider)
     put(entityStore, action)
@@ -450,8 +450,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "allow non-owner to invoke an action in public package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, publish = true)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = true)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, provider)
     put(entityStore, action)
@@ -465,9 +465,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "invoke action in package binding with public package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, publish = true)
-    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = true)
+    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
     put(entityStore, provider)
     put(entityStore, reference)
@@ -484,9 +484,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   ignore should "invoke action in package binding with explicit entitlement grant even if package is not public" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, publish = false)
-    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = false)
+    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
     put(entityStore, provider)
     put(entityStore, reference)
@@ -503,8 +503,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject non-owner invoking an action in private package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, publish = false)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = false)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, provider)
     put(entityStore, action)
@@ -515,8 +515,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject invoking an action in package that does not exist" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, publish = false)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = false)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, action)
     Post(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
@@ -526,8 +526,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject invoking a non-existent action in package" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname, publish = false)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = false)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, action)
     Post(s"$collectionPath/${provider.name}/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
@@ -538,9 +538,9 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reject invoke action in package binding with private package" in {
     implicit val tid = transid()
     val auser = WhiskAuthHelpers.newIdentity()
-    val provider = WhiskPackage(namespace, aname, publish = false)
-    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname, provider.bind)
-    val action = WhiskAction(provider.fullPath, aname, jsDefault("??"))
+    val provider = WhiskPackage(namespace, aname(), publish = false)
+    val reference = WhiskPackage(EntityPath(auser.subject.asString), aname(), provider.bind)
+    val action = WhiskAction(provider.fullPath, aname(), jsDefault("??"))
     val content = JsObject("x" -> "x".toJson, "z" -> "Z".toJson)
     put(entityStore, provider)
     put(entityStore, reference)
@@ -552,8 +552,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when provider record is corrupted on delete" in {
     implicit val tid = transid()
-    val provider = BadEntity(namespace, aname)
-    val entity = BadEntity(provider.namespace.addPath(provider.name), aname)
+    val provider = BadEntity(namespace, aname())
+    val entity = BadEntity(provider.namespace.addPath(provider.name), aname())
     put(entityStore, provider)
     put(entityStore, entity)
 
@@ -564,8 +564,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on delete" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val entity = BadEntity(provider.fullPath, aname)
+    val provider = WhiskPackage(namespace, aname())
+    val entity = BadEntity(provider.fullPath, aname())
     put(entityStore, provider, false)
     put(entityStore, entity, false)
 
@@ -577,8 +577,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when provider record is corrupted on get" in {
     implicit val tid = transid()
-    val provider = BadEntity(namespace, aname)
-    val entity = BadEntity(provider.namespace.addPath(provider.name), aname)
+    val provider = BadEntity(namespace, aname())
+    val entity = BadEntity(provider.namespace.addPath(provider.name), aname())
     put(entityStore, provider)
     put(entityStore, entity)
 
@@ -596,8 +596,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on get" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val entity = BadEntity(provider.fullPath, aname)
+    val provider = WhiskPackage(namespace, aname())
+    val entity = BadEntity(provider.fullPath, aname())
     put(entityStore, provider)
     put(entityStore, entity)
 
@@ -609,8 +609,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when provider record is corrupted on put" in {
     implicit val tid = transid()
-    val provider = BadEntity(namespace, aname)
-    val entity = BadEntity(provider.namespace.addPath(provider.name), aname)
+    val provider = BadEntity(namespace, aname())
+    val entity = BadEntity(provider.namespace.addPath(provider.name), aname())
     put(entityStore, provider)
     put(entityStore, entity)
 
@@ -623,8 +623,8 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on put" in {
     implicit val tid = transid()
-    val provider = WhiskPackage(namespace, aname)
-    val entity = BadEntity(provider.fullPath, aname)
+    val provider = WhiskPackage(namespace, aname())
+    val entity = BadEntity(provider.fullPath, aname())
     put(entityStore, provider)
     put(entityStore, entity)
 

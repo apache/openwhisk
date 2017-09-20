@@ -60,7 +60,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val creds = WhiskAuthHelpers.newIdentity()
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
-  def aname = MakeName.next("action_tests")
+  def aname() = MakeName.next("action_tests")
   val actionLimit = Exec.sizeLimit
   val parametersLimit = Parameters.sizeLimit
 
@@ -68,7 +68,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "list actions by default namespace" in {
     implicit val tid = transid()
     val actions = (1 to 2).map { i =>
-      WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+      WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
     actions foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskAction, namespace, 2)
@@ -86,7 +86,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   ignore should "list action by default namespace with full docs" in {
     implicit val tid = transid()
     val actions = (1 to 2).map { i =>
-      WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+      WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
     actions foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskAction, namespace, 2)
@@ -103,7 +103,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "list action with explicit namespace" in {
     implicit val tid = transid()
     val actions = (1 to 2).map { i =>
-      WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+      WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     }.toList
     actions foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskAction, namespace, 2)
@@ -133,7 +133,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// GET /actions/name
   it should "get action by name in default namespace" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     put(entityStore, action)
     Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -144,7 +144,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "get action by name in explicit namespace" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     put(entityStore, action)
     Get(s"/$namespace/${collection.path}/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -168,7 +168,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report Conflict if the name was of a different type" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname)
+    val trigger = WhiskTrigger(namespace, aname())
     put(entityStore, trigger)
     Get(s"/$namespace/${collection.path}/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(Conflict)
@@ -204,7 +204,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// DEL /actions/name
   it should "delete action by name" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     put(entityStore, action)
 
     // it should "reject delete action by name not owned by subject" in
@@ -261,7 +261,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val code = "a" * (actionLimit.toBytes.toInt + 1)
     val exec: Exec = jsDefault(code)
     val content = JsObject("exec" -> exec.toJson)
-    Put(s"$collectionPath/${aname}", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskAction.execFieldName, exec.size, Exec.sizeLimit))
@@ -273,7 +273,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
     val oldCode = "function main()"
     val code = "a" * (actionLimit.toBytes.toInt + 1)
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val exec: Exec = jsDefault(code)
     val content = JsObject("exec" -> exec.toJson)
     put(entityStore, action)
@@ -293,7 +293,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
     val content = s"""{"exec":{"kind":"nodejs","code":"??"},"parameters":$parameters}""".stripMargin
-    Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.paramsFieldName, parameters.size, Parameters.sizeLimit))
@@ -309,7 +309,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       Parameters(key.toString, "a" * 10)
     } reduce (_ ++ _)
     val content = s"""{"exec":{"kind":"nodejs","code":"??"},"annotations":$annotations}""".stripMargin
-    Put(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(SizeError(WhiskEntity.annotationsFieldName, annotations.size, Parameters.sizeLimit))
@@ -321,7 +321,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
     val code = "a" * (allowedActivationEntitySize.toInt + 1)
     val content = s"""{"a":"$code"}""".stripMargin
-    Post(s"$collectionPath/${aname}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
+    Post(s"$collectionPath/${aname()}", content.parseJson.asJsObject) ~> Route.seal(routes(creds)) ~> check {
       status should be(RequestEntityTooLarge)
       responseAs[String] should include {
         Messages.entityTooBig(
@@ -332,7 +332,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept request with missing optional properties" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val content = WhiskActionPut(Some(action.exec))
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
@@ -353,7 +353,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept blackbox exec with empty code property" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, bb("bb"))
+    val action = WhiskAction(namespace, aname(), bb("bb"))
     val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "bb")).toJson.asJsObject
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
@@ -376,7 +376,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept blackbox exec with non-empty code property" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, bb("bb", "cc"))
+    val action = WhiskAction(namespace, aname(), bb("bb", "cc"))
     val content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "cc", "image" -> "bb")).toJson.asJsObject
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
       deleteAction(action.docid)
@@ -407,7 +407,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "reset parameters when changing sequence action to non sequence" in {
     implicit val tid = transid()
     val components = Vector("x/a", "x/b").map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(components), seqParameters(components))
+    val action = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
     val content = WhiskActionPut(Some(jsDefault("")))
     put(entityStore, action, false)
 
@@ -426,7 +426,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   it should "preserve new parameters when changing sequence action to non sequence" in {
     implicit val tid = transid()
     val components = Vector("x/a", "x/b").map(stringToFullyQualifiedName(_))
-    val action = WhiskAction(namespace, aname, sequence(components), seqParameters(components))
+    val action = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
     val content = WhiskActionPut(Some(jsDefault("")), parameters = Some(Parameters("a", "A")))
     put(entityStore, action, false)
 
@@ -442,7 +442,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept request with parameters property" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(Some(action.exec), Some(action.parameters))
 
     // it should "reject put action in namespace not owned by subject" in
@@ -470,7 +470,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should reject request with parameters property as jsobject" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(Some(action.exec), Some(action.parameters))
     val params = """{ "parameters": { "a": "b" } }""".parseJson.asJsObject
     val json = JsObject(WhiskActionPut.serdes.write(content).asJsObject.fields ++ params.fields)
@@ -481,7 +481,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "put should accept request with limits property" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(
       Some(action.exec),
       Some(action.parameters),
@@ -504,7 +504,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   it should "put and then get action from cache" in {
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(
       Some(action.exec),
       Some(action.parameters),
@@ -569,7 +569,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "reject put with conflict for pre-existing action" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(Some(action.exec))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
@@ -579,7 +579,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "update action with a put" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(Some(jsDefault("_")), Some(Parameters("x", "X")))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
@@ -600,7 +600,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "update action parameters with a put" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val content = WhiskActionPut(parameters = Some(Parameters("x", "X")))
     put(entityStore, action)
     Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
@@ -622,7 +622,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   //// POST /actions/name
   it should "invoke an action with arguments, nonblocking" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"), Parameters("x", "b"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
     val args = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, action)
 
@@ -648,7 +648,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "invoke an action, nonblocking" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     put(entityStore, action)
     Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(Accepted)
@@ -661,7 +661,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     implicit val tid = transid()
     val action = WhiskAction(
       namespace,
-      aname,
+      aname(),
       jsDefault("??"),
       limits = ActionLimits(TimeLimit(1 second), MemoryLimit(), LogLimit()))
     put(entityStore, action)
@@ -676,7 +676,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "invoke an action, blocking and retrieve result via db polling" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val activation = WhiskActivation(
       action.namespace,
       action.name,
@@ -710,7 +710,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "invoke an action, blocking and retrieve result via active ack" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val activation = WhiskActivation(
       action.namespace,
       action.name,
@@ -744,7 +744,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "invoke an action, blocking up to specified timeout and retrieve result via active ack" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val activation = WhiskActivation(
       action.namespace,
       action.name,
@@ -787,7 +787,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "invoke a blocking action and return error response when activation fails" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, jsDefault("??"))
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
     val activation = WhiskActivation(
       action.namespace,
       action.name,
@@ -814,7 +814,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on delete" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     Delete(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -825,7 +825,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on get" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     Get(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
@@ -836,13 +836,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "report proper error when record is corrupted on put" in {
     implicit val tid = transid()
-    val entity = BadEntity(namespace, aname)
+    val entity = BadEntity(namespace, aname())
     put(entityStore, entity)
 
     val components = Vector(stringToFullyQualifiedName(s"$namespace/${entity.name}"))
     val content = WhiskActionPut(Some(sequence(components)))
 
-    Put(s"$collectionPath/$aname", content) ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${aname()}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(InternalServerError)
       responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
     }
@@ -851,7 +851,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   // get and delete allowed, create/update with deprecated exec not allowed, post/invoke not allowed
   it should "report proper error when runtime is deprecated" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname, swift("??"))
+    val action = WhiskAction(namespace, aname(), swift("??"))
     val okUpdate = WhiskActionPut(Some(swift3("_")))
     val badUpdate = WhiskActionPut(Some(swift("_")))
 
