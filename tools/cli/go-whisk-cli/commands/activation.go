@@ -49,12 +49,12 @@ var activationListCmd = &cobra.Command{
     Short: wski18n.T("list activations"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 0, 1, "Activation list",
+        if whiskErr := CheckArgs(args, 0, 1, "Activation list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
         }
@@ -67,7 +67,7 @@ var activationListCmd = &cobra.Command{
                 return NewQualifiedNameError(args[0], err)
             }
 
-            client.Namespace = qualifiedName.GetNamespace()
+            Client.Namespace = qualifiedName.GetNamespace()
         }
 
         options := &whisk.ActivationListOptions{
@@ -79,9 +79,9 @@ var activationListCmd = &cobra.Command{
             Docs:  flags.common.full,
         }
 
-        activations, _, err := client.Activations.List(options)
+        activations, _, err := Client.Activations.List(options)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Activations.List() error: %s\n", err)
+            whisk.Debug(whisk.DbgError, "Client.Activations.List() error: %s\n", err)
             errStr := wski18n.T("Unable to obtain the list of activations for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL,
@@ -105,7 +105,7 @@ var activationGetCmd = &cobra.Command{
     Short: wski18n.T("get activation"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var field string
         var err error
@@ -117,7 +117,7 @@ var activationGetCmd = &cobra.Command{
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
-        if whiskErr := checkArgs(args, 1, 2, "Activation get",
+        if whiskErr := CheckArgs(args, 1, 2, "Activation get",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -134,9 +134,9 @@ var activationGetCmd = &cobra.Command{
         }
 
         id := args[0]
-        activation, _, err := client.Activations.Get(id)
+        activation, _, err := Client.Activations.Get(id)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Activations.Get(%s) failed: %s\n", id, err)
+            whisk.Debug(whisk.DbgError, "Client.Activations.Get(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -176,7 +176,7 @@ var activationLogsCmd = &cobra.Command{
     Short: wski18n.T("get the logs of an activation"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
@@ -187,15 +187,15 @@ var activationLogsCmd = &cobra.Command{
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
-        if whiskErr := checkArgs(args, 1, 1, "Activation logs",
+        if whiskErr := CheckArgs(args, 1, 1, "Activation logs",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
         }
 
         id := args[0]
-        activation, _, err := client.Activations.Logs(id)
+        activation, _, err := Client.Activations.Logs(id)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Activations.Logs(%s) failed: %s\n", id, err)
+            whisk.Debug(whisk.DbgError, "Client.Activations.Logs(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get logs for activation '{{.id}}': {{.err}}",
                 map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -212,7 +212,7 @@ var activationResultCmd = &cobra.Command{
     Short: "get the result of an activation",
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
@@ -223,15 +223,15 @@ var activationResultCmd = &cobra.Command{
           werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
           return werr
         }
-        if whiskErr := checkArgs(args, 1, 1, "Activation result",
+        if whiskErr := CheckArgs(args, 1, 1, "Activation result",
                 wski18n.T("An activation ID is required.")); whiskErr != nil {
             return whiskErr
         }
 
         id := args[0]
-        result, _, err := client.Activations.Result(id)
+        result, _, err := Client.Activations.Result(id)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Activations.result(%s) failed: %s\n", id, err)
+            whisk.Debug(whisk.DbgError, "Client.Activations.result(%s) failed: %s\n", id, err)
             errStr := wski18n.T("Unable to get result for activation '{{.id}}': {{.err}}",
                     map[string]interface{}{"id": id, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -252,9 +252,9 @@ func lastFlag(args []string) ([]string, error) {
             Limit: 1,
             Skip: 0,
         }
-        activations,_, err := client.Activations.List(options)
+        activations,_, err := Client.Activations.List(options)
         if err != nil {    // Checks Activations.List for errors when retrieving latest activaiton
-            whisk.Debug(whisk.DbgError, "client.Activations.List(%#v) error during lastFlag: %s\n", options, err)
+            whisk.Debug(whisk.DbgError, "Client.Activations.List(%#v) error during lastFlag: %s\n", options, err)
             return args, err
         }
         if len(activations) == 0 {    // Checks to to see if there are activations available
@@ -281,14 +281,14 @@ var activationPollCmd = &cobra.Command{
     Short: wski18n.T("poll continuously for log messages from currently running actions"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var name string
         var pollSince int64 // Represents an instant in time (in milliseconds since Jan 1 1970)
 
         if len(args) == 1 {
             name = args[0]
-        } else if whiskErr := checkArgs(args, 0, 1, "Activation poll",
+        } else if whiskErr := CheckArgs(args, 0, 1, "Activation poll",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
         }
@@ -315,10 +315,10 @@ var activationPollCmd = &cobra.Command{
                 Limit: 1,
                 Docs:  true,
             }
-            activationList, _, err := client.Activations.List(options)
+            activationList, _, err := Client.Activations.List(options)
             if err != nil {
-                whisk.Debug(whisk.DbgWarn, "client.Activations.List() error: %s\n", err)
-                whisk.Debug(whisk.DbgWarn, "Ignoring client.Activations.List failure; polling for activations since 'now'\n")
+                whisk.Debug(whisk.DbgWarn, "Client.Activations.List() error: %s\n", err)
+                whisk.Debug(whisk.DbgWarn, "Ignoring Client.Activations.List failure; polling for activations since 'now'\n")
                 pollSince = time.Now().Unix() * 1000    // Convert to milliseconds
             } else {
                 if len(activationList) > 0 {
@@ -365,10 +365,10 @@ var activationPollCmd = &cobra.Command{
                 Skip: 0,
             }
 
-            activations, _, err := client.Activations.List(options)
+            activations, _, err := Client.Activations.List(options)
             if err != nil {
-                whisk.Debug(whisk.DbgWarn, "client.Activations.List() error: %s\n", err)
-                whisk.Debug(whisk.DbgWarn, "Ignoring client.Activations.List failure; continuing to poll for activations\n")
+                whisk.Debug(whisk.DbgWarn, "Client.Activations.List() error: %s\n", err)
+                whisk.Debug(whisk.DbgWarn, "Ignoring Client.Activations.List failure; continuing to poll for activations\n")
                 continue
             }
 

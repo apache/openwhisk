@@ -31,6 +31,7 @@ import (
     "reflect"
     "../wski18n"
     "strings"
+    "regexp"
 )
 
 const (
@@ -78,6 +79,18 @@ type Config struct {
     Insecure    bool
     UserAgent   string
 }
+
+type ObfuscateSet struct {
+    Regex           string
+    Replacement     string
+}
+
+var DefaultObfuscateArr = []ObfuscateSet{
+        {
+            Regex: "\"[Pp]assword\":\\s*\".*\"",
+            Replacement: `"password": "******"`,
+        },
+    }
 
 func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 
@@ -232,7 +245,7 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 
 // bodyTruncator limits the size of Req/Resp Body for --verbose ONLY.
 // It returns truncated Req/Resp Body, reloaded io.ReadCloser and any errors.
-func bodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
+func BodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
     limit := 1000    // 1000 byte limit, anything over is truncated
 
     data, err := ioutil.ReadAll(body)
@@ -258,31 +271,15 @@ func bodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
 // error if an API error has occurred.  If v implements the io.Writer
 // interface, the raw response body will be written to v, without attempting to
 // first decode it.
-func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool, secretToObfuscate ...ObfuscateSet) (*http.Response, error) {
     var err error
-    var truncatedBody string
+    var data []byte
+    secrets := append(DefaultObfuscateArr, secretToObfuscate...)
 
-    if IsVerbose() {
-        fmt.Println("REQUEST:")
-        fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
-
-        if len(req.Header) > 0 {
-            fmt.Println("Req Headers")
-            PrintJSON(req.Header)
-        }
-
-        if req.Body != nil {
-            fmt.Println("Req Body")
-            if !IsDebug() {
-                if truncatedBody, req.Body, err = bodyTruncator(req.Body); err != nil {
-                    return nil, err
-                }
-                fmt.Println(truncatedBody)
-            } else {
-                fmt.Println(req.Body)
-            }
-            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", req.Body)
-        }
+    req, err = PrintRequestInfo(req, secrets...)
+    //Putting this based on previous code
+    if err != nil {
+        return nil, err
     }
 
     // Issue the request to the Whisk server endpoint
@@ -293,38 +290,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
         return nil, werr
     }
 
-    // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
-    // do custom body parsing, such as handling per-route error responses.
-    Verbose("RESPONSE:")
-    Verbose("Got response with code %d\n", resp.StatusCode)
-
-    if (IsVerbose() && len(resp.Header) > 0) {
-        fmt.Println("Resp Headers")
-        PrintJSON(resp.Header)
-    }
-
-    // Read the response body
-    data, err := ioutil.ReadAll(resp.Body)
+    resp, data, err = PrintResponseInfo(resp, secrets...)
     if err != nil {
-        Debug(DbgError, "ioutil.ReadAll(resp.Body) error: %s\n", err)
-        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
-    }
-
-    // Reload the response body to allow caller access to the body; otherwise,
-    // the caller will have any empty body to read
-    resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-
-    Verbose("Response body size is %d bytes\n", len(data))
-
-    if !IsDebug() {
-        if truncatedBody, resp.Body, err = bodyTruncator(resp.Body); err != nil {
-            return nil, err
-        }
-        Verbose("Response body received:\n%s\n", truncatedBody)
-    } else {
-        Verbose("Response body received:\n%s\n", string(data))
-        Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
+        return resp, err
     }
 
     // With the HTTP response status code and the HTTP body contents,
@@ -390,6 +358,89 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXIT_CODE_ERR_GENERAL,
         DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr
+}
+
+func PrintRequestInfo(req *http.Request, secretToObfuscate ...ObfuscateSet) (*http.Request, error) {
+    var truncatedBody string
+    var err error
+    if IsVerbose() {
+        fmt.Println("REQUEST:")
+        fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
+
+        if len(req.Header) > 0 {
+            fmt.Println("Req Headers")
+            PrintJSON(req.Header)
+        }
+
+        if req.Body != nil {
+            fmt.Println("Req Body")
+            // Since we're emptying out the reader, which is the req.Body, we have to reset it,
+            // but create some copies for our debug messages.
+            buffer, _ := ioutil.ReadAll(req.Body)
+            obfuscatedRequest := ObfuscateText(string(buffer), secretToObfuscate)
+            req.Body = ioutil.NopCloser(bytes.NewBuffer(buffer))
+
+            if !IsDebug() {
+                if truncatedBody, req.Body, err = BodyTruncator(ioutil.NopCloser(bytes.NewBuffer(buffer))); err != nil {
+                    return nil, err
+                }
+                fmt.Println(ObfuscateText(truncatedBody, secretToObfuscate))
+            } else {
+                fmt.Println(obfuscatedRequest)
+            }
+            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", obfuscatedRequest)
+        }
+    }
+    return req, nil
+}
+
+func PrintResponseInfo(resp *http.Response, secretToObfuscate ...ObfuscateSet) (*http.Response, []byte, error) {
+    var truncatedBody string
+    // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
+    // do custom body parsing, such as handling per-route error responses.
+    Verbose("RESPONSE:")
+    Verbose("Got response with code %d\n", resp.StatusCode)
+
+    if (IsVerbose() && len(resp.Header) > 0) {
+        fmt.Println("Resp Headers")
+        PrintJSON(resp.Header)
+    }
+
+    // Read the response body
+    data, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        Debug(DbgError, "ioutil.ReadAll(resp.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+        return resp, data, werr
+    }
+
+    // Reload the response body to allow caller access to the body; otherwise,
+    // the caller will have any empty body to read
+    resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+
+    Verbose("Response body size is %d bytes\n", len(data))
+
+    if !IsDebug() {
+        if truncatedBody, resp.Body, err = BodyTruncator(ioutil.NopCloser(bytes.NewBuffer(data))); err != nil {
+            return nil, data, err
+        }
+        Verbose("Response body received:\n%s\n", ObfuscateText(truncatedBody, secretToObfuscate))
+    } else {
+        obfuscatedResponse := ObfuscateText(string(data), secretToObfuscate)
+        Verbose("Response body received:\n%s\n", obfuscatedResponse)
+        Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", obfuscatedResponse)
+    }
+    return resp, data, err
+}
+
+func ObfuscateText(text string, replacements []ObfuscateSet) string {
+    obfuscated := text
+    for _, oSet := range replacements {
+        r, _ := regexp.Compile(oSet.Regex)
+        obfuscated = r.ReplaceAllString(obfuscated, oSet.Replacement)
+    }
+    return obfuscated
 }
 
 func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {

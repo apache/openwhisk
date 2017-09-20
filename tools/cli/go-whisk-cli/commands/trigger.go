@@ -45,13 +45,13 @@ var triggerFireCmd = &cobra.Command{
     Short: wski18n.T("fire trigger event"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var parameters interface{}
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 2, "Trigger fire",
+        if whiskErr := CheckArgs(args, 1, 2, "Trigger fire",
                 wski18n.T("A trigger name is required. A payload is optional.")); whiskErr != nil {
             return whiskErr
         }
@@ -60,7 +60,7 @@ var triggerFireCmd = &cobra.Command{
             return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.GetNamespace()
+        Client.Namespace = qualifiedName.GetNamespace()
 
         // Add payload to parameters
         if len(args) == 2 {
@@ -80,9 +80,9 @@ var triggerFireCmd = &cobra.Command{
             }
         }
 
-        trigResp, _, err := client.Triggers.Fire(qualifiedName.GetEntityName(), parameters)
+        trigResp, _, err := Client.Triggers.Fire(qualifiedName.GetEntityName(), parameters)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Fire(%s, %#v) failed: %s\n", qualifiedName.GetEntityName(), parameters, err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Fire(%s, %#v) failed: %s\n", qualifiedName.GetEntityName(), parameters, err)
             errStr := wski18n.T("Unable to fire trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.GetEntityName(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL,
@@ -106,14 +106,14 @@ var triggerCreateCmd = &cobra.Command{
     Short: wski18n.T("create new trigger"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var annotations interface{}
         var feedArgPassed bool = (flags.common.feed != "")
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 1, "Trigger create",
+        if whiskErr := CheckArgs(args, 1, 1, "Trigger create",
                 wski18n.T("A trigger name is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -122,7 +122,7 @@ var triggerCreateCmd = &cobra.Command{
             return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.GetNamespace()
+        Client.Namespace = qualifiedName.GetNamespace()
 
         var fullTriggerName string
         var fullFeedName string
@@ -138,7 +138,7 @@ var triggerCreateCmd = &cobra.Command{
             fullTriggerName = fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
             flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_CREATE))
             flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
-            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, client.Config.AuthToken))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, Client.Config.AuthToken))
         }
 
 
@@ -181,9 +181,9 @@ var triggerCreateCmd = &cobra.Command{
             trigger.Parameters = parameters.(whisk.KeyValueArr)
         }
 
-        _, _, err = client.Triggers.Insert(trigger, false)
+        _, _, err = Client.Triggers.Insert(trigger, false)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,false) failed: %s\n", trigger, err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Insert(%+v,false) failed: %s\n", trigger, err)
             errStr := wski18n.T("Unable to create trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": trigger.Name, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -221,12 +221,12 @@ var triggerUpdateCmd = &cobra.Command{
     Short: wski18n.T("update an existing trigger, or create a trigger if it does not exist"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 1, "Trigger update",
+        if whiskErr := CheckArgs(args, 1, 1, "Trigger update",
                 wski18n.T("A trigger name is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -235,7 +235,7 @@ var triggerUpdateCmd = &cobra.Command{
             return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.GetNamespace()
+        Client.Namespace = qualifiedName.GetNamespace()
 
         // Convert the trigger's list of default parameters from a string into []KeyValue
         // The 1 or more --param arguments have all been combined into a single []string
@@ -269,9 +269,9 @@ var triggerUpdateCmd = &cobra.Command{
             Annotations: annotations.(whisk.KeyValueArr),
         }
 
-        _, _, err = client.Triggers.Insert(trigger, true)
+        _, _, err = Client.Triggers.Insert(trigger, true)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Insert(%+v,true) failed: %s\n", trigger, err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Insert(%+v,true) failed: %s\n", trigger, err)
             errStr := wski18n.T("Unable to update trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": trigger.Name, "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -290,13 +290,13 @@ var triggerGetCmd = &cobra.Command{
     Short: wski18n.T("get trigger"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var field string
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 2, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
+        if whiskErr := CheckArgs(args, 1, 2, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
             return whiskErr
         }
 
@@ -315,11 +315,11 @@ var triggerGetCmd = &cobra.Command{
             return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.GetNamespace()
+        Client.Namespace = qualifiedName.GetNamespace()
 
-        retTrigger, _, err := client.Triggers.Get(qualifiedName.GetEntityName())
+        retTrigger, _, err := Client.Triggers.Get(qualifiedName.GetEntityName())
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Get(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
             errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.GetEntityName(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -350,7 +350,7 @@ var triggerDeleteCmd = &cobra.Command{
     Short: wski18n.T("delete trigger"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var retTrigger *whisk.Trigger
@@ -358,7 +358,7 @@ var triggerDeleteCmd = &cobra.Command{
         var origParams []string
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 1, "Trigger delete",
+        if whiskErr := CheckArgs(args, 1, 1, "Trigger delete",
                 wski18n.T("A trigger name is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -367,11 +367,11 @@ var triggerDeleteCmd = &cobra.Command{
             return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.GetNamespace()
+        Client.Namespace = qualifiedName.GetNamespace()
 
-        retTrigger, _, err = client.Triggers.Get(qualifiedName.GetEntityName())
+        retTrigger, _, err = Client.Triggers.Get(qualifiedName.GetEntityName())
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Get(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Get(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
             errStr := wski18n.T("Unable to get trigger '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": qualifiedName.GetEntityName(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -387,7 +387,7 @@ var triggerDeleteCmd = &cobra.Command{
                 fullTriggerName := fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
                 flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_DELETE))
                 flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
-                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, client.Config.AuthToken))
+                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, Client.Config.AuthToken))
 
                 err = configureFeed(qualifiedName.GetEntityName(), fullFeedName)
                 if err != nil {
@@ -395,14 +395,14 @@ var triggerDeleteCmd = &cobra.Command{
                 }
 
                 flags.common.param = origParams
-                client.Namespace = qualifiedName.GetNamespace()
+                Client.Namespace = qualifiedName.GetNamespace()
             }
 
         }
 
-        retTrigger, _, err = client.Triggers.Delete(qualifiedName.GetEntityName())
+        retTrigger, _, err = Client.Triggers.Delete(qualifiedName.GetEntityName())
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.Delete(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.Delete(%s) failed: %s\n", qualifiedName.GetEntityName(), err)
             errStr := wski18n.T("Unable to delete trigger '{{.name}}': {{.err}}",
                 map[string]interface{}{"name": qualifiedName.GetEntityName(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -422,12 +422,12 @@ var triggerListCmd = &cobra.Command{
     Short: wski18n.T("list all triggers"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 0, 1, "Trigger list",
+        if whiskErr := CheckArgs(args, 0, 1, "Trigger list",
             wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
         }
@@ -441,17 +441,17 @@ var triggerListCmd = &cobra.Command{
                 return entityNameError(qualifiedName.GetEntityName())
             }
 
-            client.Namespace = qualifiedName.GetNamespace()
+            Client.Namespace = qualifiedName.GetNamespace()
         }
 
         options := &whisk.TriggerListOptions{
             Skip:  flags.common.skip,
             Limit: flags.common.limit,
         }
-        triggers, _, err := client.Triggers.List(options)
+        triggers, _, err := Client.Triggers.List(options)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Triggers.List(%#v) for namespace '%s' failed: %s\n", options,
-                client.Namespace, err)
+            whisk.Debug(whisk.DbgError, "Client.Triggers.List(%#v) for namespace '%s' failed: %s\n", options,
+                Client.Namespace, err)
             errStr := wski18n.T("Unable to obtain the list of triggers for namespace '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
