@@ -15,27 +15,18 @@
  * limitations under the License.
  */
 
-package whisk.core.controller
+package whisk.core.loadBalancer
 
+import akka.actor.ActorSystem
+import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.core.entitlement._
-import whisk.core.entity.ActivationId.ActivationIdGenerator
-import whisk.core.loadBalancer.LoadBalancerResolver
+import whisk.core.entity.InstanceId
+import whisk.spi.Spi
 
 /**
- * A trait which defines a few services which a whisk microservice may rely on.
+ * Spi for a LoadBalancer factory
  */
-trait WhiskServices {
-
-  /** Whisk configuration object. */
-  protected val whiskConfig: WhiskConfig
-
-  /** An entitlement service to check access rights. */
-  protected val entitlementProvider: EntitlementProvider
-
-  /** A generator for new activation ids. */
-  protected val activationIdFactory: ActivationIdGenerator
-
-  /** A service that acquires the LoadBalancer for a particular request. */
-  protected val loadBalancerResolver: LoadBalancerResolver
+trait LoadBalancerProvider extends Spi {
+  def getLoadBalancers(config: WhiskConfig, instance: InstanceId)(implicit logging: Logging,
+                                                                  actorSystem: ActorSystem): Seq[LoadBalancer]
 }

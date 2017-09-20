@@ -17,13 +17,16 @@
 
 package whisk.core.entitlement
 
+import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import scala.collection.concurrent.TrieMap
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
 import whisk.core.entity.UUID
 import java.util.concurrent.atomic.AtomicInteger
+import scala.concurrent.Future
+import whisk.core.controller.RejectRequest
+import whisk.http.Messages
 
 /**
  * A class tracking the rate of invocation (or any operation) by subject (any key really).
@@ -86,4 +89,29 @@ private class RateInfo {
   }
 
   private def getCurrentMinute = System.currentTimeMillis / (60 * 1000)
+}
+
+sealed trait RateLimit {
+  def ok: Boolean
+  def errorMsg: String
+}
+
+case class ConcurrentRateLimit(count: Int, allowed: Int) extends RateLimit {
+  val ok = count < allowed // must have slack for the current activation request
+  override def errorMsg = Messages.tooManyConcurrentRequests(count, allowed)
+}
+
+case class TimedRateLimit(count: Int, allowed: Int) extends RateLimit {
+  val ok = count <= allowed // the count is already updated to account for the current request
+  override def errorMsg = Messages.tooManyRequests(count, allowed)
+}
+
+object RateThrottler {
+  def checkThrottleOverload(throttle: RateLimit)(implicit transid: TransactionId): Future[Unit] = {
+    if (throttle.ok) {
+      Future.successful(())
+    } else {
+      Future.failed(RejectRequest(TooManyRequests, throttle.errorMsg))
+    }
+  }
 }

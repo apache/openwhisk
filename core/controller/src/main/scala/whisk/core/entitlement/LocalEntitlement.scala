@@ -27,7 +27,6 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.entity.Subject
-import whisk.core.loadBalancer.LoadBalancer
 
 private object LocalEntitlementProvider {
 
@@ -35,10 +34,9 @@ private object LocalEntitlementProvider {
   private val matrix = TrieMap[(Subject, String), Set[Privilege]]()
 }
 
-protected[core] class LocalEntitlementProvider(private val config: WhiskConfig, private val loadBalancer: LoadBalancer)(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
-    extends EntitlementProvider(config, loadBalancer) {
+protected[core] class LocalEntitlementProvider(private val config: WhiskConfig)(implicit actorSystem: ActorSystem,
+                                                                                logging: Logging)
+    extends EntitlementProvider(config) {
 
   private implicit val executionContext = actorSystem.dispatcher
 

@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -27,15 +26,15 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
+import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import akka.util.Timeout
 import akka.pattern.ask
-
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -47,24 +46,24 @@ import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ActivationId, WhiskActivation}
-import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
-import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
+import whisk.core.controller.RejectRequest
+import whisk.core.entitlement.ConcurrentRateLimit
+import whisk.core.entitlement.RateLimit
+import whisk.core.entitlement.RateThrottler
+import whisk.core.entity.EntityName
+import whisk.core.entity.Identity
+import whisk.core.entity.WhiskEntityStore
+import whisk.http.Messages
 import whisk.spi.SpiLoader
 
 trait LoadBalancer {
 
   val activeAckTimeoutGrace = 1.minute
-
-  /** Gets the number of in-flight activations for a specific user. */
-  def activeActivationsFor(namspace: UUID): Int
-
-  /** Gets the number of in-flight activations in the system. */
-  def totalActiveActivations: Int
 
   /**
    * Publishes activation message on internal bus for an invoker to pick up.
@@ -81,12 +80,28 @@ trait LoadBalancer {
   def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
+  /**
+   * Return a message indicating the health of the containers and/or container pool in general
+   * @return a Future[String] representing the heal response that will be sent to the client
+   */
+  def healthStatus: Future[JsObject]
+
+  def check(user: Identity)(implicit tid: TransactionId): Future[Unit]
+
 }
 
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging)
+object LoadBalancerServiceProvider extends LoadBalancerProvider {
+  override def getLoadBalancers(config: WhiskConfig, instance: InstanceId)(implicit logging: Logging,
+                                                                           actorSystem: ActorSystem) =
+    List(new LoadBalancerService(config, instance))
+}
+
+class LoadBalancerService(config: WhiskConfig, instance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                     logging: Logging)
     extends LoadBalancer {
+
+  /** Used to manage an action for testing invoker health */
+  val entityStore = WhiskEntityStore.datastore(config)
 
   /** The execution context for futures */
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -97,9 +112,12 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
   private val loadBalancerData = new LoadBalancerData()
 
-  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
+  private def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
 
-  override def totalActiveActivations = loadBalancerData.totalActivationCount
+  private def totalActiveActivations = loadBalancerData.totalActivationCount /** limits */
+  val defaultConcurrencyLimit = config.actionInvokeConcurrentLimit.toInt
+  val systemOverloadLimit = config.actionInvokeSystemOverloadLimit.toInt
+  logging.info(this, s"concurrencyLimit = $defaultConcurrencyLimit, systemOverloadLimit = $systemOverloadLimit")
 
   override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
@@ -309,6 +327,42 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   /** Generates a hash based on the string representation of namespace and action */
   private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
     (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
+  }
+
+  /** Returns a Map of invoker instance -> invoker state */
+  override def healthStatus(): Future[JsObject] =
+    allInvokers.map(_.map {
+      case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+    }.toMap.toJson.asJsObject)
+
+  override def check(user: Identity)(implicit tid: TransactionId) = {
+    if (isSystemOverloaded()) {
+      logging.error(this, "system is overloaded")
+      Future.failed(RejectRequest(TooManyRequests, Messages.systemOverloaded))
+    } else {
+      RateThrottler.checkThrottleOverload(checkConcurrentUserThrottle(user))
+    }
+  }
+
+  /**
+   * Checks whether the system is in a generally overloaded state.
+   */
+  private def isSystemOverloaded()(implicit tid: TransactionId) = {
+    val concurrentActivations = totalActiveActivations
+    logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+    concurrentActivations > systemOverloadLimit
+  }
+
+  /**
+   * Checks whether the operation should be allowed to proceed.
+   */
+  def checkConcurrentUserThrottle(user: Identity)(implicit tid: TransactionId): RateLimit = {
+    val concurrentActivations = activeActivationsFor(user.uuid)
+    val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+    logging.info(
+      this,
+      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, limit = $concurrencyLimit")
+    ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
   }
 }
 

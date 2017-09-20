@@ -21,20 +21,16 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-
 import common.StreamLogging
-
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
-
 import spray.json.DefaultJsonProtocol
+import spray.json.JsObject
 import spray.json.JsString
-
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -48,6 +44,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.core.loadBalancer.SingleLoadBalancerResolver
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -77,9 +74,11 @@ protected trait ControllerTestCommon
   // initialize runtimes manifest
   ExecManifest.initialize(whiskConfig)
 
-  override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
+  //need to expose loadBalancer for tests to inject behavior (ActionsApiTests)
+  val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
+  override val loadBalancerResolver = new SingleLoadBalancerResolver(List(loadBalancer))
 
-  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig)
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api
@@ -183,8 +182,8 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
   // unit tests that need an activation via active ack/fast path should set this to value expected
   var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
-  override def totalActiveActivations = 0
-  override def activeActivationsFor(namespace: UUID) = 0
+  def totalActiveActivations = 0
+  def activeActivationsFor(namespace: UUID) = 0
 
   override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =
@@ -202,4 +201,7 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
       } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
     }
 
+  override def healthStatus: Future[JsObject] = Future.successful(JsObject())
+
+  override def check(user: Identity)(implicit tid: TransactionId) = Future.successful(Unit)
 }

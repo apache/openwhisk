@@ -119,26 +119,37 @@ protected[actions] trait PrimitiveActions {
         .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
-    val postedFuture = loadBalancer.publish(action, message)
+    val loadBalancer = loadBalancerResolver.loadBalancer(action, message)
+    loadBalancer
+      .map { lb =>
+        lb.check(message.user)
+          .flatMap(_ => {
+            val postedFuture = lb.publish(action, message)
+            postedFuture.flatMap {
+              activeAckResponse =>
+                // successfully posted activation request to the message bus
+                transid.finished(this, startLoadbalancer)
 
-    postedFuture.flatMap { activeAckResponse =>
-      // successfully posted activation request to the message bus
-      transid.finished(this, startLoadbalancer)
-
-      // is caller waiting for the result of the activation?
-      waitForResponse
-        .map { timeout =>
-          // yes, then wait for the activation response from the message bus
-          // (known as the active response or active ack)
-          waitForActivationResponse(user, message.activationId, timeout, activeAckResponse)
-            .andThen { case _ => transid.finished(this, startActivation) }
-        }
-        .getOrElse {
-          // no, return the activation id
-          transid.finished(this, startActivation)
-          Future.successful(Left(message.activationId))
-        }
-    }
+                // is caller waiting for the result of the activation?
+                waitForResponse
+                  .map { timeout =>
+                    // yes, then wait for the activation response from the message bus
+                    // (known as the active response or active ack)
+                    waitForActivationResponse(user, message.activationId, timeout, activeAckResponse)
+                      .andThen { case _ => transid.finished(this, startActivation) }
+                  }
+                  .getOrElse {
+                    // no, return the activation id
+                    transid.finished(this, startActivation)
+                    Future.successful(Left(message.activationId))
+                  }
+            }
+          })
+      }
+      .getOrElse {
+        logging.error(this, s"no loadbalancer resolver for ${action}")
+        Future.failed(new RuntimeException("no load balancer available"))
+      }
   }
 
   /**
