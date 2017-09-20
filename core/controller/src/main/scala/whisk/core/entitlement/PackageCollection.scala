@@ -22,7 +22,6 @@ import scala.concurrent.Future
 
 import akka.http.scaladsl.model.StatusCodes._
 
-import whisk.core.entitlement.Privilege._
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.RejectRequest
@@ -34,7 +33,7 @@ import whisk.http.Messages
 
 class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) extends Collection(Collection.PACKAGES) {
 
-  protected override val allowedEntityRights = {
+  protected override val allowedEntityRights: Set[Privilege] = {
     Set(Privilege.READ, Privilege.PUT, Privilege.DELETE)
   }
 

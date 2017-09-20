@@ -24,9 +24,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
@@ -37,13 +35,12 @@ import akka.actor.FSM.Transition
 import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
-
 import whisk.common.AkkaLogging
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
 import whisk.core.connector._
-import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._
 

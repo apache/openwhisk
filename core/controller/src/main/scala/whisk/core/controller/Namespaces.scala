@@ -20,20 +20,15 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entitlement.Privilege.READ
-import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
 import whisk.core.entity.WhiskAction

@@ -28,7 +28,6 @@ import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
 import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Privilege.Privilege
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
                       concurrentInvocations: Option[Int] = None,

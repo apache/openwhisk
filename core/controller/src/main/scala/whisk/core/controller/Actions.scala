@@ -50,8 +50,6 @@ import whisk.http.Messages
 import whisk.http.Messages._
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
-import whisk.core.entitlement.Privilege._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
