@@ -247,7 +247,8 @@ Components = [
 
     makeComponent('kafka',
                   'build/deploy kafka',
-                  modes = 'clean'),
+                  modes = 'clean',
+                  gradle = ':core:kafka'),
 
     makeComponent('controller',
                   'build/deploy controller',

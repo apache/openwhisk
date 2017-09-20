@@ -1,0 +1,5 @@
+// values for Kafka image that is used by the Controller and Invoker images
+ext.dockerBuildArgs = [
+  'KAFKA_VERSION=0.10.2.1',
+  'KAFKA_RELEASE=kafka_2.12-0.10.2.1.tgz'
+]

@@ -1,5 +1,9 @@
 FROM scala
 
+# define kafka version and release version to download
+ARG KAFKA_VERSION
+ARG KAFKA_RELEASE
+
 ENV DOCKER_VERSION 1.12.0
 
 # Uncomment to fetch latest version of docker instead: RUN wget -qO- https://get.docker.com | sh
@@ -11,8 +15,22 @@ rm -f docker-${DOCKER_VERSION}.tgz && \
 chmod +x /usr/bin/docker && \
 chmod +x /usr/bin/docker-runc
 
+# Copy the Invoker built from gradle
 COPY build/distributions/invoker.tar ./
 RUN tar xf invoker.tar && \
 rm -f invoker.tar
 
 EXPOSE 8080
+
+# Download Kafka
+RUN wget --no-verbose -P /tmp http://www.us.apache.org/dist/kafka/${KAFKA_VERSION}/${KAFKA_RELEASE}
+
+# untar Kafka to /kafka
+RUN mkdir /kafka
+RUN tar -xf /tmp/${KAFKA_RELEASE} -C /kafka --strip=1
+
+# remove Kafka tarball
+RUN rm /tmp/${KAFKA_RELEASE}
+
+# Copy the init script
+COPY invoker.sh /invoker.sh
