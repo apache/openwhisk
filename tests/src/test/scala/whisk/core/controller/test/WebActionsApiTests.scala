@@ -22,15 +22,12 @@ import java.util.Base64
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
 import org.scalatest.FlatSpec
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.MediaTypes
@@ -41,14 +38,11 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.headers.`Content-Type`
+import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
 import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.ContentType
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.Context
@@ -80,26 +74,6 @@ import whisk.http.Messages
  */
 
 @RunWith(classOf[JUnitRunner])
-class WebActionsApiPropertiesTests extends FlatSpec with Matchers with WebActionsApiTests {
-  override lazy val webInvokePathSegments = Seq("web")
-  override lazy val webApiDirectives = new WebApiDirectives()
-
-  "properties" should "match verion" in {
-    webApiDirectives.method shouldBe "__ow_method"
-    webApiDirectives.headers shouldBe "__ow_headers"
-    webApiDirectives.path shouldBe "__ow_path"
-    webApiDirectives.namespace shouldBe "__ow_user"
-    webApiDirectives.query shouldBe "__ow_query"
-    webApiDirectives.body shouldBe "__ow_body"
-    webApiDirectives.statusCode shouldBe "statusCode"
-    webApiDirectives.enforceExtension shouldBe false
-    webApiDirectives.reservedProperties shouldBe {
-      Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user", "__ow_query", "__ow_body")
-    }
-  }
-}
-
-@RunWith(classOf[JUnitRunner])
 class WebActionsApiCommonTests extends FlatSpec with Matchers {
   "extension splitter" should "split action name and extension" in {
     Seq(".http", ".json", ".text", ".html", ".svg").foreach { ext =>
@@ -127,7 +101,27 @@ class WebActionsApiCommonTests extends FlatSpec with Matchers {
   }
 }
 
-trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
+@RunWith(classOf[JUnitRunner])
+class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTests {
+  override lazy val webInvokePathSegments = Seq("web")
+  override lazy val webApiDirectives = new WebApiDirectives()
+
+  "properties" should "match verion" in {
+    webApiDirectives.method shouldBe "__ow_method"
+    webApiDirectives.headers shouldBe "__ow_headers"
+    webApiDirectives.path shouldBe "__ow_path"
+    webApiDirectives.namespace shouldBe "__ow_user"
+    webApiDirectives.query shouldBe "__ow_query"
+    webApiDirectives.body shouldBe "__ow_body"
+    webApiDirectives.statusCode shouldBe "statusCode"
+    webApiDirectives.enforceExtension shouldBe false
+    webApiDirectives.reservedProperties shouldBe {
+      Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user", "__ow_query", "__ow_body")
+    }
+  }
+}
+
+trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
   val systemId = Subject()
   val systemKey = AuthKey()
   val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
@@ -1447,9 +1441,12 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         actionResult =
           Some(JsObject("headers" -> JsObject("Access-Control-Allow-Methods" -> "OPTIONS, GET, PATCH".toJson)))
 
-        Options(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-          header("Access-Control-Allow-Origin") shouldBe None
+        // the added headers should be ignored
+        Options(s"$testRoutePath/$path") ~> addHeader(`Access-Control-Request-Headers`("x-custom-header")) ~> Route
+          .seal(routes(creds)) ~> check {
+          header("Access-Control-Allow-Origin") shouldBe empty
           header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, PATCH"
+          header("Access-Control-Request-Headers") shouldBe empty
         }
       }
     }
@@ -1474,17 +1471,22 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       customOptions = false
 
       Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
-            header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-            header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Content-Type"
-          }
+        Seq(`Access-Control-Request-Headers`("x-custom-header"), RawHeader("x-custom-header", "value")).foreach {
+          testHeader =>
+            allowedMethods.foreach { m =>
+              if (m != Options) invocationsAllowed += 1 // options verb does not invoke an action
+              m(s"$testRoutePath/$path") ~> addHeader(testHeader) ~> Route.seal(routes(creds)) ~> check {
+                header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                if (testHeader.name == `Access-Control-Request-Headers`.name) {
+                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: x-custom-header"
+                } else {
+                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Content-Type"
+                }
+              }
+            }
         }
       }
-
-      invocationsAllowed -= 2 // Options request does not cause invocation of an action
     }
 
     it should s"invoke action with head verb (auth? ${creds.isDefined})" in {

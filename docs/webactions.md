@@ -393,11 +393,13 @@ $ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${API
 
 By default, an OPTIONS request made to a web action will result in CORS headers being automatically added to the
 response headers. These headers allow all origins and the options, get, delete, post, put, head, and patch HTTP verbs.
-The headers are shown below:
+In addition, the header `Access-Control-Request-Headers` is echoed back as the header `Access-Control-Allow-Headers`
+if it is present in the HTTP request. Otherwise, a default value is generated as shown below.
 
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
+Access-Control-Allow-Headers: Authorization, Content-Type
 ```
 
 Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a

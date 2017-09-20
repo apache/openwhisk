@@ -188,11 +188,28 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
       action.create(name, file, web = Some("true"))
     }
 
-    val responses = Seq(
-      RestAssured.given().config(sslconfig).options(s"$url.http"),
-      RestAssured.given().config(sslconfig).get(s"$url.json"))
+    Seq(
+      RestAssured
+        .given()
+        .config(sslconfig)
+        .header("Access-Control-Request-Headers", "x-custom-header")
+        .options(s"$url.http"),
+      RestAssured
+        .given()
+        .config(sslconfig)
+        .header("Access-Control-Request-Headers", "x-custom-header")
+        .get(s"$url.json")).foreach { response =>
+      response.statusCode shouldBe 200
+      response.header("Access-Control-Allow-Origin") shouldBe "*"
+      response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+      response.header("Access-Control-Allow-Headers") shouldBe "x-custom-header"
+      response.header("Location") shouldBe null
+      response.header("Set-Cookie") shouldBe null
+    }
 
-    responses.foreach { response =>
+    Seq(
+      RestAssured.given().config(sslconfig).options(s"$url.http"),
+      RestAssured.given().config(sslconfig).get(s"$url.json")).foreach { response =>
       response.statusCode shouldBe 200
       response.header("Access-Control-Allow-Origin") shouldBe "*"
       response.header("Access-Control-Allow-Methods") shouldBe "OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
