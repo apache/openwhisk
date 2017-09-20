@@ -106,11 +106,11 @@ var propertySetCmd = &cobra.Command{
         }
 
         if apiHost := flags.property.apihostSet; len(apiHost) > 0 {
-            baseURL, err := getURLBase(apiHost, DefaultOpenWhiskApiPath)
+            baseURL, err := whisk.GetURLBase(apiHost, DefaultOpenWhiskApiPath)
 
             if err != nil {
                 // Not aborting now.  Subsequent commands will result in error
-                whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) error: %s", apiHost, DefaultOpenWhiskApiPath, err)
+                whisk.Debug(whisk.DbgError, "whisk.GetURLBase(%s, %s) error: %s", apiHost, DefaultOpenWhiskApiPath, err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Unable to set API host value; the API host value '{{.apihost}}' is invalid: {{.err}}",
                         map[string]interface{}{"apihost": apiHost, "err": err}))
@@ -537,10 +537,10 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
         if client != nil {
             client.Config.Host = apiHost
-            baseURL, err := getURLBase(apiHost, DefaultOpenWhiskApiPath)
+            baseURL, err := whisk.GetURLBase(apiHost, DefaultOpenWhiskApiPath)
 
             if err != nil {
-                whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) failed: %s\n", apiHost, DefaultOpenWhiskApiPath, err)
+                whisk.Debug(whisk.DbgError, "whisk.GetURLBase(%s, %s) failed: %s\n", apiHost, DefaultOpenWhiskApiPath, err)
                 errStr := wski18n.T("Invalid host address '{{.host}}': {{.err}}",
                         map[string]interface{}{"host": Properties.APIHost, "err": err})
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)

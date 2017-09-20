@@ -652,9 +652,10 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     val encodedPackageName = URLEncoder.encode(packageName, StandardCharsets.UTF_8.name).replace("+", "%20")
     val encodedWebActionName = URLEncoder.encode(webActionName, StandardCharsets.UTF_8.name).replace("+", "%20")
     val encodedNamespace = URLEncoder.encode(namespace, StandardCharsets.UTF_8.name).replace("+", "%20")
-    val actionPath = "https://%s/api/%s/namespaces/%s/actions/%s"
+    val scheme = "https"
+    val actionPath = "%s://%s/api/%s/namespaces/%s/actions/%s"
     val packagedActionPath = s"$actionPath/%s"
-    val webActionPath = "https://%s/api/%s/web/%s/%s/%s"
+    val webActionPath = "%s://%s/api/%s/web/%s/%s/%s"
 
     assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
       action.create(actionName, defaultAction)
@@ -677,25 +678,52 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     }
 
     wsk.action.get(actionName, url = Some(true)).stdout should include(
-      actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+      actionPath.format(scheme, wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
 
     // Ensure url flag works when a field filter and summary flag are specified
     wsk.action.get(actionName, url = Some(true), fieldFilter = Some("field"), summary = true).stdout should include(
-      actionPath.format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+      actionPath.format(scheme, wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
 
     wsk.action.get(webActionName, url = Some(true)).stdout should include(
       webActionPath
-        .format(wskprops.apihost, wskprops.apiversion, encodedNamespace, defaultPackageName, encodedWebActionName))
+        .format(
+          scheme,
+          wskprops.apihost,
+          wskprops.apiversion,
+          encodedNamespace,
+          defaultPackageName,
+          encodedWebActionName))
 
     wsk.action.get(packagedAction, url = Some(true)).stdout should include(
       packagedActionPath
-        .format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedActionName))
+        .format(scheme, wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedActionName))
 
     wsk.action.get(packagedWebAction, url = Some(true)).stdout should include(
       webActionPath
-        .format(wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedPackageName, encodedWebActionName))
+        .format(
+          scheme,
+          wskprops.apihost,
+          wskprops.apiversion,
+          encodedNamespace,
+          encodedPackageName,
+          encodedWebActionName))
 
     wsk.action.get(nonExistentActionName, url = Some(true), expectedExitCode = NOT_FOUND)
+
+    val httpsProps = WskProps(apihost = "https://" + wskprops.apihost)
+    wsk.action.get(actionName, url = Some(true))(httpsProps).stdout should include(
+      actionPath
+        .format("https", wskprops.apihost, wskprops.apiversion, encodedNamespace, encodedActionName))
+    wsk.action.get(webActionName, url = Some(true))(httpsProps).stdout should include(
+      webActionPath
+        .format(
+          "https",
+          wskprops.apihost,
+          wskprops.apiversion,
+          encodedNamespace,
+          defaultPackageName,
+          encodedWebActionName))
+
   }
   it should "limit length of HTTP request and response bodies for --verbose" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>

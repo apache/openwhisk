@@ -34,7 +34,6 @@ import (
     "compress/gzip"
     "archive/zip"
     "encoding/json"
-    "net/url"
     "io/ioutil"
     "sort"
     "reflect"
@@ -813,29 +812,6 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     } else {
         return nil
     }
-}
-
-func getURLBase(host string, path string) (*url.URL, error)  {
-    if len(host) == 0 {
-        errMsg := wski18n.T("An API host must be provided.")
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, whiskErr
-    }
-
-    if !strings.HasPrefix(host, "http") {
-        host = "https://" + host
-    }
-
-    urlBase := fmt.Sprintf("%s%s", host, path)
-    url, err := url.Parse(urlBase)
-
-    if len(url.Scheme) == 0 || len(url.Host) == 0 {
-        urlBase = fmt.Sprintf("https://%s%s", host, path)
-        url, err = url.Parse(urlBase)
-    }
-
-    return url, err
 }
 
 func normalizeNamespace(namespace string) (string) {
