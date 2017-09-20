@@ -125,11 +125,18 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
    */
   private def processCompletion(response: Either[ActivationId, WhiskActivation],
                                 tid: TransactionId,
-                                forced: Boolean): Unit = {
+                                forced: Boolean,
+                                invoker: InstanceId): Unit = {
     val aid = response.fold(l => l, r => r.activationId)
+
+    // treat left as success (as it is the result a the message exceeding the bus limit)
+    // treat timed out active ack as failure to let the invoker become unhealthy
+    val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
+
     loadBalancerData.removeActivation(aid) match {
       case Some(entry) =>
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
         if (!forced) {
           entry.promise.trySuccess(response)
         } else {
@@ -137,6 +144,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         }
       case None =>
         // the entry was already removed
+        // This could happen if this is the active ack of an health action. Another reason is
+        // that this method is called twice. On activeAcks and on timeouts. The first hit removes the entry.
+        if (!forced) invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
     }
   }
@@ -156,7 +166,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     // in this case, if the activation handler is still registered, remove it and update the books.
     loadBalancerData.putActivation(activationId, {
       actorSystem.scheduler.scheduleOnce(timeout) {
-        processCompletion(Left(activationId), transid, forced = true)
+        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
       }
 
       ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
@@ -254,11 +264,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     val raw = new String(bytes, StandardCharsets.UTF_8)
     CompletionMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
-        processCompletion(m.response, m.transid, false)
-        // treat left as success (as it is the result a the message exceeding the bus limit)
-        val isSuccess = m.response.fold(l => true, r => !r.response.isWhiskError)
+        processCompletion(m.response, m.transid, forced = false, invoker = m.invoker)
         activationFeed ! MessageFeed.Processed
-        invokerPool ! InvocationFinishedMessage(m.invoker, isSuccess)
 
       case Failure(t) =>
         activationFeed ! MessageFeed.Processed
