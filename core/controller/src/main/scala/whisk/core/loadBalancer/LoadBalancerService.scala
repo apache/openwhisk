@@ -33,8 +33,10 @@ import org.apache.kafka.clients.producer.RecordMetadata
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -54,6 +56,8 @@ import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
+import scala.annotation.tailrec
+import whisk.core.entity.WhiskEntityStore
 import whisk.spi.SpiLoader
 
 trait LoadBalancer {
@@ -81,12 +85,25 @@ trait LoadBalancer {
   def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
+  /**
+   * Return a message indicating the health of the containers and/or container pool in general
+   * @return a Future[String] representing the heal response that will be sent to the client
+   */
+  def healthStatus: Future[JsObject]
 }
 
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging)
+object LoadBalancerServiceProvider extends LoadBalancerProvider {
+  override def getLoadBalancer(config: WhiskConfig, instance: InstanceId)(implicit logging: Logging,
+                                                                          actorSystem: ActorSystem): LoadBalancer =
+    new LoadBalancerService(config, instance)
+}
+
+class LoadBalancerService(config: WhiskConfig, instance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                     logging: Logging)
     extends LoadBalancer {
+
+  /** Used to manage an action for testing invoker health */
+  val entityStore = WhiskEntityStore.datastore(config)
 
   /** The execution context for futures */
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -310,6 +327,12 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
     (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
   }
+
+  /** Returns a Map of invoker instance -> invoker state */
+  override def healthStatus(): Future[JsObject] =
+    allInvokers.map(_.map {
+      case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+    }.toMap.toJson.asJsObject)
 }
 
 object LoadBalancerService {

@@ -46,13 +46,16 @@ import whisk.http.Messages
  * @param dbName the name of the database to operate on
  * @param serializerEvidence confirms the document abstraction is serializable to a Document with an id
  */
-class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
-  dbProtocol: String,
-  dbHost: String,
-  dbPort: Int,
-  dbUsername: String,
-  dbPassword: String,
-  dbName: String)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
+class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: String,
+                                                                  dbHost: String,
+                                                                  dbPort: Int,
+                                                                  dbUsername: String,
+                                                                  dbPassword: String,
+                                                                  dbName: String,
+                                                                  cleanup: () => Unit)(
+  implicit system: ActorSystem,
+  val logging: Logging,
+  jsonFormat: RootJsonFormat[DocumentAbstraction])
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
@@ -356,6 +359,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
   }
 
   override def shutdown(): Unit = {
+    cleanup()
     Await.ready(client.shutdown(), 1.minute)
   }
 
