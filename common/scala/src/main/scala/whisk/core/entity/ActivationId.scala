@@ -49,7 +49,7 @@ protected[whisk] class ActivationId private (private val id: java.util.UUID) ext
 protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
 
   protected[core] trait ActivationIdGenerator {
-    def make(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
+    def make(): ActivationId = new ActivationId(UUIDs.randomUUID())
   }
 
   /**
@@ -77,7 +77,7 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
    *
    * @return new ActivationId
    */
-  protected[core] def apply(): ActivationId = new ActivationId(java.util.UUID.randomUUID())
+  protected[core] def apply(): ActivationId = new ActivationId(UUIDs.randomUUID())
 
   /**
    * Overrides factory method so that string is not interpreted as number
