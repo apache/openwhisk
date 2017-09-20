@@ -153,7 +153,7 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
         .stdout
       stdout should include(s"ok: whisk auth set")
       stdout should include(s"ok: whisk API host set to ${wskprops.apihost}")
-      stdout should include(s"ok: whisk namespace set to '${namespace}'")
+      stdout should include(s"ok: whisk namespace set to ${namespace}")
     } finally {
       tmpwskprops.delete()
     }
