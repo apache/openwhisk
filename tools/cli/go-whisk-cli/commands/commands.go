@@ -45,7 +45,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
 
     // Display an error if the parent command requires an API host to be set, and the current API host is not valid
     if err != nil && !apiHostRequired {
-        whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) error: %s\n", Properties.APIHost, DefaultOpenWhiskApiPath, err)
+        whisk.Debug(whisk.DbgError, "whisk.GetURLBase(%s, %s) error: %s\n", Properties.APIHost, DefaultOpenWhiskApiPath, err)
         errMsg := wski18n.T("The API host is not valid: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)

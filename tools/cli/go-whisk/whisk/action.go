@@ -125,7 +125,7 @@ action must be passed as well. An empty string must be passed if the action is n
 func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (string, error) {
     baseURL, err := GetURLBase(apiHost, apiPath)
     if err != nil {
-        Debug(DbgError, "getURLBase(%s, %s) failed: %s\n", apiHost, apiPath, err)
+        Debug(DbgError, "GetURLBase(%s, %s) failed: %s\n", apiHost, apiPath, err)
         return "", err
     }
     webActionPath := "%s/%s/web/%s/%s/%s"
