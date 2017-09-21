@@ -24,24 +24,24 @@ cd openwhisk/tools/vagrant
 # Configure with couchdb docker container running inside the VM
 ./hello
 ```
-#### Option B:  Using a remote Database
+#### Option B - Using a remote Database
 
 **Note:** Follow instructions [tools/db/README.md](../db/README.md) on how to configure the remote DB for OpenWhisk.
 
-##### Option B.1: Setting a remote Cloudant DB
+##### Option B.1 - Setting a remote Cloudant DB
 ```
 # Provide credentials for cloudant database with admin permissions
 OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
 ```
 
-##### Option B.2: Setting a remote CouchDB
+##### Option B.2 - Setting a remote CouchDB
 
 ```
 # Provide credentials for couchdb database with admin permissions
 OW_DB=couchdb OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy OW_DB_PROTOCOL=http OW_DB_HOST=1.2.3.4 OW_DB_PORT=5984 ./hello
 ```
 
-**Note** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
+**Note:** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
 For more information on data store configurations see [tools/db/README.md](../db/README.md).
 
 
@@ -206,8 +206,7 @@ The certificate is generated during setup and stored in `ansible/roles/nginx/fil
 Do not use these certificates in production: replace with your own and modify
 the configuration to use trusted certificates instead.
 
-
-## Misc
+## Misc commands
 ```
 # Suspend Vagrant VM when done having fun
   vagrant suspend
