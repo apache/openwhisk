@@ -137,9 +137,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    * @param message: The log message without the marker
    * @param marker: The marker to add to the message
    */
-  private def createMessageWithMarker(message: String, marker: LogMarker): String = {
-    (Option(message).filter(_.trim.nonEmpty) ++ Some(marker)).mkString(" ")
-  }
+  private def createMessageWithMarker(message: String, marker: LogMarker): String = s"$message $marker"
 }
 
 /**
