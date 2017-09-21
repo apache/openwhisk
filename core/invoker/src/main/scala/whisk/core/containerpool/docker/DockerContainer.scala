@@ -147,8 +147,8 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerA
   /** HTTP connection to the container, will be lazily established by callContainer */
   private var httpConnection: Option[HttpUtils] = None
 
-  def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
-  def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
+  def suspend()(implicit transid: TransactionId): Future[Unit] = if (runc.isInstalled) runc.pause(id) else docker.pause(id)
+  def resume()(implicit transid: TransactionId): Future[Unit] = if (runc.isInstalled) runc.resume(id) else docker.unpause(id)
   def destroy()(implicit transid: TransactionId): Future[Unit] = {
     httpConnection.foreach(_.close())
     docker.rm(id)
