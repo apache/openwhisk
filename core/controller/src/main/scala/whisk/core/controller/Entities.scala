@@ -31,7 +31,7 @@ import akka.http.scaladsl.server.RouteResult
 import spray.json.JsonPrinter
 import whisk.common.TransactionId
 import whisk.core.entitlement.Privilege._
-import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.Privilege
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.Resource
 import whisk.core.entity._

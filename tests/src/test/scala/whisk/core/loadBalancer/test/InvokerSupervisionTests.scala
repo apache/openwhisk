@@ -21,7 +21,6 @@ import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
-
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.junit.runner.RunWith
@@ -30,7 +29,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import akka.actor.ActorRef
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
@@ -49,7 +47,6 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.PingMessage
-import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.AuthKey
 import whisk.core.entity.DocRevision
@@ -73,6 +70,7 @@ import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
 import whisk.utils.retry
 import whisk.core.connector.test.TestConnector
+import whisk.core.entitlement.Privilege
 
 @RunWith(classOf[JUnitRunner])
 class InvokerSupervisionTests

@@ -52,7 +52,6 @@ import whisk.core.controller.WebApiDirectives
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._

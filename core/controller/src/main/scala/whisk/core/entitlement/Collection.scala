@@ -71,8 +71,8 @@ protected[core] case class Collection protected (val path: String, val listLimit
     }
   }
 
-  protected val allowedCollectionRights = Set(Privilege.READ)
-  protected val allowedEntityRights = {
+  protected val allowedCollectionRights: Set[Privilege] = Set(Privilege.READ)
+  protected val allowedEntityRights: Set[Privilege] = {
     Set(Privilege.READ, Privilege.PUT, Privilege.ACTIVATE, Privilege.DELETE)
   }
 
@@ -133,7 +133,7 @@ protected[core] object Collection {
         if (op == GET) Privilege.READ else Privilege.REJECT
       }
 
-      protected override val allowedEntityRights = Set(Privilege.READ)
+      protected override val allowedEntityRights: Set[Privilege] = Set(Privilege.READ)
     })
 
     register(new Collection(NAMESPACES) {
@@ -146,7 +146,7 @@ protected[core] object Collection {
         }
       }
 
-      protected override val allowedEntityRights = Set(Privilege.READ)
+      protected override val allowedEntityRights: Set[Privilege] = Set(Privilege.READ)
     })
   }
 }
