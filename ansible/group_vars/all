@@ -131,6 +131,10 @@ kafka:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
       retentionMS: 172800000
+    cacheInvalidation:
+      segmentBytes: 536870912
+      retentionBytes: 1073741824
+      retentionMS: 300000
 
 zookeeper:
   version: 3.4
