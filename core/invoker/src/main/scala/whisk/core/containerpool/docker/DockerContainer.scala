@@ -19,6 +19,9 @@ package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
+
+import akka.actor.ActorSystem
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -68,6 +71,7 @@ object DockerContainer {
              dnsServers: Seq[String] = Seq(),
              name: Option[String] = None)(implicit docker: DockerApiWithFileAccess,
                                           runc: RuncApi,
+                                          as: ActorSystem,
                                           ec: ExecutionContext,
                                           log: Logging): Future[DockerContainer] = {
     implicit val tid = transid
@@ -133,6 +137,7 @@ object DockerContainer {
  */
 class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerApiWithFileAccess,
                                                         runc: RuncApi,
+                                                        as: ActorSystem,
                                                         ec: ExecutionContext,
                                                         logger: Logging)
     extends Container
@@ -250,8 +255,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerA
 
           if (retries > 0 && !isComplete && !isTruncated) {
             logger.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
-            Thread.sleep(logsRetryWait.toMillis)
-            readLogs(retries - 1)
+            akka.pattern.after(logsRetryWait, as.scheduler)(readLogs(retries - 1))
           } else {
             logFileOffset += rawLogBytes.position - rawLogBytes.arrayOffset
             Future.successful(formattedLogs)
