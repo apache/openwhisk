@@ -53,7 +53,7 @@ var fmtString = "%-30s %7s %20s  %s\n"
 func IsValidApiVerb(verb string) (error, bool) {
     // Is the API verb valid?
     if _, ok := whisk.ApiVerbs[strings.ToUpper(verb)]; !ok {
-        whisk.Debug(whisk.DbgError, "Invalid API verb: %s\n", verb)
+        whisk.Debug(whisk.DbgError, "Invalid API verb: '%s'\n", verb)
         errMsg := wski18n.T("'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
                 map[string]interface{}{
                     "verb": verb,
@@ -67,7 +67,7 @@ func IsValidApiVerb(verb string) (error, bool) {
 
 func hasPathPrefix(path string) (error, bool) {
     if (! strings.HasPrefix(path, "/")) {
-        whisk.Debug(whisk.DbgError, "path does not begin with '/': %s\n", path)
+        whisk.Debug(whisk.DbgError, "path does not begin with '/': '%s'\n", path)
         errMsg := wski18n.T("'{{.path}}' must begin with '/'.",
                 map[string]interface{}{
                     "path": path,
@@ -98,15 +98,15 @@ func isValidRelpath(relpath string) (error, bool) {
  */
 func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
     baseUrl := strings.TrimSuffix(api.BaseUrl, "/")
-    whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = %s, relpath = %s, operation = %s\n", baseUrl, relpath, operation)
+    whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = '%s', relpath = '%s', operation = '%s'\n", baseUrl, relpath, operation)
     for path, _ := range api.Swagger.Paths {
-        whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: %s\n", path)
+        whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: '%s'\n", path)
         if (path == relpath) {
             whisk.Debug(whisk.DbgInfo, "getManagedUrl: relpath matches '%s'\n", relpath)
             for op, _  := range api.Swagger.Paths[path] {
                 whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing operation: '%s'\n", op)
                 if (strings.ToLower(op) == strings.ToLower(operation)) {
-                    whisk.Debug(whisk.DbgInfo, "getManagedUrl: operation matches: %s\n", operation)
+                    whisk.Debug(whisk.DbgInfo, "getManagedUrl: operation matches: '%s'\n", operation)
                     url = baseUrl+path
                 }
             }
@@ -207,9 +207,9 @@ var apiCreateCmd = &cobra.Command{
             baseUrl := retApi.BaseUrl
             for path, _ := range retApi.Swagger.Paths {
                 managedUrl := strings.TrimSuffix(baseUrl, "/")+path
-                whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
+                whisk.Debug(whisk.DbgInfo, "Managed path: '%s'\n",managedUrl)
                 for op, opv  := range retApi.Swagger.Paths[path] {
-                    whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
+                    whisk.Debug(whisk.DbgInfo, "Path operation: '%s'\n", op)
                     var fqActionName string
                     if (opv.XOpenWhisk == nil) {
                         fqActionName = ""
@@ -218,7 +218,8 @@ var apiCreateCmd = &cobra.Command{
                     } else {
                         fqActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
                     }
-                    whisk.Debug(whisk.DbgInfo, "baseUrl %s  Path %s  Path obj %+v\n", baseUrl, path, opv)
+
+                    whisk.Debug(whisk.DbgInfo, "baseUrl '%s'  Path '%s'  Path obj %+v\n", baseUrl, path, opv)
                     if len(fqActionName) > 0 {
                         fmt.Fprintf(color.Output,
                             wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
@@ -574,7 +575,7 @@ func genFilteredList(resultApi *whisk.RetApi, apiPath string, apiVerb string) []
     basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "genFilteredList: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredApi: comparing api relpath: '%s'\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
                 whisk.Debug(whisk.DbgInfo, "genFilteredList: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -612,7 +613,7 @@ func genFilteredRow(resultApi *whisk.RetApi, apiPath string, apiVerb string, max
     basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "genFilteredRow: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredRow: comparing api relpath: '%s'\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
                 whisk.Debug(whisk.DbgInfo, "genFilteredRow: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -675,7 +676,7 @@ func getLargestActionNameSize(retApiArray *whisk.RetApiArray, apiPath string, ap
         var resultApi = retApiArray.Apis[i].ApiValue
         if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
             for path, _ := range resultApi.Swagger.Paths {
-                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: '%s'\n", path)
                 if ( len(apiPath) == 0 || path == apiPath) {
                     whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
                     for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -709,7 +710,7 @@ func getLargestApiNameSize(retApiArray *whisk.RetApiArray, apiPath string, apiVe
         apiName := resultApi.Swagger.Info.Title
         if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
             for path, _ := range resultApi.Swagger.Paths {
-                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: '%s'\n", path)
                 if ( len(apiPath) == 0 || path == apiPath) {
                     whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
                     for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -869,7 +870,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     swaggerObj := new(whisk.ApiSwagger)
     err = json.Unmarshal([]byte(swagger), swaggerObj)
     if ( err != nil ) {
-        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.configfile, err)
+        whisk.Debug(whisk.DbgError, "JSON parse of '%s' error: %s\n", flags.api.configfile, err)
         errMsg := wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
             map[string]interface{}{"name": flags.api.configfile, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
@@ -925,7 +926,7 @@ func getUserContextId() (string, error) {
         if len(props["AUTH"]) > 0 {
             guid = strings.Split(props["AUTH"], ":")[0]
         } else {
-            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: %s\n", Properties.PropsFile)
+            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: '%s'\n", Properties.PropsFile)
             errStr := wski18n.T("Authorization key is not configured (--auth is required)")
             err = whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         }

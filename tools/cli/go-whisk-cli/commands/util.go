@@ -588,7 +588,7 @@ func unpackGzip(inpath string, outpath string) error {
     // Make sure the target file does not exist
     if _, err := os.Stat(outpath); err == nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' exists\n", outpath)
-        errStr := wski18n.T("The file {{.name}} already exists.  Delete it and retry.",
+        errStr := wski18n.T("The file '{{.name}}' already exists.  Delete it and retry.",
             map[string]interface{}{"name": outpath})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr

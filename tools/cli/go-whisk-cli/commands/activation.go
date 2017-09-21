@@ -145,7 +145,7 @@ var activationGetCmd = &cobra.Command{
 
         if flags.common.summary {
             fmt.Printf(
-                wski18n.T("activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n",
+                wski18n.T("activation result for '/{{.namespace}}/{{.name}}' ({{.status}} at {{.time}})\n",
                     map[string]interface{}{
                         "namespace": activation.Namespace,
                         "name": activation.Name,
@@ -377,7 +377,7 @@ var activationPollCmd = &cobra.Command{
                     continue
                 } else {
                     fmt.Printf(
-                        wski18n.T("\nActivation: {{.name}} ({{.id}})\n",
+                        wski18n.T("\nActivation: '{{.name}}' ({{.id}})\n",
                             map[string]interface{}{"name": activation.Name, "id": activation.ActivationID}))
                     printJSON(activation.Logs)
                     reported[activation.ActivationID] = true
