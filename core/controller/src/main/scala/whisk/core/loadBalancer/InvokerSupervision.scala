@@ -283,9 +283,10 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
   private def handleCompletionMessage(wasActivationSuccessful: Boolean, buffer: RingBuffer[Boolean]) = {
     buffer.add(wasActivationSuccessful)
 
-    // If the current state is UnHealthy, then the active ack is the result of a test action.
-    // If this is successful it seems like the Invoker is Healthy again. So we execute immediately
+    // If the action is successful it seems like the Invoker is Healthy again. So we execute immediately
     // a new test action to remove the errors out of the RingBuffer as fast as possible.
+    // The actions that arrice while the invoker is unhealthy are most likely health actions.
+    // But it could be real actions as well, if they were already in the queue/in progress while the invoker turned unhealthy.
     if (wasActivationSuccessful && stateName == UnHealthy) {
       invokeTestAction()
     }

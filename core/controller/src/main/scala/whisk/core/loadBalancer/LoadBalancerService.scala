@@ -136,6 +136,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     loadBalancerData.removeActivation(aid) match {
       case Some(entry) =>
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
+        // If we receive an active ack (forced = false) we send the activationResult. If the timeout
+        // is executed earlier, we treat the activation as failed (forced = true).
+        // At this point no health actions are handled, because they don't have an entry in loadBalancerData.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
         if (!forced) {
           entry.promise.trySuccess(response)
@@ -146,6 +149,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the entry was already removed
         // This could happen if this is the active ack of an health action. Another reason is
         // that this method is called twice. On activeAcks and on timeouts. The first hit removes the entry.
+        // We send the InvocationFinishedMessage only, when processCompletion has not been called by the
+        // timeout (forced = false). Health actions don't have a timeout, so there is no problem, if they
+        // are very long in the queue.
         if (!forced) invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
     }
