@@ -136,7 +136,7 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     try {
       val writer = new BufferedWriter(new FileWriter(tmpwskprops))
-      writer.write(s"APIHOST=http://localhost:10001    # This is a comment!")
+      writer.write(s"APIHOST=http://localhost:10001    # This is a comment!   ")
       writer.close()
       val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
       val stdout = wsk.cli(Seq("property", "get", "-i", "--apihost"), env = env).stdout
