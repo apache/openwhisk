@@ -17,8 +17,11 @@
 
 package whisk.core.entity
 
-import scala.util.Try
+import java.security.SecureRandom
 
+import com.fasterxml.uuid.Generators
+
+import scala.util.Try
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
@@ -59,7 +62,7 @@ protected[core] object UUID extends ArgNormalizer[UUID] {
    *
    * @return new UUID
    */
-  protected[core] def apply(): UUID = new UUID(java.util.UUID.randomUUID())
+  protected[core] def apply(): UUID = new UUID(UUIDs.randomUUID())
 
   implicit val serdes = new RootJsonFormat[UUID] {
     def write(u: UUID) = u.toJson
@@ -70,4 +73,20 @@ protected[core] object UUID extends ArgNormalizer[UUID] {
         UUID(u)
       } getOrElse deserializationError("uuid malformed")
   }
+}
+
+object UUIDs {
+  private val generator = new ThreadLocal[SecureRandom] {
+    override def initialValue() = new SecureRandom()
+  }
+
+  /**
+   * Static factory to retrieve a type 4 (pseudo randomly generated) UUID.
+   *
+   * The {@code java.util.UUID} is generated using a pseudo random number
+   * generator local to the thread.
+   *
+   * @return  A randomly generated {@code java.util.UUID}
+   */
+  def randomUUID(): java.util.UUID = Generators.randomBasedGenerator(generator.get()).generate()
 }
