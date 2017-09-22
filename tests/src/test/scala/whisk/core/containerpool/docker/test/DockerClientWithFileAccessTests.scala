@@ -40,8 +40,8 @@ import org.scalatest.fixture.{FlatSpec => FixtureFlatSpec}
 import common.StreamLogging
 import spray.json._
 import whisk.common.TransactionId
-import whisk.core.containerpool.docker.ContainerId
-import whisk.core.containerpool.docker.ContainerIp
+import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.docker.DockerClientWithFileAccess
 
 @RunWith(classOf[JUnitRunner])
@@ -57,25 +57,25 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
   val dockerCommand = "docker"
   val networkInConfigFile = "networkConfig"
   val networkInDockerInspect = "networkInspect"
-  val ipInConfigFile = ContainerIp("10.0.0.1")
-  val ipInDockerInspect = ContainerIp("10.0.0.2")
+  val ipInConfigFile = ContainerAddress("10.0.0.1")
+  val ipInDockerInspect = ContainerAddress("10.0.0.2")
   val dockerConfig =
     JsObject(
       "NetworkSettings" ->
         JsObject(
           "Networks" ->
             JsObject(networkInConfigFile ->
-              JsObject("IPAddress" -> JsString(ipInConfigFile.asString)))))
+              JsObject("IPAddress" -> JsString(ipInConfigFile.host)))))
 
   /** Returns a DockerClient with mocked results */
-  def dockerClient(execResult: Future[String] = Future.successful(ipInDockerInspect.asString),
+  def dockerClient(execResult: Future[String] = Future.successful(ipInDockerInspect.host),
                    readResult: Future[JsObject] = Future.successful(dockerConfig)) =
     new DockerClientWithFileAccess()(global) {
       override val dockerCmd = Seq(dockerCommand)
       override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
       override def configFileContents(configFile: File) = readResult
       // Make protected ipAddressFromFile available for testing - requires reflectiveCalls
-      def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerIp] =
+      def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerAddress] =
         ipAddressFromFile(id, network)
     }
 

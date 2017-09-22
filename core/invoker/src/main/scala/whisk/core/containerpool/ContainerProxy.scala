@@ -100,7 +100,7 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
-  val logging = new AkkaLogging(context.system.log)
+  implicit val logging = new AkkaLogging(context.system.log)
 
   startWith(Uninitialized, NoData())
 
