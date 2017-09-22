@@ -28,11 +28,11 @@ import (
     "github.com/spf13/cobra"
 )
 
-var client *whisk.Client
+var Client *whisk.Client
 const DefaultOpenWhiskApiPath string = "/api"
 var UserAgent string = "OpenWhisk-CLI"
 
-func setupClientConfig(cmd *cobra.Command, args []string) (error){
+func SetupClientConfig(cmd *cobra.Command, args []string) (error){
     baseURL, err := whisk.GetURLBase(Properties.APIHost, DefaultOpenWhiskApiPath)
 
     // Determine if the parent command will require the API host to be set
@@ -65,7 +65,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
     }
 
     // Setup client
-    client, err = whisk.NewClient(http.DefaultClient, clientConfig)
+    Client, err = whisk.NewClient(http.DefaultClient, clientConfig)
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)

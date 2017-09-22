@@ -123,7 +123,7 @@ var apiCreateCmd = &cobra.Command{
     Short:         wski18n.T("create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var api *whisk.Api
         var err error
@@ -145,7 +145,7 @@ var apiCreateCmd = &cobra.Command{
                 return whiskErr
             }
         } else {
-            if whiskErr := checkArgs(args, 3, 4, "Api create",
+            if whiskErr := CheckArgs(args, 3, 4, "Api create",
                 wski18n.T("Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.")); whiskErr != nil {
                 return whiskErr
             }
@@ -160,7 +160,7 @@ var apiCreateCmd = &cobra.Command{
             }
 
             // Confirm that the specified action is a web-action
-            err = isWebAction(client, *qname)
+            err = isWebAction(Client, *qname)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "isWebAction(%v) is false: %s\n", qname, err)
                 whiskErr := whisk.MakeWskError(err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -182,9 +182,9 @@ var apiCreateCmd = &cobra.Command{
         whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\nResponsType: %s",
             apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid, apiCreateReqOptions.ResponseType)
 
-        retApi, _, err := client.Apis.Insert(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
+        retApi, _, err := Client.Apis.Insert(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, false) error: %s\n", api, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Insert(%#v, false) error: %s\n", api, err)
             errMsg := wski18n.T("Unable to create API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -254,12 +254,12 @@ var apiGetCmd = &cobra.Command{
     Short:         wski18n.T("get API details"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var isBasePathArg bool = true
 
-        if whiskErr := checkArgs(args, 1, 1, "Api get",
+        if whiskErr := CheckArgs(args, 1, 1, "Api get",
             wski18n.T("An API base path or API name is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -283,15 +283,15 @@ var apiGetCmd = &cobra.Command{
             return err
         }
 
-        retApi, _, err := client.Apis.Get(apiGetReq, apiGetReqOptions)
+        retApi, _, err := Client.Apis.Get(apiGetReq, apiGetReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
             errMsg := wski18n.T("Unable to get API '{{.name}}': {{.err}}", map[string]interface{}{"name": args[0], "err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
-        whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+        whisk.Debug(whisk.DbgInfo, "Client.Apis.Get returned: %#v\n", retApi)
 
         var displayResult interface{} = nil
         if (flags.common.detail) {
@@ -352,11 +352,11 @@ var apiDeleteCmd = &cobra.Command{
     Short:         wski18n.T("delete an API"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if whiskErr := checkArgs(args, 1, 3, "Api delete",
+        if whiskErr := CheckArgs(args, 1, 3, "Api delete",
             wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
         }
@@ -393,9 +393,9 @@ var apiDeleteCmd = &cobra.Command{
             apiDeleteReqOptions.ApiVerb = strings.ToUpper(args[2])
         }
 
-        _, err = client.Apis.Delete(apiDeleteReq, apiDeleteReqOptions)
+        _, err = Client.Apis.Delete(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
             errMsg := wski18n.T("Unable to delete API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -437,7 +437,7 @@ var apiListCmd = &cobra.Command{
     Short:         wski18n.T("list APIs"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var retApiList *whisk.ApiListResponse
@@ -448,7 +448,7 @@ var apiListCmd = &cobra.Command{
         var orderFilteredList []whisk.ApiFilteredList
         var orderFilteredRow []whisk.ApiFilteredRow
 
-        if whiskErr := checkArgs(args, 0, 3, "Api list",
+        if whiskErr := CheckArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
             return whiskErr
         }
@@ -465,21 +465,21 @@ var apiListCmd = &cobra.Command{
                 return err
             }
 
-            retApiList, _, err = client.Apis.List(apiListReqOptions)
+            retApiList, _, err = Client.Apis.List(apiListReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
+                whisk.Debug(whisk.DbgError, "Client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiList, retApiList)
+            whisk.Debug(whisk.DbgInfo, "Client.Apis.List returned: %#v (%+v)\n", retApiList, retApiList)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArray)(retApiList)
         } else {
             // Get API request body
             apiGetReq := new(whisk.ApiGetRequest)
-            apiGetReq.Namespace = client.Config.Namespace
+            apiGetReq.Namespace = Client.Config.Namespace
             // Get API request options
             apiGetReqOptions := new(whisk.ApiGetRequestOptions)
             if apiGetReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
@@ -508,15 +508,15 @@ var apiListCmd = &cobra.Command{
                 apiGetReqOptions.ApiVerb = apiVerb
             }
 
-            retApi, _, err = client.Apis.Get(apiGetReq, apiGetReqOptions)
+            retApi, _, err = Client.Apis.Get(apiGetReq, apiGetReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+                whisk.Debug(whisk.DbgError, "Client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+            whisk.Debug(whisk.DbgInfo, "Client.Apis.Get returned: %#v\n", retApi)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArray)(retApi)
         }
@@ -810,7 +810,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
         apiname = flags.api.apiname
     }
 
-    api.Namespace = client.Config.Namespace
+    api.Namespace = Client.Config.Namespace
     api.Action = new(whisk.ApiAction)
     var urlActionPackage string
     if (len(qName.GetPackageName()) > 0) {
@@ -818,11 +818,11 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
+    api.Action.BackendUrl = "https://" + Client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
     api.Action.BackendMethod = api.GatewayMethod
     api.Action.Name = qName.GetEntityName()
     api.Action.Namespace = qName.GetNamespace()
-    api.Action.Auth = client.Config.AuthToken
+    api.Action.Auth = Client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath
     if (!basepathArgIsApiName) { api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath }
@@ -893,7 +893,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     }
 
     api := new(whisk.Api)
-    api.Namespace = client.Config.Namespace
+    api.Namespace = Client.Config.Namespace
     api.Swagger = swagger
 
     return api, nil

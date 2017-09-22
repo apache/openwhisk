@@ -39,17 +39,17 @@ var namespaceListCmd = &cobra.Command{
     Short: wski18n.T("list available namespaces"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         // add "TYPE" --> public / private
 
-        if whiskErr := checkArgs(args, 0, 0, "Namespace list", wski18n.T("No arguments are required.")); whiskErr != nil {
+        if whiskErr := CheckArgs(args, 0, 0, "Namespace list", wski18n.T("No arguments are required.")); whiskErr != nil {
             return whiskErr
         }
 
-        namespaces, _, err := client.Namespaces.List()
+        namespaces, _, err := Client.Namespaces.List()
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Namespaces.List() error: %s\n", err)
+            whisk.Debug(whisk.DbgError, "Client.Namespaces.List() error: %s\n", err)
             errStr := wski18n.T("Unable to obtain the list of available namespaces: {{.err}}",
                 map[string]interface{}{"err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -65,12 +65,12 @@ var namespaceGetCmd = &cobra.Command{
     Short: wski18n.T("get triggers, actions, and rules in the registry for a namespace"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var qualifiedName = new(QualifiedName)
         var err error
 
-        if whiskErr := checkArgs(args, 0, 1, "Namespace get",
+        if whiskErr := CheckArgs(args, 0, 1, "Namespace get",
                 wski18n.T("An optional namespace is the only valid argument.")); whiskErr != nil {
             return whiskErr
         }
@@ -86,10 +86,10 @@ var namespaceGetCmd = &cobra.Command{
             }
         }
 
-        namespace, _, err := client.Namespaces.Get(qualifiedName.GetNamespace())
+        namespace, _, err := Client.Namespaces.Get(qualifiedName.GetNamespace())
 
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
+            whisk.Debug(whisk.DbgError, "Client.Namespaces.Get(%s) error: %s\n", getClientNamespace(), err)
             errStr := wski18n.T("Unable to obtain the list of entities for namespace '{{.namespace}}': {{.err}}",
                     map[string]interface{}{"namespace": getClientNamespace(), "err": err})
             werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_NETWORK,
@@ -105,7 +105,7 @@ var namespaceGetCmd = &cobra.Command{
         printList(namespace.Contents.Triggers, sortByName)
         //No errors, lets attempt to retrieve the status of each rule #312
         for index, rule := range namespace.Contents.Rules {
-            ruleStatus, _, err := client.Rules.Get(rule.Name)
+            ruleStatus, _, err := Client.Rules.Get(rule.Name)
             if err != nil {
                 errStr := wski18n.T("Unable to get status of rule '{{.name}}': {{.err}}",
                     map[string]interface{}{"name": rule.Name, "err": err})

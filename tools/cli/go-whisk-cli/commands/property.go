@@ -66,7 +66,7 @@ var propertySetCmd = &cobra.Command{
     Short:          wski18n.T("set property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var okMsg string = ""
         var werr *whisk.WskError = nil
@@ -83,7 +83,7 @@ var propertySetCmd = &cobra.Command{
         // read in each flag, update if necessary
         if cert := flags.global.cert; len(cert) > 0 {
             props["CERT"] = cert
-            client.Config.Cert = cert
+            Client.Config.Cert = cert
             okMsg += fmt.Sprintf(
                 wski18n.T("{{.ok}} client cert set. Run 'wsk property get --cert' to see the new value.\n",
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
@@ -91,7 +91,7 @@ var propertySetCmd = &cobra.Command{
 
         if key := flags.global.key; len(key) > 0 {
             props["KEY"] = key
-            client.Config.Key = key
+            Client.Config.Key = key
             okMsg += fmt.Sprintf(
                 wski18n.T("{{.ok}} client key set. Run 'wsk property get --key' to see the new value.\n",
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
@@ -99,7 +99,7 @@ var propertySetCmd = &cobra.Command{
 
         if auth := flags.global.auth; len(auth) > 0 {
             props["AUTH"] = auth
-            client.Config.AuthToken = auth
+            Client.Config.AuthToken = auth
             okMsg += fmt.Sprintf(
                 wski18n.T("{{.ok}} whisk auth set. Run 'wsk property get --auth' to see the new value.\n",
                     map[string]interface{}{"ok": color.GreenString("ok:")}))
@@ -118,7 +118,7 @@ var propertySetCmd = &cobra.Command{
                     whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
             } else {
                 props["APIHOST"] = apiHost
-                client.Config.BaseURL = baseURL
+                Client.Config.BaseURL = baseURL
                 okMsg += fmt.Sprintf(
                     wski18n.T("{{.ok}} whisk API host set to {{.host}}\n",
                         map[string]interface{}{"ok": color.GreenString("ok:"), "host": boldString(apiHost)}))
@@ -127,16 +127,16 @@ var propertySetCmd = &cobra.Command{
 
         if apiVersion := flags.property.apiversionSet; len(apiVersion) > 0 {
             props["APIVERSION"] = apiVersion
-            client.Config.Version = apiVersion
+            Client.Config.Version = apiVersion
             okMsg += fmt.Sprintf(
                 wski18n.T("{{.ok}} whisk API version set to {{.version}}\n",
                     map[string]interface{}{"ok": color.GreenString("ok:"), "version": boldString(apiVersion)}))
         }
 
         if namespace := flags.property.namespaceSet; len(namespace) > 0 {
-            namespaces, _, err := client.Namespaces.List()
+            namespaces, _, err := Client.Namespaces.List()
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Namespaces.List() failed: %s\n", err)
+                whisk.Debug(whisk.DbgError, "Client.Namespaces.List() failed: %s\n", err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Authenticated user does not have namespace '{{.name}}'; set command failed: {{.err}}",
                         map[string]interface{}{"name": namespace, "err": err}))
@@ -284,7 +284,7 @@ var propertyGetCmd = &cobra.Command{
     Short:          wski18n.T("get property"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
 
         // If no property is explicitly specified, default to all properties
@@ -301,7 +301,7 @@ var propertyGetCmd = &cobra.Command{
         }
 
         if flags.property.all || flags.property.key {
-            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("client key"), boldString(Properties.Key))
+            fmt.Fprintf(color.Output, "%s\t\t%s\n", wski18n.T("Client key"), boldString(Properties.Key))
         }
 
         if flags.property.all || flags.property.auth {
@@ -325,9 +325,9 @@ var propertyGetCmd = &cobra.Command{
         }
 
         if flags.property.all || flags.property.apibuild || flags.property.apibuildno {
-            info, _, err := client.Info.Get()
+            info, _, err := Client.Info.Get()
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Info.Get() failed: %s\n", err)
+                whisk.Debug(whisk.DbgError, "Client.Info.Get() failed: %s\n", err)
                 info = &whisk.Info{}
                 info.Build = wski18n.T("Unknown")
                 info.BuildNo = wski18n.T("Unknown")
@@ -499,44 +499,43 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
 
     if cert := flags.global.cert; len(cert) > 0 {
         Properties.Cert = cert
-        if client != nil {
-            client.Config.Cert = cert
+        if Client != nil {
+            Client.Config.Cert = cert
         }
     }
 
     if key := flags.global.key; len(key) > 0 {
         Properties.Key = key
-        if client != nil {
-            client.Config.Key = key
+        if Client != nil {
+            Client.Config.Key = key
         }
     }
 
     if auth := flags.global.auth; len(auth) > 0 {
         Properties.Auth = auth
-        if client != nil {
-            client.Config.AuthToken = auth
+        if Client != nil {
+            Client.Config.AuthToken = auth
         }
     }
 
     if namespace := flags.property.namespaceSet; len(namespace) > 0 {
         Properties.Namespace = namespace
-        if client != nil {
-            client.Config.Namespace = namespace
+        if Client != nil {
+            Client.Config.Namespace = namespace
         }
     }
 
     if apiVersion := flags.global.apiversion; len(apiVersion) > 0 {
         Properties.APIVersion = apiVersion
-        if client != nil {
-            client.Config.Version = apiVersion
+        if Client != nil {
+            Client.Config.Version = apiVersion
         }
     }
 
     if apiHost := flags.global.apihost; len(apiHost) > 0 {
         Properties.APIHost = apiHost
-
-        if client != nil {
-            client.Config.Host = apiHost
+        if Client != nil {
+            Client.Config.Host = apiHost
             baseURL, err := whisk.GetURLBase(apiHost, DefaultOpenWhiskApiPath)
 
             if err != nil {
@@ -546,7 +545,7 @@ func parseConfigFlags(cmd *cobra.Command, args []string) error {
                 werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return werr
             }
-            client.Config.BaseURL = baseURL
+            Client.Config.BaseURL = baseURL
         }
     }
 

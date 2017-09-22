@@ -58,7 +58,7 @@ var sdkInstallCmd = &cobra.Command{
     Long: wski18n.T("install SDK artifacts, where valid COMPONENT values are docker, ios, and bashauto"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         if len(args) != 1 {
@@ -160,9 +160,9 @@ func sdkInstall(componentName string) error {
         return werr
     }
 
-    resp, err := client.Sdks.Install(sdkMap[componentName].UrlPath)
+    resp, err := Client.Sdks.Install(sdkMap[componentName].UrlPath)
     if err != nil {
-        whisk.Debug(whisk.DbgError, "client.Sdks.Install(%s) failed: %s\n", sdkMap[componentName].UrlPath, err)
+        whisk.Debug(whisk.DbgError, "Client.Sdks.Install(%s) failed: %s\n", sdkMap[componentName].UrlPath, err)
         errStr := wski18n.T("Unable to retrieve '{{.urlpath}}' SDK: {{.err}}",
                 map[string]interface{}{"urlpath": sdkMap[componentName].UrlPath, "err": err})
         werr := whisk.MakeWskErrorFromWskError(errors.New(errStr), err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
