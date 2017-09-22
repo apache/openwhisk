@@ -285,8 +285,9 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
 
     // If the action is successful it seems like the Invoker is Healthy again. So we execute immediately
     // a new test action to remove the errors out of the RingBuffer as fast as possible.
-    // The actions that arrice while the invoker is unhealthy are most likely health actions.
-    // But it could be real actions as well, if they were already in the queue/in progress while the invoker turned unhealthy.
+    // The actions that arrive while the invoker is unhealthy are most likely health actions.
+    // It is possible they are normal user actions as well. This can happen if such actions were in the
+    // invoker queue or in progress while the invoker's status flipped to Unhealthy.
     if (wasActivationSuccessful && stateName == UnHealthy) {
       invokeTestAction()
     }

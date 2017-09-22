@@ -130,30 +130,34 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     val aid = response.fold(l => l, r => r.activationId)
 
     // treat left as success (as it is the result a the message exceeding the bus limit)
-    // treat timed out active ack as failure to let the invoker become unhealthy
     val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
 
     loadBalancerData.removeActivation(aid) match {
       case Some(entry) =>
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
-        // If we receive an active ack (forced = false) we send the activationResult. If the timeout
-        // is executed earlier, we treat the activation as failed (forced = true).
-        // At this point no health actions are handled, because they don't have an entry in loadBalancerData.
+        // Active acks that are received here are strictly from user actions - health actions are not part of
+        // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
+        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
+        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
+        // to that invoker topic.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
         if (!forced) {
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
         }
-      case None =>
-        // the entry was already removed
-        // This could happen if this is the active ack of an health action. Another reason is
-        // that this method is called twice. On activeAcks and on timeouts. The first hit removes the entry.
-        // We send the InvocationFinishedMessage only, when processCompletion has not been called by the
-        // timeout (forced = false). Health actions don't have a timeout, so there is no problem, if they
-        // are very long in the queue.
-        if (!forced) invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
+      case None if !forced =>
+        // the entry has already been removed but we receive an active ack for this activation Id.
+        // This happens for health actions, because they don't have an entry in Loadbalancerdata or
+        // for activations that already timed out.
+        // For both cases, it looks like the invoker works again and we should send the status of
+        // the activation to the invokerPool.
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
+      case None =>
+        // the entry has already been removed by an active ack. This part of the code is reached by the timeout.
+        // As the active ack is already processed we don't have to do anything here.
+        logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
     }
   }
 
