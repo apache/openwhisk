@@ -136,7 +136,7 @@ var propertySetCmd = &cobra.Command{
         if namespace := flags.property.namespaceSet; len(namespace) > 0 {
             namespaces, _, err := Client.Namespaces.List()
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Namespaces.List() failed: %s\n", err)
+                whisk.Debug(whisk.DbgError, "Client.Namespaces.List() failed: %s\n", err)
                 errStr := fmt.Sprintf(
                     wski18n.T("Authenticated user does not have namespace '{{.name}}'; set command failed: {{.err}}",
                         map[string]interface{}{"name": namespace, "err": err}))
@@ -327,7 +327,7 @@ var propertyGetCmd = &cobra.Command{
         if flags.property.all || flags.property.apibuild || flags.property.apibuildno {
             info, _, err := Client.Info.Get()
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Info.Get() failed: %s\n", err)
+                whisk.Debug(whisk.DbgError, "Client.Info.Get() failed: %s\n", err)
                 info = &whisk.Info{}
                 info.Build = wski18n.T("Unknown")
                 info.BuildNo = wski18n.T("Unknown")
