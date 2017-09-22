@@ -22,20 +22,15 @@
 
 package whisk.core.database
 
-import java.util.concurrent.ConcurrentMap
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentMap, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
 import scala.util.control.NonFatal
-
 import com.github.benmanes.caffeine.cache.Caffeine
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -476,18 +471,18 @@ private class ConcurrentMapBackedCache[V](store: ConcurrentMap[Any, Future[V]]) 
   }
 
   def apply(key: Any, genValue: () => Future[V])(implicit ec: ExecutionContext): Future[V] = {
-    val promise = Promise[V]()
-    store.putIfAbsent(key, promise.future) match {
-      case null =>
-        val future = genValue()
-        future.onComplete { value =>
-          promise.complete(value)
-          // in case of exceptions we remove the cache entry (i.e. try again later)
-          if (value.isFailure) store.remove(key, promise.future)
+    store.computeIfAbsent(
+      key,
+      new java.util.function.Function[Any, Future[V]]() {
+        override def apply(key: Any): Future[V] = {
+          val future = genValue()
+          future.onComplete { value =>
+            // in case of exceptions we remove the cache entry (i.e. try again later)
+            if (value.isFailure) store.remove(key, future)
+          }
+          future
         }
-        future
-      case existingFuture => existingFuture
-    }
+      })
   }
 
   def remove(key: Any) = Option(store.remove(key))
