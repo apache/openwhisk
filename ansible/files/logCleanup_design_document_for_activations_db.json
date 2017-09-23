@@ -2,7 +2,7 @@
   "_id": "_design/logCleanup",
   "views": {
     "byDateWithLogs": {
-      "map": "function (doc) {\n  if (doc.activationId !== undefined && doc.logs && doc.logs.length > 0) {\n    emit(doc.start, doc._id);\n  }\n}"
+      "map": "function (doc) {\n  if (doc.activationId !== undefined && doc.logs && doc.logs.length > 0) try {\n    var deleteLogs = true;\n    for (i = 0; i < doc.annotations.length; i++) {\n      var a = doc.annotations[i];\n      if (a.key == \"kind\") {\n        deleteLogs = a.value != \"sequence\";\n        break;\n      }\n    }\n    if (deleteLogs) {\n      emit(doc.start, doc._id);\n    }\n  } catch (e) {}\n}"
     }
   },
   "language": "javascript"
