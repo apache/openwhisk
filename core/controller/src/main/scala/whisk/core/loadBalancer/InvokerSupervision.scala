@@ -158,7 +158,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   def registerInvoker(instanceId: InstanceId): ActorRef = {
     logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
 
-    status = padToIndexed(status, instanceId.toInt + 1, i ⇒ (InstanceId(i), Offline))
+    status = padToIndexed(status, instanceId.toInt + 1, i => (InstanceId(i), Offline))
 
     val ref = childFactory(context, instanceId)
 

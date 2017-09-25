@@ -105,7 +105,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
       container match {
         case Some((actor, data)) =>
-          busyPool = busyPool + (actor → data)
+          busyPool = busyPool + (actor -> data)
           freePool = freePool - actor
           actor ! r // forwards the run request to the container
         case None =>
@@ -115,21 +115,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
-      freePool = freePool + (sender() → data)
+      freePool = freePool + (sender() -> data)
       busyPool = busyPool - sender()
-      busyPool foreach { _ ⇒
+      busyPool.foreach { _ =>
         feed ! MessageFeed.Processed
       }
 
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
-      prewarmedPool = prewarmedPool + (sender() → data)
+      prewarmedPool = prewarmedPool + (sender() -> data)
 
     // Container got removed
     case ContainerRemoved =>
       freePool = freePool - sender()
       busyPool = busyPool - sender()
-      busyPool foreach { _ ⇒
+      busyPool.foreach { _ =>
         feed ! MessageFeed.Processed
       }
   }
@@ -138,8 +138,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def createContainer(): (ActorRef, ContainerData) = {
     val ref = childFactory(context)
     val data = NoData()
-    freePool = freePool + (ref → data)
-    ref → data
+    freePool = freePool + (ref -> data)
+    ref -> data
   }
 
   /** Creates a new prewarmed container */
@@ -165,7 +165,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         .map {
           case (ref, data) =>
             // Move the container to the usual pool
-            freePool = freePool + (ref → data)
+            freePool = freePool + (ref -> data)
             prewarmedPool = prewarmedPool - ref
             // Create a new prewarm container
             prewarmContainer(config.exec, config.memoryLimit)
