@@ -17,6 +17,7 @@
 
 package whisk.core.containerpool.docker
 
+import java.nio.file.{Files, Paths}
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.util.Failure
@@ -37,9 +38,15 @@ import akka.event.Logging.ErrorLevel
 class RuncClient(executionContext: ExecutionContext)(implicit log: Logging) extends RuncApi with ProcessRunner {
   implicit private val ec = executionContext
 
+  protected val runcBinary: String = "/usr/bin/docker-runc"
+
   // Determines how to run docker. Failure to find a Docker binary implies
   // a failure to initialize this instance of DockerClient.
-  protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
+  protected val runcCmd: Seq[String] = Seq(runcBinary)
+
+  def isInstalled: Boolean = {
+    Files.exists(Paths.get(runcBinary)) // TODO: cache the response
+  }
 
   def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("pause", id.asString).map(_ => ())
 
@@ -73,4 +80,10 @@ trait RuncApi {
    * @return a Future completing according to the command's exit-code
    */
   def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
+
+  /**
+    * Indicates if runc eixsts
+    * @return true, if runc is installed in the system, false otherwise
+    */
+  def isInstalled : Boolean
 }

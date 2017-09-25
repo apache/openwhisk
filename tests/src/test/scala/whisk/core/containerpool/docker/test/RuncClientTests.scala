@@ -92,4 +92,20 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
     }
 
   }
+
+  def runcClientWithMissingBinary(result: Future[String]) = new RuncClient(global) {
+    override val runcBinary = "./openwhisk-invalid-runc"
+  }
+  it should "figure out if runc binary is missing from the system" in {
+    val rc = runcClientWithMissingBinary { Future.successful("")}
+    rc.isInstalled shouldBe false
+  }
+
+  def runcClientWithExistingBinary(result: Future[String]) = new RuncClient(global) {
+    override val runcBinary = "/bin/sh"
+  }
+  it should "figure out if runc binary exists on the system" in {
+    val rc = runcClientWithExistingBinary { Future.successful("")}
+    rc.isInstalled shouldBe true
+  }
 }
