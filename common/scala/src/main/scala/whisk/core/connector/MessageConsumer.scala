@@ -29,8 +29,6 @@ import akka.pattern.pipe
 import whisk.common.Logging
 import whisk.common.TransactionId
 
-
-
 trait MessageConsumer {
 
   /** The maximum number of messages peeked (i.e., max number of messages retrieved during a long poll). */
