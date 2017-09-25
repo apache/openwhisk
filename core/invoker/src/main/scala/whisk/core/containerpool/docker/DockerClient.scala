@@ -20,18 +20,18 @@ package whisk.core.containerpool.docker
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import akka.event.Logging.ErrorLevel
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import scala.collection.concurrent.TrieMap
+import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.ContainerAddress
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -64,11 +64,11 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
   def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] =
     runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*).map(ContainerId.apply)
 
-  def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] =
+  def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerAddress] =
     runCmd("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString).flatMap {
       _ match {
         case "<no value>" => Future.failed(new NoSuchElementException)
-        case stdout       => Future.successful(ContainerIp(stdout))
+        case stdout       => Future.successful(ContainerAddress(stdout))
       }
     }
 
@@ -110,13 +110,6 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
   }
 }
 
-case class ContainerId(val asString: String) {
-  require(asString.nonEmpty, "ContainerId must not be empty")
-}
-case class ContainerIp(val asString: String) {
-  require(asString.nonEmpty, "ContainerIp must not be empty")
-}
-
 trait DockerApi {
 
   /**
@@ -139,7 +132,7 @@ trait DockerApi {
    * @param network name of the network to get the IP address from
    * @return ip of the container
    */
-  def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp]
+  def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerAddress]
 
   /**
    * Pauses the container with the given id.

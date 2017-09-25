@@ -18,7 +18,6 @@
 package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
-import java.time.Instant
 
 import akka.actor.ActorSystem
 
@@ -26,23 +25,15 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
-import scala.util.Success
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
-import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.core.containerpool.Interval
 import whisk.core.containerpool.BlackboxStartupError
 import whisk.core.containerpool.Container
-import whisk.core.containerpool.InitializationError
+import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.WhiskContainerStartupError
-import whisk.core.entity.ActivationResponse
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
-import whisk.http.Messages
-import whisk.core.entity.ActivationResponse.ContainerConnectionError
-import whisk.core.entity.ActivationResponse.ContainerResponse
 
 object DockerContainer {
 
@@ -69,28 +60,23 @@ object DockerContainer {
              environment: Map[String, String] = Map(),
              network: String = "bridge",
              dnsServers: Seq[String] = Seq(),
-             name: Option[String] = None)(implicit docker: DockerApiWithFileAccess,
-                                          runc: RuncApi,
-                                          as: ActorSystem,
-                                          ec: ExecutionContext,
-                                          log: Logging): Future[DockerContainer] = {
+             name: Option[String] = None,
+             dockerRunParameters: Map[String, Set[String]])(implicit docker: DockerApiWithFileAccess,
+                                                            runc: RuncApi,
+                                                            as: ActorSystem,
+                                                            ec: ExecutionContext,
+                                                            log: Logging): Future[DockerContainer] = {
     implicit val tid = transid
 
-    val environmentArgs = environment.map {
+    val environmentArgs = environment.flatMap {
       case (key, value) => Seq("-e", s"$key=$value")
-    }.flatten
+    }
 
-    val dnsArgs = dnsServers.map(Seq("--dns", _)).flatten
+    val params = dockerRunParameters.flatMap {
+      case (key, valueList) => valueList.toList.flatMap(Seq(key, _))
+    }
 
     val args = Seq(
-      "--cap-drop",
-      "NET_RAW",
-      "--cap-drop",
-      "NET_ADMIN",
-      "--ulimit",
-      "nofile=1024:1024",
-      "--pids-limit",
-      "1024",
       "--cpu-shares",
       cpuShares.toString,
       "--memory",
@@ -99,10 +85,9 @@ object DockerContainer {
       s"${memory.toMB}m",
       "--network",
       network) ++
-      dnsArgs ++
       environmentArgs ++
-      name.map(n => Seq("--name", n)).getOrElse(Seq.empty)
-
+      name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
+      params
     val pulled = if (userProvidedImage) {
       docker.pull(image).recoverWith {
         case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '${image}'."))
@@ -133,13 +118,14 @@ object DockerContainer {
  *
  * @constructor
  * @param id the id of the container
- * @param ip the ip of the container
+ * @param addr the ip of the container
  */
-class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerApiWithFileAccess,
-                                                        runc: RuncApi,
-                                                        as: ActorSystem,
-                                                        ec: ExecutionContext,
-                                                        logger: Logging)
+class DockerContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
+  implicit docker: DockerApiWithFileAccess,
+  runc: RuncApi,
+  as: ActorSystem,
+  protected val ec: ExecutionContext,
+  protected val logging: Logging)
     extends Container
     with DockerActionLogDriver {
 
@@ -149,76 +135,11 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerA
   protected val logsRetryCount = 15
   protected val logsRetryWait = 100.millis
 
-  /** HTTP connection to the container, will be lazily established by callContainer */
-  private var httpConnection: Option[HttpUtils] = None
-
   def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
   def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
-  def destroy()(implicit transid: TransactionId): Future[Unit] = {
-    httpConnection.foreach(_.close())
+  override def destroy()(implicit transid: TransactionId): Future[Unit] = {
+    super.destroy()
     docker.rm(id)
-  }
-
-  def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
-    val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to $id $ip")
-
-    val body = JsObject("value" -> initializer)
-    callContainer("/init", body, timeout, retry = true)
-      .andThen { // never fails
-        case Success(r: RunResult) =>
-          transid.finished(
-            this,
-            start.copy(start = r.interval.start),
-            s"initialization result: ${r.toBriefString}",
-            endTime = r.interval.end)
-        case Failure(t) =>
-          transid.failed(this, start, s"initializiation failed with $t")
-      }
-      .flatMap { result =>
-        if (result.ok) {
-          Future.successful(result.interval)
-        } else if (result.interval.duration >= timeout) {
-          Future.failed(
-            InitializationError(
-              result.interval,
-              ActivationResponse.applicationError(Messages.timedoutActivation(timeout, true))))
-        } else {
-          Future.failed(
-            InitializationError(
-              result.interval,
-              ActivationResponse.processInitResponseContent(result.response, logger)))
-        }
-      }
-  }
-
-  def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
-    implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
-    val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
-    val start =
-      transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName at $id $ip")
-
-    val parameterWrapper = JsObject("value" -> parameters)
-    val body = JsObject(parameterWrapper.fields ++ environment.fields)
-    callContainer("/run", body, timeout, retry = false)
-      .andThen { // never fails
-        case Success(r: RunResult) =>
-          transid.finished(
-            this,
-            start.copy(start = r.interval.start),
-            s"running result: ${r.toBriefString}",
-            endTime = r.interval.end)
-        case Failure(t) =>
-          transid.failed(this, start, s"run failed with $t")
-      }
-      .map { result =>
-        val response = if (result.interval.duration >= timeout) {
-          ActivationResponse.applicationError(Messages.timedoutActivation(timeout, false))
-        } else {
-          ActivationResponse.processRunResponseContent(result.response, logger)
-        }
-
-        (result.interval, response)
-      }
   }
 
   /**
@@ -254,7 +175,7 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerA
           val (isComplete, isTruncated, formattedLogs) = processJsonDriverLogContents(rawLog, waitForSentinel, limit)
 
           if (retries > 0 && !isComplete && !isTruncated) {
-            logger.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
+            logging.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
             akka.pattern.after(logsRetryWait, as.scheduler)(readLogs(retries - 1))
           } else {
             logFileOffset += rawLogBytes.position - rawLogBytes.arrayOffset
@@ -263,43 +184,11 @@ class DockerContainer(id: ContainerId, ip: ContainerIp)(implicit docker: DockerA
         }
         .andThen {
           case Failure(e) =>
-            logger.error(this, s"Failed to obtain logs of ${id.asString}: ${e.getClass} - ${e.getMessage}")
+            logging.error(this, s"Failed to obtain logs of ${id.asString}: ${e.getClass} - ${e.getMessage}")
         }
     }
 
     readLogs(logsRetryCount)
   }
 
-  /**
-   * Makes an HTTP request to the container.
-   *
-   * Note that `http.post` will not throw an exception, hence the generated Future cannot fail.
-   *
-   * @param path relative path to use in the http request
-   * @param body body to send
-   * @param timeout timeout of the request
-   * @param retry whether or not to retry the request
-   */
-  protected def callContainer(path: String,
-                              body: JsObject,
-                              timeout: FiniteDuration,
-                              retry: Boolean = false): Future[RunResult] = {
-    val started = Instant.now()
-    val http = httpConnection.getOrElse {
-      val conn = new HttpUtils(s"${ip.asString}:8080", timeout, 1.MB)
-      httpConnection = Some(conn)
-      conn
-    }
-    Future {
-      http.post(path, body, retry)
-    }.map { response =>
-      val finished = Instant.now()
-      RunResult(Interval(started, finished), response)
-    }
-  }
-}
-
-case class RunResult(interval: Interval, response: Either[ContainerConnectionError, ContainerResponse]) {
-  def ok = response.right.exists(_.ok)
-  def toBriefString = response.fold(_.toString, _.toString)
 }

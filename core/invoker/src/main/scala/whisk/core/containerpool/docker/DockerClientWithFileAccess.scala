@@ -22,16 +22,16 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.file.Paths
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.io.Source
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.ContainerAddress
 
 class DockerClientWithFileAccess(
   dockerHost: Option[String] = None,
@@ -113,18 +113,18 @@ class DockerClientWithFileAccess(
    * @param network name of the network to get the IP address from
    * @return the ip address of the container
    */
-  protected def ipAddressFromFile(id: ContainerId, network: String): Future[ContainerIp] = {
+  protected def ipAddressFromFile(id: ContainerId, network: String): Future[ContainerAddress] = {
     configFileContents(containerConfigFile(id)).map { json =>
       val networks = json.fields("NetworkSettings").asJsObject.fields("Networks").asJsObject
       val specifiedNetwork = networks.fields(network).asJsObject
       val ipAddr = specifiedNetwork.fields("IPAddress")
-      ContainerIp(ipAddr.convertTo[String])
+      ContainerAddress(ipAddr.convertTo[String])
     }
   }
 
   // See extended trait for description
   override def inspectIPAddress(id: ContainerId, network: String)(
-    implicit transid: TransactionId): Future[ContainerIp] = {
+    implicit transid: TransactionId): Future[ContainerAddress] = {
     ipAddressFromFile(id, network).recoverWith {
       case _ => super.inspectIPAddress(id, network)
     }

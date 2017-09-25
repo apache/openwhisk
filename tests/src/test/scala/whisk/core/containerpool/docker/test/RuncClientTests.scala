@@ -30,7 +30,7 @@ import scala.concurrent.Await
 import org.scalatest.Matchers
 import whisk.core.containerpool.docker.RuncClient
 import common.StreamLogging
-import whisk.core.containerpool.docker.ContainerId
+import whisk.core.containerpool.ContainerId
 import whisk.common.TransactionId
 import org.scalatest.BeforeAndAfterEach
 import whisk.common.LogMarker

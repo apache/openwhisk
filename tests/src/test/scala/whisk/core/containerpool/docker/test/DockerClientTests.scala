@@ -23,21 +23,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-
 import common.StreamLogging
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
 import whisk.common.TransactionId
-import whisk.core.containerpool.docker.ContainerId
-import whisk.core.containerpool.docker.ContainerIp
 import whisk.core.containerpool.docker.DockerClient
 import scala.concurrent.Promise
+import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.ContainerAddress
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
@@ -171,7 +169,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
 
     val network = "userland"
     val inspectArgs = Seq("--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString)
-    runAndVerify(dc.inspectIPAddress(id, network), "inspect", inspectArgs) shouldBe ContainerIp(stdout)
+    runAndVerify(dc.inspectIPAddress(id, network), "inspect", inspectArgs) shouldBe ContainerAddress(stdout)
 
     val image = "image"
     val runArgs = Seq("--memory", "256m", "--cpushares", "1024")

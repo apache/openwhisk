@@ -21,7 +21,6 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -71,12 +70,12 @@ class DockerContainerTests
    * Constructs a testcontainer with overridden IO methods. Results of the override can be provided
    * as parameters.
    */
-  def dockerContainer(id: ContainerId = containerId, ip: ContainerIp = ContainerIp("ip"))(
+  def dockerContainer(id: ContainerId = containerId, addr: ContainerAddress = ContainerAddress("ip"))(
     ccRes: Future[RunResult] =
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     retryCount: Int = 0)(implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
-    new DockerContainer(id, ip) {
+    new DockerContainer(id, addr) {
       override protected def callContainer(path: String,
                                            body: JsObject,
                                            timeout: FiniteDuration,
@@ -94,6 +93,10 @@ class DockerContainerTests
   behavior of "DockerContainer"
 
   implicit val transid = TransactionId.testing
+  val parameters = Map(
+    "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
+    "--ulimit" -> Set("nofile=1024:1024"),
+    "--pids-limit" -> Set("1024"))
 
   /*
    * CONTAINER CREATION
@@ -108,7 +111,6 @@ class DockerContainerTests
     val environment = Map("test" -> "hi")
     val network = "testwork"
     val name = "myContainer"
-
     val container = DockerContainer.create(
       transid = transid,
       image = image,
@@ -116,7 +118,8 @@ class DockerContainerTests
       cpuShares = cpuShares,
       environment = environment,
       network = network,
-      name = Some(name))
+      name = Some(name),
+      dockerRunParameters = parameters)
 
     await(container)
 
@@ -148,7 +151,11 @@ class DockerContainerTests
     implicit val docker = new TestDockerClient
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+    val container = DockerContainer.create(
+      transid = transid,
+      image = "image",
+      userProvidedImage = true,
+      dockerRunParameters = parameters)
     await(container)
 
     docker.pulls should have size 1
@@ -160,14 +167,14 @@ class DockerContainerTests
   it should "remove the container if inspect fails" in {
     implicit val docker = new TestDockerClient {
       override def inspectIPAddress(id: ContainerId,
-                                    network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+                                    network: String)(implicit transid: TransactionId): Future[ContainerAddress] = {
         inspects += ((id, network))
         Future.failed(new RuntimeException())
       }
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image")
+    val container = DockerContainer.create(transid = transid, image = "image", dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 0
@@ -186,7 +193,11 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+    val container = DockerContainer.create(
+      transid = transid,
+      image = "image",
+      userProvidedImage = true,
+      dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 1
@@ -198,14 +209,18 @@ class DockerContainerTests
   it should "provide a proper error if inspect fails for blackbox containers" in {
     implicit val docker = new TestDockerClient {
       override def inspectIPAddress(id: ContainerId,
-                                    network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+                                    network: String)(implicit transid: TransactionId): Future[ContainerAddress] = {
         inspects += ((id, network))
         Future.failed(new RuntimeException())
       }
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+    val container = DockerContainer.create(
+      transid = transid,
+      image = "image",
+      userProvidedImage = true,
+      dockerRunParameters = parameters)
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 1
@@ -223,7 +238,11 @@ class DockerContainerTests
     }
     implicit val runc = stub[RuncApi]
 
-    val container = DockerContainer.create(transid = transid, image = "image", userProvidedImage = true)
+    val container = DockerContainer.create(
+      transid = transid,
+      image = "image",
+      userProvidedImage = true,
+      dockerRunParameters = parameters)
     a[BlackboxStartupError] should be thrownBy await(container)
 
     docker.pulls should have size 1
@@ -240,7 +259,7 @@ class DockerContainerTests
     implicit val runc = stub[RuncApi]
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerIp("ip"))
+    val container = new DockerContainer(id, ContainerAddress("ip"))
 
     container.suspend()
     container.resume()
@@ -254,7 +273,7 @@ class DockerContainerTests
     implicit val runc = stub[RuncApi]
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerIp("ip"))
+    val container = new DockerContainer(id, ContainerAddress("ip"))
 
     container.destroy()
 
@@ -632,9 +651,10 @@ class DockerContainerTests
       Future.successful(ContainerId("testId"))
     }
 
-    def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerIp] = {
+    def inspectIPAddress(id: ContainerId, network: String)(
+      implicit transid: TransactionId): Future[ContainerAddress] = {
       inspects += ((id, network))
-      Future.successful(ContainerIp("testIp"))
+      Future.successful(ContainerAddress("testIp"))
     }
 
     def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = {
