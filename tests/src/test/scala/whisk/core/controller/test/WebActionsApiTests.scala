@@ -66,7 +66,6 @@ import whisk.http.Messages
  * These tests exercise a fresh instance of the service object in memory -- these
  * tests do NOT communication with a whisk deployment.
  *
- *
  * @Idioglossia
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
@@ -688,8 +687,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
             // ensure response is pretty printed
             responseAs[String] shouldBe {
               """{
-                                  |  "foobar": "foobar"
-                                  |}""".stripMargin
+                |  "foobar": "foobar"
+                |}""".stripMargin
             }
           }
         }
@@ -1563,26 +1562,30 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
     it should s"invoke raw action ensuring body and query arguments are set properly (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
-      val str = "1,2,3"
-      invocationsAllowed = 1
 
       val queryString = "key1=value1&key2=value2"
-      Post(
-        s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString",
-        HttpEntity(ContentTypes.`application/json`, str)) ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[JsObject]
-        response shouldBe JsObject(
-          "pkg" -> s"$systemId/proxy".toJson,
-          "action" -> "raw_export_c".toJson,
-          "content" -> metaPayload(
-            Post.method.name.toLowerCase,
-            Map(webApiDirectives.body -> Base64.getEncoder.encodeToString {
-              str.getBytes
-            }.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
-            creds,
-            pkgName = "proxy",
-            headers = List(`Content-Type`(ContentTypes.`application/json`))))
+      Seq(
+        "1,2,3",
+        JsObject("a" -> "A".toJson, "b" -> "B".toJson).prettyPrint,
+        JsObject("a" -> "A".toJson, "b" -> "B".toJson).compactPrint).foreach { str =>
+        Post(
+          s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString",
+          HttpEntity(ContentTypes.`application/json`, str)) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          invocationsAllowed += 1
+          val response = responseAs[JsObject]
+          response shouldBe JsObject(
+            "pkg" -> s"$systemId/proxy".toJson,
+            "action" -> "raw_export_c".toJson,
+            "content" -> metaPayload(
+              Post.method.name.toLowerCase,
+              Map(webApiDirectives.body -> Base64.getEncoder.encodeToString {
+                str.getBytes
+              }.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+              creds,
+              pkgName = "proxy",
+              headers = List(`Content-Type`(ContentTypes.`application/json`))))
+        }
       }
     }
 
