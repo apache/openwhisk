@@ -46,6 +46,8 @@ object ControllerSimulator {
     val controllerToSimulate = InstanceId(sys.env.get("CONTROLLER_ID").map(_.toInt).getOrElse(0))
     val invokerToUse = InstanceId(sys.env.get("INVOKER_ID").map(_.toInt).getOrElse(0))
 
+    val actionCode = sys.env.getOrElse("ACTION_CODE", "function main() { return {}; }")
+
     val topic = s"invoker${invokerToUse.toInt}"
 
     val config = new WhiskConfig(
@@ -89,7 +91,7 @@ object ControllerSimulator {
         new WhiskAction(
           namespace = identity.namespace.toPath,
           name = EntityName("noop"),
-          exec = CodeExecAsString(manifest, """function main() { return {}; }""", None))
+          exec = CodeExecAsString(manifest, actionCode, None))
       }
       .get
 
