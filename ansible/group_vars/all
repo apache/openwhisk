@@ -326,3 +326,13 @@ cli_arch:
 logs:
   dir:
     become: "{{ logs_dir_become | default(false) }}"
+
+# Metrics Configuration
+metrics:
+  log: 
+    enabled: "{{ metrics_log | default(true) }}"    
+  kamon: 
+    enabled: "{{ metrics_kamon | default(false) }}"
+    host: "{{ metrics_kamon_statsd_host | default('') }}"
+    port: "{{ metrics_kamon_statsd_port | default('8125') }}"
+
