@@ -168,6 +168,10 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
   def putDoc(id: String, rev: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
     requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, forRev = Some(rev)))
 
+  // http://docs.couchdb.org/en/2.1.0/api/database/bulk-api.html#inserting-documents-in-bulk
+  def putDocs(docs: Seq[JsObject]): Future[Either[StatusCode, JsArray]] =
+    requestJson[JsArray](mkJsonRequest(HttpMethods.POST, uri(db, "_bulk_docs"), JsObject("docs" -> docs.toJson)))
+
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
   def getDoc(id: String): Future[Either[StatusCode, JsObject]] =
     requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id)))
