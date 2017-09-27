@@ -125,19 +125,39 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
    */
   private def processCompletion(response: Either[ActivationId, WhiskActivation],
                                 tid: TransactionId,
-                                forced: Boolean): Unit = {
+                                forced: Boolean,
+                                invoker: InstanceId): Unit = {
     val aid = response.fold(l => l, r => r.activationId)
+
+    // treat left as success (as it is the result of a message exceeding the bus limit)
+    val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
+
     loadBalancerData.removeActivation(aid) match {
       case Some(entry) =>
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
+        // Active acks that are received here are strictly from user actions - health actions are not part of
+        // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
+        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
+        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
+        // to that invoker topic.
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
         if (!forced) {
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
         }
-      case None =>
-        // the entry was already removed
+      case None if !forced =>
+        // the entry has already been removed but we receive an active ack for this activation Id.
+        // This happens for health actions, because they don't have an entry in Loadbalancerdata or
+        // for activations that already timed out.
+        // For both cases, it looks like the invoker works again and we should send the status of
+        // the activation to the invokerPool.
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
+      case None =>
+        // the entry has already been removed by an active ack. This part of the code is reached by the timeout.
+        // As the active ack is already processed we don't have to do anything here.
+        logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
     }
   }
 
@@ -156,7 +176,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     // in this case, if the activation handler is still registered, remove it and update the books.
     loadBalancerData.putActivation(activationId, {
       actorSystem.scheduler.scheduleOnce(timeout) {
-        processCompletion(Left(activationId), transid, forced = true)
+        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
       }
 
       ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
@@ -254,11 +274,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     val raw = new String(bytes, StandardCharsets.UTF_8)
     CompletionMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
-        processCompletion(m.response, m.transid, false)
-        // treat left as success (as it is the result a the message exceeding the bus limit)
-        val isSuccess = m.response.fold(l => true, r => !r.response.isWhiskError)
+        processCompletion(m.response, m.transid, forced = false, invoker = m.invoker)
         activationFeed ! MessageFeed.Processed
-        invokerPool ! InvocationFinishedMessage(m.invoker, isSuccess)
 
       case Failure(t) =>
         activationFeed ! MessageFeed.Processed
