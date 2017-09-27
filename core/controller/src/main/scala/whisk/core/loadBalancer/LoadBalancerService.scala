@@ -129,7 +129,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                                 invoker: InstanceId): Unit = {
     val aid = response.fold(l => l, r => r.activationId)
 
-    // treat left as success (as it is the result a the message exceeding the bus limit)
+    // treat left as success (as it is the result of a message exceeding the bus limit)
     val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
 
     loadBalancerData.removeActivation(aid) match {
