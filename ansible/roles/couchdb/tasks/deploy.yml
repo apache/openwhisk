@@ -60,3 +60,19 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
+
+- name: create the couchdb system databases
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/{{ item }}"
+    method: PUT
+    body: >
+        "false"
+    body_format: json
+    status_code: 201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  with_items:
+    - _users
+    - _replicator
+    - _global_changes
