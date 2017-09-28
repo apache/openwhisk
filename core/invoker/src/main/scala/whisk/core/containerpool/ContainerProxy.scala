@@ -431,7 +431,9 @@ object ContainerProxy {
       response = response,
       annotations = {
         Parameters("limits", job.action.limits.toJson) ++
-          Parameters("path", job.action.fullyQualifiedName(false).toString.toJson) ++ causedBy
+          Parameters("path", job.action.fullyQualifiedName(false).toString.toJson) ++
+          Parameters("kind", job.action.exec.kind.toJson) ++
+          causedBy
       })
   }
 }
