@@ -130,7 +130,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
     checkSystemOverload(ACTIVATE)
-      .flatMap(_ => checkThrottleOverload(invokeRateThrottler.check(user)))
+      .flatMap(_ => checkThrottleOverload(Future.successful(invokeRateThrottler.check(user))))
       .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user)))
   }
 
@@ -184,7 +184,6 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     } else {
       Future.successful(false)
     }
-
     entitlementCheck andThen {
       case Success(r) if resources.nonEmpty =>
         logging.info(this, if (r) "authorized" else "not authorized")
@@ -231,11 +230,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @return future completing successfully if system is not overloaded else failing with a rejection
    */
   protected def checkSystemOverload(right: Privilege)(implicit transid: TransactionId): Future[Unit] = {
-    val systemOverload = right == ACTIVATE && concurrentInvokeThrottler.isOverloaded
-    if (systemOverload) {
-      logging.error(this, "system is overloaded")
-      Future.failed(RejectRequest(TooManyRequests, systemOverloaded))
-    } else Future.successful(())
+    concurrentInvokeThrottler.isOverloaded.flatMap { isOverloaded =>
+      val systemOverload = right == ACTIVATE && isOverloaded
+      if (systemOverload) {
+        logging.error(this, "system is overloaded")
+        Future.failed(RejectRequest(TooManyRequests, systemOverloaded))
+      } else Future.successful(())
+    }
   }
 
   /**
@@ -253,9 +254,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE) {
       if (resources.exists(_.collection.path == Collection.ACTIONS)) {
-        checkThrottleOverload(invokeRateThrottler.check(user))
+        checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)))
       } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
-        checkThrottleOverload(triggerRateThrottler.check(user))
+        checkThrottleOverload(Future.successful(triggerRateThrottler.check(user)))
       } else Future.successful(())
     } else Future.successful(())
   }
@@ -278,11 +279,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     } else Future.successful(())
   }
 
-  private def checkThrottleOverload(throttle: RateLimit)(implicit transid: TransactionId): Future[Unit] = {
-    if (throttle.ok) {
-      Future.successful(())
-    } else {
-      Future.failed(RejectRequest(TooManyRequests, throttle.errorMsg))
+  private def checkThrottleOverload(throttle: Future[RateLimit])(implicit transid: TransactionId): Future[Unit] = {
+    throttle.flatMap { limit =>
+      if (limit.ok) {
+        Future.successful(())
+      } else {
+        Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
+      }
     }
   }
 }

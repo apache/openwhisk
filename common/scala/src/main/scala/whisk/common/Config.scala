@@ -95,6 +95,16 @@ class Config(requiredProperties: Map[String, String], optionalProperties: Set[St
   }
 
   /**
+   * Returns the value of a given key parsed as a boolean.
+   * If parsing fails, return the default value.
+   *
+   * @param key the property that has to be returned.
+   */
+  def getAsBoolean(key: String, defaultValue: Boolean): Boolean = {
+    Try(getProperty(key).toBoolean).getOrElse(defaultValue)
+  }
+
+  /**
    * Converts the set of property to a string for debugging.
    */
   def mkString: String = settings.mkString("\n")

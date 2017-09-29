@@ -108,6 +108,15 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  akka:
+    provider: cluster
+    cluster:
+      basePort: 8000
+      host: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+      bindPort: 2551
+      # at this moment all controllers are seed nodes
+      seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"

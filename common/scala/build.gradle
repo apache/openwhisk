@@ -13,8 +13,9 @@ dependencies {
 
     compile 'io.spray:spray-json_2.11:1.3.3'
 
-    compile 'com.typesafe.akka:akka-actor_2.11:2.4.16'
-    compile 'com.typesafe.akka:akka-slf4j_2.11:2.4.16'
+    compile 'com.typesafe.akka:akka-actor_2.11:2.5.4'
+    compile 'com.typesafe.akka:akka-stream_2.11:2.5.4'
+    compile 'com.typesafe.akka:akka-slf4j_2.11:2.5.4'
     compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
     compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
 

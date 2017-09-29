@@ -21,20 +21,15 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
-
 import common.StreamLogging
-
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
-
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
-
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
@@ -183,8 +178,8 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
   // unit tests that need an activation via active ack/fast path should set this to value expected
   var whiskActivationStub: Option[(FiniteDuration, WhiskActivation)] = None
 
-  override def totalActiveActivations = 0
-  override def activeActivationsFor(namespace: UUID) = 0
+  override def totalActiveActivations = Future.successful(0)
+  override def activeActivationsFor(namespace: UUID) = Future.successful(0)
 
   override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] =

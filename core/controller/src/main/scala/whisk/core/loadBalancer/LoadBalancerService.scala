@@ -27,15 +27,13 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
+import akka.cluster.Cluster
 import akka.util.Timeout
 import akka.pattern.ask
-
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -61,10 +59,10 @@ trait LoadBalancer {
   val activeAckTimeoutGrace = 1.minute
 
   /** Gets the number of in-flight activations for a specific user. */
-  def activeActivationsFor(namspace: UUID): Int
+  def activeActivationsFor(namespace: UUID): Future[Int]
 
   /** Gets the number of in-flight activations in the system. */
-  def totalActiveActivations: Int
+  def totalActiveActivations: Future[Int]
 
   /**
    * Publishes activation message on internal bus for an invoker to pick up.
@@ -95,7 +93,18 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
   logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
-  private val loadBalancerData = new LoadBalancerData()
+  /** Feature switch for shared load balancer data **/
+  private val loadBalancerData = {
+    if (config.controllerLocalBookkeeping) {
+      new LocalLoadBalancerData()
+    } else {
+
+      /** Specify how seed nodes are generated */
+      val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
+      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      new DistributedLoadBalancerData()
+    }
+  }
 
   override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
 
@@ -226,7 +235,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
       case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
-
   private val invokerPool = {
     // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
     InvokerPool
@@ -307,18 +315,20 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
     val hash = generateHash(user.namespace, action)
 
-    allInvokers.flatMap { invokers =>
-      val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
-      val invokersWithUsage = invokersToUse.view.map {
-        // Using a view defers the comparably expensive lookup to actual access of the element
-        case (instance, state) => (instance, state, loadBalancerData.activationCountOn(instance))
-      }
+    loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
+      allInvokers.flatMap { invokers =>
+        val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+        val invokersWithUsage = invokersToUse.view.map {
+          // Using a view defers the comparably expensive lookup to actual access of the element
+          case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
+        }
 
-      LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
-        case Some(invoker) => Future.successful(invoker)
-        case None =>
-          logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
-          Future.failed(new LoadBalancerException("no invokers available"))
+        LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
+          case Some(invoker) => Future.successful(invoker)
+          case None =>
+            logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
+            Future.failed(new LoadBalancerException("no invokers available"))
+        }
       }
     }
   }
@@ -331,7 +341,11 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
 object LoadBalancerService {
   def requiredProperties =
-    kafkaHost ++ Map(loadbalancerInvokerBusyThreshold -> null, controllerBlackboxFraction -> null)
+    kafkaHost ++ Map(
+      loadbalancerInvokerBusyThreshold -> null,
+      controllerBlackboxFraction -> null,
+      controllerLocalBookkeeping -> null,
+      controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

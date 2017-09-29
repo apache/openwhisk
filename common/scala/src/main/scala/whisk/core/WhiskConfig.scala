@@ -20,9 +20,7 @@ package whisk.core
 import java.io.File
 
 import scala.io.Source
-
-import whisk.common.Config
-import whisk.common.Logging
+import whisk.common.{Config, Logging}
 
 /**
  * A set of properties which might be needed to run a whisk microservice implemented
@@ -95,12 +93,14 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
-
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
   val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
   val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
+  val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
+  val controllerLocalBookkeeping = getAsBoolean(WhiskConfig.controllerLocalBookkeeping, false)
+
 }
 
 object WhiskConfig {
@@ -221,4 +221,6 @@ object WhiskConfig {
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
   val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
+  val controllerSeedNodes = "akka.cluster.seed.nodes"
+  val controllerLocalBookkeeping = "controller.localBookkeeping"
 }
