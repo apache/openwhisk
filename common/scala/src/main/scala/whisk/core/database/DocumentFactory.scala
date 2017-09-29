@@ -164,14 +164,6 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     }
   }
 
-  def put[Wsuper >: W](db: ArtifactStore[Wsuper], docs: Seq[W])(
-    implicit transid: TransactionId): Future[Seq[Either[DocumentConflictException, DocInfo]]] = {
-    implicit val logger = db.logging
-    implicit val ec = db.executionContext
-
-    db.put(docs)
-  }
-
   def attach[Wsuper >: W](
     db: ArtifactStore[Wsuper],
     doc: DocInfo,

@@ -18,6 +18,7 @@
 package whisk.core.database
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
@@ -27,8 +28,11 @@ import whisk.spi.Spi
  * An Spi for providing ArtifactStore implementations
  */
 trait ArtifactStoreProvider extends Spi {
-  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+  def makeStore[D <: DocumentSerializer](config: WhiskConfig,
+                                         name: WhiskConfig => String,
+                                         useBatching: Boolean = false)(
     implicit jsonFormat: RootJsonFormat[D],
     actorSystem: ActorSystem,
-    logging: Logging): ArtifactStore[D]
+    logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D]
 }

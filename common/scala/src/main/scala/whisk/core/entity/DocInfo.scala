@@ -17,14 +17,16 @@
 
 package whisk.core.entity
 
-import whisk.core.entity.ArgNormalizer.trim
 import scala.util.Try
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+
+import spray.json.DefaultJsonProtocol
 import spray.json.JsNull
 import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
 import spray.json.deserializationError
-import spray.json.DefaultJsonProtocol
+
+import whisk.core.entity.ArgNormalizer.trim
 
 /**
  * A DocId is the document id === primary key in the datastore.
@@ -84,6 +86,22 @@ protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevisio
       s"$id.$rev".hashCode
     }
   }
+}
+
+/**
+ * A BulkEntityResult is wrapping the fields that are returned for a single document on a bulk-put of several documents.
+ * http://docs.couchdb.org/en/2.1.0/api/database/bulk-api.html#post--db-_bulk_docs
+ *
+ * @param id the document id
+ * @param rev the document revision, optional; this is an opaque value determined by the datastore
+ * @param error the error, that occured on trying to put this document into CouchDB
+ * @param reason the error message that correspands to the error
+ */
+case class BulkEntityResult(id: String,
+                            rev: DocRevision = DocRevision.empty,
+                            error: Option[String],
+                            reason: Option[String]) {
+  def toDocInfo = DocInfo(DocId(id), rev)
 }
 
 protected[core] object DocId extends ArgNormalizer[DocId] {
@@ -150,4 +168,8 @@ protected[core] object DocInfo extends DefaultJsonProtocol {
   protected[core] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
 
   implicit val serdes = jsonFormat2(DocInfo.apply)
+}
+
+object BulkEntityResult extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat4(BulkEntityResult.apply)
 }
