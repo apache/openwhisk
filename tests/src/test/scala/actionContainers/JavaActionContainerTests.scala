@@ -157,6 +157,44 @@ class JavaActionContainerTests extends FlatSpec with Matchers with WskActorSyste
     err.trim shouldBe empty
   }
 
+  it should "report an error if explicit 'main' is not found" in {
+    val (out, err) = withJavaContainer { c =>
+      val jar = JarBuilder.mkBase64Jar(
+        Seq("example", "HelloWhisk.java") ->
+          """
+            | package example;
+            |
+            | import com.google.gson.JsonObject;
+            |
+            | public class HelloWhisk {
+            |     public static JsonObject hello(JsonObject args) {
+            |         String name = args.getAsJsonPrimitive("name").getAsString();
+            |         JsonObject response = new JsonObject();
+            |         response.addProperty("greeting", "Hello " + name + "!");
+            |         return response;
+            |     }
+            | }
+          """.stripMargin.trim)
+
+      Seq("", "x", "!", "#", "#main", "#bogus").foreach { m =>
+        val (initCode, out) = c.init(initPayload(s"example.HelloWhisk$m", jar))
+        initCode shouldBe 502
+
+        out shouldBe {
+          val error = m match {
+            case c if c == "x" || c == "!" => s"java.lang.ClassNotFoundException: example.HelloWhisk$c"
+            case "#bogus"                  => "java.lang.NoSuchMethodException: example.HelloWhisk.bogus(com.google.gson.JsonObject)"
+            case _                         => "java.lang.NoSuchMethodException: example.HelloWhisk.main(com.google.gson.JsonObject)"
+          }
+          Some(JsObject("error" -> s"An error has occurred (see logs for details): $error".toJson))
+        }
+      }
+    }
+
+    out.trim shouldBe empty
+    err.trim should not be empty
+  }
+
   it should "handle unicode in source, input params, logs, and result" in {
     val (out, err) = withJavaContainer { c =>
       val jar = JarBuilder.mkBase64Jar(
