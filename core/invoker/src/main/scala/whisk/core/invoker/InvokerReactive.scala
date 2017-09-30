@@ -42,11 +42,13 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
+import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
+import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -60,6 +62,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec = actorSystem.dispatcher
   implicit val cfg = config
+
+  private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   /**
    * Factory used by the ContainerProxy to physically create a new container.
@@ -80,7 +84,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
           "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
           "--ulimit" -> Set("nofile=1024:1024"),
           "--pids-limit" -> Set("1024"),
-          "--dns" -> config.invokerContainerDns.toSet))
+          "--dns" -> config.invokerContainerDns.toSet) ++ logsProvider.containerParameters)
   containerFactory.init()
   sys.addShutdownHook(containerFactory.cleanup())
 
@@ -136,10 +140,13 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       case Failure(t)  => logging.error(this, s"failed to record activation")
     }
   }
+  val collectLogs = (tid: TransactionId, container: Container, action: ExecutableWhiskAction) => {
+    logsProvider.collectLogs(tid, container, action)
+  }
 
   /** Creates a ContainerProxy Actor when being called. */
   val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(ContainerProxy.props(containerFactory.createContainer _, ack, store, instance))
+    f.actorOf(ContainerProxy.props(containerFactory.createContainer _, ack, store, collectLogs, instance))
 
   val prewarmKind = "nodejs:6"
   val prewarmExec = ExecManifest.runtimesManifest
