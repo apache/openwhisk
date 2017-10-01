@@ -95,10 +95,13 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
   /**
    * Class of errors for invoker-container communication.
    */
-  protected[core] sealed abstract class ContainerConnectionError
-  protected[core] case class ConnectionError(t: Throwable) extends ContainerConnectionError
-  protected[core] case class NoResponseReceived() extends ContainerConnectionError
-  protected[core] case class Timeout() extends ContainerConnectionError
+  protected[core] sealed trait ContainerConnectionError
+  protected[core] sealed trait ContainerHttpError extends ContainerConnectionError
+  protected[core] case class ConnectionError(t: Throwable) extends ContainerHttpError
+  protected[core] case class NoResponseReceived() extends ContainerHttpError
+  protected[core] case class Timeout() extends ContainerHttpError
+
+  protected[core] case class MemoryExhausted() extends ContainerConnectionError
 
   /**
    * @param statusCode the container HTTP response code (e.g., 200 OK)
@@ -154,6 +157,9 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
             containerError(truncatedResponse(str, length, maxlength))
         }
 
+      case Left(_: MemoryExhausted) =>
+        containerError(memoryExhausted)
+
       case Left(e) =>
         // This indicates a terminal failure in the container (it exited prematurely).
         containerError(abnormalInitialization)
@@ -204,6 +210,9 @@ protected[core] object ActivationResponse extends DefaultJsonProtocol {
           case Some((length, maxlength)) =>
             containerError(truncatedResponse(str, length, maxlength))
         }
+
+      case Left(_: MemoryExhausted) =>
+        containerError(memoryExhausted)
 
       case Left(e) =>
         // This indicates a terminal failure in the container (it exited prematurely).

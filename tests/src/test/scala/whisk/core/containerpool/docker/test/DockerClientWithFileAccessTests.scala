@@ -39,6 +39,7 @@ import org.scalatest.fixture.{FlatSpec => FixtureFlatSpec}
 
 import common.StreamLogging
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
@@ -107,6 +108,39 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
     val dc = dockerClient(execResult = Future.successful("<no value>"))
 
     a[NoSuchElementException] should be thrownBy await(dc.inspectIPAddress(id, "foo network"))
+  }
+}
+
+@RunWith(classOf[JUnitRunner])
+class DockerClientWithFileAccessTestsOom extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+  override def beforeEach = stream.reset()
+
+  implicit val transid = TransactionId.testing
+  val id = ContainerId("Id")
+
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
+
+  def dockerClient(readResult: Future[JsObject]) =
+    new DockerClientWithFileAccess()(global) {
+      override val dockerCmd = Seq("docker")
+      override def configFileContents(configFile: File) = readResult
+    }
+
+  def stateObject(oom: Boolean) = JsObject("State" -> JsObject("OOMKilled" -> oom.toJson))
+
+  behavior of "DockerClientWithFileAccess - isOomKilled"
+
+  it should "return the state of the container respectively" in {
+    val dcTrue = dockerClient(Future.successful(stateObject(true)))
+    await(dcTrue.isOomKilled(id)) shouldBe true
+
+    val dcFalse = dockerClient(Future.successful(stateObject(false)))
+    await(dcFalse.isOomKilled(id)) shouldBe false
+  }
+
+  it should "default to 'false' if the json structure is unparseable" in {
+    val dc = dockerClient(Future.successful(JsObject()))
+    await(dc.isOomKilled(id)) shouldBe false
   }
 }
 

@@ -20,6 +20,7 @@ package whisk.core.containerpool.docker
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
@@ -29,6 +30,7 @@ import akka.event.Logging.ErrorLevel
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+
 import scala.collection.concurrent.TrieMap
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
@@ -99,6 +101,9 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     pullsInFlight.getOrElseUpdate(image, {
       runCmd("pull", image).map(_ => ()).andThen { case _ => pullsInFlight.remove(image) }
     })
+
+  def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
+    runCmd("inspect", id.asString, "--format", "{{.State.OOMKilled}}").map(_.toBoolean)
 
   private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
     val cmd = dockerCmd ++ args
@@ -175,4 +180,13 @@ trait DockerApi {
    * @return a Future completing once the pull is complete
    */
   def pull(image: String)(implicit transid: TransactionId): Future[Unit]
+
+  /**
+   * Determines whether the given container was killed due to
+   * memory constraints.
+   *
+   * @param id the id of the container to check
+   * @return a Future containing whether the container was killed or not
+   */
+  def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean]
 }

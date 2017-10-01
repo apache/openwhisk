@@ -76,14 +76,15 @@ class DockerContainerTests
     retryCount: Int = 0)(implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
     new DockerContainer(id, addr) {
-      override protected def callContainer(path: String,
-                                           body: JsObject,
-                                           timeout: FiniteDuration,
-                                           retry: Boolean = false): Future[RunResult] = {
+      override protected def callContainer(
+        path: String,
+        body: JsObject,
+        timeout: FiniteDuration,
+        retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
       }
-      override protected val logsRetryCount = retryCount
-      override protected val logsRetryWait = 0.milliseconds
+      override protected val waitForLogs = retryCount.milliseconds
+      override protected val filePollInterval = 1.millisecond
     }
   }
 
@@ -679,6 +680,8 @@ class DockerContainerTests
       pulls += image
       Future.successful(())
     }
+
+    override def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] = ???
 
     def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
       rawContainerLogsInvocations += ((containerId, fromPos))
