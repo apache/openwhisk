@@ -556,7 +556,6 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val entity = BadEntity(provider.namespace.addPath(provider.name), aname())
     put(entityStore, provider)
     put(entityStore, entity)
-
     Delete(s"$collectionPath/${provider.name}/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
       responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
     }
@@ -567,9 +566,11 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val provider = WhiskPackage(namespace, aname())
     val entity = BadEntity(provider.fullPath, aname())
     put(entityStore, provider, false)
-    put(entityStore, entity, false)
+    val entityToDelete = put(entityStore, entity, false)
 
     Delete(s"$collectionPath/${provider.name}/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
+      deletePackage(provider.docid)
+      delete(entityStore, entityToDelete)
       status should be(InternalServerError)
       responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
     }
