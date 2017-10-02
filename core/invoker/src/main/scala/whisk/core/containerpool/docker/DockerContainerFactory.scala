@@ -64,6 +64,7 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
       network = config.invokerContainerNetwork,
       dnsServers = config.invokerContainerDns,
       name = Some(name),
+      useRunc = config.invokerUseRunc,
       parameters)
   }
 
@@ -75,8 +76,11 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
     val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap {
       containers =>
         val removals = containers.map { id =>
-          runc
-            .resume(id)(TransactionId.invokerNanny)
+          (if (config.invokerUseRunc) {
+             runc.resume(id)(TransactionId.invokerNanny)
+           } else {
+             docker.unpause(id)(TransactionId.invokerNanny)
+           })
             .recoverWith {
               // Ignore resume failures and try to remove anyway
               case _ => Future.successful(())
