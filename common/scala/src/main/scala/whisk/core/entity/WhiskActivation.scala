@@ -79,7 +79,6 @@ case class WhiskActivation(namespace: EntityPath,
   /** This the activation summary as computed by the database view. Strictly used for testing. */
   override def summaryAsJson = {
     import WhiskActivation.instantSerdes
-    val summary = JsObject(super.summaryAsJson.fields + ("activationId" -> activationId.toJson))
 
     def actionOrNot() = {
       if (end != Instant.EPOCH) {
@@ -90,13 +89,12 @@ case class WhiskActivation(namespace: EntityPath,
       } else Map.empty
     }
 
-    if (WhiskActivation.mainDdoc.endsWith(".v2")) {
-      JsObject(
-        summary.fields +
-          ("start" -> start.toJson) ++
-          cause.map(("cause" -> _.toJson)) ++
-          actionOrNot())
-    } else summary
+    JsObject(
+      super.summaryAsJson.fields +
+        ("activationId" -> activationId.toJson) +
+        ("start" -> start.toJson) ++
+        cause.map(("cause" -> _.toJson)) ++
+        actionOrNot())
   }
 
   def resultAsJson = response.result.toJson.asJsObject
