@@ -36,9 +36,9 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import spray.json.JsObject
-import whisk.core.containerpool.docker.HttpUtils
-import whisk.core.entity.ActivationResponse._
+import whisk.core.containerpool.HttpUtils
 import whisk.core.entity.size._
+import whisk.core.entity.ActivationResponse._
 
 /**
  * Unit tests for HttpUtils which communicate with containers.

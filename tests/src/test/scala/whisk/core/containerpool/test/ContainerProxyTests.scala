@@ -18,18 +18,15 @@
 package whisk.core.containerpool.test
 
 import java.time.Instant
-
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-
 import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.FSM
@@ -39,8 +36,11 @@ import akka.actor.FSM.Transition
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import common.LoggedFunction
+import common.StreamLogging
+import scala.concurrent.ExecutionContext
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
@@ -56,11 +56,13 @@ class ContainerProxyTests
     with FlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with MockFactory {
+    with MockFactory
+    with StreamLogging {
 
   override def afterAll = TestKit.shutdownActorSystem(system)
 
   val timeout = 5.seconds
+  val log = logging
 
   // Common entities to pass to the tests. We don't really care what's inside
   // those for the behavior testing here, as none of the contents will really
@@ -504,6 +506,10 @@ class ContainerProxyTests
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
   class TestContainer extends Container {
+    protected val id = ContainerId("testcontainer")
+    protected val addr = ContainerAddress("0.0.0.0")
+    protected implicit val logging: Logging = log
+    protected implicit val ec: ExecutionContext = system.dispatcher
     var suspendCount = 0
     var resumeCount = 0
     var destroyCount = 0
@@ -519,18 +525,18 @@ class ContainerProxyTests
       resumeCount += 1
       Future.successful(())
     }
-    def destroy()(implicit transid: TransactionId): Future[Unit] = {
+    override def destroy()(implicit transid: TransactionId): Future[Unit] = {
       destroyCount += 1
-      Future.successful(())
+      super.destroy()
     }
-    def initialize(initializer: JsObject, timeout: FiniteDuration)(
+    override def initialize(initializer: JsObject, timeout: FiniteDuration)(
       implicit transid: TransactionId): Future[Interval] = {
       initializeCount += 1
       initializer shouldBe action.containerInitializer
       timeout shouldBe action.limits.timeout.duration
       Future.successful(Interval.zero)
     }
-    def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
+    override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
       runCount += 1
       environment.fields("api_key") shouldBe message.user.authkey.toJson

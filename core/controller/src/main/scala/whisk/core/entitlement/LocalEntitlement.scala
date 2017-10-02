@@ -22,7 +22,6 @@ import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 
-import whisk.core.entitlement.Privilege._
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig

@@ -31,7 +31,6 @@ import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.server.Directive1
 
-import whisk.core.entitlement.Privilege.Privilege
 import whisk.core.entitlement.Collection
 import whisk.common.TransactionId
 import whisk.core.entitlement._

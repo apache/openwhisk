@@ -155,7 +155,7 @@ $script_end = <<SCRIPT
   chmod +x ${HOME}/bin/wsk
   chown vagrant:vagrant ${HOME}/bin/wsk
   PATH=${PATH}:${HOME}/bin
-  eval "`wsk sdk install bashauto --stdout`"
+  echo 'eval "`wsk sdk install bashauto --stdout`"'>>${HOME}/.bashrc
 
   # Run OpenWhisk CLI
   touch $HOME/.wskprops

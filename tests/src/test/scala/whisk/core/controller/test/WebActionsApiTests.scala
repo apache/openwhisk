@@ -22,15 +22,12 @@ import java.util.Base64
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
 import org.scalatest.FlatSpec
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.MediaTypes
@@ -41,14 +38,11 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.HttpMethods
-import akka.http.scaladsl.model.headers.`Content-Type`
+import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
 import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.ContentType
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.controller.Context
@@ -58,7 +52,6 @@ import whisk.core.controller.WebApiDirectives
 import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.EntitlementProvider
 import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -73,31 +66,10 @@ import whisk.http.Messages
  * These tests exercise a fresh instance of the service object in memory -- these
  * tests do NOT communication with a whisk deployment.
  *
- *
  * @Idioglossia
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
  */
-
-@RunWith(classOf[JUnitRunner])
-class WebActionsApiPropertiesTests extends FlatSpec with Matchers with WebActionsApiTests {
-  override lazy val webInvokePathSegments = Seq("web")
-  override lazy val webApiDirectives = new WebApiDirectives()
-
-  "properties" should "match verion" in {
-    webApiDirectives.method shouldBe "__ow_method"
-    webApiDirectives.headers shouldBe "__ow_headers"
-    webApiDirectives.path shouldBe "__ow_path"
-    webApiDirectives.namespace shouldBe "__ow_user"
-    webApiDirectives.query shouldBe "__ow_query"
-    webApiDirectives.body shouldBe "__ow_body"
-    webApiDirectives.statusCode shouldBe "statusCode"
-    webApiDirectives.enforceExtension shouldBe false
-    webApiDirectives.reservedProperties shouldBe {
-      Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user", "__ow_query", "__ow_body")
-    }
-  }
-}
 
 @RunWith(classOf[JUnitRunner])
 class WebActionsApiCommonTests extends FlatSpec with Matchers {
@@ -127,7 +99,27 @@ class WebActionsApiCommonTests extends FlatSpec with Matchers {
   }
 }
 
-trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
+@RunWith(classOf[JUnitRunner])
+class WebActionsApiTests extends FlatSpec with Matchers with WebActionsApiBaseTests {
+  override lazy val webInvokePathSegments = Seq("web")
+  override lazy val webApiDirectives = new WebApiDirectives()
+
+  "properties" should "match verion" in {
+    webApiDirectives.method shouldBe "__ow_method"
+    webApiDirectives.headers shouldBe "__ow_headers"
+    webApiDirectives.path shouldBe "__ow_path"
+    webApiDirectives.namespace shouldBe "__ow_user"
+    webApiDirectives.query shouldBe "__ow_query"
+    webApiDirectives.body shouldBe "__ow_body"
+    webApiDirectives.statusCode shouldBe "statusCode"
+    webApiDirectives.enforceExtension shouldBe false
+    webApiDirectives.reservedProperties shouldBe {
+      Set("__ow_method", "__ow_headers", "__ow_path", "__ow_user", "__ow_query", "__ow_body")
+    }
+  }
+}
+
+trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEach with WhiskWebActionsApi {
   val systemId = Subject()
   val systemKey = AuthKey()
   val systemIdentity = Future.successful(Identity(systemId, EntityName(systemId.asString), systemKey, Privilege.ALL))
@@ -695,8 +687,8 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
             // ensure response is pretty printed
             responseAs[String] shouldBe {
               """{
-                                  |  "foobar": "foobar"
-                                  |}""".stripMargin
+                |  "foobar": "foobar"
+                |}""".stripMargin
             }
           }
         }
@@ -1447,9 +1439,12 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
         actionResult =
           Some(JsObject("headers" -> JsObject("Access-Control-Allow-Methods" -> "OPTIONS, GET, PATCH".toJson)))
 
-        Options(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-          header("Access-Control-Allow-Origin") shouldBe None
+        // the added headers should be ignored
+        Options(s"$testRoutePath/$path") ~> addHeader(`Access-Control-Request-Headers`("x-custom-header")) ~> Route
+          .seal(routes(creds)) ~> check {
+          header("Access-Control-Allow-Origin") shouldBe empty
           header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, PATCH"
+          header("Access-Control-Request-Headers") shouldBe empty
         }
       }
     }
@@ -1474,17 +1469,22 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       customOptions = false
 
       Seq(s"$systemId/proxy/export_c.http", s"$systemId/proxy/export_c.json").foreach { path =>
-        allowedMethods.foreach { m =>
-          invocationsAllowed += 1
-          m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
-            header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
-            header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
-            header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Content-Type"
-          }
+        Seq(`Access-Control-Request-Headers`("x-custom-header"), RawHeader("x-custom-header", "value")).foreach {
+          testHeader =>
+            allowedMethods.foreach { m =>
+              if (m != Options) invocationsAllowed += 1 // options verb does not invoke an action
+              m(s"$testRoutePath/$path") ~> addHeader(testHeader) ~> Route.seal(routes(creds)) ~> check {
+                header("Access-Control-Allow-Origin").get.toString shouldBe "Access-Control-Allow-Origin: *"
+                header("Access-Control-Allow-Methods").get.toString shouldBe "Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH"
+                if (testHeader.name == `Access-Control-Request-Headers`.name) {
+                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: x-custom-header"
+                } else {
+                  header("Access-Control-Allow-Headers").get.toString shouldBe "Access-Control-Allow-Headers: Authorization, Content-Type"
+                }
+              }
+            }
         }
       }
-
-      invocationsAllowed -= 2 // Options request does not cause invocation of an action
     }
 
     it should s"invoke action with head verb (auth? ${creds.isDefined})" in {
@@ -1562,26 +1562,30 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
 
     it should s"invoke raw action ensuring body and query arguments are set properly (auth? ${creds.isDefined})" in {
       implicit val tid = transid()
-      val str = "1,2,3"
-      invocationsAllowed = 1
 
       val queryString = "key1=value1&key2=value2"
-      Post(
-        s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString",
-        HttpEntity(ContentTypes.`application/json`, str)) ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[JsObject]
-        response shouldBe JsObject(
-          "pkg" -> s"$systemId/proxy".toJson,
-          "action" -> "raw_export_c".toJson,
-          "content" -> metaPayload(
-            Post.method.name.toLowerCase,
-            Map(webApiDirectives.body -> Base64.getEncoder.encodeToString {
-              str.getBytes
-            }.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
-            creds,
-            pkgName = "proxy",
-            headers = List(`Content-Type`(ContentTypes.`application/json`))))
+      Seq(
+        "1,2,3",
+        JsObject("a" -> "A".toJson, "b" -> "B".toJson).prettyPrint,
+        JsObject("a" -> "A".toJson, "b" -> "B".toJson).compactPrint).foreach { str =>
+        Post(
+          s"$testRoutePath/$systemId/proxy/raw_export_c.json?$queryString",
+          HttpEntity(ContentTypes.`application/json`, str)) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          invocationsAllowed += 1
+          val response = responseAs[JsObject]
+          response shouldBe JsObject(
+            "pkg" -> s"$systemId/proxy".toJson,
+            "action" -> "raw_export_c".toJson,
+            "content" -> metaPayload(
+              Post.method.name.toLowerCase,
+              Map(webApiDirectives.body -> Base64.getEncoder.encodeToString {
+                str.getBytes
+              }.toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+              creds,
+              pkgName = "proxy",
+              headers = List(`Content-Type`(ContentTypes.`application/json`))))
+        }
       }
     }
 
@@ -1618,6 +1622,30 @@ trait WebActionsApiTests extends ControllerTestCommon with BeforeAndAfterEach wi
       withClue(s"allowed invoke count did not match actual") {
         invocationsAllowed shouldBe invocationCount
       }
+    }
+
+    it should s"invoke web action ensuring JSON value body arguments are not Base64 encoded (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Seq("this is a string".toJson, JsArray(1.toJson, "str str".toJson, false.toJson), true.toJson, 99.toJson)
+        .foreach { str =>
+          invocationsAllowed += 1
+          Post(
+            s"$testRoutePath/$systemId/proxy/export_c.json",
+            HttpEntity(ContentTypes.`application/json`, str.compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[JsObject]
+            response shouldBe JsObject(
+              "pkg" -> s"$systemId/proxy".toJson,
+              "action" -> "export_c".toJson,
+              "content" -> metaPayload(
+                Post.method.name.toLowerCase,
+                Map(webApiDirectives.body -> str).toJson.asJsObject,
+                creds,
+                pkgName = "proxy",
+                headers = List(`Content-Type`(ContentTypes.`application/json`))))
+          }
+        }
     }
   }
 

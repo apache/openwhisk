@@ -106,8 +106,17 @@ controller:
   basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
-  blackboxFraction: 0.10
+  blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  akka:
+    provider: cluster
+    cluster:
+      basePort: 8000
+      host: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+      bindPort: 2551
+      # at this moment all controllers are seed nodes
+      seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -131,6 +140,10 @@ kafka:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
       retentionMS: 172800000
+    cacheInvalidation:
+      segmentBytes: 536870912
+      retentionBytes: 1073741824
+      retentionMS: 300000
 
 zookeeper:
   version: 3.4

@@ -85,15 +85,10 @@ trait Logging {
  */
 class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
   def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
-    val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-
-    val logMessage = Seq(message).collect {
-      case msg if msg.nonEmpty =>
-        msg.split('\n').map(_.trim).mkString(" ")
+    if (loggingAdapter.isEnabled(loglevel)) {
+      val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+      loggingAdapter.log(loglevel, s"[$id] [$name] $message")
     }
-
-    val parts = Seq(s"[$id]") ++ Seq(s"[$name]") ++ logMessage
-    loggingAdapter.log(loglevel, parts.mkString(" "))
   }
 }
 

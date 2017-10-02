@@ -22,6 +22,7 @@ import (
     "fmt"
     "net/url"
     "reflect"
+    "strings"
 
     "github.com/fatih/color"
     "github.com/google/go-querystring/query"
@@ -79,4 +80,27 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
 func PrintJSON(v interface{}) {
     output, _ := prettyjson.Marshal(v)
     fmt.Fprintln(color.Output, string(output))
+}
+
+func GetURLBase(host string, path string) (*url.URL, error)  {
+    if len(host) == 0 {
+        errMsg := wski18n.T("An API host must be provided.")
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_GENERAL,
+            DISPLAY_MSG, DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    if !strings.HasPrefix(host, "http") {
+        host = "https://" + host
+    }
+
+    urlBase := fmt.Sprintf("%s%s", host, path)
+    url, err := url.Parse(urlBase)
+
+    if len(url.Scheme) == 0 || len(url.Host) == 0 {
+        urlBase = fmt.Sprintf("https://%s%s", host, path)
+        url, err = url.Parse(urlBase)
+    }
+
+    return url, err
 }

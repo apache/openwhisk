@@ -34,7 +34,6 @@ import (
     "compress/gzip"
     "archive/zip"
     "encoding/json"
-    "net/url"
     "io/ioutil"
     "sort"
     "reflect"
@@ -589,7 +588,7 @@ func unpackGzip(inpath string, outpath string) error {
     // Make sure the target file does not exist
     if _, err := os.Stat(outpath); err == nil {
         whisk.Debug(whisk.DbgError, "os.Stat reports file '%s' exists\n", outpath)
-        errStr := wski18n.T("The file {{.name}} already exists.  Delete it and retry.",
+        errStr := wski18n.T("The file '{{.name}}' already exists.  Delete it and retry.",
             map[string]interface{}{"name": outpath})
         werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         return werr
@@ -785,7 +784,7 @@ func unpackTar(inpath string) error {
     return nil
 }
 
-func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, commandName string,
+func CheckArgs(args []string, minimumArgNumber int, maximumArgNumber int, commandName string,
     requiredArgMsg string) (*whisk.WskError) {
         exactlyOrAtLeast := wski18n.T("exactly")
         exactlyOrNoMoreThan := wski18n.T("exactly")
@@ -815,29 +814,6 @@ func checkArgs(args []string, minimumArgNumber int, maximumArgNumber int, comman
     }
 }
 
-func getURLBase(host string, path string) (*url.URL, error)  {
-    if len(host) == 0 {
-        errMsg := wski18n.T("An API host must be provided.")
-        whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
-            whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
-        return nil, whiskErr
-    }
-
-    if !strings.HasPrefix(host, "http") {
-        host = "https://" + host
-    }
-
-    urlBase := fmt.Sprintf("%s%s", host, path)
-    url, err := url.Parse(urlBase)
-
-    if len(url.Scheme) == 0 || len(url.Host) == 0 {
-        urlBase = fmt.Sprintf("https://%s%s", host, path)
-        url, err = url.Parse(urlBase)
-    }
-
-    return url, err
-}
-
 func normalizeNamespace(namespace string) (string) {
     if (namespace == "_") {
         namespace = wski18n.T("default")
@@ -847,7 +823,7 @@ func normalizeNamespace(namespace string) (string) {
 }
 
 func getClientNamespace() (string) {
-    return normalizeNamespace(client.Config.Namespace)
+    return normalizeNamespace(Client.Config.Namespace)
 }
 
 func readFile(filename string) (string, error) {

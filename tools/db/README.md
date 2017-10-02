@@ -1,7 +1,6 @@
 # Configure data store
 
-Before you can build and deploy OpenWhisk, you must configure a backing data store. The system supports any self-managed [CouchDB](using-couchdb) instance or
-[Cloudant](using-cloudant) as a cloud-based database service.
+Before you can build and deploy OpenWhisk, you must configure a backing data store. The system supports any self-managed [CouchDB](#using-couchdb) instance or [Cloudant](#using-cloudant) as a cloud-based database service.
 
 ## Using CouchDB
 

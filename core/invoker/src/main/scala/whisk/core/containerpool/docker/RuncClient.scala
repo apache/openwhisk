@@ -25,6 +25,7 @@ import scala.util.Success
 import whisk.common.LoggingMarkers
 import whisk.common.Logging
 import akka.event.Logging.ErrorLevel
+import whisk.core.containerpool.ContainerId
 
 /**
  * Serves as interface to the docker CLI tool.

@@ -15,12 +15,10 @@
  * limitations under the License.
  */
 
-package whisk.core.containerpool.docker
+package whisk.core.containerpool
 
 import java.nio.charset.StandardCharsets
 
-import scala.Left
-import scala.Right
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure

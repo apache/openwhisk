@@ -11,6 +11,7 @@ repositories {
 }
 
 dependencies {
+    compile 'com.typesafe.akka:akka-distributed-data_2.11:2.5.4'
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 }
@@ -20,4 +21,4 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "whisk.core.controller.Controller"
-applicationDefaultJvmArgs = ["-XX:+CrashOnOutOfMemoryError"]
+applicationDefaultJvmArgs = ["-XX:+CrashOnOutOfMemoryError", "-Djava.security.egd=file:/dev/./urandom"]

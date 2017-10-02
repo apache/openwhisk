@@ -47,4 +47,4 @@
     when: ansible_ssh_private_key_file is defined
   - name: fetch logs from all machines
     synchronize: src="{{ whisk_logs_dir }}/" dest="{{ openwhisk_home }}/logs" mode=pull
-    when: ('machine' not in exclude_logs_from) and (whisk_version_name != "local")
+    when: "'machine' not in exclude_logs_from" 

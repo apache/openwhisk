@@ -28,12 +28,12 @@ import (
     "github.com/spf13/cobra"
 )
 
-var client *whisk.Client
+var Client *whisk.Client
 const DefaultOpenWhiskApiPath string = "/api"
 var UserAgent string = "OpenWhisk-CLI"
 
-func setupClientConfig(cmd *cobra.Command, args []string) (error){
-    baseURL, err := getURLBase(Properties.APIHost, DefaultOpenWhiskApiPath)
+func SetupClientConfig(cmd *cobra.Command, args []string) (error){
+    baseURL, err := whisk.GetURLBase(Properties.APIHost, DefaultOpenWhiskApiPath)
 
     // Determine if the parent command will require the API host to be set
     apiHostRequired := (cmd.Parent().Name() == "property" && cmd.Name() == "get" && (flags.property.auth ||
@@ -45,7 +45,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
 
     // Display an error if the parent command requires an API host to be set, and the current API host is not valid
     if err != nil && !apiHostRequired {
-        whisk.Debug(whisk.DbgError, "getURLBase(%s, %s) error: %s\n", Properties.APIHost, DefaultOpenWhiskApiPath, err)
+        whisk.Debug(whisk.DbgError, "whisk.GetURLBase(%s, %s) error: %s\n", Properties.APIHost, DefaultOpenWhiskApiPath, err)
         errMsg := wski18n.T("The API host is not valid: {{.err}}", map[string]interface{}{"err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
             whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -65,7 +65,7 @@ func setupClientConfig(cmd *cobra.Command, args []string) (error){
     }
 
     // Setup client
-    client, err = whisk.NewClient(http.DefaultClient, clientConfig)
+    Client, err = whisk.NewClient(http.DefaultClient, clientConfig)
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "whisk.NewClient(%#v, %#v) error: %s\n", http.DefaultClient, clientConfig, err)

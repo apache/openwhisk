@@ -91,9 +91,9 @@ protected[controller] object FilterEntityList {
     if (excludePrivate) {
       resources filter {
         case obj: JsObject =>
-          obj.getFields(sharedFieldName) match {
-            case Seq(JsBoolean(true)) => true && additionalFilter(obj) // a shared entity
-            case _                    => false
+          obj.fields.get(sharedFieldName) match {
+            case Some(JsBoolean(true)) => additionalFilter(obj) // a shared entity
+            case _                     => false
           }
         case _ => false // only expecting JsObject instances
       }

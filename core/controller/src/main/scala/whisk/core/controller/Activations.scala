@@ -23,7 +23,6 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
@@ -33,10 +32,8 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DeserializationException
 import whisk.common.TransactionId
 import whisk.core.database.StaleParameter
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entitlement.Privilege.READ
-import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.http.ErrorResponse.terminate
@@ -130,7 +127,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
         val activations = name match {
           case Some(action) =>
-            WhiskActivation.listCollectionByName(
+            WhiskActivation.listActivationsMatchingName(
               activationStore,
               namespace,
               action,
@@ -153,11 +150,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
         }
 
         listEntities {
-          activations map { l =>
-            if (docs) l.right.get map {
-              _.toExtendedJson
-            } else l.left.get
-          }
+          activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
         }
       } else {
         terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))

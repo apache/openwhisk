@@ -39,14 +39,7 @@ import whisk.core.database.CouchDbRestClient
 import whisk.core.database.DocumentFactory
 import whisk.core.database.NoDocumentException
 import whisk.core.database.StaleParameter
-import whisk.core.entity.AuthKey
-import whisk.core.entity.DocId
-import whisk.core.entity.DocInfo
-import whisk.core.entity.EntityPath
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskDocument
-import whisk.core.entity.WhiskEntityQueries
+import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
 
@@ -95,26 +88,19 @@ trait DbUtils extends TransactionCounter {
    * where the step performs a direct db query to retrieve the view and check the count
    * matches the given value.
    */
-  def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityPath, count: Int)(implicit context: ExecutionContext,
-                                                                               transid: TransactionId,
-                                                                               timeout: Duration) = {
+  def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityName, count: Int, viewName: String)(
+    implicit context: ExecutionContext,
+    transid: TransactionId,
+    timeout: Duration) = {
     val success = retry(
       () => {
-        val startKey = List(namespace.toString)
-        val endKey = List(namespace.toString, WhiskEntityQueries.TOP)
-        db.query(
-          WhiskEntityQueries.viewname(WhiskEntityQueries.ALL),
-          startKey,
-          endKey,
-          0,
-          0,
-          false,
-          true,
-          false,
-          StaleParameter.No) map { l =>
-          if (l.length != count) {
-            throw RetryOp()
-          } else true
+        val startKey = List(namespace.asString)
+        val endKey = List(namespace.asString, WhiskEntityQueries.TOP)
+        db.query(WhiskEntityQueries.viewname(viewName), startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map {
+          l =>
+            if (l.length != count) {
+              throw RetryOp()
+            } else true
         }
       },
       timeout)

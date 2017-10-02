@@ -20,25 +20,19 @@ package whisk.core.controller
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entitlement.Privilege.READ
-import whisk.core.entitlement.Resource
 import whisk.core.entity.EntityPath
 import whisk.core.entity.Identity
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskEntityQueries.listEntitiesInNamespace
+import whisk.core.entity.WhiskEntityQueries.listAllInNamespace
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
@@ -105,9 +99,9 @@ trait WhiskNamespacesApi
    */
   private def getAllInNamespace(namespace: EntityPath)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-    onComplete(listEntitiesInNamespace(entityStore, namespace, false)) {
+    onComplete(listAllInNamespace(entityStore, namespace.root, false)) {
       case Success(entities) => {
-        complete(OK, Namespaces.emptyNamespace ++ entities - WhiskActivation.collectionName)
+        complete(OK, Namespaces.emptyNamespace ++ entities)
       }
       case Failure(t) =>
         logging.error(this, s"[GET] namespaces failed: ${t.getMessage}")

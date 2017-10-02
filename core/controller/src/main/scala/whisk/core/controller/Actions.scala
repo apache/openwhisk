@@ -50,8 +50,6 @@ import whisk.http.Messages
 import whisk.http.Messages._
 import whisk.core.entitlement.Resource
 import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege.Privilege
-import whisk.core.entitlement.Privilege._
 
 /**
  * A singleton object which defines the properties that must be present in a configuration
@@ -322,9 +320,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) { (skip, limit, count) =>
       listEntities {
         WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
-          val actions = if (docs) {
-            list.right.get map { WhiskAction.serdes.write(_) }
-          } else list.left.get
+          val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
           FilterEntityList.filter(actions, excludePrivate)
         }
       }

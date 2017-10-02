@@ -18,29 +18,27 @@
 package whisk.connector.kafka
 
 import java.util.Properties
-import java.util.UUID
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.Callback
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.StringSerializer
-
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.core.connector.Message
 import whisk.core.connector.MessageProducer
+import whisk.core.entity.UUIDs
 
 class KafkaProducerConnector(kafkahost: String,
                              implicit val executionContext: ExecutionContext,
-                             id: String = UUID.randomUUID().toString)(implicit logging: Logging)
+                             id: String = UUIDs.randomUUID().toString)(implicit logging: Logging)
     extends MessageProducer {
 
   override def sentCount() = sentCounter.cur

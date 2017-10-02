@@ -53,7 +53,7 @@ var fmtString = "%-30s %7s %20s  %s\n"
 func IsValidApiVerb(verb string) (error, bool) {
     // Is the API verb valid?
     if _, ok := whisk.ApiVerbs[strings.ToUpper(verb)]; !ok {
-        whisk.Debug(whisk.DbgError, "Invalid API verb: %s\n", verb)
+        whisk.Debug(whisk.DbgError, "Invalid API verb: '%s'\n", verb)
         errMsg := wski18n.T("'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}",
                 map[string]interface{}{
                     "verb": verb,
@@ -67,7 +67,7 @@ func IsValidApiVerb(verb string) (error, bool) {
 
 func hasPathPrefix(path string) (error, bool) {
     if (! strings.HasPrefix(path, "/")) {
-        whisk.Debug(whisk.DbgError, "path does not begin with '/': %s\n", path)
+        whisk.Debug(whisk.DbgError, "path does not begin with '/': '%s'\n", path)
         errMsg := wski18n.T("'{{.path}}' must begin with '/'.",
                 map[string]interface{}{
                     "path": path,
@@ -98,15 +98,15 @@ func isValidRelpath(relpath string) (error, bool) {
  */
 func getManagedUrl(api *whisk.RetApi, relpath string, operation string) (url string) {
     baseUrl := strings.TrimSuffix(api.BaseUrl, "/")
-    whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = %s, relpath = %s, operation = %s\n", baseUrl, relpath, operation)
+    whisk.Debug(whisk.DbgInfo, "getManagedUrl: baseUrl = '%s', relpath = '%s', operation = '%s'\n", baseUrl, relpath, operation)
     for path, _ := range api.Swagger.Paths {
-        whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: %s\n", path)
+        whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing api relpath: '%s'\n", path)
         if (path == relpath) {
             whisk.Debug(whisk.DbgInfo, "getManagedUrl: relpath matches '%s'\n", relpath)
             for op, _  := range api.Swagger.Paths[path] {
                 whisk.Debug(whisk.DbgInfo, "getManagedUrl: comparing operation: '%s'\n", op)
                 if (strings.ToLower(op) == strings.ToLower(operation)) {
-                    whisk.Debug(whisk.DbgInfo, "getManagedUrl: operation matches: %s\n", operation)
+                    whisk.Debug(whisk.DbgInfo, "getManagedUrl: operation matches: '%s'\n", operation)
                     url = baseUrl+path
                 }
             }
@@ -123,7 +123,7 @@ var apiCreateCmd = &cobra.Command{
     Short:         wski18n.T("create a new API"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var api *whisk.Api
         var err error
@@ -145,7 +145,7 @@ var apiCreateCmd = &cobra.Command{
                 return whiskErr
             }
         } else {
-            if whiskErr := checkArgs(args, 3, 4, "Api create",
+            if whiskErr := CheckArgs(args, 3, 4, "Api create",
                 wski18n.T("Specify a swagger file or specify an API base path with an API path, an API verb, and an action name.")); whiskErr != nil {
                 return whiskErr
             }
@@ -160,7 +160,7 @@ var apiCreateCmd = &cobra.Command{
             }
 
             // Confirm that the specified action is a web-action
-            err = isWebAction(client, *qname)
+            err = isWebAction(Client, *qname)
             if err != nil {
                 whisk.Debug(whisk.DbgError, "isWebAction(%v) is false: %s\n", qname, err)
                 whiskErr := whisk.MakeWskError(err, whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
@@ -182,9 +182,9 @@ var apiCreateCmd = &cobra.Command{
         whisk.Debug(whisk.DbgInfo, "AccessToken: %s\nSpaceGuid: %s\nResponsType: %s",
             apiCreateReqOptions.AccessToken, apiCreateReqOptions.SpaceGuid, apiCreateReqOptions.ResponseType)
 
-        retApi, _, err := client.Apis.Insert(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
+        retApi, _, err := Client.Apis.Insert(apiCreateReq, apiCreateReqOptions, whisk.DoNotOverwrite)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Insert(%#v, false) error: %s\n", api, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Insert(%#v, false) error: %s\n", api, err)
             errMsg := wski18n.T("Unable to create API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -207,9 +207,9 @@ var apiCreateCmd = &cobra.Command{
             baseUrl := retApi.BaseUrl
             for path, _ := range retApi.Swagger.Paths {
                 managedUrl := strings.TrimSuffix(baseUrl, "/")+path
-                whisk.Debug(whisk.DbgInfo, "Managed path: %s\n",managedUrl)
+                whisk.Debug(whisk.DbgInfo, "Managed path: '%s'\n",managedUrl)
                 for op, opv  := range retApi.Swagger.Paths[path] {
-                    whisk.Debug(whisk.DbgInfo, "Path operation: %s\n", op)
+                    whisk.Debug(whisk.DbgInfo, "Path operation: '%s'\n", op)
                     var fqActionName string
                     if (opv.XOpenWhisk == nil) {
                         fqActionName = ""
@@ -218,7 +218,8 @@ var apiCreateCmd = &cobra.Command{
                     } else {
                         fqActionName = "/"+opv.XOpenWhisk.Namespace+"/"+opv.XOpenWhisk.ActionName
                     }
-                    whisk.Debug(whisk.DbgInfo, "baseUrl %s  Path %s  Path obj %+v\n", baseUrl, path, opv)
+
+                    whisk.Debug(whisk.DbgInfo, "baseUrl '%s'  Path '%s'  Path obj %+v\n", baseUrl, path, opv)
                     if len(fqActionName) > 0 {
                         fmt.Fprintf(color.Output,
                             wski18n.T("{{.ok}} created API {{.path}} {{.verb}} for action {{.name}}\n{{.fullpath}}\n",
@@ -253,12 +254,12 @@ var apiGetCmd = &cobra.Command{
     Short:         wski18n.T("get API details"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var isBasePathArg bool = true
 
-        if whiskErr := checkArgs(args, 1, 1, "Api get",
+        if whiskErr := CheckArgs(args, 1, 1, "Api get",
             wski18n.T("An API base path or API name is required.")); whiskErr != nil {
             return whiskErr
         }
@@ -282,15 +283,15 @@ var apiGetCmd = &cobra.Command{
             return err
         }
 
-        retApi, _, err := client.Apis.Get(apiGetReq, apiGetReqOptions)
+        retApi, _, err := Client.Apis.Get(apiGetReq, apiGetReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
             errMsg := wski18n.T("Unable to get API '{{.name}}': {{.err}}", map[string]interface{}{"name": args[0], "err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
             return whiskErr
         }
-        whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+        whisk.Debug(whisk.DbgInfo, "Client.Apis.Get returned: %#v\n", retApi)
 
         var displayResult interface{} = nil
         if (flags.common.detail) {
@@ -351,11 +352,11 @@ var apiDeleteCmd = &cobra.Command{
     Short:         wski18n.T("delete an API"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
 
-        if whiskErr := checkArgs(args, 1, 3, "Api delete",
+        if whiskErr := CheckArgs(args, 1, 3, "Api delete",
             wski18n.T("An API base path or API name is required.  An optional API relative path and operation may also be provided.")); whiskErr != nil {
             return whiskErr
         }
@@ -392,9 +393,9 @@ var apiDeleteCmd = &cobra.Command{
             apiDeleteReqOptions.ApiVerb = strings.ToUpper(args[2])
         }
 
-        _, err = client.Apis.Delete(apiDeleteReq, apiDeleteReqOptions)
+        _, err = Client.Apis.Delete(apiDeleteReq, apiDeleteReqOptions)
         if err != nil {
-            whisk.Debug(whisk.DbgError, "client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
+            whisk.Debug(whisk.DbgError, "Client.Apis.Delete(%#v, %#v) error: %s\n", apiDeleteReq, apiDeleteReqOptions, err)
             errMsg := wski18n.T("Unable to delete API: {{.err}}", map[string]interface{}{"err": err})
             whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                 whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
@@ -436,7 +437,7 @@ var apiListCmd = &cobra.Command{
     Short:         wski18n.T("list APIs"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var retApiList *whisk.ApiListResponse
@@ -447,7 +448,7 @@ var apiListCmd = &cobra.Command{
         var orderFilteredList []whisk.ApiFilteredList
         var orderFilteredRow []whisk.ApiFilteredRow
 
-        if whiskErr := checkArgs(args, 0, 3, "Api list",
+        if whiskErr := CheckArgs(args, 0, 3, "Api list",
             wski18n.T("Optional parameters are: API base path (or API name), API relative path and operation.")); whiskErr != nil {
             return whiskErr
         }
@@ -464,21 +465,21 @@ var apiListCmd = &cobra.Command{
                 return err
             }
 
-            retApiList, _, err = client.Apis.List(apiListReqOptions)
+            retApiList, _, err = Client.Apis.List(apiListReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
+                whisk.Debug(whisk.DbgError, "Client.Apis.List(%#v) error: %s\n", apiListReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskError(errors.New(errMsg), whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.List returned: %#v (%+v)\n", retApiList, retApiList)
+            whisk.Debug(whisk.DbgInfo, "Client.Apis.List returned: %#v (%+v)\n", retApiList, retApiList)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArray)(retApiList)
         } else {
             // Get API request body
             apiGetReq := new(whisk.ApiGetRequest)
-            apiGetReq.Namespace = client.Config.Namespace
+            apiGetReq.Namespace = Client.Config.Namespace
             // Get API request options
             apiGetReqOptions := new(whisk.ApiGetRequestOptions)
             if apiGetReqOptions.SpaceGuid, err = getUserContextId(); err != nil {
@@ -507,15 +508,15 @@ var apiListCmd = &cobra.Command{
                 apiGetReqOptions.ApiVerb = apiVerb
             }
 
-            retApi, _, err = client.Apis.Get(apiGetReq, apiGetReqOptions)
+            retApi, _, err = Client.Apis.Get(apiGetReq, apiGetReqOptions)
             if err != nil {
-                whisk.Debug(whisk.DbgError, "client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
+                whisk.Debug(whisk.DbgError, "Client.Apis.Get(%#v, %#v) error: %s\n", apiGetReq, apiGetReqOptions, err)
                 errMsg := wski18n.T("Unable to obtain the API list: {{.err}}", map[string]interface{}{"err": err})
                 whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
                     whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
                 return whiskErr
             }
-            whisk.Debug(whisk.DbgInfo, "client.Apis.Get returned: %#v\n", retApi)
+            whisk.Debug(whisk.DbgInfo, "Client.Apis.Get returned: %#v\n", retApi)
             // Cast to a common type to allow for code to print out apilist response or apiget response
             retApiArray = (*whisk.RetApiArray)(retApi)
         }
@@ -574,7 +575,7 @@ func genFilteredList(resultApi *whisk.RetApi, apiPath string, apiVerb string) []
     basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "genFilteredList: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredApi: comparing api relpath: '%s'\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
                 whisk.Debug(whisk.DbgInfo, "genFilteredList: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -612,7 +613,7 @@ func genFilteredRow(resultApi *whisk.RetApi, apiPath string, apiVerb string, max
     basePath := resultApi.Swagger.BasePath
     if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
         for path, _ := range resultApi.Swagger.Paths {
-            whisk.Debug(whisk.DbgInfo, "genFilteredRow: comparing api relpath: %s\n", path)
+            whisk.Debug(whisk.DbgInfo, "genFilteredRow: comparing api relpath: '%s'\n", path)
             if ( len(apiPath) == 0 || path == apiPath) {
                 whisk.Debug(whisk.DbgInfo, "genFilteredRow: relpath matches\n")
                 for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -675,7 +676,7 @@ func getLargestActionNameSize(retApiArray *whisk.RetApiArray, apiPath string, ap
         var resultApi = retApiArray.Apis[i].ApiValue
         if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
             for path, _ := range resultApi.Swagger.Paths {
-                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: '%s'\n", path)
                 if ( len(apiPath) == 0 || path == apiPath) {
                     whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
                     for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -709,7 +710,7 @@ func getLargestApiNameSize(retApiArray *whisk.RetApiArray, apiPath string, apiVe
         apiName := resultApi.Swagger.Info.Title
         if (resultApi.Swagger != nil && resultApi.Swagger.Paths != nil) {
             for path, _ := range resultApi.Swagger.Paths {
-                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: %s\n", path)
+                whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: comparing api relpath: '%s'\n", path)
                 if ( len(apiPath) == 0 || path == apiPath) {
                     whisk.Debug(whisk.DbgInfo, "getLargestActionNameSize: relpath matches\n")
                     for op, opv  := range resultApi.Swagger.Paths[path] {
@@ -809,7 +810,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
         apiname = flags.api.apiname
     }
 
-    api.Namespace = client.Config.Namespace
+    api.Namespace = Client.Config.Namespace
     api.Action = new(whisk.ApiAction)
     var urlActionPackage string
     if (len(qName.GetPackageName()) > 0) {
@@ -817,11 +818,11 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = "https://" + client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
+    api.Action.BackendUrl = "https://" + Client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
     api.Action.BackendMethod = api.GatewayMethod
     api.Action.Name = qName.GetEntityName()
     api.Action.Namespace = qName.GetNamespace()
-    api.Action.Auth = client.Config.AuthToken
+    api.Action.Auth = Client.Config.AuthToken
     api.ApiName = apiname
     api.GatewayBasePath = basepath
     if (!basepathArgIsApiName) { api.Id = "API:"+api.Namespace+":"+api.GatewayBasePath }
@@ -869,7 +870,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     swaggerObj := new(whisk.ApiSwagger)
     err = json.Unmarshal([]byte(swagger), swaggerObj)
     if ( err != nil ) {
-        whisk.Debug(whisk.DbgError, "JSON parse of `%s' error: %s\n", flags.api.configfile, err)
+        whisk.Debug(whisk.DbgError, "JSON parse of '%s' error: %s\n", flags.api.configfile, err)
         errMsg := wski18n.T("Error parsing swagger file '{{.name}}': {{.err}}",
             map[string]interface{}{"name": flags.api.configfile, "err": err})
         whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_GENERAL,
@@ -892,7 +893,7 @@ func parseSwaggerApi() (*whisk.Api, error) {
     }
 
     api := new(whisk.Api)
-    api.Namespace = client.Config.Namespace
+    api.Namespace = Client.Config.Namespace
     api.Swagger = swagger
 
     return api, nil
@@ -925,7 +926,7 @@ func getUserContextId() (string, error) {
         if len(props["AUTH"]) > 0 {
             guid = strings.Split(props["AUTH"], ":")[0]
         } else {
-            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: %s\n", Properties.PropsFile)
+            whisk.Debug(whisk.DbgError, "AUTH property not set in properties file: '%s'\n", Properties.PropsFile)
             errStr := wski18n.T("Authorization key is not configured (--auth is required)")
             err = whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
         }

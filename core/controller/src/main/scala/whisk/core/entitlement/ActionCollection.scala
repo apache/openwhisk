@@ -17,8 +17,6 @@
 
 package whisk.core.entitlement
 
-import whisk.core.entitlement.Privilege._
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
