@@ -1,6 +1,5 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
-apply plugin: 'ca.cutterslade.analyze'
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'

@@ -27,7 +27,7 @@ gradle.ext.scalafmt = [
 gradle.ext.scala = [
     major: 2,
     minor: 11,
-    path: 11,
+    patch: 11,
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
 gradle.ext.akka = [version: '2.5.5']

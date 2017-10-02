@@ -1,7 +1,6 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
-apply plugin: 'ca.cutterslade.analyze'
 
 ext.dockerImageName = 'controller'
 apply from: '../../gradle/docker.gradle'
@@ -12,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile "org.scala-lang:scala-library:${gradle.scala.major}.${gradle.scala.minor}.${gradle.scala.patch}"
     compile project(':common:scala')
 
     compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
