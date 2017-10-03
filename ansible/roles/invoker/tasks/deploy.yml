@@ -95,6 +95,30 @@
   with_items: "{{ invokerInfo }}"
   when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
+- name: "determine 'docker' binary location"
+  shell: which docker
+  register: dockerBinary
+
+- name: "determine 'docker-runc' binary location"
+  shell: which docker-runc
+  register: runcBinary
+  failed_when: false
+
+- set_fact:
+    runcMount: "-v {{ runcBinary.stdout }}:/usr/bin/docker-runc"
+  when: runcBinary.rc == 0
+
+- name: copy runc script to remote
+  copy:
+    src: "files/docker-runc"
+    dest: "{{ nginx.confdir }}"
+    mode: 111
+  when: runcBinary.rc != 0
+
+- set_fact:
+    runcMount: "-v '{{ nginx.confdir }}/docker-runc:/usr/bin/docker-runc'"
+  when: runcBinary.rc != 0
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
@@ -132,6 +156,8 @@
         -e INVOKER_NUMCORE='{{ invoker.numcore }}'
         -e INVOKER_CORESHARE='{{ invoker.coreshare }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
+        {{ runcMount }}
+        -v {{ dockerBinary.stdout }}:/usr/bin/docker
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if $2 == 'resume'; then
+  docker unpause $3
+fi
+
+if $2 == 'pause'; then
+  docker pause $3
+fi
