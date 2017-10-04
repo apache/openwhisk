@@ -146,7 +146,7 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
    * Was the container killed due to memory exhaustion?
    *
    * Retries because as all docker state-relevant operations, they won't
-   * be reflected by the respective commands immediatly but will take
+   * be reflected by the respective commands immediately but will take
    * some time to be propagated.
    *
    * @param retries number of retries to make
