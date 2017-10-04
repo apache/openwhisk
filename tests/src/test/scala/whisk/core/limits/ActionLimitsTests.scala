@@ -231,7 +231,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       error.fields("message") shouldBe {
         JsObject(
           "code" -> "EMFILE".toJson,
-          "errno" -> -24.toJson,
+          "errno" -> (-24).toJson,
           "path" -> "/dev/zero".toJson,
           "syscall" -> "open".toJson)
       }
@@ -241,10 +241,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
       activation.logs
         .getOrElse(List())
-        .filter {
-          _.contains("ERROR: opened files = ")
-        }
-        .length shouldBe 1
+        .count(_.contains("ERROR: opened files = ")) shouldBe 1
     }
   }
 
@@ -264,6 +261,21 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
         response.response.status shouldBe "success"
         response.response.result shouldBe Some(JsObject("msg" -> "OK, buffer of size 128 MB has been filled.".toJson))
       }
+    }
+  }
+
+  it should "be aborted when exceeding its memory limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "TestNodeJsMemoryExceeding"
+    assetHelper.withCleaner(wsk.action, name, confirmDelete = true) {
+      val allowedMemory = 256.megabytes
+      val actionName = TestUtils.getTestActionFilename("memoryWithGC.js")
+      (action, _) =>
+        action.create(name, Some(actionName), memory = Some(allowedMemory))
+    }
+
+    val run = wsk.action.invoke(name, Map("payload" -> 512.toJson))
+    withActivation(wsk.activation, run) {
+      _.response.result.get.fields("error") shouldBe Messages.memoryExhausted.toJson
     }
   }
 }
