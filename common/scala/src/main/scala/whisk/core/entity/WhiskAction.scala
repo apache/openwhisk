@@ -315,7 +315,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           val manifest = exec.manifest.attached.get
 
           for (i1 <- super.put(db, newDoc);
-               i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream)) yield i2
+               i2 <- attach[A](db, newDoc, i1, manifest.attachmentName, manifest.attachmentType, stream)) yield i2
 
         case _ =>
           super.put(db, doc)

@@ -133,25 +133,25 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
    * and share common super types EntityRecord and WhiskEntity.
    *
    * @param db the datastore client to fetch entity from
-   * @param doc the entity to store
+   * @param entity the entity to store
    * @param transid the transaction id for logging
    * @param notifier an optional callback when cache changes
    * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
    */
-  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+  def put[Wsuper >: W](db: ArtifactStore[Wsuper], entity: W)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
     Try {
       require(db != null, "db undefined")
-      require(doc != null, "doc undefined")
+      require(entity != null, "entity undefined")
     } map { _ =>
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val key = CacheKey(doc)
+      val key = CacheKey(entity)
 
-      cacheUpdate(doc, key, db.put(doc) map { docinfo =>
-        doc match {
+      cacheUpdate(entity, key, db.put(entity) map { docinfo =>
+        entity match {
           // if doc has a revision id, update it with new version
           case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
         }
@@ -166,6 +166,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
   def attach[Wsuper >: W](
     db: ArtifactStore[Wsuper],
+    entity: W,
     doc: DocInfo,
     attachmentName: String,
     contentType: ContentType,
@@ -173,17 +174,21 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
     Try {
       require(db != null, "db undefined")
+      require(entity != null, "entity undefined")
       require(doc != null, "doc undefined")
     } map { _ =>
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val key = CacheKey(doc.id.asDocInfo)
-      // invalidate the key because attachments update the revision;
-      // do not cache the new attachment (controller does not need it)
-      cacheInvalidate(key, {
-        val src = StreamConverters.fromInputStream(() => bytes)
-        db.attach(doc, attachmentName, contentType, src)
+      val key = CacheKey(entity)
+      val src = StreamConverters.fromInputStream(() => bytes)
+
+      cacheUpdate(entity, key, db.attach(doc, attachmentName, contentType, src) map { docinfo =>
+        entity match {
+          // if doc has a revision id, update it with new version
+          case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
+        }
+        docinfo
       })
     } match {
       case Success(f) => f
