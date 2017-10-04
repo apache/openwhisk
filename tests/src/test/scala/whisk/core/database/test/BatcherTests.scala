@@ -17,19 +17,20 @@
 
 package whisk.core.database.test
 
-import akka.stream.ActorMaterializer
-import common.WskActorSystem
-import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.junit.JUnitRunner
-
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
-import scala.concurrent.duration._
-import whisk.core.database.Batcher
-import whisk.utils.retry
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
-import common.LoggedFunction
+
+import akka.stream.ActorMaterializer
+import common.{LoggedFunction, WskActorSystem}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, Matchers}
+import whisk.core.database.Batcher
+import whisk.utils.retry
+
+import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
 class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
@@ -44,27 +45,36 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
   behavior of "Batcher"
 
   it should "batch based on batch size" in {
-    val p = Promise[Unit]()
+    val ps = Seq.fill(3)(Promise[Unit]())
+    val batchPromises = mutable.Queue(ps: _*)
 
     val transform = (i: Int) => i + 1
 
     val batchOperation = LoggedFunction((els: Seq[Int]) => {
-      p.future.map(_ => els.map(transform))
+      batchPromises.dequeue().future.map(_ => els.map(transform))
     })
 
     val batcher = new Batcher[Int, Int](2, 1)(batchOperation)
 
-    val values = (1 to 5)
+    val values = 1 to 5
     val results = values.map(batcher.put)
 
+    // First "batch"
     retry(batchOperation.calls should have size 1, 100)
-    p.success(())
+    ps(0).success(())
+    batchOperation.calls(0) should have size 1
+
+    // Second batch
+    retry(batchOperation.calls should have size 2, 100)
+    ps(1).success(())
+    batchOperation.calls(1) should have size 2
+
+    // Third batch
+    retry(batchOperation.calls should have size 3, 100)
+    ps(2).success(())
+    batchOperation.calls(2) should have size 2
 
     await(Future.sequence(results)) shouldBe values.map(transform)
-    batchOperation.calls should have size 3
-    batchOperation.calls(0) should have size 1
-    batchOperation.calls(1) should have size 2
-    batchOperation.calls(2) should have size 2
   }
 
   it should "run batches through the operation in parallel" in {
@@ -77,7 +87,7 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
       p.future.map(_ => els)
     })
 
-    val values = (1 to 3)
+    val values = 1 to 3
     val results = values.map(batcher.put)
 
     // Before we resolve the promise, 2 batches should have entered the batch operation
