@@ -46,12 +46,14 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
   implicit val materializer = ActorMaterializer()
 
   val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
+
   def ports(instance: Int) = WhiskProperties.getControllerBasePort + instance
 
   def controllerUri(instance: Int) = {
     require(instance >= 0 && instance < hosts.length, "Controller instance not known.")
     Uri().withScheme("http").withHost(hosts(instance)).withPort(ports(instance))
   }
+
   def actionPath(name: String) = Uri.Path(s"/api/v1/namespaces/_/actions/$name")
 
   val Array(username, password) = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting).split(":")
@@ -135,21 +137,25 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
       deleteAction(actionName, 0, None)
       deleteAction(actionName, 1, None)
 
-      // Create an action on controller0
-      val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
+      try {
+        // Create an action on controller0
+        val createdAction = updateAction(actionName, "CODE_CODE_CODE", 0)
 
-      // Get action from controller1
-      val actionFromController1 = getAction(actionName, 1)
-      createdAction shouldBe actionFromController1
-
-      // Update the action on controller0
-      val updatedAction = updateAction(actionName, "CODE_CODE", 0)
-
-      retry({
         // Get action from controller1
-        val updatedActionFromController1 = getAction(actionName, 1)
-        updatedAction shouldBe updatedActionFromController1
-      })
+        val actionFromController1 = getAction(actionName, 1)
+        createdAction shouldBe actionFromController1
+
+        // Update the action on controller0
+        val updatedAction = updateAction(actionName, "CODE_CODE", 0)
+
+        retry({
+          // Get action from controller1
+          val updatedActionFromController1 = getAction(actionName, 1)
+          updatedAction shouldBe updatedActionFromController1
+        })
+      } finally {
+        deleteAction(actionName, 0, None)
+      }
     }
 
     it should "be invalidated on deleting an entity" in {
