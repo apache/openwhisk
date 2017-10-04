@@ -131,9 +131,9 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
   /** The last read-position in the log file */
   private var logFileOffset = 0L
 
-  protected val waitForLogs = 2.seconds
-  protected val waitForOomState = 2.seconds
-  protected val filePollInterval = 100.milliseconds
+  protected val waitForLogs: FiniteDuration = 2.seconds
+  protected val waitForOomState: FiniteDuration = 2.seconds
+  protected val filePollInterval: FiniteDuration = 100.milliseconds
 
   def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
   def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
@@ -142,12 +142,22 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
     docker.rm(id)
   }
 
+  /**
+   * Was the container killed due to memory exhaustion?
+   *
+   * Retries because as all docker state-relevant operations, they won't
+   * be reflected by the respective commands immediatly but will take
+   * some time to be propagated.
+   *
+   * @param retries number of retries to make
+   * @return a Future indicating a memory exhaustion situation
+   */
   private def isOomKilled(retries: Int = (waitForOomState / filePollInterval).toInt)(
     implicit transid: TransactionId): Future[Boolean] = {
     docker.isOomKilled(id)(TransactionId.invoker).flatMap { killed =>
-      if (killed) Future.successful(killed)
+      if (killed) Future.successful(true)
       else if (retries > 0) akka.pattern.after(filePollInterval, as.scheduler)(isOomKilled(retries - 1))
-      else Future.successful(killed)
+      else Future.successful(false)
     }
   }
 
@@ -166,14 +176,14 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
 
       response.left
         .map {
-          case t: ConnectionError =>
+          // Only check for memory exhaustion if there was a
+          // terminal connection error.
+          case error: ConnectionError =>
             isOomKilled().map {
-              case true =>
-                logging.info(this, "connection abruptly terminated, checking for memory exhaustion")
-                MemoryExhausted()
-              case false => t
+              case true  => MemoryExhausted()
+              case false => error
             }
-          case t => Future.successful(t)
+          case other => Future.successful(other)
         }
         .fold(_.map(Left(_)), right => Future.successful(Right(right)))
         .map(res => RunResult(Interval(started, finished), res))
