@@ -65,11 +65,14 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
       action.create(fullActionName, Some(TestUtils.getTestActionFilename("hello.js")))
     }
 
-    val duration = 30 seconds
+    // Some contingency to make query more robust
+    val start = Instant.now.minusSeconds(1)
     val payload = new String("from the console!".getBytes, "UTF-8")
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
-    withActivation(wsk.activation, run, totalWait = duration) { activation =>
+    withActivation(wsk.activation, run, totalWait = 30 seconds) { activation =>
+      val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)
       val pollTime = 10 seconds
+      // since: poll for activations since specified number of seconds ago (relative)
       val console = wsk.activation.console(pollTime, since = Some(duration))
       withClue(
         s"Poll for ${pollTime.toSeconds} seconds since ${duration.toSeconds} seconds did not return expected result:") {
