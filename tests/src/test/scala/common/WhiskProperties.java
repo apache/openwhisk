@@ -124,8 +124,6 @@ public class WhiskProperties {
         return getCLIDir() + "/wsk";
     }
 
-    public static String getTestPath() { return whiskHome + "/tests"; }
-
     public static File getFileRelativeToWhiskHome(String name) {
         return new File(whiskHome, name);
     }

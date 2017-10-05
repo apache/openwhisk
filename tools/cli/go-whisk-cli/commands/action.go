@@ -42,6 +42,20 @@ const (
     WEB_EXPORT_ANNOT  = "web-export"
     RAW_HTTP_ANNOT    = "raw-http"
     FINAL_ANNOT       = "final"
+    NODE_JS_EXT       = ".js"
+    PYTHON_EXT        = ".py"
+    JAVA_EXT          = ".jar"
+    SWIFT_EXT         = ".swift"
+    ZIP_EXT           = ".zip"
+    PHP_EXT           = ".php"
+    NODE_JS           = "nodejs"
+    PYTHON            = "python"
+    JAVA              = "java"
+    SWIFT             = "swift"
+    PHP               = "php"
+    DEFAULT           = "default"
+    BLACKBOX          = "blackbox"
+    SEQUENCE          = "sequence"
 )
 
 var actionCmd = &cobra.Command{
@@ -403,7 +417,7 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     } else if flags.action.sequence {
         if len(args) == 2 {
             action.Exec = new(whisk.Exec)
-            action.Exec.Kind = "sequence"
+            action.Exec.Kind = SEQUENCE
             action.Exec.Components = csvToQualifiedActions(args[1])
         } else {
             return nil, noArtifactError()
@@ -449,7 +463,7 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
             return nil, err
         }
 
-        if ext == ".zip" || ext == ".jar" {
+        if ext == ZIP_EXT || ext == JAVA_EXT {
             code = base64.StdEncoding.EncodeToString([]byte(code))
         }
 
@@ -463,24 +477,24 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     if len(kind) > 0 {
         exec.Kind = kind
     } else if len(docker) > 0 || isNative {
-        exec.Kind = "blackbox"
+        exec.Kind = BLACKBOX
         if isNative {
             exec.Image = "openwhisk/dockerskeleton"
         } else {
             exec.Image = docker
         }
-    } else if ext == ".swift" {
-        exec.Kind = "swift:default"
-    } else if ext == ".js" {
-        exec.Kind = "nodejs:default"
-    } else if ext == ".py" {
-        exec.Kind = "python:default"
-    } else if ext == ".jar" {
-        exec.Kind = "java:default"
-    } else if ext == ".php" {
-        exec.Kind = "php:default"
+    } else if ext == SWIFT_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", SWIFT, DEFAULT)
+    } else if ext == NODE_JS_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", NODE_JS, DEFAULT)
+    } else if ext == PYTHON_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", PYTHON, DEFAULT)
+    } else if ext == JAVA_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", JAVA, DEFAULT)
+    } else if ext == PHP_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", PHP, DEFAULT)
     } else {
-        if ext == ".zip" {
+        if ext == ZIP_EXT {
             return nil, zipKindError()
         } else {
             return nil, extensionError(ext)
@@ -501,10 +515,10 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
 
 func getBinaryKindExtension(kind string) (extension string){
     switch strings.ToLower(kind) {
-    case "java":
-        extension = ".jar"
+    case JAVA:
+        extension = JAVA_EXT
     default:
-        extension = ".zip"
+        extension = ZIP_EXT
     }
 
     return extension
@@ -512,15 +526,13 @@ func getBinaryKindExtension(kind string) (extension string){
 
 func getKindExtension(kind string) (extension string){
     switch strings.ToLower(kind) {
-    case "nodejs":
-        extension = ".js"
-    case "python":
-        extension = ".py"
-    case "java":
-        extension = ".jar"
-    case "swift":
+    case NODE_JS:
+        extension = NODE_JS_EXT
+    case PYTHON:
+        extension = PYTHON_EXT
+    case SWIFT:
         fallthrough
-    case "php":
+    case PHP:
         extension = "." + kind
     }
 
@@ -535,9 +547,9 @@ func saveCode(action whisk.Action, filename string) (err error) {
     exec = *action.Exec
     kind = strings.Split(exec.Kind, ":")[0]
 
-    if strings.ToLower(kind) == "blackbox" {
+    if strings.ToLower(kind) == BLACKBOX {
         return cannotSaveImageError()
-    } else if strings.ToLower(kind) == "sequence" {
+    } else if strings.ToLower(kind) == SEQUENCE {
         return cannotSaveSequenceError()
     }
 
@@ -569,7 +581,6 @@ func saveCode(action whisk.Action, filename string) (err error) {
     if err := writeFile(filename, code); err != nil {
         return err
     }
-
 
     pwd, err := os.Getwd()
     if err != nil {
