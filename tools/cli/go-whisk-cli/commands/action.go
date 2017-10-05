@@ -24,6 +24,7 @@ import (
     "path/filepath"
     "io"
     "strings"
+    "os"
 
     "../../go-whisk/whisk"
     "../wski18n"
@@ -569,7 +570,15 @@ func saveCode(action whisk.Action, filename string) (err error) {
         return err
     }
 
-    printSavedActionCodeSuccess(filename)
+
+    pwd, err := os.Getwd()
+    if err != nil {
+        return err
+    }
+
+    savedPath := fmt.Sprintf("%s%s%s", pwd, string(os.PathSeparator), filename)
+
+    printSavedActionCodeSuccess(savedPath)
 
     return nil
 }
