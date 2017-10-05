@@ -66,7 +66,8 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
     }
 
     // Some contingency to make query more robust
-    val start = Instant.now.minusSeconds(1)
+    // Account for time differences between controller and invoker
+    val start = Instant.now.minusSeconds(5)
     val payload = new String("from the console!".getBytes, "UTF-8")
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
     withActivation(wsk.activation, run, totalWait = 30 seconds) { activation =>
@@ -89,7 +90,8 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
 
     val count = 3
     // Some contingency to make query more robust
-    val start = Instant.now.minusSeconds(1)
+    // Account for time differences between controller and invoker
+    val start = Instant.now.minusSeconds(5)
     val run = wsk.action.invoke(name, Map("n" -> count.toJson))
     withActivation(wsk.activation, run) { activation =>
       // Time recorded by invoker, some contingency to make query more robust
