@@ -17,7 +17,6 @@
 
 package system.basic;
 
-import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.duration.Duration
@@ -47,11 +46,16 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
   val wsk = new Wsk
   val guestNamespace = wskprops.namespace
 
+  /**
+   * Append the current timestamp in ms
+   */
+  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
+
   behavior of "Wsk Activation Console"
 
   it should "show an activation log message for hello world" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val packageName = "samples"
-    val actionName = "helloWorld"
+    val packageName = withTimestamp("samples")
+    val actionName = withTimestamp("helloWorld")
     val fullActionName = s"/$guestNamespace/$packageName/$actionName"
     assetHelper.withCleaner(wsk.pkg, packageName) { (pkg, _) =>
       pkg.create(packageName, shared = Some(true))
@@ -61,31 +65,51 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
       action.create(fullActionName, Some(TestUtils.getTestActionFilename("hello.js")))
     }
 
-    val duration = Some(30 seconds)
+    // Some contingency to make query more robust
+    // Account for time differences between controller and invoker
+    val start = Instant.now.minusSeconds(5)
     val payload = new String("from the console!".getBytes, "UTF-8")
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
-    withActivation(wsk.activation, run, totalWait = duration.get) { activation =>
-      val console = wsk.activation.console(10 seconds, since = duration)
-      console.stdout should include(payload)
+    withActivation(wsk.activation, run, totalWait = 30 seconds) { activation =>
+      val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)
+      val pollTime = 10 seconds
+      // since: poll for activations since specified number of seconds ago (relative)
+      val console = wsk.activation.console(pollTime, since = Some(duration))
+      withClue(
+        s"Poll for ${pollTime.toSeconds} seconds since ${duration.toSeconds} seconds did not return expected result:") {
+        console.stdout should include(payload)
+      }
     }
   }
 
   it should "show repeated activations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "countdown"
+    val name = withTimestamp("countdown")
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("countdown.js")))
     }
 
-    val start = Instant.now(Clock.systemUTC())
-    val run = wsk.action.invoke(name, Map("n" -> 3.toJson))
+    val count = 3
+    // Some contingency to make query more robust
+    // Account for time differences between controller and invoker
+    val start = Instant.now.minusSeconds(5)
+    val run = wsk.action.invoke(name, Map("n" -> count.toJson))
     withActivation(wsk.activation, run) { activation =>
-      val activations = wsk.activation.pollFor(N = 4, Some(name), since = Some(start), retries = 80).length
-      withClue(s"expected activations:") {
-        activations should be(4)
+      // Time recorded by invoker, some contingency to make query more robust
+      val queryTime = activation.start.minusMillis(500)
+      // since: poll for activations since specified point in time (absolute)
+      val activations = wsk.activation.pollFor(N = 4, Some(name), since = Some(queryTime), retries = 80).length
+      withClue(
+        s"expected activations of action '${name}' since ${queryTime.toString} / initial activation ${activation.activationId}:") {
+        activations should be(count + 1)
       }
-      val duration = Duration(Instant.now(Clock.systemUTC()).toEpochMilli - start.toEpochMilli, MILLISECONDS)
-      val console = wsk.activation.console(10 seconds, since = Some(duration))
-      console.stdout should include("Happy New Year")
+      val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)
+      val pollTime = 10 seconds
+      // since: poll for activations since specified number of seconds ago (relative)
+      val console = wsk.activation.console(pollTime, since = Some(duration))
+      withClue(
+        s"Poll for ${pollTime.toSeconds} seconds since ${duration.toSeconds} seconds did not return expected result:") {
+        console.stdout should include("Happy New Year")
+      }
     }
   }
 
