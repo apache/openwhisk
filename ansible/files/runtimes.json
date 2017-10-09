@@ -6,7 +6,11 @@
                 "image": {
                     "name": "nodejsaction"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "nodejs:6",
@@ -14,7 +18,11 @@
                 "image": {
                     "name": "nodejs6action"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "nodejs:8",
@@ -22,7 +30,11 @@
                 "image": {
                     "name": "action-nodejs-v8"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "python": [
@@ -31,7 +43,11 @@
                 "image": {
                     "name": "python2action"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "python:2",
@@ -39,14 +55,22 @@
                 "image": {
                     "name": "python2action"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "python:3",
                 "image": {
                     "name": "python3action"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "swift": [
@@ -55,21 +79,33 @@
                 "image": {
                     "name": "swiftaction"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:3",
                 "image": {
                     "name": "swift3action"
                 },
-                "deprecated": true
+                "deprecated": true,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:3.1.1",
                 "image": {
                     "name": "action-swift-v3.1.1"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             },
             {
                 "kind": "swift:4.1",
@@ -77,7 +113,11 @@
                 "image": {
                     "name": "action-swift-v4.1"
                 },
-                "deprecated": false
+                "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                }
             }
         ],
         "java": [
@@ -89,8 +129,8 @@
                 },
                 "deprecated": false,
                 "attached": {
-                    "attachmentName": "jarfile",
-                    "attachmentType": "application/java-archive"
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
                 },
                 "sentinelledLogs": false,
                 "requireMain": true
@@ -101,6 +141,10 @@
                 "kind": "php:7.1",
                 "default": true,
                 "deprecated": false,
+                "attached": {
+                    "attachmentName": "codefile",
+                    "attachmentType": "text/plain"
+                },
                 "image": {
                     "name": "action-php-v7.1"
                 }

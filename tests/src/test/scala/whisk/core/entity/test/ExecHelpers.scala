@@ -53,33 +53,52 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     ExecManifest.ImageName(image, Some("openwhisk"), Some("latest"))
   }
 
-  protected def js(code: String, main: Option[String] = None) = {
+  protected def jsOld(code: String, main: Option[String] = None) = {
     CodeExecAsString(RuntimeManifest(NODEJS, imagename(NODEJS), deprecated = Some(true)), trim(code), main.map(_.trim))
   }
 
-  protected def js6(code: String, main: Option[String] = None) = {
+  protected def js(code: String, main: Option[String] = None) = {
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
+  }
+
+  protected def js6Old(code: String, main: Option[String] = None) = {
     CodeExecAsString(
       RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
       trim(code),
       main.map(_.trim))
+  }
+  protected def js6(code: String, main: Option[String] = None) = {
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS6).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }
 
   protected def jsDefault(code: String, main: Option[String] = None) = {
     js6(code, main)
   }
 
-  protected def js6MetaData(main: Option[String] = None, binary: Boolean) = {
+  protected def js6MetaDataOld(main: Option[String] = None, binary: Boolean) = {
     CodeExecMetaDataAsString(
       RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
       binary,
       main.map(_.trim))
   }
 
+  protected def js6MetaData(main: Option[String] = None, binary: Boolean) = {
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(NODEJS6).get
+
+    CodeExecMetaDataAsAttachment(manifest, binary, main.map(_.trim))
+  }
+
   protected def javaDefault(code: String, main: Option[String] = None) = {
     val attachment = attFmt[String].read(code.trim.toJson)
     val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(JAVA_DEFAULT).get
 
-    CodeExecAsAttachment(manifest, attachment, main.map(_.trim))
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }
 
   protected def javaMetaData(main: Option[String] = None, binary: Boolean) = {
@@ -88,16 +107,22 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     CodeExecMetaDataAsAttachment(manifest, binary, main.map(_.trim))
   }
 
-  protected def swift(code: String, main: Option[String] = None) = {
+  protected def swiftOld(code: String, main: Option[String] = None) = {
     CodeExecAsString(RuntimeManifest(SWIFT, imagename(SWIFT), deprecated = Some(true)), trim(code), main.map(_.trim))
   }
 
+  protected def swift(code: String, main: Option[String] = None) = {
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
+  }
+
   protected def swift3(code: String, main: Option[String] = None) = {
-    val default = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT3).flatMap(_.default)
-    CodeExecAsString(
-      RuntimeManifest(SWIFT3, imagename(SWIFT3), default = default, deprecated = Some(false)),
-      trim(code),
-      main.map(_.trim))
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(SWIFT3).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim), Exec.isBinaryCode(code))
   }
 
   protected def sequence(components: Vector[FullyQualifiedEntityName]) = SequenceExec(components)
