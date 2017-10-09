@@ -121,7 +121,11 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with WskActorSy
         para.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(nThreads))
         para.map { i =>
           if (i != 16) {
-            wsk.action.get(name)
+            val rr = wsk.action.get(name, expectedExitCode = DONTCARE_EXIT)
+            withClue(s"expecting get to either succeed or fail with not found: $rr") {
+              // some will succeed and some should fail with not found
+              rr.exitCode should (be(SUCCESS_EXIT) or be(NOT_FOUND))
+            }
           } else {
             wsk.action.create(name, None, parameters = Map("color" -> JsString("blue")), update = true)
           }

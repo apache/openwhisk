@@ -19,7 +19,6 @@ package whisk.core.entity
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.util.Base64
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -333,16 +332,16 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
       require(doc != null, "doc undefined")
     } map { _ =>
       doc.exec match {
-        case exec @ CodeExecAsAttachment(_, Inline(code), _) =>
+        case exec @ CodeExecAsAttachment(_, Inline(code), _, _) =>
           implicit val logger = db.logging
           implicit val ec = db.executionContext
 
-          val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
+          val stream = new ByteArrayInputStream(code.getBytes("UTF-8"))
           val manifest = exec.manifest.attached.get
           val oldAttachment = old
             .flatMap(_.exec match {
-              case CodeExecAsAttachment(_, a: Attached, _) => Some(a)
-              case _                                       => None
+              case CodeExecAsAttachment(_, a: Attached, _, _) => Some(a)
+              case _                                          => None
             })
 
           super.putAndAttach(
@@ -378,12 +377,10 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     fa.flatMap { action =>
       action.exec match {
-        case exec @ CodeExecAsAttachment(_, attached: Attached, _) =>
+        case exec @ CodeExecAsAttachment(_, attached: Attached, _, _) =>
           val boas = new ByteArrayOutputStream()
-          val b64s = Base64.getEncoder().wrap(boas)
 
-          getAttachment[A](db, action, attached, b64s, Some { a: WhiskAction =>
-            b64s.close()
+          getAttachment[A](db, action, attached, boas, Some { a: WhiskAction =>
             val newAction = a.copy(exec = exec.inline(boas.toByteArray))
             newAction.revision(a.rev)
             newAction
@@ -397,7 +394,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   def attachmentHandler(action: WhiskAction, attached: Attached): WhiskAction = {
     val eu = action.exec match {
-      case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
+      case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _, _) =>
         require(
           attachmentName == attached.attachmentName,
           s"Attachment name '${attached.attachmentName}' does not match the expected name '$attachmentName'")

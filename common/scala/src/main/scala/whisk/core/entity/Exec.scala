@@ -30,6 +30,8 @@ import whisk.core.entity.size.SizeInt
 import whisk.core.entity.size.SizeOptionString
 import whisk.core.entity.size.SizeString
 
+import java.util.Base64
+
 /**
  * Exec encodes the executable details of an action. For black
  * box container, an image name is required. For Javascript and Python
@@ -140,19 +142,24 @@ protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest,
 
 protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
                                                 override val code: Attachment[String],
-                                                override val entryPoint: Option[String])
+                                                override val entryPoint: Option[String],
+                                                override val binary: Boolean = false)
     extends CodeExec[Attachment[String]] {
   override val kind = manifest.kind
   override val image = manifest.image
   override val sentinelledLogs = manifest.sentinelledLogs.getOrElse(true)
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
-  override lazy val binary = true
   override def codeAsJson = code.toJson
 
   def inline(bytes: Array[Byte]): CodeExecAsAttachment = {
-    val encoded = new String(bytes, StandardCharsets.UTF_8)
-    copy(code = Inline(encoded))
+    val code = new String(bytes, StandardCharsets.UTF_8)
+
+    if (kind == "java" && !Exec.isBinaryCode(code)) {
+      val encoded = Base64.getEncoder.encodeToString(bytes)
+      copy(code = Inline(encoded))
+    } else
+      copy(code = Inline(code))
   }
 
   def attach(attached: Attached): CodeExecAsAttachment = {
@@ -302,21 +309,29 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
 
           manifest.attached
             .map { a =>
-              val jar: Attachment[String] = {
-                // java actions once stored the attachment in "jar" instead of "code"
-                obj.fields.get("code").orElse(obj.fields.get("jar"))
+              val code = obj.fields.get("code")
+              val binary: Boolean = code match {
+                case Some(JsString(c)) => isBinaryCode(c)
+                case _ =>
+                  obj.fields.get("binary") match {
+                    case Some(JsBoolean(b)) => b
+                    case _                  => false
+                  }
+              }
+              val attachment: Attachment[String] = {
+                code
               } map {
                 attFmt[String].read(_)
               } getOrElse {
-                throw new DeserializationException(
-                  s"'code' must be a valid base64 string in 'exec' for '$kind' actions")
+                throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
               }
               val main = optMainField.orElse {
                 if (manifest.requireMain.exists(identity)) {
                   throw new DeserializationException(s"'main' must be a string defined in 'exec' for '$kind' actions")
                 } else None
               }
-              CodeExecAsAttachment(manifest, jar, main)
+
+              CodeExecAsAttachment(manifest, attachment, main, binary)
             }
             .getOrElse {
               val code: String = obj.fields.get("code") match {
