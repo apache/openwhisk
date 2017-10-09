@@ -23,6 +23,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import akka.Done
 import akka.actor.ActorSystem
+import akka.cluster.Cluster
 import akka.actor.CoordinatedShutdown
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
@@ -39,15 +40,21 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.connector.MessagingProvider
 import whisk.core.database.RemoteCacheInvalidation
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.{LoadBalancerService}
+import whisk.core.loadBalancer.DistributedLoadBalancerData
+import whisk.core.loadBalancer.LoadBalancerActorService
+import whisk.core.loadBalancer.LoadBalancerService
+import whisk.core.loadBalancer.LocalLoadBalancerData
+import whisk.core.loadBalancer.StaticSeedNodesProvider
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
+import whisk.spi.SpiLoader
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -112,7 +119,30 @@ class Controller(val instance: InstanceId,
   })
 
   // initialize backend services
-  private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
+
+  /** Feature switch for shared load balancer data **/
+  private val loadBalancerData = {
+    if (whiskConfig.controllerLocalBookkeeping) {
+      new LocalLoadBalancerData()
+    } else {
+
+      /** Specify how seed nodes are generated */
+      val seedNodesProvider = new StaticSeedNodesProvider(whiskConfig.controllerSeedNodes, actorSystem.name)
+      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      new DistributedLoadBalancerData(instance)
+    }
+  }
+  private val messagingProvider = SpiLoader.get[MessagingProvider]
+  val maxPingsPerPoll = 128
+  val pingConsumer =
+    messagingProvider.getConsumer(whiskConfig, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+  private val messageProducer = messagingProvider.getProducer(whiskConfig, actorSystem.dispatcher)
+  private implicit val loadBalancer = new LoadBalancerActorService(
+    whiskConfig,
+    instance,
+    LoadBalancerService
+      .createInvokerPool(instance, actorSystem, actorSystem.dispatcher, entityStore, messageProducer, pingConsumer),
+    loadBalancerData)
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
 

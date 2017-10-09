@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -34,19 +33,25 @@ import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.FSM.Transition
 import akka.actor.Props
 import akka.pattern.pipe
+//import akka.pattern.ask
 import akka.util.Timeout
+import scala.concurrent.ExecutionContext
 import whisk.common.AkkaLogging
+import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.RingBuffer
 import whisk.common.TransactionId
 import whisk.core.connector._
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._
+import whisk.core.entity.types.EntityStore
 
 // Received events
 case object GetStatus
-
+case class SubscribeLoadBalancer(loadBalancerActor: ActorRef)
+case class StatusUpdate(status: IndexedSeq[(InstanceId, InvokerState)])
 case object Tick
 
 // States an Invoker can be in
@@ -87,6 +92,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   val instanceToRef = mutable.Map[InstanceId, ActorRef]()
   val refToInstance = mutable.Map[ActorRef, InstanceId]()
   var status = IndexedSeq[(InstanceId, InvokerState)]()
+  var lbActor: Option[ActorRef] = None
 
   def receive = {
     case p: PingMessage =>
@@ -94,7 +100,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
         logging.info(this, s"registered a new invoker: invoker${p.instance.toInt}")(TransactionId.invokerHealth)
 
         status = padToIndexed(status, p.instance.toInt + 1, i => (InstanceId(i), Offline))
-
+        lbActor.foreach(_ ! StatusUpdate(status))
         val ref = childFactory(context, p.instance)
         ref ! SubscribeTransitionCallBack(self) // register for state change events
 
@@ -105,6 +111,10 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
     case GetStatus => sender() ! status
 
+    case SubscribeLoadBalancer(lb) =>
+      lbActor = Some(lb)
+      lb ! StatusUpdate(status)
+
     case msg: InvocationFinishedMessage => {
       // Forward message to invoker, if InvokerActor exists
       instanceToRef.get(msg.invokerInstance).map(_.forward(msg))
@@ -113,12 +123,14 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
     case CurrentState(invoker, currentState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
         status = status.updated(instance.toInt, (instance, currentState))
+        lbActor.foreach(_ ! StatusUpdate(status))
       }
       logStatus()
 
     case Transition(invoker, oldState: InvokerState, newState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
         status = status.updated(instance.toInt, (instance, newState))
+        lbActor.foreach(_ ! StatusUpdate(status))
       }
       logStatus()
 
@@ -180,6 +192,29 @@ object InvokerPool {
       namespace = healthActionIdentity.namespace.toPath,
       name = EntityName(s"invokerHealthTestAction${i.toInt}"),
       exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
+  }
+
+  /**
+   * Creates or updates a health test action by updating the entity store.
+   * This method is intended for use on startup.
+   * @return Future that completes successfully iff the action is added to the database
+   */
+  def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction)(implicit logging: Logging,
+                                                                             ec: ExecutionContext): Future[Unit] = {
+    implicit val tid = TransactionId.loadbalancer
+    WhiskAction
+      .get(db, action.docid)
+      .flatMap { oldAction =>
+        WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
+      }
+      .recover {
+        case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
+      }
+      .map(_ => {})
+      .andThen {
+        case Success(_) => logging.info(this, "test action for invoker health now exists")
+        case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
+      }
   }
 }
 

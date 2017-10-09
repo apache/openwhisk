@@ -96,6 +96,7 @@ class InvokerSupervisionTests
   def timeout(actor: ActorRef) = actor ! FSM.StateTimeout
 
   /** Queries all invokers for their state */
+  //TODO: test for Updated message (instead of querying for GetStatus each time)
   def allStates(pool: ActorRef) =
     Await.result(pool.ask(GetStatus).mapTo[IndexedSeq[(InstanceId, InvokerState)]], timeout.duration)
 
