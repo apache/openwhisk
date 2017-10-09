@@ -10,7 +10,6 @@ RUN apk add --no-cache --virtual .build-deps \
         bzip2-dev \
         gcc \
         libc-dev \
-### Compile source file(s)
  && cd /action; gcc -o exec example.c \
  && apk del .build-deps
 
