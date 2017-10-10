@@ -190,7 +190,7 @@ function getApis(gwInfo, spaceGuid, bpOrApiName) {
         console.error('getApis: failure: response code: '+statusCode);
         if (body) {
           var errMsg = makeJsonString(body);
-          if (body.error && body.error.error && body.error.error.message) errMsg = body.error.error.message;
+          if (body.error && body.error.message) errMsg = body.error.message;
           reject('Unable to obtain API(s) from the API Gateway (status code '+statusCode+'): '+ errMsg);
         } else {
           reject('Unable to obtain API(s) from the API Gateway: Response failure code: '+statusCode);
