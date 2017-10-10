@@ -21,6 +21,7 @@ import (
     "errors"
     "net/http"
     "os"
+    "io/ioutil"
 
     "../../go-whisk/whisk"
     "../wski18n"
@@ -138,10 +139,24 @@ func parseArgs(args []string) ([]string, []string, []string, error) {
             }
 
             filename := paramArgs[len(paramArgs) - 1]
-            paramArgs[len(paramArgs) - 1], whiskErr = readFile(filename)
-            if whiskErr != nil {
-                whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", filename, whiskErr)
-                return nil, nil, nil, whiskErr
+
+            // special filename "-" refers to reading from the process std input
+            if filename == "-" {
+                bytes, err := ioutil.ReadAll(os.Stdin)
+                if err != nil {
+                    whisk.Debug(whisk.DbgError, "ioutil.ReadAll(os.Stdin) error: %s\n", err)
+                    errMsg := wski18n.T("Cannot read from stdin: {{.err}}", map[string]interface{}{"err": err})
+                    whiskErr := whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_USAGE,
+                        whisk.DISPLAY_MSG, whisk.DISPLAY_USAGE)
+                    return nil, nil, nil, whiskErr
+                }
+                paramArgs[len(paramArgs) - 1] = string(bytes)
+            } else {
+                paramArgs[len(paramArgs) - 1], whiskErr = readFile(filename)
+                if whiskErr != nil {
+                    whisk.Debug(whisk.DbgError, "readFile(%s) error: %s\n", filename, whiskErr)
+                    return nil, nil, nil, whiskErr
+                }
             }
         } else if args[i] == "-A" || args[i] == "--annotation-file" {
             annotArgs, args, whiskErr = getValueFromArgs(args, i, annotArgs)
