@@ -103,12 +103,9 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     })
 
   def imagePresent(image: String)(implicit transid: TransactionId): Future[String] = {
+    // --format only added to keep the output minimal
     val cmd = dockerCmd ++ Seq("inspect", "--format={{.Config.Image}}", image)
-    executeProcess(cmd: _*)/*.andThen {
-      case Success(_) => Future.successful(_)
-      case Failure(t) => Future.failed(_)
-    }*/
-    //runCmd("inspect", "--format={{.Config.Image}}", image).map(_ => ())
+    executeProcess(cmd: _*)
   }
 
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
