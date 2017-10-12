@@ -681,6 +681,10 @@ class DockerContainerTests
       Future.successful(())
     }
 
+    def imagePresent(image: String)(implicit transid: TransactionId): Future[String] = {
+      Future.successful("")
+    }
+
     override def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] = ???
 
     def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
