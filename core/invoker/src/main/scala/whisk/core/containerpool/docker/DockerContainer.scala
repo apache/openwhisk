@@ -89,7 +89,11 @@ object DockerContainer {
       params
     val pulled = if (userProvidedImage) {
       docker.pull(image).recoverWith {
-        case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '${image}'."))
+        case _ =>
+          // check if image exists locally and reuse that one
+          docker.imagePresent(image).recoverWith {
+            case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '${image}'."))
+          }
       }
     } else Future.successful(())
 
