@@ -1554,13 +1554,11 @@
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "nodejs",
                         "nodejs:6",
-                        "nodejs:default",
-                        "python",
-                        "swift",
+                        "python:2",
+                        "python:3",
                         "swift:3",
-                        "swift:default",
+                        "swift:3.1.1",
                         "java",
                         "blackbox"
                     ],
