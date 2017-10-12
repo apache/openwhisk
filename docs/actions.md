@@ -202,6 +202,39 @@ Parameters can be passed to the action when it is invoked.
       "payload": "Hello, Bernie from Vermont"
   }
   ```
+4.  It is possible to pipe JSON parameters to the `wsk` command by using the special filename `-` with `--params-file` or `-P`:
+  
+  ```
+  cat parameters.json | envsubst | wsk action invoke -r hello -P -
+  ```
+  
+  This example uses `envsubst` to replace environment variables in the JSON before passing them to the action invocation.
+
+  Other cases for piping might be preprocessing using tools such as [jq](https://stedolan.github.io/jq/).
+    
+  To complete the example, the environment variable might be set on the command line:
+  
+  ```
+  export NAME=Alice
+  ```
+
+  And the json would look like this:
+  
+  ```json
+  {
+      "name": "$NAME",
+      "place": "Vermont"
+  }
+  ```
+  
+  This would result in:
+  
+  ```json
+  {
+      "payload": "Hello, Alice from Vermont"
+  }
+  ```
+
 
 ### Setting default parameters
 
