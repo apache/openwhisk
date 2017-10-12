@@ -105,7 +105,7 @@
         --name invoker{{ groups['invokers'].index(inventory_hostname) }}
         --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
         --restart {{ docker.restart.policy }}
-        -e JAVA_OPTS='-Xmx{{ invoker.heap }}'
+        -e JAVA_OPTS='-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log'
         -e INVOKER_OPTS='{{ invoker.arguments }}'
         -e COMPONENT_NAME='invoker{{ groups['invokers'].index(inventory_hostname) }}'
         -e PORT='8080'
