@@ -366,11 +366,13 @@ class NamespaceSpecificThrottleTests
       trigger.create(triggerName)
     }
 
+    val deployedControllers = WhiskProperties.getControllerHosts.split(",").length
+
     // One invoke should be allowed, the second one throttled.
     // Due to the current implementation of the rate throttling,
     // it is possible that the counter gets deleted, because the minute switches.
     retry({
-      val results = (1 to 2).map { _ =>
+      val results = (1 to deployedControllers + 1).map { _ =>
         wsk.action.invoke(actionName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
@@ -383,7 +385,7 @@ class NamespaceSpecificThrottleTests
     // Due to the current implementation of the rate throttling,
     // it is possible, that the counter gets deleted, because the minute switches.
     retry({
-      val results = (1 to 2).map { _ =>
+      val results = (1 to deployedControllers + 1).map { _ =>
         wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
