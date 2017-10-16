@@ -145,7 +145,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   it should "reject create with missing file" in {
     val name = "notfound"
     wsk.action.create("missingFile", Some(name), expectedExitCode = MISUSE_EXIT).stderr should include(
-      s"The file '$name' does not exist")
+      s"File '$name' is not a valid file or it does not exist")
   }
 
   it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -882,10 +882,10 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     }
 
     wsk.action.get(seqName, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
-      "Cannot save action sequence")
+      "Cannot save action sequences")
 
     wsk.action.get(seqName, saveAs = Some(seqName), expectedExitCode = MISUSE_EXIT).stderr should include(
-      "Cannot save action sequence")
+      "Cannot save action sequences")
   }
 
   behavior of "Wsk packages"
@@ -1424,8 +1424,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   it should "reject commands that are executed with a missing or invalid parameter or annotation file" in {
     val emptyFile = TestUtils.getTestActionFilename("emtpy.js")
     val missingFile = "notafile"
-    val emptyFileMsg = s"The file '$emptyFile' does not exist"
-    val missingFileMsg = s"The file '$missingFile' does not exist"
+    val emptyFileMsg = s"File '$emptyFile' is not a valid file or it does not exist"
+    val missingFileMsg = s"File '$missingFile' is not a valid file or it does not exist"
     val invalidArgs = Seq(
       (
         Seq("action", "create", "actionName", TestUtils.getTestActionFilename("hello.js"), "-P", emptyFile),

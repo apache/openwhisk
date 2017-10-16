@@ -541,21 +541,19 @@ func getKindExtension(kind string) (extension string){
 
 func saveCode(action whisk.Action, filename string) (err error) {
     var code string
-    var kind string
+    var runtime string
     var exec whisk.Exec
 
     exec = *action.Exec
-    kind = strings.Split(exec.Kind, ":")[0]
+    runtime = strings.Split(exec.Kind, ":")[0]
 
-    if strings.ToLower(kind) == BLACKBOX {
+    if strings.ToLower(runtime) == BLACKBOX {
         return cannotSaveImageError()
-    } else if strings.ToLower(kind) == SEQUENCE {
+    } else if strings.ToLower(runtime) == SEQUENCE {
         return cannotSaveSequenceError()
     }
 
-    if exec.Code == nil {
-        code = ""
-    } else {
+    if exec.Code != nil {
         code = *exec.Code
     }
 
@@ -564,11 +562,11 @@ func saveCode(action whisk.Action, filename string) (err error) {
         code = string(decoded)
 
         if len(filename) == 0 {
-            filename = action.Name + getBinaryKindExtension(kind)
+            filename = action.Name + getBinaryKindExtension(runtime)
         }
     } else {
         if len(filename) == 0 {
-            filename = action.Name + getKindExtension(kind)
+            filename = action.Name + getKindExtension(runtime)
         }
     }
 
@@ -584,6 +582,7 @@ func saveCode(action whisk.Action, filename string) (err error) {
 
     pwd, err := os.Getwd()
     if err != nil {
+        whisk.Debug(whisk.DbgError, "os.Getwd() error: %s\n", err)
         return err
     }
 
@@ -873,7 +872,7 @@ func cannotSaveImageError() (error) {
 }
 
 func cannotSaveSequenceError() (error) {
-    return nonNestedError(wski18n.T("Cannot save action sequence"))
+    return nonNestedError(wski18n.T("Cannot save action sequences"))
 }
 
 func fileExistsError(file string) (error) {

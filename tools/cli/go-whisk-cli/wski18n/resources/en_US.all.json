@@ -732,8 +732,8 @@
     "translation": "shared"
   },
   {
-    "id": "The file '{{.name}}' does not exist",
-    "translation": "The file '{{.name}}' does not exist"
+    "id": "File '{{.name}}' is not a valid file or it does not exist",
+    "translation": "File '{{.name}}' is not a valid file or it does not exist"
   },
   {
     "id": "Error creating unGzip file '{{.name}}': {{.err}}",
@@ -1548,8 +1548,8 @@
     "translation": "Cannot save Docker images"
   },
   {
-    "id": "Cannot save action sequence",
-    "translation": "Cannot save action sequence"
+    "id": "Cannot save action sequences",
+    "translation": "Cannot save action sequences"
   },
   {
     "id": "Cannot create file '{{.name}}': {{.err}}",
