@@ -31,7 +31,7 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
-      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
+      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
 
