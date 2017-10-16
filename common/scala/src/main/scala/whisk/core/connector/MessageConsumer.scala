@@ -207,7 +207,7 @@ class MessageFeed(description: String,
     val occupancy = outstandingMessages.size
     if (occupancy > 0 && handlerCapacity > 0) {
       // Easiest way with an immutable queue to cleanly dequeue
-      // Head is the first elemeent of the queue, desugared w/ a assignment pattern
+      // Head is the first elemeent of the queue, desugared w/ an assignment pattern
       // Tail is everything but the first element, thus mutating the collection variable
       val (topic, partition, offset, bytes) = outstandingMessages.head
       outstandingMessages = outstandingMessages.tail

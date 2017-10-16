@@ -116,8 +116,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
       freePool = freePool + (sender() -> data)
-      busyPool = busyPool - sender()
-      busyPool.foreach { _ =>
+      busyPool.get(sender()).foreach { _=>
+        busyPool = busyPool - sender()
         feed ! MessageFeed.Processed
       }
 
@@ -128,8 +128,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // Container got removed
     case ContainerRemoved =>
       freePool = freePool - sender()
-      busyPool = busyPool - sender()
-      busyPool.foreach { _ =>
+      busyPool.get(sender()).foreach { _=>
+        busyPool = busyPool - sender()
         feed ! MessageFeed.Processed
       }
   }
