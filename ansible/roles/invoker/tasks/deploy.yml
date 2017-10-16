@@ -53,6 +53,14 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: check, that required databases exist
+  include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
+  vars:
+    dbName: "{{ item }}"
+  with_items:
+  - "{{ db.whisk.actions }}"
+  - "{{ db.whisk.activations }}"
+
 - name: define options when deploying invoker on Ubuntu
   set_fact:
     linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
