@@ -94,9 +94,11 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
 
       println(s"Done rerquests with responses: invoke: ${invokeExit.futureValue} and get: ${getExit.futureValue}")
 
-      // Do at most one action invocation per second to avoid getting 429s. (60 req/min - limit)
-      val wait = 1000 - (Instant.now.toEpochMilli - start.toEpochMilli)
-      Thread.sleep(if (wait < 0) 0L else if (wait > 1000) 1000L else wait)
+      // Do at most one action invocation per 2 seconds to avoid getting 429s. (30 req/min - half of the limit for
+      // when one controller is down)
+      val period = WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt * 1000
+      val wait = period - (Instant.now.toEpochMilli - start.toEpochMilli)
+      Thread.sleep(if (wait < 0) 0L else if (wait > period) period.toLong else wait)
       (invokeExit.futureValue, getExit.futureValue)
     }
   }

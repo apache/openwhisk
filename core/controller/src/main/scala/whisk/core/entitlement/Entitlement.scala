@@ -65,7 +65,9 @@ protected[core] object EntitlementProvider {
     WhiskConfig.actionInvokePerMinuteLimit -> null,
     WhiskConfig.actionInvokeConcurrentLimit -> null,
     WhiskConfig.triggerFirePerMinuteLimit -> null,
-    WhiskConfig.actionInvokeSystemOverloadLimit -> null)
+    WhiskConfig.actionInvokeSystemOverloadLimit -> null,
+    WhiskConfig.controllerInstances -> null,
+    WhiskConfig.controllerHighAvailability -> null)
 }
 
 /**
@@ -78,10 +80,23 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
   private implicit val executionContext = actorSystem.dispatcher
 
+  /**
+   * The number of controllers if HA is enabled, 1 otherwise
+   */
+  private val diviser = {
+    if (config.controllerHighAvailability)
+      config.controllerInstances.toInt
+    else
+      1
+  }
   private val invokeRateThrottler =
-    new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt, _.limits.invocationsPerMinute)
+    new RateThrottler(
+      "actions per minute",
+      config.actionInvokePerMinuteLimit.toInt,
+      _.limits.invocationsPerMinute,
+      diviser)
   private val triggerRateThrottler =
-    new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute)
+    new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute, diviser)
   private val concurrentInvokeThrottler = new ActivationThrottler(
     loadBalancer,
     config.actionInvokeConcurrentLimit.toInt,
