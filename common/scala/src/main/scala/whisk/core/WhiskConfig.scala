@@ -64,6 +64,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
     if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
   val invokerNumCore = this(WhiskConfig.invokerNumCore)
   val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
+  val invokerUseRunc = this.getAsBoolean(WhiskConfig.invokerUseRunc, true)
 
   val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(
     WhiskConfig.wskApiPort)
@@ -188,6 +189,7 @@ object WhiskConfig {
   val invokerContainerDns = "invoker.container.dns"
   val invokerNumCore = "invoker.numcore"
   val invokerCoreShare = "invoker.coreshare"
+  val invokerUseRunc = "invoker.use.runc"
 
   val wskApiProtocol = "whisk.api.host.proto"
   val wskApiPort = "whisk.api.host.port"

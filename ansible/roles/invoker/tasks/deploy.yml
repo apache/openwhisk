@@ -139,6 +139,7 @@
         -e INVOKER_CONTAINER_DNS='{{ invoker_container_network_dns_servers | default()}}'
         -e INVOKER_NUMCORE='{{ invoker.numcore }}'
         -e INVOKER_CORESHARE='{{ invoker.coreshare }}'
+        -e INVOKER_USE_RUNC='{{ invoker.useRunc }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc

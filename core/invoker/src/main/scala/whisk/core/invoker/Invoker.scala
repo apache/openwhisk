@@ -54,7 +54,8 @@ object Invoker {
       invokerCoreShare -> "2",
       invokerContainerPolicy -> "",
       invokerContainerDns -> "",
-      invokerContainerNetwork -> null)
+      invokerContainerNetwork -> null,
+      invokerUseRunc -> "true")
 
   def main(args: Array[String]): Unit = {
     require(args.length == 1, "invoker instance required")
