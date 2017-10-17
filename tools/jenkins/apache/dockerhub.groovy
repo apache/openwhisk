@@ -12,7 +12,7 @@ node('xenial&&!H21&&!H22&&!H11&&!ubuntu-eu3') {
       withCredentials([usernamePassword(credentialsId: 'openwhisk_dockerhub', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USER')]) {
           sh 'docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}'
       }
-      def PUSH_CMD = "./gradlew distDocker -PdockerRegistry=docker.io -PdockerImagePrefix=openwhisk -x tests:dat:blackbox:badproxy:distDocker -x tests:dat:blackbox:badaction:distDocker -x sdk:docker:distDocker -x tools:cli:distDocker -x tools:cli:distDocker -x core:php7.1Action:distDocker"
+      def PUSH_CMD = "./gradlew distDocker -PdockerRegistry=docker.io -PdockerImagePrefix=openwhisk -x tests:dat:blackbox:badproxy:distDocker -x tests:dat:blackbox:badaction:distDocker -x sdk:docker:distDocker -x tools:cli:distDocker -x tools:cli:distDocker"
       def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
       def shortCommit = gitCommit.take(7)
       sh "${PUSH_CMD} -PdockerImageTag=latest"
