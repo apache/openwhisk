@@ -28,6 +28,15 @@ import scala.collection.mutable
  *     func.calls should have size 1
  *     func.calls.head shouldBe (1, 2)
  */
+class LoggedFunction1[A1, B](body: A1 => B) extends Function1[A1, B] {
+  val calls = mutable.Buffer[A1]()
+
+  override def apply(v1: A1): B = {
+    calls += (v1)
+    body(v1)
+  }
+}
+
 class LoggedFunction2[A1, A2, B](body: (A1, A2) => B) extends Function2[A1, A2, B] {
   val calls = mutable.Buffer[(A1, A2)]()
 
@@ -65,6 +74,7 @@ class LoggedFunction5[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) ex
 }
 
 object LoggedFunction {
+  def apply[A1, B](body: (A1) => B) = new LoggedFunction1(body)
   def apply[A1, A2, B](body: (A1, A2) => B) = new LoggedFunction2(body)
   def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3(body)
   def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4(body)

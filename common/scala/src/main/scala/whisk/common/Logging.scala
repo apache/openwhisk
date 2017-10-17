@@ -233,6 +233,7 @@ object LoggingMarkers {
   val DATABASE_CACHE_HIT = LogMarkerToken(database, "cacheHit", count)
   val DATABASE_CACHE_MISS = LogMarkerToken(database, "cacheMiss", count)
   val DATABASE_SAVE = LogMarkerToken(database, "saveDocument", start)
+  val DATABASE_BULK_SAVE = LogMarkerToken(database, "saveDocumentBulk", start)
   val DATABASE_DELETE = LogMarkerToken(database, "deleteDocument", start)
   val DATABASE_GET = LogMarkerToken(database, "getDocument", start)
   val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)
