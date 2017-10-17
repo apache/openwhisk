@@ -206,6 +206,14 @@ trait DbUtils extends TransactionCounter {
   }
 
   /**
+   * Deletes document by id and revision from datastore.
+   */
+  def delete(db: ArtifactStore[_], docinfo: DocInfo)(implicit transid: TransactionId,
+                                                     timeout: Duration = 10 seconds) = {
+    Await.result(db.del(docinfo), timeout)
+  }
+
+  /**
    * Puts a document 'entity' into the datastore, then do a get to retrieve it and confirm the identity.
    */
   def putGetCheck[A, Au >: A](db: ArtifactStore[Au], entity: A, factory: DocumentFactory[A], gc: Boolean = true)(

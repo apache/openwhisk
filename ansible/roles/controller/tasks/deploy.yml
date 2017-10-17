@@ -16,6 +16,15 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: check, that required databases exist
+  include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
+  vars:
+    dbName: "{{ item }}"
+  with_items:
+  - "{{ db.whisk.actions }}"
+  - "{{ db.whisk.auth }}"
+  - "{{ db.whisk.activations }}"
+
 - name: create seed nodes list
   set_fact:
     seed_nodes_list: "{{ seed_nodes_list | default([]) }} + [ \"{{item.1}}:{{controller.akka.cluster.basePort+item.0}}\" ]"
@@ -31,7 +40,7 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
-      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
+      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
 

@@ -57,7 +57,7 @@ trait Container {
   protected implicit val ec: ExecutionContext
 
   /** HTTP connection to the container, will be lazily established by callContainer */
-  private var httpConnection: Option[HttpUtils] = None
+  protected var httpConnection: Option[HttpUtils] = None
 
   /** Stops the container from consuming CPU cycles. */
   def suspend()(implicit transid: TransactionId): Future[Unit]
@@ -147,10 +147,8 @@ trait Container {
    * @param timeout timeout of the request
    * @param retry whether or not to retry the request
    */
-  protected def callContainer(path: String,
-                              body: JsObject,
-                              timeout: FiniteDuration,
-                              retry: Boolean = false): Future[RunResult] = {
+  protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false)(
+    implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
       val conn = new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)

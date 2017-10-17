@@ -38,6 +38,7 @@ import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.headers.`Content-Type`
+import akka.http.scaladsl.model.headers.`Timeout-Access`
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.FormData
@@ -108,7 +109,12 @@ private case class Context(propertyMap: WebApiDirectives,
   def metadata(user: Option[Identity]): Map[String, JsValue] = {
     Map(
       propertyMap.method -> method.value.toLowerCase.toJson,
-      propertyMap.headers -> headers.map(h => h.lowercaseName -> h.value).toMap.toJson,
+      propertyMap.headers -> headers
+        .collect {
+          case h if h.name != `Timeout-Access`.name => h.lowercaseName -> h.value
+        }
+        .toMap
+        .toJson,
       propertyMap.path -> path.toJson) ++
       user.map(u => propertyMap.namespace -> u.namespace.asString.toJson)
   }

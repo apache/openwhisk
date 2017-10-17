@@ -75,15 +75,16 @@ class DockerContainerTests
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     retryCount: Int = 0)(implicit docker: DockerApiWithFileAccess, runc: RuncApi): DockerContainer = {
 
-    new DockerContainer(id, addr) {
-      override protected def callContainer(path: String,
-                                           body: JsObject,
-                                           timeout: FiniteDuration,
-                                           retry: Boolean = false): Future[RunResult] = {
+    new DockerContainer(id, addr, true) {
+      override protected def callContainer(
+        path: String,
+        body: JsObject,
+        timeout: FiniteDuration,
+        retry: Boolean = false)(implicit transid: TransactionId): Future[RunResult] = {
         ccRes
       }
-      override protected val logsRetryCount = retryCount
-      override protected val logsRetryWait = 0.milliseconds
+      override protected val waitForLogs = retryCount.milliseconds
+      override protected val filePollInterval = 1.millisecond
     }
   }
 
@@ -254,12 +255,12 @@ class DockerContainerTests
   /*
    * DOCKER COMMANDS
    */
-  it should "halt and resume container via runc" in {
+  it should "pause and resume container via runc" in {
     implicit val docker = stub[DockerApiWithFileAccess]
     implicit val runc = stub[RuncApi]
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerAddress("ip"))
+    val container = new DockerContainer(id, ContainerAddress("ip"), true)
 
     container.suspend()
     container.resume()
@@ -268,12 +269,26 @@ class DockerContainerTests
     (runc.resume(_: ContainerId)(_: TransactionId)).verify(id, transid)
   }
 
+  it should "pause and unpause container via docker" in {
+    implicit val docker = stub[DockerApiWithFileAccess]
+    implicit val runc = stub[RuncApi]
+
+    val id = ContainerId("id")
+    val container = new DockerContainer(id, ContainerAddress("ip"), false)
+
+    container.suspend()
+    container.resume()
+
+    (docker.pause(_: ContainerId)(_: TransactionId)).verify(id, transid)
+    (docker.unpause(_: ContainerId)(_: TransactionId)).verify(id, transid)
+  }
+
   it should "destroy a container via Docker" in {
     implicit val docker = stub[DockerApiWithFileAccess]
     implicit val runc = stub[RuncApi]
 
     val id = ContainerId("id")
-    val container = new DockerContainer(id, ContainerAddress("ip"))
+    val container = new DockerContainer(id, ContainerAddress("ip"), true)
 
     container.destroy()
 
@@ -679,6 +694,8 @@ class DockerContainerTests
       pulls += image
       Future.successful(())
     }
+
+    override def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] = ???
 
     def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = {
       rawContainerLogsInvocations += ((containerId, fromPos))

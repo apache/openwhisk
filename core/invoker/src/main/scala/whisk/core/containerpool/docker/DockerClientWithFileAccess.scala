@@ -130,6 +130,11 @@ class DockerClientWithFileAccess(
     }
   }
 
+  override def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
+    configFileContents(containerConfigFile(id))
+      .map(_.fields("State").asJsObject.fields("OOMKilled").convertTo[Boolean])
+      .recover { case _ => false }
+
   // See extended trait for description
   def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = Future {
     blocking { // Needed due to synchronous file operations

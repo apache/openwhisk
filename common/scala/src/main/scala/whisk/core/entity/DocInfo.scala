@@ -24,6 +24,7 @@ import spray.json.RootJsonFormat
 import spray.json.JsNull
 import spray.json.JsString
 import spray.json.deserializationError
+import spray.json.DefaultJsonProtocol
 
 /**
  * A DocId is the document id === primary key in the datastore.
@@ -126,7 +127,7 @@ protected[core] object DocRevision {
   }
 }
 
-protected[core] object DocInfo {
+protected[core] object DocInfo extends DefaultJsonProtocol {
 
   /**
    * Creates a DocInfo with id set to the argument and no revision.
@@ -147,4 +148,6 @@ protected[core] object DocInfo {
    */
   @throws[IllegalArgumentException]
   protected[core] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
+
+  implicit val serdes = jsonFormat2(DocInfo.apply)
 }

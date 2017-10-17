@@ -1,6 +1,8 @@
-# Requirements for controller clustering
+This page documents configuration options that should be considered when deploying OpenWhisk. Some deployment options require special treatment wrt to the underlying infrastructure/deployment model. Please carefully read about the constraints before you decide to enable them.
 
-This page describes requirements related to the introduction of akka clustering in Controller. There are cases where its usage requires special treatment wrt to the underlying infrastructure/deployment model. Please carefully read it before you decide to enable it.
+# Controller Clustering
+
+The system can be configured to use Akka clustering to manage the distributed state of the Contoller's load balancing algorithm.  This imposes the following constriaints on a deployment
 
 
 ## Controller nodes must have static IPs/Port combination.
@@ -14,3 +16,13 @@ How to down the members.
 
 Link to akka clustering documentation:
 https://doc.akka.io/docs/akka/2.5.4/scala/cluster-usage.html
+
+# Invoker use of docker-runc
+
+To improve performance, Invokers attempt to maintain warm containers for frequently executed actions. To optimize resource usage, the action containers are paused/unpaused between invocations.  The system can be configured to use either docker-runc or docker to perform the pause/unpause operations by setting the value of the environment variable INVOKER_USE_RUNC to true or false respectively. If not set, it will default to true (use docker-runc).
+
+Using docker-runc obtains significantly better performance, but requires that the version of docker-runc within the invoker container is an exact version match to the docker-runc of the host environment.  Failure to get an exact version match will results in error messages like:
+```
+2017-09-29T20:15:54.551Z] [ERROR] [#sid_102] [RuncClient] code: 1, stdout: , stderr: json: cannot unmarshal object into Go value of type []string [marker:invoker_runc.pause_error:6830148:259]
+```
+When a docker-runc operations results in an error, the container will be killed by the invoker.  This results in missed opportunities for container reuse and poor performance.  Setting INVOKER_USE_RUNC to false can be used as a workaround until proper usage of docker-runc can be configured for the deployment.

@@ -169,7 +169,9 @@ class SequenceActionApiMigrationTests
 
     // update an action sequence
     Put(s"$collectionPath/${seqName}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+      deleteAction(seqAction.docid)
       status should be(OK)
+
       val response = responseAs[WhiskAction]
       response.exec.kind should be(Exec.SEQUENCE)
       response.limits should be(seqAction.limits)

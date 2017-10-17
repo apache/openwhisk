@@ -21,6 +21,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Failure
 
+import com.redis.RedisClient
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
@@ -48,18 +50,18 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
+      redisHost ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
       invokerCoreShare -> "2",
       invokerContainerPolicy -> "",
       invokerContainerDns -> "",
-      invokerContainerNetwork -> null)
+      invokerContainerNetwork -> null,
+      invokerUseRunc -> "true") ++
+      Map(invokerName -> null)
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 1, "invoker instance required")
-    val invokerInstance = InstanceId(args(0).toInt)
-
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
@@ -85,6 +87,41 @@ object Invoker {
       abort()
     }
 
+    val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
+    val assignedInvokerId = proposedInvokerId
+      .map { id =>
+        logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
+        id
+      }
+      .getOrElse {
+        val invokerName = config.invokerName
+        val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
+        val assignedId = redisClient
+          .hget("controller:registar:idAssignments", invokerName)
+          .map { oldId =>
+            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned its previous invokerId ${oldId}")
+            oldId.toInt
+          }
+          .getOrElse {
+            // If key not present, incr initializes to 0 before applying increment.
+            // Convert from 1-based to 0-based invokerIds by subtracting 1 from incr's result
+            val newId = redisClient
+              .incr("controller:registrar:nextInvokerId")
+              .map { id =>
+                id.toInt - 1
+              }
+              .getOrElse {
+                logger.error(this, "Failed to increment invokerId")
+                abort()
+              }
+            redisClient.hset("controller:registar:idAssignments", invokerName, newId)
+            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
+            newId
+          }
+        redisClient.quit
+        assignedId
+      }
+    val invokerInstance = InstanceId(assignedInvokerId);
     val msgProvider = SpiLoader.get[MessagingProvider]
     val producer = msgProvider.getProducer(config, ec)
     val invoker = new InvokerReactive(config, invokerInstance, producer)

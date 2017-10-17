@@ -70,6 +70,7 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
           rr.stderr should include("not authorized")
           rr
         }
+
         assetHelper.withCleaner(wsk.action, "unauthorized sequence", confirmDelete = false) { (action, name) =>
           val rr = action.create(
             name,
@@ -271,16 +272,17 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
   it should "not allow invoke an action sequence with more than one component from package after entitlement change" in withAssetCleaner(
     guestWskProps) { (guestwp, assetHelper) =>
     val privateSamplePackage = samplePackage + "prv"
-    assetHelper.withCleaner(wsk.pkg, samplePackage) { (pkg, _) =>
-      pkg.create(samplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
-      pkg.create(privateSamplePackage, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
+    Seq(samplePackage, privateSamplePackage).foreach { n =>
+      assetHelper.withCleaner(wsk.pkg, n) { (pkg, _) =>
+        pkg.create(n, parameters = Map("a" -> "A".toJson), shared = Some(true))(guestwp)
+      }
     }
 
-    assetHelper.withCleaner(wsk.action, fullSampleActionName) {
+    Seq(fullSampleActionName, s"$privateSamplePackage/$sampleAction").foreach { a =>
       val file = Some(TestUtils.getTestActionFilename("hello.js"))
-      (action, _) =>
-        action.create(fullSampleActionName, file)(guestwp)
-        action.create(s"$privateSamplePackage/$sampleAction", file)(guestwp)
+      assetHelper.withCleaner(wsk.action, a) { (action, _) =>
+        action.create(a, file)(guestwp)
+      }
     }
 
     withAssetCleaner(defaultWskProps) { (dwp, assetHelper) =>

@@ -49,7 +49,7 @@ import whisk.core.entity.size.SizeLong
  * determined why that is.
  *
  * @param hostname the host name
- * @param timeoutMsec the timeout in msecs to wait for a response
+ * @param timeout the timeout in msecs to wait for a response
  * @param maxResponse the maximum size in bytes the connection will accept
  */
 protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxResponse: ByteSize) {
@@ -68,7 +68,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
    * @param retry whether or not to retry on connection failure
    * @return Left(Error Message) or Right(Status Code, Response as UTF-8 String)
    */
-  def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
+  def post(endpoint: String, body: JsValue, retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
     val entity = new StringEntity(body.compactPrint, StandardCharsets.UTF_8)
     entity.setContentType("application/json")
 
@@ -81,7 +81,7 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
 
   private def execute(request: HttpRequestBase,
                       timeoutMsec: Integer,
-                      retry: Boolean): Either[ContainerConnectionError, ContainerResponse] = {
+                      retry: Boolean): Either[ContainerHttpError, ContainerResponse] = {
     Try(connection.execute(request)).map { response =>
       val containerResponse = Option(response.getEntity)
         .map { entity =>

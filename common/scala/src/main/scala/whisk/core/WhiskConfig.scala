@@ -64,6 +64,8 @@ class WhiskConfig(requiredProperties: Map[String, String],
     if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
   val invokerNumCore = this(WhiskConfig.invokerNumCore)
   val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
+  val invokerUseRunc = this.getAsBoolean(WhiskConfig.invokerUseRunc, true)
+  val invokerName = this(WhiskConfig.invokerName)
 
   val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(
     WhiskConfig.wskApiPort)
@@ -73,6 +75,8 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
   val kafkaHost = this(WhiskConfig.kafkaHostName) + ":" + this(WhiskConfig.kafkaHostPort)
+  val redisHostName = this(WhiskConfig.redisHostName)
+  val redisHostPort = this(WhiskConfig.redisHostPort)
 
   val edgeHostName = this(WhiskConfig.edgeHostName)
 
@@ -188,6 +192,8 @@ object WhiskConfig {
   val invokerContainerDns = "invoker.container.dns"
   val invokerNumCore = "invoker.numcore"
   val invokerCoreShare = "invoker.coreshare"
+  val invokerUseRunc = "invoker.use.runc"
+  val invokerName = "invoker.name"
 
   val wskApiProtocol = "whisk.api.host.proto"
   val wskApiPort = "whisk.api.host.port"
@@ -203,9 +209,11 @@ object WhiskConfig {
 
   val kafkaHostName = "kafka.host"
   private val zookeeperHostName = "zookeeper.host"
+  val redisHostName = "redis.host"
 
   private val edgeHostApiPort = "edge.host.apiport"
   val kafkaHostPort = "kafka.host.port"
+  val redisHostPort = "redis.host.port"
   private val zookeeperHostPort = "zookeeper.host.port"
 
   val invokerHostsList = "invoker.hosts"
@@ -213,6 +221,7 @@ object WhiskConfig {
   val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
   val invokerHosts = Map(invokerHostsList -> null)
   val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
+  val redisHost = Map(redisHostName -> null, redisHostPort -> null)
 
   val runtimesManifest = "runtimes.manifest"
 

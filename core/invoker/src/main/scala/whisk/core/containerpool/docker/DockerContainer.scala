@@ -18,8 +18,10 @@
 package whisk.core.containerpool.docker
 
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 
 import akka.actor.ActorSystem
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -27,11 +29,8 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.containerpool.BlackboxStartupError
-import whisk.core.containerpool.Container
-import whisk.core.containerpool.ContainerId
-import whisk.core.containerpool.ContainerAddress
-import whisk.core.containerpool.WhiskContainerStartupError
+import whisk.core.containerpool._
+import whisk.core.entity.ActivationResponse.{ConnectionError, MemoryExhausted}
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 
@@ -50,6 +49,7 @@ object DockerContainer {
    * @param network network to launch the container in
    * @param dnsServers list of dns servers to use in the container
    * @param name optional name for the container
+   * @param useRunc use docker-runc to pause/unpause container?
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
   def create(transid: TransactionId,
@@ -61,6 +61,7 @@ object DockerContainer {
              network: String = "bridge",
              dnsServers: Seq[String] = Seq(),
              name: Option[String] = None,
+             useRunc: Boolean = true,
              dockerRunParameters: Map[String, Set[String]])(implicit docker: DockerApiWithFileAccess,
                                                             runc: RuncApi,
                                                             as: ActorSystem,
@@ -106,7 +107,7 @@ object DockerContainer {
           docker.rm(id)
           Future.failed(WhiskContainerStartupError(s"Failed to obtain IP address of container '${id.asString}'."))
       }
-    } yield new DockerContainer(id, ip)
+    } yield new DockerContainer(id, ip, useRunc)
   }
 }
 
@@ -120,26 +121,78 @@ object DockerContainer {
  * @param id the id of the container
  * @param addr the ip of the container
  */
-class DockerContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
-  implicit docker: DockerApiWithFileAccess,
-  runc: RuncApi,
-  as: ActorSystem,
-  protected val ec: ExecutionContext,
-  protected val logging: Logging)
+class DockerContainer(protected val id: ContainerId,
+                      protected val addr: ContainerAddress,
+                      protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
+                                                      runc: RuncApi,
+                                                      as: ActorSystem,
+                                                      protected val ec: ExecutionContext,
+                                                      protected val logging: Logging)
     extends Container
     with DockerActionLogDriver {
 
   /** The last read-position in the log file */
   private var logFileOffset = 0L
 
-  protected val logsRetryCount = 15
-  protected val logsRetryWait = 100.millis
+  protected val waitForLogs: FiniteDuration = 2.seconds
+  protected val waitForOomState: FiniteDuration = 2.seconds
+  protected val filePollInterval: FiniteDuration = 100.milliseconds
 
-  def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
-  def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
+  def suspend()(implicit transid: TransactionId): Future[Unit] =
+    if (useRunc) { runc.pause(id) } else { docker.pause(id) }
+  def resume()(implicit transid: TransactionId): Future[Unit] =
+    if (useRunc) { runc.resume(id) } else { docker.unpause(id) }
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
     docker.rm(id)
+  }
+
+  /**
+   * Was the container killed due to memory exhaustion?
+   *
+   * Retries because as all docker state-relevant operations, they won't
+   * be reflected by the respective commands immediately but will take
+   * some time to be propagated.
+   *
+   * @param retries number of retries to make
+   * @return a Future indicating a memory exhaustion situation
+   */
+  private def isOomKilled(retries: Int = (waitForOomState / filePollInterval).toInt)(
+    implicit transid: TransactionId): Future[Boolean] = {
+    docker.isOomKilled(id)(TransactionId.invoker).flatMap { killed =>
+      if (killed) Future.successful(true)
+      else if (retries > 0) akka.pattern.after(filePollInterval, as.scheduler)(isOomKilled(retries - 1))
+      else Future.successful(false)
+    }
+  }
+
+  override protected def callContainer(path: String, body: JsObject, timeout: FiniteDuration, retry: Boolean = false)(
+    implicit transid: TransactionId): Future[RunResult] = {
+    val started = Instant.now()
+    val http = httpConnection.getOrElse {
+      val conn = new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)
+      httpConnection = Some(conn)
+      conn
+    }
+    Future {
+      http.post(path, body, retry)
+    }.flatMap { response =>
+      val finished = Instant.now()
+
+      response.left
+        .map {
+          // Only check for memory exhaustion if there was a
+          // terminal connection error.
+          case error: ConnectionError =>
+            isOomKilled().map {
+              case true  => MemoryExhausted()
+              case false => error
+            }
+          case other => Future.successful(other)
+        }
+        .fold(_.map(Left(_)), right => Future.successful(Right(right)))
+        .map(res => RunResult(Interval(started, finished), res))
+    }
   }
 
   /**
@@ -176,7 +229,7 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
 
           if (retries > 0 && !isComplete && !isTruncated) {
             logging.info(this, s"log cursor advanced but missing sentinel, trying $retries more times")
-            akka.pattern.after(logsRetryWait, as.scheduler)(readLogs(retries - 1))
+            akka.pattern.after(filePollInterval, as.scheduler)(readLogs(retries - 1))
           } else {
             logFileOffset += rawLogBytes.position - rawLogBytes.arrayOffset
             Future.successful(formattedLogs)
@@ -188,7 +241,7 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
         }
     }
 
-    readLogs(logsRetryCount)
+    readLogs((waitForLogs / filePollInterval).toInt)
   }
 
 }
