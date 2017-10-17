@@ -52,13 +52,17 @@ public class JarLoader extends URLClassLoader {
         return destinationPath;
     }
 
-    public JarLoader(Path jarPath, String mainClassName)
+    public JarLoader(Path jarPath, String entrypoint)
             throws MalformedURLException, ClassNotFoundException, NoSuchMethodException, SecurityException {
         super(new URL[] { jarPath.toUri().toURL() });
 
-        this.mainClass = loadClass(mainClassName);
+        final String[] splittedEntrypoint = entrypoint.split("#");
+        final String entrypointClassName = splittedEntrypoint[0];
+        final String entrypointMethodName = splittedEntrypoint.length > 1 ? splittedEntrypoint[1] : "main";
 
-        Method m = mainClass.getMethod("main", new Class[] { JsonObject.class });
+        this.mainClass = loadClass(entrypointClassName);
+
+        Method m = mainClass.getMethod(entrypointMethodName, new Class[] { JsonObject.class });
         m.setAccessible(true);
         int modifiers = m.getModifiers();
         if (m.getReturnType() != JsonObject.class || !Modifier.isStatic(modifiers) || !Modifier.isPublic(modifiers)) {
