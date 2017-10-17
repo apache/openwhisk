@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 import akka.actor.{ActorSystem, Props}
+import breeze.stats.DescriptiveStats
 import whisk.common.{AkkaLogging, Logging, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.connector.{ActivationMessage, CompletionMessage, MessageFeed, MessagingProvider}
@@ -33,7 +34,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 
 object ControllerSimulator {
-  def between(start: Instant, end: Instant): Duration =
+  def between(start: Instant, end: Instant): FiniteDuration =
     Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
 
   def main(args: Array[String]): Unit = {
@@ -46,7 +47,8 @@ object ControllerSimulator {
     val controllerToSimulate = InstanceId(sys.env.get("CONTROLLER_ID").map(_.toInt).getOrElse(0))
     val invokerToUse = InstanceId(sys.env.get("INVOKER_ID").map(_.toInt).getOrElse(0))
 
-    val actionCode = sys.env.getOrElse("ACTION_CODE", "function main() { return {}; }")
+    val actionCode =
+      sys.env.getOrElse("ACTION_CODE", "function main() { return new Promise(resolve => setTimeout(resolve, 200)); }")
 
     val topic = s"invoker${invokerToUse.toInt}"
 
@@ -61,7 +63,7 @@ object ControllerSimulator {
     val consumer = messaging.getConsumer(config, "completions", s"completed${controllerToSimulate.toInt}", 1000000)
 
     // Stores all invoked activations to track their completion.
-    val activations = TrieMap[ActivationId, Promise[Unit]]()
+    val activations = TrieMap[ActivationId, (Promise[FiniteDuration], Instant)]()
 
     as.actorOf(Props {
       new MessageFeed(
@@ -73,7 +75,7 @@ object ControllerSimulator {
         bytes => {
           CompletionMessage.parse(new String(bytes, StandardCharsets.UTF_8)).foreach { msg =>
             val id = msg.response.fold(id => id, _.activationId)
-            activations.get(id).foreach(_.success(()))
+            activations.get(id).foreach { case (p, start) => p.success(between(start, Instant.now)) }
           }
           Future.successful(())
         })
@@ -126,11 +128,11 @@ object ControllerSimulator {
     val activationId = ActivationId()
     val firstSend =
       producer.send(topic, baseMessage.copy(transid = TransactionId(0), activationId = activationId)).andThen {
-        case _ => activations.put(activationId, Promise[Unit]())
+        case _ => activations.put(activationId, (Promise[FiniteDuration](), Instant.now))
       }
 
     Await.ready(firstSend, 10.minutes)
-    Await.ready(activations(activationId).future, 10.minutes)
+    Await.ready(activations(activationId)._1.future, 10.minutes)
 
     val begin = Instant.now
     log.info(this, s"sending $messageCount messages")
@@ -138,7 +140,7 @@ object ControllerSimulator {
     val sends = (1 to messageCount).par.map { i =>
       val activationId = ActivationId()
       producer.send(topic, baseMessage.copy(transid = TransactionId(i), activationId = activationId)).andThen {
-        case _ => activations.put(activationId, Promise[Unit]())
+        case _ => activations.put(activationId, (Promise[FiniteDuration](), Instant.now))
       }
     }
 
@@ -148,16 +150,25 @@ object ControllerSimulator {
     log.info(this, "sending finished")
 
     // Await all activations
-    Await.ready(Future.sequence(activations.mapValues(_.future).values), 10.minutes)
+    val results = Await.result(Future.sequence(activations.mapValues(_._1.future).values), 10.minutes)
     val end = Instant.now
 
     log.info(this, "invocations finished, dumping report")
+
+    val millis = results.map(_.toMillis.toDouble)
 
     println("===== REPORT =====")
     println("")
     println(s"Took ${between(begin, end)}")
     println(s"Requests/sec: ${messageCount.toDouble / between(begin, end).toMillis * 1000} ")
     println("")
+    println("===== DISTRIBUTION/STATISTICS =====")
+    val percentiles = Seq(0.5, 0.75, 0.90, 0.99, 1)
+    percentiles.foreach(p => {
+      println(s"${(p * 100).toInt}th: ${DescriptiveStats.percentile(millis, p)}")
+    })
+    val stats = breeze.stats.meanAndVariance(millis)
+    println(stats)
     println("==================")
 
     producer.close()
