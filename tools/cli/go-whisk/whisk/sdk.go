@@ -39,7 +39,10 @@ type SdkRequest struct {
 
 // Install artifact {component = docker || swift || iOS}
 func (s *SdkService) Install(relFileUrl string) (*http.Response, error) {
-
+    err := s.client.LoadX509KeyPair()
+    if err != nil {
+        return nil, err
+    }
     baseURL := s.client.Config.BaseURL
     // Remove everything but the scheme, host, and port
     baseURL.Path, baseURL.RawQuery, baseURL.Fragment = "", "", ""

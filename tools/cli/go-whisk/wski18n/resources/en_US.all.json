@@ -122,5 +122,17 @@
   {
     "id": "The connection failed, or timed out. (HTTP status code {{.code}})",
     "translation": "The connection failed, or timed out. (HTTP status code {{.code}})"
+  },
+  {
+    "id": "Unable to load the X509 key pair due to the following reason: {{.err}}",
+    "translation": "Unable to load the X509 key pair due to the following reason: {{.err}}"
+  },
+  {
+    "id": "The Cert file is not configured. Please configure the missing Cert file.\n",
+    "translation": "The Cert file is not configured. Please configure the missing Cert file.\n"
+  },
+  {
+    "id": "The Key file is not configured. Please configure the missing Key file.\n",
+    "translation": "The Key file is not configured. Please configure the missing Key file.\n"
   }
 ]

@@ -38,6 +38,10 @@ type InfoService struct {
 
 func (s *InfoService) Get() (*Info, *http.Response, error) {
     // make a request to c.BaseURL / v1
+    err := s.client.LoadX509KeyPair()
+    if err != nil {
+        return nil, nil, err
+    }
     urlStr := fmt.Sprintf("%s/%s", s.client.BaseURL.String(), s.client.Config.Version)
     u, err := url.Parse(urlStr)
     if err != nil {
