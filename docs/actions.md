@@ -286,6 +286,26 @@ https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 action invocations using the REST interface, see
 [Using REST APIs with OpenWhisk](rest_api.md#actions).
 
+### Saving action code
+
+Code associated with an existing action can be fetched and saved locally. Saving can be performed on all actions except sequences and docker actions. When saving action code to file, the code will be saved in the current working directory, and the saved file path will be displayed.
+
+1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind will be used, or an extension of .zip will be used for action code that is a zip file.
+  ```
+  wsk action get actionName --save
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/actionName.js
+  ```
+
+2. Instead of allowing the CLI to determine the filename and extension  of the saved code, a custom filename and extension can be provided with the `--save-as` flag.
+  ```
+  wsk action get actionName --save-as codeFile.js
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
+  ```
+
 ### Creating asynchronous actions
 
 JavaScript functions that run asynchronously may need to return the activation result after the `main` function has returned. You can accomplish this by returning a Promise in your action.
