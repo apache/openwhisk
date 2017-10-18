@@ -43,7 +43,7 @@ limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
 kafka.host={{ groups["kafka"]|first }}
-redis.host={{ groups["redis"]|first }}
+redis.host={{ groups["redis"]|default([""])|first }}
 router.host={{ groups["edge"]|first }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
