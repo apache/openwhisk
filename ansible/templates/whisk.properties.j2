@@ -43,6 +43,7 @@ limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
 kafka.host={{ groups["kafka"]|first }}
+redis.host={{ groups["redis"]|default([""])|first }}
 router.host={{ groups["edge"]|first }}
 zookeeper.host={{ groups["kafka"]|first }}
 invoker.hosts={{ groups["invokers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
@@ -51,6 +52,7 @@ edge.host.apiport=443
 zookeeper.host.port={{ zookeeper.port }}
 kafka.host.port={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}
+redis.host.port={{ redis.port }}
 invoker.hosts.baseport={{ invoker.port }}
 
 controller.hosts={{ groups["controllers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
@@ -62,6 +64,7 @@ invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
 invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
+invoker.useRunc={{ invoker.useRunc }}
 invoker.instances={{ invoker.instances }}
 
 main.docker.endpoint={{ hostvars[groups["controllers"]|first].ansible_host }}:{{ docker.port }}

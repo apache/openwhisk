@@ -20,7 +20,6 @@ package whisk.core.database
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
@@ -34,6 +33,8 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskDocument
 import whisk.http.Messages
+
+import scala.util.{Failure, Success, Try}
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -85,9 +86,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
       e match {
         case Right(response) =>
           transid.finished(this, start, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'")
-          val id = response.fields("id").convertTo[String]
-          val rev = response.fields("rev").convertTo[String]
-          DocInfo ! (id, rev)
+          response.convertTo[DocInfo]
 
         case Left(StatusCodes.Conflict) =>
           transid.finished(this, start, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.")
@@ -100,6 +99,36 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
             start,
             s"[PUT] '$dbName' failed to put document: '${docinfoStr}'; http status: '${code}'",
             ErrorLevel)
+          throw new Exception("Unexpected http response code: " + code)
+      }
+    }
+
+    reportFailure(
+      f,
+      failure =>
+        transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+  }
+
+  override protected[database] def put(ds: Seq[DocumentAbstraction])(
+    implicit transid: TransactionId): Future[Seq[Either[DocumentConflictException, DocInfo]]] = {
+    val count = ds.size
+    val start = transid.started(this, LoggingMarkers.DATABASE_BULK_SAVE, s"'$dbName' saving $count documents")
+
+    val request: Future[Either[StatusCode, JsArray]] = client.putDocs(ds.map(_.toDocumentRecord))
+
+    val f = request.map {
+      _ match {
+        case Right(response) =>
+          transid.finished(this, start, s"'$dbName' completed $count documents")
+          response.convertTo[Seq[JsValue]].map { result =>
+            Try(result.convertTo[DocInfo]) match {
+              case Success(info) => Right(info)
+              case Failure(_)    => Left(DocumentConflictException("conflict on 'bulk_put'"))
+            }
+          }
+
+        case Left(code) =>
+          transid.failed(this, start, s"'$dbName' failed to put documents, http status: '${code}'", ErrorLevel)
           throw new Exception("Unexpected http response code: " + code)
       }
     }

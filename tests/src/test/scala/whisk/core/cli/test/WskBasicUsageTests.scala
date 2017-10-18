@@ -21,6 +21,7 @@ import java.time.Instant
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.Clock
+import java.io.File
 
 import scala.language.postfixOps
 import scala.concurrent.duration.Duration
@@ -142,8 +143,9 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "reject create with missing file" in {
-    wsk.action.create("missingFile", Some("notfound"), expectedExitCode = MISUSE_EXIT).stderr should include(
-      "not a valid file")
+    val name = "notfound"
+    wsk.action.create("missingFile", Some(name), expectedExitCode = MISUSE_EXIT).stderr should include(
+      s"File '$name' is not a valid file or it does not exist")
   }
 
   it should "reject action update when specified file is missing" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -809,6 +811,81 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     stdoutNoDesc should include regex (s"(?i)action /${namespace}/${actNameNoDesc}: ${descFromParamsResp} paramName1 and paramName2\\s*\\(parameters: paramName1, paramName2\\)")
     stdoutNoParams should include regex (s"(?i)action /${namespace}/${actNameNoParams}: ${desc}\\s*\\(parameters: none defined\\)")
     stdoutNoDescOrParams should include regex (s"(?i)action /${namespace}/${actNameNoDescOrParams}\\s*\\(parameters: none defined\\)")
+  }
+
+  it should "save action code to file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "saveAction"
+    val seqName = "seqName"
+    val dockerName = "dockerName"
+    val containerName = s"bogus${Random.alphanumeric.take(16).mkString.toLowerCase}"
+    val saveName = s"save-as-$name.js"
+    val badSaveName = s"bad-directory${File.separator}$saveName"
+
+    // Test for successful --save
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, defaultAction)
+    }
+
+    val saveMsg = wsk.action.get(name, save = Some(true)).stdout
+
+    saveMsg should include(s"saved action code to ")
+
+    val savePath = saveMsg.split("ok: saved action code to ")(1).trim()
+    val saveFile = new File(savePath);
+
+    try {
+      saveFile.exists shouldBe true
+
+      // Test for failure saving file when it already exist
+      wsk.action.get(name, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+        s"The file '$name.js' already exists")
+    } finally {
+      saveFile.delete()
+    }
+
+    // Test for successful --save-as
+    val saveAsMsg = wsk.action.get(name, saveAs = Some(saveName)).stdout
+
+    saveAsMsg should include(s"saved action code to ")
+
+    val saveAsPath = saveAsMsg.split("ok: saved action code to ")(1).trim()
+    val saveAsFile = new File(saveAsPath);
+
+    try {
+      saveAsFile.exists shouldBe true
+
+      // Test for failure saving file when it already exist
+      wsk.action.get(name, saveAs = Some(saveName), expectedExitCode = MISUSE_EXIT).stderr should include(
+        s"The file '$saveName' already exists")
+    } finally {
+      saveAsFile.delete()
+    }
+
+    // Test for failure when using an invalid filename
+    wsk.action.get(name, saveAs = Some(badSaveName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      s"Cannot create file '$badSaveName'")
+
+    // Test for failure saving Docker images
+    assetHelper.withCleaner(wsk.action, dockerName) { (action, _) =>
+      action.create(dockerName, None, docker = Some(containerName))
+    }
+
+    wsk.action.get(dockerName, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save Docker images")
+
+    wsk.action.get(dockerName, saveAs = Some(dockerName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save Docker images")
+
+    // Tes for failure saving sequences
+    assetHelper.withCleaner(wsk.action, seqName) { (action, _) =>
+      action.create(seqName, Some(name), kind = Some("sequence"))
+    }
+
+    wsk.action.get(seqName, save = Some(true), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save action sequences")
+
+    wsk.action.get(seqName, saveAs = Some(seqName), expectedExitCode = MISUSE_EXIT).stderr should include(
+      "Cannot save action sequences")
   }
 
   behavior of "Wsk packages"

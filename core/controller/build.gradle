@@ -21,4 +21,4 @@ tasks.withType(ScalaCompile) {
 }
 
 mainClassName = "whisk.core.controller.Controller"
-applicationDefaultJvmArgs = ["-XX:+CrashOnOutOfMemoryError", "-Djava.security.egd=file:/dev/./urandom"]
+applicationDefaultJvmArgs = ["-Djava.security.egd=file:/dev/./urandom"]

@@ -55,6 +55,17 @@ trait ArtifactStore[DocumentAbstraction] {
   protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo]
 
   /**
+   * Puts (saves) documents to database in bulk using a future.
+   * If the operation is successful, the future completes with DocId else an appropriate exception.
+   *
+   * @param ds the documents to put in the database
+   * @param transid the transaction id for logging
+   * @return a future that completes either with DocId
+   */
+  protected[database] def put(ds: Seq[DocumentAbstraction])(
+    implicit transid: TransactionId): Future[Seq[Either[DocumentConflictException, DocInfo]]]
+
+  /**
    * Deletes document from database using a future.
    * If the operation is successful, the future completes with true.
    *

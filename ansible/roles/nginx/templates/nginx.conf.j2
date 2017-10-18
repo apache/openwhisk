@@ -76,8 +76,12 @@ http {
             proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
         }
 
+        location /blackbox.tar.gz {
+            return 301 https://github.com/apache/incubator-openwhisk-runtime-docker/releases/download/sdk%400.1.0/blackbox-0.1.0.tar.gz;
+        }
+        # leaving this for a while for clients out there to update to the new endpoint
         location /blackbox-0.1.0.tar.gz {
-            root /etc/nginx;
+            return 301 /blackbox.tar.gz;
         }
 
         location /OpenWhiskIOSStarterApp.zip {

@@ -49,6 +49,7 @@ object DockerContainer {
    * @param network network to launch the container in
    * @param dnsServers list of dns servers to use in the container
    * @param name optional name for the container
+   * @param useRunc use docker-runc to pause/unpause container?
    * @return a Future which either completes with a DockerContainer or one of two specific failures
    */
   def create(transid: TransactionId,
@@ -60,6 +61,7 @@ object DockerContainer {
              network: String = "bridge",
              dnsServers: Seq[String] = Seq(),
              name: Option[String] = None,
+             useRunc: Boolean = true,
              dockerRunParameters: Map[String, Set[String]])(implicit docker: DockerApiWithFileAccess,
                                                             runc: RuncApi,
                                                             as: ActorSystem,
@@ -105,7 +107,7 @@ object DockerContainer {
           docker.rm(id)
           Future.failed(WhiskContainerStartupError(s"Failed to obtain IP address of container '${id.asString}'."))
       }
-    } yield new DockerContainer(id, ip)
+    } yield new DockerContainer(id, ip, useRunc)
   }
 }
 
@@ -119,12 +121,13 @@ object DockerContainer {
  * @param id the id of the container
  * @param addr the ip of the container
  */
-class DockerContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
-  implicit docker: DockerApiWithFileAccess,
-  runc: RuncApi,
-  as: ActorSystem,
-  protected val ec: ExecutionContext,
-  protected val logging: Logging)
+class DockerContainer(protected val id: ContainerId,
+                      protected val addr: ContainerAddress,
+                      protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
+                                                      runc: RuncApi,
+                                                      as: ActorSystem,
+                                                      protected val ec: ExecutionContext,
+                                                      protected val logging: Logging)
     extends Container
     with DockerActionLogDriver {
 
@@ -135,8 +138,10 @@ class DockerContainer(protected val id: ContainerId, protected val addr: Contain
   protected val waitForOomState: FiniteDuration = 2.seconds
   protected val filePollInterval: FiniteDuration = 100.milliseconds
 
-  def suspend()(implicit transid: TransactionId): Future[Unit] = runc.pause(id)
-  def resume()(implicit transid: TransactionId): Future[Unit] = runc.resume(id)
+  def suspend()(implicit transid: TransactionId): Future[Unit] =
+    if (useRunc) { runc.pause(id) } else { docker.pause(id) }
+  def resume()(implicit transid: TransactionId): Future[Unit] =
+    if (useRunc) { runc.resume(id) } else { docker.unpause(id) }
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
     docker.rm(id)

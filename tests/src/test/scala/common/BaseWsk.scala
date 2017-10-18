@@ -160,7 +160,9 @@ trait BaseListOrGetFromCollection extends FullyQualifiedNames {
           expectedExitCode: Int = SUCCESS_EXIT,
           summary: Boolean = false,
           fieldFilter: Option[String] = None,
-          url: Option[Boolean] = None)(implicit wp: WskProps): RunResult
+          url: Option[Boolean] = None,
+          save: Option[Boolean] = None,
+          saveAs: Option[String] = None)(implicit wp: WskProps): RunResult
 }
 
 trait BaseDeleteFromCollection extends FullyQualifiedNames {

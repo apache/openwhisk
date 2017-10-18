@@ -56,7 +56,7 @@ class CouchDbRestClientTests
 
   override implicit val patienceConfig = PatienceConfig(timeout = 10.seconds, interval = 0.5.seconds)
 
-  private def someId(prefix: String): String = s"${prefix}${Random.nextInt().abs.toInt}"
+  private def someId(prefix: String): String = s"${prefix}${Random.nextInt().abs}"
 
   val config = new WhiskConfig(
     Map(dbProvider -> null, dbProtocol -> null, dbUsername -> null, dbPassword -> null, dbHost -> null, dbPort -> null))
@@ -118,6 +118,49 @@ class CouchDbRestClientTests
         assert(JsObject(e2.right.get.fields.filter(_._1 == "winter")) === doc)
       }
     }
+  }
+
+  it should "successfully write documents in bulk" in {
+    val docs = (1 to 2).map(i => JsObject("_id" -> someId("bulk").toJson, "int" -> i.toJson))
+    client.putDocs(docs).futureValue shouldBe 'right
+
+    docs.foreach { doc =>
+      val dbDoc = retry[JsObject](
+        () =>
+          client
+            .getDoc(doc.fields("_id").convertTo[String])
+            .collect({
+              case Right(doc) => doc
+            }),
+        dbOpTimeout).get
+
+      JsObject(dbDoc.fields - "_rev") shouldBe doc
+    }
+  }
+
+  it should "bulk-write documents even if some of them fail" in {
+    val ids = (1 to 2).map(_ => someId("failedBulk"))
+    val docs = ids.map(id => JsObject("_id" -> id.toJson))
+
+    val (firstId, firstDoc) = ids.zip(docs).head
+    client.putDoc(firstId, firstDoc).futureValue shouldBe 'right
+
+    val bulkResult = client.putDocs(docs).futureValue
+    bulkResult shouldBe 'right
+    bulkResult.right.get.compactPrint should include("conflict")
+
+    // even though the bulk request contained a conflict, the other document was successfully written
+    val (secondId, secondDoc) = ids.zip(docs).last
+    val dbDoc = retry[JsObject](
+      () =>
+        client
+          .getDoc(secondId)
+          .collect({
+            case Right(doc) => doc
+          }),
+      dbOpTimeout).get
+
+    JsObject(dbDoc.fields - "_rev") shouldBe secondDoc
   }
 
   ignore /* it */ should "successfully access the DB despite transient connection failures" in {

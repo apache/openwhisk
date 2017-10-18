@@ -1,12 +1,15 @@
-## Custom setup for OpenWhisk using Vagrant
+# OpenWhisk on Vagrant
 
 The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows.
 
-*Requirements*
+## Requirements
 - Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.1.22)
 - Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 1.9.5)
 
+## Setup
+
 ### Clone the repository and change directory to `tools/vagrant`
+
 ```
 git clone --depth=1 https://github.com/apache/incubator-openwhisk.git openwhisk
 cd openwhisk/tools/vagrant
@@ -14,29 +17,31 @@ cd openwhisk/tools/vagrant
 
 ### Create a Vagrant VM
 
-#### Option 1: Create VM using CouchDB container
+#### Option A: Using the default local CouchDB container
 **Important** We advise that you use this method for development of OpenWhisk.
 
 ```
 # Configure with couchdb docker container running inside the VM
 ./hello
 ```
+#### Option B - Using a remote Database
 
-Follow instructions [tools/db/README.md](../db/README.md) on how to configure the remote DB for OpenWhisk.
+**Note:** Follow instructions [tools/db/README.md](../db/README.md) on how to configure the remote DB for OpenWhisk.
 
-#### Option 2: Create VM using a remote Cloudant DB
+##### Option B.1 - Setting a remote Cloudant DB
 ```
 # Provide credentials for cloudant database with admin permissions
 OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
 ```
 
-#### Option 3: Create VM using a remote CouchDB
+##### Option B.2 - Setting a remote CouchDB
+
 ```
 # Provide credentials for couchdb database with admin permissions
 OW_DB=couchdb OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy OW_DB_PROTOCOL=http OW_DB_HOST=1.2.3.4 OW_DB_PORT=5984 ./hello
 ```
 
-**Note** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
+**Note:** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
 For more information on data store configurations see [tools/db/README.md](../db/README.md).
 
 
@@ -101,7 +106,7 @@ vagrant ssh
 wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
 
-### Run OpenWhisk tests
+## Running OpenWhisk tests
 ```
 vagrant ssh
 cd ${OPENWHISK_HOME}
@@ -111,7 +116,7 @@ cd ${OPENWHISK_HOME}
 ./gradlew tests:test --tests system.basic.ConsoleTests
 ```
 
-### Build OpenWhisk
+## Building OpenWhisk
 Use gradle to build docker images from inside the VM, this is done automatically once at VM creation.
 ```
 vagrant ssh
@@ -119,10 +124,9 @@ cd ${OPENWHISK_HOME}
 ./gradlew distDocker
 ```
 
-### Safe Re-deploy (after VM restart)
+## Safe Re-deploy (after VM restart)
 
-If you restart the VM (e.g., `vagrant reload`), it may be necessary to refresh the OpenWhisk deployment. You can do this in a way that does not reload
-the data store container.
+If you restart the VM (e.g., `vagrant reload`), it may be necessary to refresh the OpenWhisk deployment. You can do this in a way that does not reload the data store container.
 
 ```
 vagrant ssh
@@ -165,7 +169,7 @@ Once deployed, several Docker containers will be running in your virtual machine
 You can check that containers are running by using the docker cli with the command `vagrant ssh -- docker ps`.
 
 
-### Adding OpenWhisk users (Optional)
+## Adding OpenWhisk users (Optional)
 
 An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `ansible/files/auth.guest`.
@@ -194,7 +198,7 @@ wskadmin user delete <subject> -ns <namespace>  # removes <subject> from <namesp
 wskadmin user delete <subject>                   # deletes <subject>
 ```
 
-### SSL certificate configuration (Optional)
+## SSL certificate configuration (Optional)
 
 OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows untrusted certificates via `-i` on the command line.
 The certificate is generated during setup and stored in `ansible/roles/nginx/files/openwhisk-cert.pem`.
@@ -202,8 +206,7 @@ The certificate is generated during setup and stored in `ansible/roles/nginx/fil
 Do not use these certificates in production: replace with your own and modify
 the configuration to use trusted certificates instead.
 
-
-### Misc
+## Misc commands
 ```
 # Suspend Vagrant VM when done having fun
   vagrant suspend
@@ -220,7 +223,7 @@ the configuration to use trusted certificates instead.
 ```
 **Tip**: Don't use `vagrant resume`. See [here](https://github.com/mitchellh/vagrant/issues/6787) for related issue.
 
-### Using Vagrant VM in GUI mode (Optional)
+## Using Vagrant VM in GUI mode (Optional)
 Create VM with Desktop GUI. The `username` and `password` are both set to `vagrant` by default.
 ```
   gui=true ./hello
