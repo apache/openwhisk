@@ -863,6 +863,10 @@ class is one that implements a static `main` method as described above. If the
 class is not in the default package, use the Java fully-qualified class name,
 e.g., `--main com.example.MyMain`.
 
+If needed you can also customize the method name of your Java action. This
+can be done by specifying the Java fully-qualified method name of your action,
+e.q., `--main com.example.MyMain#methodName`
+
 Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
 
 ```
