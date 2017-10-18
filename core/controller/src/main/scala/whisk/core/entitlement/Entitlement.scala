@@ -35,6 +35,8 @@ import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 import whisk.http.Messages._
 
 package object types {
@@ -56,6 +58,7 @@ protected[core] case class Resource(namespace: EntityPath,
                                     env: Option[Parameters] = None) {
   def parent = collection.path + EntityPath.PATHSEP + namespace
   def id = parent + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
+  def fqname = namespace + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
   override def toString = id
 }
 
@@ -221,7 +224,15 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
     } flatMap { isAuthorized =>
       if (isAuthorized) Future.successful({})
-      else Future.failed(RejectRequest(Forbidden))
+      else Future.failed(
+        RejectRequest(
+          Forbidden,
+          Some(ErrorResponse(
+            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(",")),  //FIXME Not sure
+            transid
+          ))
+        )
+      )
     }
   }
 
