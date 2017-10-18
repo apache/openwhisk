@@ -78,8 +78,7 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
     try {
       removeAllActionContainers()
     } catch {
-      case e @ (_: TimeoutException | _: InterruptedException) =>
-        logging.error(this, s"Failed to remove action containers: ${e.getMessage}")
+      case e: Exception => logging.error(this, s"Failed to remove action containers: ${e.getMessage}")
     }
   }
 
