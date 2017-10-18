@@ -119,7 +119,7 @@
         -e PORT='8080'
         -e KAFKA_HOST='{{ groups['kafka']|first }}'
         -e KAFKA_HOST_PORT='{{ kafka.port }}'
-        -e REDIS_HOST='{{ groups['redis'] | first }}'
+        -e REDIS_HOST='{{ groups['redis'] | default([""]) | first }}'
         -e REDIS_HOST_PORT='{{ redis.port }}'
         -e DB_PROTOCOL='{{ db_protocol }}'
         -e DB_PROVIDER='{{ db_provider }}'
