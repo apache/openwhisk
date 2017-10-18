@@ -112,8 +112,7 @@ object Invoker {
                 id.toInt - 1
               }
               .getOrElse {
-                logger.error(this, "Failed to increment invokerId")
-                abort()
+                abort("Failed to increment invokerId")
               }
             redisClient.hset("controller:registar:idAssignments", invokerName, newId)
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
