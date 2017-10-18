@@ -54,7 +54,7 @@ trait Document {
   protected[database] var _rev: String = null
 
   /** Gets the document id and revision as an instance of DocInfo. */
-  protected[database] def docinfo: DocInfo
+  protected[database] def docInfo: DocInfo
 
   /**
    * Checks if the document has a valid revision set, in which case
@@ -133,29 +133,29 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
    * and share common super types EntityRecord and WhiskEntity.
    *
    * @param db the datastore client to fetch entity from
-   * @param entity the entity to store
+   * @param doc the entity to store
    * @param transid the transaction id for logging
    * @param notifier an optional callback when cache changes
    * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
    */
-  def put[Wsuper >: W](db: ArtifactStore[Wsuper], entity: W)(
+  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
     Try {
       require(db != null, "db undefined")
-      require(entity != null, "entity undefined")
+      require(doc != null, "doc undefined")
     } map { _ =>
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val key = CacheKey(entity)
+      val key = CacheKey(doc)
 
-      cacheUpdate(entity, key, db.put(entity) map { docinfo =>
-        entity match {
+      cacheUpdate(doc, key, db.put(doc) map { docInfo =>
+        doc match {
           // if doc has a revision id, update it with new version
-          case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
+          case w: DocumentRevisionProvider => w.revision[W](docInfo.rev)
         }
-        docinfo
+        docInfo
       })
 
     } match {
@@ -166,29 +166,29 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
   def attach[Wsuper >: W](
     db: ArtifactStore[Wsuper],
-    entity: W,
-    doc: DocInfo,
+    doc: W,
+    docInfo: DocInfo,
     attachmentName: String,
     contentType: ContentType,
     bytes: InputStream)(implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
     Try {
       require(db != null, "db undefined")
-      require(entity != null, "entity undefined")
-      require(doc != null, "doc undefined")
+      require(doc != null, "entity undefined")
+      require(docInfo != null, "docInfo undefined")
     } map { _ =>
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val key = CacheKey(entity)
+      val key = CacheKey(doc)
       val src = StreamConverters.fromInputStream(() => bytes)
 
-      cacheUpdate(entity, key, db.attach(doc, attachmentName, contentType, src) map { docinfo =>
-        entity match {
+      cacheUpdate(doc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
+        doc match {
           // if doc has a revision id, update it with new version
-          case w: DocumentRevisionProvider => w.revision[W](docinfo.rev)
+          case w: DocumentRevisionProvider => w.revision[W](newDocInfo.rev)
         }
-        docinfo
+        docInfo
       })
     } match {
       case Success(f) => f
