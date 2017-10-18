@@ -513,8 +513,8 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     return exec, nil
 }
 
-func getBinaryKindExtension(kind string) (extension string){
-    switch strings.ToLower(kind) {
+func getBinaryKindExtension(runtime string) (extension string) {
+    switch strings.ToLower(runtime) {
     case JAVA:
         extension = JAVA_EXT
     default:
@@ -524,8 +524,8 @@ func getBinaryKindExtension(kind string) (extension string){
     return extension
 }
 
-func getKindExtension(kind string) (extension string){
-    switch strings.ToLower(kind) {
+func getKindExtension(runtime string) (extension string) {
+    switch strings.ToLower(runtime) {
     case NODE_JS:
         extension = NODE_JS_EXT
     case PYTHON:
@@ -533,7 +533,7 @@ func getKindExtension(kind string) (extension string){
     case SWIFT:
         fallthrough
     case PHP:
-        extension = "." + kind
+        extension = fmt.Sprintf(".%s", runtime)
     }
 
     return extension
