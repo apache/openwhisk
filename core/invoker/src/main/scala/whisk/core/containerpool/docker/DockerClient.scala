@@ -36,7 +36,7 @@ import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 
 object DockerContainerId {
-  def convertToContainerId(id: String): Try[ContainerId] = {
+  def parse(id: String): Try[ContainerId] = {
     val containerIdRegex = """^([0-9a-f]{64})$""".r
     id match {
       case containerIdRegex(_) => Success(ContainerId(id))
@@ -85,10 +85,10 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
         // Examples:
         // - Unrecognized option specified
         // - Not enough disk space
-        case pre @ (_: ProcessRunningException) if pre.exitCode == 125 =>
+        case pre: ProcessRunningException if pre.exitCode == 125 =>
           Future.failed(
             DockerContainerId
-              .convertToContainerId(pre.stdout)
+              .parse(pre.stdout)
               .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}"))
               .getOrElse(pre))
       }

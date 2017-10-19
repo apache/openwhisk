@@ -64,12 +64,12 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   behavior of "DockerContainerId"
 
   it should "convert a proper container ID" in {
-    DockerContainerId.convertToContainerId(id.asString) shouldBe Success(id)
+    DockerContainerId.parse(id.asString) shouldBe Success(id)
   }
 
   it should "reject improper container IDs with IllegalArgumentException" in {
     def verifyFailure(improperId: String) = {
-      val iae = the[IllegalArgumentException] thrownBy DockerContainerId.convertToContainerId(improperId).get
+      val iae = the[IllegalArgumentException] thrownBy DockerContainerId.parse(improperId).get
       iae.getMessage should include(improperId)
     }
 
