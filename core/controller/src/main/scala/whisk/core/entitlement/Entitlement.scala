@@ -214,9 +214,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       Future.failed(
         RejectRequest(
           Forbidden,
-          Some(ErrorResponse(Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))
-        )
-      )
+          Some(ErrorResponse(
+            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))))
     } else {
       Future.successful(false)
     }
@@ -233,9 +232,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         RejectRequest(
           Forbidden,
           Some(ErrorResponse(
-            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))
-        )
-      )
+            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))))
     }
   }
 
