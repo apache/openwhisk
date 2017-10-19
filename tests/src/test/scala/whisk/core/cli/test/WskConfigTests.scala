@@ -132,6 +132,21 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     }
   }
 
+  it should "show api build details secure mode" in {
+    val tmpProps = File.createTempFile("wskprops", ".tmp")
+    try {
+      val env = Map("WSK_CONFIG_FILE" -> tmpProps.getAbsolutePath())
+      wsk.cli(Seq("property", "set", "-i") ++ wskprops.overrides, env = env)
+      val rr = wsk.cli(Seq("property", "get", "--apibuild", "--apibuildno"), env = env)
+      rr.stderr should not include ("https:///api/v1: http: no Host in request URL")
+      rr.stdout should not include regex("Cannot determine API build")
+      rr.stdout should include regex ("""(?i)whisk API build\s+201.*""")
+      rr.stdout should include regex ("""(?i)whisk API build number\s+.*""")
+    } finally {
+      tmpProps.delete()
+    }
+  }
+
   it should "set apihost, auth, and namespace" in {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     try {
