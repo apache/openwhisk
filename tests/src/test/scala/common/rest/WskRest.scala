@@ -197,11 +197,10 @@ trait HasActivationRest extends HasActivation {
    * Extracts activation id from 'wsk action invoke' or 'wsk trigger invoke'
    */
   private def extractActivationIdFromInvoke(result: RestResult): Option[String] = {
-    Try {
-      val activationID =
-        if ((result.statusCode == OK) || (result.statusCode == Accepted)) result.getField("activationId") else ""
-      activationID
-    } toOption
+    if ((result.statusCode == OK) || (result.statusCode == Accepted))
+      Some(result.getField("activationId"))
+    else
+      None
   }
 }
 
@@ -411,9 +410,7 @@ class WskRestTrigger
     var bodyContent = JsObject("name" -> name.toJson, "namespace" -> s"$ns".toJson)
 
     if (!update) {
-      val published = shared map { s =>
-        s
-      } getOrElse false
+      val published = shared.getOrElse(false)
       bodyContent = JsObject(
         bodyContent.fields + ("publish" -> published.toJson,
         "parameters" -> params, "annotations" -> annos))
@@ -516,10 +513,7 @@ class WskRestRule
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val path = getNamePath(noun, name)
     val annos = convertMapIntoKeyValue(annotations)
-    val published = shared map { s =>
-      s
-    } getOrElse false
-
+    val published = shared.getOrElse(false)
     val bodyContent = JsObject(
       "trigger" -> fullEntityName(trigger).toJson,
       "action" -> fullEntityName(action).toJson,
@@ -867,9 +861,7 @@ class WskRestPackage
 
     val (params, annos) = this.getParamsAnnos(parameters, annotations, parameterFile, annotationFile)
     if (!update) {
-      val published = shared map { s =>
-        s
-      } getOrElse false
+      val published = shared.getOrElse(false)
       bodyContent = JsObject(
         bodyContent.fields + ("publish" -> published.toJson,
         "parameters" -> params, "annotations" -> annos))
