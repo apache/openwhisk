@@ -36,8 +36,10 @@ import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 
 object DockerContainerId {
+
+  val containerIdRegex = """^([0-9a-f]{64})$""".r
+
   def parse(id: String): Try[ContainerId] = {
-    val containerIdRegex = """^([0-9a-f]{64})$""".r
     id match {
       case containerIdRegex(_) => Success(ContainerId(id))
       case _                   => Failure(new IllegalArgumentException(s"Does not comply with Docker container ID format: ${id}"))
