@@ -116,7 +116,6 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
                     nameSort: Option[Boolean] = None,
                     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, name) = getNamespaceActionName(resolve(namespace))
-
     val pathToList = s"$basePath/namespaces/$ns/$noun"
     val entPath =
       if (name != "") Path(s"$pathToList/$name/")
@@ -275,8 +274,10 @@ class WskRestAction
             kindType = "php:default"
             code = FileUtils.readFileToString(new File(artifactFile))
           }
+          case _ =>
         }
       }
+      case None =>
     }
 
     kindType = docker map { d =>
@@ -293,7 +294,7 @@ class WskRestAction
             val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
             val resp = requestEntity(GET, actionPath)
             if (resp == None)
-              return new RestResult(NotFound, null)
+              return new RestResult(NotFound)
             else {
               val result = new RestResult(resp.status, getRespData(resp))
               params = JsArray(result.getFieldListJsObject("parameters"))
@@ -713,7 +714,7 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
         new RestResult(resp.status, getRespData(resp))
       }
       case None => {
-        new RestResult(NotFound, null)
+        new RestResult(NotFound)
       }
     }
     validateStatusCode(expectedExitCode, r.statusCode.intValue)
@@ -748,7 +749,7 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
 
   def waitForActivationConsole(totalWait: Duration = 30 seconds, sinceTime: Instant)(
     implicit wp: WskProps): RestResult = {
-    var result = new RestResult(NotFound, null)
+    var result = new RestResult(NotFound)
     Thread.sleep(totalWait.toMillis)
     listActivation(since = Some(sinceTime))(wp)
   }
@@ -762,7 +763,7 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
         new RestResult(resp.status, getRespData(resp))
       }
       case None => {
-        new RestResult(NotFound, null)
+        new RestResult(NotFound)
       }
     }
     validateStatusCode(expectedExitCode, r.statusCode.intValue)
@@ -778,7 +779,7 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
         new RestResult(resp.status, getRespData(resp))
       }
       case None => {
-        new RestResult(NotFound, null)
+        new RestResult(NotFound)
       }
     }
     validateStatusCode(expectedExitCode, r.statusCode.intValue)
@@ -803,7 +804,7 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
     implicit wp: WskProps): RestResult = {
     val entPath = Path(s"$basePath/namespaces")
     val resp = requestEntity(GET, entPath)
-    val result = if (resp == None) new RestResult(NotFound, null) else new RestResult(resp.status, getRespData(resp))
+    val result = if (resp == None) new RestResult(NotFound) else new RestResult(resp.status, getRespData(resp))
     validateStatusCode(expectedExitCode, result.statusCode.intValue)
     result
   }
@@ -994,7 +995,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
           expectedExitCode = expectedExitCode)(wp)
       }
       case None => {
-        new RestResult(NotFound, null)
+        new RestResult(NotFound)
       }
     }
     r
@@ -1141,7 +1142,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   def getExt(filePath: String)(implicit wp: WskProps) = {
     val sep = "."
     if (filePath.contains(sep)) filePath.substring(filePath.lastIndexOf(sep), filePath.length())
-    else null
+    else ""
   }
 
   def request(method: HttpMethod,
@@ -1384,7 +1385,7 @@ object RestResult {
   }
 }
 
-class RestResult(var statusCode: StatusCode, var respData: String)
+class RestResult(var statusCode: StatusCode, var respData: String = "")
     extends RunResult(
       RestResult.convertStausCodeToExitCode(statusCode),
       respData,
