@@ -708,8 +708,8 @@
     "translation": "parameter values in `KEY VALUE` format"
   },
   {
-    "id": "`FILE` containing parameter values in JSON format",
-    "translation": "`FILE` containing parameter values in JSON format"
+    "id": "`FILE` containing parameter values in JSON format, use '-' to read from stdin",
+    "translation": "`FILE` containing parameter values in JSON format, use '-' to read from stdin"
   },
   {
     "id": "Arguments must be comma separated, and must be quoted if they contain spaces.",
