@@ -82,7 +82,6 @@ trait BasicAuthorizedRouteProvider extends Directives {
             handleEntitlementFailure(RejectRequest(NotFound, Some(ErrorResponse(Messages.resourceDoesntExist(resource.fqname), transid))))
           case _ => handleEntitlementFailure(t)
         }
-        case _  => handleEntitlementFailure(t)
       }
     }
   }

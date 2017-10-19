@@ -211,7 +211,12 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       logging.info(
         this,
         s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
-      Future.failed(RejectRequest(Forbidden))
+      Future.failed(
+        RejectRequest(
+          Forbidden,
+          Some(ErrorResponse(Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))
+        )
+      )
     } else {
       Future.successful(false)
     }
@@ -228,9 +233,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         RejectRequest(
           Forbidden,
           Some(ErrorResponse(
-            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(",")),  //FIXME Not sure
-            transid
-          ))
+            Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))
         )
       )
     }
