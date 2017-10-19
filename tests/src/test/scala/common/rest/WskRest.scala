@@ -121,10 +121,10 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
     val entPath =
       if (name != "") Path(s"$pathToList/$name/")
       else Path(s"$pathToList")
-    val paramMap = Map[String, String]() ++ { Map("skip" -> "0".toString, "docs" -> true.toString) } ++ {
+    val paramMap = Map[String, String]() ++ { Map("skip" -> "0", "docs" -> true.toString) } ++ {
       limit map { l =>
         Map("limit" -> l.toString)
-      } getOrElse Map[String, String]("limit" -> "30".toString)
+      } getOrElse Map[String, String]("limit" -> "30")
     }
     val resp = requestEntity(GET, entPath, paramMap)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -214,7 +214,6 @@ class WskRestAction
     with BaseAction {
 
   override protected val noun = "actions"
-  override implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
 
   /**
    * Creates action. Parameters mirror those available in the REST.
@@ -245,38 +244,39 @@ class WskRestAction
     var exec = Map[String, JsValue]()
     var code = ""
     var kindType = ""
-
-    val (ext, artifactFile) = artifact map { a =>
-      (getExt(a), a)
-    } getOrElse (null, "")
-
-    ext match {
-      case ".jar" => {
-        kindType = "java:default"
-        val jar = FileUtils.readFileToByteArray(new File(artifactFile))
-        code = Base64.getEncoder.encodeToString(jar)
+    var artifactName = ""
+    artifact match {
+      case Some(artifactFile) => {
+        val ext = getExt(artifactFile)
+        artifactName = artifactFile
+        ext match {
+          case ".jar" => {
+            kindType = "java:default"
+            val jar = FileUtils.readFileToByteArray(new File(artifactFile))
+            code = Base64.getEncoder.encodeToString(jar)
+          }
+          case ".zip" => {
+            val zip = FileUtils.readFileToByteArray(new File(artifactFile))
+            code = Base64.getEncoder.encodeToString(zip)
+          }
+          case ".js" => {
+            kindType = "nodejs:default"
+            code = FileUtils.readFileToString(new File(artifactFile))
+          }
+          case ".py" => {
+            kindType = "python:default"
+            code = FileUtils.readFileToString(new File(artifactFile))
+          }
+          case ".swift" => {
+            kindType = "swift:default"
+            code = FileUtils.readFileToString(new File(artifactFile))
+          }
+          case ".php" => {
+            kindType = "php:default"
+            code = FileUtils.readFileToString(new File(artifactFile))
+          }
+        }
       }
-      case ".zip" => {
-        val zip = FileUtils.readFileToByteArray(new File(artifactFile))
-        code = Base64.getEncoder.encodeToString(zip)
-      }
-      case ".js" => {
-        kindType = "nodejs:default"
-        code = FileUtils.readFileToString(new File(artifactFile))
-      }
-      case ".py" => {
-        kindType = "python:default"
-        code = FileUtils.readFileToString(new File(artifactFile))
-      }
-      case ".swift" => {
-        kindType = "swift:default"
-        code = FileUtils.readFileToString(new File(artifactFile))
-      }
-      case ".php" => {
-        kindType = "php:default"
-        code = FileUtils.readFileToString(new File(artifactFile))
-      }
-      case _ =>
     }
 
     kindType = docker map { d =>
@@ -285,39 +285,35 @@ class WskRestAction
 
     var (params, annos) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, web = web)
 
-    val inputKindType = kind map { k =>
-      k
-    } getOrElse null
-
-    inputKindType match {
-      case null => {
-        exec = Map("code" -> code.toJson, "kind" -> kindType.toJson)
-      }
-      case "copy" => {
-        val actName = entityName(artifactFile)
-        val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
-        val resp = requestEntity(GET, actionPath)
-        if (resp == None)
-          return new RestResult(NotFound, null)
-        else {
-          val result = new RestResult(resp.status, getRespData(resp))
-          params = JsArray(result.getFieldListJsObject("parameters"))
-          annos = JsArray(result.getFieldListJsObject("annotations"))
-          exec = result.getFieldJsObject("exec").fields
+    kind match {
+      case Some(k) => {
+        k match {
+          case "copy" => {
+            val actName = entityName(artifactName)
+            val actionPath = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
+            val resp = requestEntity(GET, actionPath)
+            if (resp == None)
+              return new RestResult(NotFound, null)
+            else {
+              val result = new RestResult(resp.status, getRespData(resp))
+              params = JsArray(result.getFieldListJsObject("parameters"))
+              annos = JsArray(result.getFieldListJsObject("annotations"))
+              exec = result.getFieldJsObject("exec").fields
+            }
+          }
+          case "sequence" => {
+            val comps = convertIntoComponents(artifactName)
+            exec = Map("components" -> comps.toJson, "kind" -> k.toJson)
+          }
+          case "native" => {
+            exec = Map("code" -> code.toJson, "kind" -> "blackbox".toJson, "image" -> "openwhisk/dockerskeleton".toJson)
+          }
+          case _ => {
+            exec = Map("code" -> code.toJson, "kind" -> k.toJson)
+          }
         }
       }
-      case "sequence" => {
-        kindType = "sequence"
-        val comps = convertIntoComponents(artifactFile)
-        exec = Map("components" -> comps.toJson, "kind" -> kindType.toJson)
-      }
-      case "native" => {
-        exec = Map("code" -> code.toJson, "kind" -> "blackbox".toJson, "image" -> "openwhisk/dockerskeleton".toJson)
-      }
-      case _ => {
-        kindType = inputKindType
-        exec = Map("code" -> code.toJson, "kind" -> kindType.toJson)
-      }
+      case None => exec = Map("code" -> code.toJson, "kind" -> kindType.toJson)
     }
 
     exec = exec ++ {
@@ -333,8 +329,10 @@ class WskRestAction
     var bodyContent = Map("name" -> name.toJson, "namespace" -> namespace.toJson)
 
     if (update) {
-      if ((kind != None) && ((inputKindType == "sequence") || (inputKindType == "native"))) {
-        bodyContent = bodyContent ++ Map("exec" -> exec.toJson)
+      kind match {
+        case Some(k) if (k == "sequence" || k == "native") => {
+          bodyContent = bodyContent ++ Map("exec" -> exec.toJson)
+        }
       }
 
       bodyContent = bodyContent ++ {
@@ -437,17 +435,13 @@ class WskRestTrigger
       if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(bodyContent.toString))
       else requestEntity(PUT, path, body = Some(bodyContent.toString))
     val result = new RestResult(resp.status, getRespData(resp))
-
-    val feedInput = feed map { f =>
-      f
-    } getOrElse null
-
-    if ((feed == null) || (result.statusCode != OK)) {
+    if (result.statusCode != OK) {
       validateStatusCode(expectedExitCode, result.statusCode.intValue)
       result
-    } else {
+    }
+    val r = feed map { f =>
       // Invoke the feed
-      val (nsFeed, feedName) = this.getNamespaceActionName(feedInput)
+      val (nsFeed, feedName) = this.getNamespaceActionName(f)
       val path = Path(s"$basePath/namespaces/$nsFeed/actions/$feedName")
       val paramMap = Map("blocking" -> "true".toString, "result" -> "false".toString)
       var body: Map[String, JsValue] = Map(
@@ -464,7 +458,11 @@ class WskRestTrigger
       } else {
         result
       }
+    } getOrElse {
+      validateStatusCode(expectedExitCode, result.statusCode.intValue)
+      result
     }
+    r
   }
 
   /**
@@ -613,10 +611,10 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
                      docs: Boolean = true,
                      expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RestResult = {
     val entityPath = Path(s"${basePath}/namespaces/${wp.namespace}/$noun")
-    var paramMap = Map("skip" -> "0".toString, "docs" -> docs.toString) ++ {
+    var paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++ {
       limit map { l =>
         Map("limit" -> l.toString)
-      } getOrElse Map("limit" -> "30".toString)
+      } getOrElse Map("limit" -> "30")
     } ++ {
       filter map { f =>
         Map("limit" -> f.toString)
@@ -1113,7 +1111,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
     return rr
   }
 
-  def getApi(basepathOrApiName: String, params: Map[String, String] = null, expectedExitCode: Int = OK.intValue)(
+  def getApi(basepathOrApiName: String, params: Map[String, String] = Map(), expectedExitCode: Int = OK.intValue)(
     implicit wp: WskProps): RestResult = {
     val whiskUrl = Uri(s"http://${WhiskProperties.getBaseControllerHost()}:9001")
     val path = Path(s"/api/${wp.authKey.split(":")(0)}$basepathOrApiName/path")
@@ -1125,7 +1123,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
 
 class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFutures with WskActorSystem {
 
-  implicit val config = PatienceConfig(10 seconds, 0 milliseconds)
+  implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
   val whiskRestUrl = Uri(s"http://${WhiskProperties.getBaseControllerAddress()}")
   val basePath = Path("/api/v1")
