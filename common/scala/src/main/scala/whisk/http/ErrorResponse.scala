@@ -79,7 +79,8 @@ object Messages {
 
   /** Standard message when supplied authkey is not authorized for an operation. */
   val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."
-  def notAuthorizedtoAccessResource(value: String) = s"The supplied authentication is not authorized to access '$value'."
+  def notAuthorizedtoAccessResource(value: String) =
+    s"The supplied authentication is not authorized to access '$value'."
 
   /** Standard error message for malformed fully qualified entity names. */
   val malformedFullyQualifiedEntityName =

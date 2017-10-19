@@ -74,15 +74,21 @@ trait BasicAuthorizedRouteProvider extends Directives {
 
     onComplete(entitlementProvider.check(user, right, resource)) {
       case Success(_) => dispatchOp(user, right, resource)
-      case Failure(t) => t match {
-        case (r: RejectRequest) => r.code match {
-          case Forbidden =>
-            handleEntitlementFailure(RejectRequest(Forbidden, Some(ErrorResponse(Messages.notAuthorizedtoAccessResource(resource.fqname), transid))))
-          case NotFound =>
-            handleEntitlementFailure(RejectRequest(NotFound, Some(ErrorResponse(Messages.resourceDoesntExist(resource.fqname), transid))))
-          case _ => handleEntitlementFailure(t)
+      case Failure(t) =>
+        t match {
+          case (r: RejectRequest) =>
+            r.code match {
+              case Forbidden =>
+                handleEntitlementFailure(
+                  RejectRequest(
+                    Forbidden,
+                    Some(ErrorResponse(Messages.notAuthorizedtoAccessResource(resource.fqname), transid))))
+              case NotFound =>
+                handleEntitlementFailure(
+                  RejectRequest(NotFound, Some(ErrorResponse(Messages.resourceDoesntExist(resource.fqname), transid))))
+              case _ => handleEntitlementFailure(t)
+            }
         }
-      }
     }
   }
 

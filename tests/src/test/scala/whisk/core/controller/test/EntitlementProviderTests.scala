@@ -84,7 +84,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
         Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       } else {
         Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
+          RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       }
       Await.ready(entitlementProvider.check(guestUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
         RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
