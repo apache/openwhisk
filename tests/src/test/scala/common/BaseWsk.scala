@@ -204,6 +204,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              shared: Option[Boolean] = None,
              update: Boolean = false,
              web: Option[String] = None,
+             stdinFile: Option[File] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def invoke(name: String,
@@ -211,6 +212,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              parameterFile: Option[String] = None,
              blocking: Boolean = false,
              result: Boolean = false,
+             stdinFile: Option[File] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 }
 
@@ -223,6 +225,7 @@ trait BasePackage extends BaseRunWsk with BaseDeleteFromCollection with BaseList
              annotationFile: Option[String] = None,
              shared: Option[Boolean] = None,
              update: Boolean = false,
+             stdinFile: Option[File] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def bind(provider: String,
@@ -242,6 +245,7 @@ trait BaseTrigger extends BaseRunWsk with BaseDeleteFromCollection with BaseList
              feed: Option[String] = None,
              shared: Option[Boolean] = None,
              update: Boolean = false,
+             stdinFile: Option[File] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def fire(name: String,
