@@ -500,15 +500,14 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       run.stdout.parseJson shouldBe args.toJson
   }
 
-  it should "invoke an action successfully with file parameters" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "invokeResult"
-      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
-      }
-      val paramFile = Some(TestUtils.getTestActionFilename("validInput2.json"))
-      val run = wsk.action.invoke(name, blocking = true, result = true, parameterFile = paramFile)
-      run.stdout.parseJson shouldBe Map("payload" -> "test".toJson).toJson
+  it should "invoke an action successfully with file parameters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "invokeResult"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+    }
+    val paramFile = Some(TestUtils.getTestActionFilename("validInput2.json"))
+    val run = wsk.action.invoke(name, blocking = true, result = true, parameterFile = paramFile)
+    run.stdout.parseJson shouldBe Map("payload" -> "test".toJson).toJson
   }
 
   it should "invoke an action successfully with parameters passed via stdin" in withAssetCleaner(wskprops) {
@@ -518,7 +517,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
         action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
       }
       val paramFile = Some(new File(TestUtils.getTestActionFilename("validInput2.json")))
-      val run = wsk.action.invoke(name, blocking = true, result = true, parameterFile = Some("-"), stdinFile = paramFile)
+      val run =
+        wsk.action.invoke(name, blocking = true, result = true, parameterFile = Some("-"), stdinFile = paramFile)
       run.stdout.parseJson shouldBe Map("payload" -> "test".toJson).toJson
   }
 
