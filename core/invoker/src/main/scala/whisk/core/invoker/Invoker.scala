@@ -50,7 +50,7 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
-      redisHost ++
+      Map(redisHostName -> "", redisHostPort -> "") ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
@@ -94,6 +94,12 @@ object Invoker {
         id
       }
       .getOrElse {
+        if (config.redisHostName.trim.isEmpty || config.redisHostPort.trim.isEmpty) {
+          logger.error(
+            this,
+            s"Must provide valid Redis host and port to use dynamicId assignment (${config.redisHostName}:${config.redisHostPort})")
+          abort()
+        }
         val invokerName = config.invokerName
         val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
         val assignedId = redisClient
