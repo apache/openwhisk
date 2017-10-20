@@ -206,8 +206,8 @@ For the `whisk.error()` you can return a rejected Promise (i.e. Promise.reject).
 
 ### JavaScript runtime environments
 
-JavaScript actions are executed by default in a Node.js version 6.9.1 environment.  The 6.9.1 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
-The following packages are available to be used in the Node.js 6.9.1 environment:
+JavaScript actions are executed by default in a Node.js version 6.11.4 environment.  The 6.11.4 environment will also be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
+The following packages are available to be used in the Node.js 6.11.4 environment:
 
 - [apn v2.1.2](https://www.npmjs.com/package/apn) - A Node.js module for interfacing with the Apple Push Notification service.
 - [async v2.1.4](https://www.npmjs.com/package/async) - Provides functions for working with asynchronous functions.
