@@ -115,7 +115,7 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
                     limit: Option[Int] = None,
                     nameSort: Option[Boolean] = None,
                     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, name) = getNamespaceActionName(resolve(namespace))
+    val (ns, name) = getNamespaceEntityName(resolve(namespace))
     val pathToList = s"$basePath/namespaces/$ns/$noun"
     val entPath =
       if (name != "") Path(s"$pathToList/$name/")
@@ -145,7 +145,7 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
                    url: Option[Boolean] = None,
                    save: Option[Boolean] = None,
                    saveAs: Option[String] = None)(implicit wp: WskProps): RestResult = {
-    val (ns, entity) = getNamespaceActionName(name)
+    val (ns, entity) = getNamespaceEntityName(name)
     val entPath = Path(s"$basePath/namespaces/$ns/$noun/$entity")
     val resp = requestEntity(GET, entPath)(wp)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -165,7 +165,7 @@ trait DeleteFromCollectionRest extends BaseDeleteFromCollection {
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
   override def delete(entity: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, entityName) = getNamespaceActionName(entity)
+    val (ns, entityName) = getNamespaceEntityName(entity)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$entityName")
     val resp = requestEntity(DELETE, path)(wp)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -238,7 +238,7 @@ class WskRestAction
     web: Option[String] = None,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
-    val (namespace, actName) = getNamespaceActionName(name)
+    val (namespace, actName) = getNamespaceEntityName(name)
     var exec = Map[String, JsValue]()
     var code = ""
     var kindType = ""
@@ -404,7 +404,7 @@ class WskRestTrigger
                       update: Boolean = false,
                       expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
-    val (ns, triggerName) = this.getNamespaceActionName(name)
+    val (ns, triggerName) = this.getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$triggerName")
     val (params, annos) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, feed)
     var bodyContent = JsObject("name" -> name.toJson, "namespace" -> s"$ns".toJson)
@@ -439,9 +439,9 @@ class WskRestTrigger
     }
     val r = feed map { f =>
       // Invoke the feed
-      val (nsFeed, feedName) = this.getNamespaceActionName(f)
+      val (nsFeed, feedName) = this.getNamespaceEntityName(f)
       val path = Path(s"$basePath/namespaces/$nsFeed/actions/$feedName")
-      val paramMap = Map("blocking" -> "true".toString, "result" -> "false".toString)
+      val paramMap = Map("blocking" -> "true", "result" -> "false")
       var body: Map[String, JsValue] = Map(
         "lifecycleEvent" -> "CREATE".toJson,
         "triggerName" -> s"/$ns/$triggerName".toJson,
@@ -813,7 +813,7 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
   override def get(namespace: Option[String] = None,
                    expectedExitCode: Int = OK.intValue,
                    nameSort: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val (ns, _) = namespace map { this.getNamespaceActionName(_) } getOrElse (wp.namespace, "")
+    val (ns, _) = namespace map { this.getNamespaceEntityName(_) } getOrElse (wp.namespace, "")
     val entPath = Path(s"$basePath/namespaces/$ns/")
     val resp = requestEntity(GET, entPath)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -904,7 +904,7 @@ class WskRestPackage
     val params = convertMapIntoKeyValue(parameters)
     val annos = convertMapIntoKeyValue(annotations)
 
-    val (ns, packageName) = this.getNamespaceActionName(provider)
+    val (ns, packageName) = this.getNamespaceEntityName(provider)
     val path = getNamePath(noun, name)
     val binding = JsObject("namespace" -> ns.toJson, "name" -> packageName.toJson)
     val bodyContent = JsObject("binding" -> binding.toJson, "parameters" -> params, "annotations" -> annos)
@@ -936,7 +936,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
                       cliCfgFile: Option[String] = None)(implicit wp: WskProps): RestResult = {
     val r = action match {
       case Some(action) => {
-        val (ns, actionName) = this.getNamespaceActionName(action)
+        val (ns, actionName) = this.getNamespaceEntityName(action)
         val actionUrl = s"https://${WhiskProperties.getBaseControllerHost()}$basePath/web/$ns/default/$actionName.http"
         val actionAuthKey = this.getAuthKey(wp)
         val testaction = Some(
@@ -1238,24 +1238,20 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     }
   }
 
-  def getNamespaceActionName(name: String)(implicit wp: WskProps): (String, String) = {
-    val seq = "/"
-    var ns = ""
-    var entityName = ""
-    if (name.startsWith(seq)) {
-      val eN = name.substring(1, name.length())
-      if (eN.contains(seq)) {
-        ns = eN.split(seq)(0)
-        entityName = eN.substring(eN.indexOf(seq) + 1, eN.length())
-      } else {
-        ns = eN
-      }
-    } else {
-      ns = wp.namespace
-      entityName = name
+  def getNamespaceEntityName(name: String)(implicit wp: WskProps): (String, String) = {
+    name.split("/") match {
+      // Example: /namespace/package_name/entity_name
+      case Array(empty, namespace, packageName, entityName) if empty.isEmpty => (namespace, s"$packageName/$entityName")
+      // Example: /namespace/entity_name
+      case Array(empty, namespace, entityName) if empty.isEmpty => (namespace, entityName)
+      // Example: namespace/package_name/entity_name
+      case Array(namespace, packageName, entityName) => (namespace, s"$packageName/$entityName")
+      // Example: package_name/entity_name
+      case Array(packageName, entityName) => (wp.namespace, s"$packageName/$entityName")
+      // Example: entity_name
+      case Array(entityName) => (wp.namespace, entityName)
+      case _                 => (wp.namespace, name)
     }
-
-    (ns, entityName)
   }
 
   def invokeAction(name: String,
@@ -1264,7 +1260,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
                    blocking: Boolean = false,
                    result: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, actName) = this.getNamespaceActionName(name)
+    val (ns, actName) = this.getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/actions/$actName")
     var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
