@@ -212,7 +212,7 @@ public class TestUtils {
         public final String stdout;
         public final String stderr;
 
-        private RunResult(int exitCode, String stdout, String stderr) {
+        protected RunResult(int exitCode, String stdout, String stderr) {
             this.exitCode = exitCode;
             this.stdout = stdout;
             this.stderr = stderr;
