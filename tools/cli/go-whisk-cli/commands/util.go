@@ -38,6 +38,7 @@ import (
     "sort"
     "reflect"
     "bytes"
+    "regexp"
 )
 
 func csvToQualifiedActions(artifacts string) ([]string) {
@@ -1015,6 +1016,9 @@ func ReadProps(path string) (map[string]string, error) {
 
     props = map[string]string{}
     for _, line := range lines {
+        re := regexp.MustCompile("#.*")
+        line = re.ReplaceAllString(line, "")
+        line = strings.TrimSpace(line)
         kv := strings.Split(line, "=")
         if len(kv) != 2 {
             // Invalid format; skip

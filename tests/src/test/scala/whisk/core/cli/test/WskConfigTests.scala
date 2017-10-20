@@ -132,6 +132,20 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     }
   }
 
+  it should "get apihost removing any trailing white spaces and line comments" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"APIHOST=http://localhost:10001    # This is a comment!   ")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stdout = wsk.cli(Seq("property", "get", "-i", "--apihost"), env = env).stdout
+      stdout should include regex ("whisk API host\\s+http://localhost:10001$")
+    } finally {
+      tmpwskprops.delete()
+    }
+  }
+
   it should "set apihost, auth, and namespace" in {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     try {
