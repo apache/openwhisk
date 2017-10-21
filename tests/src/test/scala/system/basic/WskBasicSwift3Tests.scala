@@ -32,39 +32,34 @@ import common.TestUtils.RunResult
 import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicSwift3Tests
-    extends TestHelpers
-    with WskTestHelpers
-    with JsHelpers {
+class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with JsHelpers {
 
-    implicit val wskprops = WskProps()
-    val wsk = new Wsk
-    val defaultAction = Some(TestUtils.getTestActionFilename("hello.swift"))
-    lazy val currentSwiftDefaultKind = "swift:3"
+  implicit val wskprops = WskProps()
+  val wsk = new Wsk
+  val defaultAction = Some(TestUtils.getTestActionFilename("hello.swift"))
+  lazy val currentSwiftDefaultKind = "swift:3"
 
-    behavior of "Swift runtime"
+  behavior of "Swift runtime"
 
-    it should "Ensure that Swift actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "niamSwiftAction"
-            val file = Some(TestUtils.getTestActionFilename("niam.swift"))
+  it should "Ensure that Swift actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "niamSwiftAction"
+      val file = Some(TestUtils.getTestActionFilename("niam.swift"))
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) =>
-                    action.create(name, file, main = Some("niam"))
-            }
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, main = Some("niam"))
+      }
 
-            withActivation(wsk.activation, wsk.action.invoke(name)) {
-                activation =>
-                    val response = activation.response
-                    response.result.get.fields.get("error") shouldBe empty
-                    response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
-            }
-    }
+      withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+        val response = activation.response
+        response.result.get.fields.get("error") shouldBe empty
+        response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
+      }
+  }
 
-    def convertRunResultToJsObject(result: RunResult): JsObject = {
-        val stdout = result.stdout
-        val firstNewline = stdout.indexOf("\n")
-        stdout.substring(firstNewline + 1).parseJson.asJsObject
-    }
+  def convertRunResultToJsObject(result: RunResult): JsObject = {
+    val stdout = result.stdout
+    val firstNewline = stdout.indexOf("\n")
+    stdout.substring(firstNewline + 1).parseJson.asJsObject
+  }
 }

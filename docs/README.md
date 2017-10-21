@@ -53,6 +53,7 @@ This programming model is a perfect match for microservices, mobile, IoT and man
 
 ## Programming model
 - [System details](./reference.md)
+- [Component clustering](./deploy.md)
 - [Catalog of OpenWhisk provided services](./catalog.md)
 - [Actions](./actions.md)
 - [Triggers and Rules](./triggers_rules.md)

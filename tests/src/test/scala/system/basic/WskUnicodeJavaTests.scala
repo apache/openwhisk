@@ -24,12 +24,9 @@ import common.JsHelpers
 import common.WskTestHelpers
 
 @RunWith(classOf[JUnitRunner])
-class WskUnicodeJavaTests
-    extends WskUnicodeTests
-    with WskTestHelpers
-    with JsHelpers {
+class WskUnicodeJavaTests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
-    override lazy val actionKind = "java"
-    override lazy val actionSource = "unicode.jar"
+  override lazy val actionKind = "java"
+  override lazy val actionSource = "unicode.jar"
 
 }

@@ -57,13 +57,18 @@ function main(message) {
     gwInfo.gwAuth = Buffer.from(message.gwUser+':'+message.gwPwd,'ascii').toString('base64');
   }
 
+  // Set the User-Agent header value
+  if (message.__ow_headers && message.__ow_headers['user-agent']) {
+    utils2.setSubUserAgent(message.__ow_headers['user-agent']);
+  }
+
   // Set namespace override if provided
   message.namespace = message.__ow_user || message.namespace;
 
   var tenantInstance = message.tenantInstance || 'openwhisk';
 
   // This can be invoked as either a web action or as a normal action
-  var calledAsWebAction = message.__ow_method != undefined;
+  var calledAsWebAction = message.__ow_method !== undefined;
 
   // Log parameter values
   console.log('GW URL        : '+message.gwUrl);
@@ -98,7 +103,7 @@ function main(message) {
     .then(function(endpointDocs) {
       console.log('Got '+endpointDocs.length+' APIs');
       if (endpointDocs.length === 0) {
-        console.log('No API found for namespace '+message.namespace + ' with basePath '+ message.basepath)
+        console.log('No API found for namespace '+message.namespace + ' with basePath '+ message.basepath);
         return Promise.reject('API \''+message.basepath+'\' does not exist.');
       } else if (endpointDocs.length > 1) {
         console.error('Multiple APIs found for namespace '+message.namespace+' with basepath/apiname '+message.basepath);

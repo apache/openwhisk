@@ -22,12 +22,28 @@ import (
     "fmt"
     "net/url"
     "reflect"
+    "strings"
 
     "github.com/fatih/color"
     "github.com/google/go-querystring/query"
     "github.com/hokaccha/go-prettyjson"
     "../wski18n"
 )
+
+// Sortable items are anything that needs to be sorted for listing purposes.
+type Sortable interface {
+    // Compare(sortable) compares an two sortables and returns true
+    //      if the item calling the Compare method is less than toBeCompared.
+    //      Sorts alphabetically by default, can have other parameters to sort by
+    //      passed by sortByName.
+    Compare(toBeCompared Sortable) (bool)
+}
+
+// Printable items are anything that need to be printed for listing purposes.
+type Printable interface {
+    ToHeaderString() string   // Prints header information of a Printable
+    ToSummaryRowString() string     // Prints summary info of one Printable
+}
 
 // addOptions adds the parameters in opt as URL query parameters to s.  opt
 // must be a struct whose fields may contain "url" tags.
@@ -38,7 +54,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"url.Parse(%s) error: %s\n", route, err)
         errStr := wski18n.T("Unable to parse URL '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -52,7 +68,7 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
         Debug(DbgError,"query.Values(%#v) error: %s\n", options, err)
         errStr := wski18n.T("Unable to process URL query options '{{.options}}': {{.err}}",
             map[string]interface{}{"options": fmt.Sprintf("%#v", options), "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -64,4 +80,27 @@ func addRouteOptions(route string, options interface{}) (*url.URL, error) {
 func PrintJSON(v interface{}) {
     output, _ := prettyjson.Marshal(v)
     fmt.Fprintln(color.Output, string(output))
+}
+
+func GetURLBase(host string, path string) (*url.URL, error)  {
+    if len(host) == 0 {
+        errMsg := wski18n.T("An API host must be provided.")
+        whiskErr := MakeWskError(errors.New(errMsg), EXIT_CODE_ERR_GENERAL,
+            DISPLAY_MSG, DISPLAY_USAGE)
+        return nil, whiskErr
+    }
+
+    if !strings.HasPrefix(host, "http") {
+        host = "https://" + host
+    }
+
+    urlBase := fmt.Sprintf("%s%s", host, path)
+    url, err := url.Parse(urlBase)
+
+    if len(url.Scheme) == 0 || len(url.Host) == 0 {
+        urlBase = fmt.Sprintf("https://%s%s", host, path)
+        url, err = url.Parse(urlBase)
+    }
+
+    return url, err
 }

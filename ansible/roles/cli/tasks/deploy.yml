@@ -5,6 +5,7 @@
   file:
     path: "{{ cli.nginxdir  }}"
     state: directory
+  become: "{{ cli.dir.become }}"
 
 - set_fact:
     cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
@@ -21,10 +22,6 @@
   with_items: "{{ cli_os }}"
 
 - name: "copy the local content.json from a local directory to Nginx directory"
-  copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
-  when: cli_installation_mode == "local"
-
-- name: "copy the binaries from a local directory to Nginx directory"
   copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
   when: cli_installation_mode == "local"
 

@@ -12,6 +12,7 @@ Learn how to create, invoke, and debug actions in your preferred development env
 * [Swift](#creating-swift-actions)
 * [Python](#creating-python-actions)
 * [Java](#creating-java-actions)
+* [PHP](#creating-php-actions)
 * [Docker](#creating-docker-actions)
 
 In addition, learn about:
@@ -483,12 +484,18 @@ Several utility actions are provided in a package called `/whisk.system/utils` t
   ```
   ```
   package /whisk.system/utils: Building blocks that format and assemble data
-   action /whisk.system/utils/head: Extract prefix of an array
-   action /whisk.system/utils/split: Split a string into an array
-   action /whisk.system/utils/sort: Sorts an array
-   action /whisk.system/utils/echo: Returns the input
-   action /whisk.system/utils/date: Current date and time
-   action /whisk.system/utils/cat: Concatenates input into a string
+   (parameters: none defined)
+     action /whisk.system/utils/namespace: Returns namespace for the authorization key used to invoke this action
+       (parameters: none defined)
+     action /whisk.system/utils/date: Current date and time
+       (parameters: none defined)
+     action /whisk.system/utils/sort: Sorts an array
+       (parameters: lines)
+     action /whisk.system/utils/split: Split a string into an array
+       (parameters: payload, separator)
+     action /whisk.system/utils/hosturl: Returns the URL to activation an action or trigger
+       (parameters: ext, path, trigger, web)
+     ...
   ```
 
   You will be using the `split` and `sort` actions in this example.
@@ -606,6 +613,65 @@ wsk action create helloPython --kind python:3 helloPython.zip
 ```
 
 While the steps above are shown for Python 3.6, you can do the same for Python 2.7 as well.
+
+
+## Creating PHP actions
+
+The process of creating PHP actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single PHP action, and adding parameters to that action.
+
+### Creating and invoking a PHP action
+
+An action is simply a top-level PHP function. For example, create a file called `hello.php` with the following source code:
+
+```php
+<?php
+function main(array $args) : array
+{
+    $name = $args["name"] ?? "stranger";
+    $greeting = "Hello $name!";
+    echo $greeting;
+    return ["greeting" => $greeting];
+}
+```
+
+PHP actions always consume an associative array and return an associative array. The entry method for the action is `main` by default but may be specified explicitly when creating the action with the `wsk` CLI using `--main`, as with any other action type.
+
+You can create an OpenWhisk action called `helloPHP` from this function as follows:
+
+```
+wsk action create helloPHP hello.php
+```
+
+The CLI automatically infers the type of the action from the source file extension. For `.php` source files, the action runs using a PHP 7.1 runtime. See the PHP [reference](./reference.md#php-actions) for more information.
+
+Action invocation is the same for PHP actions as it is for JavaScript actions:
+
+```
+wsk action invoke --result helloPHP --param name World
+```
+
+```json
+  {
+      "greeting": "Hello World!"
+  }
+```
+
+### Packaging PHP actions in zip files
+
+You can package a PHP action along with other files and dependent packages in a zip file.
+The filename of the source file containing the entry point (e.g., `main`) must be `index.php`.
+For example, to create an action that includes a second file called `helper.php`, first create an archive containing your source files:
+
+```bash
+zip -r helloPHP.zip index.php helper.php
+```
+
+and then create the action:
+
+```bash
+wsk action create helloPHP --kind php:7.1 helloPHP.zip
+```
+
 
 ## Creating Swift actions
 
@@ -797,6 +863,10 @@ class is one that implements a static `main` method as described above. If the
 class is not in the default package, use the Java fully-qualified class name,
 e.g., `--main com.example.MyMain`.
 
+If needed you can also customize the method name of your Java action. This
+can be done by specifying the Java fully-qualified method name of your action,
+e.q., `--main com.example.MyMain#methodName`
+
 Action invocation is the same for Java actions as it is for Swift and JavaScript actions:
 
 ```
@@ -962,13 +1032,37 @@ This command starts a polling loop that continuously checks for logs from activa
 
 ## Listing actions
 
-You can list all the actions that you have created using:
+You can list all the actions that you have created using `wsk action list`:
 
 ```
 wsk action list
+actions
+/guest/packageB/A                  private nodejs:6
+/guest/C                           private nodejs:6
+/guest/A                           private nodejs:6
+/guest/packageA/B                  private nodejs:6
+/guest/packageA/A                  private nodejs:6
+/guest/B                           private nodejs:6
 ```
 
-As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just the those within a specific pacakge, you can use:
+Here, we see actions listed in order from most to least recently updated. For easier browsing, you can use the flag `--name-sort` or `-n` to sort the list alphabetically:
+
+```
+wsk action list --name-sort
+actions
+/guest/A                           private nodejs:6
+/guest/B                           private nodejs:6
+/guest/C                           private nodejs:6
+/guest/packageA/A                  private nodejs:6
+/guest/packageA/B                  private nodejs:6
+/guest/packageB/A                  private nodejs:6
+```
+
+Notice that the list is now sorted alphabetically by namespace, then package name, and finally action name, with the default package (no specified package) listed at the top.
+
+**Note**: The printed list is sorted alphabetically after it is received from the server. Other list flags such as `--limit` and `--skip` will be applied to the block of actions before they are received for sorting. To list actions in order by creation time, use the flag `--time`.
+
+As you write more actions, this list gets longer and it can be helpful to group related actions into [packages](./packages.md). To filter your list of actions to just those within a specific package, you can use:
 
 ```
 wsk action list [PACKAGE NAME]

@@ -70,6 +70,22 @@ function main() {
 }
 ```
 
+Or sets multiple cookies:
+```javascript
+function main() {
+  return { 
+    headers: { 
+      'Set-Cookie': [
+        'UserID=Jane; Max-Age=3600; Version=',
+        'SessionID=asdfgh123456; Path = /'
+      ],
+      'Content-Type': 'text/html'
+    }, 
+    statusCode: 200,
+    body: '<html><body><h3>hello</h3></body></html>' }
+}
+```
+
 Or returns an `image/png`:
 ```javascript
 function main() {
@@ -86,10 +102,12 @@ function main(params) {
     return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: new Buffer(JSON.stringify(params)).toString('base64'),
+        body: params
     };
 }
 ```
+
+The default content-type for an HTTP response is `application/json` and the body may be any allowed JSON value. The default content-type may be omitted from the headers.
 
 It is important to be aware of the [response size limit](reference.md) for actions since a response that exceeds the predefined system limits will fail. Large objects should not be sent inline through OpenWhisk, but instead deferred to an object store, for example.
 
@@ -97,13 +115,13 @@ It is important to be aware of the [response size limit](reference.md) for actio
 
 An OpenWhisk action that is not a web action requires both authentication and must respond with a JSON object. In contrast, web actions may be invoked without authentication, and may be used to implement HTTP handlers that respond with _headers_, _statusCode_, and _body_ content of different types. The web action must still return a JSON object, but the OpenWhisk system (namely the `controller`) will treat a web action differently if its result includes one or more of the following as top level JSON properties:
 
-1. `headers`: a JSON object where the keys are header-names and the values are string values for those headers (default is no headers).
-2. `statusCode`: a valid HTTP status code (default is 200 OK).
-3. `body`: a string which is either plain text or a base64 encoded string for binary data (default is empty response).
+1. `headers`: a JSON object where the keys are header-names and the values are string, number, or boolean values for those headers (default is no headers). To send multiple values for a single header, the header's value should be a JSON array of values.
+2. `statusCode`: a valid HTTP status code (default is 200 OK if body is not empty otherwise 204 No Content).
+3. `body`: a string which is either plain text, JSON object or array, or a base64 encoded string for binary data (default is empty response).
 
-The controller will pass along the action-specified headers, if any, to the HTTP client when terminating the request/response. Similarly the controller will respond with the given status code when present. Lastly, the body is passed along as the body of the response. Unless a `content-type header` is declared in the action result’s `headers`, the body is passed along as is if it’s a string (or results in an error otherwise). When the `content-type` is defined, the controller will determine if the response is binary data or plain text and decode the string using a base64 decoder as needed. Should the body fail to decoded correctly, an error is returned to the caller.
+The `body` is considered empty if it is `null`, the empty string `""` or undefined.
 
-_Note_: A JSON object or array is treated as binary data and must be base64 encoded as shown in the example above.
+The controller will pass along the action-specified headers, if any, to the HTTP client when terminating the request/response. Similarly the controller will respond with the given status code when present. Lastly, the body is passed along as the body of the response. If a `content-type header` is not declared in the action result’s `headers`, the body is interpreted as `application/json` for non-string values, and `text/html` otherwise. When the `content-type` is defined, the controller will determine if the response is binary data or plain text and decode the string using a base64 decoder as needed. Should the body fail to decoded correctly, an error is returned to the caller.
 
 ## HTTP Context
 
@@ -113,7 +131,7 @@ All web actions, when invoked, receives additional HTTP request details as param
 2. `__ow_headers` (type: map string to string): A the request headers.
 3. `__ow_path` (type: string): the unmatched path of the request (matching stops after consuming the action extension).
 4. `__ow_user` (type: string): the namespace identifying the OpenWhisk authenticated subject
-5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary, or plain string otherwise
+5. `__ow_body` (type: string): the request body entity, as a base64 encoded string when content is binary or JSON object/array, or plain string otherwise
 6. `__ow_query` (type: string): the query parameters from the request as an unparsed string
 
 A request may not override any of the named `__ow_` parameters above; doing so will result in a failed request with status equal to 400 Bad Request.
@@ -293,7 +311,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H 
 }
 ```
 
-Notice in this case the JSON content is base64 encoded because it is treated as a binary value. The action must base64 decode and JSON parse this value to recover the JSON object. OpenWhisk uses the [Spray](https://github.com/spray/spray) framework to [determine](https://github.com/spray/spray/blob/master/spray-http/src/main/scala/spray/http/MediaType.scala#L282) which content types are binary and which are plain text.
+OpenWhisk uses the [Akka Http](http://doc.akka.io/docs/akka-http/current/scala/http/) framework to [determine](http://doc.akka.io/api/akka-http/10.0.4/akka/http/scaladsl/model/MediaTypes$.html) which content types are binary and which are plain text.
 
 
 ### Enabling raw HTTP handling
@@ -375,11 +393,13 @@ $ curl -k -H "content-type: application" -X POST -d "Decoded body" https://${API
 
 By default, an OPTIONS request made to a web action will result in CORS headers being automatically added to the
 response headers. These headers allow all origins and the options, get, delete, post, put, head, and patch HTTP verbs.
-The headers are shown below:
+In addition, the header `Access-Control-Request-Headers` is echoed back as the header `Access-Control-Allow-Headers`
+if it is present in the HTTP request. Otherwise, a default value is generated as shown below.
 
 ```
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: OPTIONS, GET, DELETE, POST, PUT, HEAD, PATCH
+Access-Control-Allow-Headers: Authorization, Content-Type
 ```
 
 Alternatively, OPTIONS requests can be handled manually by a web action. To enable this option add a

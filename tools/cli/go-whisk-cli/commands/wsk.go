@@ -36,13 +36,15 @@ var listCmd = &cobra.Command{
     Short: wski18n.T("list entities in the current namespace"),
     SilenceUsage:   true,
     SilenceErrors:  true,
-    PreRunE: setupClientConfig,
+    PreRunE: SetupClientConfig,
     RunE:   namespaceGetCmd.RunE,
 }
 
 func init() {
     WskCmd.SetHelpTemplate(`{{with or .Long .Short }}{{.}}
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`)
+
+listCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
 
     WskCmd.AddCommand(
         actionCmd,
@@ -54,7 +56,6 @@ func init() {
         propertyCmd,
         namespaceCmd,
         listCmd,
-        apiExperimentalCmd,
         apiCmd,
     )
 

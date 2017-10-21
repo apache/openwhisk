@@ -30,11 +30,13 @@ import whisk.common.Logging
  * This class only handles the basic communication to the proper endpoints
  *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
  */
-class CloudantRestClient(host: String, port: Int, username: String, password: String, db: String)(implicit system: ActorSystem, logging: Logging)
+class CloudantRestClient(host: String, port: Int, username: String, password: String, db: String)(
+  implicit system: ActorSystem,
+  logging: Logging)
     extends CouchDbRestClient("https", host, port, username, password, db) {
 
-    // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
-    def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
-        requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
-    }
+  // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
+  def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
+    requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
+  }
 }

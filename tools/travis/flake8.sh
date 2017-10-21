@@ -6,10 +6,7 @@ pip3 install --user --upgrade flake8
 declare -a PYTHON_FILES=("."
                          "./tools/admin/wskadmin"
                          "./tools/build/citool"
-                         "./tools/build/redo"
-                         "./tools/health/isAlive"
-                         "./tools/health/killComponent"
-                         "./tools/health/kvstore")
+                         "./tools/build/redo")
 
 echo 'Flake8: first round (fast fail) stops the build if there are any Python 3 syntax errors...'
 for i in "${PYTHON_FILES[@]}"

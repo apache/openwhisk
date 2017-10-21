@@ -3,8 +3,6 @@
 # It assumes you have already set up your database with the respective db provider playbook (currently cloudant.yml or couchdb.yml)
 # It assumes that wipe.yml have being deployed at least once
 
-- include: consul.yml
-
 - include: kafka.yml
 
 - include: controller.yml

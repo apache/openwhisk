@@ -12,8 +12,6 @@ For more information on API Gateway feature you can read the [api management doc
 
 Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
-**Note:** The APIs you created using the `wsk api-experimental` will continue to work for a short period, however you should begin migrating your APIs to web actions and reconfigure your existing apis using the new CLI command `wsk api`.
-
 ### Create your first API using the CLI
 
 1. Create a JavaScript file with the following content. For this example, the file name is 'hello.js'.
@@ -22,18 +20,18 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
       return {payload: `Hello world ${name}`};
   }
   ```
-  
+
 2. Create a web action from the following JavaScript function. For this example, the action is called 'hello'. Make sure to add the flag `--web true`
-  
+
   ```
   wsk action create hello hello.js --web true
   ```
   ```
   ok: created action hello
   ```
-  
+
 3. Create an API with base path `/hello`, path `/world` and method `get` with response type `json`
-  
+
   ```
   wsk api create /hello /world get hello --response-type json
   ```
@@ -42,9 +40,9 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   https://${APIHOST}:9001/api/21ef035/hello/world
   ```
   A new URL is generated exposing the `hello` action via a __GET__ HTTP method.
-  
+
 4. Let's give it a try by sending a HTTP request to the URL.
-  
+
   ```
   $ curl https://${APIHOST}:9001/api/21ef035/hello/world?name=OpenWhisk
   ```
@@ -54,12 +52,12 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   }
   ```
   The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
-  
+
 ### Full control over the HTTP response
-  
-  The `--response-type` flag controls the target URL of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started. 
-  
-  Once you get started you want to have full control over the HTTP response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target URL of the web action with the `http` extension.
+
+  The `--response-type` flag controls the target URL of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started.
+
+  Once you get started, you will want to have full control over the HTTP response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target URL of the web action with the `http` extension.
 
   You can choose to change the code of the action to comply with the return of web actions with `http` extension or include the action in a sequence passing its result to a new action that transforms the result to be properly formatted for an HTTP response. You can read more about response types and web actions extensions in the [Web Actions](webactions.md) documentation.
 
@@ -67,14 +65,14 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   ```javascript
   function main({name:name='Serverless API'}) {
       return {
-        body: new Buffer(JSON.stringify({payload:`Hello world ${name}`})).toString('base64'), 
-        statusCode:200, 
+        body: new Buffer(JSON.stringify({payload:`Hello world ${name}`})).toString('base64'),
+        statusCode: 200,
         headers:{ 'Content-Type': 'application/json'}
       };
   }
   ```
   Notice that the body needs to be return encoded in `base64` and not a string.
-  
+
   Update the action with the modified result
   ```
   wsk action update hello hello.js --web true
@@ -170,7 +168,7 @@ curl -X GET https://${APIHOST}:9001/api/21ef035/club/books
 ```
 
 ### Exporting the configuration
-Let's export API named `Book Club` into a file that we can use as a base to to re-create the APIs using a file as input. 
+Let's export API named `Book Club` into a file that we can use as a base to to re-create the APIs using a file as input.
 ```
 wsk api get "Book Club" > club-swagger.json
 ```

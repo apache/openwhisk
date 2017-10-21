@@ -17,7 +17,7 @@
       - "{{ redis.port }}:6379"
 
 - name: wait until redis is up and running
-  action: shell (echo PING; sleep 1) | nc {{ inventory_hostname }} {{ redis.port }}
+  action: shell (echo PING; sleep 1) | nc {{ ansible_host }} {{ redis.port }}
   register: result
   until: (result.rc == 0) and (result.stdout == '+PONG')
   retries: 12

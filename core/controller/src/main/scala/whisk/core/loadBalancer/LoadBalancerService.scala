@@ -19,6 +19,7 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 
+import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -26,362 +27,381 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationInt
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.clients.producer.RecordMetadata
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.pattern.ask
+import akka.cluster.Cluster
 import akka.util.Timeout
-
-import whisk.common.ConsulClient
+import akka.pattern.ask
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.connector.kafka.KafkaConsumerConnector
-import whisk.connector.kafka.KafkaProducerConnector
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.{ ActivationMessage, CompletionMessage }
+import whisk.core.connector.{ActivationMessage, CompletionMessage}
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
+import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ ActivationId, WhiskActivation }
-import whisk.core.entity.InstanceId
+import whisk.core.entity.{ActivationId, WhiskActivation}
+import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
+import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
-import scala.annotation.tailrec
+import whisk.spi.SpiLoader
 
 trait LoadBalancer {
 
-    val activeAckTimeoutGrace = 1.minute
+  val activeAckTimeoutGrace = 1.minute
 
-    /**
-     * Retrieves a per namespace id map of counts representing in-flight activations as seen by the load balancer
-     *
-     * @return a map where the key is the namespace id and the long is total issued activations by that namespace
-     */
-    def getActiveNamespaceActivationCounts: Map[UUID, Int]
+  /** Gets the number of in-flight activations for a specific user. */
+  def activeActivationsFor(namespace: UUID): Future[Int]
 
-    /**
-     * Publishes activation message on internal bus for an invoker to pick up.
-     *
-     * @param action the action to invoke
-     * @param msg the activation message to publish on an invoker topic
-     * @param transid the transaction id for the request
-     * @return result a nested Future the outer indicating completion of publishing and
-     *         the inner the completion of the action (i.e., the result)
-     *         if it is ready before timeout (Right) otherwise the activation id (Left).
-     *         The future is guaranteed to complete within the declared action time limit
-     *         plus a grace period (see activeAckTimeoutGrace).
-     */
-    def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
+  /** Gets the number of in-flight activations in the system. */
+  def totalActiveActivations: Future[Int]
+
+  /**
+   * Publishes activation message on internal bus for an invoker to pick up.
+   *
+   * @param action the action to invoke
+   * @param msg the activation message to publish on an invoker topic
+   * @param transid the transaction id for the request
+   * @return result a nested Future the outer indicating completion of publishing and
+   *         the inner the completion of the action (i.e., the result)
+   *         if it is ready before timeout (Right) otherwise the activation id (Left).
+   *         The future is guaranteed to complete within the declared action time limit
+   *         plus a grace period (see activeAckTimeoutGrace).
+   */
+  def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
 }
 
-class LoadBalancerService(
-    config: WhiskConfig,
-    instance: InstanceId,
-    entityStore: EntityStore)(
-        implicit val actorSystem: ActorSystem,
-        logging: Logging)
+class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
+  implicit val actorSystem: ActorSystem,
+  logging: Logging)
     extends LoadBalancer {
 
-    /** The execution context for futures */
-    implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  /** The execution context for futures */
+  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-    /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
-    private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
-    logging.info(this, s"blackboxFraction = $blackboxFraction")
+  /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
+  private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
+  logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
-    private val loadBalancerData = new LoadBalancerData()
+  /** Feature switch for shared load balancer data **/
+  private val loadBalancerData = {
+    if (config.controllerLocalBookkeeping) {
+      new LocalLoadBalancerData()
+    } else {
 
-    override def getActiveNamespaceActivationCounts: Map[UUID, Int] = loadBalancerData.activationCountByNamespace
+      /** Specify how seed nodes are generated */
+      val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
+      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      new DistributedLoadBalancerData()
+    }
+  }
 
-    override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
-        implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-        chooseInvoker(action, msg).flatMap { invokerName =>
-            val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
-            sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
-                entry.promise.future
-            }
+  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
+
+  override def totalActiveActivations = loadBalancerData.totalActivationCount
+
+  override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
+    chooseInvoker(msg.user, action).flatMap { invokerName =>
+      val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
+      sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
+        entry.promise.future
+      }
+    }
+  }
+
+  /** An indexed sequence of all invokers in the current system */
+  def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] =
+    invokerPool
+      .ask(GetStatus)(Timeout(5.seconds))
+      .mapTo[IndexedSeq[(InstanceId, InvokerState)]]
+
+  /**
+   * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
+   * The promise is removed form the map when the result arrives or upon timeout.
+   *
+   * @param msg is the kafka message payload as Json
+   */
+  private def processCompletion(response: Either[ActivationId, WhiskActivation],
+                                tid: TransactionId,
+                                forced: Boolean,
+                                invoker: InstanceId): Unit = {
+    val aid = response.fold(l => l, r => r.activationId)
+
+    // treat left as success (as it is the result of a message exceeding the bus limit)
+    val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
+
+    loadBalancerData.removeActivation(aid) match {
+      case Some(entry) =>
+        logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
+        // Active acks that are received here are strictly from user actions - health actions are not part of
+        // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
+        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
+        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
+        // to that invoker topic.
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
+        if (!forced) {
+          entry.promise.trySuccess(response)
+        } else {
+          entry.promise.tryFailure(new Throwable("no active ack received"))
         }
+      case None if !forced =>
+        // the entry has already been removed but we receive an active ack for this activation Id.
+        // This happens for health actions, because they don't have an entry in Loadbalancerdata or
+        // for activations that already timed out.
+        // For both cases, it looks like the invoker works again and we should send the status of
+        // the activation to the invokerPool.
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
+        logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
+      case None =>
+        // the entry has already been removed by an active ack. This part of the code is reached by the timeout.
+        // As the active ack is already processed we don't have to do anything here.
+        logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
     }
+  }
 
-    def invokerHealth: Future[Map[String, InvokerState]] = invokerPool.ask(GetStatus)(Timeout(5.seconds)).mapTo[Map[String, InvokerState]]
+  /**
+   * Creates an activation entry and insert into various maps.
+   */
+  private def setupActivation(action: ExecutableWhiskAction,
+                              activationId: ActivationId,
+                              namespaceId: UUID,
+                              invokerName: InstanceId,
+                              transid: TransactionId): ActivationEntry = {
+    val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+    // Install a timeout handler for the catastrophic case where an active ack is not received at all
+    // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
+    // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
+    // in this case, if the activation handler is still registered, remove it and update the books.
+    loadBalancerData.putActivation(activationId, {
+      actorSystem.scheduler.scheduleOnce(timeout) {
+        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
+      }
 
-    /**
-     * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
-     * The promise is removed form the map when the result arrives or upon timeout.
-     *
-     * @param msg is the kafka message payload as Json
-     */
-    private def processCompletion(response: Either[ActivationId, WhiskActivation], tid: TransactionId, forced: Boolean): Unit = {
-        val aid = response.fold(l => l, r => r.activationId)
-        loadBalancerData.removeActivation(aid) match {
-            case Some(entry) =>
-                logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
-                if (!forced) {
-                    entry.promise.trySuccess(response)
-                } else {
-                    entry.promise.tryFailure(new Throwable("no active ack received"))
-                }
-            case None =>
-                // the entry was already removed
-                logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
-        }
-    }
-
-    /**
-     * Creates an activation entry and insert into various maps.
-     */
-    private def setupActivation(action: ExecutableWhiskAction, activationId: ActivationId, namespaceId: UUID, invokerName: String, transid: TransactionId): ActivationEntry = {
-
-        val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
-        // Install a timeout handler for the catastrophic case where an active ack is not received at all
-        // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
-        // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
-        // in this case, if the activation handler is still registered, remove it and update the books.
-        loadBalancerData.putActivation(activationId, {
-            actorSystem.scheduler.scheduleOnce(timeout) {
-                processCompletion(Left(activationId), transid, forced = true)
-            }
-
-            ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
-        })
-    }
-
-    /**
-     * When invoker health detects a new invoker has come up, this callback is called.
-     */
-    private def clearInvokerState(invokerName: String) = {
-        val actSet = loadBalancerData.activationsByInvoker(invokerName)
-        actSet.keySet map {
-            case actEntry @ ActivationEntry(activationId, namespaceId, invokerIndex, promise) =>
-                promise.tryFailure(new LoadBalancerException(s"Invoker $invokerIndex restarted"))
-                loadBalancerData.removeActivation(actEntry)
-        }
-        actSet.clear()
-    }
-
-    /**
-     * Creates or updates a health test action by updating the entity store.
-     * This method is intended for use on startup.
-     * @return Future that completes successfully iff the action is added to the database
-     */
-    private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
-        implicit val tid = TransactionId.loadbalancer
-        WhiskAction.get(db, action.docid).flatMap { oldAction =>
-            WhiskAction.put(db, action.revision(oldAction.rev))
-        }.recover {
-            case _: NoDocumentException => WhiskAction.put(db, action)
-        }.map(_ => {}).andThen {
-            case Success(_) => logging.info(this, "test action for invoker health now exists")
-            case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
-        }
-    }
-
-    /** Gets a producer which can publish messages to the kafka bus. */
-    private val messageProducer = new KafkaProducerConnector(config.kafkaHost, executionContext)
-
-    private def sendActivationToInvoker(producer: MessageProducer, msg: ActivationMessage, invokerName: String): Future[RecordMetadata] = {
-        implicit val transid = msg.transid
-        val start = transid.started(this, LoggingMarkers.CONTROLLER_KAFKA, s"posting topic '$invokerName' with activation id '${msg.activationId}'")
-
-        producer.send(invokerName, msg).andThen {
-            case Success(status) => transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-            case Failure(e)      => transid.failed(this, start, s"error on posting to topic $invokerName")
-        }
-    }
-
-    private val invokerPool = {
-        // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
-        InvokerPool.healthAction(instance).map {
-            // Await the creation of the test action; on failure, this will abort the constructor which should
-            // in turn abort the startup of the controller.
-            a => Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
-        }.orElse {
-            throw new IllegalStateException("cannot create test action for invoker health because runtime manifest is not valid")
-        }
-
-        val maxPingsPerPoll = 128
-        val consul = new ConsulClient(config.consulServer)
-        // Each controller gets its own Group Id, to receive all messages
-        val pingConsumer = new KafkaConsumerConnector(config.kafkaHost, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
-        val invokerFactory = (f: ActorRefFactory, name: String) => f.actorOf(InvokerActor.props(instance), name)
-
-        actorSystem.actorOf(InvokerPool.props(invokerFactory, consul.kv, invoker => {
-            clearInvokerState(invoker)
-            logging.info(this, s"cleared load balancer state for $invoker")(TransactionId.invokerHealth)
-        }, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
-    }
-
-    /**
-     * Subscribes to active acks (completion messages from the invokers), and
-     * registers a handler for received active acks from invokers.
-     */
-    val maxActiveAcksPerPoll = 128
-    val activeAckPollDuration = 1.second
-
-    private val activeAckConsumer = new KafkaConsumerConnector(config.kafkaHost, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
-    val activationFeed = actorSystem.actorOf(Props {
-        new MessageFeed("activeack", logging, activeAckConsumer, maxActiveAcksPerPoll, activeAckPollDuration, processActiveAck)
+      ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
     })
+  }
 
-    def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
-        val raw = new String(bytes, StandardCharsets.UTF_8)
-        CompletionMessage.parse(raw) match {
-            case Success(m: CompletionMessage) =>
-                processCompletion(m.response, m.transid, false)
-                // treat left as success (as it is the result a the message exceeding the bus limit)
-                val isSuccess = m.response.fold(l => true, r => !r.response.isWhiskError)
-                activationFeed ! MessageFeed.Processed
-                invokerPool ! InvocationFinishedMessage(m.invoker, isSuccess)
+  /**
+   * Creates or updates a health test action by updating the entity store.
+   * This method is intended for use on startup.
+   * @return Future that completes successfully iff the action is added to the database
+   */
+  private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
+    implicit val tid = TransactionId.loadbalancer
+    WhiskAction
+      .get(db, action.docid)
+      .flatMap { oldAction =>
+        WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
+      }
+      .recover {
+        case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
+      }
+      .map(_ => {})
+      .andThen {
+        case Success(_) => logging.info(this, "test action for invoker health now exists")
+        case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
+      }
+  }
 
-            case Failure(t) =>
-                activationFeed ! MessageFeed.Processed
-                logging.error(this, s"failed processing message: $raw with $t")
+  /** Gets a producer which can publish messages to the kafka bus. */
+  private val messagingProvider = SpiLoader.get[MessagingProvider]
+  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+
+  private def sendActivationToInvoker(producer: MessageProducer,
+                                      msg: ActivationMessage,
+                                      invoker: InstanceId): Future[RecordMetadata] = {
+    implicit val transid = msg.transid
+
+    val topic = s"invoker${invoker.toInt}"
+    val start = transid.started(
+      this,
+      LoggingMarkers.CONTROLLER_KAFKA,
+      s"posting topic '$topic' with activation id '${msg.activationId}'")
+
+    producer.send(topic, msg).andThen {
+      case Success(status) =>
+        transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+      case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
+    }
+  }
+  private val invokerPool = {
+    // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
+    InvokerPool
+      .healthAction(instance)
+      .map {
+        // Await the creation of the test action; on failure, this will abort the constructor which should
+        // in turn abort the startup of the controller.
+        a =>
+          Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
+      }
+      .orElse {
+        throw new IllegalStateException(
+          "cannot create test action for invoker health because runtime manifest is not valid")
+      }
+
+    val maxPingsPerPoll = 128
+    val pingConsumer =
+      messagingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+    val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) =>
+      f.actorOf(InvokerActor.props(invokerInstance, instance))
+
+    actorSystem.actorOf(
+      InvokerPool.props(invokerFactory, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
+  }
+
+  /**
+   * Subscribes to active acks (completion messages from the invokers), and
+   * registers a handler for received active acks from invokers.
+   */
+  val maxActiveAcksPerPoll = 128
+  val activeAckPollDuration = 1.second
+  private val activeAckConsumer =
+    messagingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+  val activationFeed = actorSystem.actorOf(Props {
+    new MessageFeed(
+      "activeack",
+      logging,
+      activeAckConsumer,
+      maxActiveAcksPerPoll,
+      activeAckPollDuration,
+      processActiveAck)
+  })
+
+  def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
+    val raw = new String(bytes, StandardCharsets.UTF_8)
+    CompletionMessage.parse(raw) match {
+      case Success(m: CompletionMessage) =>
+        processCompletion(m.response, m.transid, forced = false, invoker = m.invoker)
+        activationFeed ! MessageFeed.Processed
+
+      case Failure(t) =>
+        activationFeed ! MessageFeed.Processed
+        logging.error(this, s"failed processing message: $raw with $t")
+    }
+  }
+
+  /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
+  private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
+
+  /** Return invokers (almost) dedicated to running blackbox actions. */
+  private def blackboxInvokers(
+    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+    val blackboxes = numBlackbox(invokers.size)
+    invokers.takeRight(blackboxes)
+  }
+
+  /**
+   * Return (at least one) invokers for running non black-box actions.
+   * This set can overlap with the blackbox set if there is only one invoker.
+   */
+  private def managedInvokers(
+    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+    val managed = Math.max(1, invokers.length - numBlackbox(invokers.length))
+    invokers.take(managed)
+  }
+
+  /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
+  private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
+    val hash = generateHash(user.namespace, action)
+
+    loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
+      allInvokers.flatMap { invokers =>
+        val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+        val invokersWithUsage = invokersToUse.view.map {
+          // Using a view defers the comparably expensive lookup to actual access of the element
+          case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
         }
-    }
 
-    /** Return a sorted list of available invokers. */
-    private def availableInvokers: Future[Seq[String]] = invokerHealth.map {
-        _.collect {
-            case (name, Healthy) => name
-        }.toSeq.sortBy(_.drop(7).toInt) // Sort by the number in "invokerN"
-    }.recover {
-        case _ => Seq.empty[String]
-    }
-
-    /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
-    private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
-
-    /** Return invokers (almost) dedicated to running blackbox actions. */
-    private def blackboxInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
-        allInvokers.takeRight(numBlackbox(allInvokers.length))
-    }
-
-    /** Return (at least one) invokers for running non black-box actions.  This set can overlap with the blackbox set if there is only one invoker. */
-    private def managedInvokers: Future[Seq[String]] = availableInvokers.map { allInvokers =>
-        val numManaged = Math.max(1, allInvokers.length - numBlackbox(allInvokers.length))
-        allInvokers.take(numManaged)
-    }
-
-    /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-    private def chooseInvoker(action: ExecutableWhiskAction, msg: ActivationMessage): Future[String] = {
-        val invokers = if (action.exec.pull) blackboxInvokers else managedInvokers
-        val hash = hashSubjectAction(msg)
-
-        invokers.flatMap { invokers =>
-            LoadBalancerService.schedule(
-                invokers,
-                loadBalancerData.activationCountByInvoker,
-                config.loadbalancerInvokerBusyThreshold,
-                hash) match {
-                    case Some(invoker) => Future.successful(invoker)
-                    case None =>
-                        logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
-                        Future.failed(new LoadBalancerException("no invokers available"))
-                }
+        LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
+          case Some(invoker) => Future.successful(invoker)
+          case None =>
+            logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
+            Future.failed(new LoadBalancerException("no invokers available"))
         }
+      }
     }
+  }
 
-    /*
-     * The path contains more than the action per se but seems sufficiently
-     * isomorphic as the other parts are constant.  Extracting just the
-     * action out specifically will involve some hairy regex's that the
-     * Invoker is currently using and which is better avoid if/until
-     * these are moved to some common place (like a subclass of Message?)
-     */
-    private def hashSubjectAction(msg: ActivationMessage): Int = {
-        val subject = msg.user.subject.asString
-        val path = msg.action.toString
-        (subject.hashCode() ^ path.hashCode()).abs
-    }
+  /** Generates a hash based on the string representation of namespace and action */
+  private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
+    (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
+  }
 }
 
 object LoadBalancerService {
-    def requiredProperties = kafkaHost ++ consulServer ++
-        Map(loadbalancerInvokerBusyThreshold -> null)
+  def requiredProperties =
+    kafkaHost ++ Map(
+      loadbalancerInvokerBusyThreshold -> null,
+      controllerBlackboxFraction -> null,
+      controllerLocalBookkeeping -> null,
+      controllerSeedNodes -> null)
 
-    /** Memoizes the result of `f` for later use. */
-    def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {
-        override def apply(key: I) = getOrElseUpdate(key, f(key))
-    }
+  /** Memoizes the result of `f` for later use. */
+  def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {
+    override def apply(key: I) = getOrElseUpdate(key, f(key))
+  }
 
-    /** Euclidean algorithm to determine the greatest-common-divisor */
-    @tailrec
-    def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+  /** Euclidean algorithm to determine the greatest-common-divisor */
+  @tailrec
+  def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
 
-    /** Returns pairwise coprime numbers until x. Result is memoized. */
-    val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = LoadBalancerService.memoize {
-        case x =>
-            (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
-                if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
-                    primes :+ cur
-                } else primes
-            })
-    }
+  /** Returns pairwise coprime numbers until x. Result is memoized. */
+  val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = LoadBalancerService.memoize {
+    case x =>
+      (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
+        if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
+          primes :+ cur
+        } else primes
+      })
+  }
 
-    /**
-     * Scans through all invokers and searches for an invoker, that has a queue length
-     * below the defined threshold. The threshold is subject to a 3 times back off. Iff
-     * no "underloaded" invoker was found it will default to the home invoker.
-     *
-     * @param availableInvokers a list of available (healthy) invokers to search in
-     * @param activationsPerInvoker a map of the number of outstanding activations per invoker
-     * @param invokerBusyThreshold defines when an invoker is considered overloaded
-     * @param hash stable identifier of the entity to be scheduled
-     * @return an invoker to schedule to or None of no invoker is available
-     */
-    def schedule[A](
-        availableInvokers: Seq[A],
-        activationsPerInvoker: collection.Map[A, Int],
-        invokerBusyThreshold: Int,
-        hash: Int): Option[A] = {
+  /**
+   * Scans through all invokers and searches for an invoker, that has a queue length
+   * below the defined threshold. The threshold is subject to a 3 times back off. Iff
+   * no "underloaded" invoker was found it will default to the first invoker in the
+   * step-defined progression that is healthy.
+   *
+   * @param invokers a list of available invokers to search in, including their state and usage
+   * @param invokerBusyThreshold defines when an invoker is considered overloaded
+   * @param hash stable identifier of the entity to be scheduled
+   * @return an invoker to schedule to or None of no invoker is available
+   */
+  def schedule(invokers: Seq[(InstanceId, InvokerState, Int)],
+               invokerBusyThreshold: Int,
+               hash: Int): Option[InstanceId] = {
 
-        val numInvokers = availableInvokers.length
-        if (numInvokers > 0) {
-            val homeInvoker = hash % numInvokers
+    val numInvokers = invokers.size
+    if (numInvokers > 0) {
+      val homeInvoker = hash % numInvokers
+      val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
+      val step = stepSizes(hash % stepSizes.size)
 
-            val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
-            val step = stepSizes(hash % stepSizes.size)
+      val invokerProgression = Stream
+        .from(0)
+        .take(numInvokers)
+        .map(i => (homeInvoker + i * step) % numInvokers)
+        .map(invokers)
+        .filter(_._2 == Healthy)
 
-            @tailrec
-            def search(targetInvoker: Int, iteration: Int = 1): A = {
-                // map the computed index to the actual invoker index
-                val invokerName = availableInvokers(targetInvoker)
-
-                // send the request to the target invoker if it has capacity...
-                if (activationsPerInvoker.get(invokerName).getOrElse(0) < invokerBusyThreshold * iteration) {
-                    invokerName
-                } else {
-                    // ... otherwise look for a less loaded invoker by stepping through a pre-computed
-                    // list of invokers; there are two possible outcomes:
-                    // 1. the search lands on a new invoker that has capacity, choose it
-                    // 2. walked through the entire list and found no better invoker than the
-                    //    "home invoker", force the home invoker
-                    val newTarget = (targetInvoker + step) % numInvokers
-                    if (newTarget == homeInvoker) {
-                        if (iteration < 3) {
-                            search(newTarget, iteration + 1)
-                        } else {
-                            availableInvokers(homeInvoker)
-                        }
-                    } else {
-                        search(newTarget, iteration)
-                    }
-                }
-            }
-
-            Some(search(homeInvoker))
-        } else {
-            None
-        }
-    }
+      invokerProgression
+        .find(_._3 < invokerBusyThreshold)
+        .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 2))
+        .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 3))
+        .orElse(invokerProgression.headOption)
+        .map(_._1)
+    } else None
+  }
 
 }
 

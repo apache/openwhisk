@@ -7,6 +7,6 @@ function main() {
             "Location": "openwhisk.org",
             "Set-Cookie": "cookie-cookie-cookie"
         },
-        code: 200
+        statusCode: 200
     }
 }

@@ -30,7 +30,9 @@ whisk:
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
 #
-runtimesManifest:
+runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
+
+runtimesManifestDefault:
   defaultImagePrefix: "openwhisk"
   defaultImageTag: "latest"
   runtimes:
@@ -83,42 +85,38 @@ runtimesManifest:
         attachmentType: "application/java-archive"
       sentinelledLogs: false
       requireMain: true
+    php:
+    - kind: "php:7.1"
+      default: true
+      deprecated: false
+      image:
+        name: "action-php-v7.1"
   blackboxes:
     - name: "dockerskeleton"
 
-defaultLimits:
-  actions:
-    invokes:
-      perMinute: 120
-      concurrent: 100
-      concurrentInSystem: 5000
-    sequence:
-      maxLength: 50
-  triggers:
-    fires:
-      perMinute: 60
+limits:
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
+  concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
+  concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
+  firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
+  sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
 # port means outer port
 controller:
   basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
-  blackboxFraction: 0.10
+  blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
-
-#TODO:  Add default docker images to this YAML file here.  Overrides are in
-#       environments...
-consul:
-  confdir: "{{ config_root_dir }}/consul"
-  version: 0.7.0
-  port:
-    server: 8300
-    serf_lan: 8301
-    serf_wan: 8302
-    rpc: 8400
-    http: 8500
-    dns: 8600
-#  docker_image: "consul:0.7.0"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  akka:
+    provider: cluster
+    cluster:
+      basePort: 8000
+      host: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+      bindPort: 2551
+      # at this moment all controllers are seed nodes
+      seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -142,6 +140,10 @@ kafka:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
       retentionMS: 172800000
+    cacheInvalidation:
+      segmentBytes: 536870912
+      retentionBytes: 1073741824
+      retentionMS: 300000
 
 zookeeper:
   version: 3.4
@@ -155,14 +157,19 @@ invoker:
   numcore: 2
   coreshare: 2
   busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
-  serializeDockerOp: true
-  serializeDockerPull: true
-  useRunc: false
-  useReactivePool: "{{ invoker_use_reactive_pool | default(false) }}"
   instances: "{{ groups['invokers'] | length }}"
+  # Specify if it is allowed to deploy more than 1 invoker on a single machine.
+  allowMultipleInstances: "{{ invoker_allow_multiple_instances | default(false) }}"
+  # Specify if it should use docker-runc or docker to pause/unpause containers
+  useRunc: "{{ invoker_use_runc | default(true) }}"
+  docker:
+    become: "{{ invoker_docker_become | default(false) }}"
+
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
+  dir:
+    become: "{{ nginx_dir_become | default(false) }}"
   version: 1.11
   port:
     http: 80
@@ -176,6 +183,8 @@ nginx:
     password_file: "ssl.pass"
     client_ca_cert: "{{ openwhisk_client_ca_cert | default('openwhisk-client-ca-cert.pem') }}"
     verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
+  wpn:
+    router: "{{ nginx_wpn_router | default('1') }}"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.
@@ -208,7 +217,7 @@ linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 1.6
+  version: 2.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
@@ -226,9 +235,15 @@ docker:
     retries: 10
     delay: 10
 
+sdk:
+  dir:
+    become: "{{ sdk_dir_become | default(false) }}"
+
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
   nginxdir: "{{ nginx.confdir }}/cli/go/download"
+  dir:
+    become: "{{ cli_dir_become | default(false) }}"
 
 # The default name space is /whisk.system. The catalog namespace must begin with a slash "/".
 catalog_namespace: "/whisk.system"
@@ -307,3 +322,8 @@ cli_os:
 cli_arch:
   - amd64
   - 386
+
+# Controls access to log directories
+logs:
+  dir:
+    become: "{{ logs_dir_become | default(false) }}"

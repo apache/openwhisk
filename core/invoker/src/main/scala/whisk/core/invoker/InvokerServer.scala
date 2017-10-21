@@ -17,21 +17,14 @@
 
 package whisk.core.invoker
 
-import akka.actor.Actor
-import whisk.common.Logging
-import whisk.core.entity.InstanceId
 import whisk.http.BasicRasService
 
 /**
  * Implements web server to handle certain REST API calls.
  * Currently provides a health ping route, only.
  */
-class InvokerServer(
-    override val instance: InstanceId,
-    override val numberOfInstances: Int)(
-        override implicit val logging: Logging)
-    extends BasicRasService
-    with Actor {
+class InvokerServer() extends BasicRasService {
 
-    override def actorRefFactory = context
+  override val numberOfInstances = 1
+  override val instanceOrdinal = 1
 }

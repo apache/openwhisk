@@ -1,6 +1,6 @@
 ---
 # This task will write whisk.properties to the openwhisk_home. 
-# Currently whisk.properties is still needed for consul and tests.
+# Currently whisk.properties is still needed for tests.
 
 - name: write whisk.properties template to openwhisk_home
   template:

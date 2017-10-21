@@ -25,10 +25,15 @@ import (
 // Flags //
 ///////////
 
-const MEMORY_FLAG   = "memory"
-const LOG_SIZE_FLAG = "logsize"
-const TIMEOUT_FLAG  = "timeout"
-const WEB_FLAG      = "web"
+const (
+    MEMORY_FLAG     = "memory"
+    LOG_SIZE_FLAG   = "logsize"
+    TIMEOUT_FLAG    = "timeout"
+    WEB_FLAG        = "web"
+    SAVE_FLAG       = "save"
+    SAVE_AS_FLAG    = "save-as"
+)
+
 
 var cliDebug = os.Getenv("WSK_CLI_DEBUG")  // Useful for tracing init() code
 
@@ -61,6 +66,7 @@ type Flags struct {
         feed        string  // name of feed
         detail      bool
         format      string
+        nameSort   bool    // sorts list alphabetically by entity name
     }
 
     property struct {
@@ -93,6 +99,7 @@ type Flags struct {
         sinceDays       int
         exit            int
         last            bool
+        strip           bool
     }
 
     // rule
@@ -104,6 +111,11 @@ type Flags struct {
     // trigger
     trigger struct {
         summary bool
+    }
+
+    //sdk
+    sdk struct {
+        stdout bool
     }
 
     // api
@@ -132,6 +144,8 @@ type ActionFlags struct {
     kind        string
     main        string
     url         bool
+    save        bool
+    saveAs     string
 }
 
 func IsVerbose() bool {

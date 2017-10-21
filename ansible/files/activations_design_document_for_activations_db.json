@@ -2,7 +2,7 @@
   "_id": "_design/activations",
   "views": {
     "byDate": {
-      "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  var isActivation = function (doc) { return (doc.activationId !== undefined) };\n\n  if (isActivation(doc)) try {\n    emit(doc.start, [doc._id, doc._rev])\n  } catch (e) {}\n}"
+      "map": "function (doc) {\n  if (doc.activationId !== undefined) try {\n    emit(doc.start, [doc._id, doc._rev]);\n  } catch (e) {}\n}"
     }
   },
   "language": "javascript"

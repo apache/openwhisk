@@ -184,8 +184,8 @@
     "translation": "Package refresh for namespace '{{.name}}' failed: {{.err}}"
   },
   {
-    "id": "{{.name}} refreshed successfully\n",
-    "translation": "{{.name}} refreshed successfully\n"
+    "id": "'{{.name}}' refreshed successfully\n",
+    "translation": "'{{.name}}' refreshed successfully\n"
   },
   {
     "id": "created bindings:",
@@ -221,8 +221,8 @@
     "translation": "package visibility `SCOPE`; yes = shared, no = private"
   },
   {
-    "id": "summarize package details",
-    "translation": "summarize package details"
+    "id": "summarize package details; parameters with prefix \"*\" are bound",
+    "translation": "summarize package details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "include publicly shared entities in the result",
@@ -566,8 +566,8 @@
     "translation": "The SDK component argument '{{.component}}' is invalid. Valid components are docker, ios and bashauto"
   },
   {
-    "id": "The file {{.name}} already exists.  Delete it and retry.",
-    "translation": "The file {{.name}} already exists.  Delete it and retry."
+    "id": "The file '{{.name}}' already exists.  Delete it and retry.",
+    "translation": "The file '{{.name}}' already exists.  Delete it and retry."
   },
   {
     "id": "The {{.component}} SDK installation failed: {{.err}}",
@@ -578,8 +578,8 @@
     "translation": "The docker skeleton is now installed at the current directory."
   },
   {
-    "id": "Downloaded OpenWhisk iOS starter app. Unzip {{.name}} and open the project in Xcode.\n",
-    "translation": "Downloaded OpenWhisk iOS starter app. Unzip {{.name}} and open the project in Xcode.\n"
+    "id": "Downloaded OpenWhisk iOS starter app. Unzip '{{.name}}' and open the project in Xcode.\n",
+    "translation": "Downloaded OpenWhisk iOS starter app. Unzip '{{.name}}' and open the project in Xcode.\n"
   },
   {
     "id": "Unable to retrieve '{{.urlpath}}' SDK: {{.err}}",
@@ -590,24 +590,24 @@
     "translation": "Server failed to send the '{{.component}}' SDK: {{.err}}"
   },
   {
-    "id": "Error creating SDK file {{.name}}: {{.err}}",
-    "translation": "Error creating SDK file {{.name}}: {{.err}}"
+    "id": "Error creating SDK file '{{.name}}': {{.err}}",
+    "translation": "Error creating SDK file '{{.name}}': {{.err}}"
   },
   {
     "id": "Error copying server response into file: {{.err}}",
     "translation": "Error copying server response into file: {{.err}}"
   },
   {
-    "id": "The directory {{.name}} already exists.  Delete it and retry.",
-    "translation": "The directory {{.name}} already exists.  Delete it and retry."
+    "id": "The directory '{{.name}}' already exists.  Delete it and retry.",
+    "translation": "The directory '{{.name}}' already exists.  Delete it and retry."
   },
   {
-    "id": "Error unGzipping file {{.name}}: {{.err}}",
-    "translation": "Error unGzipping file {{.name}}: {{.err}}"
+    "id": "Error unGzipping file '{{.name}}': {{.err}}",
+    "translation": "Error unGzipping file '{{.name}}': {{.err}}"
   },
   {
-    "id": "Error untarring file {{.name}}: {{.err}}",
-    "translation": "Error untarring file {{.name}}: {{.err}}"
+    "id": "Error untarring file '{{.name}}': {{.err}}",
+    "translation": "Error untarring file '{{.name}}': {{.err}}"
   },
   {
     "id": "work with triggers",
@@ -700,8 +700,8 @@
     "translation": "trigger feed `ACTION_NAME`"
   },
   {
-    "id": "summarize trigger details",
-    "translation": "summarize trigger details"
+    "id": "summarize trigger details; parameters with prefix \"*\" are bound",
+    "translation": "summarize trigger details; parameters with prefix \"*\" are bound"
   },
   {
     "id": "parameter values in `KEY VALUE` format",
@@ -732,8 +732,8 @@
     "translation": "shared"
   },
   {
-    "id": "The file '{{.name}}' does not exist.",
-    "translation": "The file '{{.name}}' does not exist."
+    "id": "File '{{.name}}' is not a valid file or it does not exist",
+    "translation": "File '{{.name}}' is not a valid file or it does not exist"
   },
   {
     "id": "Error creating unGzip file '{{.name}}': {{.err}}",
@@ -876,12 +876,8 @@
     "translation": "Unable to get action '{{.name}}': {{.err}}"
   },
   {
-    "id": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
-    "translation": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}"
-  },
-  {
-    "id": "Unable to read '{{.name}}': {{.err}}",
-    "translation": "Unable to read '{{.name}}': {{.err}}"
+    "id": "Unable to read the file '{{.name}}': {{.err}}",
+    "translation": "Unable to read the file '{{.name}}': {{.err}}"
   },
   {
     "id": "'{{.name}}' is not a supported action runtime",
@@ -952,8 +948,8 @@
     "translation": "only return `LIMIT` number of actions from the collection"
   },
   {
-    "id": "summarize action details",
-    "translation": "summarize action details"
+    "id": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized",
+    "translation": "summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"
   },
   {
     "id": "work with activations",
@@ -984,8 +980,8 @@
     "translation": "Unable to get activation '{{.id}}': {{.err}}"
   },
   {
-    "id": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n",
-    "translation": "activation result for /{{.namespace}}/{{.name}} ({{.status}} at {{.time}})\n"
+    "id": "activation result for '/{{.namespace}}/{{.name}}' ({{.status}} at {{.time}})\n",
+    "translation": "activation result for '/{{.namespace}}/{{.name}}' ({{.status}} at {{.time}})\n"
   },
   {
     "id": "{{.ok}} got activation {{.id}}\n",
@@ -1028,8 +1024,8 @@
     "translation": "Polling for activation logs\n"
   },
   {
-    "id": "\nActivation: {{.name}} ({{.id}})\n",
-    "translation": "\nActivation: {{.name}} ({{.id}})\n"
+    "id": "\nActivation: '{{.name}}' ({{.id}})\n",
+    "translation": "\nActivation: '{{.name}}' ({{.id}})\n"
   },
   {
     "id": "Activation list does not contain any activations.",
@@ -1062,6 +1058,10 @@
   {
     "id": "retrieves the last activation",
     "translation": "retrieves the last activation"
+  },
+  {
+    "id": "strip timestamp and stream information",
+    "translation": "strip timestamp and stream information"
   },
   {
     "id": "stop polling after `SECONDS` seconds",
@@ -1300,18 +1300,6 @@
     "translation": "'{{.verb}}' is not a valid API verb.  Valid values are: {{.verbs}}"
   },
   {
-    "id": "`ACTION` to invoke when API is called",
-    "translation": "`ACTION` to invoke when API is called"
-  },
-  {
-    "id": "relative `API_PATH` of API",
-    "translation": "relative `API_PATH` of API"
-  },
-  {
-    "id": "API `API_VERB`",
-    "translation": "API `API_VERB`"
-  },
-  {
     "id": "API collection `NAME` (default NAMESPACE)",
     "translation": "API collection `NAME` (default NAMESPACE)"
   },
@@ -1412,8 +1400,8 @@
     "translation": "display full description of each API"
   },
   {
-    "id": "An API host must be provided.",
-    "translation": "An API host must be provided."
+    "id": "order API list by action name first followed by base-path/rel-path/verb",
+    "translation": "order API list by action name first followed by base-path/rel-path/verb."
   },
   {
     "id": "Request accepted, but processing not completed yet.",
@@ -1432,8 +1420,8 @@
     "translation": "Invalid argument '{{.arg}}' for --web flag. Valid input consist of 'yes', 'true', 'raw', 'false', or 'no'."
   },
   {
-    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
-    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action."
+    "id": "Action '{{.name}}' is not a web action. Issue 'wsk action update \"{{.name}}\" --web true' to convert the action to a web action.",
+    "translation": "Action '{{.name}}' is not a web action. Issue 'wsk action update \"{{.name}}\" --web true' to convert the action to a web action."
   },
   {
     "id": "Invalid configuration. The x-openwhisk stanza is missing.",
@@ -1518,5 +1506,53 @@
   {
     "id": "get action url",
     "translation": "get action url"
+  },
+  {
+    "id": "Unable to output bash command completion {{.err}}",
+    "translation": "Unable to output bash command completion {{.err}}"
+  },
+  {
+    "id": "prints bash command completion script to stdout",
+    "translation": "prints bash command completion script to stdout"
+  },
+  {
+    "id": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"
+  },
+  {
+    "id": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block",
+    "translation": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block"
+  },
+  {
+    "id": "prints bash command completion script to stdout",
+    "translation": "prints bash command completion script to stdout"
+  },
+  {
+    "id": "save action code to file corresponding with action name",
+    "translation": "save action code to file corresponding with action name"
+  },
+  {
+    "id": "file to save action code to",
+    "translation": "file to save action code to"
+  },
+  {
+    "id": "The file '{{.file}}' already exists",
+    "translation": "The file '{{.file}}' already exists"
+  },
+  {
+    "id": "{{.ok}} saved action code to {{.name}}\n",
+    "translation": "{{.ok}} saved action code to {{.name}}\n"
+  },
+  {
+    "id": "Cannot save Docker images",
+    "translation": "Cannot save Docker images"
+  },
+  {
+    "id": "Cannot save action sequences",
+    "translation": "Cannot save action sequences"
+  },
+  {
+    "id": "Cannot create file '{{.name}}': {{.err}}",
+    "translation": "Cannot create file '{{.name}}': {{.err}}"
   }
 ]

@@ -42,15 +42,21 @@ Several packages are registered with OpenWhisk. You can get a list of packages i
   ```
   ```
   package /whisk.system/cloudant: Cloudant database service
-     (params: BluemixServiceName host username password dbname includeDoc overwrite)
+     (parameters: *apihost, *dbname, *host, overwrite, *password, *username)
    action /whisk.system/cloudant/read: Read document from database
-   action /whisk.system/cloudant/write: Write document to database
+     (parameters: dbname, id, params)
+   action /whisk.system/cloudant/write: Write document in database
+     (parameters: dbname, doc)
    feed   /whisk.system/cloudant/changes: Database change feed
+     (parameters: dbname, filter, query_params)
+  ...
   ```
 
-  This output shows that the Cloudant package provides two actions, `read` and `write`, and one trigger feed called `changes`. The `changes` feed causes triggers to be fired when documents are added to the specified Cloudant database.
+  **Note**: Parameters listed under the package with a prefix `*` are predefined, bound parameters. Parameters without a `*` are those listed under the [annotations](./annotations.md) for each entity. Furthermore, any parameters with the prefix `**` are finalized bound parameters. This means that they are immutable, and cannot be changed by the user. Any entity listed under a package inherits specific bound parameters from the package. To view the list of known parameters of an entity belonging to a package, you will need to run a `get --summary` of the individual entity.
 
-  The Cloudant package also defines the parameters `username`, `password`, `host`, and `port`. These parameters must be specified for the actions and feeds to be meaningful. The parameters allow the actions to operate on a specific Cloudant account, for example.
+  This output shows that the Cloudant package provides the actions `read` and `write`, and the trigger feed called `changes`. The `changes` feed causes triggers to be fired when documents are added to the specified Cloudant database.
+
+  The Cloudant package also defines the parameters `username`, `password`, `host`, and `dbname`. These parameters must be specified for the actions and feeds to be meaningful. The parameters allow the actions to operate on a specific Cloudant account, for example.
 
 3. Get a description of the `/whisk.system/cloudant/read` action.
 
@@ -59,10 +65,12 @@ Several packages are registered with OpenWhisk. You can get a list of packages i
   ```
   ```
   action /whisk.system/cloudant/read: Read document from database
-     (params: dbname includeDoc id)
+     (parameters: *apihost, *dbname, *host, *id, params, *password, *username)
   ```
 
-  This output shows that the Cloudant `read` action requires three parameters, including the database and document ID to retrieve.
+  *NOTE*: Notice that the parameters listed for the action `read` were expanded upon from the action summary compared to the package summary above. To see the official bound parameters for actions and triggers listed under packages, run an individual get summary for the particular entity.
+
+  This output shows that the Cloudant `read` action lists eight parameters, seven of which are predefined. These include the database and document ID to retrieve.
 
 
 ## Invoking actions in a package
@@ -75,8 +83,8 @@ You can invoke actions in a package, just as with other actions. The next few st
   $ wsk action get --summary /whisk.system/samples/greeting
   ```
   ```
-  action /whisk.system/samples/greeting: Print a friendly greeting
-     (params: name place)
+  action /whisk.system/samples/greeting: Returns a friendly greeting
+     (parameters: name, place)
   ```
 
   Notice that the `greeting` action takes two parameters: `name` and `place`.
@@ -131,11 +139,16 @@ In the following simple example, you bind to the `/whisk.system/samples` package
   $ wsk package get --summary valhallaSamples
   ```
   ```
-  package /myNamespace/valhallaSamples
-   action /myNamespace/valhallaSamples/greeting: Returns a friendly greeting
-   action /myNamespace/valhallaSamples/wordCount: Count words in a string
-   action /myNamespace/valhallaSamples/helloWorld: Demonstrates logging facilities
-   action /myNamespace/valhallaSamples/curl: Curl a host url
+  package /namespace/valhallaSamples: Returns a result based on parameter place
+     (parameters: *place)
+   action /namespace/valhallaSamples/helloWorld: Demonstrates logging facilities
+      (parameters: payload)
+   action /namespace/valhallaSamples/greeting: Returns a friendly greeting
+      (parameters: name, place)
+   action /namespace/valhallaSamples/curl: Curl a host url
+      (parameters: payload)
+   action /namespace/valhallaSamples/wordCount: Count words in a string
+      (parameters: payload)
   ```
 
   Notice that all the actions in the `/whisk.system/samples` package are available in the `valhallaSamples` package binding.
@@ -177,8 +190,10 @@ Feeds offer a convenient way to configure an external event source to fire these
   $ wsk package get --summary /whisk.system/alarms
   ```
   ```
-  package /whisk.system/alarms
-   feed   /whisk.system/alarms/alarm
+  package /whisk.system/alarms: Alarms and periodic utility
+     (parameters: *apihost, *cron, *trigger_payload)
+   feed   /whisk.system/alarms/alarm: Fire trigger when alarm occurs
+      (parameters: none defined)
   ```
 
   ```
@@ -186,12 +201,13 @@ Feeds offer a convenient way to configure an external event source to fire these
   ```
   ```
   action /whisk.system/alarms/alarm: Fire trigger when alarm occurs
-     (params: cron trigger_payload)
+     (parameters: *apihost, *cron, *trigger_payload)
   ```
 
   The `/whisk.system/alarms/alarm` feed takes two parameters:
   - `cron`: A crontab specification of when to fire the trigger.
   - `trigger_payload`: The payload parameter value to set in each trigger event.
+  - `apihost`: The API host endpoint that will be receiving the feed.
 
 2. Create a trigger that fires every eight seconds.
 
@@ -257,6 +273,7 @@ To create a custom package with a simple action in it, try the following example
   ```
   ```
   package /myNamespace/custom
+     (parameters: none defined)
   ```
 
   Notice that the package is empty.
@@ -285,7 +302,9 @@ To create a custom package with a simple action in it, try the following example
   ```
   ```
   package /myNamespace/custom
+    (parameters: none defined)
    action /myNamespace/custom/identity
+    (parameters: none defined)
   ```
 
   You can see the `custom/identity` action in your namespace now.
@@ -411,8 +430,10 @@ Others can now use your `custom` package, including binding to the package or di
   $ wsk package get --summary custom
   ```
   ```
-  package /myNamespace/custom
+  package /myNamespace/custom: Returns a result based on parameters city and country
+     (parameters: *city, *country)
    action /myNamespace/custom/identity
+     (parameters: none defined)
   ```
 
   In the previous example, you're working with the `myNamespace` namespace, and this namespace appears in the fully qualified name.

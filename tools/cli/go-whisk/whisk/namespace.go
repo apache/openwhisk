@@ -21,6 +21,8 @@ import (
     "net/http"
     "errors"
     "../wski18n"
+    "strings"
+    "fmt"
 )
 
 type Namespace struct {
@@ -39,6 +41,33 @@ type NamespaceService struct {
     client *Client
 }
 
+// Compare(sortable) compares namespace to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Namespace.
+// ***Method of type Sortable***
+func(namespace Namespace) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically
+    namespaceToCompare := sortable.(Namespace)
+    var namespaceString string
+    var compareString string
+
+    namespaceString = strings.ToLower(namespace.Name)
+    compareString = strings.ToLower(namespaceToCompare.Name)
+
+    return namespaceString < compareString
+}
+
+// ToHeaderString() returns the header for a list of namespaces
+func(namespace Namespace) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "namespaces")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk namespace list`.
+// ***Method of type Sortable***
+func(namespace Namespace) ToSummaryRowString() string {
+    return fmt.Sprintf("%s\n", namespace.Name)
+}
+
 // get a list of available namespaces
 func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
     // make a request to c.BaseURL / namespaces
@@ -51,7 +80,7 @@ func (s *NamespaceService) List() ([]Namespace, *http.Response, error) {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}",
             map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, nil, werr
     }
 
@@ -89,7 +118,7 @@ func (s *NamespaceService) Get(namespace string) (*Namespace, *http.Response, er
     if err != nil {
         Debug(DbgError, "s.client.NewRequest(GET) error: %s\n", err)
         errStr := wski18n.T("Unable to create HTTP request for GET: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return resNamespace, nil, werr
     }
 

@@ -14,7 +14,22 @@
     path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: directory
     mode: 0777
-  become: true
+  become: "{{ logs.dir.become }}"
+
+- name: check, that required databases exist
+  include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
+  vars:
+    dbName: "{{ item }}"
+  with_items:
+  - "{{ db.whisk.actions }}"
+  - "{{ db.whisk.auth }}"
+  - "{{ db.whisk.activations }}"
+
+- name: create seed nodes list
+  set_fact:
+    seed_nodes_list: "{{ seed_nodes_list | default([]) }} + [ \"{{item.1}}:{{controller.akka.cluster.basePort+item.0}}\" ]"
+  with_indexed_items:
+  - "{{ controller.akka.cluster.seedNodes }}"
 
 - name: (re)start controller
   docker_container:
@@ -25,27 +40,55 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
+      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
+      "CONTROLLER_OPTS": "{{ controller.arguments }}"
+      "CONTROLLER_INSTANCES": "{{ controller.instances }}"
+
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
-      "CONSULSERVER_HOST": "{{ groups['consul_servers'] | first }}"
-      "CONSUL_HOST_PORT4": "{{ consul.port.http }}"
       "PORT": 8080
+
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
-      "SERVICE_CHECK_HTTP": "/ping"
-      "SERVICE_CHECK_TIMEOUT": "2s"
-      "SERVICE_CHECK_INTERVAL": "15s"
-      "JAVA_OPTS": "-Xmx{{ controller.heap }}"
-      "CONTROLLER_OPTS": "{{ controller.arguments }}"
+
+      "KAFKA_HOST": "{{ groups['kafka']|first }}"
+      "KAFKA_HOST_PORT": "{{ kafka.port }}"
+
+      "DB_PROTOCOL": "{{ db_protocol }}"
+      "DB_PROVIDER": "{{ db_provider }}"
+      "DB_HOST": "{{ db_host }}"
+      "DB_PORT": "{{ db_port }}"
+      "DB_USERNAME": "{{ db_username }}"
+      "DB_PASSWORD": "{{ db_password }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
+      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+
+      "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
+      "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.concurrentInvocationsSystem }}"
+      "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
+      "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
+      "CONTROLLER_BLACKBOXFRACTION": "{{ controller.blackboxFraction }}"
+      "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
+
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
+      "AKKA_CLUSTER_PORT": "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}"
+      "AKKA_CLUSTER_HOST": "{{ controller.akka.cluster.host[groups['controllers'].index(inventory_hostname)] }}"
+      "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
+      "AKKA_CLUSTER_BIND_PORT": "{{ controller.akka.cluster.bindPort }}"
+      "AKKA_ACTOR_PROVIDER": "{{ controller.akka.provider }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
       - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
-    command: /bin/sh -c "controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
+      - "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}:{{ controller.akka.cluster.bindPort }}"
+    command: /bin/sh -c "export CONTAINER_IP=$(hostname -I); controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ inventory_hostname }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
+    url: "http://{{ ansible_host }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

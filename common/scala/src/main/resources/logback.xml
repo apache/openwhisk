@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>[%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}] [%p] %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Apache HttpClient -->
+  <logger name="org.apache.http" level="ERROR" />
+
+  <!-- Kafka -->
+  <logger name="org.apache.kafka" level="ERROR" />
+  
+  <root level="info">
+    <appender-ref ref="console" />
+  </root>
+</configuration>

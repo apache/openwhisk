@@ -51,12 +51,58 @@ type Exec struct {
     Init        string      `json:"init,omitempty"`
     Main        string      `json:"main,omitempty"`
     Components  []string    `json:"components,omitempty"`    // List of fully qualified actions
+    Binary      *bool       `json:"binary,omitempty"`
 }
 
 type ActionListOptions struct {
     Limit       int         `url:"limit"`
     Skip        int         `url:"skip"`
     Docs        bool        `url:"docs,omitempty"`
+}
+
+// Compare(sortable) compares action to sortable for the purpose of sorting.
+// REQUIRED: sortable must also be of type Action.
+// ***Method of type Sortable***
+func(action Action) Compare(sortable Sortable) (bool) {
+    // Sorts alphabetically by NAMESPACE -> PACKAGE_NAME -> ACTION_NAME, with
+    //    actions under default package at the top.
+    var actionString string
+    var compareString string
+    actionToCompare := sortable.(Action)
+
+    actionString = strings.ToLower(fmt.Sprintf("%s%s", action.Namespace, action.Name))
+    compareString = strings.ToLower(fmt.Sprintf("%s%s", actionToCompare.Namespace,
+    actionToCompare.Name))
+    if strings.Contains(action.Namespace, "/") && !strings.Contains(actionToCompare.Namespace, "/") {
+        return false
+    } else if !strings.Contains(action.Namespace, "/") && strings.Contains(actionToCompare.Namespace, "/") {
+        return true
+    } else if strings.Contains(action.Namespace, "/") && strings.Contains(actionToCompare.Namespace, "/") {
+        return actionString < compareString
+    } else {
+        return action.Name < actionToCompare.Name
+    }
+}
+
+// ToHeaderString() returns the header for a list of actions
+func(action Action) ToHeaderString() string {
+    return fmt.Sprintf("%s\n", "actions")
+}
+
+// ToSummaryRowString() returns a compound string of required parameters for printing
+//   from CLI command `wsk action list`.
+// ***Method of type Sortable***
+func(action Action) ToSummaryRowString() string{
+    var kind string
+    publishState := wski18n.T("private")
+
+    for i := range action.Annotations {
+        if (action.Annotations[i].Key == "exec") {
+            kind = action.Annotations[i].Value.(string)
+            break
+        }
+    }
+    return fmt.Sprintf("%-70s %s %s\n", fmt.Sprintf("/%s/%s", action.Namespace, action.Name), publishState, kind)
 }
 
 /*
@@ -77,33 +123,39 @@ func (action Action) WebAction() (webExportValue bool) {
 Returns the URL of an action as a string. A valid API host, path and version must be passed. A package that contains the
 action must be passed as well. An empty string must be passed if the action is not packaged.
  */
-func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (actionURL string) {
-    webActionPath := "https://%s%s/%s/web/%s/%s/%s"
-    actionPath := "https://%s%s/%s/namespaces/%s/actions/%s"
+func (action Action) ActionURL(apiHost string, apiPath string, apiVersion string, pkg string) (string, error) {
+    baseURL, err := GetURLBase(apiHost, apiPath)
+    if err != nil {
+        Debug(DbgError, "GetURLBase(%s, %s) failed: %s\n", apiHost, apiPath, err)
+        return "", err
+    }
+    webActionPath := "%s/%s/web/%s/%s/%s"
+    actionPath := "%s/%s/namespaces/%s/actions/%s"
     packagedActionPath := actionPath + "/%s"
     namespace := strings.Split(action.Namespace, "/")[0]
     namespace = strings.Replace(url.QueryEscape(namespace), "+", "%20", -1)
     name := strings.Replace(url.QueryEscape(action.Name), "+", "%20", -1)
     pkg = strings.Replace(url.QueryEscape(pkg), "+", "%20", -1)
 
+    var actionURL string
     if action.WebAction() {
         if len(pkg) == 0 {
             pkg = "default"
         }
 
-        actionURL = fmt.Sprintf(webActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+        actionURL = fmt.Sprintf(webActionPath, baseURL, apiVersion, namespace, pkg, name)
         Debug(DbgInfo, "Web action URL: %s\n", actionURL)
     } else {
         if len(pkg) == 0 {
-            actionURL = fmt.Sprintf(actionPath, apiHost, apiPath, apiVersion, namespace, name)
+            actionURL = fmt.Sprintf(actionPath, baseURL, apiVersion, namespace, name)
             Debug(DbgInfo, "Packaged action URL: %s\n", actionURL)
         } else {
-            actionURL = fmt.Sprintf(packagedActionPath, apiHost, apiPath, apiVersion, namespace, pkg, name)
+            actionURL = fmt.Sprintf(packagedActionPath, baseURL, apiVersion, namespace, pkg, name)
             Debug(DbgInfo, "Action URL: %s\n", actionURL)
         }
     }
 
-    return actionURL
+    return actionURL, nil
 }
 
 ////////////////////
@@ -128,7 +180,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
         Debug(DbgError, "addRouteOptions(%s, %#v) error: '%s'\n", route, options, err)
         errMsg := wski18n.T("Unable to add route options '{{.options}}'",
             map[string]interface{}{"options": options})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -139,7 +191,7 @@ func (s *ActionService) List(packageName string, options *ActionListOptions) ([]
         Debug(DbgError, "http.NewRequestUrl(GET, %s, nil, IncludeNamespaceInUrl, AppendOpenWhiskPathPrefix, EncodeBodyAsJson, AuthRequired) error: '%s'\n", routeUrl, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": routeUrl, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -165,7 +217,7 @@ func (s *ActionService) Insert(action *Action, overwrite bool) (*Action, *http.R
         Debug(DbgError, "http.NewRequest(PUT, %s, %#v) error: '%s'\n", route, err, action)
         errMsg := wski18n.T("Unable to create HTTP request for PUT '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -191,7 +243,7 @@ func (s *ActionService) Get(actionName string) (*Action, *http.Response, error) 
         Debug(DbgError, "http.NewRequest(GET, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for GET '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }
@@ -218,7 +270,7 @@ func (s *ActionService) Delete(actionName string) (*http.Response, error) {
         Debug(DbgError, "http.NewRequest(DELETE, %s, nil) error: '%s'\n", route, err)
         errMsg := wski18n.T("Unable to create HTTP request for DELETE '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, whiskErr
     }
@@ -247,7 +299,7 @@ func (s *ActionService) Invoke(actionName string, payload interface{}, blocking 
         Debug(DbgError, "http.NewRequest(POST, %s, %#v) error: '%s'\n", route, payload, err)
         errMsg := wski18n.T("Unable to create HTTP request for POST '{{.route}}': {{.err}}",
             map[string]interface{}{"route": route, "err": err})
-        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXITCODE_ERR_NETWORK, DISPLAY_MSG,
+        whiskErr := MakeWskErrorFromWskError(errors.New(errMsg), err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG,
             NO_DISPLAY_USAGE)
         return nil, nil, whiskErr
     }

@@ -24,8 +24,8 @@ import common.WskActorSystem
 @RunWith(classOf[JUnitRunner])
 class Python2ActionContainerTests extends PythonActionContainerTests with WskActorSystem {
 
-    override lazy val imageName = "python2action"
+  override lazy val imageName = "python2action"
 
-    /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
-    override lazy val pythonStringAsUnicode = false
+  /** indicates if strings in python are unicode by default (i.e., python3 -> true, python2.7 -> false) */
+  override lazy val pythonStringAsUnicode = false
 }

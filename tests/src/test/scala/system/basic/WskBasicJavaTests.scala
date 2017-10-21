@@ -33,74 +33,72 @@ import org.scalatest.junit.JUnitRunner
 import spray.json.JsString
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicJavaTests
-    extends TestHelpers
-    with WskTestHelpers
-    with Matchers {
+class WskBasicJavaTests extends TestHelpers with WskTestHelpers with Matchers {
 
-    implicit val wskprops = WskProps()
-    val wsk = new Wsk
-    val expectedDuration = 120.seconds
-    val activationPollDuration = 60.seconds
+  implicit val wskprops = WskProps()
+  val wsk = new Wsk
+  val expectedDuration = 120.seconds
+  val activationPollDuration = 60.seconds
 
-    behavior of "Java Actions"
+  behavior of "Java Actions"
 
-    /**
-     * Test the Java "hello world" demo sequence
-     */
-    it should "Invoke a java action" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloJava"
-            val file = Some(TestUtils.getTestActionFilename("helloJava.jar"))
+  /**
+   * Test the Java "hello world" demo sequence
+   */
+  it should "Invoke a java action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "helloJava"
+    val file = Some(TestUtils.getTestActionFilename("helloJava.jar"))
 
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, file, main = Some("hello.HelloJava"))
-            }
-
-            val start = System.currentTimeMillis()
-            withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
-                _.response.result.get.toString should include("Hello stranger!")
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name, Map("name" -> JsString("Sir"))), totalWait = activationPollDuration) {
-                _.response.result.get.toString should include("Hello Sir!")
-            }
-
-            withClue("Test duration exceeds expectation (ms)") {
-                val duration = System.currentTimeMillis() - start
-                duration should be <= expectedDuration.toMillis
-            }
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, file, main = Some("hello.HelloJava"))
     }
 
-    /*
-     * Example from the docs.
-     */
-    it should "Invoke a Java action where main is in the default package" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloJavaDefaultPkg"
-            val file = Some(TestUtils.getTestActionFilename("helloJavaDefaultPackage.jar"))
-
-            assetHelper.withCleaner(wsk.action, name) {
-                (action, _) => action.create(name, file, main = Some("Hello"))
-            }
-
-            withActivation(wsk.activation, wsk.action.invoke(name, Map()), totalWait = activationPollDuration) {
-                _.response.result.get.toString should include("Hello stranger!")
-            }
+    val start = System.currentTimeMillis()
+    withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
+      _.response.result.get.toString should include("Hello stranger!")
     }
 
-    it should "Ensure that Java actions cannot be created without a specified main method" in withAssetCleaner(wskprops) {
-        (wp, assetHelper) =>
-            val name = "helloJavaWithNoMainSpecified"
-            val file = Some(TestUtils.getTestActionFilename("helloJava.jar"))
-
-            val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) {
-                (action, _) =>
-                    action.create(name, file, expectedExitCode = ANY_ERROR_EXIT)
-            }
-
-            val output = s"${createResult.stdout}\n${createResult.stderr}"
-
-            output should include("main")
+    withActivation(
+      wsk.activation,
+      wsk.action.invoke(name, Map("name" -> JsString("Sir"))),
+      totalWait = activationPollDuration) {
+      _.response.result.get.toString should include("Hello Sir!")
     }
+
+    withClue("Test duration exceeds expectation (ms)") {
+      val duration = System.currentTimeMillis() - start
+      duration should be <= expectedDuration.toMillis
+    }
+  }
+
+  /*
+   * Example from the docs.
+   */
+  it should "Invoke a Java action where main is in the default package" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "helloJavaDefaultPkg"
+      val file = Some(TestUtils.getTestActionFilename("helloJavaDefaultPackage.jar"))
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, main = Some("Hello"))
+      }
+
+      withActivation(wsk.activation, wsk.action.invoke(name, Map()), totalWait = activationPollDuration) {
+        _.response.result.get.toString should include("Hello stranger!")
+      }
+  }
+
+  it should "Ensure that Java actions cannot be created without a specified main method" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "helloJavaWithNoMainSpecified"
+      val file = Some(TestUtils.getTestActionFilename("helloJava.jar"))
+
+      val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
+        action.create(name, file, expectedExitCode = ANY_ERROR_EXIT)
+      }
+
+      val output = s"${createResult.stdout}\n${createResult.stderr}"
+
+      output should include("main")
+  }
 }

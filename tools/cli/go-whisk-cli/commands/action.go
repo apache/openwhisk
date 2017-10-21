@@ -24,6 +24,7 @@ import (
     "path/filepath"
     "io"
     "strings"
+    "os"
 
     "../../go-whisk/whisk"
     "../wski18n"
@@ -33,13 +34,29 @@ import (
     "github.com/mattn/go-colorable"
 )
 
-const MEMORY_LIMIT      = 256
-const TIMEOUT_LIMIT     = 60000
-const LOGSIZE_LIMIT     = 10
-const ACTIVATION_ID     = "activationId"
-const WEB_EXPORT_ANNOT  = "web-export"
-const RAW_HTTP_ANNOT    = "raw-http"
-const FINAL_ANNOT       = "final"
+const (
+    MEMORY_LIMIT      = 256
+    TIMEOUT_LIMIT     = 60000
+    LOGSIZE_LIMIT     = 10
+    ACTIVATION_ID     = "activationId"
+    WEB_EXPORT_ANNOT  = "web-export"
+    RAW_HTTP_ANNOT    = "raw-http"
+    FINAL_ANNOT       = "final"
+    NODE_JS_EXT       = ".js"
+    PYTHON_EXT        = ".py"
+    JAVA_EXT          = ".jar"
+    SWIFT_EXT         = ".swift"
+    ZIP_EXT           = ".zip"
+    PHP_EXT           = ".php"
+    NODE_JS           = "nodejs"
+    PYTHON            = "python"
+    JAVA              = "java"
+    SWIFT             = "swift"
+    PHP               = "php"
+    DEFAULT           = "default"
+    BLACKBOX          = "blackbox"
+    SEQUENCE          = "sequence"
+)
 
 var actionCmd = &cobra.Command{
     Use:   "action",
@@ -51,12 +68,12 @@ var actionCreateCmd = &cobra.Command{
     Short:         wski18n.T("create a new action"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var action *whisk.Action
         var err error
 
-        if whiskErr := checkArgs(
+        if whiskErr := CheckArgs(
             args,
             1,
             2,
@@ -69,7 +86,7 @@ var actionCreateCmd = &cobra.Command{
             return actionParseError(cmd, args, err)
         }
 
-        if _, _, err = client.Actions.Insert(action, false); err != nil {
+        if _, _, err = Client.Actions.Insert(action, false); err != nil {
             return actionInsertError(action, err)
         }
 
@@ -84,12 +101,12 @@ var actionUpdateCmd = &cobra.Command{
     Short:         wski18n.T("update an existing action, or create an action if it does not exist"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var action *whisk.Action
         var err error
 
-        if whiskErr := checkArgs(
+        if whiskErr := CheckArgs(
             args,
             1,
             2,
@@ -102,7 +119,7 @@ var actionUpdateCmd = &cobra.Command{
             return actionParseError(cmd, args, err)
         }
 
-        if _, _, err = client.Actions.Insert(action, true); err != nil {
+        if _, _, err = Client.Actions.Insert(action, true); err != nil {
             return actionInsertError(action, err)
         }
 
@@ -117,14 +134,14 @@ var actionInvokeCmd = &cobra.Command{
     Short:         wski18n.T("invoke action"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var parameters interface{}
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var paramArgs []string
 
-        if whiskErr := checkArgs(
+        if whiskErr := CheckArgs(
             args,
             1,
             1,
@@ -133,11 +150,11 @@ var actionInvokeCmd = &cobra.Command{
                 return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        Client.Namespace = qualifiedName.GetNamespace()
         paramArgs = flags.common.param
 
         if len(paramArgs) > 0 {
@@ -147,13 +164,13 @@ var actionInvokeCmd = &cobra.Command{
         }
         if flags.action.result {flags.common.blocking = true}
 
-        res, _, err := client.Actions.Invoke(
-            qualifiedName.entityName,
+        res, _, err := Client.Actions.Invoke(
+            qualifiedName.GetEntityName(),
             parameters,
             flags.common.blocking,
             flags.action.result)
 
-        return handleInvocationResponse(qualifiedName, parameters, res, err)
+        return handleInvocationResponse(*qualifiedName, parameters, res, err)
     },
 }
 
@@ -164,29 +181,29 @@ func handleInvocationResponse(
     err error) (error) {
         if err == nil {
             printInvocationMsg(
-                qualifiedName.namespace,
-                qualifiedName.entityName,
+                qualifiedName.GetNamespace(),
+                qualifiedName.GetEntityName(),
                 getValueFromJSONResponse(ACTIVATION_ID, result),
                 result,
                 color.Output)
         } else {
             if !flags.common.blocking {
-                return handleInvocationError(err, qualifiedName.entityName, parameters)
+                return handleInvocationError(err, qualifiedName.GetEntityName(), parameters)
             } else {
                 if isBlockingTimeout(err) {
                     printBlockingTimeoutMsg(
-                        qualifiedName.namespace,
-                        qualifiedName.entityName,
+                        qualifiedName.GetNamespace(),
+                        qualifiedName.GetEntityName(),
                         getValueFromJSONResponse(ACTIVATION_ID, result))
                 } else if isApplicationError(err) {
                     printInvocationMsg(
-                        qualifiedName.namespace,
-                        qualifiedName.entityName,
+                        qualifiedName.GetNamespace(),
+                        qualifiedName.GetEntityName(),
                         getValueFromJSONResponse(ACTIVATION_ID, result),
                         result,
                         colorable.NewColorableStderr())
                 } else {
-                    return handleInvocationError(err, qualifiedName.entityName, parameters)
+                    return handleInvocationError(err, qualifiedName.GetEntityName(), parameters)
                 }
             }
         }
@@ -199,14 +216,14 @@ var actionGetCmd = &cobra.Command{
     Short:         wski18n.T("get action"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var field string
         var action *whisk.Action
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
 
-        if whiskErr := checkArgs(args, 1, 2, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
+        if whiskErr := CheckArgs(args, 1, 2, "Action get", wski18n.T("An action name is required.")); whiskErr != nil {
             return whiskErr
         }
 
@@ -218,29 +235,37 @@ var actionGetCmd = &cobra.Command{
             }
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        Client.Namespace = qualifiedName.GetNamespace()
 
-        if action, _, err = client.Actions.Get(qualifiedName.entityName); err != nil {
-            return actionGetError(qualifiedName.entityName, err)
+        if action, _, err = Client.Actions.Get(qualifiedName.GetEntityName()); err != nil {
+            return actionGetError(qualifiedName.GetEntityName(), err)
         }
 
         if flags.action.url {
-            actionURL := action.ActionURL(Properties.APIHost,
+            actionURL, err := action.ActionURL(Properties.APIHost,
                 DefaultOpenWhiskApiPath,
                 Properties.APIVersion,
-                qualifiedName.packageName)
-            printActionGetWithURL(qualifiedName.entity, actionURL)
+                qualifiedName.GetPackageName())
+            if err != nil {
+                errStr := wski18n.T("Invalid host address '{{.host}}': {{.err}}",
+                        map[string]interface{}{"host": Properties.APIHost, "err": err})
+                werr := whisk.MakeWskError(errors.New(errStr), whisk.EXIT_CODE_ERR_GENERAL, whisk.DISPLAY_MSG, whisk.NO_DISPLAY_USAGE)
+                return werr
+            }
+            printActionGetWithURL(qualifiedName.GetEntity(), actionURL)
         } else if flags.common.summary {
             printSummary(action)
+        } else if cmd.LocalFlags().Changed(SAVE_AS_FLAG) || cmd.LocalFlags().Changed(SAVE_FLAG) {
+            return saveCode(*action, flags.action.saveAs)
         } else {
             if len(field) > 0 {
-                printActionGetWithField(qualifiedName.entityName, field, action)
+                printActionGetWithField(qualifiedName.GetEntityName(), field, action)
             } else {
-                printActionGet(qualifiedName.entityName, action)
+                printActionGet(qualifiedName.GetEntityName(), action)
             }
         }
 
@@ -253,12 +278,12 @@ var actionDeleteCmd = &cobra.Command{
     Short:         wski18n.T("delete action"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var err error
 
-        if whiskErr := checkArgs(
+        if whiskErr := CheckArgs(
             args,
             1,
             1,
@@ -267,17 +292,17 @@ var actionDeleteCmd = &cobra.Command{
                 return whiskErr
         }
 
-        if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-            return parseQualifiedNameError(args[0], err)
+        if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+            return NewQualifiedNameError(args[0], err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        Client.Namespace = qualifiedName.GetNamespace()
 
-        if _, err = client.Actions.Delete(qualifiedName.entityName); err != nil {
-            return actionDeleteError(qualifiedName.entityName, err)
+        if _, err = Client.Actions.Delete(qualifiedName.GetEntityName()); err != nil {
+            return actionDeleteError(qualifiedName.GetEntityName(), err)
         }
 
-        printActionDeleted(qualifiedName.entityName)
+        printActionDeleted(qualifiedName.GetEntityName())
 
         return nil
     },
@@ -288,13 +313,13 @@ var actionListCmd = &cobra.Command{
     Short:         wski18n.T("list all actions in a namespace or actions contained in a package"),
     SilenceUsage:  true,
     SilenceErrors: true,
-    PreRunE:       setupClientConfig,
+    PreRunE:       SetupClientConfig,
     RunE: func(cmd *cobra.Command, args []string) error {
-        var qualifiedName QualifiedName
+        var qualifiedName = new(QualifiedName)
         var actions []whisk.Action
         var err error
 
-        if whiskErr := checkArgs(
+        if whiskErr := CheckArgs(
             args,
             0,
             1,
@@ -304,11 +329,11 @@ var actionListCmd = &cobra.Command{
         }
 
         if len(args) == 1 {
-            if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-                return parseQualifiedNameError(args[0], err)
+            if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+                return NewQualifiedNameError(args[0], err)
             }
 
-            client.Namespace = qualifiedName.namespace
+            Client.Namespace = qualifiedName.GetNamespace()
         }
 
         options := &whisk.ActionListOptions{
@@ -316,11 +341,12 @@ var actionListCmd = &cobra.Command{
             Limit: flags.common.limit,
         }
 
-        if actions, _, err = client.Actions.List(qualifiedName.entityName, options); err != nil {
-            return actionListError(qualifiedName.entityName, options, err)
+        if actions, _, err = Client.Actions.List(qualifiedName.GetEntityName(), options); err != nil {
+            return actionListError(qualifiedName.GetEntityName(), options, err)
         }
 
-        printList(actions)
+        sortByName := flags.common.nameSort
+        printList(actions, sortByName)
 
         return nil
     },
@@ -334,16 +360,16 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     var parameters interface{}
     var annotations interface{}
 
-    qualifiedName := QualifiedName{}
+    var qualifiedName = new(QualifiedName)
 
-    if qualifiedName, err = parseQualifiedName(args[0]); err != nil {
-        return nil, parseQualifiedNameError(args[0], err)
+    if qualifiedName, err = NewQualifiedName(args[0]); err != nil {
+        return nil, NewQualifiedNameError(args[0], err)
     }
 
-    client.Namespace = qualifiedName.namespace
+    Client.Namespace = qualifiedName.GetNamespace()
     action := new(whisk.Action)
-    action.Name = qualifiedName.entityName
-    action.Namespace = qualifiedName.namespace
+    action.Name = qualifiedName.GetEntityName()
+    action.Namespace = qualifiedName.GetNamespace()
     action.Limits = getLimits(
         cmd.LocalFlags().Changed(MEMORY_FLAG),
         cmd.LocalFlags().Changed(LOG_SIZE_FLAG),
@@ -372,26 +398,26 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if flags.action.copy {
-        copiedQualifiedName := QualifiedName{}
+        var copiedQualifiedName = new(QualifiedName)
 
-        if copiedQualifiedName, err = parseQualifiedName(args[1]); err != nil {
-            return nil, parseQualifiedNameError(args[1], err)
+        if copiedQualifiedName, err = NewQualifiedName(args[1]); err != nil {
+            return nil, NewQualifiedNameError(args[1], err)
         }
 
-        client.Namespace = copiedQualifiedName.namespace
+        Client.Namespace = copiedQualifiedName.GetNamespace()
 
-        if existingAction, _, err = client.Actions.Get(copiedQualifiedName.entityName); err != nil {
-            return nil, actionGetError(copiedQualifiedName.entityName, err)
+        if existingAction, _, err = Client.Actions.Get(copiedQualifiedName.GetEntityName()); err != nil {
+            return nil, actionGetError(copiedQualifiedName.GetEntityName(), err)
         }
 
-        client.Namespace = qualifiedName.namespace
+        Client.Namespace = qualifiedName.GetNamespace()
         action.Exec = existingAction.Exec
         action.Parameters = append(action.Parameters, existingAction.Parameters...)
         action.Annotations = append(action.Annotations, existingAction.Annotations...)
     } else if flags.action.sequence {
         if len(args) == 2 {
             action.Exec = new(whisk.Exec)
-            action.Exec.Kind = "sequence"
+            action.Exec.Kind = SEQUENCE
             action.Exec.Components = csvToQualifiedActions(args[1])
         } else {
             return nil, noArtifactError()
@@ -406,7 +432,8 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
-        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.entityName, update)
+        preserveAnnotations := action.Annotations == nil
+        action.Annotations, err = webAction(flags.action.web, action.Annotations, qualifiedName.GetEntityName(), preserveAnnotations)
     }
 
     whisk.Debug(whisk.DbgInfo, "Parsed action struct: %#v\n", action)
@@ -436,8 +463,7 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
             return nil, err
         }
 
-        if ext == ".zip" || ext == ".jar" {
-            // Base64 encode the file
+        if ext == ZIP_EXT || ext == JAVA_EXT {
             code = base64.StdEncoding.EncodeToString([]byte(code))
         }
 
@@ -451,22 +477,24 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     if len(kind) > 0 {
         exec.Kind = kind
     } else if len(docker) > 0 || isNative {
-        exec.Kind = "blackbox"
+        exec.Kind = BLACKBOX
         if isNative {
             exec.Image = "openwhisk/dockerskeleton"
         } else {
             exec.Image = docker
         }
-    } else if ext == ".swift" {
-        exec.Kind = "swift:default"
-    } else if ext == ".js" {
-        exec.Kind = "nodejs:default"
-    } else if ext == ".py" {
-        exec.Kind = "python:default"
-    } else if ext == ".jar" {
-        exec.Kind = "java:default"
+    } else if ext == SWIFT_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", SWIFT, DEFAULT)
+    } else if ext == NODE_JS_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", NODE_JS, DEFAULT)
+    } else if ext == PYTHON_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", PYTHON, DEFAULT)
+    } else if ext == JAVA_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", JAVA, DEFAULT)
+    } else if ext == PHP_EXT {
+        exec.Kind = fmt.Sprintf("%s:%s", PHP, DEFAULT)
     } else {
-        if ext == ".zip" {
+        if ext == ZIP_EXT {
             return nil, zipKindError()
         } else {
             return nil, extensionError(ext)
@@ -485,18 +513,98 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
     return exec, nil
 }
 
-func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, fetch bool) (whisk.KeyValueArr, error){
+func getBinaryKindExtension(runtime string) (extension string) {
+    switch strings.ToLower(runtime) {
+    case JAVA:
+        extension = JAVA_EXT
+    default:
+        extension = ZIP_EXT
+    }
+
+    return extension
+}
+
+func getKindExtension(runtime string) (extension string) {
+    switch strings.ToLower(runtime) {
+    case NODE_JS:
+        extension = NODE_JS_EXT
+    case PYTHON:
+        extension = PYTHON_EXT
+    case SWIFT:
+        fallthrough
+    case PHP:
+        extension = fmt.Sprintf(".%s", runtime)
+    }
+
+    return extension
+}
+
+func saveCode(action whisk.Action, filename string) (err error) {
+    var code string
+    var runtime string
+    var exec whisk.Exec
+
+    exec = *action.Exec
+    runtime = strings.Split(exec.Kind, ":")[0]
+
+    if strings.ToLower(runtime) == BLACKBOX {
+        return cannotSaveImageError()
+    } else if strings.ToLower(runtime) == SEQUENCE {
+        return cannotSaveSequenceError()
+    }
+
+    if exec.Code != nil {
+        code = *exec.Code
+    }
+
+    if *exec.Binary {
+        decoded, _ := base64.StdEncoding.DecodeString(code)
+        code = string(decoded)
+
+        if len(filename) == 0 {
+            filename = action.Name + getBinaryKindExtension(runtime)
+        }
+    } else {
+        if len(filename) == 0 {
+            filename = action.Name + getKindExtension(runtime)
+        }
+    }
+
+    if exists, err := FileExists(filename); err != nil {
+        return err
+    } else if exists {
+        return fileExistsError(filename)
+    }
+
+    if err := writeFile(filename, code); err != nil {
+        return err
+    }
+
+    pwd, err := os.Getwd()
+    if err != nil {
+        whisk.Debug(whisk.DbgError, "os.Getwd() error: %s\n", err)
+        return err
+    }
+
+    savedPath := fmt.Sprintf("%s%s%s", pwd, string(os.PathSeparator), filename)
+
+    printSavedActionCodeSuccess(savedPath)
+
+    return nil
+}
+
+func webAction(webMode string, annotations whisk.KeyValueArr, entityName string, preserveAnnotations bool) (whisk.KeyValueArr, error){
     switch strings.ToLower(webMode) {
     case "yes":
         fallthrough
     case "true":
-        return webActionAnnotations(fetch, annotations, entityName, addWebAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, addWebAnnotations)
     case "no":
         fallthrough
     case "false":
-        return webActionAnnotations(fetch, annotations, entityName, deleteWebAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, deleteWebAnnotations)
     case "raw":
-        return webActionAnnotations(fetch, annotations, entityName, addRawAnnotations)
+        return webActionAnnotations(preserveAnnotations, annotations, entityName, addRawAnnotations)
     default:
         return nil, webInputError(webMode)
     }
@@ -505,22 +613,26 @@ func webAction(webMode string, annotations whisk.KeyValueArr, entityName string,
 type WebActionAnnotationMethod func(annotations whisk.KeyValueArr) (whisk.KeyValueArr)
 
 func webActionAnnotations(
-    fetchAnnotations bool,
+    preserveAnnotations bool,
     annotations whisk.KeyValueArr,
     entityName string,
     webActionAnnotationMethod WebActionAnnotationMethod) (whisk.KeyValueArr, error) {
         var action *whisk.Action
         var err error
 
-        if annotations != nil || !fetchAnnotations {
-            annotations = webActionAnnotationMethod(annotations)
-        } else {
-            if action, _, err = client.Actions.Get(entityName); err != nil {
-                return nil, actionGetError(entityName, err)
+        if preserveAnnotations {
+            if action, _, err = Client.Actions.Get(entityName); err != nil {
+                whiskErr, isWhiskError := err.(*whisk.WskError)
+
+                if (isWhiskError && whiskErr.ExitCode != whisk.EXIT_CODE_NOT_FOUND) || !isWhiskError {
+                    return nil, actionGetError(entityName, err)
+                }
             } else {
-                annotations = webActionAnnotationMethod(action.Annotations)
+                annotations = whisk.KeyValueArr.AppendKeyValueArr(annotations, action.Annotations)
             }
         }
+
+        annotations = webActionAnnotationMethod(annotations)
 
         return annotations, nil
 }
@@ -586,7 +698,7 @@ func nestedError(errorMessage string, err error) (error) {
     return whisk.MakeWskErrorFromWskError(
         errors.New(errorMessage),
         err,
-        whisk.EXITCODE_ERR_GENERAL,
+        whisk.EXIT_CODE_ERR_GENERAL,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -594,7 +706,7 @@ func nestedError(errorMessage string, err error) (error) {
 func nonNestedError(errorMessage string) (error) {
     return whisk.MakeWskError(
         errors.New(errorMessage),
-        whisk.EXITCODE_ERR_USAGE,
+        whisk.EXIT_CODE_ERR_USAGE,
         whisk.DISPLAY_MSG,
         whisk.DISPLAY_USAGE)
 }
@@ -612,7 +724,7 @@ func actionParseError(cmd *cobra.Command, args []string, err error) (error) {
 }
 
 func actionInsertError(action *whisk.Action, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Insert(%#v, false) error: %s\n", action, err)
+    whisk.Debug(whisk.DbgError, "Client.Actions.Insert(%#v, false) error: %s\n", action, err)
 
     errMsg := wski18n.T(
         "Unable to create action '{{.name}}': {{.err}}",
@@ -661,7 +773,7 @@ func invalidFieldFilterError(field string) (error) {
 }
 
 func actionDeleteError(entityName string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Delete(%s) error: %s\n", entityName, err)
+    whisk.Debug(whisk.DbgError, "Client.Actions.Delete(%s) error: %s\n", entityName, err)
 
     errMsg := wski18n.T(
         "Unable to delete action '{{.name}}': {{.err}}",
@@ -674,7 +786,7 @@ func actionDeleteError(entityName string, err error) (error) {
 }
 
 func actionGetError(entityName string, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", entityName, err)
+    whisk.Debug(whisk.DbgError, "Client.Actions.Get(%s) error: %s\n", entityName, err)
 
     errMsg := wski18n.T(
         "Unable to get action '{{.name}}': {{.err}}",
@@ -689,7 +801,7 @@ func actionGetError(entityName string, err error) (error) {
 func handleInvocationError(err error, entityName string, parameters interface{}) (error) {
     whisk.Debug(
         whisk.DbgError,
-        "client.Actions.Invoke(%s, %s, %t) error: %s\n",
+        "Client.Actions.Invoke(%s, %s, %t) error: %s\n",
         entityName, parameters,
         flags.common.blocking,
         err)
@@ -705,7 +817,7 @@ func handleInvocationError(err error, entityName string, parameters interface{})
 }
 
 func actionListError(entityName string, options *whisk.ActionListOptions, err error) (error) {
-    whisk.Debug(whisk.DbgError, "client.Actions.List(%s, %#v) error: %s\n", entityName, options, err)
+    whisk.Debug(whisk.DbgError, "Client.Actions.List(%s, %#v) error: %s\n", entityName, options, err)
 
     errMsg := wski18n.T(
         "Unable to obtain the list of actions for namespace '{{.name}}': {{.err}}",
@@ -751,6 +863,22 @@ func extensionError(extension string) (error) {
 
 func javaEntryError() (error) {
     errMsg := wski18n.T("Java actions require --main to specify the fully-qualified name of the main class")
+
+    return nonNestedError(errMsg)
+}
+
+func cannotSaveImageError() (error) {
+    return nonNestedError(wski18n.T("Cannot save Docker images"))
+}
+
+func cannotSaveSequenceError() (error) {
+    return nonNestedError(wski18n.T("Cannot save action sequences"))
+}
+
+func fileExistsError(file string) (error) {
+    errMsg := wski18n.T("The file '{{.file}}' already exists", map[string]interface{} {
+        "file": file,
+    })
 
     return nonNestedError(errMsg)
 }
@@ -862,25 +990,36 @@ func printActionDeleted(entityName string) {
             }))
 }
 
+func printSavedActionCodeSuccess(name string) {
+    fmt.Fprintf(
+        color.Output,
+        wski18n.T(
+            "{{.ok}} saved action code to {{.name}}\n",
+            map[string]interface{}{
+                "ok": color.GreenString("ok:"),
+                "name": boldString(name),
+            }))
+}
+
 // Check if the specified action is a web-action
 func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
     var err error = nil
 
     savedNs := client.Namespace
-    client.Namespace = qname.namespace
-    fullActionName := "/" + qname.namespace + "/" + qname.entityName
+    client.Namespace = qname.GetNamespace()
+    fullActionName := "/" + qname.GetNamespace() + "/" + qname.GetEntityName()
 
-    action, _, err := client.Actions.Get(qname.entityName)
+    action, _, err := client.Actions.Get(qname.GetEntityName())
 
     if err != nil {
         whisk.Debug(whisk.DbgError, "client.Actions.Get(%s) error: %s\n", fullActionName, err)
         whisk.Debug(whisk.DbgError, "Unable to obtain action '%s' for web action validation\n", fullActionName)
         errMsg := wski18n.T("Unable to get action '{{.name}}': {{.err}}",
             map[string]interface{}{"name": fullActionName, "err": err})
-        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXITCODE_ERR_NETWORK, whisk.DISPLAY_MSG,
+        err = whisk.MakeWskErrorFromWskError(errors.New(errMsg), err, whisk.EXIT_CODE_ERR_NETWORK, whisk.DISPLAY_MSG,
             whisk.NO_DISPLAY_USAGE)
     } else {
-        err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update {{.name}} --web true' to convert the action to a web action.",
+        err = errors.New(wski18n.T("Action '{{.name}}' is not a web action. Issue 'wsk action update \"{{.name}}\" --web true' to convert the action to a web action.",
             map[string]interface{}{"name": fullActionName}))
 
         if action.WebAction() {
@@ -900,14 +1039,14 @@ func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
-    actionCreateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
-    actionCreateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
-    actionCreateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
+    actionCreateCmd.Flags().IntVarP(&flags.action.timeout, TIMEOUT_FLAG, "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+    actionCreateCmd.Flags().IntVarP(&flags.action.memory, MEMORY_FLAG, "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+    actionCreateCmd.Flags().IntVarP(&flags.action.logsize, LOG_SIZE_FLAG, "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", nil, wski18n.T("annotation values in `KEY VALUE` format"))
     actionCreateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionCreateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", nil, wski18n.T("parameter values in `KEY VALUE` format"))
     actionCreateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionCreateCmd.Flags().StringVar(&flags.action.web, "web", "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
+    actionCreateCmd.Flags().StringVar(&flags.action.web, WEB_FLAG, "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
     actionUpdateCmd.Flags().BoolVar(&flags.action.native, "native", false, wski18n.T("treat ACTION as native action (zip file provides a compatible executable to run)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.docker, "docker", "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
@@ -915,25 +1054,28 @@ func init() {
     actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
-    actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, "timeout", "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
-    actionUpdateCmd.Flags().IntVarP(&flags.action.memory, "memory", "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
-    actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, "logsize", "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
+    actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, TIMEOUT_FLAG, "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
+    actionUpdateCmd.Flags().IntVarP(&flags.action.memory, MEMORY_FLAG, "m", MEMORY_LIMIT, wski18n.T("the maximum memory `LIMIT` in MB for the action"))
+    actionUpdateCmd.Flags().IntVarP(&flags.action.logsize, LOG_SIZE_FLAG, "l", LOGSIZE_LIMIT, wski18n.T("the maximum log size `LIMIT` in MB for the action"))
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.annotation, "annotation", "a", []string{}, wski18n.T("annotation values in `KEY VALUE` format"))
     actionUpdateCmd.Flags().StringVarP(&flags.common.annotFile, "annotation-file", "A", "", wski18n.T("`FILE` containing annotation values in JSON format"))
     actionUpdateCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionUpdateCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
-    actionUpdateCmd.Flags().StringVar(&flags.action.web, "web", "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.web, WEB_FLAG, "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
     actionInvokeCmd.Flags().StringSliceVarP(&flags.common.param, "param", "p", []string{}, wski18n.T("parameter values in `KEY VALUE` format"))
     actionInvokeCmd.Flags().StringVarP(&flags.common.paramFile, "param-file", "P", "", wski18n.T("`FILE` containing parameter values in JSON format"))
     actionInvokeCmd.Flags().BoolVarP(&flags.common.blocking, "blocking", "b", false, wski18n.T("blocking invoke"))
     actionInvokeCmd.Flags().BoolVarP(&flags.action.result, "result", "r", false, wski18n.T("blocking invoke; show only activation result (unless there is a failure)"))
 
-    actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details"))
+    actionGetCmd.Flags().BoolVarP(&flags.common.summary, "summary", "s", false, wski18n.T("summarize action details; parameters with prefix \"*\" are bound, \"**\" are bound and finalized"))
     actionGetCmd.Flags().BoolVarP(&flags.action.url, "url", "r", false, wski18n.T("get action url"))
+    actionGetCmd.Flags().StringVar(&flags.action.saveAs, SAVE_AS_FLAG, "", wski18n.T("file to save action code to"))
+    actionGetCmd.Flags().BoolVarP(&flags.action.save, SAVE_FLAG, "", false, wski18n.T("save action code to file corresponding with action name"))
 
     actionListCmd.Flags().IntVarP(&flags.common.skip, "skip", "s", 0, wski18n.T("exclude the first `SKIP` number of actions from the result"))
     actionListCmd.Flags().IntVarP(&flags.common.limit, "limit", "l", 30, wski18n.T("only return `LIMIT` number of actions from the collection"))
+    actionListCmd.Flags().BoolVarP(&flags.common.nameSort, "name-sort", "n", false, wski18n.T("sorts a list alphabetically by entity name; only applicable within the limit/skip returned entity block"))
 
     actionCmd.AddCommand(
         actionCreateCmd,

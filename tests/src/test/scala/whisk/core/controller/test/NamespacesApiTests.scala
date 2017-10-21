@@ -20,16 +20,22 @@ package whisk.core.controller.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import spray.http.StatusCodes.Forbidden
-import spray.http.StatusCodes.MethodNotAllowed
-import spray.http.StatusCodes.OK
-import spray.httpx.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.model.StatusCodes.OK
+import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.MethodNotAllowed
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
+import akka.http.scaladsl.server.Route
+
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import whisk.core.controller.Namespaces
 import whisk.core.controller.WhiskNamespacesApi
 import whisk.core.entity.EntityPath
+import spray.json.JsObject
+import spray.json.JsObject
+import whisk.core.controller.Namespaces
+import spray.json.JsArray
 
 /**
  * Tests Namespaces API.
@@ -46,66 +52,68 @@ import whisk.core.entity.EntityPath
 @RunWith(classOf[JUnitRunner])
 class NamespacesApiTests extends ControllerTestCommon with WhiskNamespacesApi {
 
-    /** Triggers API tests */
-    behavior of "Namespaces API"
+  /** Triggers API tests */
+  behavior of "Namespaces API"
 
-    val collectionPath = s"/${collection.path}"
-    val creds = WhiskAuthHelpers.newIdentity()
-    val namespace = EntityPath(creds.subject.asString)
+  val collectionPath = s"/${collection.path}"
+  val creds = WhiskAuthHelpers.newIdentity()
+  val namespace = EntityPath(creds.subject.asString)
 
-    it should "list namespaces for subject" in {
-        implicit val tid = transid()
-        Get(collectionPath) ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val ns = responseAs[List[EntityPath]]
-            ns should be(List(EntityPath(creds.subject.asString)))
-        }
+  it should "list namespaces for subject" in {
+    implicit val tid = transid()
+    Get(collectionPath) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val ns = responseAs[List[EntityPath]]
+      ns should be(List(EntityPath(creds.subject.asString)))
     }
+  }
 
-    it should "list namespaces for subject with trailing /" in {
-        implicit val tid = transid()
-        Get(s"$collectionPath/") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val ns = responseAs[List[EntityPath]]
-            ns should be(List(EntityPath(creds.subject.asString)))
-        }
+  it should "list namespaces for subject with trailing /" in {
+    implicit val tid = transid()
+    Get(s"$collectionPath/") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val ns = responseAs[List[EntityPath]]
+      ns should be(List(EntityPath(creds.subject.asString)))
     }
+  }
 
-    it should "get namespace entities for subject" in {
-        implicit val tid = transid()
-        Get(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(OK)
-            val ns = responseAs[JsObject]
-            ns should be(JsObject(Namespaces.emptyNamespace map { kv => (kv._1, JsArray()) }))
-        }
+  it should "get namespace entities for subject" in {
+    implicit val tid = transid()
+    Get(s"$collectionPath/${creds.subject}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val ns = responseAs[JsObject]
+      ns should be(JsObject(Namespaces.emptyNamespace map { kv =>
+        (kv._1, JsArray())
+      }))
     }
+  }
 
-    it should "reject get namespace entities for unauthorized subject" in {
-        implicit val tid = transid()
-        val anothercred = WhiskAuthHelpers.newIdentity()
-        Get(s"$collectionPath/${anothercred.subject}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(Forbidden)
-        }
+  it should "reject get namespace entities for unauthorized subject" in {
+    implicit val tid = transid()
+    val anothercred = WhiskAuthHelpers.newIdentity()
+    Get(s"$collectionPath/${anothercred.subject}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Forbidden)
     }
+  }
 
-    it should "reject request with put" in {
-        implicit val tid = transid()
-        Put(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(MethodNotAllowed)
-        }
+  it should "reject request with put" in {
+    implicit val tid = transid()
+    Put(s"$collectionPath/${creds.subject}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(MethodNotAllowed)
     }
+  }
 
-    it should "reject request with post" in {
-        implicit val tid = transid()
-        Post(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(MethodNotAllowed)
-        }
+  it should "reject request with post" in {
+    implicit val tid = transid()
+    Post(s"$collectionPath/${creds.subject}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(MethodNotAllowed)
     }
+  }
 
-    it should "reject request with delete" in {
-        implicit val tid = transid()
-        Delete(s"$collectionPath/${creds.subject}") ~> sealRoute(routes(creds)) ~> check {
-            status should be(MethodNotAllowed)
-        }
+  it should "reject request with delete" in {
+    implicit val tid = transid()
+    Delete(s"$collectionPath/${creds.subject}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(MethodNotAllowed)
     }
+  }
 }

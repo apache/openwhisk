@@ -2,7 +2,6 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:invoker'
-include 'core:nodejsActionBase'
 include 'core:nodejs6Action'
 include 'core:actionProxy'
 include 'core:pythonAction'
@@ -10,6 +9,7 @@ include 'core:python2Action'
 include 'core:swift3Action'
 include 'core:swift3.1.1Action'
 include 'core:javaAction'
+include 'core:php7.1Action'
 
 include 'tools:cli'
 
@@ -24,4 +24,9 @@ rootProject.name = 'openwhisk'
 gradle.ext.scala = [
     version: '2.11.8',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
+]
+
+gradle.ext.scalafmt = [
+    version: '1.5.0',
+    config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]

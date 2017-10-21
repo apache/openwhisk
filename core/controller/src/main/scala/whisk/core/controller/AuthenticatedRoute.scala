@@ -17,43 +17,41 @@
 
 package whisk.core.controller
 
-import scala.Left
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
-import spray.http.StatusCodes.InternalServerError
-import spray.http.StatusCodes.ServiceUnavailable
-import spray.routing.RequestContext
-import spray.routing.Route
-import spray.routing.authentication.BasicHttpAuthenticator
-import spray.routing.authentication.UserPass
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.headers.BasicHttpCredentials
+import akka.http.scaladsl.server.directives._
+import akka.http.scaladsl.server.directives.AuthenticationResult
+import akka.http.scaladsl.model.headers._
+
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
-import whisk.http.CustomRejection
 
 /** A common trait for secured routes */
 trait AuthenticatedRoute {
 
-    /** An execution context for futures */
-    protected implicit val executionContext: ExecutionContext
+  /** An execution context for futures */
+  protected implicit val executionContext: ExecutionContext
 
-    /** Creates HTTP BasicAuth handler */
-    protected def basicauth(implicit transid: TransactionId) = {
-        new BasicHttpAuthenticator[Identity](realm = "whisk rest service", validateCredentials _) {
-            override def apply(ctx: RequestContext) = {
-                super.apply(ctx) recover {
-                    case t: IllegalStateException => Left(CustomRejection(InternalServerError))
-                    case t                        => Left(CustomRejection(ServiceUnavailable))
-                }
-            }
-        }
+  /** Creates HTTP BasicAuth handler */
+  def basicAuth[A](verify: Option[BasicHttpCredentials] => Future[Option[A]]) = {
+    authenticateOrRejectWithChallenge[BasicHttpCredentials, A] { creds =>
+      verify(creds).map {
+        case Some(t) => AuthenticationResult.success(t)
+        case None    => AuthenticationResult.failWithChallenge(HttpChallenges.basic("OpenWhisk secure realm"))
+      }
     }
+  }
 
-    /** Validates credentials against database of subjects */
-    protected def validateCredentials(userpass: Option[UserPass])(implicit transid: TransactionId): Future[Option[Identity]]
+  /** Validates credentials against database of subjects */
+  protected def validateCredentials(credentials: Option[BasicHttpCredentials])(
+    implicit transid: TransactionId): Future[Option[Identity]]
 }
 
 /** A trait for authenticated routes. */
 trait AuthenticatedRouteProvider {
-    def routes(user: Identity)(implicit transid: TransactionId): Route
+  def routes(user: Identity)(implicit transid: TransactionId): Route
 }

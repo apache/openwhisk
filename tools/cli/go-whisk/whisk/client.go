@@ -31,6 +31,7 @@ import (
     "reflect"
     "../wski18n"
     "strings"
+    "regexp"
 )
 
 const (
@@ -76,7 +77,20 @@ type Config struct {
     Verbose   	bool
     Debug       bool     // For detailed tracing
     Insecure    bool
+    UserAgent   string
 }
+
+type ObfuscateSet struct {
+    Regex           string
+    Replacement     string
+}
+
+var DefaultObfuscateArr = []ObfuscateSet{
+        {
+            Regex: "\"[Pp]assword\":\\s*\".*\"",
+            Replacement: `"password": "******"`,
+        },
+    }
 
 func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 
@@ -113,7 +127,7 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
             Debug(DbgError, "url.Parse(%s) error: %s\n", defaultBaseURL, err)
             errStr := wski18n.T("Unable to create request URL '{{.url}}': {{.err}}",
                 map[string]interface{}{"url": defaultBaseURL, "err": err})
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     }
@@ -124,6 +138,10 @@ func NewClient(httpClient *http.Client, config *Config) (*Client, error) {
 
     if len(config.Version) == 0 {
         config.Version = "v1"
+    }
+
+    if len(config.UserAgent) == 0 {
+        config.UserAgent = "OpenWhisk-Go-Client"
     }
 
     c := &Client{
@@ -165,7 +183,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
         errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
             map[string]interface{}{"url": urlStr, "err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
 
@@ -179,7 +197,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         if err != nil {
             Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
             errStr := wski18n.T("Error encoding request body: {{.err}}", map[string]interface{}{"err": err})
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     }
@@ -188,7 +206,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, u.String(), err)
         errStr := wski18n.T("Error initializing request: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
     if req.Body != nil {
@@ -200,9 +218,11 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}, includeName
         Debug(DbgError, "addAuthHeader() error: %s\n", err)
         errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
             map[string]interface{}{"err": err})
-        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
+
+    req.Header.Add("User-Agent", c.Config.UserAgent)
 
     return req, nil
 }
@@ -216,11 +236,34 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
         if authRequired {
             Debug(DbgError, "The required authorization key is not configured - neither set as a property nor set via the --auth CLI argument\n")
             errStr := wski18n.T("Authorization key is not configured (--auth is required)")
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_USAGE, DISPLAY_MSG, DISPLAY_USAGE)
             return werr
         }
     }
     return nil
+}
+
+// bodyTruncator limits the size of Req/Resp Body for --verbose ONLY.
+// It returns truncated Req/Resp Body, reloaded io.ReadCloser and any errors.
+func BodyTruncator(body io.ReadCloser) (string, io.ReadCloser, error) {
+    limit := 1000    // 1000 byte limit, anything over is truncated
+
+    data, err := ioutil.ReadAll(body)
+    if err != nil {
+        Verbose("ioutil.ReadAll(req.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        return "", body, werr
+    }
+
+    reload := ioutil.NopCloser(bytes.NewBuffer(data))
+
+    if len(data) > limit {
+        Verbose("Body exceeds %d bytes and will be truncated\n", limit)
+        newData := string(data)[:limit] + "..."
+        return string(newData), reload, nil
+    }
+
+    return string(data), reload, nil
 }
 
 // Do sends an API request and returns the API response.  The API response is
@@ -228,53 +271,29 @@ func (c *Client) addAuthHeader(req *http.Request, authRequired bool) error {
 // error if an API error has occurred.  If v implements the io.Writer
 // interface, the raw response body will be written to v, without attempting to
 // first decode it.
-func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout bool, secretToObfuscate ...ObfuscateSet) (*http.Response, error) {
     var err error
+    var data []byte
+    secrets := append(DefaultObfuscateArr, secretToObfuscate...)
 
-    if IsVerbose() {
-        fmt.Println("REQUEST:")
-        fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
-        if len(req.Header) > 0 {
-            fmt.Println("Req Headers")
-            PrintJSON(req.Header)
-        }
-        if req.Body != nil {
-            fmt.Println("Req Body")
-            fmt.Println(req.Body)
-            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", req.Body)
-        }
+    req, err = PrintRequestInfo(req, secrets...)
+    //Putting this based on previous code
+    if err != nil {
+        return nil, err
     }
 
     // Issue the request to the Whisk server endpoint
     resp, err := c.client.Do(req)
     if err != nil {
         Debug(DbgError, "HTTP Do() [req %s] error: %s\n", req.URL.String(), err)
-        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
-    // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
-    // do custom body parsing, such as handling per-route error responses.
-    Verbose("RESPONSE:")
-    Verbose("Got response with code %d\n", resp.StatusCode)
-    if (IsVerbose() && len(resp.Header) > 0) {
-        fmt.Println("Resp Headers")
-        PrintJSON(resp.Header)
-    }
 
-    // Read the response body
-    data, err := ioutil.ReadAll(resp.Body)
+    resp, data, err = PrintResponseInfo(resp, secrets...)
     if err != nil {
-        Debug(DbgError, "ioutil.ReadAll(resp.Body) error: %s\n", err)
-        werr := MakeWskError(err, EXITCODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
-        return resp, werr
+        return resp, err
     }
-    Verbose("Response body size is %d bytes\n", len(data))
-    Verbose("Response body received:\n%s\n", string(data))
-    Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", string(data))
-
-    // Reload the response body to allow caller access to the body; otherwise,
-    // the caller will have any empty body to read
-    resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 
     // With the HTTP response status code and the HTTP body contents,
     // the possible response scenarios are:
@@ -326,9 +345,9 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
 
         // If a timeout occurs, 202 HTTP status code is returned, and the caller wishes to handle such an event, return
         // an error corresponding with the timeout
-        if ExitWithErrorOnTimeout && resp.StatusCode == EXITCODE_TIMED_OUT {
+        if ExitWithErrorOnTimeout && resp.StatusCode == EXIT_CODE_TIMED_OUT {
             errMsg :=  wski18n.T("Request accepted, but processing not completed yet.")
-            err = MakeWskError(errors.New(errMsg), EXITCODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
+            err = MakeWskError(errors.New(errMsg), EXIT_CODE_TIMED_OUT, NO_DISPLAY_MSG, NO_DISPLAY_USAGE,
                 NO_MSG_DISPLAYED, NO_DISPLAY_PREFIX, NO_APPLICATION_ERR, TIMED_OUT)
         }
 
@@ -336,9 +355,92 @@ func (c *Client) Do(req *http.Request, v interface{}, ExitWithErrorOnTimeout boo
     }
 
     // We should never get here, but just in case return failure to keep the compiler happy
-    werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXITCODE_ERR_GENERAL,
+    werr := MakeWskError(errors.New(wski18n.T("Command failed due to an internal failure")), EXIT_CODE_ERR_GENERAL,
         DISPLAY_MSG, NO_DISPLAY_USAGE)
     return resp, werr
+}
+
+func PrintRequestInfo(req *http.Request, secretToObfuscate ...ObfuscateSet) (*http.Request, error) {
+    var truncatedBody string
+    var err error
+    if IsVerbose() {
+        fmt.Println("REQUEST:")
+        fmt.Printf("[%s]\t%s\n", req.Method, req.URL)
+
+        if len(req.Header) > 0 {
+            fmt.Println("Req Headers")
+            PrintJSON(req.Header)
+        }
+
+        if req.Body != nil {
+            fmt.Println("Req Body")
+            // Since we're emptying out the reader, which is the req.Body, we have to reset it,
+            // but create some copies for our debug messages.
+            buffer, _ := ioutil.ReadAll(req.Body)
+            obfuscatedRequest := ObfuscateText(string(buffer), secretToObfuscate)
+            req.Body = ioutil.NopCloser(bytes.NewBuffer(buffer))
+
+            if !IsDebug() {
+                if truncatedBody, req.Body, err = BodyTruncator(ioutil.NopCloser(bytes.NewBuffer(buffer))); err != nil {
+                    return nil, err
+                }
+                fmt.Println(ObfuscateText(truncatedBody, secretToObfuscate))
+            } else {
+                fmt.Println(obfuscatedRequest)
+            }
+            Debug(DbgInfo, "Req Body (ASCII quoted string):\n%+q\n", obfuscatedRequest)
+        }
+    }
+    return req, nil
+}
+
+func PrintResponseInfo(resp *http.Response, secretToObfuscate ...ObfuscateSet) (*http.Response, []byte, error) {
+    var truncatedBody string
+    // Don't "defer resp.Body.Close()" here because the body is reloaded to allow caller to
+    // do custom body parsing, such as handling per-route error responses.
+    Verbose("RESPONSE:")
+    Verbose("Got response with code %d\n", resp.StatusCode)
+
+    if (IsVerbose() && len(resp.Header) > 0) {
+        fmt.Println("Resp Headers")
+        PrintJSON(resp.Header)
+    }
+
+    // Read the response body
+    data, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        Debug(DbgError, "ioutil.ReadAll(resp.Body) error: %s\n", err)
+        werr := MakeWskError(err, EXIT_CODE_ERR_NETWORK, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+        return resp, data, werr
+    }
+
+    // Reload the response body to allow caller access to the body; otherwise,
+    // the caller will have any empty body to read
+    resp.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+
+    Verbose("Response body size is %d bytes\n", len(data))
+
+    if !IsDebug() {
+        if truncatedBody, resp.Body, err = BodyTruncator(ioutil.NopCloser(bytes.NewBuffer(data))); err != nil {
+            return nil, data, err
+        }
+        Verbose("Response body received:\n%s\n", ObfuscateText(truncatedBody, secretToObfuscate))
+    } else {
+        obfuscatedResponse := ObfuscateText(string(data), secretToObfuscate)
+        Verbose("Response body received:\n%s\n", obfuscatedResponse)
+        Debug(DbgInfo, "Response body received (ASCII quoted string):\n%+q\n", obfuscatedResponse)
+    }
+    return resp, data, err
+}
+
+func ObfuscateText(text string, replacements []ObfuscateSet) string {
+    obfuscated := text
+    for _, oSet := range replacements {
+        r, _ := regexp.Compile(oSet.Regex)
+        obfuscated = r.ReplaceAllString(obfuscated, oSet.Replacement)
+    }
+    return obfuscated
 }
 
 func parseErrorResponse(resp *http.Response, data []byte, v interface{}) (*http.Response, error) {
@@ -532,7 +634,7 @@ func (c *Client) NewRequestUrl(
             Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
             errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
                 map[string]interface{}{"url": urlStr, "err": err})
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     } else {
@@ -543,7 +645,7 @@ func (c *Client) NewRequestUrl(
             Debug(DbgError, "url.Parse(%s) error: %s\n", urlStr, err)
             errStr := wski18n.T("Invalid request URL '{{.url}}': {{.err}}",
                 map[string]interface{}{"url": urlStr, "err": err})
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     }
@@ -560,7 +662,7 @@ func (c *Client) NewRequestUrl(
                 Debug(DbgError, "json.Encode(%#v) error: %s\n", body, err)
                 errStr := wski18n.T("Error encoding request body: {{.err}}",
                     map[string]interface{}{"err": err})
-                werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+                werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
                 return nil, werr
             }
         } else if (encodeBodyAs == EncodeBodyAsFormData) {
@@ -569,14 +671,14 @@ func (c *Client) NewRequestUrl(
             } else {
                 Debug(DbgError, "Invalid form data body: %v\n", body)
                 errStr := wski18n.T("Internal error.  Form data encoding failure")
-                werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+                werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
                 return nil, werr
             }
         } else {
             Debug(DbgError, "Invalid body encode type: %s\n", encodeBodyAs)
             errStr := wski18n.T("Internal error.  Invalid encoding type '{{.encodetype}}'",
                 map[string]interface{}{"encodetype": encodeBodyAs})
-            werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     }
@@ -585,7 +687,7 @@ func (c *Client) NewRequestUrl(
     if err != nil {
         Debug(DbgError, "http.NewRequest(%v, %s, buf) error: %s\n", method, requestUrl.String(), err)
         errStr := wski18n.T("Error initializing request: {{.err}}", map[string]interface{}{"err": err})
-        werr := MakeWskError(errors.New(errStr), EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+        werr := MakeWskError(errors.New(errStr), EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
         return nil, werr
     }
     if (req.Body != nil && encodeBodyAs == EncodeBodyAsJson) {
@@ -601,12 +703,14 @@ func (c *Client) NewRequestUrl(
             Debug(DbgError, "addAuthHeader() error: %s\n", err)
             errStr := wski18n.T("Unable to add the HTTP authentication header: {{.err}}",
                 map[string]interface{}{"err": err})
-            werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXITCODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
+            werr := MakeWskErrorFromWskError(errors.New(errStr), err, EXIT_CODE_ERR_GENERAL, DISPLAY_MSG, NO_DISPLAY_USAGE)
             return nil, werr
         }
     } else {
         Debug(DbgInfo, "No auth header required\n")
     }
+
+    req.Header.Add("User-Agent", c.Config.UserAgent)
 
     return req, nil
 }

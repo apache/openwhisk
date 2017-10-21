@@ -1,0 +1,13 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
+    }
+}
+
+subprojects {
+    apply plugin: 'scalafmt'
+    scalafmt.configFilePath = gradle.scalafmt.config
+}
