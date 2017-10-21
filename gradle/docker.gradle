@@ -71,6 +71,17 @@ task m4Dockerfile (type: Exec) {
   }
 }
 
+// TODO: To be properly Gradle-ish, we should be doing this in a build directory
+//       for all Dockerfiles.  Then we don't have to sweat cleaning up later.
+task templateDockerfile (type: Copy) {
+  def directory = project.buildscript.sourceFile.getParentFile()
+  from directory
+  into directory
+  include 'Dockerfile.in'
+  rename { file -> 'Dockerfile' }
+  expand(project.getProperties())
+}
+
 task rmDockerfile(type: Delete) {
     delete 'Dockerfile'
 }
@@ -85,11 +96,6 @@ task distDocker {
           def f = new File(directory.getAbsolutePath(), "Dockerfile."+dockerArch);
           if (f.exists()) {
             cmd += ['-f', f.getAbsolutePath()]
-          } else {
-            def diff = new File(directory.getAbsolutePath(), "Dockerfile.patch."+dockerArch);
-            if (f.exists()) {
-              //  Copy Dockerfile to temp directory, patch it, and run from patched Dockerfile
-            }
           }
         }
         cmd += ['-t', dockerImageName, directory.getAbsolutePath()]
@@ -98,10 +104,11 @@ task distDocker {
     }
 }
 
-if (file("Dockerfile.m4").exists()) {
-  distDocker.dependsOn 'm4Dockerfile'
+if (file("Dockerfile.in").exists()) {
+  distDocker.dependsOn 'templateDockerfile'
   distDocker.finalizedBy 'rmDockerfile'
 }
+
 
 task tagImage {
     doLast {
