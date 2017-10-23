@@ -75,7 +75,7 @@ var actionCreateCmd = &cobra.Command{
 
         if whiskErr := CheckArgs(
             args,
-            1,
+            2,
             2,
             "Action create",
             wski18n.T("An action name and code artifact are required.")); whiskErr != nil {
