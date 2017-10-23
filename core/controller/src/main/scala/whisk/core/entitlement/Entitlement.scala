@@ -58,7 +58,7 @@ protected[core] case class Resource(namespace: EntityPath,
                                     env: Option[Parameters] = None) {
   def parent = collection.path + EntityPath.PATHSEP + namespace
   def id = parent + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
-  def fqname = namespace + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
+  def fqname = namespace.asString + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
   override def toString = id
 }
 

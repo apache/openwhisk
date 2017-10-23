@@ -507,7 +507,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     put(entityStore, provider)
     put(entityStore, action)
 
-    val resourceName = s"${provider.namespace}/${provider.name}"
+    val resourceName = provider.fullyQualifiedName(false).asString
 
     val paths = Seq(
       (READ, someUser, Right(true)),
@@ -543,7 +543,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     put(entityStore, binding)
     put(entityStore, action)
 
-    val resourceName = s"${binding.namespace}/${binding.name}"
+    val resourceName = binding.fullyQualifiedName(false).asString
 
     val paths = Seq(
       (READ, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
@@ -579,7 +579,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     put(entityStore, binding)
     put(entityStore, action)
 
-    val resourceName = s"${binding.namespace}/${binding.name}"
+    val resourceName = binding.fullyQualifiedName(false).asString
 
     val paths = Seq(
       (READ, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
