@@ -57,6 +57,29 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val ec = actorSystem.dispatcher
   implicit val cfg = config
 
+  /**
+   * Factory used by the ContainerProxy to physically create a new container.
+   *
+   * Create and initialize the container factory before kicking off any other
+   * task or actor because further operation does not make sense if something
+   * goes wrong here. Initialization will throw an exception upon failure.
+   */
+  val containerFactory =
+    SpiLoader
+      .get[ContainerFactoryProvider]
+      .getContainerFactory(
+        actorSystem,
+        logging,
+        config,
+        instance,
+        Map(
+          "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
+          "--ulimit" -> Set("nofile=1024:1024"),
+          "--pids-limit" -> Set("1024"),
+          "--dns" -> config.invokerContainerDns.toSet))
+  containerFactory.init()
+  sys.addShutdownHook(containerFactory.cleanup())
+
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore(config)
   private val activationStore = WhiskActivationStore.datastore(config)
@@ -75,23 +98,6 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
   })
-
-  /** Factory used by the ContainerProxy to physically create a new container. */
-  val containerFactory =
-    SpiLoader
-      .get[ContainerFactoryProvider]
-      .getContainerFactory(
-        actorSystem,
-        logging,
-        config,
-        instance,
-        Map(
-          "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
-          "--ulimit" -> Set("nofile=1024:1024"),
-          "--pids-limit" -> Set("1024"),
-          "--dns" -> config.invokerContainerDns.toSet))
-  containerFactory.init()
-  sys.addShutdownHook(containerFactory.cleanup())
 
   /** Sends an active-ack. */
   val ack = (tid: TransactionId,

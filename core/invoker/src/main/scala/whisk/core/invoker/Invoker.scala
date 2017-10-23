@@ -38,6 +38,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
+import whisk.common.TransactionId
 
 object Invoker {
 
@@ -70,21 +71,21 @@ object Invoker {
     // load values for the required properties from the environment
     implicit val config = new WhiskConfig(requiredProperties)
 
-    def abort() = {
-      logger.error(this, "Bad configuration, cannot start.")
+    def abort(message: String) = {
+      logger.error(this, message)(TransactionId.invoker)
       actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
       sys.exit(1)
     }
 
     if (!config.isValid) {
-      abort()
+      abort("Bad configuration, cannot start.")
     }
 
     val execManifest = ExecManifest.initialize(config)
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
-      abort()
+      abort("Bad configuration, cannot start.")
     }
 
     val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
@@ -117,8 +118,7 @@ object Invoker {
                 id.toInt - 1
               }
               .getOrElse {
-                logger.error(this, "Failed to increment invokerId")
-                abort()
+                abort("Failed to increment invokerId")
               }
             redisClient.hset("controller:registar:idAssignments", invokerName, newId)
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
@@ -130,7 +130,11 @@ object Invoker {
     val invokerInstance = InstanceId(assignedInvokerId);
     val msgProvider = SpiLoader.get[MessagingProvider]
     val producer = msgProvider.getProducer(config, ec)
-    val invoker = new InvokerReactive(config, invokerInstance, producer)
+    val invoker = try {
+      new InvokerReactive(config, invokerInstance, producer)
+    } catch {
+      case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
+    }
 
     Scheduler.scheduleWaitAtMost(1.seconds)(() => {
       producer.send("health", PingMessage(invokerInstance)).andThen {

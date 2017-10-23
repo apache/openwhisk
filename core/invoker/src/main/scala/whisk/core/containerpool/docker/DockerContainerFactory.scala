@@ -31,6 +31,7 @@ import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import scala.concurrent.duration._
+import java.util.concurrent.TimeoutException
 
 class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, parameters: Map[String, Set[String]])(
   implicit actorSystem: ActorSystem,
@@ -69,27 +70,52 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
   }
 
   /** Perform cleanup on init */
-  override def init(): Unit = cleanup()
+  override def init(): Unit = removeAllActionContainers()
 
-  /** Cleans up all running wsk_ containers */
+  /** Perform cleanup on exit - to be registered as shutdown hook */
   override def cleanup(): Unit = {
-    val cleaning = docker.ps(Seq("name" -> s"wsk${instance.toInt}_"))(TransactionId.invokerNanny).flatMap {
-      containers =>
-        val removals = containers.map { id =>
-          (if (config.invokerUseRunc) {
-             runc.resume(id)(TransactionId.invokerNanny)
-           } else {
-             docker.unpause(id)(TransactionId.invokerNanny)
-           })
-            .recoverWith {
-              // Ignore resume failures and try to remove anyway
-              case _ => Future.successful(())
-            }
-            .flatMap { _ =>
-              docker.rm(id)(TransactionId.invokerNanny)
-            }
-        }
-        Future.sequence(removals)
+    implicit val transid = TransactionId.invoker
+    try {
+      removeAllActionContainers()
+    } catch {
+      case e: Exception => logging.error(this, s"Failed to remove action containers: ${e.getMessage}")
+    }
+  }
+
+  /**
+   * Removes all wsk_ containers - regardless of their state
+   *
+   * If the system in general or Docker in particular has a very
+   * high load, commands may take longer than the specified time
+   * resulting in an exception.
+   *
+   * There is no checking whether container removal was successful
+   * or not.
+   *
+   * @throws InterruptedException     if the current thread is interrupted while waiting
+   * @throws TimeoutException         if after waiting for the specified time this `Awaitable` is still not ready
+   */
+  @throws(classOf[TimeoutException])
+  @throws(classOf[InterruptedException])
+  private def removeAllActionContainers(): Unit = {
+    implicit val transid = TransactionId.invoker
+    val cleaning = docker.ps(filters = Seq("name" -> s"wsk${instance.toInt}_"), all = true).flatMap { containers =>
+      logging.info(this, s"removing ${containers.size} action containers.")
+      val removals = containers.map { id =>
+        (if (config.invokerUseRunc) {
+           runc.resume(id)
+         } else {
+           docker.unpause(id)
+         })
+          .recoverWith {
+            // Ignore resume failures and try to remove anyway
+            case _ => Future.successful(())
+          }
+          .flatMap { _ =>
+            docker.rm(id)
+          }
+      }
+      Future.sequence(removals)
     }
     Await.ready(cleaning, 30.seconds)
   }
