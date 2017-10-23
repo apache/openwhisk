@@ -96,10 +96,8 @@ object Invoker {
       }
       .getOrElse {
         if (config.redisHostName.trim.isEmpty || config.redisHostPort.trim.isEmpty) {
-          logger.error(
-            this,
+          abort(
             s"Must provide valid Redis host and port to use dynamicId assignment (${config.redisHostName}:${config.redisHostPort})")
-          abort()
         }
         val invokerName = config.invokerName
         val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
