@@ -32,6 +32,8 @@ const (
     WEB_FLAG        = "web"
     SAVE_FLAG       = "save"
     SAVE_AS_FLAG    = "save-as"
+    DOCKER_FLAG     = "docker"
+    SEQUENCE_FLAG   = "sequence"
 )
 
 
