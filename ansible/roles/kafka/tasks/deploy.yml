@@ -1,26 +1,26 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: "pull the {{ zookeeper.docker_image }} image"
-  shell: "docker pull {{ zookeeper.docker_image }}"
+- name: Set the zookeeper and kafka docker image names
+  set_fact:
+    zookeeper_image: "{{ zookeeper.docker_image | default('zookeeper:' ~ zookeeper.version ) }}"
+    kafka_image: "{{ kafka.docker_image | default ('ches/kafka:' ~ kafka.version) }}"
+
+- name: "pull the {{ zookeeper_image }} image"
+  shell: "docker pull {{ zookeeper_image }}"
   retries: 3
   delay: "{{ docker.pull.delay }}"
 
 - name: (re)start zookeeper
   docker_container:
     name: zookeeper
-#    image: zookeeper:{{ zookeeper.version }}
-    image: "{{ zookeeper.docker_image }}"
+    image: "{{ zookeeper_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     ports:
       - "{{ zookeeper.port }}:2181"
   register: zookeeper_container
-
-- name: save Zookeeper IP
-  set_fact:
-    zookeeper_ip: "{{ zookeeper_container.ansible_facts.docker_container.NetworkSettings.IPAddress }}"
 
 - name: wait until the Zookeeper in this host is up and running
   action: shell (echo ruok; sleep 1) | nc {{ ansible_host }} {{ zookeeper.port }}
@@ -29,7 +29,6 @@
   retries: 36
   delay: 5
 
-{% set kafka_image = kafka.docker_image | default('ches/kafka:' ~ kafka.version) %}
 - name: "pull the {{ kafka_image }} image"
   shell: "docker pull {{ kafka_image }}"
   retries: "{{ docker.pull.retries }}"
@@ -38,16 +37,14 @@
 - name: (re)start kafka
   docker_container:
     name: kafka
-#    image: ches/kafka:{{ kafka.version }}
-    image: "{{ kafka.docker_image }}"
+    image: "{{ kafka_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    # links:
-    #   - "zookeeper:zookeeper"
     env:
       "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
       "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
+      "ZOOKEEPER_CONNECTION_STRING": "{{ ansible_host }}:2181"
     ports:
       - "{{ kafka.port }}:9092"
 

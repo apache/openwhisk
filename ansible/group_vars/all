@@ -148,7 +148,6 @@ kafka:
 zookeeper:
   version: 3.4
   port: 2181
-#  docker_image: "zookeeper:3.4"
 
 invoker:
   port: 12001
@@ -170,7 +169,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: 1.11
+  version: 1.12
   port:
     http: 80
     api: 443
@@ -217,7 +216,7 @@ linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 2.0
+  version: 2.0.0
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
