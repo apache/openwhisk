@@ -1,0 +1,28 @@
+// make sure that CLI builds each OS variation
+def cliProject = findProject(':tools:cli')
+configure(cliProject) {
+  ext.set("crossCompileCLI", "true")
+}
+
+// Because of how Dockerfiles only know about files in the current
+// direcotry or sub directories, we need to copy the previously built
+// CLI images to this directory.
+task copyCLI(dependsOn: ':tools:cli:copyCLIShortcut') {
+  doLast {
+    copy {
+      from "${projectDir}/../../bin/"
+      into "${projectDir}/build/"
+      include "linux/**"
+      include "mac/**"
+      include "windows/**"
+    }
+  }
+}
+
+task generateBlackbox(type: Exec, dependsOn: 'copyCLI') {
+  commandLine './blackbox.sh'
+}
+
+ext.dockerImageName = 'nginx'
+apply from: '../../gradle/docker.gradle'
+distDocker.dependsOn ':tools:cli:distDocker', 'copyCLI', 'generateBlackbox'

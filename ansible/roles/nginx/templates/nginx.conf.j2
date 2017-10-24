@@ -46,12 +46,12 @@ http {
 
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  10m;
-        ssl_certificate      /etc/nginx/{{ nginx.ssl.cert }};
-        ssl_certificate_key  /etc/nginx/{{ nginx.ssl.key }};
+        ssl_certificate      /etc/nginx/certs/{{ nginx.ssl.cert }};
+        ssl_certificate_key  /etc/nginx/certs/{{ nginx.ssl.key }};
         {% if nginx.ssl.password_enabled %}
-        ssl_password_file   "/etc/nginx/{{ nginx.ssl.password_file }}";
+        ssl_password_file   "/etc/nginx/certs/{{ nginx.ssl.password_file }}";
         {% endif %}
-        ssl_client_certificate /etc/nginx/{{ nginx.ssl.client_ca_cert }};
+        ssl_client_certificate /etc/nginx/certs/{{ nginx.ssl.client_ca_cert }};
         ssl_verify_client {{ nginx.ssl.verify_client }};
         ssl_protocols        TLSv1 TLSv1.1 TLSv1.2;
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;

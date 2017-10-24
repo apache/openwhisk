@@ -259,9 +259,15 @@ Components = [
                   modes = 'clean',
                   gradle = ':core:invoker'),
 
+    makeComponent('cli',
+                  'build cli',
+                  yaml = False,
+                  gradle = ':tools:cli'),
+
     makeComponent('edge',
                   'deploy edge',
-                  gradle = ':tools:cli'),
+                  modes = 'clean',
+                  gradle = ':core:nginx'),
 
     makeComponent('catalog',
                   'install catalog',

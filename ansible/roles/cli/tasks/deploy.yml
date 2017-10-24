@@ -1,28 +1,4 @@
 ---
-# Tasks for handling CLI customization and publishing
-
-- name: "ensure nginx directory for cli exists"
-  file:
-    path: "{{ cli.nginxdir  }}"
-    state: directory
-  become: "{{ cli.dir.become }}"
-
-- set_fact:
-    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
-
-- include: docker_login.yml
-
-- name: "download the binaries from the release page of OpenWhisk CLI"
-  include: cli_remote_mode.yml
-  when: cli_installation_mode == "remote"
-
-- name: "copy the binaries from a local directory to Nginx directory"
-  include: copy_local_openwhisk_cli.yml
-  when: cli_installation_mode == "local"
-  with_items: "{{ cli_os }}"
-
-- name: "copy the local content.json from a local directory to Nginx directory"
-  copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
-  when: cli_installation_mode == "local"
+# Tasks for downloading cli
 
 - include: download_cli.yml

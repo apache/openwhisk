@@ -1,11 +1,18 @@
 ---
 # This role starts a nginx component
 
+- include: docker_login.yml
+
 - name: ensure nginx config directory exists
   file:
     path: "{{ nginx.confdir }}"
     state: directory
   become: "{{ nginx.dir.become }}"
+
+- name: ensure nginx certs directory exists
+  file:
+    path: "{{ nginx.confdir }}/certs"
+    state: directory
 
 - name: copy template from local to remote in nginx config directory
   template:
@@ -15,7 +22,7 @@
 - name: copy cert files from local to remote in nginx config directory
   copy:
     src: "files/{{ item }}"
-    dest: "{{ nginx.confdir }}"
+    dest: "{{ nginx.confdir }}/certs"
   with_items:
         - "{{ nginx.ssl.cert }}"
         - "{{ nginx.ssl.key }}"
@@ -24,7 +31,7 @@
 - name: copy password files for cert from local to remote in nginx config directory
   copy:
     src: "files/{{ nginx.ssl.password_file }}"
-    dest: "{{ nginx.confdir }}"
+    dest: "{{ nginx.confdir }}/certs"
   when: nginx.ssl.password_enabled == true
 
 - name: ensure nginx log directory is created with permissions
@@ -34,22 +41,24 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
-- name: "pull the nginx:{{ nginx.version }} image"
-  shell: "docker pull nginx:{{ nginx.version }}"
+- name: "pull edge image with tag {{docker.image.tag}}"
+  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/nginx:{{docker.image.tag}}"
+  when: docker_registry != ""
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
 - name: (re)start nginx
   docker_container:
     name: nginx
-    image: nginx:{{ nginx.version }}
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/nginx:{{ docker.image.tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "nginx"
     volumes:
       - "{{ whisk_logs_dir }}/nginx:/logs"
-      - "{{ nginx.confdir }}:/etc/nginx"
+      - "{{ nginx.confdir }}/nginx.conf:/etc/nginx/nginx.conf"
+      - "{{ nginx.confdir }}/certs:/etc/nginx/certs/"
     expose:
       - 8443
     ports:

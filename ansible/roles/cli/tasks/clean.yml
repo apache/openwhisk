@@ -1,7 +1,0 @@
----
-
-- name: remove cli nginx directory
-  file:
-    path: "{{ cli.nginxdir }}"
-    state: absent
-  become: "{{ cli.dir.become }}"
