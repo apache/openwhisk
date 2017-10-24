@@ -332,23 +332,22 @@ var triggerGetCmd = &cobra.Command{
         // Get full feed name from trigger get request as it is needed to get the feed
         if retTrigger != nil && retTrigger.Annotations != nil {
             fullFeedName = getValueString(retTrigger.Annotations, "feed")
+        }
 
-            if len(fullFeedName) > 0 {
-                origParams = flags.common.param
-                fullTriggerName := fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
-                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_READ))
-                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
-                flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, Client.Config.AuthToken))
+        if len(fullFeedName) > 0 {
+            origParams = flags.common.param
+            fullTriggerName := fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_READ))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, Client.Config.AuthToken))
 
-                err = configureFeed(qualifiedName.GetEntityName(), fullFeedName)
-                if err != nil {
-                    whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qualifiedName.GetEntityName(), fullFeedName, err)
-                }
-
-                flags.common.param = origParams
-                Client.Namespace = qualifiedName.GetNamespace()
+            err = configureFeed(qualifiedName.GetEntityName(), fullFeedName)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qualifiedName.GetEntityName(), fullFeedName, err)
             }
 
+            flags.common.param = origParams
+            Client.Namespace = qualifiedName.GetNamespace()
         } else {
             if (flags.trigger.summary) {
                 printSummary(retTrigger)
