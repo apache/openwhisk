@@ -1,9 +1,8 @@
-FROM <%= dockerArch=="s390x" ? "s390x/golang:1.8" : "golang:1.8" %>
+FROM golang:1.8
 
 # Install zip
-RUN apt-get -y update \
- && apt-get -y install zip \
- && apt-get clean && rm -rf /var/lib/apt/lists/
+RUN apt-get -y update && \
+    apt-get -y install zip
 
 ENV GOPATH=/
 
@@ -28,7 +27,7 @@ RUN cd /src/github.com/go-whisk && /bin/go-bindata -pkg wski18n -o wski18n/i18n_
 
 # Generate a Go package dependency list
 # NOTE: Currently, the 'go list' command will not work against the current Go CLI non-standard file structure
-#RUN cd /src/github.com/go-whisk-cli && go list -f '{{join .Deps "\\n"}}' > ../../../wsk.deps.out
+#RUN cd /src/github.com/go-whisk-cli && go list -f '{{join .Deps "\n"}}' > ../../../wsk.deps.out
 ADD . /src/github.com
 RUN cd /src/github.com/go-whisk-cli && echo "Dependencies list requires restructuring the GO CLI packages" > ../../../wsk.deps.out
 

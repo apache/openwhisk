@@ -15,7 +15,7 @@ results
 !/ansible/environments/distributed
 !/ansible/environments/docker-machine
 !/ansible/environments/local
-!/ansible/environments/mac
+!/ansible/environments/s390x_local
 
 # Eclipse
 bin/
