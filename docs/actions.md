@@ -277,7 +277,9 @@ Rather than pass all the parameters to an action every time, you can bind certai
 An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
 
 ```
-$ wsk action get actionName --url
+wsk action get actionName --url
+```
+```
 ok: got action actionName
 https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 ```
@@ -285,6 +287,26 @@ https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 **Note:** Authentication must be provided when invoking an action via an HTTPS request. For more information regarding
 action invocations using the REST interface, see
 [Using REST APIs with OpenWhisk](rest_api.md#actions).
+
+### Saving action code
+
+Code associated with an existing action is fetched and saved locally. Saving is performed on all actions except sequences and docker actions. When saving action code to a file, the code is saved in the current working directory, and the saved file path is displayed.
+
+1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind is  used, or an extension of `.zip` will be used for action code that is a zip file.
+  ```
+  wsk action get actionName --save
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/actionName.js
+  ```
+
+2. Instead of allowing the CLI to determine the filename and extension  of the saved code, a custom filename and extension can be provided by using the `--save-as` flag.
+  ```
+  wsk action get actionName --save-as codeFile.js
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
+  ```
 
 ### Creating asynchronous actions
 
