@@ -24,6 +24,17 @@ task testLean(type: Test) {
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
     exclude '**/*ApiGwTests*'
+    exclude '**/*Cli*'
+}
+
+task testLeanCli(type: Test) {
+    exclude '**/*Swift*'
+    exclude '**/*Python*'
+    exclude '**/*Java*'
+    exclude '**/*ThrottleTests*'
+    exclude '**/MaxActionDurationTests*'
+    exclude '**/*ApiGwTests*'
+    exclude '**/*Rest*'
 }
 
 // Add all images needed for local testing here
