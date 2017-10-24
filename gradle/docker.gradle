@@ -58,21 +58,6 @@ if(project.hasProperty('dockerBuildArgs')) {
     }
 }
 
-task m4Dockerfile (type: Exec) {
-  def m4_args = [
-    '-D', dockerArch.toUpperCase(),
-    '-D', "m4_dockerarch=${dockerArch}"
-  ]
-  executable '/bin/sh'
-  def m4_cmd = "m4 ${m4_args.join(' ')} -P Dockerfile.m4 >Dockerfile"
-  args '-c', m4_cmd
-  doLast {
-    println m4_cmd
-  }
-}
-
-// TODO: To be properly Gradle-ish, we should be doing this in a build directory
-//       for all Dockerfiles.  Then we don't have to sweat cleaning up later.
 task templateDockerfile (type: Copy) {
   def directory = project.buildscript.sourceFile.getParentFile()
   from directory
@@ -108,7 +93,6 @@ if (file("Dockerfile.in").exists()) {
   distDocker.dependsOn 'templateDockerfile'
   distDocker.finalizedBy 'rmDockerfile'
 }
-
 
 task tagImage {
     doLast {
