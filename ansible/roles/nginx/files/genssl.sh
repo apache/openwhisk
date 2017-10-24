@@ -4,8 +4,9 @@ set -e
 
 SCRIPTDIR="$(cd $(dirname "$0")/ && pwd)"
 
-if [ "$#" -ne 1 ]; then
-    echo "usage: $0 [common name: host or ip]"
+if [ "$#" -lt 2 ]; then
+    echo "usage: $0 <common name: host or ip> [server|client]"
+    exit
 fi
 CN=$1
 TYPE=$2
