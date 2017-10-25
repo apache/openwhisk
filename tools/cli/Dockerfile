@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.8.4
 
 # Install zip
 RUN apt-get -y update && \
