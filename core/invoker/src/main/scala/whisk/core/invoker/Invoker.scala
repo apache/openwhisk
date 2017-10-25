@@ -60,7 +60,7 @@ object Invoker {
       invokerContainerDns -> "",
       invokerContainerNetwork -> null,
       invokerUseRunc -> "true") ++
-      Map(invokerName -> null)
+      Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
