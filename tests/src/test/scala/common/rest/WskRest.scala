@@ -956,7 +956,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
     val r = action match {
       case Some(action) => {
         val (ns, actionName) = this.getNamespaceEntityName(action)
-        val actionUrl = s"https://${WhiskProperties.getEdgeHost}/$basePath/web/$ns/default/$actionName.http"
+        val actionUrl = s"${WhiskProperties.getApiHostForAction}/$basePath/web/$ns/default/$actionName.http"
         val actionAuthKey = this.getAuthKey(wp)
         val testaction = Some(
           ApiAction(name = actionName, namespace = ns, backendUrl = actionUrl, authkey = actionAuthKey))
@@ -1125,7 +1125,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
 
   def getApi(basepathOrApiName: String, params: Map[String, String] = Map(), expectedExitCode: Int = OK.intValue)(
     implicit wp: WskProps): RestResult = {
-    val whiskUrl = Uri(s"https://${WhiskProperties.getEdgeHost}")
+    val whiskUrl = Uri(s"${WhiskProperties.getApiHostForAction}")
     val path = Path(s"/api/${wp.authKey.split(":")(0)}$basepathOrApiName/path")
     val resp = requestEntity(GET, path, params, whiskUrl = whiskUrl)
     val result = new RestResult(resp.status, getRespData(resp))
@@ -1137,7 +1137,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
-  val whiskRestUrl = Uri(s"https://${WhiskProperties.getEdgeHost}")
+  val whiskRestUrl = Uri(s"${WhiskProperties.getApiHostForAction}")
   val basePath = Path("/api/v1")
   val sslConfig = AkkaSSLConfig().mapSettings { s =>
     s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
