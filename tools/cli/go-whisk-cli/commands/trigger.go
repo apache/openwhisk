@@ -345,9 +345,6 @@ var triggerGetCmd = &cobra.Command{
             if err != nil {
                 whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qualifiedName.GetEntityName(), fullFeedName, err)
             }
-
-            flags.common.param = origParams
-            Client.Namespace = qualifiedName.GetNamespace()
         } else {
             if (flags.trigger.summary) {
                 printSummary(retTrigger)
@@ -362,7 +359,7 @@ var triggerGetCmd = &cobra.Command{
                             map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName())}))
                     printJSON(retTrigger)
                 }
-            }   
+            }
         }
 
         return nil
