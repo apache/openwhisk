@@ -296,7 +296,6 @@ var triggerGetCmd = &cobra.Command{
         var err error
         var field string
         var fullFeedName string
-        var origParams []string
         var qualifiedName = new(QualifiedName)
 
         if whiskErr := CheckArgs(args, 1, 2, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
@@ -335,7 +334,6 @@ var triggerGetCmd = &cobra.Command{
         }
 
         if len(fullFeedName) > 0 {
-            origParams = flags.common.param
             fullTriggerName := fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
             flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_READ))
             flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
