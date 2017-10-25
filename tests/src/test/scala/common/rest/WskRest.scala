@@ -1139,6 +1139,10 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   implicit val materializer = ActorMaterializer()
   val whiskRestUrl = Uri(s"https://${WhiskProperties.getEdgeHost}")
   val basePath = Path("/api/v1")
+  val sslConfig = AkkaSSLConfig().mapSettings { s =>
+    s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
+  }
+  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
 
   def validateStatusCode(expectedExitCode: Int, statusCode: Int) = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
@@ -1160,10 +1164,6 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
               uri: Uri,
               body: Option[String] = None,
               creds: BasicHttpCredentials): Future[HttpResponse] = {
-    val sslConfig = AkkaSSLConfig().mapSettings { s =>
-      s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
-    }
-    val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
     val entity = body map { b =>
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
