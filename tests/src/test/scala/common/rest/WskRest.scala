@@ -137,15 +137,16 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
                     limit: Option[Int] = None,
                     nameSort: Option[Boolean] = None,
                     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, name) = getNamespaceEntityName(resolve(namespace))
-    val pathToList = s"$basePath/namespaces/$ns/$noun"
-    val entPath =
-      if (name != "") Path(s"$pathToList/$name/")
-      else Path(s"$pathToList")
+
+    val entPath = namespace map { ns =>
+      val (ns, name) = getNamespaceEntityName(resolve(namespace))
+      Path(s"$basePath/namespaces/$ns/$noun/$name/")
+    } getOrElse Path(s"$basePath/namespaces/${wp.namespace}/$noun")
+
     val paramMap = Map[String, String]() ++ { Map("skip" -> "0", "docs" -> true.toString) } ++ {
       limit map { l =>
         Map("limit" -> l.toString)
-      } getOrElse Map[String, String]("limit" -> "30")
+      } getOrElse Map[String, String]()
     }
     val resp = requestEntity(GET, entPath, paramMap)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -631,14 +632,14 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
     var paramMap = Map("skip" -> "0", "docs" -> docs.toString) ++ {
       limit map { l =>
         Map("limit" -> l.toString)
-      } getOrElse Map("limit" -> "30")
+      } getOrElse Map[String, String]()
     } ++ {
       filter map { f =>
-        Map("limit" -> f.toString)
+        Map("name" -> f.toString)
       } getOrElse Map[String, String]()
     } ++ {
       since map { s =>
-        Map("limit" -> s.toEpochMilli().toString)
+        Map("since" -> s.toEpochMilli().toString)
       } getOrElse Map[String, String]()
     }
     val resp = requestEntity(GET, entityPath, paramMap)
