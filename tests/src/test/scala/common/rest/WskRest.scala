@@ -91,10 +91,11 @@ import common.WskProps
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
 
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
 
-import javax.net.ssl.{SSLContext, X509TrustManager}
-import javax.net.ssl.KeyManager
+class AcceptAllHostNameVerifier extends HostnameVerifier {
+  def verify(s: String, sslSession: SSLSession) = true
+}
 
 object SSL {
   lazy val nonValidatingContext: SSLContext = {
@@ -1139,10 +1140,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   implicit val materializer = ActorMaterializer()
   val whiskRestUrl = Uri(s"${WhiskProperties.getApiHostForAction}")
   val basePath = Path("/api/v1")
-  val sslConfig = AkkaSSLConfig().mapSettings { s =>
-    s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
-  }
-  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
+  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext)
 
   def validateStatusCode(expectedExitCode: Int, statusCode: Int) = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
