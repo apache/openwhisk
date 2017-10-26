@@ -13,9 +13,6 @@ echo "*** installing python dependences"
 echo "*** installing java"
 "$SCRIPTDIR/java8.sh"
 
-echo "*** install scala"
-"$SCRIPTDIR/scala.sh"
-
 echo "*** installing docker"
 "$SCRIPTDIR/docker.sh"
 
