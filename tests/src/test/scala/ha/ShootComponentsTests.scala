@@ -85,6 +85,13 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
   }
 
   def doRequests(amount: Int, actionName: String): Seq[(Int, Int)] = {
+    // Throttle requests to the remaining controllers to avoid getting 429s. (60 req/min)
+    val amountOfControllers = WhiskProperties.getProperty(WhiskConfig.controllerInstances).toDouble
+    val limit = 60.0
+    val limitPerController = limit / amountOfControllers
+    val allowedRequestsPerMinute = (amountOfControllers - 1.0) * limitPerController
+    val timeBeweenRequests = ((60.0 / allowedRequestsPerMinute) * 1000).toLong
+
     (0 until amount).map { i =>
       val start = Instant.now
 
@@ -94,13 +101,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
 
       println(s"Done rerquests with responses: invoke: ${invokeExit.futureValue} and get: ${getExit.futureValue}")
 
-      // Throttle requests to the remaining controllers to avoid getting 429s. (60 req/min)
-      val amountOfControllers = WhiskProperties.getProperty(WhiskConfig.controllerInstances).toDouble
-      val limit = 60.0
-      val requestsPerController = limit / amountOfControllers
-      // Test is only executed with more than 1 controllers => no division through 0
-      val waitBetweenRequests = (60.0 / ((amountOfControllers - 1.0) * requestsPerController)).toLong * 1000L
-      val remainingWait = waitBetweenRequests - (Instant.now.toEpochMilli - start.toEpochMilli)
+      val remainingWait = timeBeweenRequests - (Instant.now.toEpochMilli - start.toEpochMilli)
       Thread.sleep(if (remainingWait < 0) 0L else remainingWait)
       (invokeExit.futureValue, getExit.futureValue)
     }
