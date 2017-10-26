@@ -21,6 +21,7 @@ import java.io.File
 import java.time.Clock
 import java.time.Instant
 import java.util.Base64
+import java.security.cert.X509Certificate
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.Matchers
@@ -54,15 +55,14 @@ import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.Http
-
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
-
 import akka.http.scaladsl.model.HttpMethods.DELETE
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
+import akka.http.scaladsl.HttpsConnectionContext
 
 import akka.stream.ActorMaterializer
 
@@ -90,6 +90,28 @@ import common.WskProps
 
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
+
+import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
+
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+
+class AcceptAllHostNameVerifier extends HostnameVerifier {
+  def verify(s: String, sslSession: SSLSession) = true
+}
+
+object SSL {
+  lazy val nonValidatingContext: SSLContext = {
+    class IgnoreX509TrustManager extends X509TrustManager {
+      def checkClientTrusted(chain: Array[X509Certificate], authType: String) = ()
+      def checkServerTrusted(chain: Array[X509Certificate], authType: String) = ()
+      def getAcceptedIssuers = Array[X509Certificate]()
+    }
+
+    val context = SSLContext.getInstance("TLS")
+    context.init(Array[KeyManager](), Array(new IgnoreX509TrustManager), null)
+    context
+  }
+}
 
 class WskRest() extends RunWskRestCmd with BaseWsk {
   override implicit val action = new WskRestAction
@@ -937,7 +959,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
     val r = action match {
       case Some(action) => {
         val (ns, actionName) = this.getNamespaceEntityName(action)
-        val actionUrl = s"https://${WhiskProperties.getBaseControllerHost()}$basePath/web/$ns/default/$actionName.http"
+        val actionUrl = s"${WhiskProperties.getApiHostForAction}/$basePath/web/$ns/default/$actionName.http"
         val actionAuthKey = this.getAuthKey(wp)
         val testaction = Some(
           ApiAction(name = actionName, namespace = ns, backendUrl = actionUrl, authkey = actionAuthKey))
@@ -1106,7 +1128,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
 
   def getApi(basepathOrApiName: String, params: Map[String, String] = Map(), expectedExitCode: Int = OK.intValue)(
     implicit wp: WskProps): RestResult = {
-    val whiskUrl = Uri(s"http://${WhiskProperties.getBaseControllerHost()}:9001")
+    val whiskUrl = Uri(WhiskProperties.getApiHostForAction)
     val path = Path(s"/api/${wp.authKey.split(":")(0)}$basepathOrApiName/path")
     val resp = requestEntity(GET, path, params, whiskUrl = whiskUrl)
     val result = new RestResult(resp.status, getRespData(resp))
@@ -1118,8 +1140,13 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
-  val whiskRestUrl = Uri(s"http://${WhiskProperties.getBaseControllerAddress()}")
+  val whiskRestUrl = Uri(WhiskProperties.getApiHostForAction)
   val basePath = Path("/api/v1")
+
+  val sslConfig = AkkaSSLConfig().mapSettings { s =>
+    s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
+  }
+  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
 
   def validateStatusCode(expectedExitCode: Int, statusCode: Int) = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
@@ -1145,7 +1172,8 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
     val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
-    Http().singleRequest(request)
+
+    Http().singleRequest(request, connectionContext)
   }
 
   def requestEntity(method: HttpMethod,
