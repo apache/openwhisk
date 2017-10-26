@@ -60,7 +60,7 @@ object Invoker {
       invokerContainerDns -> "",
       invokerContainerNetwork -> null,
       invokerUseRunc -> "true") ++
-      Map(invokerName -> null)
+      Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
@@ -100,6 +100,9 @@ object Invoker {
             s"Must provide valid Redis host and port to use dynamicId assignment (${config.redisHostName}:${config.redisHostPort})")
         }
         val invokerName = config.invokerName
+        if (invokerName.trim.isEmpty) {
+          abort("Invoker name can't be empty to use dynamicId assignment.")
+        }
         val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
         val assignedId = redisClient
           .hget("controller:registar:idAssignments", invokerName)
