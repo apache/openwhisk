@@ -189,7 +189,7 @@ class DockerContainerTests
       override def run(image: String,
                        args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
         runs += ((image, args))
-        Future.failed(new RuntimeException())
+        Future.failed(ProcessRunningException(1, "", ""))
       }
     }
     implicit val runc = stub[RuncApi]
@@ -205,6 +205,29 @@ class DockerContainerTests
     docker.runs should have size 1
     docker.inspects should have size 0
     docker.rms should have size 0
+  }
+
+  it should "remove the container if run fails with a broken container" in {
+    implicit val docker = new TestDockerClient {
+      override def run(image: String,
+                       args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] = {
+        runs += ((image, args))
+        Future.failed(BrokenDockerContainer(containerId, "Broken container"))
+      }
+    }
+    implicit val runc = stub[RuncApi]
+
+    val container = DockerContainer.create(
+      transid = transid,
+      image = "image",
+      userProvidedImage = false,
+      dockerRunParameters = parameters)
+    a[WhiskContainerStartupError] should be thrownBy await(container)
+
+    docker.pulls should have size 0
+    docker.runs should have size 1
+    docker.inspects should have size 0
+    docker.rms should have size 1
   }
 
   it should "provide a proper error if inspect fails for blackbox containers" in {

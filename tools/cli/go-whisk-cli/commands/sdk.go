@@ -253,6 +253,6 @@ func init() {
     sdkCmd.AddCommand(sdkInstallCmd)
 
     sdkMap = make(map[string]*sdkInfo)
-    sdkMap["docker"] = &sdkInfo{ UrlPath: "blackbox-0.1.0.tar.gz", FileName: "blackbox-0.1.0.tar.gz", isGzTar: true, Unpack: true, UnpackDir: "dockerSkeleton"}
+    sdkMap["docker"] = &sdkInfo{ UrlPath: "blackbox.tar.gz", FileName: "blackbox.tar.gz", isGzTar: true, Unpack: true, UnpackDir: "dockerSkeleton"}
     sdkMap["ios"] = &sdkInfo{ UrlPath: "OpenWhiskIOSStarterApp.zip", FileName: "OpenWhiskIOSStarterApp.zip", IsZip: true, Unpack: false}
 }

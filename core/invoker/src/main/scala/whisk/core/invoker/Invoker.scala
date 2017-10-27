@@ -19,11 +19,16 @@ package whisk.core.invoker
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.Future
 import scala.util.Failure
 
 import com.redis.RedisClient
 
+import kamon.Kamon
+
+import akka.Done
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
@@ -38,6 +43,7 @@ import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
+import whisk.common.TransactionId
 
 object Invoker {
 
@@ -50,7 +56,7 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
-      redisHost ++
+      Map(redisHostName -> "", redisHostPort -> "") ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
@@ -59,32 +65,41 @@ object Invoker {
       invokerContainerDns -> "",
       invokerContainerNetwork -> null,
       invokerUseRunc -> "true") ++
-      Map(invokerName -> null)
+      Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
+    Kamon.start()
+
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
+    // Prepare Kamon shutdown
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
+      logger.info(this, s"Shutting down Kamon with coordinated shutdown")
+      Kamon.shutdown()
+      Future.successful(Done)
+    }
+
     // load values for the required properties from the environment
     implicit val config = new WhiskConfig(requiredProperties)
 
-    def abort() = {
-      logger.error(this, "Bad configuration, cannot start.")
+    def abort(message: String) = {
+      logger.error(this, message)(TransactionId.invoker)
       actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
       sys.exit(1)
     }
 
     if (!config.isValid) {
-      abort()
+      abort("Bad configuration, cannot start.")
     }
 
     val execManifest = ExecManifest.initialize(config)
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
-      abort()
+      abort("Bad configuration, cannot start.")
     }
 
     val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
@@ -94,7 +109,14 @@ object Invoker {
         id
       }
       .getOrElse {
+        if (config.redisHostName.trim.isEmpty || config.redisHostPort.trim.isEmpty) {
+          abort(
+            s"Must provide valid Redis host and port to use dynamicId assignment (${config.redisHostName}:${config.redisHostPort})")
+        }
         val invokerName = config.invokerName
+        if (invokerName.trim.isEmpty) {
+          abort("Invoker name can't be empty to use dynamicId assignment.")
+        }
         val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
         val assignedId = redisClient
           .hget("controller:registar:idAssignments", invokerName)
@@ -111,8 +133,7 @@ object Invoker {
                 id.toInt - 1
               }
               .getOrElse {
-                logger.error(this, "Failed to increment invokerId")
-                abort()
+                abort("Failed to increment invokerId")
               }
             redisClient.hset("controller:registar:idAssignments", invokerName, newId)
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
@@ -124,7 +145,11 @@ object Invoker {
     val invokerInstance = InstanceId(assignedInvokerId);
     val msgProvider = SpiLoader.get[MessagingProvider]
     val producer = msgProvider.getProducer(config, ec)
-    val invoker = new InvokerReactive(config, invokerInstance, producer)
+    val invoker = try {
+      new InvokerReactive(config, invokerInstance, producer)
+    } catch {
+      case e: Exception => abort(s"Failed to initialize reactive invoker: ${e.getMessage}")
+    }
 
     Scheduler.scheduleWaitAtMost(1.seconds)(() => {
       producer.send("health", PingMessage(invokerInstance)).andThen {

@@ -30,17 +30,23 @@ import whisk.utils.retry
 
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.{Await, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
 class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  implicit val ec: ExecutionContext = actorSystem.dispatcher
 
   def await[V](f: Future[V]) = Await.result(f, 10.seconds)
 
   def between(start: Instant, end: Instant) =
     Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
+
+  val promiseDelay = 100.milliseconds
+  def resolveDelayed(p: Promise[Unit], delay: FiniteDuration = promiseDelay) =
+    akka.pattern.after(delay, actorSystem.scheduler) {
+      p.success(())
+      Future.successful(())
+    }
 
   behavior of "Batcher"
 
@@ -60,19 +66,23 @@ class BatcherTests extends FlatSpec with Matchers with WskActorSystem {
     val results = values.map(batcher.put)
 
     // First "batch"
-    retry(batchOperation.calls should have size 1, 100)
-    ps(0).success(())
+    retry(batchOperation.calls should have size 1, (promiseDelay.toMillis * 2).toInt)
     batchOperation.calls(0) should have size 1
 
+    // Allow batch to build up
+    resolveDelayed(ps(0))
+
     // Second batch
-    retry(batchOperation.calls should have size 2, 100)
-    ps(1).success(())
+    retry(batchOperation.calls should have size 2, (promiseDelay.toMillis * 2).toInt)
     batchOperation.calls(1) should have size 2
 
+    // Allow batch to build up
+    resolveDelayed(ps(1))
+
     // Third batch
-    retry(batchOperation.calls should have size 3, 100)
-    ps(2).success(())
+    retry(batchOperation.calls should have size 3, (promiseDelay.toMillis * 2).toInt)
     batchOperation.calls(2) should have size 2
+    ps(2).success(())
 
     await(Future.sequence(results)) shouldBe values.map(transform)
   }

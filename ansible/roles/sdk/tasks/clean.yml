@@ -1,8 +1,0 @@
----
-# Remove SDK artifacts from nginx.
-
-- name: remove blackbox sdk
-  file:
-    path: "{{ nginx.confdir }}/blackbox-0.1.0.tar.gz"
-    state: absent
-  become: "{{ sdk.dir.become }}"

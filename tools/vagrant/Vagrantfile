@@ -8,8 +8,7 @@
 # Don't use vagrant resume, it will run the provisioning a second producing errors
 # Use vagrant suspend and vagrant up (using up it skips provisioning)
 
-BOX = "ubuntu/trusty64-2"
-BOX_URL =  "https://cloud-images.ubuntu.com/vagrant/trusty/current/trusty-server-cloudimg-amd64-vagrant-disk1.box"
+BOX = "ubuntu/trusty64"
 BOX_MEMORY = ENV['BOX_MEMORY'] || '4096'
 BOX_CPUS = ENV['BOX_CPUS'] || '4'
 MACHINE_IP = ENV['MACHINE_IP'] || '192.168.33.13'
@@ -17,8 +16,6 @@ OW_DB = if ENV['OW_DB'] =~ (/^(cloudant|couchdb)$/i) then true else false end
 
 Vagrant.configure('2') do |config|
   config.vm.box = BOX
-  config.vm.box_url = BOX_URL
-
   config.vm.network :private_network, ip: MACHINE_IP
 
   # If true, then any SSH connections made will enable agent forwarding.

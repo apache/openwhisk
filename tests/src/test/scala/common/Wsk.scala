@@ -62,14 +62,14 @@ import whisk.utils.retry
  * It also sets the apihost and apiversion explicitly to avoid ambiguity with
  * a local property file if it exists.
  */
-class Wsk() extends RunWskCmd {
-  implicit val action = new WskAction
-  implicit val trigger = new WskTrigger
-  implicit val rule = new WskRule
-  implicit val activation = new WskActivation
-  implicit val pkg = new WskPackage
-  implicit val namespace = new WskNamespace
-  implicit val api = new WskApi
+class Wsk() extends RunWskCmd with BaseWsk {
+  override implicit val action = new WskAction
+  override implicit val trigger = new WskTrigger
+  override implicit val rule = new WskRule
+  override implicit val activation = new WskActivation
+  override implicit val pkg = new WskPackage
+  override implicit val namespace = new WskNamespace
+  override implicit val api = new WskApi
 }
 
 trait ListOrGetFromCollectionCLI extends BaseListOrGetFromCollection {
@@ -109,7 +109,10 @@ trait ListOrGetFromCollectionCLI extends BaseListOrGetFromCollection {
                    expectedExitCode: Int = SUCCESS_EXIT,
                    summary: Boolean = false,
                    fieldFilter: Option[String] = None,
-                   url: Option[Boolean] = None)(implicit wp: WskProps): RunResult = {
+                   url: Option[Boolean] = None,
+                   save: Option[Boolean] = None,
+                   saveAs: Option[String] = None)(implicit wp: WskProps): RunResult = {
+
     val params = Seq(noun, "get", "--auth", wp.authKey) ++
       Seq(fqn(name)) ++ { if (summary) Seq("--summary") else Seq() } ++ {
       fieldFilter map { f =>
@@ -118,6 +121,14 @@ trait ListOrGetFromCollectionCLI extends BaseListOrGetFromCollection {
     } ++ {
       url map { u =>
         Seq("--url")
+      } getOrElse Seq()
+    } ++ {
+      save map { s =>
+        Seq("--save")
+      } getOrElse Seq()
+    } ++ {
+      saveAs map { s =>
+        Seq("--save-as", s)
       } getOrElse Seq()
     }
 

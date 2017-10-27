@@ -221,7 +221,6 @@ object WhiskConfig {
   val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
   val invokerHosts = Map(invokerHostsList -> null)
   val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
-  val redisHost = Map(redisHostName -> null, redisHostPort -> null)
 
   val runtimesManifest = "runtimes.manifest"
 

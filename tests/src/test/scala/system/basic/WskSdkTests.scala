@@ -19,15 +19,12 @@ package system.basic
 
 import java.io.File
 
-import scala.collection.JavaConversions.asScalaBuffer
-
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils.ERROR_EXIT
 import common.TestUtils.SUCCESS_EXIT
-import common.WhiskProperties
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -78,12 +75,6 @@ class WskSdkTests extends TestHelpers with WskTestHelpers {
 
       val buildAndPushFile = new File(sdk, "buildAndPush.sh")
       buildAndPushFile.canExecute() should be(true)
-
-      // confirm there is no other divergence from the base dockerfile
-      val originalDockerfile = WhiskProperties.getFileRelativeToWhiskHome("sdk/docker/Dockerfile")
-      val originalLines = FileUtils.readLines(originalDockerfile)
-      lines.get(0) shouldBe originalLines.get(0)
-      lines.drop(2).mkString("\n") shouldBe originalLines.drop(2).mkString("\n")
     } finally {
       FileUtils.deleteDirectory(dir)
     }

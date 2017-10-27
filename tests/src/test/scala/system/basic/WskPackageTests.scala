@@ -24,7 +24,7 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.TestUtils
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -34,10 +34,10 @@ import common.TestHelpers
 import common.WskProps
 
 @RunWith(classOf[JUnitRunner])
-class WskPackageTests extends TestHelpers with WskTestHelpers {
+abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
   val LOG_DELAY = 80 seconds
 
   behavior of "Wsk Package"
@@ -128,9 +128,8 @@ class WskPackageTests extends TestHelpers with WskTestHelpers {
     val flatDescription = itemDescription.replace("\n", "").replace("\r", "")
     merged.foreach {
       case (key: String, value: JsValue) =>
-        val toFind = s""""key": "${key}",.*"value": ${value.toString}"""
+        val toFind = s""""key":.*"${key}",.*"value":.*${value.toString}"""
         flatDescription should include regex toFind
     }
   }
-
 }

@@ -732,8 +732,8 @@
     "translation": "shared"
   },
   {
-    "id": "The file '{{.name}}' does not exist.",
-    "translation": "The file '{{.name}}' does not exist."
+    "id": "File '{{.name}}' is not a valid file or it does not exist",
+    "translation": "File '{{.name}}' is not a valid file or it does not exist"
   },
   {
     "id": "Error creating unGzip file '{{.name}}': {{.err}}",
@@ -876,12 +876,8 @@
     "translation": "Unable to get action '{{.name}}': {{.err}}"
   },
   {
-    "id": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}",
-    "translation": "File '{{.name}}' is not a valid file or it does not exist: {{.err}}"
-  },
-  {
-    "id": "Unable to read '{{.name}}': {{.err}}",
-    "translation": "Unable to read '{{.name}}': {{.err}}"
+    "id": "Unable to read the file '{{.name}}': {{.err}}",
+    "translation": "Unable to read the file '{{.name}}': {{.err}}"
   },
   {
     "id": "'{{.name}}' is not a supported action runtime",
@@ -1526,4 +1522,37 @@
   {
     "id": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block",
     "translation": "sorts a list alphabetically by order of [BASE_PATH | API_NAME], API_PATH, then API_VERB; only applicable within the limit/skip returned entity block"
-  }]
+  },
+  {
+    "id": "prints bash command completion script to stdout",
+    "translation": "prints bash command completion script to stdout"
+  },
+  {
+    "id": "save action code to file corresponding with action name",
+    "translation": "save action code to file corresponding with action name"
+  },
+  {
+    "id": "file to save action code to",
+    "translation": "file to save action code to"
+  },
+  {
+    "id": "The file '{{.file}}' already exists",
+    "translation": "The file '{{.file}}' already exists"
+  },
+  {
+    "id": "{{.ok}} saved action code to {{.name}}\n",
+    "translation": "{{.ok}} saved action code to {{.name}}\n"
+  },
+  {
+    "id": "Cannot save Docker images",
+    "translation": "Cannot save Docker images"
+  },
+  {
+    "id": "Cannot save action sequences",
+    "translation": "Cannot save action sequences"
+  },
+  {
+    "id": "Cannot create file '{{.name}}': {{.err}}",
+    "translation": "Cannot create file '{{.name}}': {{.err}}"
+  }
+]

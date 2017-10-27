@@ -133,7 +133,10 @@ class ContainerProxyTests
   }
 
   /** Creates an inspectable version of the ack method, which records all calls in a buffer */
-  def createAcker = LoggedFunction { (_: TransactionId, _: WhiskActivation, _: Boolean, _: InstanceId) =>
+  def createAcker = LoggedFunction { (_: TransactionId, activation: WhiskActivation, _: Boolean, _: InstanceId) =>
+    activation.annotations.get("limits") shouldBe Some(action.limits.toJson)
+    activation.annotations.get("path") shouldBe Some(action.fullyQualifiedName(false).toString.toJson)
+    activation.annotations.get("kind") shouldBe Some(action.exec.kind.toJson)
     Future.successful(())
   }
 
