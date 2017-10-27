@@ -1,0 +1,14 @@
+---
+
+- name: "Create an EC2 key"
+  ec2_key:
+    name: "{{ aws_priv_key_name }}"
+    region: "{{ aws_region }}"
+  register: private_key
+
+- name: "Save the key to local disk"
+  copy:
+    content: "{{ private_key.key.private_key }}"
+    dest: "{{ aws_priv_key_local }}"
+    mode: 0600
+  when: private_key.changed

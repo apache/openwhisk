@@ -1,0 +1,22 @@
+---
+
+- name: "Provision EC2 instances"
+  ec2:
+    region: "{{ aws_region }}"
+    key_name: "{{ aws_priv_key_name }}"
+    group: "openwhisk-dev"
+    instance_type: "{{ item.flavor }}"
+    image: "{{ aws_ubuntu_image }}"
+    wait: yes
+    exact_count: "{{ item.num_instances }}"
+    count_tag:
+      Name: "openwhisk-{{ item.name }}"
+    instance_tags:
+      Name: "openwhisk-{{ item.name }}"
+    volumes:
+      - device_name: "{{ (item.volume | default({})).name | default('/dev/xvda') }}"
+        device_type: "gp2"
+        volume_size: "{{ (item.volume | default({})).size | default('8') }}"
+        delete_on_termination: true
+  with_items: "{{ instances }}"
+  register: ec2_list

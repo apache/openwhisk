@@ -1,0 +1,19 @@
+---
+
+# TODO - avoid wide-open security group
+
+- name: "Create openwhisk security group"
+  ec2_group:
+    name: "openwhisk-dev"
+    description: "Group for Openwhisk dev"
+    region: "{{ aws_region }}"
+    rules:
+      - proto: all
+        from_port: 0
+        to_port: 65535
+        cidr_ip: 0.0.0.0/0
+    rules_egress:
+      - proto: all
+        from_port: 0
+        to_port: 65535
+        cidr_ip: 0.0.0.0/0

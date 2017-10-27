@@ -1,0 +1,17 @@
+# Inventory file generated automatically by provisioning AWS EC2 instances
+
+{% for ec2 in ec2_list.results %}
+[{{ ec2.item.name }}]
+{% for host in ec2.tagged_instances %}
+{{ host.public_dns_name }}    ansible_host={{ host.public_dns_name }}
+
+{% endfor %}
+{% endfor %}
+
+# Predefined groups
+
+[apigateway:children]
+edge
+
+[redis:children]
+edge

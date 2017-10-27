@@ -1,0 +1,13 @@
+---
+
+aws_region: eu-west-1
+
+# Note, this is an AMI for Ubuntu 14.04 in eu-west-1
+#
+# You can go to http://cloud-images.ubuntu.com/locator/ec2/, enter
+# "14.04 LTS HVM EBS" in the search box then use the region filter
+# to find an appropriate AMI for you.
+aws_ubuntu_image: ami-d53697ac
+
+aws_priv_key_name: openwhisk-key
+aws_priv_key_local: "{{ lookup('env','HOME') }}/.ssh/openwhisk_key.pem"

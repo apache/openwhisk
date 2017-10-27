@@ -103,6 +103,10 @@
   with_items: "{{ invokerInfo }}"
   when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
+- name: kill any existing containers
+  shell: "docker rm -f invoker{{ groups['invokers'].index(inventory_hostname) }}"
+  ignore_errors: yes
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
