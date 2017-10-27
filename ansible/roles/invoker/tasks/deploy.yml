@@ -144,6 +144,10 @@
         -e INVOKER_USE_RUNC='{{ invoker.useRunc }}'
         -e INVOKER_NAME='{{ groups['invokers'].index(inventory_hostname) }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
+        -e METRICS_KAMON='{{ metrics.kamon.enabled }}'
+        -e METRICS_LOG='{{ metrics.log.enabled }}'
+        -e METRICS_KAMON_HOST='{{ metrics.kamon.host }}'
+        -e METRICS_KAMON_PORT='{{ metrics.kamon.port }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

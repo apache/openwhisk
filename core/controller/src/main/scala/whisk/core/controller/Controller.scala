@@ -19,14 +19,20 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import akka.Done
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
+
 import spray.json.DefaultJsonProtocol._
+
+import kamon.Kamon
 
 import whisk.common.AkkaLogging
 import whisk.common.Logging
@@ -168,8 +174,16 @@ object Controller {
       "runtimes" -> runtimes.toJson)
 
   def main(args: Array[String]): Unit = {
+    Kamon.start()
     implicit val actorSystem = ActorSystem("controller-actor-system")
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+
+    // Prepare Kamon shutdown
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
+      logger.info(this, s"Shutting down Kamon with coordinated shutdown")
+      Kamon.shutdown()
+      Future.successful(Done)
+    }
 
     // extract configuration data from the environment
     val config = new WhiskConfig(requiredProperties)

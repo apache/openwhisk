@@ -19,11 +19,16 @@ package whisk.core.invoker
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.Future
 import scala.util.Failure
 
 import com.redis.RedisClient
 
+import kamon.Kamon
+
+import akka.Done
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown
 import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
@@ -63,10 +68,19 @@ object Invoker {
       Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
+    Kamon.start()
+
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
     implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
+
+    // Prepare Kamon shutdown
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
+      logger.info(this, s"Shutting down Kamon with coordinated shutdown")
+      Kamon.shutdown()
+      Future.successful(Done)
+    }
 
     // load values for the required properties from the environment
     implicit val config = new WhiskConfig(requiredProperties)
