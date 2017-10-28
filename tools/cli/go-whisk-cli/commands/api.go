@@ -818,7 +818,7 @@ func parseApi(cmd *cobra.Command, args []string) (*whisk.Api, *QualifiedName, er
     } else {
         urlActionPackage = "default"
     }
-    api.Action.BackendUrl = Client.Config.BaseUrl.Scheme + "://" + Client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
+    api.Action.BackendUrl = Client.Config.BaseURL.Scheme + "://" + Client.Config.Host + "/api/v1/web/" + qName.GetNamespace() + "/" + urlActionPackage + "/" + qName.GetEntity() + ".http"
     api.Action.BackendMethod = api.GatewayMethod
     api.Action.Name = qName.GetEntityName()
     api.Action.Namespace = qName.GetNamespace()
