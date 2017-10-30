@@ -91,6 +91,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   def receive = {
     case p: PingMessage =>
       val invoker = instanceToRef.getOrElse(p.instance, registerInvoker(p.instance))
+      instanceToRef = instanceToRef.updated(p.instance, invoker)
 
       invoker.forward(p)
 
