@@ -185,7 +185,7 @@ object InvokerPool {
     new WhiskAction(
       namespace = healthActionIdentity.namespace.toPath,
       name = EntityName(s"invokerHealthTestAction${i.toInt}"),
-      exec = new CodeExecAsString(manifest, """function main(params) { return params; }""", None))
+      exec = CodeExecAsString(manifest, """function main(params) { return params; }""", None))
   }
 }
 
