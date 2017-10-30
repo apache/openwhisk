@@ -178,7 +178,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   def removeContainer(toDelete: ActorRef) = {
     toDelete ! Remove
     freePool = freePool - toDelete
-    busyPool = freePool - toDelete
+    busyPool = busyPool - toDelete
   }
 }
 
