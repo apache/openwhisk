@@ -30,6 +30,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.core.WhiskConfig
@@ -67,6 +68,8 @@ class ViewTests
 
   val creds2 = WhiskAuthHelpers.newAuth(Subject("t12345"))
   val namespace2 = EntityPath(creds2.subject.asString)
+
+  implicit val materializer = ActorMaterializer()
 
   val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
   val entityStore = WhiskEntityStore.datastore(config)

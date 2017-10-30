@@ -24,6 +24,7 @@ import scala.language.postfixOps
 import scala.util.Try
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.RootJsonFormat
@@ -97,7 +98,7 @@ object WhiskAuthStore {
       dbPort -> null,
       dbAuths -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
+  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
 }
 
@@ -112,10 +113,10 @@ object WhiskEntityStore {
       dbPort -> null,
       dbWhisk -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
+  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging)
+      .makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging, materializer)
 
 }
 
@@ -130,8 +131,8 @@ object WhiskActivationStore {
       dbPort -> null,
       dbActivations -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging) =
-    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations)
+  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)
 }
 
 /**
