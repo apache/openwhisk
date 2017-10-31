@@ -47,6 +47,8 @@ import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
 
+case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
+
 object Invoker {
 
   /**
@@ -104,8 +106,33 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
-    val assignedInvokerId = proposedInvokerId
+    // process command line arguments
+    // We accept the command line grammar of:
+    // Usage: invoker [options] [<proposedInvokerId>]
+    //    -i, --id <value>     proposed invokerId
+    //    -n, --name <value>   a unique name to use for this invoker
+    var cmdLineArgs = CmdLineArgs()
+    val parser = new scopt.OptionParser[Unit]("invoker") {
+      arg[Int]("<proposedInvokerId>")
+        .foreach(x => cmdLineArgs = cmdLineArgs.copy(id = Some(x)))
+        .minOccurs(0)
+        .maxOccurs(1)
+      opt[String]('n', "name")
+        .foreach(x => cmdLineArgs = cmdLineArgs.copy(name = Some(x)))
+        .text("a unique name to use for this invoker")
+        .optional()
+      opt[Int]('i', "id")
+        .foreach(x => cmdLineArgs = cmdLineArgs.copy(id = Some(x)))
+        .text("proposed invokerId")
+        .optional()
+    }
+    if (parser.parse(args)) {
+      logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
+    } else {
+      abort("Error processing command line argument")
+    }
+
+    val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
         id
@@ -114,7 +141,7 @@ object Invoker {
         if (config.zookeeperHost.startsWith(":") || config.zookeeperHost.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHost})")
         }
-        val invokerName = config.invokerName
+        val invokerName = cmdLineArgs.name.getOrElse(config.invokerName)
         if (invokerName.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
