@@ -18,7 +18,6 @@
 package common.rest
 
 import java.io.File
-import java.time.Clock
 import java.time.Instant
 import java.util.Base64
 import java.security.cert.X509Certificate
@@ -606,11 +605,9 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
   override def console(duration: Duration, since: Option[Duration] = None, expectedExitCode: Int = SUCCESS_EXIT)(
     implicit wp: WskProps): RestResult = {
     var sinceTime = System.currentTimeMillis()
-    val utc = Instant.now(Clock.systemUTC()).toEpochMilli
     sinceTime = since map { s =>
       sinceTime - s.toMillis
     } getOrElse sinceTime
-    val pollTimeout = duration.toSeconds
     waitForActivationConsole(duration, Instant.ofEpochMilli(sinceTime))
   }
 
@@ -766,7 +763,6 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
 
   def waitForActivationConsole(totalWait: Duration = 30 seconds, sinceTime: Instant)(
     implicit wp: WskProps): RestResult = {
-    var result = new RestResult(NotFound)
     Thread.sleep(totalWait.toMillis)
     listActivation(since = Some(sinceTime))(wp)
   }
