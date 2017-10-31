@@ -13,6 +13,7 @@ repositories {
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
+    compile 'org.apache.curator:curator-recipes:2.12.0'
 }
 
 tasks.withType(ScalaCompile) {
