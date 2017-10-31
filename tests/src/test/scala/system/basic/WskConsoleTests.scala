@@ -70,8 +70,6 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
     val start = Instant.now.minusSeconds(5)
     val payload = new String("from the console!".getBytes, "UTF-8")
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
-
-    val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)
     withActivation(wsk.activation, run, totalWait = 30.seconds) { activation =>
       // Time recorded by invoker, some contingency to make query more robust
       val queryTime = activation.start.minusMillis(500)

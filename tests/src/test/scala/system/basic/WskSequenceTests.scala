@@ -32,7 +32,7 @@ import common.StreamLogging
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 
@@ -47,12 +47,11 @@ import whisk.http.Messages.sequenceIsTooLong
 /**
  * Tests sequence execution
  */
-
 @RunWith(classOf[JUnitRunner])
-class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestHelpers with StreamLogging {
+abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with WskTestHelpers with StreamLogging {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
 

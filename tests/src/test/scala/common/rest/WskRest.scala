@@ -355,6 +355,7 @@ class WskRestAction
         case Some(k) if (k == "sequence" || k == "native") => {
           bodyContent = bodyContent ++ Map("exec" -> exec.toJson)
         }
+        case _ =>
       }
 
       bodyContent = bodyContent ++ {
@@ -1145,10 +1146,15 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   }
   val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
 
+  def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
+    return statusCode == expectedExitCode
+  }
+
   def validateStatusCode(expectedExitCode: Int, statusCode: Int) = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
-      if (statusCode != expectedExitCode)
+      if (!isStatusCodeExpected(expectedExitCode, statusCode)) {
         statusCode shouldBe expectedExitCode
+      }
   }
 
   def getNamePath(noun: String, name: String)(implicit wp: WskProps): Path = {
@@ -1293,10 +1299,14 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     } getOrElse Some(parameters.toJson.toString())
     val resp = requestEntity(POST, path, paramMap, input)
     val r = new RestResult(resp.status.intValue, getRespData(resp))
-    if (blocking || result) {
-      validateStatusCode(OK.intValue, r.statusCode.intValue)
-    } else {
-      validateStatusCode(expectedExitCode, r.statusCode.intValue)
+    // If the statusCode does not not equal to expectedExitCode, it is acceptable that the statusCode
+    // equals to 200 for the case that either blocking or result is set to true.
+    if (!isStatusCodeExpected(expectedExitCode, r.statusCode.intValue)) {
+      if (blocking || result) {
+        validateStatusCode(OK.intValue, r.statusCode.intValue)
+      } else {
+        r.statusCode.intValue shouldBe expectedExitCode
+      }
     }
     r
   }
