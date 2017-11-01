@@ -26,16 +26,16 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import common.WhiskProperties
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicPythonTests extends TestHelpers with WskTestHelpers with Matchers with JsHelpers {
+abstract class WskBasicPythonTests extends TestHelpers with WskTestHelpers with Matchers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
 
   behavior of "Native Python Action"
 

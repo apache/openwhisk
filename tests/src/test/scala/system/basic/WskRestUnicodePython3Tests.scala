@@ -20,8 +20,15 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
-class WskBasicSwift311Tests extends WskBasicSwift3Tests {
+import common.JsHelpers
+import common.WskTestHelpers
+import common.rest.WskRest
 
-  override lazy val currentSwiftDefaultKind = "swift:3.1.1"
+@RunWith(classOf[JUnitRunner])
+class WskRestUnicodePython3Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
+
+  override val wsk: common.rest.WskRest = new WskRest
+  override lazy val actionKind = "python:3"
+  override lazy val actionSource = "unicode3.py"
+
 }
