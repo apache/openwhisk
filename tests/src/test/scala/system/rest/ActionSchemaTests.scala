@@ -29,7 +29,7 @@ import com.jayway.restassured.RestAssured
 
 import common.TestUtils
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.JsArray
@@ -43,7 +43,7 @@ import spray.json.pimpString
 class ActionSchemaTests extends FlatSpec with Matchers with RestUtil with JsonSchema with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val guestNamespace = wskprops.namespace
 
   it should "respond to GET /actions as documented in swagger" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

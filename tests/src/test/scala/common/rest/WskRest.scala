@@ -35,7 +35,7 @@ import scala.collection.mutable.Buffer
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
@@ -62,8 +62,11 @@ import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
 import akka.http.scaladsl.HttpsConnectionContext
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.{OverflowStrategy, QueueOfferResult}
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -95,7 +98,7 @@ import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
-  def verify(s: String, sslSession: SSLSession) = true
+  override def verify(s: String, sslSession: SSLSession): Boolean = true
 }
 
 object SSL {
@@ -374,14 +377,24 @@ class WskRestAction
       }
     } else {
       bodyContent = bodyContent ++ Map("exec" -> exec.toJson, "parameters" -> params, "annotations" -> annos)
-
-      bodyContent = bodyContent ++ {
-        timeout map { t =>
-          Map("limits" -> JsObject("timeout" -> t.toMillis.toJson))
-        } getOrElse Map[String, JsValue]()
-      }
     }
 
+    val limits = Map[String, JsValue]() ++ {
+      timeout map { t =>
+        Map("timeout" -> t.toMillis.toJson)
+      } getOrElse Map[String, JsValue]()
+    } ++ {
+      logsize map { log =>
+        Map("logs" -> log.toMB.toJson)
+      } getOrElse Map[String, JsValue]()
+    } ++ {
+      memory map { m =>
+        Map("memory" -> m.toMB.toJson)
+      } getOrElse Map[String, JsValue]()
+    }
+
+    if (!limits.isEmpty)
+      bodyContent = bodyContent ++ Map("limits" -> limits.toJson)
     val path = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
     val resp =
       if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(bodyContent).toString))
@@ -1138,16 +1151,21 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
-  val whiskRestUrl = Uri(WhiskProperties.getApiHostForAction)
+  val queueSize = 10
+  val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
 
   val sslConfig = AkkaSSLConfig().mapSettings { s =>
-    s.withLoose(s.loose.withAcceptAnyCertificate(true).withDisableHostnameVerification(true))
+    s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
   }
+
   val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
 
   def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
-    return statusCode == expectedExitCode
+    if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
+      statusCode == expectedExitCode
+    else
+      true
   }
 
   def validateStatusCode(expectedExitCode: Int, statusCode: Int) = {
@@ -1175,15 +1193,38 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
     val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
+    val connectionPoolSettings = ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest)
+    val pool = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
+      host = WhiskProperties.getApiHost,
+      connectionContext = connectionContext,
+      settings = connectionPoolSettings)
+    val queue = Source
+      .queue[(HttpRequest, Promise[HttpResponse])](queueSize, OverflowStrategy.dropNew)
+      .via(pool)
+      .toMat(Sink.foreach({
+        case ((Success(resp), p)) => p.success(resp)
+        case ((Failure(e), p))    => p.failure(e)
+      }))(Keep.left)
+      .run
 
-    Http().singleRequest(request, connectionContext)
+    val promise = Promise[HttpResponse]
+    val responsePromise = Promise[HttpResponse]()
+    queue.offer(request -> responsePromise).flatMap {
+      case QueueOfferResult.Enqueued => responsePromise.future
+      case QueueOfferResult.Dropped =>
+        Future.failed(new RuntimeException("Queue has overflowed. Please try again later."))
+      case QueueOfferResult.Failure(ex) => Future.failed(ex)
+      case QueueOfferResult.QueueClosed =>
+        Future.failed(
+          new RuntimeException("Queue was closed (pool shut down) while running the request. Please try again later."))
+    }
   }
 
   def requestEntity(method: HttpMethod,
                     path: Path,
                     params: Map[String, String] = Map(),
                     body: Option[String] = None,
-                    whiskUrl: Uri = whiskRestUrl)(implicit wp: WskProps): HttpResponse = {
+                    whiskUrl: Uri = Uri(""))(implicit wp: WskProps): HttpResponse = {
     val creds = getBasicHttpCredentials(wp)
     request(method, whiskUrl.withPath(path).withQuery(Uri.Query(params)), body, creds = creds).futureValue
   }
@@ -1298,7 +1339,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       Some(FileUtils.readFileToString(new File(pf)))
     } getOrElse Some(parameters.toJson.toString())
     val resp = requestEntity(POST, path, paramMap, input)
-    val r = new RestResult(resp.status.intValue, getRespData(resp))
+    val r = new RestResult(resp.status.intValue, getRespData(resp), blocking)
     // If the statusCode does not not equal to expectedExitCode, it is acceptable that the statusCode
     // equals to 200 for the case that either blocking or result is set to true.
     if (!isStatusCodeExpected(expectedExitCode, r.statusCode.intValue)) {
@@ -1393,8 +1434,8 @@ object RestResult {
     obj.fields.get(key).map(_.convertTo[Vector[JsObject]]).getOrElse(Vector(JsObject()))
   }
 
-  def convertStausCodeToExitCode(statusCode: StatusCode): Int = {
-    if (statusCode == OK)
+  def convertStausCodeToExitCode(statusCode: StatusCode, blocking: Boolean = false): Int = {
+    if ((statusCode == OK) || (!blocking && (statusCode == Accepted)))
       return 0
     if (statusCode.intValue < BadRequest.intValue) statusCode.intValue else statusCode.intValue - codeConversion
   }
@@ -1408,9 +1449,9 @@ object RestResult {
   }
 }
 
-class RestResult(var statusCode: StatusCode, var respData: String = "")
+class RestResult(var statusCode: StatusCode, var respData: String = "", blocking: Boolean = false)
     extends RunResult(
-      RestResult.convertStausCodeToExitCode(statusCode),
+      RestResult.convertStausCodeToExitCode(statusCode, blocking),
       respData,
       RestResult.convertHttpResponseToStderr(respData)) {
 

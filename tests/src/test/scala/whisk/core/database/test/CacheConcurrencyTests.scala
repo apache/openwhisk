@@ -17,6 +17,8 @@
 
 package whisk.core.database.test
 
+import akka.http.scaladsl.model.StatusCodes.NotFound
+
 import scala.collection.parallel._
 import scala.concurrent.forkjoin.ForkJoinPool
 
@@ -27,7 +29,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestUtils
 import common.TestUtils._
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.JsString
@@ -40,7 +42,7 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
 
   implicit private val transId = TransactionId.testing
   implicit private val wp = WskProps()
-  private val wsk = new Wsk
+  private val wsk = new WskRest
 
   val nExternalIters = 1
   val nInternalIters = 5
@@ -97,7 +99,7 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
       }
 
       run("get after delete") { name =>
-        wsk.action.get(name, expectedExitCode = NOT_FOUND)
+        wsk.action.get(name, expectedExitCode = NotFound.intValue)
       }
 
       run("recreate") { name =>

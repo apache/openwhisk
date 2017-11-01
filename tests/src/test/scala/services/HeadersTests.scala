@@ -31,7 +31,7 @@ import org.scalatest.time.Span.convertDurationToSpan
 
 import common.TestUtils
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 
@@ -82,7 +82,7 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
 
   val basePath = Path("/api/v1")
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
 
   /**
    * Checks, if the required headers are in the list of all headers.
