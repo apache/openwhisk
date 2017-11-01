@@ -36,7 +36,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common.TestUtils
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskActorSystem
 import common.WskProps
 import common.WskTestHelpers
@@ -47,7 +47,7 @@ import whisk.utils.retry
 class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers with ScalaFutures with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   implicit val materializer = ActorMaterializer()

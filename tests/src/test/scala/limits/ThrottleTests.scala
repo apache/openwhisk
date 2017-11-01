@@ -19,6 +19,8 @@ package limits
 
 import java.time.Instant
 
+import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+
 import scala.collection.parallel.immutable.ParSeq
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -34,7 +36,7 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskActorSystem
 import common.WskProps
 import common.WskTestHelpers
@@ -65,7 +67,7 @@ class ThrottleTests
 
   implicit val testConfig = PatienceConfig(5.minutes)
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   val throttleWindow = 1.minute
@@ -296,7 +298,7 @@ class NamespaceSpecificThrottleTests
     with LocalHelper {
 
   val wskadmin = new RunWskAdminCmd {}
-  val wsk = new Wsk
+  val wsk = new WskRest
 
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
@@ -346,10 +348,10 @@ class NamespaceSpecificThrottleTests
       trigger.create(triggerName)
     }
 
-    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+    wsk.action.invoke(actionName, expectedExitCode = TooManyRequests.intValue).stderr should {
       include(prefix(tooManyRequests(0, 0))) and include("allowed: 0")
     }
-    wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+    wsk.trigger.fire(triggerName, expectedExitCode = TooManyRequests.intValue).stderr should {
       include(prefix(tooManyRequests(0, 0))) and include("allowed: 0")
     }
   }
@@ -401,7 +403,7 @@ class NamespaceSpecificThrottleTests
       action.create(actionName, defaultAction)
     }
 
-    wsk.action.invoke(actionName, expectedExitCode = TestUtils.THROTTLED).stderr should {
+    wsk.action.invoke(actionName, expectedExitCode = TooManyRequests.intValue).stderr should {
       include(prefix(tooManyConcurrentRequests(0, 0))) and include("allowed: 0")
     }
   }
