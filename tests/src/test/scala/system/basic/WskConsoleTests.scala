@@ -29,7 +29,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.IntJsonFormat
@@ -40,10 +40,10 @@ import spray.json.pimpAny
  * Tests of the text console
  */
 @RunWith(classOf[JUnitRunner])
-class WskConsoleTests extends TestHelpers with WskTestHelpers {
+abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
 
-  implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  implicit val wskprops: common.WskProps = WskProps()
+  val wsk: BaseWsk
   val guestNamespace = wskprops.namespace
 
   /**
@@ -70,7 +70,16 @@ class WskConsoleTests extends TestHelpers with WskTestHelpers {
     val start = Instant.now.minusSeconds(5)
     val payload = new String("from the console!".getBytes, "UTF-8")
     val run = wsk.action.invoke(fullActionName, Map("payload" -> payload.toJson))
-    withActivation(wsk.activation, run, totalWait = 30 seconds) { activation =>
+    withActivation(wsk.activation, run, totalWait = 30.seconds) { activation =>
+      // Time recorded by invoker, some contingency to make query more robust
+      val queryTime = activation.start.minusMillis(500)
+      // since: poll for activations since specified point in time (absolute)
+      val activations = wsk.activation.pollFor(N = 1, Some(actionName), since = Some(queryTime), retries = 80).length
+      withClue(
+        s"expected activations of action '${actionName}' since ${queryTime.toString} / initial activation ${activation.activationId}:") {
+        activations should be(1)
+      }
+
       val duration = Duration(Instant.now.minusMillis(start.toEpochMilli).toEpochMilli, MILLISECONDS)
       val pollTime = 10 seconds
       // since: poll for activations since specified number of seconds ago (relative)
