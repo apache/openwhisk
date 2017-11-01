@@ -200,11 +200,20 @@ public class WhiskProperties {
         return whiskProperties.getProperty("router.host");
     }
 
+    public static String getApiProto() {
+        return whiskProperties.getProperty("whisk.api.host.proto");
+    }
+
+    public static String getApiHost() {
+        return whiskProperties.getProperty("whisk.api.host.name");
+    }
+
+    public static String getApiPort() {
+        return whiskProperties.getProperty("whisk.api.host.port");
+    }
+
     public static String getApiHostForAction() {
-        String proto = whiskProperties.getProperty("whisk.api.host.proto");
-        String port = whiskProperties.getProperty("whisk.api.host.port");
-        String host = whiskProperties.getProperty("whisk.api.host.name");
-        return proto + "://" + host + ":" + port;
+        return getApiProto() + "://" + getApiHost() + ":" + getApiPort();
     }
 
     public static String getApiHostForClient(String subdomain, boolean includeProtocol) {
@@ -235,11 +244,11 @@ public class WhiskProperties {
     }
 
     public static String getBaseControllerHost() {
-    	return getControllerHosts().split(",")[0];
+        return getControllerHosts().split(",")[0];
     }
 
     public static String getBaseControllerAddress() {
-    	return getBaseControllerHost() + ":" + getControllerBasePort();
+        return getBaseControllerHost() + ":" + getControllerBasePort();
     }
 
     public static int getMaxActionInvokesPerMinute() {
