@@ -42,7 +42,6 @@ import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
-import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
@@ -140,13 +139,10 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       case Failure(t)  => logging.error(this, s"failed to record activation")
     }
   }
-  val collectLogs = (tid: TransactionId, container: Container, action: ExecutableWhiskAction) => {
-    logsProvider.collectLogs(tid, container, action)
-  }
 
   /** Creates a ContainerProxy Actor when being called. */
   val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(ContainerProxy.props(containerFactory.createContainer _, ack, store, collectLogs, instance))
+    f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
 
   val prewarmKind = "nodejs:6"
   val prewarmExec = ExecManifest.runtimesManifest

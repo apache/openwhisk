@@ -16,30 +16,36 @@
  */
 
 package whisk.core.containerpool.logging
+
 import akka.actor.ActorSystem
-import scala.concurrent.Future
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.ActivationLogs
-import whisk.core.entity.ExecutableWhiskAction
-import whisk.core.entity.WhiskActivation
+import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, WhiskActivation}
 
-/** Docker based LogStore impl. Uses docker cli to collect logs directly from containers */
+import scala.concurrent.Future
+
+/**
+ * Docker based implementation of a LogStore.
+ *
+ * Relies on docker's implementation details with regards to the JSON log-driver. When using the JSON log-driver
+ * docker writes stdout/stderr to a JSON formatted file which is read by this store. Logs are written in the
+ * activation record itself and thus stored in CouchDB.
+ */
 object DockerLogStore extends LogStore {
 
-  override def containerParameters = Map[String, Set[String]]() //use defaults for docker logging of stdout/stderr
+  /* "json-file" is the log-driver that writes out to file */
+  override val containerParameters = Map("--log-driver" -> Set("json-file"))
 
-  override def logs(activation: WhiskActivation): Future[ActivationLogs] = {
-    Future.successful(activation.logs)
-  }
+  /* As logs are already part of the activation record, just return that bit of it */
+  override def logs(activation: WhiskActivation): Future[ActivationLogs] = Future.successful(activation.logs)
 
-  override def collectLogs(transid: TransactionId, container: Container, action: ExecutableWhiskAction) = {
-    implicit val tid = transid
-    //get logs from `docker logs` command
-    container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)
+  override def collectLogs(transid: TransactionId,
+                           container: Container,
+                           action: ExecutableWhiskAction): Future[Vector[String]] = {
+    container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
   }
 }
 
 object DockerLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem) = DockerLogStore
+  override def logStore(actorSystem: ActorSystem): LogStore = DockerLogStore
 }

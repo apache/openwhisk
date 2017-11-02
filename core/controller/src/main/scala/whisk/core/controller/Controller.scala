@@ -49,7 +49,6 @@ import whisk.core.loadBalancer.{LoadBalancerService}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
-import scala.util.{Failure, Success}
 import whisk.core.containerpool.logging.LogStoreProvider
 
 /**

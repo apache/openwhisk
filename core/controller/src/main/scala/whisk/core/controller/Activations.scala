@@ -213,7 +213,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       WhiskActivation,
       activationStore,
       docid,
-      (activation: WhiskActivation) => logsFromProvider(activation).map(l => l.toJsonObject))
+      (activation: WhiskActivation) => logStore.logs(activation).map(_.toJsonObject))
   }
 
   /** Custom unmarshaller for query parameters "name" into valid entity name. */
@@ -242,5 +242,4 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
         case Failure(t) => throw new IllegalArgumentException(Messages.badEpoch(value))
       }
     }
-  private def logsFromProvider(activation: WhiskActivation): Future[ActivationLogs] = logStore.logs(activation)
 }
