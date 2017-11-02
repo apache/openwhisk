@@ -149,7 +149,7 @@ class ContainerProxyTests
 
   val store = stubFunction[TransactionId, WhiskActivation, Future[Any]]
 
-  val collectLogs = DockerLogStore.collectLogs _
+  val collectLogs = new DockerLogStore(system).collectLogs _
 
   behavior of "ContainerProxy"
 

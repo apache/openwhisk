@@ -94,7 +94,7 @@ case object ContainerRemoved
 class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
                      sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
                      storeActivation: (TransactionId, WhiskActivation) => Future[Any],
-                     collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[Vector[String]],
+                     collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
                      instance: InstanceId,
                      unusedTimeout: FiniteDuration,
                      pauseGrace: FiniteDuration)
@@ -372,7 +372,7 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
       }
       .flatMap { activation =>
         collectLogs(tid, container, job.action).map { logs =>
-          activation.withLogs(ActivationLogs(logs))
+          activation.withLogs(logs)
         }
       }
       .andThen {
@@ -391,7 +391,7 @@ object ContainerProxy {
   def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
             ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
             store: (TransactionId, WhiskActivation) => Future[Any],
-            collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[Vector[String]],
+            collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
             instance: InstanceId,
             unusedTimeout: FiniteDuration = 10.minutes,
             pauseGrace: FiniteDuration = 50.milliseconds) =

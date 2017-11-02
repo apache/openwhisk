@@ -22,7 +22,7 @@ import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, WhiskActivation}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Docker based implementation of a LogStore.
@@ -31,7 +31,8 @@ import scala.concurrent.Future
  * docker writes stdout/stderr to a JSON formatted file which is read by this store. Logs are written in the
  * activation record itself and thus stored in CouchDB.
  */
-object DockerLogStore extends LogStore {
+class DockerLogStore(system: ActorSystem) extends LogStore {
+  implicit val ec: ExecutionContext = system.dispatcher
 
   /* "json-file" is the log-driver that writes out to file */
   override val containerParameters = Map("--log-driver" -> Set("json-file"))
@@ -41,11 +42,11 @@ object DockerLogStore extends LogStore {
 
   override def collectLogs(transid: TransactionId,
                            container: Container,
-                           action: ExecutableWhiskAction): Future[Vector[String]] = {
-    container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
+                           action: ExecutableWhiskAction): Future[ActivationLogs] = {
+    container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid).map(ActivationLogs(_))
   }
 }
 
 object DockerLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = DockerLogStore
+  override def logStore(actorSystem: ActorSystem): LogStore = new DockerLogStore(actorSystem)
 }

@@ -53,7 +53,7 @@ trait LogStore {
    * @param action action that was activated
    * @return logs for the given activation
    */
-  def collectLogs(transid: TransactionId, container: Container, action: ExecutableWhiskAction): Future[Vector[String]]
+  def collectLogs(transid: TransactionId, container: Container, action: ExecutableWhiskAction): Future[ActivationLogs]
 }
 
 trait LogStoreProvider extends Spi {
