@@ -28,6 +28,19 @@ import scala.concurrent.Future
 /**
  * Interface to gather logs after the activation, define their way of storage and fetch them from that storage upon
  * user request.
+ *
+ * Lifecycle wise, log-handling runs through two steps:
+ * 1. Collecting logs after an activation has run to store them in the database.
+ * 2. Fetching logs from the API to use them (as a user).
+ *
+ * Both of those lifecycle steps can independently implemented via {@code collectLogs} and {@code fetchLogs}
+ * respectively.
+ *
+ * The implementation can choose to not fetch logs at all but use the underlying container orchestrator to handle
+ * log-storage/forwarding (via {@code containerParameters}). In this case, {@code collectLogs} would be implemented
+ * as a stub, only returning a line of log hinting that logs are stored elsewhere. {@code fetchLogs} though can
+ * implement the API of the backend system to be able to still show the logs of a specific activation via the OpenWhisk
+ * API.
  */
 trait LogStore {
 
@@ -35,18 +48,10 @@ trait LogStore {
   def containerParameters: Map[String, Set[String]]
 
   /**
-   * Fetch relevant logs for the given activation from the store.
-   *
-   * @param activation activation to fetch the logs for
-   * @return the relevant logs
-   */
-  def logs(activation: WhiskActivation): Future[ActivationLogs]
-
-  /**
    * Collect logs after the activation has finished.
    *
-   * These are the logs that get stored along the activation record in the database. These can be used as a placeholder
-   * with a hint to the user, if logs are stored in an external system.
+   * This method is called after an activation has finished. The logs gathered here are stored along the activation
+   * record in the database.
    *
    * @param transid transaction the activation ran in
    * @param container container used by the activation
@@ -54,6 +59,16 @@ trait LogStore {
    * @return logs for the given activation
    */
   def collectLogs(transid: TransactionId, container: Container, action: ExecutableWhiskAction): Future[ActivationLogs]
+
+  /**
+   * Fetch relevant logs for the given activation from the store.
+   *
+   * This method is called when a user requests logs via the API.
+   *
+   * @param activation activation to fetch the logs for
+   * @return the relevant logs
+   */
+  def fetchLogs(activation: WhiskActivation): Future[ActivationLogs]
 }
 
 trait LogStoreProvider extends Spi {

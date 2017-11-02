@@ -213,7 +213,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       WhiskActivation,
       activationStore,
       docid,
-      (activation: WhiskActivation) => logStore.logs(activation).map(_.toJsonObject))
+      (activation: WhiskActivation) => logStore.fetchLogs(activation).map(_.toJsonObject))
   }
 
   /** Custom unmarshaller for query parameters "name" into valid entity name. */
