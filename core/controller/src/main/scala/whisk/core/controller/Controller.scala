@@ -48,6 +48,8 @@ import whisk.core.entity.ExecManifest.Runtimes
 import whisk.core.loadBalancer.{LoadBalancerService}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
+import whisk.spi.SpiLoader
+import whisk.core.containerpool.logging.LogStoreProvider
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -115,6 +117,7 @@ class Controller(val instance: InstanceId,
   private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
+  private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   // register collections
   Collection.initialize(entityStore)

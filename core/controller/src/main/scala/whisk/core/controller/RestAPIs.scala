@@ -22,7 +22,6 @@ import scala.concurrent.ExecutionContext
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers._
@@ -31,12 +30,13 @@ import akka.stream.ActorMaterializer
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.Logging
-import whisk.common.TransactionId
 import whisk.core.database.CacheChangeNotification
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.whiskVersionBuildno
 import whisk.core.WhiskConfig.whiskVersionDate
+import whisk.common.Logging
+import whisk.common.TransactionId
+import whisk.core.containerpool.logging.LogStore
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -143,6 +143,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   implicit val loadBalancer: LoadBalancerService,
   implicit val cacheChangeNotification: Some[CacheChangeNotification],
   implicit val activationStore: ActivationStore,
+  implicit val logStore: LogStore,
   implicit val whiskConfig: WhiskConfig)
     extends SwaggerDocs(Uri.Path(apiPath) / apiVersion, "apiv1swagger.json")
     with Authenticate
@@ -234,6 +235,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
 
   class ActivationsApi(val apiPath: String, val apiVersion: String)(
     implicit override val activationStore: ActivationStore,
+    override val logStore: LogStore,
     override val entitlementProvider: EntitlementProvider,
     override val executionContext: ExecutionContext,
     override val logging: Logging)

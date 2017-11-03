@@ -34,6 +34,7 @@ import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
+import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.controller.RestApiCommons
 import whisk.core.controller.WhiskServices
 import whisk.core.database.DocumentFactory
@@ -43,6 +44,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.spi.SpiLoader
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -91,6 +93,7 @@ protected trait ControllerTestCommon
   val entityStore = WhiskEntityStore.datastore(whiskConfig)
   val activationStore = WhiskActivationStore.datastore(whiskConfig)
   val authStore = WhiskAuthStore.datastore(whiskConfig)
+  val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
