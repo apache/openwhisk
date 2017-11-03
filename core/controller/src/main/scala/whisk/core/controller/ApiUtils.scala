@@ -200,7 +200,7 @@ trait ReadOps extends Directives {
     factory: DocumentFactory[A],
     datastore: ArtifactStore[Au],
     docid: DocId,
-    project: A => JsObject)(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
+    project: A => Future[JsObject])(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
     onComplete(factory.get(datastore, docid)) {
       case Success(entity) =>
         logging.info(this, s"[PROJECT] entity success")

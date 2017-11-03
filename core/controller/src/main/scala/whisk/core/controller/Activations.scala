@@ -27,10 +27,12 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarsha
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
+import scala.concurrent.Future
 import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import spray.json.DeserializationException
 import whisk.common.TransactionId
+import whisk.core.containerpool.logging.LogStore
 import whisk.core.database.StaleParameter
 import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entitlement.Privilege.READ
@@ -53,6 +55,9 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
 
   /** Database service to GET activations. */
   protected val activationStore: ActivationStore
+
+  /** LogStore for retrieving activation logs */
+  protected val logStore: LogStore
 
   /** Path to Actions REST API. */
   protected val activationsPath = "activations"
@@ -192,7 +197,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       WhiskActivation,
       activationStore,
       docid,
-      (activation: WhiskActivation) => activation.response.toExtendedJson)
+      (activation: WhiskActivation) => Future.successful(activation.response.toExtendedJson))
   }
 
   /**
@@ -208,7 +213,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       WhiskActivation,
       activationStore,
       docid,
-      (activation: WhiskActivation) => activation.logs.toJsonObject)
+      (activation: WhiskActivation) => logStore.fetchLogs(activation).map(_.toJsonObject))
   }
 
   /** Custom unmarshaller for query parameters "name" into valid entity name. */

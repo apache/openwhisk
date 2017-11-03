@@ -47,6 +47,7 @@ import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
+import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -60,6 +61,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec = actorSystem.dispatcher
   implicit val cfg = config
+
+  private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   /**
    * Factory used by the ContainerProxy to physically create a new container.
@@ -80,7 +83,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
           "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
           "--ulimit" -> Set("nofile=1024:1024"),
           "--pids-limit" -> Set("1024"),
-          "--dns" -> config.invokerContainerDns.toSet))
+          "--dns" -> config.invokerContainerDns.toSet) ++ logsProvider.containerParameters)
   containerFactory.init()
   sys.addShutdownHook(containerFactory.cleanup())
 
@@ -139,7 +142,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
   /** Creates a ContainerProxy Actor when being called. */
   val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(ContainerProxy.props(containerFactory.createContainer _, ack, store, instance))
+    f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
 
   val prewarmKind = "nodejs:6"
   val prewarmExec = ExecManifest.runtimesManifest
