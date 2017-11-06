@@ -88,6 +88,10 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
+    if (TransactionId.metricsKamon) {
+      MetricEmitter.emitCounterMetric(marker)
+    }
+
     StartMarker(Instant.now, marker)
   }
 
@@ -152,6 +156,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
 
     if (TransactionId.metricsKamon) {
       MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+      MetricEmitter.emitCounterMetric(endMarker)
     }
   }
 
