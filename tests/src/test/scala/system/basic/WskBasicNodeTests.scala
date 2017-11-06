@@ -25,17 +25,17 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.RunResult
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicNodeTests extends TestHelpers with WskTestHelpers with JsHelpers {
+abstract class WskBasicNodeTests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
   val currentNodeJsDefaultKind = "nodejs:6"
 

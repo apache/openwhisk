@@ -42,7 +42,7 @@ import spray.json.pimpAny
 @RunWith(classOf[JUnitRunner])
 abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
 
-  implicit val wskprops: common.WskProps = WskProps()
+  implicit val wskprops = WskProps()
   val wsk: BaseWsk
   val guestNamespace = wskprops.namespace
 
