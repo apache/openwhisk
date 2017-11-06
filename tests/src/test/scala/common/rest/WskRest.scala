@@ -141,8 +141,9 @@ trait ListOrGetFromCollectionRest extends BaseListOrGetFromCollection {
                     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val entPath = namespace map { ns =>
-      val (ns, name) = getNamespaceEntityName(resolve(namespace))
-      Path(s"$basePath/namespaces/$ns/$noun/$name/")
+      val (nspace, name) = getNamespaceEntityName(resolve(namespace))
+      if (name.isEmpty) Path(s"$basePath/namespaces/$nspace/$noun")
+      else Path(s"$basePath/namespaces/$nspace/$noun/$name/")
     } getOrElse Path(s"$basePath/namespaces/${wp.namespace}/$noun")
 
     val paramMap = Map[String, String]() ++ { Map("skip" -> "0", "docs" -> true.toString) } ++ {
@@ -1259,7 +1260,6 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   }
 
   def convertStringIntoKeyValue(file: String, feed: Option[String] = None, web: Option[String] = None): JsArray = {
-    var paramsList = Vector[JsObject]()
     val input = FileUtils.readFileToString(new File(file))
     val in = input.parseJson.convertTo[Map[String, JsValue]]
     convertMapIntoKeyValue(in, feed, web)
@@ -1273,9 +1273,21 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     paramsList = feed map { f =>
       paramsList :+ JsObject("key" -> "feed".toJson, "value" -> f.toJson)
     } getOrElse paramsList
-    paramsList = web map { w =>
-      paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> w.toJson)
-    } getOrElse paramsList
+    paramsList = web match {
+      case Some("true") =>
+        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> true.toJson) :+ JsObject(
+          "key" -> "raw-http".toJson,
+          "value" -> false.toJson) :+ JsObject("key" -> "final".toJson, "value" -> true.toJson)
+      case Some("false") =>
+        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> false.toJson) :+ JsObject(
+          "key" -> "raw-http".toJson,
+          "value" -> false.toJson) :+ JsObject("key" -> "final".toJson, "value" -> false.toJson)
+      case Some("raw") =>
+        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> true.toJson) :+ JsObject(
+          "key" -> "raw-http".toJson,
+          "value" -> true.toJson) :+ JsObject("key" -> "final".toJson, "value" -> true.toJson)
+      case _ => paramsList
+    }
     JsArray(paramsList)
   }
 
@@ -1318,8 +1330,10 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       case Array(empty, namespace, entityName) if empty.isEmpty => (namespace, entityName)
       // Example: namespace/package_name/entity_name
       case Array(namespace, packageName, entityName) => (namespace, s"$packageName/$entityName")
+      // Example: /namespace
+      case Array(empty, namespace) if empty.isEmpty => (namespace, "")
       // Example: package_name/entity_name
-      case Array(packageName, entityName) => (wp.namespace, s"$packageName/$entityName")
+      case Array(packageName, entityName) if !packageName.isEmpty => (wp.namespace, s"$packageName/$entityName")
       // Example: entity_name
       case Array(entityName) => (wp.namespace, entityName)
       case _                 => (wp.namespace, name)
