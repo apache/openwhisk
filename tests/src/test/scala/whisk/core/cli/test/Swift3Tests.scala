@@ -24,7 +24,7 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
@@ -34,7 +34,7 @@ import spray.json.pimpAny
 class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val expectedDuration = 45 seconds
   val activationPollDuration = 60 seconds
 

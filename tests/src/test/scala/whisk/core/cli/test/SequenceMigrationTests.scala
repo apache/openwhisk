@@ -29,7 +29,7 @@ import org.scalatest.junit.JUnitRunner
 import akka.stream.ActorMaterializer
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -47,7 +47,7 @@ class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtil
 
   implicit val matzerializer = ActorMaterializer()
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
   // handle on the entity datastore
   val entityStore = WhiskEntityStore.datastore(whiskConfig)
