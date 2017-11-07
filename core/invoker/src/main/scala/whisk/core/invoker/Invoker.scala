@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
+import scala.util.Try
 
 import kamon.Kamon
 
@@ -109,28 +110,19 @@ object Invoker {
     // process command line arguments
     // We accept the command line grammar of:
     // Usage: invoker [options] [<proposedInvokerId>]
-    //    -i, --id <value>     proposed invokerId
-    //    -n, --name <value>   a unique name to use for this invoker
-    var cmdLineArgs = CmdLineArgs()
-    val parser = new scopt.OptionParser[Unit]("invoker") {
-      arg[Int]("<proposedInvokerId>")
-        .foreach(x => cmdLineArgs = cmdLineArgs.copy(id = Some(x)))
-        .minOccurs(0)
-        .maxOccurs(1)
-      opt[String]('n', "name")
-        .foreach(x => cmdLineArgs = cmdLineArgs.copy(name = Some(x)))
-        .text("a unique name to use for this invoker")
-        .optional()
-      opt[Int]('i', "id")
-        .foreach(x => cmdLineArgs = cmdLineArgs.copy(id = Some(x)))
-        .text("proposed invokerId")
-        .optional()
+    //    --name <value>   a unique name to use for this invoker
+    //    --id <value>     proposed invokerId
+    def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
+      ls match {
+        case "--name" :: name :: tail                        => parse(tail, c.copy(name = Some(name)))
+        case "--id" :: id :: tail if Try(id.toInt).isSuccess => parse(tail, c.copy(id = Some(id.toInt)))
+        case id :: Nil if Try(id.toInt).isSuccess            => c.copy(id = Some(id.toInt))
+        case Nil                                             => c
+        case _                                               => abort(s"Error processing command line arguments $ls")
+      }
     }
-    if (parser.parse(args)) {
-      logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-    } else {
-      abort("Error processing command line argument")
-    }
+    val cmdLineArgs = parse(args.toList, CmdLineArgs())
+    logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
 
     val assignedInvokerId = cmdLineArgs.id
       .map { id =>
