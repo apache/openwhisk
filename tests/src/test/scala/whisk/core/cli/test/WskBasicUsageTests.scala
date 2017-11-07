@@ -1156,11 +1156,6 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers with Inside {
       action.create(actionName, Some(TestUtils.getTestActionFilename("echo.js")))
     }
     val triggerCreateResult = wsk.trigger.create(triggerName, feed = Some(actionName))
-//
-//      withActivation(wsk.activation, triggerCreateResult) {
-//        activation =>
-//          activation.response.success shouldBe true
-//      }
     val triggerDeleteResult = wsk.trigger.delete(triggerName)
 
     withActivation(wsk.activation, triggerDeleteResult) { activation =>
