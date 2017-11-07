@@ -258,7 +258,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
   ```json
   {
     "name": "Bernie",
-    "place": "Vermont"
+    "place": "Washington, DC"
   }
   ```
 
