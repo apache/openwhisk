@@ -208,13 +208,13 @@ object WhiskConfig {
   val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
   val kafkaHostName = "kafka.host"
-  private val zookeeperHostName = "zookeeper.host"
+  val zookeeperHostName = "zookeeper.host"
   val redisHostName = "redis.host"
 
   private val edgeHostApiPort = "edge.host.apiport"
   val kafkaHostPort = "kafka.host.port"
   val redisHostPort = "redis.host.port"
-  private val zookeeperHostPort = "zookeeper.host.port"
+  val zookeeperHostPort = "zookeeper.host.port"
 
   val invokerHostsList = "invoker.hosts"
 

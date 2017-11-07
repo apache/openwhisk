@@ -22,9 +22,11 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
 
-import com.redis.RedisClient
-
 import kamon.Kamon
+
+import org.apache.curator.retry.RetryUntilElapsed
+import org.apache.curator.framework.CuratorFrameworkFactory
+import org.apache.curator.framework.recipes.shared.SharedCount
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -56,7 +58,7 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
-      Map(redisHostName -> "", redisHostPort -> "") ++
+      Map(zookeeperHostName -> "", zookeeperHostPort -> "") ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
@@ -109,37 +111,47 @@ object Invoker {
         id
       }
       .getOrElse {
-        if (config.redisHostName.trim.isEmpty || config.redisHostPort.trim.isEmpty) {
-          abort(
-            s"Must provide valid Redis host and port to use dynamicId assignment (${config.redisHostName}:${config.redisHostPort})")
+        if (config.zookeeperHost.startsWith(":") || config.zookeeperHost.endsWith(":")) {
+          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHost})")
         }
         val invokerName = config.invokerName
         if (invokerName.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
-        val redisClient = new RedisClient(config.redisHostName, config.redisHostPort.toInt)
-        val assignedId = redisClient
-          .hget("controller:registar:idAssignments", invokerName)
-          .map { oldId =>
-            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned its previous invokerId ${oldId}")
-            oldId.toInt
-          }
-          .getOrElse {
-            // If key not present, incr initializes to 0 before applying increment.
-            // Convert from 1-based to 0-based invokerIds by subtracting 1 from incr's result
-            val newId = redisClient
-              .incr("controller:registrar:nextInvokerId")
-              .map { id =>
-                id.toInt - 1
+        logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHost}")
+        val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
+        val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHost, retryPolicy)
+        zkClient.start()
+        zkClient.blockUntilConnected();
+        logger.info(this, "invokerReg: connected to zookeeper")
+        val myIdPath = "/invokers/idAssignment/mapping/" + invokerName
+        val assignedId = Option(zkClient.checkExists().forPath(myIdPath)) match {
+          case None =>
+            // path doesn't exist ==> no previous mapping for this invoker
+            logger.info(this, s"invokerReg: no prior assignment of id for invoker $invokerName")
+            val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
+            idCounter.start()
+            def assignId(): Int = {
+              val current = idCounter.getVersionedValue()
+              if (idCounter.trySetCount(current, current.getValue() + 1)) {
+                current.getValue()
+              } else {
+                assignId()
               }
-              .getOrElse {
-                abort("Failed to increment invokerId")
-              }
-            redisClient.hset("controller:registar:idAssignments", invokerName, newId)
+            }
+            val newId = assignId()
+            idCounter.close()
+            zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
             newId
-          }
-        redisClient.quit
+          case Some(_) =>
+            // path already exists ==> there is a previous mapping for this invoker we should use
+            val rawOldId = zkClient.getData().forPath(myIdPath)
+            val oldId = BigInt(rawOldId).intValue
+            logger.info(this, s"invokerReg: invoker ${invokerName} was assigned its previous invokerId ${oldId}")
+            oldId
+        }
+        zkClient.close()
         assignedId
       }
     val invokerInstance = InstanceId(assignedInvokerId);
