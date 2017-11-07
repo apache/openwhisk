@@ -259,8 +259,14 @@ class LoadBalancerActor(config: WhiskConfig,
           })
         })
 
+        //if this is an entry for processing overflow, adjust overflow state if needed
+        if (entry.isOverflow) {
+          localOverflowActivationCount -= 1
+          if (overflowState.get() && localOverflowActivationCount == 0 && overflowState.compareAndSet(true, false)) {
+            logging.info(this, "removing overflow state after processing outstanding overflow messages")
+          }
+        }
         if (!forced) {
-          resetOverflow()
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
@@ -392,8 +398,8 @@ class LoadBalancerActor(config: WhiskConfig,
     new Actor {
       override def receive = {
         case MessageFeed.MaxOffset =>
-          if (resetOverflow()) {
-            logging.info(this, "resetting overflow state")
+          if (overflowState.compareAndSet(true, false)) {
+            logging.info(this, "resetting overflow state via offsetMonitor for overflow topic")
           }
       }
     }
@@ -417,11 +423,9 @@ class LoadBalancerActor(config: WhiskConfig,
     val raw = new String(bytes, StandardCharsets.UTF_8)
     OverflowMessage.parse(raw) match {
       case Success(m: OverflowMessage) =>
-        //if not in overflow state, enter it now
-        if (overflowState.compareAndSet(false, true)) {
-          logging.info(this, "entering overflow state to process overflow queue")
-        }
-        //remove from overflow data
+        implicit val tid = m.msg.transid
+        logging.info(this, s"processing overflow msg for activation ${m.msg.activationId}")
+        //remove from entries (will replace with an overflow entry if it exists locally)
         val entryOption = loadBalancerData
           .removeActivation(m.msg.activationId)
 
@@ -434,7 +438,9 @@ class LoadBalancerActor(config: WhiskConfig,
               case Some(entry) =>
                 entry.invokerName = Some(instanceId)
                 loadBalancerData.putActivation(m.msg.activationId, entry, false)
+                LoadBalancerService.sendActivationToInvoker(messageProducer, m.msg, instanceId)
               case None =>
+                //TODO: adjust the timeout for time spent in overflow topic!
                 val entry = setupActivation(
                   m.actionTimeoutSeconds.seconds,
                   m.msg.activationId,
@@ -444,9 +450,9 @@ class LoadBalancerActor(config: WhiskConfig,
                   Some(m.originalController),
                   true)
                 loadBalancerData.putActivation(m.msg.activationId, entry, true)
+                val updatedMsg = m.msg.copy(rootControllerIndex = this.instance)
+                LoadBalancerService.sendActivationToInvoker(messageProducer, updatedMsg, instanceId)
             }
-
-            LoadBalancerService.sendActivationToInvoker(messageProducer, m.msg, instanceId)
 
           case None =>
             //if no invokers available, all activations will go to overflow queue till capacity is available again
@@ -459,19 +465,6 @@ class LoadBalancerActor(config: WhiskConfig,
         logging.error(this, s"failed processing overflow message: $raw with $t")
     }
   }
-
-  /** return true iff already in overflow state, and resetting to normal state succeeds */
-  private def resetOverflow(): Boolean =
-    if (overflowState.get()) {
-      localOverflowActivationCount -= 1
-      val reset = (localOverflowActivationCount == 0 && overflowState.compareAndSet(true, false))
-      if (reset) {
-        logging.info(this, "removing overflow state")
-      }
-      reset
-    } else {
-      false
-    }
 
   /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
   private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
