@@ -27,10 +27,8 @@ import scala.language.postfixOps
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -47,13 +45,14 @@ import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
 import whisk.utils.retry
 import JsonArgsForTests._
+import org.scalatest.Inside
 import whisk.http.Messages
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
+class WskBasicUsageTests extends TestHelpers with WskTestHelpers with Inside {
 
   implicit val wskprops = WskProps()
   val wsk = new Wsk
@@ -1123,6 +1122,87 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
         NOT_FOUND)
       trigger.get(name, expectedExitCode = NOT_FOUND)
     }
+  }
+
+  it should "invoke a feed action with the correct lifecyle event when creating a feed trigger" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val actionName = "echo"
+      val triggerName = "feedTest"
+
+      assetHelper.withCleaner(wsk.action, actionName) {
+        (action, _) =>
+          action.create(actionName, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+
+      val triggerCreateResult = assetHelper.withCleaner(wsk.trigger, triggerName) {
+        (trigger, _) =>
+          trigger.create(triggerName, feed = Some(actionName))
+      }
+
+      withActivation(wsk.activation, triggerCreateResult) {
+        activation =>
+          activation.response.success shouldBe true
+
+          inside (activation.response.result) {
+            case Some(result) =>
+              result.fields should contain ("lifecycleEvent" -> "CREATE".toJson)
+          }
+      }
+  }
+
+  it should "invoke a feed action with the correct lifecycle event when deleting a feed trigger" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val actionName = "echo"
+      val triggerName = "feedTest"
+
+      assetHelper.withCleaner(wsk.action, actionName) {
+        (action, _) =>
+          action.create(actionName, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+      val triggerCreateResult = wsk.trigger.create(triggerName, feed = Some(actionName))
+//
+//      withActivation(wsk.activation, triggerCreateResult) {
+//        activation =>
+//          activation.response.success shouldBe true
+//      }
+      val triggerDeleteResult = wsk.trigger.delete(triggerName)
+
+      withActivation(wsk.activation, triggerDeleteResult) {
+        activation =>
+          activation.response.success shouldBe true
+
+          inside (activation.response.result) {
+            case Some(result) =>
+              result.fields should contain ("lifecycleEvent" -> "DELETE".toJson)
+          }
+      }
+  }
+
+  it should "invoke a feed action with the correct lifecycle event when retrieving a feed trigger" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val actionName = "echo"
+      val triggerName = "feedTest"
+
+      assetHelper.withCleaner(wsk.action, actionName) {
+        (action, _) =>
+          action.create(actionName, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+      assetHelper.withCleaner(wsk.trigger, triggerName) {
+        (trigger, _) =>
+          trigger.create(triggerName, feed = Some(actionName))
+      }
+      val triggerGetResult = wsk.trigger.get(triggerName)
+
+      withActivation(wsk.activation, triggerGetResult) {
+        activation =>
+
+          activation.response.success shouldBe true
+
+          inside (activation.response.result) {
+            case Some(result) =>
+              result.fields should contain ("lifecycleEvent" -> "READ".toJson)
+          }
+      }
   }
 
   it should "denote bound trigger parameters for trigger summaries" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
