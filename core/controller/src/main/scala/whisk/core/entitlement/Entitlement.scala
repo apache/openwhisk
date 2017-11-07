@@ -18,6 +18,7 @@
 package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.Set
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.util.Failure
@@ -207,11 +208,11 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         checkSystemOverload(right)
           .flatMap(_ => checkUserThrottle(user, right, resources))
           .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
-          .flatMap(_ => checkPrivilege(user, right, resources)) // returns Future[Map[Resource,Boolean]]
-          .flatMap(resourcePrivMap => {
+          .flatMap(_ => checkPrivilege(user, right, resources))
+          .flatMap(resourcePrivSet => {
             Future
               .sequence {
-                resourcePrivMap.map { resourcePriv =>
+                resourcePrivSet.map { resourcePriv =>
                   if (!resourcePriv._2) {
                     inaccessibleResources += resourcePriv._1
                     Future.successful(false)
@@ -224,14 +225,18 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           })
       } else Future.successful(true)
     } else if (right != REJECT) {
+      resources.map(r => inaccessibleResources += r)
       logging.info(
         this,
         s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
-      Future.failed(RejectRequest(
-        Forbidden,
-        Some(
-          ErrorResponse(Messages.notAuthorizedtoAccessResource(resources.map(r => r.fqname).mkString(", ")), transid))))
+      Future.failed(
+        RejectRequest(
+          Forbidden,
+          Some(ErrorResponse(
+            Messages.notAuthorizedtoAccessResource(inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(",")),
+            transid))))
     } else {
+      resources.map(r => inaccessibleResources += r)
       Future.successful(false)
     }
     entitlementCheck andThen {
@@ -243,14 +248,16 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
     } flatMap { isAuthorized =>
       if (isAuthorized) Future.successful({})
-      else
+      else {
         Future.failed(
           RejectRequest(
             Forbidden,
             Some(
               ErrorResponse(
-                Messages.notAuthorizedtoAccessResource(inaccessibleResources.map(r => r.fqname).mkString(", ")),
+                Messages.notAuthorizedtoAccessResource(
+                  inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(",")),
                 transid))))
+      }
     }
   }
 
@@ -261,7 +268,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * and the referenced package.
    */
   protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Future[Map[Resource, Boolean]] = {
+    implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.asString)
     implicit val es = this
@@ -272,12 +279,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           case true => Future.successful(resource -> true)
           case false =>
             logging.info(this, "checking explicit grants")
-            entitled(user.subject, right, resource).map(resource -> _)
+            entitled(user.subject, right, resource) flatMap {
+              case true  => Future.successful(resource -> true)
+              case false => Future.successful(resource -> false)
+            }
         }
       }
     }
-//      .map { _.forall(identity) }
-    .mapTo
   }
 
   /**
