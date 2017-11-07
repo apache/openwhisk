@@ -18,7 +18,6 @@
 package whisk.core.connector
 
 import scala.util.Try
-
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
@@ -117,4 +116,29 @@ case class PingMessage(instance: InstanceId) extends Message {
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
   implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+}
+
+case class OverflowMessage(override val transid: TransactionId,
+                           msg: ActivationMessage,
+                           actionTimeoutSeconds: Int,
+                           hash: Int,
+                           pull: Boolean,
+                           originalController: InstanceId)
+    extends Message {
+//  def meta =
+//    JsObject("meta" -> {
+//      cause map { c =>
+//        JsObject(c.toJsObject.fields ++ msg.toJsObject.fields)
+//      } getOrElse {
+//        activationId.toJsObject
+//      }
+//    })
+  override def serialize: String = {
+    OverflowMessage.serdes.write(this).compactPrint
+  }
+}
+
+object OverflowMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[OverflowMessage] = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat6(OverflowMessage.apply)
 }

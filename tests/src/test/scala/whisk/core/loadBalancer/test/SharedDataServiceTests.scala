@@ -25,8 +25,8 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import whisk.core.loadBalancer._
 import org.scalatest.FlatSpecLike
-
 import scala.concurrent.duration._
+import whisk.core.entity.InstanceId
 
 // Define your test specific configuration here
 
@@ -61,7 +61,9 @@ class SharedDataServiceTests()
     .withFallback(ConfigFactory.load())
 
   val s = ActorSystem("controller-actor-system", config)
-  val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
+  val storageName = "Candidates"
+  val instance = InstanceId(123)
+  val sharedDataService = s.actorOf(SharedDataService.props(storageName, testActor), name = "busyMan")
   implicit val timeout = Timeout(5.seconds)
 
   it should "retrieve an empty map after initialization" in {
@@ -70,22 +72,37 @@ class SharedDataServiceTests()
     expectMsg(msg)
   }
   it should "increase the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", 1))
+    sharedDataService ! (IncreaseCounter("Donald", instance, 1))
+    val msg = Map("Donald" -> Map(instance.toInt -> 1))
+    expectMsg(Updated(storageName, msg))
     sharedDataService ! GetMap
-    val msg = Map("Donald" -> 1)
     expectMsg(msg)
   }
   it should "decrease the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", 2))
-    sharedDataService ! (DecreaseCounter("Donald", 2))
+    //verify starting at 1
     sharedDataService ! GetMap
-    val msg = Map("Donald" -> 1)
+    val msg = Map("Donald" -> Map(instance.toInt -> 1))
     expectMsg(msg)
+
+    //increase and verify change
+    sharedDataService ! (IncreaseCounter("Donald", instance, 2))
+    val msg2 = Map("Donald" -> Map(instance.toInt -> 3))
+    expectMsg(Updated(storageName, msg2))
+    sharedDataService ! GetMap
+    expectMsg(msg2)
+
+    //decrease and verify change
+    sharedDataService ! (DecreaseCounter("Donald", instance, 2))
+    val msg3 = Map("Donald" -> Map(instance.toInt -> 1))
+    expectMsg(Updated(storageName, msg3))
+    sharedDataService ! GetMap
+    expectMsg(msg3)
   }
   it should "receive the map with all counters" in {
-    sharedDataService ! (IncreaseCounter("Hilary", 1))
+    sharedDataService ! (IncreaseCounter("Hilary", instance, 1))
+    val msg = Map("Hilary" -> Map(instance.toInt -> 1), "Donald" -> Map(instance.toInt -> 1))
+    expectMsg(Updated(storageName, msg))
     sharedDataService ! GetMap
-    val msg = Map("Hilary" -> 1, "Donald" -> 1)
     expectMsg(msg)
   }
 }

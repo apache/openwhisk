@@ -17,15 +17,17 @@
 
 package whisk.core.loadBalancer.test
 
+import common.StreamLogging
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.FlatSpec
+import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
-import whisk.core.loadBalancer.LoadBalancerService
+import org.scalatest.junit.JUnitRunner
+
+import whisk.core.entity.InstanceId
 import whisk.core.loadBalancer.Healthy
+import whisk.core.loadBalancer.LoadBalancerService
 import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
-import whisk.core.entity.InstanceId
 
 /**
  * Unit tests for the ContainerPool object.
@@ -34,7 +36,7 @@ import whisk.core.entity.InstanceId
  * of the ContainerPool object.
  */
 @RunWith(classOf[JUnitRunner])
-class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
+class LoadBalancerServiceObjectTests extends FlatSpecLike with Matchers with StreamLogging {
   behavior of "memoize"
 
   it should "not recompute a value which was already given" in {
@@ -78,34 +80,46 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
   def hashInto[A](list: Seq[A], hash: Int) = list(hash % list.size)
 
   it should "return None on an empty invokers list" in {
-    LoadBalancerService.schedule(IndexedSeq(), 0, 1) shouldBe None
+    LoadBalancerService.schedule(IndexedSeq(), 1, 1, false) shouldBe None
+    LoadBalancerService.schedule(IndexedSeq(), 1, 1, true) shouldBe None
   }
 
   it should "return None on a list of offline/unhealthy invokers" in {
     val invs = IndexedSeq((InstanceId(0), Offline, 0), (InstanceId(1), UnHealthy, 0))
 
-    LoadBalancerService.schedule(invs, 0, 1) shouldBe None
+    LoadBalancerService.schedule(invs, 1, 1, false) shouldBe None
+    LoadBalancerService.schedule(invs, 1, 1, true) shouldBe None
   }
 
   it should "schedule to the home invoker" in {
     val invs = invokers(10)
     val hash = 2
 
-    LoadBalancerService.schedule(invs, 1, hash) shouldBe Some(InstanceId(hash % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, false) shouldBe Some(InstanceId(hash % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, true) shouldBe Some(InstanceId(hash % invs.size))
   }
 
   it should "take the only online invoker" in {
     LoadBalancerService.schedule(
       IndexedSeq((InstanceId(0), Offline, 0), (InstanceId(1), UnHealthy, 0), (InstanceId(2), Healthy, 0)),
-      0,
-      1) shouldBe Some(InstanceId(2))
+      1,
+      1,
+      false) shouldBe Some(InstanceId(2))
+
+    LoadBalancerService.schedule(
+      IndexedSeq((InstanceId(0), Offline, 0), (InstanceId(1), UnHealthy, 0), (InstanceId(2), Healthy, 0)),
+      1,
+      1,
+      true) shouldBe Some(InstanceId(2))
+
   }
 
   it should "skip an offline/unhealthy invoker, even if its underloaded" in {
     val hash = 0
-    val invs = IndexedSeq((InstanceId(0), Healthy, 10), (InstanceId(1), UnHealthy, 0), (InstanceId(2), Healthy, 0))
+    val invs = IndexedSeq((InstanceId(0), Healthy, 11), (InstanceId(1), UnHealthy, 0), (InstanceId(2), Healthy, 0))
 
-    LoadBalancerService.schedule(invs, 10, hash) shouldBe Some(InstanceId(2))
+    LoadBalancerService.schedule(invs, 10, hash, false) shouldBe Some(InstanceId(2))
+    LoadBalancerService.schedule(invs, 10, hash, true) shouldBe Some(InstanceId(2))
   }
 
   it should "jump to the next invoker determined by a hashed stepsize if the home invoker is overloaded" in {
@@ -116,7 +130,8 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
     val invs = invokers(invokerCount).updated(targetInvoker, (InstanceId(targetInvoker), Healthy, 1))
     val step = hashInto(LoadBalancerService.pairwiseCoprimeNumbersUntil(invokerCount), hash)
 
-    LoadBalancerService.schedule(invs, 1, hash) shouldBe Some(InstanceId((hash + step) % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, true) shouldBe Some(InstanceId((hash + step) % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, false) shouldBe Some(InstanceId((hash + step) % invs.size))
   }
 
   it should "wrap the search at the end of the invoker list" in {
@@ -130,7 +145,8 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
 
     // invoker1 is overloaded so it will step (2 steps) to the next one --> 1 2 0 --> invoker0 is next target
     // invoker0 is overloaded so it will step to the next one --> 0 1 2 --> invoker2 is next target and underloaded
-    LoadBalancerService.schedule(invs, 1, hash) shouldBe Some(InstanceId((hash + step + step) % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, true) shouldBe Some(InstanceId((hash + step + step) % invs.size))
+    LoadBalancerService.schedule(invs, 1, hash, false) shouldBe Some(InstanceId((hash + step + step) % invs.size))
   }
 
   it should "multiply its threshold in 3 iterations to find an invoker with a good warm-chance" in {
@@ -140,22 +156,30 @@ class LoadBalancerServiceObjectTests extends FlatSpec with Matchers {
     // even though invoker1 is not the home invoker in this case, it gets chosen over
     // the others because it's the first one encountered by the iteration mechanism to be below
     // the threshold of 3 * 16 invocations
-    LoadBalancerService.schedule(invs, 16, hash) shouldBe Some(InstanceId(0))
+    LoadBalancerService.schedule(invs, 16, hash, true) shouldBe Some(InstanceId(0))
+    // when not in overflow state, won't iterate and progress the busy threshold
+    LoadBalancerService.schedule(invs, 16, hash, false) shouldBe None
   }
 
   it should "choose the home invoker if all invokers are overloaded even above the muliplied threshold" in {
     val invs = IndexedSeq((InstanceId(0), Healthy, 51), (InstanceId(1), Healthy, 50), (InstanceId(2), Healthy, 49))
     val hash = 0 // home is 0, stepsize is 1
 
-    LoadBalancerService.schedule(invs, 16, hash) shouldBe Some(InstanceId(0))
+    LoadBalancerService.schedule(invs, 16, hash, true) shouldBe Some(InstanceId(0))
+    // when not in overflow state, won't iterate and progress the busy threshold
+    LoadBalancerService.schedule(invs, 16, hash, false) shouldBe None
   }
 
   it should "transparently work with partitioned sets of invokers" in {
     val invs = IndexedSeq((InstanceId(3), Healthy, 0), (InstanceId(4), Healthy, 0), (InstanceId(5), Healthy, 0))
 
-    LoadBalancerService.schedule(invs, 1, 0) shouldBe Some(InstanceId(3))
-    LoadBalancerService.schedule(invs, 1, 1) shouldBe Some(InstanceId(4))
-    LoadBalancerService.schedule(invs, 1, 2) shouldBe Some(InstanceId(5))
-    LoadBalancerService.schedule(invs, 1, 3) shouldBe Some(InstanceId(3))
+    LoadBalancerService.schedule(invs, 1, 0, true) shouldBe Some(InstanceId(3))
+    LoadBalancerService.schedule(invs, 1, 1, true) shouldBe Some(InstanceId(4))
+    LoadBalancerService.schedule(invs, 1, 2, true) shouldBe Some(InstanceId(5))
+    LoadBalancerService.schedule(invs, 1, 3, true) shouldBe Some(InstanceId(3))
+    LoadBalancerService.schedule(invs, 1, 0, false) shouldBe Some(InstanceId(3))
+    LoadBalancerService.schedule(invs, 1, 1, false) shouldBe Some(InstanceId(4))
+    LoadBalancerService.schedule(invs, 1, 2, false) shouldBe Some(InstanceId(5))
+    LoadBalancerService.schedule(invs, 1, 3, false) shouldBe Some(InstanceId(3))
   }
 }

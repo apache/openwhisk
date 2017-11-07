@@ -24,16 +24,16 @@ import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import whisk.core.loadBalancer.{ActivationEntry, DistributedLoadBalancerData, LocalLoadBalancerData}
 
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Promise}
 import whisk.core.entity.InstanceId
-
-import scala.concurrent.duration._
 
 class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
-  val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(0), activationIdPromise)
-  val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
+  val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), Some(InstanceId(0)), activationIdPromise)
+  val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), Some(InstanceId(1)), activationIdPromise)
+  val firstOverflowEnty: ActivationEntry = ActivationEntry(ActivationId(), UUID(), None, activationIdPromise)
+  val secondOverflowEnty: ActivationEntry = ActivationEntry(ActivationId(), UUID(), None, activationIdPromise)
 
   val port = 2552
   val host = "127.0.0.1"
@@ -44,22 +44,25 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
     .withFallback(ConfigFactory.load())
 
   val actorSystemName = "controller-actor-system"
+  val instance = InstanceId(0)
 
   implicit val actorSystem = ActorSystem(actorSystemName, config)
 
-  def await[A](f: Future[A], timeout: FiniteDuration = 1.second) = Await.result(f, timeout)
+  //def await[A](f: Future[A], timeout: FiniteDuration = 1.second) = Await.result(f, timeout)
 
   behavior of "LoadBalancerData"
 
   it should "return the number of activations for a namespace" in {
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 //    test all implementations
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
       lbd.putActivation(firstEntry.id, firstEntry)
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
-      await(lbd.activationCountPerInvoker) shouldBe Map(firstEntry.invokerName.toString -> 1)
+//      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+//      await(lbd.activationCountPerInvoker) shouldBe Map(firstEntry.invokerName.get.toString -> 1)
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
+      lbd.activationCountPerInvoker shouldBe Map(firstEntry.invokerName.get.toString -> 1)
       lbd.activationById(firstEntry.id) shouldBe Some(firstEntry)
 
       // clean up after yourself
@@ -67,9 +70,38 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
     }
   }
 
+  it should "return actions for invokers only when instanceId is not None" in {
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
+    val localLoadBalancerData = new LocalLoadBalancerData()
+
+    val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
+    loadBalancerDataArray.map { lbd =>
+      lbd.putActivation(firstEntry.id, firstEntry)
+      lbd.putActivation(secondEntry.id, secondEntry)
+      lbd.putActivation(firstOverflowEnty.id, firstOverflowEnty)
+      lbd.putActivation(secondOverflowEnty.id, secondOverflowEnty)
+
+      val res = lbd.activationCountPerInvoker
+
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      res.get(secondEntry.invokerName.get.toString()) shouldBe Some(1)
+
+      lbd.activationById(firstEntry.id) shouldBe Some(firstEntry)
+      lbd.activationById(secondEntry.id) shouldBe Some(secondEntry)
+
+      lbd.overflowActivationCount shouldBe 2
+
+      // clean up after yourself
+      lbd.removeActivation(firstEntry.id)
+      lbd.removeActivation(secondEntry.id)
+      lbd.removeActivation(firstOverflowEnty.id)
+      lbd.removeActivation(secondOverflowEnty.id)
+    }
+  }
+
   it should "return the number of activations for each invoker" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -77,10 +109,10 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
       lbd.putActivation(firstEntry.id, firstEntry)
       lbd.putActivation(secondEntry.id, secondEntry)
 
-      val res = await(lbd.activationCountPerInvoker)
+      val res = lbd.activationCountPerInvoker
 
-      res.get(firstEntry.invokerName.toString()) shouldBe Some(1)
-      res.get(secondEntry.invokerName.toString()) shouldBe Some(1)
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      res.get(secondEntry.invokerName.get.toString()) shouldBe Some(1)
 
       lbd.activationById(firstEntry.id) shouldBe Some(firstEntry)
       lbd.activationById(secondEntry.id) shouldBe Some(secondEntry)
@@ -94,50 +126,56 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "remove activations and reflect that accordingly" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
       lbd.putActivation(firstEntry.id, firstEntry)
-      val res = await(lbd.activationCountPerInvoker)
-      res.get(firstEntry.invokerName.toString()) shouldBe Some(1)
+      lbd.putActivation(firstOverflowEnty.id, firstOverflowEnty)
+      val res = lbd.activationCountPerInvoker
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
 
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
+
+      lbd.overflowActivationCount shouldBe 1
 
       lbd.removeActivation(firstEntry)
+      lbd.removeActivation(firstOverflowEnty)
 
-      val resAfterRemoval = await(lbd.activationCountPerInvoker)
-      resAfterRemoval.get(firstEntry.invokerName.toString()) shouldBe Some(0)
+      val resAfterRemoval = lbd.activationCountPerInvoker
+      resAfterRemoval.get(firstEntry.invokerName.get.toString()) shouldBe Some(0)
 
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 0
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 0
       lbd.activationById(firstEntry.id) shouldBe None
+
+      lbd.overflowActivationCount shouldBe 0
     }
 
   }
 
   it should "remove activations from all 3 maps by activation id" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
       lbd.putActivation(firstEntry.id, firstEntry)
 
-      val res = await(lbd.activationCountPerInvoker)
-      res.get(firstEntry.invokerName.toString()) shouldBe Some(1)
+      val res = lbd.activationCountPerInvoker
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
 
       lbd.removeActivation(firstEntry.id)
 
-      val resAfterRemoval = await(lbd.activationCountPerInvoker)
-      resAfterRemoval.get(firstEntry.invokerName.toString()) shouldBe Some(0)
+      val resAfterRemoval = lbd.activationCountPerInvoker
+      resAfterRemoval.get(firstEntry.invokerName.get.toString()) shouldBe Some(0)
     }
 
   }
 
   it should "return None if the entry doesn't exist when we remove it" in {
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -149,65 +187,79 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "respond with different values accordingly" in {
 
-    val entry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
+    val entry = ActivationEntry(ActivationId(), UUID(), Some(InstanceId(1)), activationIdPromise)
     val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
     val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
+    val entryNoInvoker = entry.copy(id = ActivationId(), namespaceId = UUID(), invokerName = None)
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
       lbd.putActivation(entry.id, entry)
 
-      await(lbd.activationCountOn(entry.namespaceId)) shouldBe 1
-      var res = await(lbd.activationCountPerInvoker)
-      res.get(entry.invokerName.toString()) shouldBe Some(1)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 1
+      var res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(1)
 
       lbd.putActivation(entrySameInvokerAndNamespace.id, entrySameInvokerAndNamespace)
-      await(lbd.activationCountOn(entry.namespaceId)) shouldBe 2
-      res = await(lbd.activationCountPerInvoker)
-      res.get(entry.invokerName.toString()) shouldBe Some(2)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 2
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(2)
+
+      lbd.putActivation(entryNoInvoker.id, entryNoInvoker)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 2
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(2)
+      lbd.overflowActivationCount shouldBe 1
 
       lbd.putActivation(entrySameInvoker.id, entrySameInvoker)
-      await(lbd.activationCountOn(entry.namespaceId)) shouldBe 2
-      res = await(lbd.activationCountPerInvoker)
-      res.get(entry.invokerName.toString()) shouldBe Some(3)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 2
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(3)
 
       lbd.removeActivation(entrySameInvokerAndNamespace)
-      await(lbd.activationCountOn(entry.namespaceId)) shouldBe 1
-      res = await(lbd.activationCountPerInvoker)
-      res.get(entry.invokerName.toString()) shouldBe Some(2)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 1
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(2)
+
+      lbd.removeActivation(entryNoInvoker)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 1
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(2)
+      lbd.overflowActivationCount shouldBe 0
 
       // removing non existing entry doesn't mess up
       lbd.removeActivation(entrySameInvokerAndNamespace)
-      await(lbd.activationCountOn(entry.namespaceId)) shouldBe 1
-      res = await(lbd.activationCountPerInvoker)
-      res.get(entry.invokerName.toString()) shouldBe Some(2)
+      lbd.activationCountOn(entry.namespaceId) shouldBe 1
+      res = lbd.activationCountPerInvoker
+      res.get(entry.invokerName.get.toString()) shouldBe Some(2)
 
       // clean up
       lbd.removeActivation(entry)
       lbd.removeActivation(entrySameInvoker.id)
+      lbd.removeActivation(entryNoInvoker)
     }
 
   }
 
   it should "not add the same entry more then once" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
     loadBalancerDataArray.map { lbd =>
       lbd.putActivation(firstEntry.id, firstEntry)
-      val res = await(lbd.activationCountPerInvoker)
-      res.get(firstEntry.invokerName.toString()) shouldBe Some(1)
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+      val res = lbd.activationCountPerInvoker
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
       lbd.putActivation(firstEntry.id, firstEntry)
-      val resAfterAddingTheSameEntry = await(lbd.activationCountPerInvoker)
-      resAfterAddingTheSameEntry.get(firstEntry.invokerName.toString()) shouldBe Some(1)
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+      val resAfterAddingTheSameEntry = lbd.activationCountPerInvoker
+      resAfterAddingTheSameEntry.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
       lbd.removeActivation(firstEntry)
       lbd.removeActivation(firstEntry)
@@ -217,7 +269,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "not evaluate the given block if an entry already exists" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -248,7 +300,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "not evaluate the given block even if an entry is different (but has the same id)" in {
 
-    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val distributedLoadBalancerData = new DistributedLoadBalancerData(instance)
     val localLoadBalancerData = new LocalLoadBalancerData()
 
     val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
@@ -263,9 +315,9 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
       called shouldBe 1
 
-      val res = await(lbd.activationCountPerInvoker)
-      res.get(firstEntry.invokerName.toString()) shouldBe Some(1)
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+      val res = lbd.activationCountPerInvoker
+      res.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
 
       // entry already exists, should not evaluate the block and change the state
       val entryAfterSecond = lbd.putActivation(entrySameId.id, {
@@ -275,9 +327,9 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
       called shouldBe 1
       entry shouldBe entryAfterSecond
-      val resAfterAddingTheSameEntry = await(lbd.activationCountPerInvoker)
-      resAfterAddingTheSameEntry.get(firstEntry.invokerName.toString()) shouldBe Some(1)
-      await(lbd.activationCountOn(firstEntry.namespaceId)) shouldBe 1
+      val resAfterAddingTheSameEntry = lbd.activationCountPerInvoker
+      resAfterAddingTheSameEntry.get(firstEntry.invokerName.get.toString()) shouldBe Some(1)
+      lbd.activationCountOn(firstEntry.namespaceId) shouldBe 1
     }
 
   }

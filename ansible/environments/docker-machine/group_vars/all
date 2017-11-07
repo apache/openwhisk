@@ -29,3 +29,9 @@ controller_arguments: '-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxre
 invoker_arguments: "{{ controller_arguments }}"
 
 invoker_allow_multiple_instances: true
+
+
+limit_invocations_per_minute: 60000
+limit_invocations_concurrent: 30000
+limit_invocations_concurrent_system: 50000
+limit_fires_per_minute: 60
