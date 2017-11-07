@@ -40,6 +40,7 @@ import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 import whisk.http.Messages
+import akka.event.Logging.InfoLevel
 
 /**
  * An OpenWhisk biased container abstraction. This is **not only** an abstraction
@@ -126,7 +127,8 @@ trait Container {
             this,
             start.copy(start = r.interval.start),
             s"running result: ${r.toBriefString}",
-            endTime = r.interval.end)
+            endTime = r.interval.end,
+            logLevel = InfoLevel)
         case Failure(t) =>
           transid.failed(this, start, s"run failed with $t")
       }

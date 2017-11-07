@@ -34,6 +34,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
+import akka.event.Logging.InfoLevel
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
@@ -202,11 +203,16 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'")
+      s"posting topic '$topic' with activation id '${msg.activationId}'",
+      logLevel = InfoLevel)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
-        transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+        transid.finished(
+          this,
+          start,
+          s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
+          logLevel = InfoLevel)
       case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }

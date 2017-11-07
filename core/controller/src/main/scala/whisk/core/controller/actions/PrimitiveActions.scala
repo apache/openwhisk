@@ -163,7 +163,7 @@ protected[actions] trait PrimitiveActions {
       WhiskActivation.get(activationStore, docid)
     })
 
-    logging.info(this, s"action activation will block for result upto $totalWaitTime")
+    logging.debug(this, s"action activation will block for result upto $totalWaitTime")
 
     activeAckResponse map {
       case result @ Right(_) =>
@@ -277,7 +277,7 @@ protected[actions] object ActivationFinisher {
     }
 
     override def postStop() = {
-      logging.info(this, "finisher shutdown")
+      logging.debug(this, "finisher shutdown")
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
       context.stop(poller)

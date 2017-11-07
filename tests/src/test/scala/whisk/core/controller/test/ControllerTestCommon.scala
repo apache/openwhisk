@@ -96,35 +96,35 @@ protected trait ControllerTestCommon
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
-      logging.info(this, s"deleting ${doc.docinfo}")
+      logging.debug(this, s"deleting ${doc.docinfo}")
       WhiskAction.del(entityStore, doc.docinfo)
     }, dbOpTimeout)
   }
 
   def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
-      logging.info(this, s"deleting ${doc.docinfo}")
+      logging.debug(this, s"deleting ${doc.docinfo}")
       WhiskActivation.del(activationStore, doc.docinfo)
     }, dbOpTimeout)
   }
 
   def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskTrigger.get(entityStore, doc) flatMap { doc =>
-      logging.info(this, s"deleting ${doc.docinfo}")
+      logging.debug(this, s"deleting ${doc.docinfo}")
       WhiskAction.del(entityStore, doc.docinfo)
     }, dbOpTimeout)
   }
 
   def deleteRule(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskRule.get(entityStore, doc) flatMap { doc =>
-      logging.info(this, s"deleting ${doc.docinfo}")
+      logging.debug(this, s"deleting ${doc.docinfo}")
       WhiskRule.del(entityStore, doc.docinfo)
     }, dbOpTimeout)
   }
 
   def deletePackage(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskPackage.get(entityStore, doc) flatMap { doc =>
-      logging.info(this, s"deleting ${doc.docinfo}")
+      logging.debug(this, s"deleting ${doc.docinfo}")
       WhiskPackage.del(entityStore, doc.docinfo)
     }, dbOpTimeout)
   }

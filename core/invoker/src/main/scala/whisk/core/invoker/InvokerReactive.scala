@@ -129,9 +129,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   /** Stores an activation in the database. */
   val store = (tid: TransactionId, activation: WhiskActivation) => {
     implicit val transid = tid
-    logging.info(this, "recording the activation result to the data store")
+    logging.debug(this, "recording the activation result to the data store")
     WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
-      case Success(id) => logging.info(this, s"recorded activation")
+      case Success(id) => logging.debug(this, s"recorded activation")
       case Failure(t)  => logging.error(this, s"failed to record activation")
     }
   }
@@ -170,7 +170,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
         val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val subject = msg.user.subject
 
-        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
+        logging.debug(this, s"${actionid.id} $subject ${msg.activationId}")
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;

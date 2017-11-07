@@ -97,7 +97,7 @@ trait ReadOps extends Directives {
   protected def listEntities(list: Future[List[JsValue]])(implicit transid: TransactionId) = {
     onComplete(list) {
       case Success(entities) =>
-        logging.info(this, s"[LIST] entity success")
+        logging.debug(this, s"[LIST] entity success")
         complete(OK, entities)
       case Failure(t: Throwable) =>
         logging.error(this, s"[LIST] entity failed: ${t.getMessage}")
@@ -146,16 +146,16 @@ trait ReadOps extends Directives {
     ma: Manifest[A]) = {
     onComplete(factory.get(datastore, docid)) {
       case Success(entity) =>
-        logging.info(this, s"[GET] entity success")
+        logging.debug(this, s"[GET] entity success")
         postProcess map { _(entity) } getOrElse complete(OK, entity)
       case Failure(t: NoDocumentException) =>
-        logging.info(this, s"[GET] entity does not exist")
+        logging.debug(this, s"[GET] entity does not exist")
         terminate(NotFound)
       case Failure(t: DocumentTypeMismatchException) =>
-        logging.info(this, s"[GET] entity conformance check failed: ${t.getMessage}")
+        logging.debug(this, s"[GET] entity conformance check failed: ${t.getMessage}")
         terminate(Conflict, conformanceMessage)
       case Failure(t: ArtifactStoreException) =>
-        logging.info(this, s"[GET] entity unreadable")
+        logging.debug(this, s"[GET] entity unreadable")
         terminate(InternalServerError, t.getMessage)
       case Failure(t: Throwable) =>
         logging.error(this, s"[GET] entity failed: ${t.getMessage}")
@@ -183,16 +183,16 @@ trait ReadOps extends Directives {
     project: A => Future[JsObject])(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
     onComplete(factory.get(datastore, docid)) {
       case Success(entity) =>
-        logging.info(this, s"[PROJECT] entity success")
+        logging.debug(this, s"[PROJECT] entity success")
         complete(OK, project(entity))
       case Failure(t: NoDocumentException) =>
-        logging.info(this, s"[PROJECT] entity does not exist")
+        logging.debug(this, s"[PROJECT] entity does not exist")
         terminate(NotFound)
       case Failure(t: DocumentTypeMismatchException) =>
-        logging.info(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
+        logging.debug(this, s"[PROJECT] entity conformance check failed: ${t.getMessage}")
         terminate(Conflict, conformanceMessage)
       case Failure(t: ArtifactStoreException) =>
-        logging.info(this, s"[PROJECT] entity unreadable")
+        logging.debug(this, s"[PROJECT] entity unreadable")
         terminate(InternalServerError, t.getMessage)
       case Failure(t: Throwable) =>
         logging.error(this, s"[PROJECT] entity failed: ${t.getMessage}")
@@ -256,41 +256,41 @@ trait WriteOps extends Directives {
 
     onComplete(factory.get(datastore, docid) flatMap { doc =>
       if (overwrite) {
-        logging.info(this, s"[PUT] entity exists, will try to update '$doc'")
+        logging.debug(this, s"[PUT] entity exists, will try to update '$doc'")
         update(doc)
       } else if (treatExistsAsConflict) {
-        logging.info(this, s"[PUT] entity exists, but overwrite is not enabled, aborting")
+        logging.debug(this, s"[PUT] entity exists, but overwrite is not enabled, aborting")
         Future failed RejectRequest(Conflict, "resource already exists")
       } else {
         Future failed IdentityPut(doc)
       }
     } recoverWith {
       case _: NoDocumentException =>
-        logging.info(this, s"[PUT] entity does not exist, will try to create it")
+        logging.debug(this, s"[PUT] entity does not exist, will try to create it")
         create()
     } flatMap { a =>
-      logging.info(this, s"[PUT] entity created/updated, writing back to datastore")
+      logging.debug(this, s"[PUT] entity created/updated, writing back to datastore")
       factory.put(datastore, a) map { _ =>
         a
       }
     }) {
       case Success(entity) =>
-        logging.info(this, s"[PUT] entity success")
+        logging.debug(this, s"[PUT] entity success")
         postProcess map { _(entity) } getOrElse complete(OK, entity)
       case Failure(IdentityPut(a)) =>
-        logging.info(this, s"[PUT] entity exists, not overwritten")
+        logging.debug(this, s"[PUT] entity exists, not overwritten")
         complete(OK, a)
       case Failure(t: DocumentConflictException) =>
-        logging.info(this, s"[PUT] entity conflict: ${t.getMessage}")
+        logging.debug(this, s"[PUT] entity conflict: ${t.getMessage}")
         terminate(Conflict, conflictMessage)
       case Failure(RejectRequest(code, message)) =>
-        logging.info(this, s"[PUT] entity rejected with code $code: $message")
+        logging.debug(this, s"[PUT] entity rejected with code $code: $message")
         terminate(code, message)
       case Failure(t: DocumentTypeMismatchException) =>
-        logging.info(this, s"[PUT] entity conformance check failed: ${t.getMessage}")
+        logging.debug(this, s"[PUT] entity conformance check failed: ${t.getMessage}")
         terminate(Conflict, conformanceMessage)
       case Failure(t: ArtifactStoreException) =>
-        logging.info(this, s"[PUT] entity unreadable")
+        logging.debug(this, s"[PUT] entity unreadable")
         terminate(InternalServerError, t.getMessage)
       case Failure(t: Throwable) =>
         logging.error(this, s"[PUT] entity failed: ${t.getMessage}")
@@ -333,22 +333,22 @@ trait WriteOps extends Directives {
       }
     }) {
       case Success(entity) =>
-        logging.info(this, s"[DEL] entity success")
+        logging.debug(this, s"[DEL] entity success")
         postProcess map { _(entity) } getOrElse complete(OK, entity)
       case Failure(t: NoDocumentException) =>
-        logging.info(this, s"[DEL] entity does not exist")
+        logging.debug(this, s"[DEL] entity does not exist")
         terminate(NotFound)
       case Failure(t: DocumentConflictException) =>
-        logging.info(this, s"[DEL] entity conflict: ${t.getMessage}")
+        logging.debug(this, s"[DEL] entity conflict: ${t.getMessage}")
         terminate(Conflict, conflictMessage)
       case Failure(RejectRequest(code, message)) =>
-        logging.info(this, s"[DEL] entity rejected with code $code: $message")
+        logging.debug(this, s"[DEL] entity rejected with code $code: $message")
         terminate(code, message)
       case Failure(t: DocumentTypeMismatchException) =>
-        logging.info(this, s"[DEL] entity conformance check failed: ${t.getMessage}")
+        logging.debug(this, s"[DEL] entity conformance check failed: ${t.getMessage}")
         terminate(Conflict, conformanceMessage)
       case Failure(t: ArtifactStoreException) =>
-        logging.info(this, s"[DEL] entity unreadable")
+        logging.error(this, s"[DEL] entity unreadable")
         terminate(InternalServerError, t.getMessage)
       case Failure(t: Throwable) =>
         logging.error(this, s"[DEL] entity failed: ${t.getMessage}")

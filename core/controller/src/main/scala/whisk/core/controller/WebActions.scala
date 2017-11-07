@@ -658,7 +658,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       case Success(Left(activationId)) =>
         // blocking invoke which got queued instead
         // this should not happen, instead it should be a blocking invoke timeout
-        logging.info(this, "activation waiting period expired")
+        logging.debug(this, "activation waiting period expired")
         terminate(Accepted, Messages.responseNotReady)
 
       case Failure(t: RejectRequest) => terminate(t.code, t.message)
@@ -680,10 +680,10 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         // if the package lookup fails or the package doesn't conform to expected invariants,
         // fail the request with BadRequest so as not to leak information about the existence
         // of packages that are otherwise private
-        logging.info(this, s"package which does not exist")
+        logging.debug(this, s"package which does not exist")
         Future.failed(RejectRequest(NotFound))
       case _: NoSuchElementException =>
-        logging.warn(this, s"'$pkg' is a binding")
+        logging.debug(this, s"'$pkg' is a binding")
         Future.failed(RejectRequest(NotFound))
     }
   }
@@ -725,13 +725,13 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {
-        logging.info(this, s"${action.fullyQualifiedName(true)} is exported")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} is exported")
         Future.successful(action)
       } else if (!isExported) {
-        logging.info(this, s"${action.fullyQualifiedName(true)} not exported")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} not exported")
         Future.failed(RejectRequest(NotFound))
       } else {
-        logging.info(this, s"${action.fullyQualifiedName(true)} requires authentication")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} requires authentication")
         Future.failed(RejectRequest(Unauthorized))
       }
     }

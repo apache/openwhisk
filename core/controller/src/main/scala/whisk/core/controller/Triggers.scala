@@ -122,7 +122,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             version = trigger.version,
             duration = None)
 
-          logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
+          logging.debug(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
           WhiskActivation.put(activationStore, triggerActivation) recover {
             case t =>
               logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
@@ -178,7 +178,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                         }
                       case NotFound =>
                         response.discardEntityBytes()
-                        logging.info(this, s"${rule.action} failed, action not found")
+                        logging.debug(this, s"${rule.action} failed, action not found")
                       case _ =>
                         Unmarshal(response.entity).to[String].map { error =>
                           logging.warn(this, s"${rule.action} failed due to $error")

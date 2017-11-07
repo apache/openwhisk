@@ -123,7 +123,7 @@ protected[actions] trait SequenceActions {
     if (topmost) { // need to deal with blocking and closing connection
       waitForOutermostResponse
         .map { timeout =>
-          logging.info(this, s"invoke sequence blocking topmost!")
+          logging.debug(this, s"invoke sequence blocking topmost!")
           futureSeqResult.withAlternativeAfterTimeout(
             timeout,
             Future.successful(Left(seqActivationId), atomicActionsCount))
@@ -174,9 +174,9 @@ protected[actions] trait SequenceActions {
    * Stores sequence activation to database.
    */
   private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-    logging.info(this, s"recording activation '${activation.activationId}'")
+    logging.debug(this, s"recording activation '${activation.activationId}'")
     WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.info(this, s"recorded activation")
+      case Success(id) => logging.debug(this, s"recorded activation")
       case Failure(t) =>
         logging.error(
           this,
