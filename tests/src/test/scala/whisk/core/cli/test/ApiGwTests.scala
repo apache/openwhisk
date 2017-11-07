@@ -342,7 +342,11 @@ abstract class ApiGwTests extends BaseApiGwTests {
     try {
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = createCode, web = Some("true"))
+      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
+      val protocol = WhiskProperties.getProperty("whisk.api.host.proto")
+      val apihost = WhiskProperties.getProperty("whisk.api.host.name")
+      // The action is created in the default package
+      val pkg = "default"
 
       var rr = apiCreate(
         basepath = Some(testbasepath),
@@ -350,9 +354,13 @@ abstract class ApiGwTests extends BaseApiGwTests {
         operation = Some(testurlop),
         action = Some(actionName),
         apiname = Some(testapiname))
-      verifyApiCreated(rr)
+      rr.stdout should include("ok: created API")
       rr = apiGet(basepathOrApiName = Some(testapiname))
-      verifyApiNameGet(rr, testbasepath, actionName)
+      rr.stdout should include(testbasepath)
+      rr.stdout should include(s"${actionName}")
+      rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
+      rr.stdout should include regex (
+        s""""target-url":\\s+.*"${protocol}://${apihost}/api/v\\d+/web/${clinamespace}/${pkg}/${actionName}.json"""")
     } finally {
       wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
       apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
