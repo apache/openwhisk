@@ -274,7 +274,7 @@ trait BaseActivation extends BaseRunWsk {
   def pollFor(N: Int,
               entity: Option[String],
               limit: Option[Int] = None,
-              since: Option[Instant],
+              since: Option[Instant] = None,
               retries: Int,
               pollPeriod: Duration = 1.second)(implicit wp: WskProps): Seq[String]
 

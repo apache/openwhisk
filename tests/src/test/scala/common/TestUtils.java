@@ -64,13 +64,19 @@ public class TestUtils {
     public static final int BAD_REQUEST     = 144;      // 400 - 256 = 144
     public static final int UNAUTHORIZED    = 145;      // 401 - 256 = 145
     public static final int FORBIDDEN       = 147;      // 403 - 256 = 147
+    public static final int FORBIDDEN_HTTP  = 403;
     public static final int NOT_FOUND       = 148;      // 404 - 256 = 148
+    public static final int NOT_FOUND_HTTP  = 404;
     public static final int NOT_ALLOWED     = 149;      // 405 - 256 = 149
     public static final int CONFLICT        = 153;      // 409 - 256 = 153
     public static final int TOO_LARGE       = 157;      // 413 - 256 = 157
+    public static final int TOO_LARGE_HTTP  = 413;
     public static final int THROTTLED       = 173;      // 429 (TOO_MANY_REQUESTS) - 256 = 173
+    public static final int THROTTLED_HTTP  = 429;
     public static final int APP_ERROR       = 246;      // 502 - 256 = 246
+    public static final int APP_ERROR_HTTP  = 502;
     public static final int TIMEOUT         = 246;      // 502 (GATEWAY_TIMEOUT) - 256 = 246
+    public static final int TIMEOUT_HTTP    = 502;
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");
     private static final File testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions");

@@ -20,8 +20,15 @@ package whisk.core.cli.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
-class Swift311Tests extends Swift3Tests {
+import common.Wsk
+import common.TestUtils.FORBIDDEN
+import common.TestUtils.TIMEOUT
+import common.TestUtils.NOT_FOUND
 
-  override lazy val runtimeContainer: String = "swift:3.1.1"
+@RunWith(classOf[JUnitRunner])
+class WskCliEntitlementTests extends WskEntitlementTests {
+  override lazy val wsk = new Wsk
+  override lazy val forbiddenCode = FORBIDDEN
+  override lazy val timeoutCode = TIMEOUT
+  override lazy val notFoundCode = NOT_FOUND
 }

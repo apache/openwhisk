@@ -33,6 +33,7 @@ import com.jayway.restassured.response.Header
 import common.TestHelpers
 import common.TestUtils
 import common.WhiskProperties
+import common.BaseWsk
 import common.Wsk
 import common.WskProps
 import common.WskTestHelpers
@@ -48,12 +49,12 @@ import whisk.core.entity.Subject
  * Tests web actions.
  */
 @RunWith(classOf[JUnitRunner])
-class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
-  val MAX_URL_LENGTH = 8192 // 8K matching nginx default
+abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
+  val MAX_URL_LENGTH: Int = 8192 // 8K matching nginx default
 
-  val wsk = new Wsk
+  val wsk: BaseWsk
   private implicit val wskprops = WskProps()
-  val namespace = wsk.namespace.whois()
+  val namespace: String = wsk.namespace.whois()
 
   protected val testRoutePath: String = "/api/v1/web"
 
@@ -69,6 +70,18 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, file, web = Some("true"))
     }
+
+    var act = wsk.action.get(name)
+    println("action is " + act.stdout)
+
+    val testName = "testName"
+    assetHelper.withCleaner(wsk.action, testName) { (action, _) =>
+      val wskCli = new Wsk
+      wskCli.action.create(testName, file, web = Some("true"))
+    }
+
+    act = wsk.action.get(testName)
+    println("action cli is " + act.stdout)
 
     val resWithContentType =
       RestAssured.given().contentType("application/json").body(bodyContent.compactPrint).config(sslconfig).post(url)
@@ -270,10 +283,8 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
     response.statusCode shouldBe 200
     val cookieHeaders = response.headers.getList("Set-Cookie")
-    cookieHeaders should contain allOf (
-      new Header("Set-Cookie", "a=b"),
-      new Header("Set-Cookie", "c=d")
-    )
+    cookieHeaders should contain allOf (new Header("Set-Cookie", "a=b"),
+    new Header("Set-Cookie", "c=d"))
   }
 
   it should "handle http web action with base64 encoded response" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

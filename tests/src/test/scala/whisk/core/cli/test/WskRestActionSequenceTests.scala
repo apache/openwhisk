@@ -19,9 +19,19 @@ package whisk.core.cli.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import spray.json._
+
+import common.rest.WskRest
+import common.rest.RestResult
+import common.TestUtils.RunResult
 
 @RunWith(classOf[JUnitRunner])
-class Swift311Tests extends Swift3Tests {
+class WskRestActionSequenceTests extends WskActionSequenceTests {
+  override lazy val wsk: common.rest.WskRest = new WskRest
 
-  override lazy val runtimeContainer: String = "swift:3.1.1"
+  override def verifyActionSequence(action: RunResult, name: String, compValue: JsArray, kindValue: JsString): Unit = {
+    val actionResultRest = action.asInstanceOf[RestResult]
+    actionResultRest.respBody.fields("exec").asJsObject.fields("components") shouldBe compValue
+    actionResultRest.respBody.fields("exec").asJsObject.fields("kind") shouldBe kindValue
+  }
 }

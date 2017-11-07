@@ -20,8 +20,9 @@ package whisk.core.cli.test
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-@RunWith(classOf[JUnitRunner])
-class Swift311Tests extends Swift3Tests {
+import common.rest.WskRest
 
-  override lazy val runtimeContainer: String = "swift:3.1.1"
+@RunWith(classOf[JUnitRunner])
+class WskRestWebActionsTests extends WskWebActionsTests {
+  override lazy val wsk: common.rest.WskRest = new WskRest
 }
