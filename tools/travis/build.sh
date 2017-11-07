@@ -21,7 +21,7 @@ TERM=dumb ./gradlew checkScalafmtAll
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
-GRADLE_PROJS_SKIP="-x :core:pythonAction:distDocker  -x :core:python2Action:distDocker -x :core:swift3Action:distDocker -x core:swift3.1.1Action:distDocker -x :core:javaAction:distDocker"
+GRADLE_PROJS_SKIP="-x :actionRuntimes:pythonAction:distDocker  -x :actionRuntimes:python2Action:distDocker -x :actionRuntimes:swift3Action:distDocker -x actionRuntimes:swift3.1.1Action:distDocker -x :actionRuntimes:javaAction:distDocker"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml
