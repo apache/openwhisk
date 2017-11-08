@@ -34,7 +34,7 @@ import com.jayway.restassured.RestAssured
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -45,7 +45,7 @@ import system.rest.RestUtil
  * Basic tests of the download link for Go CLI binaries
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwEndToEndTests
+abstract class ApiGwEndToEndTests
     extends FlatSpec
     with Matchers
     with RestUtil
@@ -53,21 +53,56 @@ class ApiGwEndToEndTests
     with WskTestHelpers
     with BeforeAndAfterAll {
 
-  implicit val wskprops = WskProps()
-  val wsk = new Wsk
-  val clinamespace = wsk.namespace.whois()
+  implicit val wskprops: common.WskProps = WskProps()
+  val wsk: BaseWsk
+  val namespace: String = wsk.namespace.whois()
+  val createCode: Int
 
   // Custom CLI properties file
-  val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
+  val cliWskPropsFile: java.io.File = File.createTempFile("wskprops", ".tmp")
 
   /*
    * Create a CLI properties file for use by the tests
    */
-  override def beforeAll() = {
+  override def beforeAll: Unit = {
     cliWskPropsFile.deleteOnExit()
     val wskprops = WskProps(token = "SOME TOKEN")
     wskprops.writeFile(cliWskPropsFile)
     println(s"wsk temporary props file created here: ${cliWskPropsFile.getCanonicalPath()}")
+  }
+
+  def verifyAPICreated(rr: RunResult): Unit = {
+    rr.stdout should include("ok: created API")
+    val apiurl = rr.stdout.split("\n")(1)
+    println(s"apiurl: '$apiurl'")
+  }
+
+  def verifyAPIList(rr: RunResult,
+                    actionName: String,
+                    testurlop: String,
+                    testapiname: String,
+                    testbasepath: String,
+                    testrelpath: String): Unit = {
+    rr.stdout should include("ok: APIs")
+    rr.stdout should include regex (s"$actionName\\s+$testurlop\\s+$testapiname\\s+")
+    rr.stdout should include(testbasepath + testrelpath)
+  }
+
+  def verifyAPISwaggerCreated(rr: RunResult): Unit = {
+    rr.stdout should include("ok: created API")
+  }
+
+  def writeSwaggerFile(rr: RunResult): File = {
+    val swaggerfile = File.createTempFile("api", ".json")
+    swaggerfile.deleteOnExit()
+    val bw = new BufferedWriter(new FileWriter(swaggerfile))
+    bw.write(rr.stdout)
+    bw.close()
+    return swaggerfile
+  }
+
+  def getSwaggerApiUrl(rr: RunResult): String = {
+    return rr.stdout.split("\n")(1)
   }
 
   behavior of "Wsk api"
@@ -83,7 +118,7 @@ class ApiGwEndToEndTests
     val urlqueryvalue = testName
 
     try {
-      println("cli namespace: " + clinamespace)
+      println("Namespace: " + namespace)
 
       // Delete any lingering stale api from previous run that may not have been deleted properly
       wsk.api.delete(
@@ -93,12 +128,14 @@ class ApiGwEndToEndTests
 
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo-web-http.js")
+      println("action creation Namespace: " + namespace)
       wsk.action.create(
         name = actionName,
         artifact = Some(file),
-        expectedExitCode = SUCCESS_EXIT,
+        expectedExitCode = createCode,
         annotations = Map("web-export" -> true.toJson))
 
+      println("creation Namespace: " + namespace)
       // Create the API
       var rr = wsk.api.create(
         basepath = Some(testbasepath),
@@ -108,9 +145,7 @@ class ApiGwEndToEndTests
         apiname = Some(testapiname),
         responsetype = Some("http"),
         cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
-      rr.stdout should include("ok: created API")
-      val apiurl = rr.stdout.split("\n")(1)
-      println(s"apiurl: '$apiurl'")
+      verifyAPICreated(rr)
 
       // Validate the API was successfully created
       // List result will look like:
@@ -122,17 +157,11 @@ class ApiGwEndToEndTests
         relpath = Some(testrelpath),
         operation = Some(testurlop),
         cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
-      rr.stdout should include("ok: APIs")
-      rr.stdout should include regex (s"$actionName\\s+$testurlop\\s+$testapiname\\s+")
-      rr.stdout should include(testbasepath + testrelpath)
+      verifyAPIList(rr, actionName, testurlop, testapiname, testbasepath, testrelpath)
 
       // Recreate the API using a JSON swagger file
       rr = wsk.api.get(basepathOrApiName = Some(testbasepath), cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
-      val swaggerfile = File.createTempFile("api", ".json")
-      swaggerfile.deleteOnExit()
-      val bw = new BufferedWriter(new FileWriter(swaggerfile))
-      bw.write(rr.stdout)
-      bw.close()
+      val swaggerfile = writeSwaggerFile(rr)
 
       // Delete API to that it can be recreated again using the generated swagger file
       val deleteApiResult = wsk.api.delete(
@@ -143,8 +172,8 @@ class ApiGwEndToEndTests
       // Create the API again, but use the swagger file this time
       rr = wsk.api
         .create(swagger = Some(swaggerfile.getAbsolutePath()), cliCfgFile = Some(cliWskPropsFile.getCanonicalPath()))
-      rr.stdout should include("ok: created API")
-      val swaggerapiurl = rr.stdout.split("\n")(1)
+      verifyAPISwaggerCreated(rr)
+      val swaggerapiurl = getSwaggerApiUrl(rr)
       println(s"Returned api url: '${swaggerapiurl}'")
 
       // Call the API URL and validate the results

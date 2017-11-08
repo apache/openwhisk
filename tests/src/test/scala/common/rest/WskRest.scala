@@ -190,8 +190,8 @@ trait DeleteFromCollectionRest extends BaseDeleteFromCollection {
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
-  override def delete(entity: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
-    val (ns, entityName) = getNamespaceEntityName(entity)
+  override def delete(name: String, expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
+    val (ns, entityName) = getNamespaceEntityName(name)
     val path = Path(s"$basePath/namespaces/$ns/$noun/$entityName")
     val resp = requestEntity(DELETE, path)(wp)
     val r = new RestResult(resp.status, getRespData(resp))
@@ -482,7 +482,7 @@ class WskRestTrigger
       var body: Map[String, JsValue] = Map(
         "lifecycleEvent" -> "CREATE".toJson,
         "triggerName" -> s"/$ns/$triggerName".toJson,
-        "authKey" -> s"${getAuthKey(wp)}".toJson)
+        "authKey" -> s"${wp.authKey}".toJson)
       body = body ++ parameters
       val resp = requestEntity(POST, path, paramMap, Some(body.toJson.toString()))
       val resultInvoke = new RestResult(resp.status, getRespData(resp))
@@ -971,11 +971,10 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
     val r = action match {
       case Some(action) => {
         val (ns, actionName) = this.getNamespaceEntityName(action)
-        val actionUrl = s"${WhiskProperties.getApiHostForAction}/$basePath/web/$ns/default/$actionName.http"
-        val actionAuthKey = this.getAuthKey(wp)
+        val actionUrl = s"${WhiskProperties.getApiHostForAction}$basePath/web/$ns/default/$actionName.http"
+        val actionAuthKey = wp.authKey
         val testaction = Some(
-          ApiAction(name = actionName, namespace = ns, backendUrl = actionUrl, authkey = actionAuthKey))
-
+          new ApiAction(name = actionName, namespace = ns, backendUrl = actionUrl, authkey = actionAuthKey))
         val parms = Map[String, JsValue]() ++ { Map("namespace" -> ns.toJson) } ++ {
           basepath map { b =>
             Map("gatewayBasePath" -> b.toJson)
@@ -1003,14 +1002,16 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
           } getOrElse Map[String, JsValue]()
         }
 
-        val parm = Map[String, JsValue]("apidoc" -> JsObject(parms)) ++ { Map("__ow_user" -> ns.toJson) } ++ {
+        val spaceguid = if (wp.authKey.contains(":")) wp.authKey.split(":")(0) else wp.authKey
+
+        val parm = Map[String, JsValue]("apidoc" -> JsObject(parms)) ++ {
           responsetype map { r =>
             Map("responsetype" -> r.toJson)
           } getOrElse Map[String, JsValue]()
         } ++ {
           Map("accesstoken" -> wp.authKey.toJson)
         } ++ {
-          Map("spaceguid" -> wp.authKey.split(":")(0).toJson)
+          Map("spaceguid" -> spaceguid.toJson)
         }
 
         invokeAction(
@@ -1018,10 +1019,44 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
           parameters = parm,
           blocking = true,
           result = true,
+          web = true,
           expectedExitCode = expectedExitCode)(wp)
       }
       case None => {
-        new RestResult(NotFound)
+        swagger match {
+          case Some(swaggerFile) => {
+            var file = ""
+            val fileName = swaggerFile.toString()
+            try {
+              file = FileUtils.readFileToString(new File(fileName))
+            } catch {
+              case e: Throwable =>
+                return new RestResult(
+                  NotFound,
+                  JsObject("error" -> s"Error reading swagger file '$fileName'".toJson).toString())
+            }
+            val parms = Map("namespace" -> s"${wp.namespace}".toJson, "swagger" -> file.toJson)
+            val parm = Map[String, JsValue]("apidoc" -> JsObject(parms)) ++ {
+              responsetype map { r =>
+                Map("responsetype" -> r.toJson)
+              } getOrElse Map[String, JsValue]()
+            } ++ {
+              Map("accesstoken" -> wp.authKey.toJson)
+            } ++ {
+              Map("spaceguid" -> wp.authKey.split(":")(0).toJson)
+            }
+            invokeAction(
+              name = "apimgmt/createApi",
+              parameters = parm,
+              blocking = true,
+              result = true,
+              web = true,
+              expectedExitCode = expectedExitCode)(wp)
+          }
+          case None => {
+            new RestResult(NotFound)
+          }
+        }
       }
     }
     r
@@ -1043,8 +1078,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
                     expectedExitCode: Int = SUCCESS_EXIT,
                     cliCfgFile: Option[String] = None)(implicit wp: WskProps): RestResult = {
 
-    val parms = Map[String, JsValue]() ++
-      Map("__ow_user" -> wp.namespace.toJson) ++ {
+    val parms = Map[String, JsValue]() ++ {
       basepathOrApiName map { b =>
         Map("basepath" -> b.toJson)
       } getOrElse Map[String, JsValue]()
@@ -1061,11 +1095,13 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
     } ++ {
       Map("spaceguid" -> wp.authKey.split(":")(0).toJson)
     }
+
     val rr = invokeAction(
       name = "apimgmt/getApi",
       parameters = parms,
       blocking = true,
       result = true,
+      web = true,
       expectedExitCode = OK.intValue)(wp)
     rr
   }
@@ -1082,8 +1118,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
                    expectedExitCode: Int = SUCCESS_EXIT,
                    cliCfgFile: Option[String] = None,
                    format: Option[String] = None)(implicit wp: WskProps): RestResult = {
-    val parms = Map[String, JsValue]() ++
-      Map("__ow_user" -> wp.namespace.toJson) ++ {
+    val parms = Map[String, JsValue]() ++ {
       basepathOrApiName map { b =>
         Map("basepath" -> b.toJson)
       } getOrElse Map[String, JsValue]()
@@ -1098,6 +1133,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
       parameters = parms,
       blocking = true,
       result = true,
+      web = true,
       expectedExitCode = OK.intValue)(wp)
     result
   }
@@ -1113,7 +1149,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
                       operation: Option[String] = None,
                       expectedExitCode: Int = SUCCESS_EXIT,
                       cliCfgFile: Option[String] = None)(implicit wp: WskProps): RestResult = {
-    val parms = Map[String, JsValue]() ++ { Map("__ow_user" -> wp.namespace.toJson) } ++ {
+    val parms = Map[String, JsValue]() ++ {
       Map("basepath" -> basepathOrApiName.toJson)
     } ++ {
       relpath map { r =>
@@ -1134,17 +1170,9 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
       parameters = parms,
       blocking = true,
       result = true,
+      web = true,
       expectedExitCode = expectedExitCode)(wp)
     return rr
-  }
-
-  def getApi(basepathOrApiName: String, params: Map[String, String] = Map(), expectedExitCode: Int = OK.intValue)(
-    implicit wp: WskProps): RestResult = {
-    val whiskUrl = Uri(WhiskProperties.getApiHostForAction)
-    val path = Path(s"/api/${wp.authKey.split(":")(0)}$basepathOrApiName/path")
-    val resp = requestEntity(GET, path, params, whiskUrl = whiskUrl)
-    val result = new RestResult(resp.status, getRespData(resp))
-    result
   }
 }
 
@@ -1155,6 +1183,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
+  val systemNamespace = "whisk.system"
 
   val sslConfig = AkkaSSLConfig().mapSettings { s =>
     s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
@@ -1237,11 +1266,6 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     } else {
       new BasicHttpCredentials(wp.authKey, wp.authKey)
     }
-  }
-
-  def getAuthKey(wp: WskProps): String = {
-    val authKey = wp.authKey.split(":")
-    s"${authKey(0)}:${authKey(1)}"
   }
 
   def getParamsAnnos(parameters: Map[String, JsValue] = Map(),
@@ -1345,9 +1369,12 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
                    parameterFile: Option[String] = None,
                    blocking: Boolean = false,
                    result: Boolean = false,
+                   web: Boolean = false,
                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val (ns, actName) = this.getNamespaceEntityName(name)
-    val path = Path(s"$basePath/namespaces/$ns/actions/$actName")
+    val path =
+      if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
+      else Path(s"$basePath/namespaces/$ns/actions/$actName")
     var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf)))
@@ -1496,11 +1523,11 @@ class RestResult(var statusCode: StatusCode, var respData: String = "", blocking
   }
 }
 
-case class ApiAction(name: String,
-                     namespace: String,
-                     backendMethod: String = "POST",
-                     backendUrl: String,
-                     authkey: String) {
+class ApiAction(var name: String,
+                var namespace: String,
+                var backendMethod: String = "POST",
+                var backendUrl: String,
+                var authkey: String) {
   def toJson(): JsObject = {
     return JsObject(
       "name" -> name.toJson,

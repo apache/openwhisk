@@ -24,38 +24,23 @@ import org.scalatest.junit.JUnitRunner
 import common.JsHelpers
 import common.StreamLogging
 import common.TestHelpers
-import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.RunResult
 import common.TestUtils.SUCCESS_EXIT
-import common.Wsk
+import common.BaseWsk
 import common.WskActorSystem
 import common.WskAdmin
 import common.WskProps
+import common.rest.ApiAction
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
-case class ApiAction(name: String,
-                     namespace: String,
-                     backendMethod: String = "POST",
-                     backendUrl: String,
-                     authkey: String) {
-  def toJson(): JsObject = {
-    return JsObject(
-      "name" -> name.toJson,
-      "namespace" -> namespace.toJson,
-      "backendMethod" -> backendMethod.toJson,
-      "backendUrl" -> backendUrl.toJson,
-      "authkey" -> authkey.toJson)
-  }
-}
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwRoutemgmtActionTests
+abstract class ApiGwRoutemgmtActionTests
     extends TestHelpers
     with BeforeAndAfterAll
     with WskActorSystem
@@ -65,7 +50,7 @@ class ApiGwRoutemgmtActionTests
 
   val systemId = "whisk.system"
   implicit val wskprops = WskProps(authKey = WskAdmin.listKeys(systemId)(0)._1, namespace = systemId)
-  val wsk = new Wsk
+  val wsk: BaseWsk
 
   def getApis(bpOrName: Option[String],
               relpath: Option[String] = None,
@@ -299,7 +284,7 @@ class ApiGwRoutemgmtActionTests
     val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".json"
     val actionAuthKey = testName + "_authkey"
     val testaction =
-      ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
+      new ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
     try {
       val createResult = createApi(
@@ -330,7 +315,7 @@ class ApiGwRoutemgmtActionTests
     val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".json"
     val actionAuthKey = testName + "_authkey"
     val testaction =
-      ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
+      new ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
     try {
       val createResult = createApi(
@@ -366,7 +351,7 @@ class ApiGwRoutemgmtActionTests
     val actionUrl = "https://some.whisk.host/api/v1/web/" + actionNamespace + "/default/" + actionName + ".json"
     val actionAuthKey = testName + "_authkey"
     val testaction =
-      ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
+      new ApiAction(name = actionName, namespace = actionNamespace, backendUrl = actionUrl, authkey = actionAuthKey)
 
     try {
       var createResult = createApi(
@@ -391,204 +376,6 @@ class ApiGwRoutemgmtActionTests
     } finally {
       val deleteResult =
         deleteApi(namespace = Some(wskprops.namespace), basepath = Some(testbasepath), expectedExitCode = DONTCARE_EXIT)
-    }
-  }
-
-  it should "reject apimgmt actions that are invoked with not enough parameters" in {
-    val invalidArgs = Seq(
-      //getApi
-      ("/whisk.system/apimgmt/getApi", ANY_ERROR_EXIT, "Invalid authentication.", Seq()),
-      //deleteApi
-      (
-        "/whisk.system/apimgmt/deleteApi",
-        ANY_ERROR_EXIT,
-        "Invalid authentication.",
-        Seq("-p", "basepath", "/ApiGwRoutemgmtActionTests_bp")),
-      (
-        "/whisk.system/apimgmt/deleteApi",
-        ANY_ERROR_EXIT,
-        "basepath is required",
-        Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN")),
-      (
-        "/whisk.system/apimgmt/deleteApi",
-        ANY_ERROR_EXIT,
-        "When specifying an operation, the path is required",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "basepath",
-          "/ApiGwRoutemgmtActionTests_bp",
-          "-p",
-          "operation",
-          "get")),
-      //createApi
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is required",
-        Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is missing the namespace field",
-        Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN", "-p", "apidoc", "{}")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is missing the gatewayBasePath field",
-        Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN", "-p", "apidoc", """{"namespace":"_"}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is missing the gatewayPath field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp"}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is missing the gatewayMethod field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp"}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc is missing the action field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get"}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "action is missing the backendMethod field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "action is missing the backendUrl field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post"}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "action is missing the namespace field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL"}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "action is missing the name field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_"}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "action is missing the authkey field",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N"}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "swagger and gatewayBasePath are mutually exclusive and cannot be specified together",
-        Seq(
-          "-p",
-          "__ow_user",
-          "_",
-          "-p",
-          "accesstoken",
-          "TOKEN",
-          "-p",
-          "apidoc",
-          """{"namespace":"_","gatewayBasePath":"/ApiGwRoutemgmtActionTests_bp","gatewayPath":"ApiGwRoutemgmtActionTests_rp","gatewayMethod":"get","action":{"backendMethod":"post","backendUrl":"URL","namespace":"_","name":"N","authkey":"XXXX"},"swagger":{}}""")),
-      (
-        "/whisk.system/apimgmt/createApi",
-        ANY_ERROR_EXIT,
-        "apidoc field cannot be parsed. Ensure it is valid JSON",
-        Seq("-p", "__ow_user", "_", "-p", "accesstoken", "TOKEN", "-p", "apidoc", "{1:[}}}")))
-
-    invalidArgs foreach {
-      case (action: String, exitcode: Int, errmsg: String, params: Seq[String]) =>
-        val cmd: Seq[String] = Seq(
-          "action",
-          "invoke",
-          action,
-          "-i",
-          "-b",
-          "-r",
-          "--apihost",
-          wskprops.apihost,
-          "--auth",
-          wskprops.authKey) ++ params
-        val rr = wsk.cli(cmd, expectedExitCode = exitcode)
-        rr.stderr should include regex (errmsg)
     }
   }
 }
