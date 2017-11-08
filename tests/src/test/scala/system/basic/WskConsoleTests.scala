@@ -85,8 +85,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       val pollTime = 10 seconds
       // since: poll for activations since specified number of seconds ago (relative)
       val console = wsk.activation.console(pollTime, since = Some(duration))
-      withClue(
-        s"Poll for ${pollTime.toSeconds} seconds since ${duration.toSeconds} seconds did not return expected result:") {
+      withClue(s"Polled since ${duration.toSeconds} seconds, did not find expected result:") {
         console.stdout should include(payload)
       }
     }
@@ -116,8 +115,7 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
       val pollTime = 10 seconds
       // since: poll for activations since specified number of seconds ago (relative)
       val console = wsk.activation.console(pollTime, since = Some(duration))
-      withClue(
-        s"Poll for ${pollTime.toSeconds} seconds since ${duration.toSeconds} seconds did not return expected result:") {
+      withClue(s"Polled for ${duration.toSeconds} seconds, did not find expected result:") {
         console.stdout should include("Happy New Year")
       }
     }
