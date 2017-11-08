@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
+import scala.util.Try
 
 import kamon.Kamon
 
@@ -46,6 +47,8 @@ import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
+
+case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
 object Invoker {
 
@@ -104,8 +107,24 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
-    val assignedInvokerId = proposedInvokerId
+    // process command line arguments
+    // We accept the command line grammar of:
+    // Usage: invoker [options] [<proposedInvokerId>]
+    //    --name <value>   a unique name to use for this invoker
+    //    --id <value>     proposed invokerId
+    def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
+      ls match {
+        case "--name" :: name :: tail                        => parse(tail, c.copy(name = Some(name)))
+        case "--id" :: id :: tail if Try(id.toInt).isSuccess => parse(tail, c.copy(id = Some(id.toInt)))
+        case id :: Nil if Try(id.toInt).isSuccess            => c.copy(id = Some(id.toInt))
+        case Nil                                             => c
+        case _                                               => abort(s"Error processing command line arguments $ls")
+      }
+    }
+    val cmdLineArgs = parse(args.toList, CmdLineArgs())
+    logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
+
+    val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
         id
@@ -114,7 +133,7 @@ object Invoker {
         if (config.zookeeperHost.startsWith(":") || config.zookeeperHost.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHost})")
         }
-        val invokerName = config.invokerName
+        val invokerName = cmdLineArgs.name.getOrElse(config.invokerName)
         if (invokerName.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
