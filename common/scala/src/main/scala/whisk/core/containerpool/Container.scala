@@ -18,6 +18,10 @@
 package whisk.core.containerpool
 
 import java.time.Instant
+
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -66,7 +70,7 @@ trait Container {
   def resume()(implicit transid: TransactionId): Future[Unit]
 
   /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
-  def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Future[Vector[String]]
+  def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any]
 
   /** Completely destroys this instance of the container. */
   def destroy()(implicit transid: TransactionId): Future[Unit] = {
