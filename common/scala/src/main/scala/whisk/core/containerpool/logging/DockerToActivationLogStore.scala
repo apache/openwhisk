@@ -25,7 +25,7 @@ import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import spray.json._
 import whisk.http.Messages
 
@@ -42,7 +42,7 @@ protected[core] object LogLine extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat3(LogLine.apply)
 }
 
-object DockerLogStore {
+object DockerToActivationLogStore {
 
   /** Transforms chunked JsObjects into formatted strings */
   val toFormattedString: Flow[ByteString, String, NotUsed] =
@@ -54,9 +54,9 @@ object DockerLogStore {
  *
  * Relies on docker's implementation details with regards to the JSON log-driver. When using the JSON log-driver
  * docker writes stdout/stderr to a JSON formatted file which is read by this store. Logs are written in the
- * activation record itself and thus stored in CouchDB.
+ * activation record itself.
  */
-class DockerLogStore(system: ActorSystem) extends LogStore {
+class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val mat: ActorMaterializer = ActorMaterializer()(system)
 
@@ -67,16 +67,17 @@ class DockerLogStore(system: ActorSystem) extends LogStore {
   override def fetchLogs(activation: WhiskActivation): Future[ActivationLogs] = Future.successful(activation.logs)
 
   override def collectLogs(transid: TransactionId,
+                           user: Identity,
+                           activation: WhiskActivation,
                            container: Container,
                            action: ExecutableWhiskAction): Future[ActivationLogs] = {
 
-    val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
-
     container
       .logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
-      .via(DockerLogStore.toFormattedString)
+      .via(DockerToActivationLogStore.toFormattedString)
       .runWith(Sink.seq)
       .flatMap { seq =>
+        val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
         val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
         val logs = ActivationLogs(seq.toVector)
         if (!errored) {
@@ -88,6 +89,6 @@ class DockerLogStore(system: ActorSystem) extends LogStore {
   }
 }
 
-object DockerLogStoreProvider extends LogStoreProvider {
-  override def logStore(actorSystem: ActorSystem): LogStore = new DockerLogStore(actorSystem)
+object DockerToActivationLogStoreProvider extends LogStoreProvider {
+  override def logStore(actorSystem: ActorSystem): LogStore = new DockerToActivationLogStore(actorSystem)
 }
