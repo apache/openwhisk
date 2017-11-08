@@ -97,6 +97,13 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
+  val kafkaTopicsInvokerRetentionBytes = this(WhiskConfig.kafkaTopicsInvokerRetentionBytes)
+  val kafkaTopicsInvokerRetentionMS = this(WhiskConfig.kafkaTopicsInvokerRetentionMS)
+  val kafkaTopicsInvokerSegmentBytes = this(WhiskConfig.kafkaTopicsInvokerSegmentBytes)
+  val kafkaTopicsCompletedRetentionBytes = this(WhiskConfig.kafkaTopicsCompletedRetentionBytes)
+  val kafkaTopicsCompletedRetentionMS = this(WhiskConfig.kafkaTopicsCompletedRetentionMS)
+  val kafkaTopicsCompletedSegmentBytes = this(WhiskConfig.kafkaTopicsCompletedSegmentBytes)
+
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
@@ -233,6 +240,13 @@ object WhiskConfig {
   val kafkaHost = Map(kafkaHostName -> null, kafkaHostPort -> null)
 
   val runtimesManifest = "runtimes.manifest"
+
+  val kafkaTopicsInvokerRetentionBytes = "kafka.topics.invoker.retentionBytes"
+  val kafkaTopicsInvokerRetentionMS = "kafka.topics.invoker.retentionMS"
+  val kafkaTopicsInvokerSegmentBytes = "kafka.topics.invoker.segmentBytes"
+  val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retentionBytes"
+  val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retentionMS"
+  val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segmentBytes"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
