@@ -36,7 +36,7 @@ import whisk.core.connector.Message
 import whisk.core.connector.MessageProducer
 import whisk.core.entity.UUIDs
 
-class KafkaProducerConnector(kafkahost: String,
+class KafkaProducerConnector(kafkahosts: String,
                              implicit val executionContext: ExecutionContext,
                              id: String = UUIDs.randomUUID().toString)(implicit logging: Logging)
     extends MessageProducer {
@@ -76,7 +76,7 @@ class KafkaProducerConnector(kafkahost: String,
 
   private def getProps: Properties = {
     val props = new Properties
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahosts)
     props.put(ProducerConfig.ACKS_CONFIG, 1.toString)
     props
   }

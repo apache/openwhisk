@@ -1,0 +1,10 @@
+---
+# This role will install kafka in group 'kafka' in the environment inventory
+# In deploy mode it will deploy kafka including zookeeper.
+# In clean mode it will remove kafka and zookeeper containers.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

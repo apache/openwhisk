@@ -41,10 +41,10 @@ import whisk.core.connector.MessagingProvider
 object KafkaMessagingProvider extends MessagingProvider {
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging): MessageConsumer =
-    new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
+    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
 
   def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHost, ec)
+    new KafkaProducerConnector(config.kafkaHosts, ec)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: Map[String, String])(
     implicit logging: Logging): Boolean = {

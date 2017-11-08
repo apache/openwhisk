@@ -132,24 +132,16 @@ public class WhiskProperties {
         return whiskProperties.getProperty(string);
     }
 
-    public static String getKafkaHost() {
-        return whiskProperties.getProperty("kafka.host");
+    public static String getKafkaHosts() {
+        return whiskProperties.getProperty("kafka.hosts");
     }
-
-    public static int getKafkaPort() {
-        return Integer.parseInt(whiskProperties.getProperty("kafka.host.port"));
-    }
-
+    
     public static int getKafkaMonitorPort() {
         return Integer.parseInt(whiskProperties.getProperty("kafkaras.host.port"));
     }
 
     public static String getZookeeperHost() {
-        return whiskProperties.getProperty("zookeeper.host");
-    }
-
-    public static int getZookeeperPort() {
-        return Integer.parseInt(whiskProperties.getProperty("zookeeper.host.port"));
+        return whiskProperties.getProperty("zookeeper.hosts");
     }
 
     public static String getMainDockerEndpoint() {
