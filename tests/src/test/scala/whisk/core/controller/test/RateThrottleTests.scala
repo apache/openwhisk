@@ -43,11 +43,11 @@ class RateThrottleTests extends FlatSpec with Matchers with StreamLogging {
 
   behavior of "Rate Throttle"
 
-  it should "throttle when rate exceeds allowed threshold" in {
+  it should "throttle when rate exceeds allowed threshold increased by 20%" in {
     new RateThrottler("test", 0, _.limits.invocationsPerMinute, 1).check(subject).ok shouldBe false
     val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute, 1)
     rt.check(subject).ok shouldBe true
-    rt.check(subject).ok shouldBe false
+    rt.check(subject).ok shouldBe true
     rt.check(subject).ok shouldBe false
     Thread.sleep(1.minute.toMillis)
     rt.check(subject).ok shouldBe true
@@ -61,6 +61,7 @@ class RateThrottleTests extends FlatSpec with Matchers with StreamLogging {
     rt.check(withLimits).ok shouldBe true // 3
     rt.check(withLimits).ok shouldBe true // 4
     rt.check(withLimits).ok shouldBe true // 5
+    rt.check(withLimits).ok shouldBe true // 6
     rt.check(withLimits).ok shouldBe false
   }
 

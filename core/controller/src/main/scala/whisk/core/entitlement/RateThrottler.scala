@@ -44,6 +44,8 @@ class RateThrottler(description: String,
   /**
    * Checks whether the operation should be allowed to proceed.
    * Every `check` operation charges the subject namespace for one operation.
+   * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
+   * controllers
    *
    * @param user the identity to check
    * @return true iff subject namespace is below allowed limit
@@ -51,7 +53,8 @@ class RateThrottler(description: String,
   def check(user: Identity)(implicit transid: TransactionId): RateLimit = {
     val uuid = user.uuid // this is namespace identifier
     val throttle = rateMap.getOrElseUpdate(uuid, new RateInfo)
-    val limit = Math.ceil(overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute).toDouble / diviser.toDouble).toInt
+    val limit =
+      Math.ceil((overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute).toDouble / diviser.toDouble) * 1.2).toInt
     val rate = TimedRateLimit(throttle.update(limit), limit)
     logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count}, limit = $limit")
     rate
