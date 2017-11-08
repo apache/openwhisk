@@ -135,7 +135,7 @@ public class WhiskProperties {
     public static String getKafkaHosts() {
         return whiskProperties.getProperty("kafka.hosts");
     }
-    
+
     public static int getKafkaMonitorPort() {
         return Integer.parseInt(whiskProperties.getProperty("kafkaras.host.port"));
     }
