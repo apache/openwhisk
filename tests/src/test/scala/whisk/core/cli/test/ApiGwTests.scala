@@ -361,6 +361,15 @@ abstract class ApiGwTests extends BaseApiGwTests {
       rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
       rr.stdout should include regex (
         s""""target-url":\\s+.*"${protocol}://${apihost}/api/v\\d+/web/${clinamespace}/${pkg}/${actionName}.json"""")
+
+      // Now directly access the web action through the controller
+      val paramName = "brewery"
+      val paramVal = "WickedWeed"
+      val controllerURL = "http://" + WhiskProperties.getBaseControllerAddress +
+        s"/api/v1/web/$clinamespace/$pkg/$actionName.json?$paramName=$paramVal"
+      val response = RestAssured.given().get(controllerURL)
+      response.statusCode shouldBe 200
+      response.body.asString should include regex(s""""$paramName":\\s+"$paramVal""")
     } finally {
       wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
       apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
