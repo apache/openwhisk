@@ -75,11 +75,15 @@ class ReplicatorTests
                     dbPrefix: String,
                     expires: FiniteDuration,
                     continuous: Boolean = false,
-                    exclude: List[String] = List()) = {
-    println(s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous, $exclude")
+                    exclude: List[String] = List(),
+                    excludeBaseName: List[String] = List()) = {
+    println(
+      s"Running replicator: $sourceDbUrl, $targetDbUrl, $dbPrefix, $expires, $continuous, $exclude, $excludeBaseName")
 
     val continuousFlag = if (continuous) Some("--continuous") else None
     val excludeFlag = Seq(exclude.mkString(",")).filter(_.nonEmpty).flatMap(ex => Seq("--exclude", ex))
+    val excludeBaseNameFlag =
+      Seq(excludeBaseName.mkString(",")).filter(_.nonEmpty).flatMap(ex => Seq("--excludeBaseName", ex))
     val cmd = Seq(
       python,
       replicator,
@@ -91,7 +95,7 @@ class ReplicatorTests
       "--dbPrefix",
       dbPrefix,
       "--expires",
-      expires.toSeconds.toString) ++ continuousFlag ++ excludeFlag
+      expires.toSeconds.toString) ++ continuousFlag ++ excludeFlag ++ excludeBaseNameFlag
     val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
 
     val Seq(created, deletedDoc, deleted) =
@@ -234,6 +238,31 @@ class ReplicatorTests
     createdBackupDbs.foreach(removeReplicationDoc(_))
     removeDatabase(dbNameToBackup)
     removeDatabase(testDbPrefix + excludedName)
+  }
+
+  it should "not replicate a database that basename is excluded" in {
+    // Create a database to backup
+    val dbNameToBackup = testDbPrefix + "database_for_single_replication_with_exclude_basename"
+    createDatabase(dbNameToBackup, Some(designDocPath))
+
+    val excludedName = "some_excluded_name"
+    createDatabase(testDbPrefix + excludedName + "-postfix123", Some(designDocPath))
+
+    // Trigger replication and verify the created databases have the correct format
+    val (createdBackupDbs, _, _) =
+      runReplicator(dbUrl, dbUrl, testDbPrefix, 10.minutes, excludeBaseName = List(excludedName))
+    createdBackupDbs should have size 1
+    val backupDbName = createdBackupDbs.head
+    backupDbName should fullyMatch regex s"backup_\\d+_$dbNameToBackup"
+
+    // Wait for the replication to finish
+    waitForReplication(backupDbName)
+
+    // Remove all created databases
+    createdBackupDbs.foreach(removeDatabase(_))
+    createdBackupDbs.foreach(removeReplicationDoc(_))
+    removeDatabase(dbNameToBackup)
+    removeDatabase(testDbPrefix + excludedName + "-postfix123")
   }
 
   it should "replicate a database (snapshot) even if the filter is not available" in {
