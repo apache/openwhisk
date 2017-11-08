@@ -20,7 +20,6 @@ package whisk.core.loadBalancer
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
 import whisk.core.entity.{ActivationId, UUID}
 
 /**
@@ -37,14 +36,14 @@ class LocalLoadBalancerData() extends LoadBalancerData {
   private val activationsById = TrieMap[ActivationId, ActivationEntry]()
   private val totalActivations = new AtomicInteger(0)
 
-  override def totalActivationCount: Future[Int] = Future.successful(totalActivations.get)
+  override def totalActivationCount: Int = totalActivations.get
 
-  override def activationCountOn(namespace: UUID): Future[Int] = {
-    Future.successful(activationByNamespaceId.get(namespace).map(_.get).getOrElse(0))
+  override def activationCountOn(namespace: UUID): Int = {
+    activationByNamespaceId.get(namespace).map(_.get).getOrElse(0)
   }
 
-  override def activationCountPerInvoker: Future[Map[String, Int]] = {
-    Future.successful(activationByInvoker.toMap.mapValues(_.get))
+  override def activationCountPerInvoker: Map[String, Int] = {
+    activationByInvoker.toMap.mapValues(_.get)
   }
 
   override def activationById(activationId: ActivationId): Option[ActivationEntry] = {

@@ -25,8 +25,8 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import whisk.core.loadBalancer._
 import org.scalatest.FlatSpecLike
-
 import scala.concurrent.duration._
+import whisk.core.entity.InstanceId
 
 // Define your test specific configuration here
 
@@ -61,7 +61,8 @@ class SharedDataServiceTests()
     .withFallback(ConfigFactory.load())
 
   val s = ActorSystem("controller-actor-system", config)
-  val sharedDataService = s.actorOf(SharedDataService.props("Candidates"), name = "busyMan")
+  val sharedDataService = s.actorOf(SharedDataService.props("Candidates", testActor), name = "busyMan")
+  val controllerInstance = InstanceId(0)
   implicit val timeout = Timeout(5.seconds)
 
   it should "retrieve an empty map after initialization" in {
@@ -70,20 +71,20 @@ class SharedDataServiceTests()
     expectMsg(msg)
   }
   it should "increase the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", 1))
+    sharedDataService ! (IncreaseCounter("Donald", controllerInstance, 1))
     sharedDataService ! GetMap
     val msg = Map("Donald" -> 1)
     expectMsg(msg)
   }
   it should "decrease the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", 2))
-    sharedDataService ! (DecreaseCounter("Donald", 2))
+    sharedDataService ! (IncreaseCounter("Donald", controllerInstance, 2))
+    sharedDataService ! (DecreaseCounter("Donald", controllerInstance, 2))
     sharedDataService ! GetMap
     val msg = Map("Donald" -> 1)
     expectMsg(msg)
   }
   it should "receive the map with all counters" in {
-    sharedDataService ! (IncreaseCounter("Hilary", 1))
+    sharedDataService ! (IncreaseCounter("Hilary", controllerInstance, 1))
     sharedDataService ! GetMap
     val msg = Map("Hilary" -> 1, "Donald" -> 1)
     expectMsg(msg)
