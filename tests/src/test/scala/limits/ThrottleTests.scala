@@ -72,8 +72,9 @@ class ThrottleTests
 
   val throttleWindow = 1.minute
 
-  val maximumInvokesPerMinute = getLimit("limits.actions.invokes.perMinute")
-  val maximumFiringsPerMinute = getLimit("limits.triggers.fires.perMinute")
+  // Due to the overhead of the per minute limit in the controller, we add this overhead here as well.
+  val maximumInvokesPerMinute = math.ceil(getLimit("limits.actions.invokes.perMinute") * 1.2).toInt
+  val maximumFiringsPerMinute = math.ceil(getLimit("limits.triggers.fires.perMinute") * 1.2).toInt
   val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
 
   println(s"maximumInvokesPerMinute  = $maximumInvokesPerMinute")
