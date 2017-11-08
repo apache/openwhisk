@@ -32,6 +32,7 @@ const FEED_LIFECYCLE_EVENT  = "lifecycleEvent"
 const FEED_TRIGGER_NAME     = "triggerName"
 const FEED_AUTH_KEY         = "authKey"
 const FEED_CREATE           = "CREATE"
+const FEED_READ             = "READ"
 const FEED_DELETE           = "DELETE"
 
 // triggerCmd represents the trigger command
@@ -294,6 +295,7 @@ var triggerGetCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var err error
         var field string
+        var fullFeedName string
         var qualifiedName = new(QualifiedName)
 
         if whiskErr := CheckArgs(args, 1, 2, "Trigger get", wski18n.T("A trigger name is required.")); whiskErr != nil {
@@ -326,18 +328,35 @@ var triggerGetCmd = &cobra.Command{
             return werr
         }
 
-        if (flags.trigger.summary) {
-            printSummary(retTrigger)
+        // Get full feed name from trigger get request as it is needed to get the feed
+        if retTrigger != nil && retTrigger.Annotations != nil {
+            fullFeedName = getValueString(retTrigger.Annotations, "feed")
+        }
+
+        if len(fullFeedName) > 0 {
+            fullTriggerName := fmt.Sprintf("/%s/%s", qualifiedName.GetNamespace(), qualifiedName.GetEntityName())
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_LIFECYCLE_EVENT, FEED_READ))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_TRIGGER_NAME, fullTriggerName))
+            flags.common.param = append(flags.common.param, getFormattedJSON(FEED_AUTH_KEY, Client.Config.AuthToken))
+
+            err = configureFeed(qualifiedName.GetEntityName(), fullFeedName)
+            if err != nil {
+                whisk.Debug(whisk.DbgError, "configureFeed(%s, %s) failed: %s\n", qualifiedName.GetEntityName(), fullFeedName, err)
+            }
         } else {
-            if len(field) > 0 {
-                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
-                    map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName()),
-                    "field": boldString(field)}))
-                printField(retTrigger, field)
+            if (flags.trigger.summary) {
+                printSummary(retTrigger)
             } else {
-                fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}\n",
-                        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName())}))
-                printJSON(retTrigger)
+                if len(field) > 0 {
+                    fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}, displaying field {{.field}}\n",
+                        map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName()),
+                        "field": boldString(field)}))
+                    printField(retTrigger, field)
+                } else {
+                    fmt.Fprintf(color.Output, wski18n.T("{{.ok}} got trigger {{.name}}\n",
+                            map[string]interface{}{"ok": color.GreenString("ok:"), "name": boldString(qualifiedName.GetEntityName())}))
+                    printJSON(retTrigger)
+                }
             }
         }
 
