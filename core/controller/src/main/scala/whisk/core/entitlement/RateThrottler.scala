@@ -18,6 +18,7 @@
 package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
+
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Identity
@@ -29,10 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(description: String,
-                    defaultMaxPerMinute: Int,
-                    overrideMaxPerMinute: Identity => Option[Int],
-                    diviser: Int)(implicit logging: Logging) {
+class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(
+  implicit logging: Logging) {
 
   logging.info(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
 
@@ -44,8 +43,6 @@ class RateThrottler(description: String,
   /**
    * Checks whether the operation should be allowed to proceed.
    * Every `check` operation charges the subject namespace for one operation.
-   * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
-   * controllers
    *
    * @param user the identity to check
    * @return true iff subject namespace is below allowed limit
@@ -53,8 +50,7 @@ class RateThrottler(description: String,
   def check(user: Identity)(implicit transid: TransactionId): RateLimit = {
     val uuid = user.uuid // this is namespace identifier
     val throttle = rateMap.getOrElseUpdate(uuid, new RateInfo)
-    val limit =
-      Math.ceil((overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute).toDouble / diviser.toDouble) * 1.2).toInt
+    val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
     val rate = TimedRateLimit(throttle.update(limit), limit)
     logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count}, limit = $limit")
     rate

@@ -83,20 +83,33 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   /**
    * The number of controllers if HA is enabled, 1 otherwise
    */
-  private val diviser = {
-    if (config.controllerHighAvailability)
-      config.controllerInstances.toInt
-    else
-      1
+  private val diviser = if (config.controllerHighAvailability) config.controllerInstances.toInt else 1
+
+  /**
+   * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
+   * controllers
+   */
+  private val overcommit = if (config.controllerHighAvailability) 1.2 else 1
+
+  /**
+   * Adjust the throttles for a single controller with the diviser and the overcommit.
+   *
+   * @param originalThrottle The throttle that needs to be adjusted for this controller.
+   */
+  private def dilateThrottle(originalThrottle: Int): Int = {
+    Math.ceil((originalThrottle.toDouble / diviser.toDouble) * overcommit).toInt
   }
+
   private val invokeRateThrottler =
     new RateThrottler(
       "actions per minute",
-      config.actionInvokePerMinuteLimit.toInt,
-      _.limits.invocationsPerMinute,
-      diviser)
+      dilateThrottle(config.actionInvokePerMinuteLimit.toInt),
+      _.limits.invocationsPerMinute.map(dilateThrottle))
   private val triggerRateThrottler =
-    new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute, diviser)
+    new RateThrottler(
+      "triggers per minute",
+      dilateThrottle(config.triggerFirePerMinuteLimit.toInt),
+      _.limits.firesPerMinute.map(dilateThrottle))
   private val concurrentInvokeThrottler = new ActivationThrottler(
     loadBalancer,
     config.actionInvokeConcurrentLimit.toInt,

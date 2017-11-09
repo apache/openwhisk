@@ -43,11 +43,11 @@ class RateThrottleTests extends FlatSpec with Matchers with StreamLogging {
 
   behavior of "Rate Throttle"
 
-  it should "throttle when rate exceeds allowed threshold increased by 20%" in {
-    new RateThrottler("test", 0, _.limits.invocationsPerMinute, 1).check(subject).ok shouldBe false
-    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute, 1)
+  it should "throttle when rate exceeds allowed threshold" in {
+    new RateThrottler("test", 0, _.limits.invocationsPerMinute).check(subject).ok shouldBe false
+    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute)
     rt.check(subject).ok shouldBe true
-    rt.check(subject).ok shouldBe true
+    rt.check(subject).ok shouldBe false
     rt.check(subject).ok shouldBe false
     Thread.sleep(1.minute.toMillis)
     rt.check(subject).ok shouldBe true
@@ -55,26 +55,12 @@ class RateThrottleTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "check against an alternative limit if passed in" in {
     val withLimits = subject.copy(limits = UserLimits(invocationsPerMinute = Some(5)))
-    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute, 1)
+    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute)
     rt.check(withLimits).ok shouldBe true // 1
     rt.check(withLimits).ok shouldBe true // 2
     rt.check(withLimits).ok shouldBe true // 3
     rt.check(withLimits).ok shouldBe true // 4
     rt.check(withLimits).ok shouldBe true // 5
-    rt.check(withLimits).ok shouldBe true // 6
-    rt.check(withLimits).ok shouldBe false
-  }
-
-  it should "allow one activation if the ratio between user limit and the number of controllers is less then 0.5" in {
-    val withLimits = subject.copy(limits = UserLimits(invocationsPerMinute = Some(2)))
-    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute, 5)
-    rt.check(withLimits).ok shouldBe true // 1
-    rt.check(withLimits).ok shouldBe false
-  }
-  it should "allow one activation if the ratio between user limit and the number of controllers is bigger then 0.5" in {
-    val withLimits = subject.copy(limits = UserLimits(invocationsPerMinute = Some(3)))
-    val rt = new RateThrottler("test", 1, _.limits.invocationsPerMinute, 5)
-    rt.check(withLimits).ok shouldBe true // 1
     rt.check(withLimits).ok shouldBe false
   }
 
