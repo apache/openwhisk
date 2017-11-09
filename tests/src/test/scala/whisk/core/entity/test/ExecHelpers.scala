@@ -56,6 +56,15 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     js6(code, main)
   }
 
+  protected def js6MetaData(code: String, main: Option[String] = None) = {
+    CodeExecMetaDataAsString(
+      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)))
+  }
+
+  protected def jsDefaultMetaData(code: String, main: Option[String] = None) = {
+    js6MetaData(code, main)
+  }
+
   protected def swift(code: String, main: Option[String] = None) = {
     CodeExecAsString(RuntimeManifest(SWIFT, imagename(SWIFT), deprecated = Some(true)), trim(code), main.map(_.trim))
   }

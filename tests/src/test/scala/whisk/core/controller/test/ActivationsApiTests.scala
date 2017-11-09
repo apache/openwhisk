@@ -491,7 +491,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     implicit val materializer = ActorMaterializer()
     val activationStore = SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging, materializer)
+      .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(
+        WhiskEntityJsonFormat,
+        WhiskDocumentReader,
+        system,
+        logging,
+        materializer)
     implicit val tid = transid()
     val entity = BadEntity(namespace, EntityName(ActivationId().toString))
     put(activationStore, entity)

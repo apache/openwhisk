@@ -15,26 +15,10 @@
  * limitations under the License.
  */
 
-package whisk.core.database
+package whisk.core.entity
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import spray.json.RootJsonFormat
-import whisk.common.Logging
-import whisk.core.WhiskConfig
-import whisk.spi.Spi
-import whisk.core.entity.DocumentReader
+import spray.json._
 
-/**
- * An Spi for providing ArtifactStore implementations
- */
-trait ArtifactStoreProvider extends Spi {
-  def makeStore[D <: DocumentSerializer](config: WhiskConfig,
-                                         name: WhiskConfig => String,
-                                         useBatching: Boolean = false)(
-    implicit jsonFormat: RootJsonFormat[D],
-    docReader: DocumentReader,
-    actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): ArtifactStore[D]
+protected[core] abstract class DocumentReader {
+  def read[A](ma: Manifest[A], value: JsValue): WhiskDocument
 }

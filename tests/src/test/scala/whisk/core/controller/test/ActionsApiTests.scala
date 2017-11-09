@@ -812,6 +812,19 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "ensure WhiskActionMetadata is used to invoke an action" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"))
+    put(entityStore, action)
+    Post(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(Accepted)
+      val response = responseAs[JsObject]
+      response.fields("activationId") should not be None
+    }
+    stream.toString should include(s"[WhiskActionMetaData] [GET] serving from datastore: ${CacheKey(action)}")
+    stream.reset()
+  }
+
   it should "report proper error when record is corrupted on delete" in {
     implicit val tid = transid()
     val entity = BadEntity(namespace, aname())

@@ -110,7 +110,10 @@ class Controller(val instance: InstanceId,
   private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
     val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
-    override def apply(k: CacheKey) = remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
+    override def apply(k: CacheKey) = {
+      remoteCacheInvalidaton.invalidateWhiskActionMetaData(k)
+      remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
+    }
   })
 
   // initialize backend services
