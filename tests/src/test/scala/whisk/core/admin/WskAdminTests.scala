@@ -25,7 +25,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.RunWskAdminCmd
 import common.TestHelpers
-import common.Wsk
+import common.rest.WskRest
 import common.WskAdmin
 import common.WskProps
 import whisk.core.entity.AuthKey
@@ -87,7 +87,7 @@ class WskAdminTests extends TestHelpers with Matchers {
   it should "verify guest account installed correctly" in {
     val wskadmin = new RunWskAdminCmd {}
     implicit val wskprops = WskProps()
-    val wsk = new Wsk
+    val wsk = new WskRest
     val ns = wsk.namespace.whois()
     wskadmin.cli(Seq("user", "get", ns)).stdout.trim should be(wskprops.authKey)
   }
