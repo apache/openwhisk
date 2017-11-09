@@ -1,0 +1,21 @@
+{
+  "_id": "_design/whisks.v2",
+  "language": "javascript",
+  "views": {
+    "rules": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isRule = function (doc) {  return (doc.trigger !== undefined) };\n  if (isRule(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var date = doc.updated;\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations\n    };\n    emit([doc.namespace, date], value);\n    if (root !== doc.namespace) {\n      emit([root, date], value);\n    }\n  } catch (e) {}\n}"
+    },
+    "all": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n\n  var isPackage = function (doc) {  return (doc.binding !== undefined) };\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  var isRule = function (doc) {  return (doc.trigger !== undefined) };\n  \n  var collection = function (doc) {\n    if (isPackage(doc)) return \"packages\";\n    if (isAction(doc)) return \"actions\";\n    if (isTrigger(doc)) return \"triggers\";\n    if (isRule(doc)) return \"rules\";\n    return undefined;\n  };\n\n  try {\n    var type = collection(doc);\n    if (type !== undefined) {\n      var ns = doc.namespace.split(PATHSEP);\n      var root = ns[0];\n      var date = doc.updated;\n      var value = {\n        collection: type,\n        namespace: doc.namespace,\n        name: doc.name,\n        version: doc.version,\n        publish: doc.publish,\n        annotations: doc.annotations\n      };\n      if (isPackage(doc)) {\n        value.binding = Object.keys(doc.binding).length !== 0;\n      }\n      emit([root, date], value);\n    }\n  } catch (e) {}\n}"
+    },
+    "packages": {
+      "map": "function (doc) {\n  var isPackage = function (doc) {  return (doc.binding !== undefined) };\n  if (isPackage(doc)) try {\n    var date = doc.updated;\n    emit([doc.namespace, date], {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      binding: Object.keys(doc.binding).length !== 0\n    });\n  } catch (e) {}\n}"
+    },
+    "actions": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  if (isAction(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var date = doc.updated;\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations\n    };\n    emit([doc.namespace, date], value);\n    if (root !== doc.namespace) {\n      emit([root, date], value);\n    }\n  } catch (e) {}\n}"
+    },
+    "triggers": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  if (isTrigger(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var date = doc.updated;\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations\n    };\n    emit([doc.namespace, date], value);\n    if (root !== doc.namespace) {\n      emit([root, date], value);\n    }\n  } catch (e) {}\n}"
+    }
+  }
+}

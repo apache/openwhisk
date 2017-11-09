@@ -7,6 +7,7 @@
     doc: "{{ lookup('file', '{{ item }}') }}"
   with_items:
     - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_actions_db.json"
+    - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_entities_db_v2.json"
     - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
 
 - include: db/recreateDoc.yml
@@ -15,6 +16,8 @@
     doc: "{{ lookup('file', '{{ item }}') }}"
   with_items:
     - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_activations_db.json"
+    - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_activations_db_v2.json"
+    - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_activations_db_filters_v2.json"
     - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
     - "{{ openwhisk_home }}/ansible/files/activations_design_document_for_activations_db.json"
     - "{{ openwhisk_home }}/ansible/files/logCleanup_design_document_for_activations_db.json"

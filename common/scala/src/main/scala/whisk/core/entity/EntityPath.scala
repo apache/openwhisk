@@ -43,6 +43,11 @@ protected[core] class EntityPath private (private val path: Seq[String]) extends
   def namespace: String = path.foldLeft("")((a, b) => if (a != "") a.trim + EntityPath.PATHSEP + b.trim else b.trim)
 
   /**
+   * @return number of parts in the path.
+   */
+  def segments = path.length
+
+  /**
    * Adds segment to path.
    */
   def addPath(e: EntityName) = EntityPath(path :+ e.name)

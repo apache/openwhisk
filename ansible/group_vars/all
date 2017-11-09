@@ -198,7 +198,10 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
+    actions_ddoc: "whisks"
     activations: "{{ db_prefix }}activations"
+    activations_ddoc: "whisks"
+    activations_filter_ddoc: "whisks"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
