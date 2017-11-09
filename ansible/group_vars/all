@@ -117,6 +117,8 @@ controller:
       bindPort: 2551
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+  # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
+  ha: "{{ controller_enable_ha | default(false) }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
