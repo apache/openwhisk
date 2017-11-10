@@ -62,7 +62,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
-  protected[core] implicit val executionContext = system.dispatcher
+  protected[core] implicit val executionContext = system.dispatchers.lookup("dispatchers.couch-dispatcher")
 
   private val client: CouchDbRestClient =
     new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
