@@ -54,7 +54,7 @@ object CacheInvalidationMessage extends DefaultJsonProtocol {
 class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging,
                                                                                             as: ActorSystem) {
 
-  implicit private val ec = as.dispatcher
+  implicit private val ec = as.dispatchers.lookup("dispatchers.kafka-dispatcher")
 
   private val topic = "cacheInvalidation"
   private val instanceId = s"$component${instance.toInt}"
