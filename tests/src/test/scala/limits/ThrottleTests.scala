@@ -27,11 +27,13 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 import org.junit.runner.RunWith
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 
+import common.RunWskAdminCmd
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -42,10 +44,9 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.core.WhiskConfig
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
-import org.scalatest.BeforeAndAfterAll
-import common.RunWskAdminCmd
 import whisk.utils.retry
 
 protected[limits] trait LocalHelper {
@@ -72,8 +73,10 @@ class ThrottleTests
 
   val throttleWindow = 1.minute
 
-  val maximumInvokesPerMinute = getLimit("limits.actions.invokes.perMinute")
-  val maximumFiringsPerMinute = getLimit("limits.triggers.fires.perMinute")
+  // Due to the overhead of the per minute limit in the controller, we add this overhead here as well.
+  val overhead = if (WhiskProperties.getProperty(WhiskConfig.controllerHighAvailability).toBoolean) 1.2 else 1.0
+  val maximumInvokesPerMinute = math.ceil(getLimit("limits.actions.invokes.perMinute") * overhead).toInt
+  val maximumFiringsPerMinute = math.ceil(getLimit("limits.triggers.fires.perMinute") * overhead).toInt
   val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
 
   println(s"maximumInvokesPerMinute  = $maximumInvokesPerMinute")
@@ -368,11 +371,13 @@ class NamespaceSpecificThrottleTests
       trigger.create(triggerName)
     }
 
+    val deployedControllers = WhiskProperties.getControllerHosts.split(",").length
+
     // One invoke should be allowed, the second one throttled.
     // Due to the current implementation of the rate throttling,
     // it is possible that the counter gets deleted, because the minute switches.
     retry({
-      val results = (1 to 2).map { _ =>
+      val results = (1 to deployedControllers + 1).map { _ =>
         wsk.action.invoke(actionName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
@@ -385,7 +390,7 @@ class NamespaceSpecificThrottleTests
     // Due to the current implementation of the rate throttling,
     // it is possible, that the counter gets deleted, because the minute switches.
     retry({
-      val results = (1 to 2).map { _ =>
+      val results = (1 to deployedControllers + 1).map { _ =>
         wsk.trigger.fire(triggerName, expectedExitCode = TestUtils.DONTCARE_EXIT)
       }
       results.map(_.exitCode) should contain(TestUtils.THROTTLED)
