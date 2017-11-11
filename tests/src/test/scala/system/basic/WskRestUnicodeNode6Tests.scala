@@ -25,7 +25,7 @@ import common.WskTestHelpers
 import common.rest.WskRest
 
 @RunWith(classOf[JUnitRunner])
-class WskRestUnicodeNodeTests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
+class WskRestUnicodeNode6Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
 
   override val wsk: common.rest.WskRest = new WskRest
   override lazy val actionKind = "nodejs:6"

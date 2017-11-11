@@ -23,38 +23,21 @@ import org.scalatest.junit.JUnitRunner
 import common.JsHelpers
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.RunResult
 import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskBasicNodeTests extends TestHelpers with WskTestHelpers with JsHelpers {
+abstract class WskBasicNode6Tests extends TestHelpers with WskTestHelpers with JsHelpers {
 
   implicit val wskprops = WskProps()
   val wsk: BaseWsk
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
-  val currentNodeJsDefaultKind = "nodejs:6"
+  lazy val currentNodeJsKind = "nodejs:6"
 
-  behavior of "NodeJS runtime"
-
-  it should "Map a kind of nodejs:default to the current default NodeJS runtime" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "usingDefaultNodeAlias"
-
-      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, defaultAction, kind = Some("nodejs:default"))
-      }
-
-      val result = wsk.action.get(name)
-      withPrintOnFailure(result) { () =>
-        val action = convertRunResultToJsObject(result)
-        action.getFieldPath("exec", "kind") should be(Some(currentNodeJsDefaultKind.toJson))
-      }
-  }
+  behavior of "Runtime $currentNodeJsKind"
 
   it should "Ensure that NodeJS actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
@@ -62,7 +45,7 @@ abstract class WskBasicNodeTests extends TestHelpers with WskTestHelpers with Js
       val file = Some(TestUtils.getTestActionFilename("niam.js"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, main = Some("niam"))
+        action.create(name, file, main = Some("niam"), kind = Some(currentNodeJsKind))
       }
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
@@ -78,7 +61,7 @@ abstract class WskBasicNodeTests extends TestHelpers with WskTestHelpers with Js
       val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, kind = Some("nodejs:default"))
+        action.create(name, file, kind = Some(currentNodeJsKind))
       }
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
@@ -88,41 +71,12 @@ abstract class WskBasicNodeTests extends TestHelpers with WskTestHelpers with Js
       }
   }
 
-  it should "Ensure that zipped actions cannot be created without a kind specified" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "zippedNpmActionWithNoKindSpecified"
-      val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
-
-      val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-        action.create(name, file, expectedExitCode = ANY_ERROR_EXIT)
-      }
-
-      val output = s"${createResult.stdout}\n${createResult.stderr}"
-
-      output should include("kind")
-  }
-
-  it should "Ensure that JS actions created with no explicit kind use the current default NodeJS runtime" in withAssetCleaner(
-    wskprops) { (wp, assetHelper) =>
-    val name = "jsWithNoKindSpecified"
-
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, defaultAction)
-    }
-
-    val result = wsk.action.get(name)
-    withPrintOnFailure(result) { () =>
-      val action = convertRunResultToJsObject(result)
-      action.getFieldPath("exec", "kind") should be(Some(currentNodeJsDefaultKind.toJson))
-    }
-  }
-
   it should "Ensure that returning an empty rejected Promise results in an errored activation" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     val name = "jsEmptyRejectPromise"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("issue-1562.js")))
+      action.create(name, Some(TestUtils.getTestActionFilename("issue-1562.js")), kind = Some(currentNodeJsKind))
     }
 
     withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
