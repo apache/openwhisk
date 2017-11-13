@@ -56,6 +56,11 @@ import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
 import pureconfig._
+import whisk.spi.Spi
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import akka.stream.ActorMaterializer
+import whisk.core.entity.WhiskEntityStore
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
@@ -84,14 +89,22 @@ trait LoadBalancer {
   def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
+  /**
+   * Return a message indicating the health of the containers and/or container pool in general
+   * @return a Future[JsObject] representing the health of the container pools managed by the load balancer.
+   */
+  def healthStatus: Future[JsObject]
 }
 
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging)
+class LoadBalancerService(config: WhiskConfig, instance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                     logging: Logging,
+                                                                     materializer: ActorMaterializer)
     extends LoadBalancer {
 
   private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](ConfigKeys.loadbalancer)
+
+  /** Used to manage an action for testing invoker health */ /** Used to manage an action for testing invoker health */
+  val entityStore = WhiskEntityStore.datastore(config)
 
   /** The execution context for futures */
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -128,10 +141,16 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 
   /** An indexed sequence of all invokers in the current system */
-  def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] =
+  private def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] =
     invokerPool
       .ask(GetStatus)(Timeout(5.seconds))
       .mapTo[IndexedSeq[(InstanceId, InvokerState)]]
+
+  /** Returns a Map of invoker instance -> invoker state */
+  override def healthStatus(): Future[JsObject] =
+    allInvokers.map(_.map {
+      case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+    }.toMap.toJson.asJsObject)
 
   /**
    * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -352,7 +371,24 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 }
 
-object LoadBalancerService {
+/**
+ * An Spi for providing LoadBalancerService implementations
+ */
+trait LoadBalancerProvider extends Spi {
+  def requiredProperties: Map[String, String]
+
+  def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(implicit actorSystem: ActorSystem,
+                                                                   logging: Logging,
+                                                                   materializer: ActorMaterializer): LoadBalancer
+}
+
+object LoadBalancerService extends LoadBalancerProvider {
+
+  override def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer = new LoadBalancerService(whiskConfig, instance)
+
   def requiredProperties =
     kafkaHosts ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
