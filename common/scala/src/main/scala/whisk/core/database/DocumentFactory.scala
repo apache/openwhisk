@@ -174,7 +174,7 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
     Try {
       require(db != null, "db undefined")
-      require(doc != null, "entity undefined")
+      require(doc != null, "doc undefined")
       require(docInfo != null, "docInfo undefined")
     } map { _ =>
       implicit val logger = db.logging
