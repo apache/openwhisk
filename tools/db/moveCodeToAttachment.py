@@ -23,13 +23,13 @@ import argparse
 import couchdb.client
 import time
 import base64
+from couchdb import ResourceNotFound
 
 def updateJavaAction(db, doc, id):
     updated = False
     attachment = db.get_attachment(doc, 'jarfile')
 
     if attachment != None:
-        print('Updating Java action: "{0}"'.format(id))
         encodedAttachment = base64.b64encode(attachment.getvalue())
         db.put_attachment(doc, encodedAttachment, 'codefile', 'text/plain')
         doc = db.get(id)
@@ -50,7 +50,6 @@ def updateNonJavaAction(db, doc, id):
     code = doc['exec']['code']
 
     if not isinstance(code, dict):
-        print('Updating action: "{0}"'.format(id))
         db.put_attachment(doc, code, 'codefile', 'text/plain')
         doc = db.get(id)
         doc['exec']['code'] = {
@@ -62,23 +61,36 @@ def updateNonJavaAction(db, doc, id):
 
     return updated
 
+def createNonMigratedDoc(db):
+    try:
+        db['_design/nonMigrated2']
+    except ResourceNotFound:
+        db.save({
+            '_id': '_design/nonMigrated2',
+            'language': 'javascript',
+            'views': {
+                'actions': {
+                    'map': 'function (doc) {   var isAction = function (doc) {     return (doc.exec !== undefined)   };   var isMigrated = function (doc) {     return (doc._attachments !== undefined && doc._attachments.codefile !== undefined && typeof doc.code != \'string\')   };   if (isAction(doc) && !isMigrated(doc)) try {     emit([doc.name]);   } catch (e) {} }'
+                }
+            }
+        })
+
 def main(args):
     db = couchdb.client.Server(args.dbUrl)[args.dbName]
-    docs = db.view('_all_docs')
+    createNonMigratedDoc(db)
+    docs = db.view('_design/nonMigrated/_view/actions')
     docCount = len(docs)
     docIndex = 1
 
-    print('Number of docs: {}'.format(docCount))
+    print('Number of actions to update: {}'.format(docCount))
 
     for row in docs:
         id = row.id
         doc = db.get(id)
 
-        print('Checking if document {0}/{1} is an action: "{2}"'.format(docIndex, docCount, id))
+        print('Updating action {0}/{1}: "{2}"'.format(docIndex, docCount, id))
 
         if 'exec' in doc and 'code' in doc['exec']:
-            print('Document is an action: "{0}"'.format(id))
-
             if doc['exec']['kind'] != 'java':
                 updated = updateNonJavaAction(db, doc, id)
             else:
@@ -86,7 +98,7 @@ def main(args):
 
             if updated:
                 print('Updated action: "{0}"'.format(id))
-                time.sleep(.700)
+                time.sleep(.500)
             else:
                 print('Action already updated: "{0}"'.format(id))
 

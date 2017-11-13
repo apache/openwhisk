@@ -143,20 +143,7 @@ To replay a snapshot, swap `--sourceDbUrl` and `--targetDbUrl` and call the scri
 
 To reduce the memory consumption in the OpenWhisk controller, all code inlined in action documents has been moved to attachments. This change allows only metadata for actions to be fetched instead of the entire action. Though the OpenWhisk controller supports both mentioned schemas, it is ideal to update existing databases to use the new schema for memory consumption relief.
 
-1. The design document provided below will return all actions that are using the old schema. This design document needs to be manually to the related CouchDB
-```
-{
-  "_id": "_design/actionMigrate",
-  "language": "javascript",
-  "views": {
-    "actions": {
-      "map": "function (doc) {   var isAction = function (doc) {     return (doc.exec !== undefined)   };   var isMigrated = function (doc) {     return (doc._attachments !== undefined && doc._attachments.codefile !== undefined && typeof doc.code != 'string')   };   if (isAction(doc) && !isMigrated(doc)) try {     emit([doc.name]);   } catch (e) {} }"
-    }
-  }
-}
-```
-
-2. Run the `moveCodeToAttachment.py` to complete the schema update. Two parameters are required:
+Run `moveCodeToAttachment.py` to update actions in an existing database to the new action schema. Two parameters are required:
 
 * `--dbUrl`: Server URL of the database. E.g. 'https://xxx:yyy@domain.couch.com:443'.
 * `--dbName`: Name of the Database to update.
