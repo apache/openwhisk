@@ -22,9 +22,10 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
+import TestUtils.RunResult
 import spray.json._
 import whisk.core.entity.EntityPath
 
@@ -32,10 +33,10 @@ import whisk.core.entity.EntityPath
  * Tests creation and retrieval of a sequence action
  */
 @RunWith(classOf[JUnitRunner])
-class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
+abstract class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
   val defaultNamespace = EntityPath.DEFAULT.asString
   val namespace = wsk.namespace.whois()
 
@@ -75,7 +76,12 @@ class WskActionSequenceTests extends TestHelpers with WskTestHelpers {
       action.create(name, Some(artifacts), kind = Some("sequence"))
     }
 
-    val stdout = wsk.action.get(name).stdout
+    val action = wsk.action.get(name)
+    verifyActionSequence(action, name, compValue, kindValue)
+  }
+
+  def verifyActionSequence(action: RunResult, name: String, compValue: JsArray, kindValue: JsString): Unit = {
+    val stdout = action.stdout
     assert(stdout.startsWith(s"ok: got action $name\n"))
     wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("components") shouldBe compValue
     wsk.parseJsonString(stdout).fields("exec").asJsObject.fields("kind") shouldBe kindValue

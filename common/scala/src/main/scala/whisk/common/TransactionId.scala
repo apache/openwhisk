@@ -55,7 +55,17 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    */
   def mark(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(
     implicit logging: Logging) = {
-    logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+
+    if (TransactionId.metricsLog) {
+      logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+    } else if (message.nonEmpty) {
+      logging.emit(logLevel, this, from, message)
+    }
+
+    if (TransactionId.metricsKamon) {
+      MetricEmitter.emitCounterMetric(marker)
+    }
+
   }
 
   /**
@@ -71,7 +81,17 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    */
   def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(
     implicit logging: Logging): StartMarker = {
-    logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+
+    if (TransactionId.metricsLog) {
+      logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+    } else if (message.nonEmpty) {
+      logging.emit(logLevel, this, from, message)
+    }
+
+    if (TransactionId.metricsKamon) {
+      MetricEmitter.emitCounterMetric(marker)
+    }
+
     StartMarker(Instant.now, marker)
   }
 
@@ -89,13 +109,24 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
                message: String = "",
                logLevel: LogLevel = InfoLevel,
                endTime: Instant = Instant.now(Clock.systemUTC))(implicit logging: Logging) = {
+
     val endMarker =
       LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
-    logging.emit(
-      logLevel,
-      this,
-      from,
-      createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker, endTime)))))
+    val deltaToEnd = deltaToMarker(startMarker, endTime)
+
+    if (TransactionId.metricsLog) {
+      logging.emit(
+        logLevel,
+        this,
+        from,
+        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+    } else if (message.nonEmpty) {
+      logging.emit(logLevel, this, from, message)
+    }
+
+    if (TransactionId.metricsKamon) {
+      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+    }
   }
 
   /**
@@ -108,13 +139,25 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    */
   def failed(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = WarningLevel)(
     implicit logging: Logging) = {
+
     val endMarker =
       LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.error)
-    logging.emit(
-      logLevel,
-      this,
-      from,
-      createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToMarker(startMarker)))))
+    val deltaToEnd = deltaToMarker(startMarker)
+
+    if (TransactionId.metricsLog) {
+      logging.emit(
+        logLevel,
+        this,
+        from,
+        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+    } else if (message.nonEmpty) {
+      logging.emit(logLevel, this, from, message)
+    }
+
+    if (TransactionId.metricsKamon) {
+      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+      MetricEmitter.emitCounterMetric(endMarker)
+    }
   }
 
   /**
@@ -158,6 +201,11 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
 protected case class TransactionMetadata(val id: Long, val start: Instant)
 
 object TransactionId {
+
+  // get the metric parameters directly from the environment since WhiskConfig can not be instantiated here
+  val metricsKamon: Boolean = sys.env.get("METRICS_KAMON").getOrElse("False").toBoolean
+  val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
+
   val unknown = TransactionId(0)
   val testing = TransactionId(-1) // Common id for for unit testing
   val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity

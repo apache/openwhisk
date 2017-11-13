@@ -18,16 +18,20 @@
 package whisk.core.database
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.core.entity.DocumentReader
 
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
+  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String, useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
     actorSystem: ActorSystem,
-    logging: Logging): ArtifactStore[D] = {
+    logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D] = {
     require(config != null && config.isValid, "config is undefined or not valid")
     require(
       config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB",
@@ -43,6 +47,7 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       config.dbPort.toInt,
       config.dbUsername,
       config.dbPassword,
-      name(config))
+      name(config),
+      useBatching)
   }
 }

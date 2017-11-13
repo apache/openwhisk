@@ -1,4 +1,4 @@
-FROM <%= (dockerArch == "s390x") ? "s390x/" : "" %>golang:1.8
+FROM <%= (dockerArch == "s390x") ? "s390x/" : "" %>golang:1.8.4
 
 # Install zip
 RUN apt-get -y update && \

@@ -161,8 +161,6 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     if (cacheEnabled) {
       logger.info(this, s"invalidating $key on delete")
 
-      notifier.foreach(_(key))
-
       // try inserting our desired entry...
       val desiredEntry = Entry(transid, InvalidateInProgress, None)
       cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -206,6 +204,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             // a pre-existing owner will take care of the invalidation
             invalidator
         }
+      } andThen {
+        case _ => notifier.foreach(_(key))
       }
     } else invalidator // not caching
   }
@@ -265,8 +265,6 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     notifier: Option[CacheChangeNotification]): Future[Winfo] = {
     if (cacheEnabled) {
 
-      notifier.foreach(_(key))
-
       // try inserting our desired entry...
       val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
       cache(key)(desiredEntry) flatMap { actualEntry =>
@@ -292,6 +290,8 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
             invalidateEntryAfter(generator, key, actualEntry)
           }
         }
+      } andThen {
+        case _ => notifier.foreach(_(key))
       }
     } else generator // not caching
   }

@@ -279,6 +279,72 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
     }
   }
 
+  it should "return configure the missing Cert file" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val keyFile = File.createTempFile("key", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"KEY=${keyFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("property", "get", "--apibuild", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""The Cert file is not configured. Please configure the missing Cert file.""")
+    } finally {
+      tmpwskprops.delete()
+      keyFile.delete()
+    }
+  }
+
+  it should "return configure the missing Key file" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val certFile = File.createTempFile("cert", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"CERT=${certFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("property", "get", "--apibuild", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""The Key file is not configured. Please configure the missing Key file.""")
+    } finally {
+      tmpwskprops.delete()
+      certFile.delete()
+    }
+  }
+
+  it should "return unable to load the X509 key pair with both Cert and Key files missing" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val certFile = File.createTempFile("cert", ".pem")
+    val keyFile = File.createTempFile("key", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"CERT=${certFile.getAbsolutePath()}\n")
+      writer.write(s"KEY=${keyFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("property", "get", "--apibuild", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""Unable to load the X509 key pair due to the following reason""")
+    } finally {
+      tmpwskprops.delete()
+      certFile.delete()
+      keyFile.delete()
+    }
+  }
+
   it should "set api host with or without http prefix" in {
     val tmpwskprops = File.createTempFile("wskprops", ".tmp")
     try {
@@ -356,5 +422,71 @@ class WskConfigTests extends TestHelpers with WskTestHelpers {
       wsk.cli(Seq("-i", "trigger", "create", name), env = env)
     }
     tmpProps.delete()
+  }
+
+  it should "return configure the missing Cert file for action" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val keyFile = File.createTempFile("key", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"KEY=${keyFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("action", "list", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""The Cert file is not configured. Please configure the missing Cert file.""")
+    } finally {
+      tmpwskprops.delete()
+      keyFile.delete()
+    }
+  }
+
+  it should "return configure the missing Key file for action" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val certFile = File.createTempFile("cert", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"CERT=${certFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("action", "list", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""The Key file is not configured. Please configure the missing Key file.""")
+    } finally {
+      tmpwskprops.delete()
+      certFile.delete()
+    }
+  }
+
+  it should "return unable to load the X509 key pair with both Cert and Key files missing for action" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val certFile = File.createTempFile("cert", ".pem")
+    val keyFile = File.createTempFile("key", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"CERT=${certFile.getAbsolutePath()}\n")
+      writer.write(s"KEY=${keyFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("action", "list", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""Unable to load the X509 key pair due to the following reason""")
+    } finally {
+      tmpwskprops.delete()
+      certFile.delete()
+      keyFile.delete()
+    }
   }
 }

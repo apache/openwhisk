@@ -27,10 +27,8 @@ import scala.language.postfixOps
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
@@ -1122,6 +1120,24 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       trigger.create(name, feed = Some(s"bogus/feed"), expectedExitCode = ANY_ERROR_EXIT).exitCode should equal(
         NOT_FOUND)
       trigger.get(name, expectedExitCode = NOT_FOUND)
+    }
+  }
+
+  it should "invoke a feed action with the correct lifecyle event when creating, retrieving and deleting a feed trigger" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val actionName = "echo"
+    val triggerName = "feedTest"
+
+    assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+      action.create(actionName, Some(TestUtils.getTestActionFilename("echo.js")))
+    }
+
+    try {
+      wsk.trigger.create(triggerName, feed = Some(actionName)).stdout should include(""""lifecycleEvent": "CREATE"""")
+
+      wsk.trigger.get(triggerName).stdout should include(""""lifecycleEvent": "READ"""")
+    } finally {
+      wsk.trigger.delete(triggerName).stdout should include(""""lifecycleEvent": "DELETE"""")
     }
   }
 

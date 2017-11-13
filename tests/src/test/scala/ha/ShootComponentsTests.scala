@@ -36,7 +36,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common.TestUtils
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskActorSystem
 import common.WskProps
 import common.WskTestHelpers
@@ -47,11 +47,18 @@ import whisk.utils.retry
 class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers with ScalaFutures with WskActorSystem {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   implicit val materializer = ActorMaterializer()
   implicit val testConfig = PatienceConfig(1.minute)
+
+  // Throttle requests to the remaining controllers to avoid getting 429s. (60 req/min)
+  val amountOfControllers = WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt
+  val limit = WhiskProperties.getProperty(WhiskConfig.actionInvokeConcurrentLimit).toDouble
+  val limitPerController = limit / amountOfControllers
+  val allowedRequestsPerMinute = (amountOfControllers - 1.0) * limitPerController
+  val timeBeweenRequests = 60.seconds / allowedRequestsPerMinute
 
   val controller0DockerHost = WhiskProperties.getBaseControllerHost() + ":" + WhiskProperties.getProperty(
     WhiskConfig.dockerPort)
@@ -94,9 +101,8 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
 
       println(s"Done rerquests with responses: invoke: ${invokeExit.futureValue} and get: ${getExit.futureValue}")
 
-      // Do at most one action invocation per second to avoid getting 429s. (60 req/min - limit)
-      val wait = 1000 - (Instant.now.toEpochMilli - start.toEpochMilli)
-      Thread.sleep(if (wait < 0) 0L else if (wait > 1000) 1000L else wait)
+      val remainingWait = timeBeweenRequests.toMillis - (Instant.now.toEpochMilli - start.toEpochMilli)
+      Thread.sleep(if (remainingWait < 0) 0L else remainingWait)
       (invokeExit.futureValue, getExit.futureValue)
     }
   }
@@ -104,15 +110,15 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
   behavior of "Controllers hot standby"
 
   it should "use controller1 if controller0 goes down" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    if (WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt >= 2) {
+    if (amountOfControllers >= 2) {
       val actionName = "shootcontroller"
 
       assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
         action.create(actionName, defaultAction)
       }
 
-      // Produce some load on the system for 100 seconds (each second one request). Kill the controller after 4 requests
-      val totalRequests = 100
+      // Produce some load on the system for 100 seconds. Kill the controller after 4 requests
+      val totalRequests = (100.seconds / timeBeweenRequests).toInt
 
       val requestsBeforeRestart = doRequests(4, actionName)
 
@@ -130,7 +136,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
       val requests = requestsBeforeRestart ++ requestsAfterRestart
 
       val unsuccessfulInvokes = requests.map(_._1).count(_ != TestUtils.SUCCESS_EXIT)
-      // Allow 3 failures for the 90 seconds
+      // Allow 3 failures for the 100 seconds
       unsuccessfulInvokes should be <= 3
 
       val unsuccessfulGets = requests.map(_._2).count(_ != TestUtils.SUCCESS_EXIT)

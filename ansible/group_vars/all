@@ -117,6 +117,8 @@ controller:
       bindPort: 2551
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+  # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
+  ha: "{{ controller_enable_ha | default(false) }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -198,7 +200,10 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
+    actions_ddoc: "whisks"
     activations: "{{ db_prefix }}activations"
+    activations_ddoc: "whisks"
+    activations_filter_ddoc: "whisks"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
@@ -326,3 +331,13 @@ cli_arch:
 logs:
   dir:
     become: "{{ logs_dir_become | default(false) }}"
+
+# Metrics Configuration
+metrics:
+  log: 
+    enabled: "{{ metrics_log | default(true) }}"    
+  kamon: 
+    enabled: "{{ metrics_kamon | default(false) }}"
+    host: "{{ metrics_kamon_statsd_host | default('') }}"
+    port: "{{ metrics_kamon_statsd_port | default('8125') }}"
+

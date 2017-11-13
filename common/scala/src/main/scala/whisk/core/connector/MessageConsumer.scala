@@ -18,14 +18,12 @@
 package whisk.core.connector
 
 import scala.annotation.tailrec
-import scala.collection.mutable
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.concurrent.duration._
 import scala.util.Failure
-
 import org.apache.kafka.clients.consumer.CommitFailedException
-
 import akka.actor.FSM
 import akka.pattern.pipe
 import whisk.common.Logging
@@ -111,7 +109,13 @@ class MessageFeed(description: String,
     consumer.maxPeek <= maxPipelineDepth,
     "consumer may not yield more messages per peek than permitted by max depth")
 
-  private val outstandingMessages = mutable.Queue[(String, Int, Long, Array[Byte])]()
+  // Immutable Queue
+  // although on the surface it seems to make sense to use an immutable variable with a mutable Queue,
+  // Akka Actor state defies the usual "prefer immutable" guideline in Scala, esp. w/ Collections.
+  // If, for some reason, this Queue was mutable and is accidentally leaked in say an Akka message,
+  // another Actor or recipient would be able to mutate the internal state of this Actor.
+  // Best practice dictates a mutable variable pointing at an immutable collection for this reason
+  private var outstandingMessages = immutable.Queue.empty[(String, Int, Long, Array[Byte])]
   private var handlerCapacity = maximumHandlerCapacity
 
   private implicit val tid = TransactionId.dispatcher
@@ -137,7 +141,7 @@ class MessageFeed(description: String,
       stay
 
     case Event(FillCompleted(messages), _) =>
-      outstandingMessages.enqueue(messages: _*)
+      outstandingMessages = outstandingMessages ++ messages
       sendOutstandingMessages()
 
       if (shouldFillQueue()) {
@@ -202,7 +206,11 @@ class MessageFeed(description: String,
   private def sendOutstandingMessages(): Unit = {
     val occupancy = outstandingMessages.size
     if (occupancy > 0 && handlerCapacity > 0) {
-      val (topic, partition, offset, bytes) = outstandingMessages.dequeue()
+      // Easiest way with an immutable queue to cleanly dequeue
+      // Head is the first elemeent of the queue, desugared w/ an assignment pattern
+      // Tail is everything but the first element, thus mutating the collection variable
+      val (topic, partition, offset, bytes) = outstandingMessages.head
+      outstandingMessages = outstandingMessages.tail
 
       if (logHandoff) logging.info(this, s"processing $topic[$partition][$offset] ($occupancy/$handlerCapacity)")
       handler(bytes)

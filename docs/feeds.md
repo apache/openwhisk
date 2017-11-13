@@ -38,7 +38,7 @@ but technically distinct concepts.
 #  Implementing Feed Actions
 
 The *feed action* is a normal OpenWhisk *action*, but it should accept the following parameters:
-* **lifecycleEvent**: one of 'CREATE', 'DELETE', 'PAUSE', or 'UNPAUSE'.
+* **lifecycleEvent**: one of 'CREATE', 'READ', 'DELETE', 'PAUSE', or 'UNPAUSE'.
 * **triggerName**: the fully-qualified name of the trigger which contains events produced from this feed.
 * **authKey**: the Basic auth credentials of the OpenWhisk user who owns the trigger just mentioned.
 
@@ -58,7 +58,7 @@ The feed action named *changes* takes these parameters, and is expected to take 
 
 For the Cloudant *changes* feed, the action happens to talk directly to a *cloudant trigger* service we've implemented with a connection-based architecture.   We'll discuss the other architectures below.
 
-A similar feed action protocol occurs for `wsk trigger delete`.    
+A similar feed action protocol occurs for `wsk trigger delete` and `wsk trigger get`.    
 
 # Implementing Feeds with Hooks
 

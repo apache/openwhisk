@@ -18,6 +18,8 @@
 package system.basic
 
 import java.io.File
+import java.io.BufferedWriter
+import java.io.FileWriter
 
 import org.apache.commons.io.FileUtils
 import org.junit.runner.RunWith
@@ -119,5 +121,58 @@ class WskSdkTests extends TestHelpers with WskTestHelpers {
 
     val stdout = wsk.cli(Seq("sdk", "install", "bashauto", "--stdout")).stdout
     stdout should include(msg)
+  }
+
+  def verifyMissingSecurityFile(config: String, fileName: String, expectedErrorMessage: String) = {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val securityFile = File.createTempFile(fileName, ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"$config=${securityFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("sdk", "install", "docker", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex (expectedErrorMessage)
+    } finally {
+      tmpwskprops.delete()
+      securityFile.delete()
+    }
+  }
+
+  it should "return configure the missing Key file" in {
+    verifyMissingSecurityFile("CERT", "cert", "The Key file is not configured. Please configure the missing Key file.")
+  }
+
+  it should "return configure the missing Cert file" in {
+    verifyMissingSecurityFile("KEY", "key", "The Cert file is not configured. Please configure the missing Cert file.")
+  }
+
+  it should "return unable to load the X509 key pair with both Cert and Key files missing" in {
+    val tmpwskprops = File.createTempFile("wskprops", ".tmp")
+    val certFile = File.createTempFile("cert", ".pem")
+    val keyFile = File.createTempFile("key", ".pem")
+    try {
+      val writer = new BufferedWriter(new FileWriter(tmpwskprops))
+      writer.write(s"CERT=${certFile.getAbsolutePath()}\n")
+      writer.write(s"KEY=${keyFile.getAbsolutePath()}\n")
+      writer.close()
+      val env = Map("WSK_CONFIG_FILE" -> tmpwskprops.getAbsolutePath())
+      val stderr = wsk
+        .cli(
+          Seq("sdk", "install", "docker", "--apihost", wskprops.apihost, "--apiversion", wskprops.apiversion),
+          env = env,
+          expectedExitCode = ERROR_EXIT)
+        .stderr
+      stderr should include regex ("""Unable to load the X509 key pair due to the following reason""")
+    } finally {
+      tmpwskprops.delete()
+      certFile.delete()
+      keyFile.delete()
+    }
   }
 }

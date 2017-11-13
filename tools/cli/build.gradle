@@ -11,39 +11,27 @@ task removeBinary(type: Delete) {
     delete "${projectDir}/../../bin/windows"
 }
 
-task distBinary(dependsOn: [removeBinary, distDocker]) {
+task distBinary(dependsOn: [removeBinary]) {
     doLast {
-        run(dockerBinary + ["rm", "-f", dockerContainerName], true)
-        run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
+        String go_osname = mapOsNameToGoName(getOsName())
+        String go_osarch = mapOsArchToGoArch(getOsArch())
+        String from_path_wsk = "${projectDir}/../../bin/${go_osname}/${go_osarch}/wsk"
+        String to_path_dir = "${projectDir}/../../bin"
 
         // Copy all Go binaries from Docker into openwhisk/bin folder
-        run(dockerBinary + ["cp", dockerContainerName +
-                ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin"])
-
+        run(dockerBinary + ["rm", "-f", dockerContainerName], true)
+        run(dockerBinary + ["run", "--name", dockerContainerName, dockerTaggedImageName])
+        run(dockerBinary + ["cp", dockerContainerName + ":/src/github.com/go-whisk-cli/build/.", "${projectDir}/../../bin"])
         run(dockerBinary + ["rm", "-f", dockerContainerName])
+
+        exec {
+            executable "cp"
+            args "${from_path_wsk}", "${to_path_dir}"
+        }
     }
 }
 
-task dumpOSInfo {
-    doLast {
-        println "os.name = "+getOsName()
-        println "os.arch = "+getOsArch()
-        println "go.name = "+mapOsNameToGoName(getOsName())
-        println "go.arch = "+mapOsArchToGoArch(getOsArch())
-    }
-}
-
-task copyCLIShortcut(type: Copy, dependsOn: [distBinary, dumpOSInfo]) {
-    String go_osname     = mapOsNameToGoName(getOsName())
-    String go_osarch     = mapOsArchToGoArch(getOsArch())
-    String from_path_wsk = "${projectDir}/../../bin/${go_osname}/${go_osarch}/wsk"
-    String to_path_dir   = "${projectDir}/../../bin"
-
-    from from_path_wsk
-    into to_path_dir
-}
-
-pushImage.finalizedBy copyCLIShortcut
+pushImage.finalizedBy distBinary
 
 // Returns the Go CLI docker build args
 def getDockerBuildArgs() {

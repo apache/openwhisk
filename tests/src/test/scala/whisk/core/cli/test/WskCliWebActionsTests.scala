@@ -15,18 +15,14 @@
  * limitations under the License.
  */
 
-package system.basic
+package whisk.core.cli.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
-import common.WskTestHelpers
+import common.Wsk
 
 @RunWith(classOf[JUnitRunner])
-class WskUnicodePython2Tests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
-
-  override lazy val actionKind = "python:2"
-  override lazy val actionSource = "unicode2.py"
-
+class WskCliWebActionsTests extends WskWebActionsTests {
+  override lazy val wsk: common.Wsk = new Wsk
 }

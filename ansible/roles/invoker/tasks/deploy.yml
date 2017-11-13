@@ -119,8 +119,8 @@
         -e PORT='8080'
         -e KAFKA_HOST='{{ groups['kafka']|first }}'
         -e KAFKA_HOST_PORT='{{ kafka.port }}'
-        -e REDIS_HOST='{{ groups['redis'] | default([""]) | first }}'
-        -e REDIS_HOST_PORT='{{ redis.port }}'
+        -e ZOOKEEPER_HOST='{{ groups['kafka']|first }}'
+        -e ZOOKEEPER_HOST_PORT='{{ zookeeper.port }}'
         -e DB_PROTOCOL='{{ db_protocol }}'
         -e DB_PROVIDER='{{ db_provider }}'
         -e DB_HOST='{{ db_host }}'
@@ -129,6 +129,9 @@
         -e DB_PASSWORD='{{ db_password }}'
         -e DB_WHISK_ACTIONS='{{ db.whisk.actions }}'
         -e DB_WHISK_ACTIVATIONS='{{ db.whisk.activations }}'
+        -e DB_WHISK_ACTIONS_DDOC='{{ db.whisk.actions_ddoc }}'
+        -e DB_WHISK_ACTIVATIONS_DDOC='{{ db.whisk.activations_ddoc }}'
+        -e DB_WHISK_ACTIVATIONS_FILTER_DDOC='{{ db.whisk.activations_filter_ddoc }}'
         -e WHISK_API_HOST_PROTO='{{ whisk_api_host_proto | default('https') }}'
         -e WHISK_API_HOST_PORT='{{ whisk_api_host_port | default('443') }}'
         -e WHISK_API_HOST_NAME='{{ whisk_api_host_name | default(groups['edge'] | first) }}'
@@ -144,6 +147,10 @@
         -e INVOKER_USE_RUNC='{{ invoker.useRunc }}'
         -e INVOKER_NAME='{{ groups['invokers'].index(inventory_hostname) }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
+        -e METRICS_KAMON='{{ metrics.kamon.enabled }}'
+        -e METRICS_LOG='{{ metrics.log.enabled }}'
+        -e METRICS_KAMON_HOST='{{ metrics.kamon.host }}'
+        -e METRICS_KAMON_PORT='{{ metrics.kamon.port }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

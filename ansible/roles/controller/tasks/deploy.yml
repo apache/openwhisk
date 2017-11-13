@@ -60,9 +60,12 @@
       "DB_PORT": "{{ db_port }}"
       "DB_USERNAME": "{{ db_username }}"
       "DB_PASSWORD": "{{ db_password }}"
-      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
       "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
       "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+      "DB_WHISK_ACTIONS_DDOC": "{{ db.whisk.actions_ddoc }}"
+      "DB_WHISK_ACTIVATIONS_DDOC": "{{ db.whisk.activations_ddoc }}"
+      "DB_WHISK_ACTIVATIONS_FILTER_DDOC": "{{ db.whisk.activations_filter_ddoc }}"
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
@@ -79,6 +82,11 @@
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
       "AKKA_CLUSTER_BIND_PORT": "{{ controller.akka.cluster.bindPort }}"
       "AKKA_ACTOR_PROVIDER": "{{ controller.akka.provider }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
+      "METRICS_LOG": "{{ metrics.log.enabled }}"
+      "METRICS_KAMON_HOST": "{{ metrics.kamon.host }}"
+      "METRICS_KAMON_PORT": "{{ metrics.kamon.port }}"
+      "CONTROLLER_HA": "{{ controller.ha }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

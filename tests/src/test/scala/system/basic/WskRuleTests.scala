@@ -21,7 +21,8 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.TestUtils.RunResult
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -29,10 +30,10 @@ import spray.json.DefaultJsonProtocol._
 import java.time.Instant
 
 @RunWith(classOf[JUnitRunner])
-class WskRuleTests extends TestHelpers with WskTestHelpers {
+abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk: BaseWsk
   val defaultAction = TestUtils.getTestActionFilename("wc.js")
   val secondAction = TestUtils.getTestActionFilename("hello.js")
   val testString = "this is a test"
@@ -413,10 +414,15 @@ class WskRuleTests extends TestHelpers with WskTestHelpers {
         assetHelper)
 
       wsk.rule.disable(ruleName)
-      val listOutput = wsk.rule.list().stdout.lines
-      listOutput.find(_.contains(ruleName2)).get should (include(ruleName2) and include("active"))
-      listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
-      wsk.rule.list().stdout should not include ("Unknown")
+      val ruleListResult = wsk.rule.list()
+      verifyRuleList(ruleListResult, ruleName2, ruleName)
   }
 
+  def verifyRuleList(ruleListResult: RunResult, ruleNameEnable: String, ruleName: String) = {
+    val ruleList = ruleListResult.stdout
+    val listOutput = ruleList.lines
+    listOutput.find(_.contains(ruleNameEnable)).get should (include(ruleNameEnable) and include("active"))
+    listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
+    ruleList should not include ("Unknown")
+  }
 }

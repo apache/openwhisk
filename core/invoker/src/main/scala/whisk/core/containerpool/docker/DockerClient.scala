@@ -35,6 +35,18 @@ import scala.collection.concurrent.TrieMap
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 
+object DockerContainerId {
+
+  val containerIdRegex = """^([0-9a-f]{64})$""".r
+
+  def parse(id: String): Try[ContainerId] = {
+    id match {
+      case containerIdRegex(_) => Success(ContainerId(id))
+      case _                   => Failure(new IllegalArgumentException(s"Does not comply with Docker container ID format: ${id}"))
+    }
+  }
+}
+
 /**
  * Serves as interface to the docker CLI tool.
  *
@@ -63,8 +75,26 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     Seq(dockerBin) ++ host
   }
 
-  def run(image: String, args: Seq[String] = Seq.empty[String])(implicit transid: TransactionId): Future[ContainerId] =
-    runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*).map(ContainerId.apply)
+  def run(image: String, args: Seq[String] = Seq.empty[String])(
+    implicit transid: TransactionId): Future[ContainerId] = {
+    runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*)
+      .map {
+        ContainerId(_)
+      }
+      .recoverWith {
+        // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
+        // Exit code 125 means an error reported by the Docker daemon.
+        // Examples:
+        // - Unrecognized option specified
+        // - Not enough disk space
+        case pre: ProcessRunningException if pre.exitCode == 125 =>
+          Future.failed(
+            DockerContainerId
+              .parse(pre.stdout)
+              .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}"))
+              .getOrElse(pre))
+      }
+  }
 
   def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerAddress] =
     runCmd("inspect", "--format", s"{{.NetworkSettings.Networks.${network}.IPAddress}}", id.asString).flatMap {
@@ -190,3 +220,6 @@ trait DockerApi {
    */
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean]
 }
+
+/** Indicates any error while starting a container that leaves a broken container behind that needs to be removed */
+case class BrokenDockerContainer(id: ContainerId, msg: String) extends Exception(msg)

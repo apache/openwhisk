@@ -98,7 +98,14 @@ object DockerContainer {
     for {
       _ <- pulled
       id <- docker.run(image, args).recoverWith {
-        case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+        case BrokenDockerContainer(brokenId, message) =>
+          // Remove the broken container - but don't wait or check for the result.
+          // If the removal fails, there is nothing we could do to recover from the recovery.
+          docker.rm(brokenId)
+          Future.failed(
+            WhiskContainerStartupError(s"Failed to run container with image '${image}'. Removing broken container."))
+        case _ =>
+          Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
       ip <- docker.inspectIPAddress(id, network).recoverWith {
         // remove the container immediately if inspect failed as

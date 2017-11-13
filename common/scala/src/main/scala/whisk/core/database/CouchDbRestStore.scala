@@ -20,21 +20,23 @@ package whisk.core.database
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
+
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import whisk.core.entity.BulkEntityResult
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 import whisk.core.entity.WhiskDocument
 import whisk.http.Messages
-
-import scala.util.{Failure, Success, Try}
+import whisk.core.entity.DocumentReader
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -47,13 +49,18 @@ import scala.util.{Failure, Success, Try}
  * @param dbName the name of the database to operate on
  * @param serializerEvidence confirms the document abstraction is serializable to a Document with an id
  */
-class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
-  dbProtocol: String,
-  dbHost: String,
-  dbPort: Int,
-  dbUsername: String,
-  dbPassword: String,
-  dbName: String)(implicit system: ActorSystem, val logging: Logging, jsonFormat: RootJsonFormat[DocumentAbstraction])
+class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: String,
+                                                                  dbHost: String,
+                                                                  dbPort: Int,
+                                                                  dbUsername: String,
+                                                                  dbPassword: String,
+                                                                  dbName: String,
+                                                                  useBatching: Boolean = false)(
+  implicit system: ActorSystem,
+  val logging: Logging,
+  jsonFormat: RootJsonFormat[DocumentAbstraction],
+  materializer: ActorMaterializer,
+  docReader: DocumentReader)
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol {
 
@@ -61,6 +68,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
 
   private val client: CouchDbRestClient =
     new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
+
+  // This the the amount of allowed parallel requests for each entity, before batching starts. If there are already maxOpenDbRequests
+  // and more documents need to be stored, then all arriving documents will be put into batches (if enabled) to avoid a long queue.
+  private val maxOpenDbRequests = system.settings.config.getInt("akka.http.host-connection-pool.max-open-requests") / 2
+
+  private val batcher: Batcher[JsObject, Either[ArtifactStoreException, DocInfo]] =
+    new Batcher(500, maxOpenDbRequests)(put(_)(TransactionId.unknown))
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord
@@ -70,29 +84,42 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
     require(!id.isEmpty, "document id must be defined")
 
     val docinfoStr = s"id: $id, rev: ${rev.getOrElse("null")}"
-
     val start = transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$dbName' saving document: '${docinfoStr}'")
 
-    val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
-      case Some(r) =>
-        client =>
-          client.putDoc(id, r, asJson)
-      case None =>
-        client =>
-          client.putDoc(id, asJson)
-    }
+    val f = if (useBatching) {
+      batcher.put(asJson).map { e =>
+        e match {
+          case Right(response) =>
+            transid.finished(this, start, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'")
+            response
 
-    val f = request(client).map { e =>
-      e match {
+          case Left(e: DocumentConflictException) =>
+            transid.finished(this, start, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.")
+            // For compatibility.
+            throw DocumentConflictException("conflict on 'put'")
+
+          case Left(e: ArtifactStoreException) =>
+            transid.finished(this, start, s"[PUT] '$dbName', document: '${docinfoStr}'; ${e.getMessage}.")
+            throw PutException("error on 'put'")
+        }
+      }
+    } else {
+      val request: CouchDbRestClient => Future[Either[StatusCode, JsObject]] = rev match {
+        case Some(r) =>
+          client =>
+            client.putDoc(id, r, asJson)
+        case None =>
+          client =>
+            client.putDoc(id, asJson)
+      }
+      request(client).map {
         case Right(response) =>
           transid.finished(this, start, s"[PUT] '$dbName' completed document: '${docinfoStr}', response: '$response'")
           response.convertTo[DocInfo]
-
         case Left(StatusCodes.Conflict) =>
           transid.finished(this, start, s"[PUT] '$dbName', document: '${docinfoStr}'; conflict.")
           // For compatibility.
           throw DocumentConflictException("conflict on 'put'")
-
         case Left(code) =>
           transid.failed(
             this,
@@ -109,22 +136,25 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
         transid.failed(this, start, s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
-  override protected[database] def put(ds: Seq[DocumentAbstraction])(
-    implicit transid: TransactionId): Future[Seq[Either[DocumentConflictException, DocInfo]]] = {
+  private def put(ds: Seq[JsObject])(
+    implicit transid: TransactionId): Future[Seq[Either[ArtifactStoreException, DocInfo]]] = {
     val count = ds.size
     val start = transid.started(this, LoggingMarkers.DATABASE_BULK_SAVE, s"'$dbName' saving $count documents")
 
-    val request: Future[Either[StatusCode, JsArray]] = client.putDocs(ds.map(_.toDocumentRecord))
-
-    val f = request.map {
+    val f = client.putDocs(ds).map {
       _ match {
         case Right(response) =>
           transid.finished(this, start, s"'$dbName' completed $count documents")
-          response.convertTo[Seq[JsValue]].map { result =>
-            Try(result.convertTo[DocInfo]) match {
-              case Success(info) => Right(info)
-              case Failure(_)    => Left(DocumentConflictException("conflict on 'bulk_put'"))
-            }
+
+          response.convertTo[Seq[BulkEntityResult]].map { singleResult =>
+            singleResult.error
+              .map {
+                case "conflict" => Left(DocumentConflictException("conflict on 'bulk_put'"))
+                case e          => Left(PutException(s"Unexpected $e: ${singleResult.reason.getOrElse("")} on 'bulk_put'"))
+              }
+              .getOrElse {
+                Right(singleResult.toDocInfo)
+              }
           }
 
         case Left(code) =>
@@ -195,7 +225,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](
       e match {
         case Right(response) =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
-          val asFormat = jsonFormat.read(response)
+
+          val asFormat = try {
+            docReader.read(ma, response)
+          } catch {
+            case e: Exception => jsonFormat.read(response)
+          }
+
           if (asFormat.getClass != ma.runtimeClass) {
             throw DocumentTypeMismatchException(
               s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
