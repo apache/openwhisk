@@ -134,7 +134,7 @@ kafka:
   ras:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
-  replicationFactor: 1
+  replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length / 2 + 1)|int) }}"
   topics:
     completed:
       segmentBytes: 536870912
@@ -153,20 +153,20 @@ kafka:
       retentionBytes: 1073741824
       retentionMS: 300000
 
-kafka_connect_string: "{% set ret = [] %}
-                       {% for host in groups['kafkas'] %}
-                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}
-                       {% endfor %}
+kafka_connect_string: "{% set ret = [] %}\
+                       {% for host in groups['kafkas'] %}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                       {% endfor %}\
                        {{ ret | join(',') }}"
 
 zookeeper:
   version: 3.4
   port: 2181
 
-zookeeper_connect_string: "{% set ret = [] %}
-                           {% for host in groups['zookeepers'] %}
-                             {{ ret.append( hostvars[host].ansible_host + ':' + ((zookeeper.port+loop.index-1)|string) ) }}
-                           {% endfor %}
+zookeeper_connect_string: "{% set ret = [] %}\
+                           {% for host in groups['zookeepers'] %}\
+                             {{ ret.append( hostvars[host].ansible_host + ':' + ((zookeeper.port+loop.index-1)|string) ) }}\
+                           {% endfor %}\
                            {{ ret | join(',') }}"
 
 invoker:
