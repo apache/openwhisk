@@ -108,7 +108,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
    */
   override def afterAll() = {
     // Check and settle the throttle so that this test won't cause issues with and follow on tests
-    checkThrottle(30)
+    checkThrottle(1)
   }
 
   def apiCreate(basepath: Option[String] = None,
@@ -122,9 +122,7 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
                 cliCfgFile: Option[String] = Some(cliWskPropsFile.getCanonicalPath()))(
     implicit wskpropsOverride: WskProps): RunResult = {
 
-    println("parmssss is fdasdadasdddddddddsfsd")
     checkThrottle()
-    println("create is fdasdadasdddddddddsfsd")
     wsk.api.create(basepath, relpath, operation, action, apiname, swagger, responsetype, expectedExitCode, cliCfgFile)(
       wskpropsOverride)
   }
