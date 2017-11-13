@@ -76,25 +76,30 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
-      entity(as[WhiskPackagePut]) { content =>
-        val request = content.resolve(entityName.namespace)
+      if (!overwrite && entityName.name.toString == "default") {
+        logging.info(this, "attempt to create a package named 'default'")
+        terminate(BadRequest, Messages.packageDefaultIsReserved)
+      } else {
+        entity(as[WhiskPackagePut]) { content =>
+          val request = content.resolve(entityName.namespace)
 
-        request.binding.map { b =>
-          logging.info(this, "checking if package is accessible")
-        }
-        val referencedentities = referencedEntities(request)
+          request.binding.map { b =>
+            logging.info(this, "checking if package is accessible")
+          }
+          val referencedentities = referencedEntities(request)
 
-        onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
-          case Success(_) =>
-            putEntity(
-              WhiskPackage,
-              entityStore,
-              entityName.toDocId,
-              overwrite,
-              update(request) _,
-              () => create(request, entityName))
-          case Failure(f) =>
-            rewriteEntitlementFailure(f)
+          onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
+            case Success(_) =>
+              putEntity(
+                WhiskPackage,
+                entityStore,
+                entityName.toDocId,
+                overwrite,
+                update(request) _,
+                () => create(request, entityName))
+            case Failure(f) =>
+              rewriteEntitlementFailure(f)
+          }
         }
       }
     }

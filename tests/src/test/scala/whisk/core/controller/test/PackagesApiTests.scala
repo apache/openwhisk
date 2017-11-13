@@ -370,6 +370,20 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
+  it should "reject create package when package name is 'default'" in {
+    implicit val tid = transid()
+    def defname() = MakeName.next("default")
+    val provider = WhiskPackage(namespace, defname(), None)
+    Put(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      val response = responseAs[String]
+      println(s"Default failure response: '${response}'")
+      response should include {
+        Messages.packageDefaultIsReserved
+      }
+    }
+  }
+
   it should "create package reference with explicit namespace" in {
     implicit val tid = transid()
     val provider = WhiskPackage(namespace, aname())
