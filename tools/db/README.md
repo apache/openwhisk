@@ -138,3 +138,25 @@ Using that command will result in a replication for every database that matches 
 ### Replaying a snapshot
 
 To replay a snapshot, swap `--sourceDbUrl` and `--targetDbUrl` and call the script with the `replay` command. That command takes only 1 parameter: `--dbPrefix` to determine which backup to play back. Matching databases will be replicated back to the target database with the `backup_${TIMESTAMP_IN_SECONDS}_` removed, so they'd look just like the original database.
+
+## Database migration to new schema
+
+To reduce the memory consumption in the OpenWhisk controller, all code inlined in action documents has been moved to attachments. This change allows only metadata for actions to be fetched instead of the entire action. Though the OpenWhisk controller supports both mentioned schemas, it is ideal to update existing databases to use the new schema for memory consumption relief.
+
+1. The design document provided below will return all actions that are using the old schema. This design document needs to be manually to the related CouchDB
+```
+{
+  "_id": "_design/actionMigrate",
+  "language": "javascript",
+  "views": {
+    "actions": {
+      "map": "function (doc) {   var isAction = function (doc) {     return (doc.exec !== undefined)   };   var isMigrated = function (doc) {     return (doc._attachments !== undefined && doc._attachments.codefile !== undefined && typeof doc.code != 'string')   };   if (isAction(doc) && !isMigrated(doc)) try {     emit([doc.name]);   } catch (e) {} }"
+    }
+  }
+}
+```
+
+2. Run the `moveCodeToAttachment.py` to complete the schema update. Two parameters are required:
+
+* `--dbUrl`: Server URL of the database. E.g. 'https://xxx:yyy@domain.couch.com:443'.
+* `--dbName`: Name of the Database to update.
