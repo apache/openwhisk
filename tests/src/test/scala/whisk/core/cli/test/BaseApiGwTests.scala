@@ -22,6 +22,7 @@ import java.time.Instant
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
+import scala.math.max
 
 import org.junit.runner.RunWith
 
@@ -56,31 +57,23 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
   val cliWskPropsFile = File.createTempFile("wskprops", ".tmp")
 
   /**
-   * Expected to be called before each test.
-   * Assumes that each test will not invoke more than 5 actions and
+   * Expected to be called before each action invocation to
    * settle the throttle when there isn't enough capacity to handle the test.
    */
-  def checkThrottle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin, expectedActivationsPerTest: Int = 5) = {
+  def checkThrottle(maxInvocationsBeforeThrottle: Int = maxActionsPerMin, throttlePercent: Int = 50) = {
     val t = Instant.now
     val tminus60 = t.minusSeconds(60)
     val invocationsLast60Seconds = invocationTimes.filter(_.isAfter(tminus60)).sorted
     val invocationCount = invocationsLast60Seconds.length
     println(s"Action invokes within last minute: ${invocationCount}")
 
-    if (invocationCount >= maxInvocationsBeforeThrottle) {
-      // Instead of waiting a fixed 60 seconds to settle the throttle,
-      // calculate a wait time that will clear out about half of the
-      // current invocations (assuming even distribution) from the
-      // next 60 second period.
-      val oldestInvocationInLast60Seconds = invocationsLast60Seconds.head
+    if (invocationCount >= maxInvocationsBeforeThrottle && throttlePercent >= 1) {
+      val numInvocationsToClear = max(invocationCount / (100 / throttlePercent), 1)
+      val invocationToClear = invocationsLast60Seconds(numInvocationsToClear - 1)
+      println(
+        s"throttling ${throttlePercent}% of action invocations within last minute = ($numInvocationsToClear) invocations")
+      val throttleTime = 60.seconds.toMillis - (t.toEpochMilli - invocationToClear.toEpochMilli)
 
-      // Take the oldest invocation time in this 60 second period.  To clear
-      // this invocation from the next 60 second period, the wait time will be
-      // (60sec - oldest invocation's delta time away from the period end).
-      // This will clear all of the invocations from the next period at the
-      // expense of potentially waiting uncessarily long. Instead, this calculation
-      // halves the delta time as a compromise.
-      val throttleTime = 60.seconds.toMillis - ((t.toEpochMilli - oldestInvocationInLast60Seconds.toEpochMilli) / 2)
       println(s"Waiting ${throttleTime} milliseconds to settle the throttle")
       Thread.sleep(throttleTime)
     }
@@ -107,8 +100,8 @@ abstract class BaseApiGwTests extends TestHelpers with WskTestHelpers with Befor
    * this test suite
    */
   override def afterAll() = {
-    // Check and settle the throttle so that this test won't cause issues with and follow on tests
-    checkThrottle(1)
+    // Check and settle the throttle so that this test won't cause issues with any follow on tests
+    checkThrottle(maxInvocationsBeforeThrottle = 1, throttlePercent = 100)
   }
 
   def apiCreate(basepath: Option[String] = None,
