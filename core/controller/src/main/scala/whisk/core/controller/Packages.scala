@@ -43,6 +43,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   protected override val collection = Collection(Collection.PACKAGES)
 
+  protected[core] val RESERVED_NAMES = Array("default")
+
   /** Database service to CRUD packages. */
   protected val entityStore: EntityStore
 
@@ -76,9 +78,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
-      if (!overwrite && entityName.name.toString == "default") {
-        logging.info(this, "attempt to create a package named 'default'")
-        terminate(BadRequest, Messages.packageDefaultIsReserved)
+      if (!overwrite && (RESERVED_NAMES contains entityName.name.asString)) {
+        terminate(BadRequest, Messages.packageNameIsReserved(entityName.name.asString))
       } else {
         entity(as[WhiskPackagePut]) { content =>
           val request = content.resolve(entityName.namespace)
