@@ -1,2 +1,2 @@
-FROM openwhisk/nodejs6action:1.2.0
+FROM openwhisk/nodejs6action:1.3.0
 
