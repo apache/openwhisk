@@ -63,10 +63,10 @@ def updateNonJavaAction(db, doc, id):
 
 def createNonMigratedDoc(db):
     try:
-        db['_design/nonMigrated2']
+        db['_design/nonMigrated']
     except ResourceNotFound:
         db.save({
-            '_id': '_design/nonMigrated2',
+            '_id': '_design/nonMigrated',
             'language': 'javascript',
             'views': {
                 'actions': {
@@ -74,6 +74,9 @@ def createNonMigratedDoc(db):
                 }
             }
         })
+
+def deleteNonMigratedDoc(db):
+    del db['_design/nonMigrated']
 
 def main(args):
     db = couchdb.client.Server(args.dbUrl)[args.dbName]
@@ -103,6 +106,8 @@ def main(args):
                 print('Action already updated: "{0}"'.format(id))
 
         docIndex = docIndex + 1
+
+    deleteNonMigratedDoc(db)
 
 parser = argparse.ArgumentParser(description='Utility to update database action schema.')
 parser.add_argument('--dbUrl', required=True, help='Server URL of the database. E.g. \"https://xxx:yyy@domain.couch.com:443\"')
