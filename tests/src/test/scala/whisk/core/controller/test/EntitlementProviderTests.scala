@@ -90,10 +90,10 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val resourcesSet = resources.toSet
     val resourcesList = ListBuffer[Resource]()
     resourcesSet.map(r => resourcesList += r)
-    val resourceNames = resourcesList.map(r => r.fqname).sorted.toSet.mkString(",")
+    val resourceNames = resourcesList.map(r => r.fqname).sorted.toSet.mkString(", ")
     val resourceOtherNames = Seq(
       Resource(anotherUser.namespace.toPath, RULES, None),
-      Resource(anotherUser.namespace.toPath, NAMESPACES, None)).map(r => r.fqname).toSet.mkString(",")
+      Resource(anotherUser.namespace.toPath, NAMESPACES, None)).map(r => r.fqname).toSet.mkString(", ")
 
     Await.ready(entitlementProvider.check(someUser, READ, resourcesSet), requestTimeout).eitherValue.get shouldBe Left(
       RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceOtherNames)))

@@ -204,7 +204,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
-        logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+        logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
         checkSystemOverload(right)
           .flatMap(_ => checkUserThrottle(user, right, resources))
           .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
@@ -228,13 +228,15 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       resources.map(r => inaccessibleResources += r)
       logging.info(
         this,
-        s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
+        s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(", ")}'")
       Future.failed(
         RejectRequest(
           Forbidden,
-          Some(ErrorResponse(
-            Messages.notAuthorizedtoAccessResource(inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(",")),
-            transid))))
+          Some(
+            ErrorResponse(
+              Messages.notAuthorizedtoAccessResource(
+                inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
+              transid))))
     } else {
       resources.map(r => inaccessibleResources += r)
       Future.successful(false)
@@ -255,7 +257,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
             Some(
               ErrorResponse(
                 Messages.notAuthorizedtoAccessResource(
-                  inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(",")),
+                  inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
                 transid))))
       }
     }
