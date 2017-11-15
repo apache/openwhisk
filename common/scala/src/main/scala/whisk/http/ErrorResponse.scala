@@ -106,6 +106,9 @@ object Messages {
   val bindingCannotReferenceBinding = "Cannot bind to another package binding."
   val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
   val notAllowedOnBinding = "Operation not permitted on package binding."
+  def packageNameIsReserved(name: String) = {
+    s"Package name '$name' is reserved."
+  }
 
   /** Error messages for sequence activations. */
   def sequenceRetrieveActivationTimeout(id: ActivationId) =
