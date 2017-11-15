@@ -36,6 +36,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.pimpAny
 
+import whisk.http.Messages
+
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests extends TestHelpers with WskTestHelpers {
 
@@ -168,8 +170,9 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
 
   it should "reject get of package that does not exist" in {
     val name = "nonexistentPackage"
+    val ns = wsk.namespace.whois()
     val stderr = wsk.pkg.get(name, expectedExitCode = NOT_FOUND).stderr
-    stderr should include regex (s"""Unable to get package '$name': The requested resource does not exist. \\(code \\d+\\)""")
+    stderr should include regex (s"""Unable to get package '$name': ${Messages.resourceDoesntExist(s"${ns}/${name}")} \\(code \\d+\\)""")
   }
 
   behavior of "Wsk Action CLI"
