@@ -18,12 +18,11 @@
 package whisk.core.containerpool
 
 import scala.collection.immutable
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.Props
-import whisk.common.AkkaLogging
-import whisk.common.TransactionId
+
+import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
+
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
@@ -80,6 +79,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     }
   }
 
+  def logContainerStart(r: Run, containerState: String): Unit = {
+    val namespaceName = r.msg.user.namespace.name
+    val actionName = r.action.name.name
+    val activationId = r.msg.activationId.toString
+
+    r.msg.transid.mark(
+      this,
+      LoggingMarkers.INVOKER_CONTAINER_START(actionName, namespaceName, containerState),
+      s"containerStart containerState: $containerState action: $actionName namespace: $namespaceName activationId: $activationId",
+      akka.event.Logging.InfoLevel)
+  }
+
   def receive: Receive = {
     // A job to run on a container
     //
@@ -88,23 +99,40 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
       val container = if (busyPool.size < maxActiveContainers) {
+
         // Schedule a job to a warm container
         ContainerPool
           .schedule(r.action, r.msg.user.namespace, freePool)
+          .map(container => {
+            logContainerStart(r, "warm")
+            container
+          })
           .orElse {
             if (busyPool.size + freePool.size < maxPoolSize) {
-              takePrewarmContainer(r.action).orElse {
-                Some(createContainer())
-              }
+              takePrewarmContainer(r.action)
+                .map(container => {
+                  logContainerStart(r, "prewarmed")
+                  container
+                })
+                .orElse {
+                  logContainerStart(r, "cold")
+                  Some(createContainer())
+                }
             } else None
           }
           .orElse {
             // Remove a container and create a new one for the given job
             ContainerPool.remove(freePool).map { toDelete =>
               removeContainer(toDelete)
-              takePrewarmContainer(r.action).getOrElse {
-                createContainer()
-              }
+              takePrewarmContainer(r.action)
+                .map(container => {
+                  logContainerStart(r, "recreate")
+                  container
+                })
+                .getOrElse {
+                  logContainerStart(r, "recreate")
+                  createContainer()
+                }
             }
           }
       } else None

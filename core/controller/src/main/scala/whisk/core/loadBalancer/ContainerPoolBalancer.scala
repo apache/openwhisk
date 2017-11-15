@@ -36,6 +36,8 @@ import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
 import akka.event.Logging.InfoLevel
 
+import pureconfig._
+
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -157,6 +159,11 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
           processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
         }
+
+        transid.mark(
+          this,
+          LoggingMarkers.LOADBALANCER_ACTIVATION_START(namespaceId.asString),
+          s"loadbalancer: activation started for namespace $namespaceId")
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
