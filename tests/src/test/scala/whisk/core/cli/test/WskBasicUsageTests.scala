@@ -211,6 +211,27 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
   }
 
+  it should "create, and get an action to verify file parameter passed via stdin" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "actionParamsViaStdin"
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+      val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, parameterFile = Some("-"), stdinFile = Some(new File(argInput.get)))
+      }
+
+      val stdout = wsk.action.get(name).stdout
+      assert(stdout.startsWith(s"ok: got action $name\n"))
+
+      val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+      val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+      for (expectedItem <- escapedJSONArr) {
+        receivedParams should contain(expectedItem)
+      }
+  }
+
   it should "create an action with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val name = "actionEscapes"
@@ -475,6 +496,28 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       val args = Map("hello" -> "Robert".toJson)
       val run = wsk.action.invoke(name, args, blocking = true, result = true)
       run.stdout.parseJson shouldBe args.toJson
+  }
+
+  it should "invoke an action successfully with file parameters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "invokeResult"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+    }
+    val paramFile = Some(TestUtils.getTestActionFilename("validInput2.json"))
+    val run = wsk.action.invoke(name, blocking = true, result = true, parameterFile = paramFile)
+    run.stdout.parseJson shouldBe Map("payload" -> "test".toJson).toJson
+  }
+
+  it should "invoke an action successfully with parameters passed via stdin" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "invokeResult"
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")))
+      }
+      val paramFile = Some(new File(TestUtils.getTestActionFilename("validInput2.json")))
+      val run =
+        wsk.action.invoke(name, blocking = true, result = true, parameterFile = Some("-"), stdinFile = paramFile)
+      run.stdout.parseJson shouldBe Map("payload" -> "test".toJson).toJson
   }
 
   it should "invoke an action that returns a result by the deadline" in withAssetCleaner(wskprops) {
@@ -938,6 +981,27 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       }
   }
 
+  it should "create, and get a package to verify file parameter passed via stdin" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "packageParamsViaStdin"
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+      val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
+
+      assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
+        pkg.create(name, parameterFile = Some("-"), stdinFile = Some(new File(argInput.get)))
+      }
+
+      val stdout = wsk.pkg.get(name).stdout
+      assert(stdout.startsWith(s"ok: got package $name\n"))
+
+      val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+      val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+      for (expectedItem <- escapedJSONArr) {
+        receivedParams should contain(expectedItem)
+      }
+  }
+
   it should "create a package with the proper parameter and annotation escapes" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
       val name = "packageEscapses"
@@ -1075,6 +1139,27 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       for (expectedItem <- escapedJSONArr) {
         receivedParams should contain(expectedItem)
         receivedAnnots should contain(expectedItem)
+      }
+  }
+
+  it should "create, and get a trigger to verify file parameter passed via stdin" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "triggerParamsViaStdin"
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+      val argInput = Some(TestUtils.getTestActionFilename("validInput1.json"))
+
+      assetHelper.withCleaner(wsk.trigger, name) { (trigger, _) =>
+        trigger.create(name, parameterFile = Some("-"), stdinFile = Some(new File(argInput.get)))
+      }
+
+      val stdout = wsk.trigger.get(name).stdout
+      assert(stdout.startsWith(s"ok: got trigger $name\n"))
+
+      val receivedParams = wsk.parseJsonString(stdout).fields("parameters").convertTo[JsArray].elements
+      val escapedJSONArr = getJSONFileOutput.convertTo[JsArray].elements
+
+      for (expectedItem <- escapedJSONArr) {
+        receivedParams should contain(expectedItem)
       }
   }
 

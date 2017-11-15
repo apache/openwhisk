@@ -249,6 +249,7 @@ class WskAction()
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
+    stdinFile: Option[File] = None,
     expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++ {
       artifact map { Seq(_) } getOrElse Seq()
@@ -302,7 +303,7 @@ class WskAction()
         Seq("--web", w)
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    cli(wp.overrides ++ params, expectedExitCode, stdinFile = stdinFile)
   }
 
   /**
@@ -317,6 +318,7 @@ class WskAction()
                       parameterFile: Option[String] = None,
                       blocking: Boolean = false,
                       result: Boolean = false,
+                      stdinFile: Option[File] = None,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, "invoke", "--auth", wp.authKey, fqn(name)) ++ {
       parameters flatMap { p =>
@@ -327,7 +329,7 @@ class WskAction()
         Seq("-P", pf)
       } getOrElse Seq()
     } ++ { if (blocking) Seq("--blocking") else Seq() } ++ { if (result) Seq("--result") else Seq() }
-    cli(wp.overrides ++ params, expectedExitCode)
+    cli(wp.overrides ++ params, expectedExitCode, stdinFile = stdinFile)
   }
 }
 
@@ -355,6 +357,7 @@ class WskTrigger()
                       feed: Option[String] = None,
                       shared: Option[Boolean] = None,
                       update: Boolean = false,
+                      stdinFile: Option[File] = None,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++ {
       feed map { f =>
@@ -381,7 +384,7 @@ class WskTrigger()
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    cli(wp.overrides ++ params, expectedExitCode, stdinFile = stdinFile)
   }
 
   /**
@@ -767,6 +770,7 @@ class WskPackage() extends RunWskCmd with ListOrGetFromCollectionCLI with Delete
                       annotationFile: Option[String] = None,
                       shared: Option[Boolean] = None,
                       update: Boolean = false,
+                      stdinFile: Option[File] = None,
                       expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++ {
       parameters flatMap { p =>
@@ -789,7 +793,7 @@ class WskPackage() extends RunWskCmd with ListOrGetFromCollectionCLI with Delete
         Seq("--shared", if (s) "yes" else "no")
       } getOrElse Seq()
     }
-    cli(wp.overrides ++ params, expectedExitCode)
+    cli(wp.overrides ++ params, expectedExitCode, stdinFile = stdinFile)
   }
 
   /**
