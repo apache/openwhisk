@@ -210,18 +210,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
           .flatMap(_ => checkPrivilege(user, right, resources))
           .flatMap(resourcePrivSet => {
-            Future
-              .sequence {
-                resourcePrivSet.map { resourcePriv =>
-                  if (!resourcePriv._2) {
-                    inaccessibleResources += resourcePriv._1
-                    Future.successful(false)
-                  } else {
-                    Future.successful(true)
-                  }
-                }
-              }
-              .map { _.forall(identity) }
+            resourcePrivSet.map { resourcePriv =>
+              if (!resourcePriv._2) inaccessibleResources += resourcePriv._1
+            }
+            Future.successful(inaccessibleResources.length == 0)
           })
       } else Future.successful(true)
     } else if (right != REJECT) {
@@ -282,8 +274,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           case false =>
             logging.info(this, "checking explicit grants")
             entitled(user.subject, right, resource) flatMap {
-              case true  => Future.successful(resource -> true)
-              case false => Future.successful(resource -> false)
+              case b => Future.successful(resource -> b)
             }
         }
       }
