@@ -17,25 +17,26 @@
 
 package whisk.core.loadBalancer
 
+import akka.actor.ActorSystem
 import akka.actor.Address
-
 import scala.collection.immutable.Seq
+import whisk.core.WhiskConfig
+import whisk.spi.Spi
 
-trait SeedNodesProvider {
-  def getSeedNodes(): Seq[Address]
+trait SeedNodesProvider extends Spi {
+  def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address]
 }
 
-class StaticSeedNodesProvider(seedNodes: String, actorSystemName: String) extends SeedNodesProvider {
-  def getSeedNodes(): Seq[Address] = {
-    seedNodes
+object StaticSeedNodesProvider extends SeedNodesProvider {
+  def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address] =
+    config.controllerSeedNodes
       .split(' ')
       .flatMap { rawNodes =>
         val ipWithPort = rawNodes.split(":")
         ipWithPort match {
-          case Array(host, port) => Seq(Address("akka.tcp", actorSystemName, host, port.toInt))
+          case Array(host, port) => Seq(Address("akka.tcp", actorSystem.name, host, port.toInt))
           case _                 => Seq.empty[Address]
         }
       }
       .toIndexedSeq
-  }
 }

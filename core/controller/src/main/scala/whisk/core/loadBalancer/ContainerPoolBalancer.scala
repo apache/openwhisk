@@ -66,8 +66,9 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
     } else {
 
       /** Specify how seed nodes are generated */
-      val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      val seedNodes = SpiLoader.get[SeedNodesProvider].seedNodes(config, actorSystem)
+      logging.info(this, s"cluster seed nodes resolved to ${seedNodes}")
+      Cluster(actorSystem).joinSeedNodes(seedNodes)
       new DistributedLoadBalancerData()
     }
   }
