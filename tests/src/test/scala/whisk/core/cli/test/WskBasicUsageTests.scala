@@ -1136,6 +1136,8 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       wsk.trigger.create(triggerName, feed = Some(actionName)).stdout should include(""""lifecycleEvent": "CREATE"""")
 
       wsk.trigger.get(triggerName).stdout should include(""""lifecycleEvent": "READ"""")
+
+      wsk.trigger.create(triggerName, update = true).stdout should include(""""lifecycleEvent": "UPDATE""")
     } finally {
       wsk.trigger.delete(triggerName).stdout should include(""""lifecycleEvent": "DELETE"""")
     }
