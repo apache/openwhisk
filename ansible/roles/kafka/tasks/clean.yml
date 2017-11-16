@@ -1,6 +1,14 @@
 ---
 # Remove kafka and zookeeper containers.
 
+- name: remove old kafka
+  docker_container:
+    name: kafka
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/kafka:{{ docker.image.tag }}"
+    keep_volumes: False
+    state: absent
+  ignore_errors: True
+
 - name: remove kafka
   docker_container:
     name: kafka{{ groups['kafkas'].index(inventory_hostname) }}

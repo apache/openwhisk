@@ -11,6 +11,7 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     env:
+      "KAFKA_DEFAULT_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
       "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
       "KAFKA_ADVERTISED_PORT": "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"

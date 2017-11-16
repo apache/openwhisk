@@ -17,11 +17,13 @@
 
 package services
 
+import java.io.File
 import java.util.Calendar
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.Try
 
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
@@ -30,8 +32,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import common.StreamLogging
-import common.WskActorSystem
+import common.{StreamLogging, WskActorSystem, TestUtils}
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -63,6 +64,14 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     producer.close()
     consumer.close()
     super.afterAll()
+  }
+
+  def commandComponent(command: String, component: String) = {
+    def file(path: String) = Try(new File(path)).filter(_.exists).map(_.getAbsolutePath).toOption
+    val docker = (file("/usr/bin/docker") orElse file("/usr/local/bin/docker")).getOrElse("docker")
+    val cmd = Seq(docker, command, component)
+
+    TestUtils.runCmd(0, new File("."), cmd: _*)
   }
 
   behavior of "Kafka connector"
@@ -110,6 +119,28 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
           consumer.commit() // sleep should cause commit to fail
         }
       } else consumer.commit()
+    }
+  }
+
+  it should "send and receive a kafka message even after shutdown one of instances" in {
+    if (config.kafkaHosts.split(",").length > 1) {
+      val componentList = List("kafka0", "zookeeper0", "kafka1", "zookeeper1")
+      for (i <- 0 until componentList.length) {
+        val message = new Message {
+          override val serialize = Calendar.getInstance().getTime().toString
+        }
+
+        commandComponent("stop", componentList(i))
+
+        val start = java.lang.System.currentTimeMillis
+        val sent = Await.result(producer.send(topic, message), 20 seconds)
+        val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+        val end = java.lang.System.currentTimeMillis
+        val elapsed = end - start
+        println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
+
+        commandComponent("start", componentList(i))
+      }
     }
   }
 }
