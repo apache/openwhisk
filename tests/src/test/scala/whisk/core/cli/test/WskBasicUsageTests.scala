@@ -1123,7 +1123,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     }
   }
 
-  it should "invoke a feed action with the correct lifecyle event when creating, retrieving and deleting a feed trigger" in withAssetCleaner(
+  it should "invoke a feed action with the correct lifecyle event when creating, retrieving updating, and deleting a feed trigger" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     val actionName = "echo"
     val triggerName = "feedTest"
