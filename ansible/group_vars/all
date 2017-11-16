@@ -304,15 +304,13 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 
 openwhisk_cli:
-  installation_mode: local
+  installation_mode: "{{ cli_installation_mode | default('local') }}"
   local:
     location: "{{ openwhisk_cli_home }}/bin"
-
-# If you would like to use the remote mode, you can uncomment the following section.
-#  remote:
-#    name: OpenWhisk_CLI
-#    dest_name: OpenWhisk_CLI
-#    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+  remote:
+    name: OpenWhisk_CLI
+    dest_name: OpenWhisk_CLI
+    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 # The list of operating systems for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
