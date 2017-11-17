@@ -1555,6 +1555,7 @@
                     "type": "string",
                     "enum": [
                         "nodejs:6",
+                        "nodejs:8",
                         "python:2",
                         "python:3",
                         "swift:3",
