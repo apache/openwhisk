@@ -309,7 +309,7 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('local') }}"
+  installation_mode: "{{ cli_installation_mode | default('remote') }}"
   local:
     location: "{{ openwhisk_cli_home }}/bin"
   remote:
