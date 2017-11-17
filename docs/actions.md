@@ -573,7 +573,7 @@ To build and deploy an OpenWhisk Action using `npm` and `webpack`:
   {: pre}
   Using the CLI:
   ```
-  bx wsk action update my-action dist/bundle.js
+  wsk action update my-action dist/bundle.js
   ```
 
 Finally, the bundle file that is built by `webpack` doesn't support binary dependencies but rather JavaScript dependencies. So Action invocations will fail if the bundle depends on binary dependencies, because this is not included with the file `bundle.js`.
