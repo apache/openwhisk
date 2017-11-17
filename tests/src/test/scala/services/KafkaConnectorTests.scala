@@ -32,7 +32,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import common.{StreamLogging, WskActorSystem, TestUtils}
+import common.{StreamLogging, TestUtils, WskActorSystem}
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -126,9 +126,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     if (config.kafkaHosts.split(",").length > 1) {
       val componentList = List("kafka0", "zookeeper0", "kafka1", "zookeeper1")
       for (i <- 0 until componentList.length) {
-        val message = new Message {
-          override val serialize = Calendar.getInstance().getTime().toString
-        }
+        val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
 
         commandComponent("stop", componentList(i))
 
