@@ -10,7 +10,7 @@
     - name: create "logs" folder
       file: path="{{ openwhisk_home }}/logs" state=directory
     - name: dump entity views
-      local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get whisks --docs --view whisks/{{ item }} | tail -n +2 > "{{ openwhisk_home }}/logs/db-{{ item }}.log"
+      local_action: shell "{{ openwhisk_home }}/bin/wskadmin" db get whisks --docs --view whisks.v2/{{ item }} | tail -n +2 > "{{ openwhisk_home }}/logs/db-{{ item }}.log"
       with_items:
         - actions
         - triggers

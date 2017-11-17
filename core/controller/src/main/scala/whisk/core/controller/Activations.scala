@@ -157,7 +157,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
             WhiskActivation.listActivationsMatchingName(
               activationStore,
               namespace,
-              action.last.toPath,
+              action,
               skip,
               cappedLimit,
               docs,

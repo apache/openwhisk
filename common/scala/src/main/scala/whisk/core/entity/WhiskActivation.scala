@@ -145,8 +145,8 @@ object WhiskActivation
   // which are readily available here; rather than introduce significant refactoring,
   // defer this fix until WhiskConfig is refactored itself, which is planned to introduce
   // type safe properties
-  private val mainDdoc = WhiskConfig.readFromEnv(dbActivationsDesignDoc).getOrElse("whisks")
-  private val filtersDdoc = WhiskConfig.readFromEnv(dbActivationsFilterDesignDoc).getOrElse("whisks")
+  private val mainDdoc = WhiskConfig.readFromEnv(dbActivationsDesignDoc).getOrElse("whisks.v2")
+  private val filtersDdoc = WhiskConfig.readFromEnv(dbActivationsFilterDesignDoc).getOrElse("whisks-filters.v2")
 
   /** The main view for activations, keyed by namespace, sorted by date. */
   override lazy val view = WhiskEntityQueries.view(mainDdoc, collectionName)
