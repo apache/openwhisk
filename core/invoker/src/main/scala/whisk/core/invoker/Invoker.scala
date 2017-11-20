@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
+import scalaj.http.{Http, HttpResponse}
 
 import com.redis.RedisClient
 
@@ -142,7 +143,14 @@ object Invoker {
         redisClient.quit
         assignedId
       }
-    val invokerInstance = InstanceId(assignedInvokerId);
+
+   val invokerInstance = InstanceId(assignedInvokerId);
+
+   // Get the Invoker instancefrom the Controller via REST API.
+
+   val response: HttpResponse[String] = Http("http://controller.openwhisk:8080/invokerId").asString
+   val invokerInstance = InstanceId(response.body.toInt)
+
     val msgProvider = SpiLoader.get[MessagingProvider]
     val producer = msgProvider.getProducer(config, ec)
     val invoker = try {
