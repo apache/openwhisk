@@ -165,7 +165,8 @@ object Controller {
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       LoadBalancerService.requiredProperties ++
-      EntitlementProvider.requiredProperties
+      EntitlementProvider.requiredProperties ++
+      RemoteCacheInvalidation.requiredProperties
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
     JsObject(
@@ -222,6 +223,28 @@ object Controller {
             "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
             "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {
       abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
+    }
+    if (!msgProvider.ensureTopic(
+          config,
+          "health",
+          Map(
+            "numPartitions" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
+            "retention.bytes" -> config.kafkaTopicsHealthRetentionBytes,
+            "retention.ms" -> config.kafkaTopicsHealthRetentionMS,
+            "segment.bytes" -> config.kafkaTopicsHealthSegmentBytes))) {
+      abort(s"failure during msgProvider.ensureTopic for topic health")
+    }
+    if (!msgProvider.ensureTopic(
+          config,
+          "cacheInvalidation",
+          Map(
+            "numPartitions" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
+            "retention.bytes" -> config.kafkaTopicsCacheInvalidationRetentionBytes,
+            "retention.ms" -> config.kafkaTopicsCacheInvalidationRetentionMS,
+            "segment.bytes" -> config.kafkaTopicsCacheInvalidationSegmentBytes))) {
+      abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
 
     ExecManifest.initialize(config) match {

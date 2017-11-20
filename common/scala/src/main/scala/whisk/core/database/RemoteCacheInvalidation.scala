@@ -37,9 +37,11 @@ import whisk.core.entity.CacheKey
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActionMetaData
+import whisk.core.WhiskConfig._
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
+import whisk.core.entity.size._
 import whisk.spi.SpiLoader
 
 case class CacheInvalidationMessage(key: CacheKey, instanceId: String) extends Message {
@@ -97,4 +99,13 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
     }
     invalidationFeed ! MessageFeed.Processed
   }
+}
+
+object RemoteCacheInvalidation {
+  def requiredProperties =
+    kafkaHosts ++
+      Map(
+        kafkaTopicsCacheInvalidationRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsCacheInvalidationRetentionMS -> 5.minutes.toMillis.toString,
+        kafkaTopicsCacheInvalidationSegmentBytes -> 512.MB.toBytes.toString)
 }

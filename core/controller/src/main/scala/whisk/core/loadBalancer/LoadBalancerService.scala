@@ -346,10 +346,13 @@ object LoadBalancerService {
   def requiredProperties =
     kafkaHosts ++
       Map(
+        kafkaReplicationFactor -> "1",
         kafkaTopicsCompletedRetentionBytes -> 1024.MB.toBytes.toString,
         kafkaTopicsCompletedRetentionMS -> 1.hour.toMillis.toString,
         kafkaTopicsCompletedSegmentBytes -> 512.MB.toBytes.toString,
-        kafkaReplicationFactor -> "1") ++
+        kafkaTopicsHealthRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsHealthRetentionMS -> 1.hour.toMillis.toString,
+        kafkaTopicsHealthSegmentBytes -> 512.MB.toBytes.toString) ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
