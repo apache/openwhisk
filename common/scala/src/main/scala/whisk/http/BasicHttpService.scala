@@ -27,8 +27,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.server.directives.DebuggingDirectives
-import akka.http.scaladsl.server.directives.LogEntry
+import akka.http.scaladsl.server.directives.{DebuggingDirectives, HeaderDirectives, LogEntry}
 import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common.LogMarker
@@ -53,6 +52,8 @@ trait BasicHttpService extends Directives with TransactionCounter {
       case x => x
     }
   }
+
+  val OW_EXTRA_LOGGING_HEADER = "X-OW-EXTRA-LOGGING"
 
   /**
    * Gets the routes implemented by the HTTP service.
@@ -100,7 +101,13 @@ trait BasicHttpService extends Directives with TransactionCounter {
   }
 
   /** Assigns transaction id to every request. */
-  protected val assignId = extract(_ => transid())
+  protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
+    val extraLogging = headerValue match {
+      case Some(value) => value.toLowerCase == "on"
+      case None        => false
+    }
+    extract(_ => transid(extraLogging))
+  }
 
   /** Generates log entry for every request. */
   protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {

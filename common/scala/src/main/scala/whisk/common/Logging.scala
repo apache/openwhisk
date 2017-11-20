@@ -37,7 +37,11 @@ trait Logging {
    * @param message Message to write to the log
    */
   def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
-    emit(DebugLevel, id, from, message)
+    if (id.meta.extraLogging) {
+      emit(InfoLevel, id, from, message)
+    } else {
+      emit(DebugLevel, id, from, message)
+    }
   }
 
   /**
