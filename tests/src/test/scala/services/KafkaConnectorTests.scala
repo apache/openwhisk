@@ -32,7 +32,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
-import common.{StreamLogging, TestUtils, WskActorSystem}
+import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
@@ -66,10 +66,11 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     super.afterAll()
   }
 
-  def commandComponent(command: String, component: String) = {
+  def commandComponent(host: String, command: String, component: String) = {
     def file(path: String) = Try(new File(path)).filter(_.exists).map(_.getAbsolutePath).toOption
     val docker = (file("/usr/bin/docker") orElse file("/usr/local/bin/docker")).getOrElse("docker")
-    val cmd = Seq(docker, command, component)
+    val dockerPort = WhiskProperties.getProperty(WhiskConfig.dockerPort)
+    val cmd = Seq(docker, "--host", host + ":" + dockerPort, command, component)
 
     TestUtils.runCmd(0, new File("."), cmd: _*)
   }
@@ -123,12 +124,13 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   }
 
   it should "send and receive a kafka message even after shutdown one of instances" in {
-    if (config.kafkaHosts.split(",").length > 1) {
-      val componentList = List("kafka0", "zookeeper0", "kafka1", "zookeeper1")
-      for (i <- 0 until componentList.length) {
+    val kafkaHosts = config.kafkaHosts.split(",")
+    if (kafkaHosts.length > 1) {
+      for (i <- 0 until kafkaHosts.length) {
         val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
 
-        commandComponent("stop", componentList(i))
+        val kafkaHost = kafkaHosts(i).split(":")(0)
+        commandComponent(kafkaHost, "stop", s"kafka$i")
 
         val start = java.lang.System.currentTimeMillis
         val sent = Await.result(producer.send(topic, message), 20 seconds)
@@ -137,7 +139,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         val elapsed = end - start
         println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
 
-        commandComponent("start", componentList(i))
+        commandComponent(kafkaHost, "start", s"kafka$i")
       }
     }
   }
