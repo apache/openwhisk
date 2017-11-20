@@ -49,7 +49,7 @@ object KafkaMessagingProvider extends MessagingProvider {
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: Map[String, String])(
     implicit logging: Logging): Boolean = {
     val props = new Properties
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHost)
+    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)
     val numPartitions = topicConfig.getOrElse("numPartitions", "1").toInt
     val replicationFactor = topicConfig.getOrElse("replicationFactor", "1").toShort
