@@ -1,5 +1,5 @@
 whisk_version_name: local
-config_root_dir: /tmp
+config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 docker_registry: ""
 docker_dns: ""
