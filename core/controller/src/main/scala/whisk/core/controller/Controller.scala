@@ -39,7 +39,6 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.connector.MessagingProvider
 import whisk.core.database.RemoteCacheInvalidation
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
@@ -200,28 +199,15 @@ object Controller {
     require(args.length >= 1, "controller instance required")
     val instance = args(0).toInt
 
-    def abort(message: String) = {
-      logger.error(this, message)
+    def abort() = {
+      logger.error(this, "Bad configuration, cannot start.")
       actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
       sys.exit(1)
     }
 
     if (!config.isValid) {
-      abort("Bad configuration, cannot start.")
-    }
-
-    val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(
-          config,
-          "completed" + instance,
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> "1",
-            "retention.bytes" -> config.kafkaTopicsCompletedRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {
-      abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
+      abort()
     }
 
     ExecManifest.initialize(config) match {
@@ -236,7 +222,8 @@ object Controller {
         BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
 
       case Failure(t) =>
-        abort(s"Invalid runtimes manifest: $t")
+        logger.error(this, s"Invalid runtimes manifest: $t")
+        abort()
     }
   }
 }
