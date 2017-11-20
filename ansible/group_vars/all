@@ -133,7 +133,7 @@ kafka:
   port: 9092
   ras:
     port: 8093
-  heap: "{{ kafka_heap | default('0.5g') }}"
+  heap: "{{ kafka_heap | default('512m') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length / 2 + 1)|int) }}"
   topics:
     completed:
