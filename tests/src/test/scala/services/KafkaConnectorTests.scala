@@ -50,8 +50,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val groupid = "kafkatest"
   val topic = "Dinosaurs"
-  val sessionTimeout = 10 seconds
-  val maxPollInterval = 10 seconds
+  val sessionTimeout = 30 seconds
+  val maxPollInterval = 30 seconds
   val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
   val consumer = new KafkaConsumerConnector(
     config.kafkaHosts,
@@ -133,8 +133,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         commandComponent(kafkaHost, "stop", s"kafka$i")
 
         val start = java.lang.System.currentTimeMillis
-        val sent = Await.result(producer.send(topic, message), 20 seconds)
-        val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+        val sent = Await.result(producer.send(topic, message), 30 seconds)
+        val received = consumer.peek(30 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
         val end = java.lang.System.currentTimeMillis
         val elapsed = end - start
         println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
