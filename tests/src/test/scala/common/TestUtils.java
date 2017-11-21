@@ -69,7 +69,7 @@ public class TestUtils {
     public static final int CONFLICT        = 153;      // 409 - 256 = 153
     public static final int TOO_LARGE       = 157;      // 413 - 256 = 157
     public static final int THROTTLED       = 173;      // 429 (TOO_MANY_REQUESTS) - 256 = 173
-    public static final int APP_ERROR       = 246;      // 502 - 256 = 246
+    public static final int APP_ERROR       = 244;      // 500 - 256 = 244
     public static final int TIMEOUT         = 246;      // 502 (GATEWAY_TIMEOUT) - 256 = 246
 
     private static final File catalogDir = WhiskProperties.getFileRelativeToWhiskHome("catalog");

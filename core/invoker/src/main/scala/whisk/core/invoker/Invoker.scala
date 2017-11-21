@@ -65,7 +65,8 @@ object Invoker {
       Map(
         kafkaTopicsInvokerRetentionBytes -> 1024.MB.toBytes.toString,
         kafkaTopicsInvokerRetentionMS -> 48.hour.toMillis.toString,
-        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString) ++
+        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString,
+        kafkaReplicationFactor -> "1") ++
       zookeeperHosts ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
@@ -192,7 +193,7 @@ object Invoker {
           "invoker" + assignedInvokerId,
           Map(
             "numPartitions" -> "1",
-            "replicationFactor" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
             "retention.bytes" -> config.kafkaTopicsInvokerRetentionBytes,
             "retention.ms" -> config.kafkaTopicsInvokerRetentionMS,
             "segment.bytes" -> config.kafkaTopicsInvokerSegmentBytes))) {

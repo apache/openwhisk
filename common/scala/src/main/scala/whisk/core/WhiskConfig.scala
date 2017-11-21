@@ -103,6 +103,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val kafkaTopicsCompletedRetentionBytes = this(WhiskConfig.kafkaTopicsCompletedRetentionBytes)
   val kafkaTopicsCompletedRetentionMS = this(WhiskConfig.kafkaTopicsCompletedRetentionMS)
   val kafkaTopicsCompletedSegmentBytes = this(WhiskConfig.kafkaTopicsCompletedSegmentBytes)
+  val kafkaReplicationFactor = this(WhiskConfig.kafkaReplicationFactor)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
@@ -246,6 +247,7 @@ object WhiskConfig {
   val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retentionBytes"
   val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retentionMS"
   val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segmentBytes"
+  val kafkaReplicationFactor = "kafka.replicationFactor"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
