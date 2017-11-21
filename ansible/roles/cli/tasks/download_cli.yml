@@ -2,6 +2,13 @@
 
 # Download the cli to openwhisk_home
 
+- name: "ensure the bin folder exists under {{ openwhisk_home }}"
+  local_action: >
+    file
+    path="{{ openwhisk_home }}/bin"
+    state=directory mode=0777
+  become: "{{ cli.dir.become }}"
+
 - name: "download cli (linux) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
