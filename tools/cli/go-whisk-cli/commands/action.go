@@ -72,17 +72,32 @@ var actionCreateCmd = &cobra.Command{
     RunE: func(cmd *cobra.Command, args []string) error {
         var action *whisk.Action
         var err error
+        var minArgs int
+
+        if cmd.LocalFlags().Changed(DOCKER_FLAG) && cmd.LocalFlags().Changed(SEQUENCE_FLAG) {
+            whisk.Debug(whisk.DbgError, "Cannot create sequence with docker action", cmd, args, err)
+
+            errMsg := wski18n.T("Cannot create sequence with docker action")
+
+            return nestedError(errMsg, err)
+        }
+
+        if !cmd.LocalFlags().Changed(DOCKER_FLAG) {
+          minArgs = 2
+        } else {
+          minArgs = 1
+        }
 
         if whiskErr := CheckArgs(
             args,
-            1,
+            minArgs,
             2,
             "Action create",
             wski18n.T("An action name and code artifact are required.")); whiskErr != nil {
                 return whiskErr
         }
 
-        if action, err = parseAction(cmd, args, false); err != nil {
+        if action, err = parseAction(cmd, args); err != nil {
             return actionParseError(cmd, args, err)
         }
 
@@ -106,6 +121,14 @@ var actionUpdateCmd = &cobra.Command{
         var action *whisk.Action
         var err error
 
+        if cmd.LocalFlags().Changed(DOCKER_FLAG) && cmd.LocalFlags().Changed(SEQUENCE_FLAG) {
+            whisk.Debug(whisk.DbgError, "Cannot create sequence with docker action", cmd, args, err)
+
+            errMsg := wski18n.T("Cannot create sequence with docker action")
+
+            return nestedError(errMsg, err)
+        }
+
         if whiskErr := CheckArgs(
             args,
             1,
@@ -115,7 +138,7 @@ var actionUpdateCmd = &cobra.Command{
                 return whiskErr
         }
 
-        if action, err = parseAction(cmd, args, true); err != nil {
+        if action, err = parseAction(cmd, args); err != nil {
             return actionParseError(cmd, args, err)
         }
 
@@ -352,7 +375,7 @@ var actionListCmd = &cobra.Command{
     },
 }
 
-func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action, error) {
+func parseAction(cmd *cobra.Command, args []string) (*whisk.Action, error) {
     var err error
     var existingAction *whisk.Action
     var paramArgs []string
@@ -415,20 +438,14 @@ func parseAction(cmd *cobra.Command, args []string, update bool) (*whisk.Action,
         action.Parameters = append(action.Parameters, existingAction.Parameters...)
         action.Annotations = append(action.Annotations, existingAction.Annotations...)
     } else if flags.action.sequence {
-        if len(args) == 2 {
-            action.Exec = new(whisk.Exec)
-            action.Exec.Kind = SEQUENCE
-            action.Exec.Components = csvToQualifiedActions(args[1])
-        } else {
-            return nil, noArtifactError()
-        }
+        action.Exec = new(whisk.Exec)
+        action.Exec.Kind = SEQUENCE
+        action.Exec.Components = csvToQualifiedActions(args[1])
     } else if len(args) > 1 || len(flags.action.docker) > 0 {
         action.Exec, err = getExec(args, flags.action)
         if err != nil {
             return nil, err
         }
-    } else if !update {
-        return nil, noArtifactError()
     }
 
     if cmd.LocalFlags().Changed(WEB_FLAG) {
@@ -468,10 +485,6 @@ func getExec(args []string, params ActionFlags) (*whisk.Exec, error) {
         }
 
         exec.Code = &code
-    } else if len(args) == 1 && len(docker) == 0 {
-        return nil, noArtifactError()
-    } else if len(args) > 1 {
-        return nil, noArtifactError()
     }
 
     if len(kind) > 0 {
@@ -845,12 +858,6 @@ func zipKindError() (error) {
     return nonNestedError(errMsg)
 }
 
-func noArtifactError() (error) {
-    errMsg := wski18n.T("An action name and code artifact are required.")
-
-    return nonNestedError(errMsg)
-}
-
 func extensionError(extension string) (error) {
     errMsg := wski18n.T(
         "'{{.name}}' is not a supported action runtime",
@@ -1034,9 +1041,9 @@ func isWebAction(client *whisk.Client, qname QualifiedName) (error) {
 
 func init() {
     actionCreateCmd.Flags().BoolVar(&flags.action.native, "native", false, wski18n.T("treat ACTION as native action (zip file provides a compatible executable to run)"))
-    actionCreateCmd.Flags().StringVar(&flags.action.docker, "docker", "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
+    actionCreateCmd.Flags().StringVar(&flags.action.docker, DOCKER_FLAG, "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
     actionCreateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionCreateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
+    actionCreateCmd.Flags().BoolVar(&flags.action.sequence, SEQUENCE_FLAG, false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionCreateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionCreateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionCreateCmd.Flags().IntVarP(&flags.action.timeout, TIMEOUT_FLAG, "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))
@@ -1049,9 +1056,9 @@ func init() {
     actionCreateCmd.Flags().StringVar(&flags.action.web, WEB_FLAG, "", wski18n.T("treat ACTION as a web action, a raw HTTP web action, or as a standard action; yes | true = web action, raw = raw HTTP web action, no | false = standard action"))
 
     actionUpdateCmd.Flags().BoolVar(&flags.action.native, "native", false, wski18n.T("treat ACTION as native action (zip file provides a compatible executable to run)"))
-    actionUpdateCmd.Flags().StringVar(&flags.action.docker, "docker", "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
+    actionUpdateCmd.Flags().StringVar(&flags.action.docker, DOCKER_FLAG, "", wski18n.T("use provided docker image (a path on DockerHub) to run the action"))
     actionUpdateCmd.Flags().BoolVar(&flags.action.copy, "copy", false, wski18n.T("treat ACTION as the name of an existing action"))
-    actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, "sequence", false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
+    actionUpdateCmd.Flags().BoolVar(&flags.action.sequence, SEQUENCE_FLAG, false, wski18n.T("treat ACTION as comma separated sequence of actions to invoke"))
     actionUpdateCmd.Flags().StringVar(&flags.action.kind, "kind", "", wski18n.T("the `KIND` of the action runtime (example: swift:default, nodejs:default)"))
     actionUpdateCmd.Flags().StringVar(&flags.action.main, "main", "", wski18n.T("the name of the action entry point (function or fully-qualified method name when applicable)"))
     actionUpdateCmd.Flags().IntVarP(&flags.action.timeout, TIMEOUT_FLAG, "t", TIMEOUT_LIMIT, wski18n.T("the timeout `LIMIT` in milliseconds after which the action is terminated"))

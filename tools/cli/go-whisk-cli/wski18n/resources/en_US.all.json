@@ -1554,5 +1554,9 @@
   {
     "id": "Cannot create file '{{.name}}': {{.err}}",
     "translation": "Cannot create file '{{.name}}': {{.err}}"
+  },
+  {
+    "id": "Cannot create sequence with docker action",
+    "translation": "Cannot create sequence with docker action"
   }
 ]
