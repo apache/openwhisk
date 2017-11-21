@@ -125,21 +125,23 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   it should "send and receive a kafka message even after shutdown one of instances" in {
     val kafkaHosts = config.kafkaHosts.split(",")
+    val commandLists = List("stop", "start")
     if (kafkaHosts.length > 1) {
       for (i <- 0 until kafkaHosts.length) {
         val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-
         val kafkaHost = kafkaHosts(i).split(":")(0)
-        commandComponent(kafkaHost, "stop", s"kafka$i")
 
-        val start = java.lang.System.currentTimeMillis
-        val sent = Await.result(producer.send(topic, message), 30 seconds)
-        val received = consumer.peek(30 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
-        val end = java.lang.System.currentTimeMillis
-        val elapsed = end - start
-        println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
+        for (j <- 0 until commandLists.length) {
+          commandComponent(kafkaHost, commandLists(j), s"kafka$i")
 
-        commandComponent(kafkaHost, "start", s"kafka$i")
+          val start = java.lang.System.currentTimeMillis
+          val sent = Await.result(producer.send(topic, message), 30 seconds)
+          val received = consumer.peek(30 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+          val end = java.lang.System.currentTimeMillis
+          val elapsed = end - start
+          println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
+          consumer.commit()
+        }
       }
     }
   }
