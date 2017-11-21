@@ -13,6 +13,7 @@ include 'actionRuntimes:javaAction'
 include 'actionRuntimes:php7.1Action'
 
 include 'tools:cli'
+include 'tools:db:docker'
 
 include 'sdk:docker'
 

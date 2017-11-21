@@ -35,6 +35,7 @@ bin/
 .gradle
 build/
 !/tools/build/
+tools/db/docker/import
 
 # Python
 .ipynb_checkpoints/

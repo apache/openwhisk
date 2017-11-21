@@ -1,0 +1,114 @@
+ext {
+    dockerImageName = 'couchdb'
+    couchdbImage = 'couchdb:1.6'
+    couchdbUser = "gradle_admin"
+    couchdbPass = "gradle_password"
+    couchdbPrefix = "local_"
+    ansibleImage = 'williamyeh/ansible:debian8'
+    tmp_src = file(gradle.gradleUserHomeDir.getPath() + '/openwhisk').getPath()
+    import_src = file(project.rootDir.getPath() + '/tools/db/docker/import').getPath()
+}
+
+apply from: '../../../gradle/docker.gradle'
+
+/**
+ * Creates a temporary folder used by this build with the sources.
+ * This is needed to make sure the project is in the user's home folder
+ * which is mounted by docker by default
+ */
+task setupTmpFolder(type: Copy) {
+    new File(tmp_src.toString()).mkdirs()
+    new File(import_src.toString()).mkdirs()
+    println 'Copying from:' + project.rootDir.getPath() + ' into the temporary folder:' + tmp_src
+    from project.rootDir
+    include 'tools/db/**/*', 'ansible/**/*'
+    into tmp_src
+}
+
+/**
+ * Creates one container with CouchDB and executes Ansible playbooks to init DB.
+ * Ansible is executed using another container so that the build is not dependent on Ansible.
+ */
+task exportCleanDB() {
+    doFirst {
+        // start a docker container with CouchDB
+        def db_cmd = dockerBinary + ['run', '-d', '--name=gradle_couchdb', '--expose', '5984'] +
+                ['-e', 'COUCHDB_USER=' + couchdbUser, '-e', 'COUCHDB_PASSWORD=' + couchdbPass] +
+                ['-v', tmp_src + ':/openwhisk'] +
+                [couchdbImage]
+
+        // start a docker container to run Ansible playbook that configures CouchDB
+        def ansible_cmd = dockerBinary + ['run', '--name=gradle_ansible', '--rm'] +
+                ['-v', tmp_src + ':/openwhisk', '-w', '/openwhisk/ansible'] +
+                ['--link=gradle_couchdb', '-t', ansibleImage] +
+                ['ansible-playbook', 'setup.yml', 'initdb.yml', 'wipe.yml'] +
+                ['-e', 'db_username=' + couchdbUser, '-e', 'db_password=' + couchdbPass] +
+                ['-e', 'db_host=gradle_couchdb', '-e', 'openwhisk_home=/openwhisk', '-e', 'db_prefix=' + couchdbPrefix]
+
+        println("${new Date()}: Executing '${db_cmd.join(" ")}'")
+        println("${new Date()}: Executing '${ansible_cmd.join(" ")}'")
+        def timeout = 60
+        def db_proc = db_cmd.execute()
+        db_proc.consumeProcessOutput(System.out, System.err)
+        db_proc.waitForOrKill(timeout * 1000)
+        def ansible_proc = ansible_cmd.execute()
+        ansible_proc.consumeProcessOutput(System.out, System.err)
+        ansible_proc.waitForOrKill(timeout * 1000)
+
+        // dump DBs: local_whisks and subjects
+        // execute a curl command inside the CouchDB container and save the output on a shared volume
+        def dump_dbs = dockerBinary + ['exec', 'gradle_couchdb'] +
+                ['curl', 'http://127.0.0.1:5984/{' + couchdbPrefix + 'whisks,subjects}/_all_docs?include_docs=true&attachments=true', '-o', '/openwhisk/couchdb_#1.json']
+
+        println("${new Date()}: Executing '${dump_dbs.join(" ")}'")
+        def dump_dbs_proc = dump_dbs.execute()
+        dump_dbs_proc.consumeProcessOutput(System.out, System.err)
+        dump_dbs_proc.waitForOrKill(timeout * 1000)
+
+        // stop the containers
+        def docker_stop_proc = (dockerBinary + ['stop', 'gradle_couchdb']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
+        docker_stop_proc = (dockerBinary + ['rm', 'gradle_couchdb']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
+        docker_stop_proc = (dockerBinary + ['stop', 'gradle_ansible']).execute()
+        docker_stop_proc.consumeProcessOutput(System.out, System.err)
+        docker_stop_proc.waitForOrKill(timeout * 1000)
+    }
+
+}
+
+task avoidRebuild(type: Copy) {
+    from project.rootDir
+    include 'tools/db/**/*', 'ansible/**/*'
+    into tmp_src
+}
+
+task backupDB(type: Copy) {
+    doLast {
+        println 'Getting db dump from ' + tmp_src
+        from tmp_src
+        include 'couchdb_*.json'
+        into 'import'
+    }
+}
+
+task deleteTmpSrc(type: Delete) {
+    delete tmp_src
+    followSymlinks = true
+}
+
+task deleteDBBackup(type: Delete) {
+    delete import_src
+}
+
+exportCleanDB.dependsOn setupTmpFolder
+exportCleanDB.onlyIf { setupTmpFolder.didWork }
+exportCleanDB.finalizedBy deleteTmpSrc
+
+backupDB.dependsOn exportCleanDB
+backupDB.finalizedBy avoidRebuild
+
+distDocker.dependsOn backupDB
+distDocker.finalizedBy deleteDBBackup
