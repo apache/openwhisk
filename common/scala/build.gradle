@@ -19,7 +19,12 @@ dependencies {
     compile 'com.typesafe.akka:akka-slf4j_2.11:2.4.16'
     compile 'com.typesafe.akka:akka-http-core_2.11:10.0.9'
     compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.2'
-    compile group:'com.github.levkhomich', name:'akka-tracing-core_2.11', version: '0.6'
+
+    compile group:'io.opentracing', name:'opentracing-api', version: '0.30.0'
+    compile group:'io.opentracing', name:'opentracing-util', version: '0.30.0'
+    compile group:'io.opentracing.brave', name:'brave-opentracing', version: '0.21.1'
+    compile group:'io.zipkin.reporter', name:'zipkin-reporter', version: '0.7.1'
+    compile group:'io.zipkin.reporter', name:'zipkin-sender-okhttp3', version: '0.7.1'
 
     compile 'log4j:log4j:1.2.16'
     compile 'commons-codec:commons-codec:1.9'

@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package whisk.common.tracing
+package whisk.core.tracing
 
-import akka.actor.ActorSystem
+import io.opentracing.SpanContext
 import whisk.common.TransactionId
 import whisk.spi.Spi
 
@@ -26,7 +26,7 @@ import whisk.spi.Spi
   */
 trait TracingProvider extends Spi{
 
-  def init (actorSystem: ActorSystem): Unit
+  def init(serviceName: String): Unit
 
   /**
   * Start a Trace for given service.
@@ -47,23 +47,13 @@ trait TracingProvider extends Spi{
     * @param transactionId
     * @param t
     */
-  def error(transactionId: TransactionId, t: Throwable): Unit
+  def error(transactionId: TransactionId): Unit
 
   /**
     * Get the current TraceContext which can be used for downstream services
     * @param transactionId
     * @return
     */
-  def getTraceContext(transactionId: TransactionId): Option[TraceContext]
-
-  /**
-    * Set current TraceContext to continue tracing in context of upstream services
-    * @param transactionId
-    * @param context
-    */
-  def setTraceContext(transactionId: TransactionId, context: TraceContext): Unit
+  def getTraceContext(transactionId: TransactionId): Option[SpanContext]
 
 }
-
-case class TraceContext(val metadata: Any)
-

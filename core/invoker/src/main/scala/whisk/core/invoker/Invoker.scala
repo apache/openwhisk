@@ -26,7 +26,7 @@ import akka.stream.ActorMaterializer
 import whisk.common.AkkaLogging
 import whisk.common.Scheduler
 import whisk.common.ZipkinLogging
-import whisk.common.tracing.TraceUtil
+import whisk.core.tracing.TracingProvider
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
@@ -68,10 +68,12 @@ object Invoker {
             name = "invoker-actor-system",
             defaultExecutionContext = Some(ec))
         implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
-        TraceUtil.init(actorSystem);
 
         // load values for the required properties from the environment
         implicit val config = new WhiskConfig(requiredProperties)
+
+        val tracer: TracingProvider = SpiLoader.get[TracingProvider]()
+        tracer.init("Invoker")
 
         def abort() = {
             logger.error(this, "Bad configuration, cannot start.")

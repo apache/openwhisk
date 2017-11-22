@@ -18,8 +18,6 @@
 package whisk.core.connector
 
 import scala.util.Try
-import com.github.levkhomich.akka.tracing.SpanMetadata
-
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
@@ -57,8 +55,7 @@ case class ActivationMessage(
     activationNamespace: EntityPath,
     rootControllerIndex: InstanceId,
     content: Option[JsObject],
-    cause: Option[ActivationId] = None,
-    traceMetadata: Option[SpanMetadata] = None)
+    cause: Option[ActivationId] = None)
     extends Message {
 
     def meta = JsObject("meta" -> {
@@ -84,8 +81,7 @@ object ActivationMessage extends DefaultJsonProtocol {
     def parse(msg: String) = Try(serdes.read(msg.parseJson))
 
     private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-    private implicit val spanMetaSerdes = jsonFormat4(SpanMetadata.apply)
-    implicit val serdes = jsonFormat10(ActivationMessage.apply)
+    implicit val serdes = jsonFormat9(ActivationMessage.apply)
 }
 
 /**

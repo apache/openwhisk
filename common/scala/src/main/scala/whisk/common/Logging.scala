@@ -26,7 +26,7 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
-import whisk.common.tracing.TracingProvider
+import whisk.core.tracing.TracingProvider
 import whisk.spi.SpiLoader
 
 trait Logging {
@@ -156,7 +156,6 @@ class ZipkinLogging (logger: Logging) extends Logging {
         //log message as usual
         emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
 
-
         //tracing support
         logMarker.token.state match {
 
@@ -169,7 +168,7 @@ class ZipkinLogging (logger: Logging) extends Logging {
             }
 
             case LoggingMarkers.error => {
-                tracingProvider.finish(id)
+                tracingProvider.error(id)
             }
 
             case _ =>
