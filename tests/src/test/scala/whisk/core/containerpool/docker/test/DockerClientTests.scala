@@ -19,7 +19,6 @@ package whisk.core.containerpool.docker.test
 
 import java.util.concurrent.Semaphore
 
-import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,6 +51,8 @@ import whisk.utils.retry
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach with Eventually {
 
   override def beforeEach = stream.reset()
+
+  implicit override val patienceConfig = PatienceConfig(timeout = scaled(Span(5, Seconds)))
 
   implicit val transid = TransactionId.testing
   val id = ContainerId("55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52")
@@ -208,21 +209,22 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     // The tested code won't reach the mocked executeProcess() and thus, increase runCmdCount,
     // until at least one Future is successfully completed. For this reason, it takes
     // some time until the following matcher is successful.
-    eventually(timeout(scaled(Span(5, Seconds)))) { runCmdCount shouldBe 1 }
+    eventually { runCmdCount shouldBe 1 }
 
     // Complete the first Docker run command so that the second is eligible to run
     firstRunPromise.success(firstContainerId.asString)
 
     // Cannot assert that the first Docker run always obtains the first container because
     // the tested code uses Futures so that sequence may differ from test run to test run.
-    val resultContainerIds = mutable.Set[ContainerId]()
-    resultContainerIds += await(firstRunResult)
+    val firstResultContainerId = await(firstRunResult)
 
     // Now, second command should be complete
-    eventually(timeout(scaled(Span(5, Seconds)))) { runCmdCount shouldBe 2 }
+    eventually { runCmdCount shouldBe 2 }
 
-    resultContainerIds += await(secondRunResult)
-    resultContainerIds should contain theSameElementsAs Set(firstContainerId, secondContainerId)
+    val secondResultContainerId = await(secondRunResult)
+    Set(firstResultContainerId, secondResultContainerId) should contain theSameElementsAs Set(
+      firstContainerId,
+      secondContainerId)
   }
 
   it should "tolerate docker run errors when limiting the number of concurrent docker run invocations" in {
@@ -257,7 +259,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     // The tested code won't reach the mocked executeProcess() and thus, increase runCmdCount,
     // until at least one Future is successfully completed. For this reason, it takes
     // some time until the following matcher is successful.
-    eventually(timeout(scaled(Span(5, Seconds)))) { runCmdCount shouldBe 1 }
+    eventually { runCmdCount shouldBe 1 }
 
     // Complete the first Docker run command with a failure so that the second is eligible to run
     firstRunPromise.failure(ProcessRunningException(1, "", ""))
@@ -265,7 +267,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     an[Exception] should be thrownBy await(firstRunResult)
 
     // Now, second command should be complete
-    eventually(timeout(scaled(Span(5, Seconds)))) { runCmdCount shouldBe 2 }
+    eventually { runCmdCount shouldBe 2 }
 
     await(secondRunResult) shouldBe secondContainerId
   }
