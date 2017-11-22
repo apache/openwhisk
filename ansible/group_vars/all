@@ -113,7 +113,7 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
-  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:
     provider: cluster
     cluster:
@@ -123,7 +123,7 @@ controller:
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(false) }}"
+  ha: "{{ controller_enable_ha | default(true) }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
