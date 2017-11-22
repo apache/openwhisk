@@ -150,7 +150,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
           startLog.r
             .findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout)
             .length shouldBe prevCount + 1
-        }, 15, Some(1.second)) //wait until kafka is up
+        }, 15, Some(1.second)) // wait until kafka is up
       }
     }
   }
