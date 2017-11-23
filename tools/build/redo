@@ -260,8 +260,7 @@ Components = [
                   gradle = ':core:invoker'),
 
     makeComponent('edge',
-                  'deploy edge',
-                  gradle = ':tools:cli'),
+                  'deploy edge'),
 
     makeComponent('catalog',
                   'install catalog',
@@ -313,11 +312,6 @@ Components = [
                   'build docker action SDK (to deploy, use edge component)',
                   yaml = False,
                   gradle = 'sdk:docker'),
-
-    makeComponent('cli',
-                  'build CLI (to deploy, use edge component)',
-                  yaml = False,
-                  gradle = ':tools:cli'),
 
     # required for tests
     makeComponent('props',
