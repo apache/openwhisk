@@ -134,14 +134,14 @@ $script_end = <<SCRIPT
   source /etc/environment
   # Build OpenWhisk using gradle
   cd ${OPENWHISK_HOME}
-  su vagrant -c './gradlew  tools:cli:distDocker -PdockerImagePrefix=openwhisk'
+  su vagrant -c './gradlew  distDocker'
 
   echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
   # Deploy OpenWhisk using ansible
   cd ${ANSIBLE_HOME}
   su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
   su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
-  su vagrant -c 'ansible-playbook -i environments/local -e docker_image_prefix=openwhisk openwhisk.yml'
+  su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
   su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
 
   # Setup OpenWhisk CLI
