@@ -100,7 +100,7 @@ runtimesManifestDefault:
     - name: "dockerskeleton"
 
 limits:
-  invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(120) }}"
   concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
   concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
