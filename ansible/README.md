@@ -32,7 +32,7 @@ If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for 
 ##### Enable Docker remote API
 The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
-##### Activate docker0 network
+##### Configure the network (including docker0 and docker.for.mac.localhost)
 This is an optional step for local deployment.
 The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
 
@@ -41,6 +41,16 @@ An expedient workaround is to add alias for `docker0` network to loopback interf
 ```
 sudo ifconfig lo0 alias 172.17.0.1/24
 ```
+
+You may also wish to add a special DNS entry Docker for Mac uses in its 
+containers to your `/etc/hosts` file.
+
+```
+sudo cat '172.17.0.1 docker.for.mac.localhost' >> /etc/hosts
+```
+
+This will come in handy if you're running a local couchdb because you can use
+the same `DB_HOST` environment variable inside and outside of containers.
 
 ##### Setup proxy container to run unit tests (optional)
 
@@ -59,15 +69,22 @@ systemProp.http.proxyHost=localhost
 systemProp.http.proxyPort=3128
 ```
 
+#### Mac Homebrew users
+Ansible makes some rather aggressive assumptions about python in its target
+environments that will create a hastle for you if you generally use the
+homebrew `/usr/local/bin/python2` interpreter as your go-to Python.  
+To address them, `sudo ln -s /usr/local/bin/pip2 /usr/local/bin/pip`
+and be sure to use `-i environment/homebrew` in ansible, which sets sensible
+default python interpreters for ansible tasks.
+
 ### Using Ansible
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
 In all instructions, replace `<environment>` with your target environment. The default environment is `local` which works for Ubuntu and
 Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
-use `-i environments/docker-machine`.
-
-
+use `-i environments/docker-machine`.  For Mac installations using Homebrew 
+python use `-i environments/homebrew`.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
@@ -76,7 +93,7 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 This step needs to be done only once per development environment. It will generate configuration files based on your local settings. Notice that for the following playbook you don't need to specify a target environment as it will run only local actions.
 After the playbook is done you should see a file called `db_local.ini` in your `ansible` directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini`.
 
-#####  Ephemeral CouchDB
+##### Ephemeral CouchDB
 
 If you want to use the ephemeral CouchDB, run this command
 
@@ -84,7 +101,7 @@ If you want to use the ephemeral CouchDB, run this command
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-#####  Persistent CouchDB
+##### Persistent CouchDB
 
 If you want to use the persistent CouchDB instead, you can use env variables that are read by the playbook:
 
@@ -99,7 +116,43 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`. This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
+If you're running CouchDB locally with Docker for Mac, strongly consider using 
+`docker.for.mac.localhost` as your `OW_DB_HOST`.  See notes above on configuring 
+Docker for Mac network.
+
+If you are operating on a fresh installation of CouchDB, you may need to create
+the user and add it to admins, which will look something like this:
+
+```
+couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
+curl -X PUT ${couch_url}/_users/org.couchdb.user:${OW_DB_USERNAME} \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "${OW_DB_USERNAME}", "password": "${OW_DB_PASSWORD}", "roles": [], "type": "user"}' \
+&& \
+curl -X PUT ${url}/_config/admins/${OW_DB_USERNAME} -d "\"${OW_DB_PASSWORD}\""
+```
+
+If you deploy CouchDB manually (i.e., without using the deploy CouchDB
+playbook), you must set the `reduce_limit` property on views to `false`. This
+may be done via the REST API, as in:
+ 
+```
+couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
+curl -X PUT ${couch_url}/_config/query_server_config/reduce_limit \
+  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
+```
+
+Finally, networking is a hastle with CouchDB.  To connect from localhost and from
+containers on a local environment (i.e. Laptop, Local dev machine), you'll likely
+change a configuration parameter in `/etc/couchdb/local.ini` (or your equivalent):
+`bind_address = 0.0.0.0`.  (This is fairly necessary on Docker for Mac right now
+unless you want to do a _lot_ of network fu.)
+
+**Warning:** Change the bind address to zeroes opens your CouchDB instance up to 
+anyone who can connect to its port, so if you don't trust your firewall or other
+users on your machine, you should disable the 
+[Admin Party](http://guide.couchdb.org/draft/security.html)
 
 ##### Cloudant
 
@@ -127,9 +180,9 @@ ansible-playbook -i environments/<environment> prereq.yml
 
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
-### Deploying Using CouchDB
-- Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
-- Then execute
+### Deploying Using Ephemeral CouchDB
+-   Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
+-   Then execute
 
 ```
 cd <openwhisk_home>
@@ -147,9 +200,9 @@ You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy Cou
 The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
 data that include actions and activations are lost.
 
-### Deploying Using Cloudant
-- Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
-- Then execute
+### Deploying Using Persistent CouchDB and Cloudant
+-   Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
+-   Then execute
 
 ```
 cd <openwhisk_home>
@@ -323,7 +376,7 @@ limit_invocations_concurrent: 30
 limit_invocations_concurrent_system: 5000
 limit_fires_per_minute: 60
 ```
-- The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
-- The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
-- The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
-- The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.
+-   The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
+-   The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
+-   The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
+-   The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.
