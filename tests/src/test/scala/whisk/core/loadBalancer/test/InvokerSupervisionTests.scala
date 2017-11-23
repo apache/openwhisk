@@ -206,7 +206,8 @@ class InvokerSupervisionTests
 
     sendActivationToInvoker
       .when(activationMessage, invokerInstance)
-      .returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
+      .returns(
+        Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, Long.box(0L), 0, 0)))
 
     supervisor ! msg
 

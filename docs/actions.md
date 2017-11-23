@@ -50,7 +50,8 @@ Review the following steps and examples to create your first JavaScript action.
   ```
   ok: created action hello
   ```
-
+  The CLI automatically infers the type of the action by using the source file extension. For `.js` source files, the action runs by using a Node.js 6 runtime. You can also create an action that runs with Node.js 8 by explicitly specifying the parameter `--kind nodejs:8`. For more information, see the Node.js 6 vs 8 [reference](./openwhisk_reference.html#openwhisk_ref_javascript_environments).
+  
 3. List the actions that you have created:
 
   ```
@@ -258,7 +259,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
   ```json
   {
     "name": "Bernie",
-    "place": "Vermont"
+    "place": "Washington, DC"
   }
   ```
 
@@ -277,7 +278,9 @@ Rather than pass all the parameters to an action every time, you can bind certai
 An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
 
 ```
-$ wsk action get actionName --url
+wsk action get actionName --url
+```
+```
 ok: got action actionName
 https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 ```
@@ -285,6 +288,26 @@ https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
 **Note:** Authentication must be provided when invoking an action via an HTTPS request. For more information regarding
 action invocations using the REST interface, see
 [Using REST APIs with OpenWhisk](rest_api.md#actions).
+
+### Saving action code
+
+Code associated with an existing action is fetched and saved locally. Saving is performed on all actions except sequences and docker actions. When saving action code to a file, the code is saved in the current working directory, and the saved file path is displayed.
+
+1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind is  used, or an extension of `.zip` will be used for action code that is a zip file.
+  ```
+  wsk action get actionName --save
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/actionName.js
+  ```
+
+2. Instead of allowing the CLI to determine the filename and extension  of the saved code, a custom filename and extension can be provided by using the `--save-as` flag.
+  ```
+  wsk action get actionName --save-as codeFile.js
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
+  ```
 
 ### Creating asynchronous actions
 
@@ -452,7 +475,7 @@ To create an OpenWhisk action from this package:
   wsk action create packageAction --kind nodejs:6 action.zip
   ```
 
-  Note that when creating an action from a `.zip` archive using the CLI tool, you must explicitly provide a value for the `--kind` flag.
+  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:6` or `nodejs:8`.
 
 4. You can invoke the action like any other:
 
@@ -470,6 +493,90 @@ To create an OpenWhisk action from this package:
   ```
 
 Finally, note that while most `npm` packages install JavaScript sources on `npm install`, some also install and compile binary artifacts. The archive file upload currently does not support binary dependencies but rather only JavaScript dependencies. Action invocations may fail if the archive includes binary dependencies.
+
+### Package an action as a single bundle
+
+It is convenient to only include the minimal code into a single `.js` file that includes dependencies. This approach allows for faster deployments, and in some circumstances where packaging the action as a zip might be too large because it includes unnecessary files.
+
+You can use a JavaScript module bundler such as [webpack](https://webpack.js.org/concepts/). When webpack processes your code, it recursively builds a dependency graph that includes every module that your action needs.
+
+Here is a quick example using webpack:
+
+Taking the previous example `package.json` add `webpack` as a development depency and add some npm script commands.
+```json
+{
+  "name": "my-action",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "deploy": "wsk action update my-action dist/bundle.js --kind nodejs:8"
+  },
+  "dependencies": {
+    "left-pad": "1.1.3"
+  },
+  "devDependencies": {
+    "webpack": "^3.8.1"
+  }
+}
+```
+
+Create the webpack configuration file `webpack.config.js`.
+```javascript
+var path = require('path');
+module.exports = {
+  entry: './index.js',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js'
+  },
+  target: 'node'
+};
+```
+
+Set the variable `global.main` to the main function of the action.
+From the previous example:
+```javascript
+function myAction(args) {
+    const leftPad = require("left-pad")
+    const lines = args.lines || [];
+    return { padded: lines.map(l => leftPad(l, 30, ".")) }
+}
+global.main = myAction;
+```
+
+If your function name is `main`, use this syntax instead:
+```javascript
+global.main = main;
+```
+
+To build and deploy an OpenWhisk Action using `npm` and `webpack`:
+
+1. First, install dependencies locally:
+
+  ```
+  npm install
+  ```
+
+2. Build the webpack bundle:
+
+  ```
+  npm run build
+  ```
+
+  The file `dist/bundle.js` is created, and is used to deploy as the Action source code.
+
+3. Create the Action using the `npm` script or the CLI.
+  Using `npm` script:
+  ```
+  npm run deploy
+  ```
+  {: pre}
+  Using the CLI:
+  ```
+  wsk action update my-action dist/bundle.js
+  ```
+
+Finally, the bundle file that is built by `webpack` doesn't support binary dependencies but rather JavaScript dependencies. So Action invocations will fail if the bundle depends on binary dependencies, because this is not included with the file `bundle.js`.
 
 ## Creating action sequences
 

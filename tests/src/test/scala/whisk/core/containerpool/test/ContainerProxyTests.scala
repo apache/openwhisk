@@ -44,6 +44,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
+import whisk.core.containerpool.logging.DockerLogStore
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest.RuntimeManifest
 import whisk.core.entity.ExecManifest.ImageName
@@ -148,6 +149,8 @@ class ContainerProxyTests
 
   val store = stubFunction[TransactionId, WhiskActivation, Future[Any]]
 
+  val collectLogs = new DockerLogStore(system).collectLogs _
+
   behavior of "ContainerProxy"
 
   /*
@@ -157,7 +160,8 @@ class ContainerProxyTests
     val container = new TestContainer
     val factory = createFactory(Future.successful(container))
 
-    val machine = childActorOf(ContainerProxy.props(factory, createAcker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, createAcker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -174,7 +178,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
 
     preWarm(machine)
@@ -206,7 +211,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -230,7 +236,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -256,7 +263,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
 
@@ -278,7 +286,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.failed(new Exception()))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -307,7 +316,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -336,7 +346,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -364,7 +375,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
     timeout(machine) // times out Ready state so container suspends
@@ -396,7 +408,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine) // times out Ready state so container suspends
@@ -428,7 +441,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
 
     // Start running the action
@@ -475,7 +489,8 @@ class ContainerProxyTests
     val factory = createFactory(Future.successful(container))
     val acker = createAcker
 
-    val machine = childActorOf(ContainerProxy.props(factory, acker, store, InstanceId(0), pauseGrace = timeout))
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collectLogs, InstanceId(0), pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine)

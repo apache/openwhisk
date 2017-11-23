@@ -1,5 +1,5 @@
 whisk_version_name: mac
-config_root_dir: /Users/Shared
+config_root_dir: /Users/Shared/wskconf
 whisk_logs_dir: /Users/Shared/wsklogs
 docker_registry: ""
 docker_dns: ""

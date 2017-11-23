@@ -17,6 +17,9 @@
 
 package whisk.core.limits
 
+import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
+import akka.http.scaladsl.model.StatusCodes.BadGateway
+
 import java.io.File
 import java.io.PrintWriter
 
@@ -29,9 +32,8 @@ import org.scalatest.junit.JUnitRunner
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.TOO_LARGE
 import common.WhiskProperties
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -47,7 +49,7 @@ import whisk.http.Messages
 class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk()
+  val wsk = new WskRest
 
   val defaultDosAction = TestUtils.getTestActionFilename("timeout.js")
   val allowedActionDuration = 10 seconds
@@ -148,10 +150,10 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
       // this tests an active ack failure to post from invoker
       val args = Map("size" -> (allowedSize + 1).toJson, "char" -> "a".toJson)
-      val code = if (blocking) TestUtils.APP_ERROR else TestUtils.SUCCESS_EXIT
+      val code = if (blocking) BadGateway.intValue else TestUtils.ACCEPTED
       val rr = wsk.action.invoke(name, args, blocking = blocking, expectedExitCode = code)
       if (blocking) {
-        checkResponse(wsk.parseJsonString(rr.stderr).convertTo[ActivationResult])
+        checkResponse(wsk.parseJsonString(rr.respData).convertTo[ActivationResult])
       } else {
         withActivation(wsk.activation, rr, totalWait = 120 seconds) { checkResponse(_) }
       }
@@ -187,7 +189,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     pw.close
 
     assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = TOO_LARGE)
+      action.create(name, Some(actionCode.getAbsolutePath), expectedExitCode = RequestEntityTooLarge.intValue)
     }
 
     actionCode.delete

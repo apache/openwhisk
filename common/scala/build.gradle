@@ -22,11 +22,10 @@ dependencies {
     compile 'ch.qos.logback:logback-classic:1.2.3'
     compile 'org.slf4j:jcl-over-slf4j:1.7.25'
     compile 'org.slf4j:log4j-over-slf4j:1.7.25'
-    compile 'net.debasishg:redisclient_2.11:3.4'
     compile 'commons-codec:commons-codec:1.9'
     compile 'commons-io:commons-io:2.4'
     compile 'commons-collections:commons-collections:3.2.2'
-    compile 'org.apache.kafka:kafka-clients:0.10.2.1'
+    compile 'org.apache.kafka:kafka-clients:0.11.0.1'
     compile ('org.apache.httpcomponents:httpclient:4.4.1') {
         exclude group: 'commons-logging'
     }
@@ -35,6 +34,8 @@ dependencies {
     }
     compile 'com.github.ben-manes.caffeine:caffeine:2.4.0'
     compile 'com.google.code.findbugs:jsr305:3.0.2'
+    compile 'io.kamon:kamon-core_2.11:0.6.7'
+    compile 'io.kamon:kamon-statsd_2.11:0.6.7'
 }
 
 tasks.withType(ScalaCompile) {

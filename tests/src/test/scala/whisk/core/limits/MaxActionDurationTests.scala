@@ -24,7 +24,7 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import whisk.core.entity._
@@ -40,7 +40,7 @@ import whisk.core.entity.TimeLimit
 class MaxActionDurationTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
 
   // swift is not tested, because it uses the same proxy like python
   "node-, python, and java-action" should "run up to the max allowed duration" in withAssetCleaner(wskprops) {

@@ -30,6 +30,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 
+import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
 import whisk.core.WhiskConfig
@@ -68,6 +69,8 @@ class ViewTests
   val creds2 = WhiskAuthHelpers.newAuth(Subject("t12345"))
   val namespace2 = EntityPath(creds2.subject.asString)
 
+  implicit val materializer = ActorMaterializer()
+
   val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
   val entityStore = WhiskEntityStore.datastore(config)
   val activationStore = WhiskActivationStore.datastore(config)
@@ -91,7 +94,7 @@ class ViewTests
     val result =
       Await.result(listAllInNamespace(store, ns.root, false, StaleParameter.No), dbOpTimeout).values.toList.flatten
     val expected = entities filter { _.namespace.root.toPath == ns }
-    result.length should be(expected.length)
+    result should have length expected.length
     result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
@@ -105,7 +108,7 @@ class ViewTests
         .get
         .map(e => e)
     val expected = entities filter { _.namespace.root.toPath == ns }
-    result.length should be(expected.length)
+    result should have length expected.length
     result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
@@ -117,10 +120,8 @@ class ViewTests
     }
     val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root.toPath == ns }
     map.get(WhiskActivation.collectionName) should be(None)
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e.summaryAsJson
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
   def resolveListMethodForKind(kind: String) = kind match {
@@ -137,16 +138,13 @@ class ViewTests
                                             f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
     implicit val tid = transid()
     val q = resolveListMethodForKind(kind)
-    val result = Await.result(q.listCollectionInNamespace(store, ns, 0, 0, stale = StaleParameter.No) map {
-      _.left.get.map(e => e)
-    }, dbOpTimeout)
+    val result =
+      Await.result(q.listCollectionInNamespace(store, ns, 0, 0, stale = StaleParameter.No).map(_.left.get), dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace.root.toPath == ns
     }
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e.summaryAsJson
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
   def getKindInNamespaceWithDoc[T](ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(
@@ -155,17 +153,14 @@ class ViewTests
     val q = resolveListMethodForKind(kind)
     val result =
       Await.result(
-        q.listCollectionInNamespace(entityStore, ns, 0, 0, includeDocs = true, stale = StaleParameter.No) map {
-          _.right.get
-        },
+        q.listCollectionInNamespace(entityStore, ns, 0, 0, includeDocs = true, stale = StaleParameter.No)
+          .map(_.right.get),
         dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace.root.toPath == ns
     }
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected
   }
 
   def getKindInNamespaceByName[Au <: WhiskEntity](store: ArtifactStore[Au],
@@ -177,18 +172,14 @@ class ViewTests
     implicit val tid = transid()
     val q = resolveListMethodForKind(kind)
     val result =
-      Await.result(q.listCollectionInNamespace(store, ns.addPath(name), 0, 0, stale = StaleParameter.No) map {
-        _.left.get map { e =>
-          e
-        }
-      }, dbOpTimeout)
+      Await.result(
+        q.listCollectionInNamespace(store, ns.addPath(name), 0, 0, stale = StaleParameter.No).map(_.left.get),
+        dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace.root.toPath == ns
     }
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e.summaryAsJson
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
   def getActivationsInNamespaceByName(store: ArtifactStore[WhiskActivation],
@@ -197,36 +188,30 @@ class ViewTests
                                       f: (WhiskEntity) => Boolean)(implicit entities: Seq[WhiskEntity]) = {
     implicit val tid = transid()
     val result =
-      Await.result(WhiskActivation.listActivationsMatchingName(store, ns, name, 0, 0, stale = StaleParameter.No) map {
-        _.left.get map { e =>
-          e
-        }
-      }, dbOpTimeout)
+      Await.result(
+        WhiskActivation
+          .listActivationsMatchingName(store, ns, name.toPath, 0, 0, stale = StaleParameter.No)
+          .map(_.left.get),
+        dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace.root.toPath == ns
     }
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e.summaryAsJson
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
   def getKindInPackage(ns: EntityPath, kind: String, f: (WhiskEntity) => Boolean)(
     implicit entities: Seq[WhiskEntity]) = {
     implicit val tid = transid()
     val q = resolveListMethodForKind(kind)
-    val result = Await.result(q.listCollectionInNamespace(entityStore, ns, 0, 0, stale = StaleParameter.No) map {
-      _.left.get map { e =>
-        e
-      }
-    }, dbOpTimeout)
+    val result = Await.result(
+      q.listCollectionInNamespace(entityStore, ns, 0, 0, stale = StaleParameter.No).map(_.left.get),
+      dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace == ns
     }
-    result.length should be(expected.length)
-    expected forall { e =>
-      result contains e.summaryAsJson
-    } should be(true)
+    result should have length expected.length
+    result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
 
   def getActivationsInNamespaceByNameSortedByDate(store: ArtifactStore[WhiskActivation],
@@ -241,16 +226,13 @@ class ViewTests
     implicit val tid = transid()
     val result = Await.result(
       WhiskActivation
-        .listActivationsMatchingName(store, ns, name, skip, count, false, start, end, StaleParameter.No) map {
-        _.left.get map { e =>
-          e
-        }
-      },
+        .listActivationsMatchingName(store, ns, name.toPath, skip, count, false, start, end, StaleParameter.No)
+        .map(_.left.get),
       dbOpTimeout)
     val expected = entities filter { e =>
       f(e) && e.namespace.root.toPath == ns
     } sortBy { case (e: WhiskActivation) => e.start.toEpochMilli; case _ => 0 } map { _.summaryAsJson }
-    result.length should be(expected.length)
+    result should have length expected.length
     result should be(expected reverse)
   }
 
@@ -303,8 +285,8 @@ class ViewTests
       WhiskPackage(namespace2, aname(), Some(Binding(namespace1.root, aname()))))
 
     entities foreach { put(entityStore, _) }
-    waitOnView(entityStore, namespace1.root, 15, WhiskEntityQueries.ALL)
-    waitOnView(entityStore, namespace2.root, 14, WhiskEntityQueries.ALL)
+    waitOnView(entityStore, namespace1.root, 15, WhiskEntityQueries.viewAll)
+    waitOnView(entityStore, namespace2.root, 14, WhiskEntityQueries.viewAll)
 
     getAllInNamespace(entityStore, namespace1)
     getKindInNamespace(entityStore, namespace1, "actions", {
@@ -372,8 +354,8 @@ class ViewTests
       WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
 
     entities foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace1.root, 2, WhiskActivation.collectionName)
-    waitOnView(activationStore, namespace2.root, 3, WhiskActivation.collectionName)
+    waitOnView(activationStore, namespace1.root, 2, WhiskActivation.view)
+    waitOnView(activationStore, namespace2.root, 3, WhiskActivation.view)
 
     getAllActivationsInNamespace(activationStore, namespace1)
     getKindInNamespace(activationStore, namespace1, "activations", {
@@ -428,7 +410,7 @@ class ViewTests
         end = now.plusSeconds(20)))
 
     entities foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace1.root, entities.length, WhiskActivation.collectionName)
+    waitOnView(activationStore, namespace1.root, entities.length, WhiskActivation.view)
 
     getActivationsInNamespaceByNameSortedByDate(
       activationStore,
@@ -469,7 +451,7 @@ class ViewTests
       Seq(WhiskAction(namespace1, aname(), jsDefault("??")), WhiskAction(namespace1, aname(), jsDefault("??")))
 
     entities foreach { put(entityStore, _) }
-    waitOnView(entityStore, namespace1.root, entities.length, WhiskEntityQueries.ALL)
+    waitOnView(entityStore, namespace1.root, entities.length, WhiskEntityQueries.viewAll)
     getKindInNamespaceWithDoc[WhiskAction](namespace1, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false

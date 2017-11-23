@@ -33,7 +33,7 @@ import com.jayway.restassured.response.Header
 import common.TestHelpers
 import common.TestUtils
 import common.WhiskProperties
-import common.Wsk
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -48,10 +48,10 @@ import whisk.core.entity.Subject
  * Tests web actions.
  */
 @RunWith(classOf[JUnitRunner])
-class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
+abstract class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil with BeforeAndAfterAll {
   val MAX_URL_LENGTH = 8192 // 8K matching nginx default
 
-  val wsk = new Wsk
+  val wsk: BaseWsk
   private implicit val wskprops = WskProps()
   val namespace = wsk.namespace.whois()
 
@@ -270,10 +270,8 @@ class WskWebActionsTests extends TestHelpers with WskTestHelpers with RestUtil w
 
     response.statusCode shouldBe 200
     val cookieHeaders = response.headers.getList("Set-Cookie")
-    cookieHeaders should contain allOf (
-      new Header("Set-Cookie", "a=b"),
-      new Header("Set-Cookie", "c=d")
-    )
+    cookieHeaders should contain allOf (new Header("Set-Cookie", "a=b"),
+    new Header("Set-Cookie", "c=d"))
   }
 
   it should "handle http web action with base64 encoded response" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

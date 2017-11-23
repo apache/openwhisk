@@ -23,6 +23,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Promise
+import scala.util.Success
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
@@ -33,10 +35,12 @@ import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
 import whisk.common.TransactionId
 import whisk.core.containerpool.docker.DockerClient
-import scala.concurrent.Promise
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 import whisk.utils.retry
+import whisk.core.containerpool.docker.ProcessRunningException
+import whisk.core.containerpool.docker.DockerContainerId
+import whisk.core.containerpool.docker.BrokenDockerContainer
 
 @RunWith(classOf[JUnitRunner])
 class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
@@ -44,7 +48,7 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   override def beforeEach = stream.reset()
 
   implicit val transid = TransactionId.testing
-  val id = ContainerId("Id")
+  val id = ContainerId("55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52")
 
   val commandTimeout = 500.milliseconds
   def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
@@ -55,6 +59,31 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   def dockerClient(execResult: => Future[String]) = new DockerClient()(global) {
     override val dockerCmd = Seq(dockerCommand)
     override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
+  }
+
+  behavior of "DockerContainerId"
+
+  it should "convert a proper container ID" in {
+    DockerContainerId.parse(id.asString) shouldBe Success(id)
+  }
+
+  it should "reject improper container IDs with IllegalArgumentException" in {
+    def verifyFailure(improperId: String) = {
+      val iae = the[IllegalArgumentException] thrownBy DockerContainerId.parse(improperId).get
+      iae.getMessage should include(improperId)
+    }
+
+    Seq[(String, String)](
+      ("", "String empty (too short)"),
+      ("1" * 63, "String too short"),
+      ("1" * 65, "String too long"),
+      (("1" * 63) + "x", "Improper characters"),
+      ("abcxdef", "Improper characters and too short")).foreach {
+      case (improperId, clue) =>
+        withClue(s"${clue} - length('${improperId}') = ${improperId.length}: ") {
+          verifyFailure(improperId)
+        }
+    }
   }
 
   behavior of "DockerClient"
@@ -200,5 +229,34 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     runAndVerify(dc.inspectIPAddress(id, "network"), "inspect")
     runAndVerify(dc.run("image"), "run")
     runAndVerify(dc.pull("image"), "pull")
+  }
+
+  it should "fail with BrokenDockerContainer when run returns with exit code 125 and a container ID" in {
+    val dc = dockerClient {
+      Future.failed(
+        ProcessRunningException(
+          exitCode = 125,
+          stdout = id.asString,
+          stderr =
+            """/usr/bin/docker: Error response from daemon: mkdir /var/run/docker.1.1/libcontainerd.1.1/55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52: no space left on device."""))
+    }
+    val bdc = the[BrokenDockerContainer] thrownBy await(dc.run("image", Seq()))
+    bdc.id shouldBe id
+  }
+
+  it should "fail with ProcessRunningException when run returns with exit code !=125 or no container ID" in {
+    def runAndVerify(pre: ProcessRunningException, clue: String) = {
+      val dc = dockerClient { Future.failed(pre) }
+      withClue(s"${clue} - exitCode = ${pre.exitCode}, stdout = '${pre.stdout}', stderr = '${pre.stderr}': ") {
+        the[ProcessRunningException] thrownBy await(dc.run("image", Seq())) shouldBe pre
+      }
+    }
+
+    Seq[(ProcessRunningException, String)](
+      (ProcessRunningException(126, id.asString, "Unknown command"), "Exit code not 125"),
+      (ProcessRunningException(125, "", "Unknown flag: --foo"), "No container ID"),
+      (ProcessRunningException(1, "", ""), "Exit code not 125 and no container ID")).foreach {
+      case (pre, clue) => runAndVerify(pre, clue)
+    }
   }
 }

@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter
 import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
+import kamon.Kamon
 
 trait Logging {
 
@@ -81,7 +82,7 @@ trait Logging {
 }
 
 /**
- * Implementaion of Logging, that uses akka logging.
+ * Implementation of Logging, that uses Akka logging.
  */
 class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
   def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
@@ -156,6 +157,7 @@ private object Logging {
     if (simpleName.endsWith("$")) simpleName.dropRight(1)
     else simpleName
   }
+
 }
 
 private object Emitter {
@@ -175,6 +177,23 @@ object LogMarkerToken {
     // thus it's safe to split at '_' to get the components
     val Array(component, action, state) = s.split("_")
     LogMarkerToken(component, action, state)
+  }
+}
+
+object MetricEmitter {
+
+  val metrics = Kamon.metrics
+
+  def emitCounterMetric(token: LogMarkerToken) = {
+    metrics
+      .counter(token.toString)
+      .increment(1)
+  }
+
+  def emitHistogramMetric(token: LogMarkerToken, value: Long) = {
+    metrics
+      .histogram(token.toString)
+      .record(value)
   }
 }
 

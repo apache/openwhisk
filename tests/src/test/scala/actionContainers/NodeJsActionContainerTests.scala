@@ -260,13 +260,12 @@ class NodeJsActionContainerTests extends BasicActionRunnerTests with WskActorSys
     })
   }
 
-  it should "have ws and socket.io-client packages available" in {
+  it should "have openwhisk package available" in {
     // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
     val (out, err) = withNodeJsContainer { c =>
       val code = """
                 | function main(args) {
-                |     require('ws');
-                |     require('socket.io-client');
+                |     require('openwhisk');
                 | }
             """.stripMargin
 

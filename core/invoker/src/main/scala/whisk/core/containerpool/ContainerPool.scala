@@ -17,7 +17,7 @@
 
 package whisk.core.containerpool
 
-import scala.collection.mutable
+import scala.collection.immutable
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -67,9 +67,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
 
-  val freePool = mutable.Map[ActorRef, ContainerData]()
-  val busyPool = mutable.Map[ActorRef, ContainerData]()
-  val prewarmedPool = mutable.Map[ActorRef, ContainerData]()
+  var freePool = immutable.Map.empty[ActorRef, ContainerData]
+  var busyPool = immutable.Map.empty[ActorRef, ContainerData]
+  var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")
@@ -84,7 +84,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       val container = if (busyPool.size < maxActiveContainers) {
         // Schedule a job to a warm container
         ContainerPool
-          .schedule(r.action, r.msg.user.namespace, freePool.toMap)
+          .schedule(r.action, r.msg.user.namespace, freePool)
           .orElse {
             if (busyPool.size + freePool.size < maxPoolSize) {
               takePrewarmContainer(r.action).orElse {
@@ -94,7 +94,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           }
           .orElse {
             // Remove a container and create a new one for the given job
-            ContainerPool.remove(r.action, r.msg.user.namespace, freePool.toMap).map { toDelete =>
+            ContainerPool.remove(r.action, r.msg.user.namespace, freePool).map { toDelete =>
               removeContainer(toDelete)
               takePrewarmContainer(r.action).getOrElse {
                 createContainer()
@@ -105,8 +105,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
       container match {
         case Some((actor, data)) =>
-          busyPool.update(actor, data)
-          freePool.remove(actor)
+          busyPool = busyPool + (actor -> data)
+          freePool = freePool - actor
           actor ! r // forwards the run request to the container
         case None =>
           logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
@@ -115,26 +115,31 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
-      freePool.update(sender(), data)
-      busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
+      freePool = freePool + (sender() -> data)
+      busyPool.get(sender()).foreach { _ =>
+        busyPool = busyPool - sender()
+        feed ! MessageFeed.Processed
+      }
 
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
-      prewarmedPool.update(sender(), data)
+      prewarmedPool = prewarmedPool + (sender() -> data)
 
     // Container got removed
     case ContainerRemoved =>
-      freePool.remove(sender())
-      busyPool.remove(sender()).foreach(_ => feed ! MessageFeed.Processed)
+      freePool = freePool - sender()
+      busyPool.get(sender()).foreach { _ =>
+        busyPool = busyPool - sender()
+        feed ! MessageFeed.Processed
+      }
   }
 
   /** Creates a new container and updates state accordingly. */
   def createContainer(): (ActorRef, ContainerData) = {
     val ref = childFactory(context)
     val data = NoData()
-    freePool.update(ref, data)
-
-    (ref, data)
+    freePool = freePool + (ref -> data)
+    ref -> data
   }
 
   /** Creates a new prewarmed container */
@@ -160,8 +165,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
         .map {
           case (ref, data) =>
             // Move the container to the usual pool
-            freePool.update(ref, data)
-            prewarmedPool.remove(ref)
+            freePool = freePool + (ref -> data)
+            prewarmedPool = prewarmedPool - ref
             // Create a new prewarm container
             prewarmContainer(config.exec, config.memoryLimit)
 
@@ -172,8 +177,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   /** Removes a container and updates state accordingly. */
   def removeContainer(toDelete: ActorRef) = {
     toDelete ! Remove
-    freePool.remove(toDelete)
-    busyPool.remove(toDelete)
+    freePool = freePool - toDelete
+    busyPool = busyPool - toDelete
   }
 }
 

@@ -24,6 +24,7 @@ import argparse
 import time
 import re
 import couchdb.client
+import functools
 
 def retry(fn, retries):
     try:
@@ -42,6 +43,7 @@ def replicateDatabases(args):
     targetDb = couchdb.client.Server(args.targetDbUrl)
 
     excludedDatabases = args.exclude.split(",")
+    excludedBaseNames = filter(lambda x: x != "", args.excludeBaseName.split(","))
 
     # Create _replicator DB if it does not exist yet.
     if "_replicator" not in sourceDb:
@@ -53,7 +55,12 @@ def replicateDatabases(args):
     backupPrefix = "backup_%d_" % now
 
     def isExcluded(dbName):
-        return dbName.replace(args.dbPrefix, "", 1) in excludedDatabases
+        dbNameWithoutPrefix = dbName.replace(args.dbPrefix, "", 1)
+        # is the databaseName is in the list of excluded database
+        isNameExcluded = dbNameWithoutPrefix in excludedDatabases
+        # if one of the basenames matches, the database is excluded
+        isBaseNameExcluded = functools.reduce(lambda x, y: x or y, map(lambda en: dbNameWithoutPrefix.startswith(en), excludedBaseNames), False)
+        return isNameExcluded or isBaseNameExcluded
 
     # Create backup of all databases with given prefix
     print("----- Create backups -----")
@@ -125,6 +132,7 @@ replicateParser.add_argument("--dbPrefix", required=True, help="Prefix of the da
 replicateParser.add_argument("--expires", required=True, type=int, help="Deletes all backups, that are older than the given value in seconds.")
 replicateParser.add_argument("--continuous", action="store_true", help="Wether or not the backup should be continuous")
 replicateParser.add_argument("--exclude", default="", help="Comma separated list of database names, that should not be backed up. (Without prefix).")
+replicateParser.add_argument("--excludeBaseName", default="", help="Comma separated list of database base names. All databases, that have this basename in their name will not be backed up. (Without prefix).")
 replicateParser.set_defaults(func=replicateDatabases)
 
 # Replay

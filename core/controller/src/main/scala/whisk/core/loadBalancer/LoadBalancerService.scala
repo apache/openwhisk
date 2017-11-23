@@ -24,7 +24,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -46,11 +46,12 @@ import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity.{ActivationId, WhiskActivation}
 import whisk.core.entity.EntityName
-import whisk.core.entity.ExecutableWhiskAction
+import whisk.core.entity.ExecutableWhiskActionMetaData
 import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.size._
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
 
@@ -76,7 +77,7 @@ trait LoadBalancer {
    *         The future is guaranteed to complete within the declared action time limit
    *         plus a grace period (see activeAckTimeoutGrace).
    */
-  def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+  def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
 }
@@ -110,7 +111,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
   override def totalActiveActivations = loadBalancerData.totalActivationCount
 
-  override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+  override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     chooseInvoker(msg.user, action).flatMap { invokerName =>
       val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
@@ -173,7 +174,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   /**
    * Creates an activation entry and insert into various maps.
    */
-  private def setupActivation(action: ExecutableWhiskAction,
+  private def setupActivation(action: ExecutableWhiskActionMetaData,
                               activationId: ActivationId,
                               namespaceId: UUID,
                               invokerName: InstanceId,
@@ -312,7 +313,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 
   /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-  private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
+  private def chooseInvoker(user: Identity, action: ExecutableWhiskActionMetaData): Future[InstanceId] = {
     val hash = generateHash(user.namespace, action)
 
     loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
@@ -334,18 +335,23 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 
   /** Generates a hash based on the string representation of namespace and action */
-  private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
+  private def generateHash(namespace: EntityName, action: ExecutableWhiskActionMetaData): Int = {
     (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
   }
 }
 
 object LoadBalancerService {
   def requiredProperties =
-    kafkaHost ++ Map(
-      loadbalancerInvokerBusyThreshold -> null,
-      controllerBlackboxFraction -> null,
-      controllerLocalBookkeeping -> null,
-      controllerSeedNodes -> null)
+    kafkaHost ++
+      Map(
+        kafkaTopicsCompletedRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsCompletedRetentionMS -> 1.hour.toMillis.toString,
+        kafkaTopicsCompletedSegmentBytes -> 512.MB.toBytes.toString) ++
+      Map(
+        loadbalancerInvokerBusyThreshold -> null,
+        controllerBlackboxFraction -> null,
+        controllerLocalBookkeeping -> null,
+        controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

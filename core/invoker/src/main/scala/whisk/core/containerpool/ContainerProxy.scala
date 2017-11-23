@@ -94,6 +94,7 @@ case object ContainerRemoved
 class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
                      sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
                      storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+                     collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
                      instance: InstanceId,
                      unusedTimeout: FiniteDuration,
                      pauseGrace: FiniteDuration)
@@ -370,8 +371,8 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
         case Success(ack) => sendActiveAck(tid, ack, job.msg.blocking, job.msg.rootControllerIndex)
       }
       .flatMap { activation =>
-        container.logs(job.action.limits.logs.asMegaBytes, job.action.exec.sentinelledLogs).map { logs =>
-          activation.withLogs(ActivationLogs(logs.toVector))
+        collectLogs(tid, container, job.action).map { logs =>
+          activation.withLogs(logs)
         }
       }
       .andThen {
@@ -390,10 +391,11 @@ object ContainerProxy {
   def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
             ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
             store: (TransactionId, WhiskActivation) => Future[Any],
+            collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
             instance: InstanceId,
             unusedTimeout: FiniteDuration = 10.minutes,
             pauseGrace: FiniteDuration = 50.milliseconds) =
-    Props(new ContainerProxy(factory, ack, store, instance, unusedTimeout, pauseGrace))
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter

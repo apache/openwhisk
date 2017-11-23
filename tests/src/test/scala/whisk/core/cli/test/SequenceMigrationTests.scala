@@ -26,14 +26,14 @@ import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.junit.JUnitRunner
 
+import akka.stream.ActorMaterializer
 import common.TestHelpers
 import common.TestUtils
-import common.Wsk
+import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-
 import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
@@ -45,8 +45,9 @@ import whisk.core.entity.test.ExecHelpers
 @RunWith(classOf[JUnitRunner])
 class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtils with ExecHelpers with WskTestHelpers {
 
+  implicit val matzerializer = ActorMaterializer()
   implicit val wskprops = WskProps()
-  val wsk = new Wsk
+  val wsk = new WskRest
   val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
   // handle on the entity datastore
   val entityStore = WhiskEntityStore.datastore(whiskConfig)
