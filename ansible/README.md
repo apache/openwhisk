@@ -8,9 +8,9 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 
 #### Ubuntu users
 ```
-sudo apt-get install python-pip
-sudo pip install ansible==2.3.0.0
-sudo pip install jinja2==2.9.6
+sudo apt-get install python-pip libffi-dev
+sudo -H pip install ansible==2.3.0.0
+sudo -H pip install jinja2==2.9.6
 ```
 
 #### Vagrant users
@@ -140,7 +140,7 @@ may be done via the REST API, as in:
 ```
 couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
 curl -X PUT ${couch_url}/_config/query_server_config/reduce_limit \
-  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`
+  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}
 ```
 
 Finally, networking is a hastle with CouchDB.  To connect from localhost and from
