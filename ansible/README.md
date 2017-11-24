@@ -42,7 +42,7 @@ An expedient workaround is to add alias for `docker0` network to loopback interf
 sudo ifconfig lo0 alias 172.17.0.1/24
 ```
 
-You may also wish to add a special DNS entry Docker for Mac uses in its 
+You may also wish to add a special DNS entry Docker for Mac uses in its
 containers to your `/etc/hosts` file.
 
 ```
@@ -83,7 +83,7 @@ This is important because that's where `ansible.cfg` is located which contains g
 
 In all instructions, replace `<environment>` with your target environment. The default environment is `local` which works for Ubuntu and
 Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
-use `-i environments/docker-machine`.  For Mac installations using Homebrew 
+use `-i environments/docker-machine`.  For Mac installations using Homebrew
 python use `-i environments/homebrew`.
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
@@ -116,8 +116,8 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-If you're running CouchDB locally with Docker for Mac, strongly consider using 
-`docker.for.mac.localhost` as your `OW_DB_HOST`.  See notes above on configuring 
+If you're running CouchDB locally with Docker for Mac, strongly consider using
+`docker.for.mac.localhost` as your `OW_DB_HOST`.  See notes above on configuring
 Docker for Mac network.
 
 If you are operating on a fresh installation of CouchDB, you may need to create
@@ -128,19 +128,19 @@ couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
 curl -X PUT ${couch_url}/_users/org.couchdb.user:${OW_DB_USERNAME} \
      -H "Accept: application/json" \
      -H "Content-Type: application/json" \
-     -d '{"name": "${OW_DB_USERNAME}", "password": "${OW_DB_PASSWORD}", "roles": [], "type": "user"}' \
+     -d "{\"name\": \"${OW_DB_USERNAME}\", \"password\": \"${OW_DB_PASSWORD}\", \"roles\": [], \"type\": \"user\"}" \
 && \
-curl -X PUT ${url}/_config/admins/${OW_DB_USERNAME} -d "\"${OW_DB_PASSWORD}\""
+curl -X PUT ${couch_url}/_config/admins/${OW_DB_USERNAME} -d "\"${OW_DB_PASSWORD}\""
 ```
 
 If you deploy CouchDB manually (i.e., without using the deploy CouchDB
 playbook), you must set the `reduce_limit` property on views to `false`. This
 may be done via the REST API, as in:
- 
+
 ```
 couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
 curl -X PUT ${couch_url}/_config/query_server_config/reduce_limit \
-  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
+  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`
 ```
 
 Finally, networking is a hastle with CouchDB.  To connect from localhost and from
@@ -149,9 +149,9 @@ change a configuration parameter in `/etc/couchdb/local.ini` (or your equivalent
 `bind_address = 0.0.0.0`.  (This is fairly necessary on Docker for Mac right now
 unless you want to do a _lot_ of network fu.)
 
-**Warning:** Change the bind address to zeroes opens your CouchDB instance up to 
+**Warning:** Change the bind address to zeroes opens your CouchDB instance up to
 anyone who can connect to its port, so if you don't trust your firewall or other
-users on your machine, you should disable the 
+users on your machine, you should disable the
 [Admin Party](http://guide.couchdb.org/draft/security.html)
 
 ##### Cloudant
@@ -343,7 +343,7 @@ If you need Python to find the installed site-packages:
   mkdir -p ~/Library/Python/2.7/lib/python/site-packages
   echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
 ```
-  
+
 Just run the two commands to fix this issue.
 
 #### Spaces in Paths
