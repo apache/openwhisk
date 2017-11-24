@@ -21,17 +21,15 @@ import java.io.File
 import java.util.Calendar
 
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
 import scala.util.Try
-
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
@@ -76,17 +74,25 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     TestUtils.runCmd(0, new File("."), cmd: _*)
   }
 
+  def sendAndReceiveMessage(message: Message,
+                            waitForSend: FiniteDuration,
+                            waitForReceive: FiniteDuration): Iterable[String] = {
+    val start = java.lang.System.currentTimeMillis
+    val sent = Await.result(producer.send(topic, message), waitForSend)
+    val received = consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, "utf-8") }
+    val end = java.lang.System.currentTimeMillis
+    val elapsed = end - start
+    println(s"Received ${received.size}. Took $elapsed msec: $received\n")
+
+    received
+  }
+
   behavior of "Kafka connector"
 
   it should "send and receive a kafka message which sets up the topic" in {
     for (i <- 0 until 5) {
       val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-      val start = java.lang.System.currentTimeMillis
-      val sent = Await.result(producer.send(topic, message), 20 seconds)
-      val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
-      val end = java.lang.System.currentTimeMillis
-      val elapsed = end - start
-      println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
+      val received = sendAndReceiveMessage(message, 20 seconds, 10 seconds)
       received.size should be >= 1
       received.last should be(message.serialize)
       consumer.commit()
@@ -96,12 +102,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   it should "send and receive a kafka message even after session timeout" in {
     for (i <- 0 until 4) {
       val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-      val start = java.lang.System.currentTimeMillis
-      val sent = Await.result(producer.send(topic, message), 1 seconds)
-      val received = consumer.peek(1 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
-      val end = java.lang.System.currentTimeMillis
-      val elapsed = end - start
-      println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
+      val received = sendAndReceiveMessage(message, 1 seconds, 1 seconds)
 
       // only the last iteration will have an updated cursor
       // iteration 0: get whatever is on the topic (at least 1 but may be more if a previous test failed)
@@ -129,20 +130,13 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     if (kafkaHosts.length > 1) {
       for (i <- 0 until kafkaHosts.length) {
         val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
-
         val kafkaHost = kafkaHosts(i).split(":")(0)
         val startLog = s", started"
         val prevCount = startLog.r.findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout).length
 
         commandComponent(kafkaHost, "stop", s"kafka$i")
-
-        val start = java.lang.System.currentTimeMillis
-        val sent = Await.result(producer.send(topic, message), 20 seconds)
-        val received = consumer.peek(10 seconds).map { case (_, _, _, msg) => new String(msg, "utf-8") }
-        val end = java.lang.System.currentTimeMillis
-        val elapsed = end - start
-        println(s"($i) Received ${received.size}. Took $elapsed msec: $received\n")
-
+        var received = sendAndReceiveMessage(message, 30 seconds, 30 seconds)
+        received.size should be(1)
         consumer.commit()
 
         commandComponent(kafkaHost, "start", s"kafka$i")
@@ -150,7 +144,11 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
           startLog.r
             .findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout)
             .length shouldBe prevCount + 1
-        }, 15, Some(1.second)) // wait until kafka is up
+        }, 20, Some(1.second)) // wait until kafka is up
+
+        received = sendAndReceiveMessage(message, 30 seconds, 30 seconds)
+        received.size should be(1)
+        consumer.commit()
       }
     }
   }
