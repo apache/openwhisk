@@ -228,9 +228,6 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   }
 
   it should "tolerate docker run errors when limiting the number of concurrent docker run invocations" in {
-    // Delay execution of Docker run command
-    val firstRunPromise = Promise[String]()
-
     val secondContainerId = ContainerId("2" * 64)
 
     var runCmdCount = 0
@@ -238,8 +235,9 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
       override val dockerCmd = Seq(dockerCommand)
       override def executeProcess(args: String*)(implicit ec: ExecutionContext) = {
         runCmdCount += 1
+        println(s"runCmdCount=${runCmdCount}, args.last=${args.last}")
         runCmdCount match {
-          case 1 => firstRunPromise.future
+          case 1 => Future.failed(ProcessRunningException(1, "", ""))
           case 2 => Future.successful(secondContainerId.asString)
           case _ => Future.failed(new Throwable())
         }
@@ -253,23 +251,19 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     val image = "image"
     val args = Seq("args")
 
+    // Kick off the first Docker run command - it will fail.
     val firstRunResult = dc.run(image, args)
-    val secondRunResult = dc.run(image, args)
-
-    // The tested code won't reach the mocked executeProcess() and thus, increase runCmdCount,
-    // until at least one Future is successfully completed. For this reason, it takes
-    // some time until the following matcher is successful.
-    eventually { runCmdCount shouldBe 1 }
-
-    // Complete the first Docker run command with a failure so that the second is eligible to run
-    firstRunPromise.failure(ProcessRunningException(1, "", ""))
 
     an[Exception] should be thrownBy await(firstRunResult)
+    runCmdCount shouldBe 1
 
-    // Now, second command should be complete
-    eventually { runCmdCount shouldBe 2 }
+    // Now kick off the second Docker run command - it is expected to succeed.
+    // If this command completes without timeout, the concurrency limit properly
+    // deals with errors.
+    val secondRunResult = dc.run(image, args)
 
     await(secondRunResult) shouldBe secondContainerId
+    runCmdCount shouldBe 2
   }
 
   it should "write proper log markers on a successful command" in {
