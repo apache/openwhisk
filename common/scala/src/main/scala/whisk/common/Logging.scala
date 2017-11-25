@@ -241,6 +241,9 @@ object LoggingMarkers {
   // Time that is needed to init the action
   val INVOKER_ACTIVATION_INIT = LogMarkerToken(invoker, "activationInit", start)
 
+  // Time needed to collect the logs
+  val INVOKER_COLLECT_LOGS = LogMarkerToken(invoker, "collectLogs", start)
+
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)

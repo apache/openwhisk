@@ -42,7 +42,6 @@ import whisk.core.entity.ActivationEntityLimit
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.Exec
 import whisk.core.entity.size._
-import whisk.core.entity.size.SizeString
 import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
@@ -115,12 +114,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       val run = wsk.action.invoke(name, Map("payload" -> attemptedSize.toBytes.toJson))
       withActivation(wsk.activation, run, totalWait = 120 seconds) { response =>
         val lines = response.logs.get
-        lines.last shouldBe Messages.truncateLogs(allowedSize)
-        (lines.length - 1) shouldBe (allowedSize.toBytes / bytesPerLine)
-        // dropping 39 characters (timestamp + stream name)
-        // then reform total string adding back newlines
-        val actual = lines.dropRight(1).map(_.drop(39)).mkString("", "\n", "\n").sizeInBytes.toBytes
-        actual shouldBe allowedSize.toBytes
+        lines.last should include(Messages.truncateLogs(allowedSize))
       }
   }
 

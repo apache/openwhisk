@@ -18,20 +18,24 @@
 package whisk.core.containerpool.docker
 
 import java.io.File
-import java.io.FileInputStream
-import java.io.IOException
-import java.nio.ByteBuffer
 import java.nio.file.Paths
+
+import akka.stream.alpakka.file.scaladsl.FileTailSource
+import akka.stream.scaladsl.{FileIO, Source => AkkaSource}
+import akka.util.ByteString
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
-import scala.io.Source
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
+
+import scala.io.Source
+import scala.concurrent.duration.FiniteDuration
 
 class DockerClientWithFileAccess(
   dockerHost: Option[String] = None,
@@ -135,62 +139,33 @@ class DockerClientWithFileAccess(
       .map(_.fields("State").asJsObject.fields("OOMKilled").convertTo[Boolean])
       .recover { case _ => false }
 
-  // See extended trait for description
-  def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer] = Future {
-    blocking { // Needed due to synchronous file operations
-      var fis: FileInputStream = null
-      try {
-        val file = containerLogFile(containerId)
-        val size = file.length
-
-        fis = new FileInputStream(file)
-        val channel = fis.getChannel().position(fromPos)
-
-        // Buffer allocation may fail if the log file is too large to hold in memory or
-        // too few space is left on the heap, respectively.
-        var remainingBytes = (size - fromPos).toInt
-        val readBuffer = ByteBuffer.allocate(remainingBytes)
-
-        while (remainingBytes > 0) {
-          val readBytes = channel.read(readBuffer)
-          if (readBytes > 0) {
-            remainingBytes -= readBytes
-          } else if (readBytes < 0) {
-            remainingBytes = 0
-          }
-        }
-
-        readBuffer
-      } catch {
-        case e: Exception =>
-          throw new IOException(s"rawContainerLogs failed on ${containerId}", e)
-      } finally {
-        if (fis != null) fis.close()
+  private val readChunkSize = 8192 // bytes
+  override def rawContainerLogs(containerId: ContainerId,
+                                fromPos: Long,
+                                pollInterval: Option[FiniteDuration]): AkkaSource[ByteString, Any] =
+    try {
+      // If there is no waiting interval, we can end the stream early by reading just what is there from file.
+      pollInterval match {
+        case Some(interval) => FileTailSource(containerLogFile(containerId).toPath, readChunkSize, fromPos, interval)
+        case None           => FileIO.fromPath(containerLogFile(containerId).toPath, readChunkSize, fromPos)
       }
+    } catch {
+      case t: Throwable => AkkaSource.failed(t)
     }
-  }
 }
 
 trait DockerApiWithFileAccess extends DockerApi {
 
   /**
-   * Obtains the container's stdout and stderr by reading the internal docker log file
-   * for the container. Said file is written by docker's JSON log driver and has
-   * a "well-known" location and name.
+   * Reads logs from the container written json-log file and returns them
+   * streamingly in bytes.
    *
-   * Reads the log file from the specified position to its end. The returned ByteBuffer
-   * indicates how many bytes were actually read from the file.
-   *
-   * Attention: a ByteBuffer is allocated to keep the file from the specified position to its end
-   * fully in memory. At the moment, there is no size limit checking which can lead to
-   * out-of-memory exceptions for very large files.
-   *
-   * Deals with incomplete reads and premature end of file situations. Behavior is undefined
-   * if the log file is changed or truncated while reading.
-   *
-   * @param containerId the container for which to provide logs
-   * @param fromPos position where to start reading the container's log file
-   * @return a ByteBuffer holding the read log file contents
+   * @param containerId id of the container to get the logs for
+   * @param fromPos position to start to read in the file
+   * @param pollInterval interval to poll for changes of the file
+   * @return a source emitting chunks read from the log-file
    */
-  def rawContainerLogs(containerId: ContainerId, fromPos: Long): Future[ByteBuffer]
+  def rawContainerLogs(containerId: ContainerId,
+                       fromPos: Long,
+                       pollInterval: Option[FiniteDuration]): AkkaSource[ByteString, Any]
 }

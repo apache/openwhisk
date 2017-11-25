@@ -138,6 +138,7 @@ object Messages {
   def truncateLogs(limit: ByteSize) = {
     s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."
   }
+  val logFailure = "There was an issue while collecting your logs. Data might be missing."
 
   /** Error for meta api. */
   val propertyNotFound = "Response does not include requested property."
