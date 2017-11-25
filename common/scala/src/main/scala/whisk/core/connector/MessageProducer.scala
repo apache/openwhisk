@@ -27,7 +27,7 @@ trait MessageProducer {
   def sentCount(): Long
 
   /** Sends msg to topic. This is an asynchronous operation. */
-  def send(topic: String, msg: Message): Future[RecordMetadata]
+  def send(topic: String, msg: Message, retry: Int = 0): Future[RecordMetadata]
 
   /** Closes producer. */
   def close(): Unit

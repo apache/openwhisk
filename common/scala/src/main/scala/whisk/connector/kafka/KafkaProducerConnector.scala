@@ -29,6 +29,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.common.errors.NotLeaderForPartitionException
 import org.apache.kafka.common.serialization.StringSerializer
 import whisk.common.Counter
 import whisk.common.Logging
@@ -44,12 +45,13 @@ class KafkaProducerConnector(kafkahosts: String,
   override def sentCount() = sentCounter.cur
 
   /** Sends msg to topic. This is an asynchronous operation. */
-  override def send(topic: String, msg: Message): Future[RecordMetadata] = {
+  override def send(topic: String, msg: Message, retry: Int = 3): Future[RecordMetadata] = {
     implicit val transid = msg.transid
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
 
     logging.debug(this, s"sending to topic '$topic' msg '$msg'")
     val produced = Promise[RecordMetadata]()
+
     producer.send(record, new Callback {
       override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
         if (exception == null) produced.success(metadata)
@@ -62,7 +64,13 @@ class KafkaProducerConnector(kafkahosts: String,
         logging.debug(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
         sentCounter.next()
       case Failure(t) =>
-        logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
+        logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage} remain $retry retry")
+    } recoverWith {
+      case t: NotLeaderForPartitionException =>
+        if (retry > 0) {
+          logging.error(this, s"NotLeaderForPartitionException is retryable, remain $retry retry")
+          send(topic, msg, retry - 1)
+        } else produced.future
     }
   }
 
