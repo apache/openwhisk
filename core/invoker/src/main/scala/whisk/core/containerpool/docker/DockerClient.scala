@@ -20,18 +20,20 @@ package whisk.core.containerpool.docker
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.Semaphore
 
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.blocking
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import akka.event.Logging.ErrorLevel
+
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-
-import scala.collection.concurrent.TrieMap
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 
@@ -75,25 +77,46 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
     Seq(dockerBin) ++ host
   }
 
+  protected val maxParallelRuns = 10
+  protected val runSemaphore = new Semaphore( /* permits= */ maxParallelRuns, /* fair= */ true)
+
+  // Docker < 1.13.1 has a known problem: if more than 10 containers are created (docker run)
+  // concurrently, there is a good chance that some of them will fail.
+  // See https://github.com/moby/moby/issues/29369
+  // Use a semaphore to make sure that at most 10 `docker run` commands are active
+  // the same time.
   def run(image: String, args: Seq[String] = Seq.empty[String])(
     implicit transid: TransactionId): Future[ContainerId] = {
-    runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*)
-      .map {
-        ContainerId(_)
+    Future {
+      blocking {
+        // Acquires a permit from this semaphore, blocking until one is available, or the thread is interrupted.
+        // Throws InterruptedException if the current thread is interrupted
+        runSemaphore.acquire()
       }
-      .recoverWith {
-        // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
-        // Exit code 125 means an error reported by the Docker daemon.
-        // Examples:
-        // - Unrecognized option specified
-        // - Not enough disk space
-        case pre: ProcessRunningException if pre.exitCode == 125 =>
-          Future.failed(
-            DockerContainerId
-              .parse(pre.stdout)
-              .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}"))
-              .getOrElse(pre))
-      }
+    }.flatMap { _ =>
+      // Iff the semaphore was acquired successfully
+      runCmd((Seq("run", "-d") ++ args ++ Seq(image)): _*)
+        .andThen {
+          // Release the semaphore as quick as possible regardless of the runCmd() result
+          case _ => runSemaphore.release()
+        }
+        .map {
+          ContainerId(_)
+        }
+        .recoverWith {
+          // https://docs.docker.com/v1.12/engine/reference/run/#/exit-status
+          // Exit code 125 means an error reported by the Docker daemon.
+          // Examples:
+          // - Unrecognized option specified
+          // - Not enough disk space
+          case pre: ProcessRunningException if pre.exitCode == 125 =>
+            Future.failed(
+              DockerContainerId
+                .parse(pre.stdout)
+                .map(BrokenDockerContainer(_, s"Broken container: ${pre.getMessage}"))
+                .getOrElse(pre))
+        }
+    }
   }
 
   def inspectIPAddress(id: ContainerId, network: String)(implicit transid: TransactionId): Future[ContainerAddress] =
