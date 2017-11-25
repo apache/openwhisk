@@ -45,7 +45,7 @@ class KafkaProducerConnector(kafkahosts: String,
   override def sentCount() = sentCounter.cur
 
   /** Sends msg to topic. This is an asynchronous operation. */
-  override def send(topic: String, msg: Message, retry: Int = 5): Future[RecordMetadata] = {
+  override def send(topic: String, msg: Message, retry: Int = 2): Future[RecordMetadata] = {
     implicit val transid = msg.transid
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
 
@@ -64,7 +64,7 @@ class KafkaProducerConnector(kafkahosts: String,
         logging.debug(this, s"sent message: ${status.topic()}[${status.partition()}][${status.offset()}]")
         sentCounter.next()
       case Failure(t) =>
-        logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage} remain $retry retry")
+        logging.error(this, s"sending message on topic '$topic' failed: ${t.getMessage}")
     } recoverWith {
       case t: NotLeaderForPartitionException =>
         if (retry > 0) {
