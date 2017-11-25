@@ -45,7 +45,7 @@ class KafkaProducerConnector(kafkahosts: String,
   override def sentCount() = sentCounter.cur
 
   /** Sends msg to topic. This is an asynchronous operation. */
-  override def send(topic: String, msg: Message, retry: Int = 3): Future[RecordMetadata] = {
+  override def send(topic: String, msg: Message, retry: Int = 5): Future[RecordMetadata] = {
     implicit val transid = msg.transid
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
 
@@ -69,6 +69,7 @@ class KafkaProducerConnector(kafkahosts: String,
       case t: NotLeaderForPartitionException =>
         if (retry > 0) {
           logging.error(this, s"NotLeaderForPartitionException is retryable, remain $retry retry")
+          Thread.sleep(100)
           send(topic, msg, retry - 1)
         } else produced.future
     }
