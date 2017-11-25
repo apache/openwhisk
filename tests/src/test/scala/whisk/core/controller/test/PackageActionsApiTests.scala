@@ -591,7 +591,7 @@ class PackageActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val auser = WhiskAuthHelpers.newIdentity()
     Get(s"/${provider.namespace}/${collection.path}/${provider.name}/${entity.name}") ~> Route.seal(routes(auser)) ~> check {
       status should be(Forbidden)
-      responseAs[ErrorResponse].error shouldBe Messages.notAuthorizedtoOperateOnResource
+      responseAs[ErrorResponse].error shouldBe Messages.notAuthorizedtoAccessResource(s"$namespace/${provider.name}")
     }
   }
 

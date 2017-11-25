@@ -17,6 +17,7 @@
 
 package whisk.core.controller.test
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
@@ -39,7 +40,6 @@ import whisk.http.Messages
  * These tests exercise a fresh instance of the service object in memory -- these
  * tests do NOT communication with a whisk deployment.
  *
- *
  * @Idioglossia
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
@@ -51,6 +51,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
 
   val requestTimeout = 10.seconds
   val someUser = WhiskAuthHelpers.newIdentity()
+  val anotherUser = WhiskAuthHelpers.newIdentity()
   val adminUser = WhiskAuthHelpers.newIdentity(Subject("admin"))
   val guestUser = WhiskAuthHelpers.newIdentity(Subject("anonym"))
 
@@ -58,17 +59,58 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
     val resources = collections map { Resource(someUser.namespace.toPath, _, None) }
+
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, REJECT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
     }
+  }
+
+  it should "authorize a user to only read from their set of collections" in {
+    implicit val tid = transid()
+    val collections = Seq(ACTIONS, RULES, TRIGGERS, PACKAGES, ACTIVATIONS, NAMESPACES)
+    val resources = collections map { c: Collection =>
+      c match {
+        case RULES      => Resource(anotherUser.namespace.toPath, c, None)
+        case NAMESPACES => Resource(anotherUser.namespace.toPath, c, None)
+        case _          => Resource(someUser.namespace.toPath, c, None)
+      }
+    }
+
+    // Sets aren't ordered, but we need to compared an ordered list of namespaces in the output; so
+    // create a sorted list of namespaces per the iterated through the set.  The output list of namespaces
+    // will also be in sorted order.
+    val resourcesSet = resources.toSet
+    val resourcesList = ListBuffer[Resource]()
+    resourcesSet.map(r => resourcesList += r)
+    val resourceNames = resourcesList.map(r => r.fqname).sorted.toSet.mkString(", ")
+    val resourceOtherNames = Seq(
+      Resource(anotherUser.namespace.toPath, RULES, None),
+      Resource(anotherUser.namespace.toPath, NAMESPACES, None)).map(r => r.fqname).toSet.mkString(", ")
+
+    Await.ready(entitlementProvider.check(someUser, READ, resourcesSet), requestTimeout).eitherValue.get shouldBe Left(
+      RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceOtherNames)))
+    Await.ready(entitlementProvider.check(someUser, PUT, resourcesSet), requestTimeout).eitherValue.get shouldBe Left(
+      RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceNames)))
+    Await
+      .ready(entitlementProvider.check(someUser, DELETE, resourcesSet), requestTimeout)
+      .eitherValue
+      .get shouldBe Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceNames)))
+    Await
+      .ready(entitlementProvider.check(someUser, ACTIVATE, resourcesSet), requestTimeout)
+      .eitherValue
+      .get shouldBe Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceNames)))
+    Await
+      .ready(entitlementProvider.check(someUser, REJECT, resourcesSet), requestTimeout)
+      .eitherValue
+      .get shouldBe Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceNames)))
   }
 
   it should "not authorize a user to list someone else's collection or access it by other other right" in {
@@ -84,16 +126,16 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
         Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       } else {
         Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
-          RejectRequest(Forbidden))
+          RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       }
       Await.ready(entitlementProvider.check(guestUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, REJECT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
     }
   }
 
@@ -118,11 +160,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Right({})
     }
   }
@@ -134,11 +176,11 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     resources foreach { r =>
       Await.ready(entitlementProvider.check(someUser, READ, r), requestTimeout).eitherValue.get shouldBe Right({})
       Await.ready(entitlementProvider.check(someUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
     }
   }
 
@@ -148,13 +190,13 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     val resources = collections map { Resource(someUser.namespace.toPath, _, Some("xyz")) }
     resources foreach { r =>
       Await.ready(entitlementProvider.check(guestUser, READ, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, PUT, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
       Await.ready(entitlementProvider.check(guestUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
     }
   }
 
@@ -171,7 +213,7 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
       Await.ready(entitlementProvider.check(someUser, DELETE, r), requestTimeout).eitherValue.get shouldBe Right({})
       // activate is not allowed on a package
       Await.ready(entitlementProvider.check(someUser, ACTIVATE, r), requestTimeout).eitherValue.get shouldBe Left(
-        RejectRequest(Forbidden))
+        RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(r.fqname)))
     }
   }
 
@@ -502,22 +544,24 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
+    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
+    val action = WhiskAction(provider.fullPath, MakeName.next(), jsDefault(""))
+    put(entityStore, provider)
+    put(entityStore, action)
+
+    val resourceName = provider.fullyQualifiedName(false).asString
+
     val paths = Seq(
       (READ, someUser, Right(true)),
       (PUT, someUser, Right(true)),
       (DELETE, someUser, Right(true)),
       (ACTIVATE, someUser, Right(true)),
       (REJECT, someUser, Right(false)),
-      (READ, guestUser, Left(RejectRequest(Forbidden))),
+      (READ, guestUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
       (PUT, guestUser, Right(false)),
       (DELETE, guestUser, Right(false)),
-      (ACTIVATE, guestUser, Left(RejectRequest(Forbidden))),
+      (ACTIVATE, guestUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
       (REJECT, guestUser, Right(false)))
-
-    val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
-    val action = WhiskAction(provider.fullPath, MakeName.next(), jsDefault(""))
-    put(entityStore, provider)
-    put(entityStore, action)
 
     paths foreach {
       case (priv, who, expected) =>
@@ -534,24 +578,26 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val paths = Seq(
-      (READ, someUser, Left(RejectRequest(Forbidden))),
-      (PUT, someUser, Right(false)),
-      (DELETE, someUser, Right(false)),
-      (ACTIVATE, someUser, Left(RejectRequest(Forbidden))),
-      (REJECT, someUser, Right(false)),
-      (READ, guestUser, Right(true)),
-      (PUT, guestUser, Right(true)),
-      (DELETE, guestUser, Right(true)),
-      (ACTIVATE, guestUser, Right(true)),
-      (REJECT, guestUser, Right(false)))
-
     val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = true)
     val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
     val action = WhiskAction(binding.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
+
+    val resourceName = binding.fullyQualifiedName(false).asString
+
+    val paths = Seq(
+      (READ, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (PUT, someUser, Right(false)),
+      (DELETE, someUser, Right(false)),
+      (ACTIVATE, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (REJECT, someUser, Right(false)),
+      (READ, guestUser, Right(true)),
+      (PUT, guestUser, Right(true)),
+      (DELETE, guestUser, Right(true)),
+      (ACTIVATE, guestUser, Right(true)),
+      (REJECT, guestUser, Right(false)))
 
     paths foreach {
       case (priv, who, expected) =>
@@ -568,24 +614,26 @@ class EntitlementProviderTests extends ControllerTestCommon with ScalaFutures {
     implicit val tid = transid()
     implicit val ep = entitlementProvider
 
-    val paths = Seq(
-      (READ, someUser, Left(RejectRequest(Forbidden))),
-      (PUT, someUser, Right(false)),
-      (DELETE, someUser, Right(false)),
-      (ACTIVATE, someUser, Left(RejectRequest(Forbidden))),
-      (REJECT, someUser, Right(false)),
-      (READ, guestUser, Left(RejectRequest(Forbidden))),
-      (PUT, guestUser, Right(true)),
-      (DELETE, guestUser, Right(true)),
-      (ACTIVATE, guestUser, Left(RejectRequest(Forbidden))),
-      (REJECT, guestUser, Right(false)))
-
     val provider = WhiskPackage(someUser.namespace.toPath, MakeName.next(), None, publish = false)
     val binding = WhiskPackage(guestUser.namespace.toPath, MakeName.next(), provider.bind)
     val action = WhiskAction(binding.fullPath, MakeName.next(), jsDefault(""))
     put(entityStore, provider)
     put(entityStore, binding)
     put(entityStore, action)
+
+    val resourceName = binding.fullyQualifiedName(false).asString
+
+    val paths = Seq(
+      (READ, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (PUT, someUser, Right(false)),
+      (DELETE, someUser, Right(false)),
+      (ACTIVATE, someUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (REJECT, someUser, Right(false)),
+      (READ, guestUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (PUT, guestUser, Right(true)),
+      (DELETE, guestUser, Right(true)),
+      (ACTIVATE, guestUser, Left(RejectRequest(Forbidden, Messages.notAuthorizedtoAccessResource(resourceName)))),
+      (REJECT, guestUser, Right(false)))
 
     paths foreach {
       case (priv, who, expected) =>

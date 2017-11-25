@@ -325,25 +325,22 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[List[JsObject]]
-        val allActivations = activations ++ activationsInPackage
-        allActivations.length should be(response.length)
-        allActivations forall { a =>
+        activations.length should be(response.length)
+        activations forall { a =>
           response contains a.summaryAsJson
         } should be(true)
       }
     }
 
     // this is not yet ready, the v2 views must be activated
-    if (false) {
-      whisk.utils.retry {
-        Get(s"$collectionPath?name=pkg/xyz") ~> Route.seal(routes(creds)) ~> check {
-          status should be(OK)
-          val response = responseAs[List[JsObject]]
-          activationsInPackage.length should be(response.length)
-          activationsInPackage forall { a =>
-            response contains a.summaryAsJson
-          } should be(true)
-        }
+    whisk.utils.retry {
+      Get(s"$collectionPath?name=pkg/xyz") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[List[JsObject]]
+        activationsInPackage.length should be(response.length)
+        activationsInPackage forall { a =>
+          response contains a.summaryAsJson
+        } should be(true)
       }
     }
   }

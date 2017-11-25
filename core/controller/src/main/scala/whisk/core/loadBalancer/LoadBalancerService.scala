@@ -24,7 +24,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -51,6 +51,7 @@ import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
+import whisk.core.entity.size._
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
 
@@ -341,11 +342,16 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
 object LoadBalancerService {
   def requiredProperties =
-    kafkaHost ++ Map(
-      loadbalancerInvokerBusyThreshold -> null,
-      controllerBlackboxFraction -> null,
-      controllerLocalBookkeeping -> null,
-      controllerSeedNodes -> null)
+    kafkaHost ++
+      Map(
+        kafkaTopicsCompletedRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsCompletedRetentionMS -> 1.hour.toMillis.toString,
+        kafkaTopicsCompletedSegmentBytes -> 512.MB.toBytes.toString) ++
+      Map(
+        loadbalancerInvokerBusyThreshold -> null,
+        controllerBlackboxFraction -> null,
+        controllerLocalBookkeeping -> null,
+        controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

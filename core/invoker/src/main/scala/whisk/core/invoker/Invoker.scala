@@ -43,6 +43,7 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity.size._
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -61,6 +62,10 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
+      Map(
+        kafkaTopicsInvokerRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsInvokerRetentionMS -> 48.hour.toMillis.toString,
+        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString) ++
       Map(zookeeperHostName -> "", zookeeperHostPort -> "") ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
@@ -182,6 +187,17 @@ object Invoker {
 
     val invokerInstance = InstanceId(assignedInvokerId)
     val msgProvider = SpiLoader.get[MessagingProvider]
+    if (!msgProvider.ensureTopic(
+          config,
+          "invoker" + assignedInvokerId,
+          Map(
+            "numPartitions" -> "1",
+            "replicationFactor" -> "1",
+            "retention.bytes" -> config.kafkaTopicsInvokerRetentionBytes,
+            "retention.ms" -> config.kafkaTopicsInvokerRetentionMS,
+            "segment.bytes" -> config.kafkaTopicsInvokerSegmentBytes))) {
+      abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
+    }
     val producer = msgProvider.getProducer(config, ec)
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)

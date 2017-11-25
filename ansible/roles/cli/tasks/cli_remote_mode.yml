@@ -11,6 +11,13 @@
 - name: "generate content.json locally for Nginx CLI directory"
   local_action: shell "./createContentJson.sh" "{{ config_root_dir }}" "{{ openwhisk_cli_tag }}" "{{ cli_os | join(" ") }}" "{{ openwhisk_cli.remote.dest_name }}" chdir="{{ openwhisk_home }}/ansible/roles/cli/files"
 
+- name: "ensure Nginx cli directory is writable"
+  file:
+    path: "{{ cli.nginxdir }}"
+    state: directory
+    mode: 0777
+  become: "{{ cli.dir.become }}"
+  
 - name: "copy the local content.json to the remote node"
   copy: src={{ config_root_dir }}/content.json dest={{ cli.nginxdir }}/
 

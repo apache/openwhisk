@@ -1,0 +1,10 @@
+apply plugin: 'eclipse'
+eclipse {
+    project {
+        natures 'org.eclipse.wst.jsdt.core.jsNature'
+        buildCommand 'org.eclipse.wst.jsdt.core.javascriptValidator'
+    }
+}
+
+ext.dockerImageName = 'action-nodejs-v8'
+apply from: '../../gradle/docker.gradle'

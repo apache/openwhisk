@@ -46,6 +46,11 @@ runtimesManifestDefault:
       image:
         name: "nodejs6action"
       deprecated: false
+    - kind: "nodejs:8"
+      default: false
+      image:
+        name: "action-nodejs-v8"
+      deprecated: false
     python:
     - kind: "python"
       image:
@@ -108,7 +113,7 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
-  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:
     provider: cluster
     cluster:
@@ -118,7 +123,7 @@ controller:
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(false) }}"
+  ha: "{{ controller_enable_ha | default(true) }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -200,10 +205,10 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
-    actions_ddoc: "whisks"
+    actions_ddoc: "whisks.v2"
     activations: "{{ db_prefix }}activations"
-    activations_ddoc: "whisks"
-    activations_filter_ddoc: "whisks"
+    activations_ddoc: "whisks.v2"
+    activations_filter_ddoc: "whisks-filters.v2"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
@@ -304,15 +309,13 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 
 openwhisk_cli:
-  installation_mode: local
+  installation_mode: "{{ cli_installation_mode | default('remote') }}"
   local:
     location: "{{ openwhisk_cli_home }}/bin"
-
-# If you would like to use the remote mode, you can uncomment the following section.
-#  remote:
-#    name: OpenWhisk_CLI
-#    dest_name: OpenWhisk_CLI
-#    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+  remote:
+    name: OpenWhisk_CLI
+    dest_name: OpenWhisk_CLI
+    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 # The list of operating systems for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.

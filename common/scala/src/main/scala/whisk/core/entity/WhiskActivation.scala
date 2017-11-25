@@ -79,7 +79,6 @@ case class WhiskActivation(namespace: EntityPath,
   /** This the activation summary as computed by the database view. Strictly used for testing. */
   override def summaryAsJson = {
     import WhiskActivation.instantSerdes
-    val summary = JsObject(super.summaryAsJson.fields + ("activationId" -> activationId.toJson))
 
     def actionOrNot() = {
       if (end != Instant.EPOCH) {
@@ -90,13 +89,12 @@ case class WhiskActivation(namespace: EntityPath,
       } else Map.empty
     }
 
-    if (WhiskActivation.mainDdoc.endsWith(".v2")) {
-      JsObject(
-        summary.fields +
-          ("start" -> start.toJson) ++
-          cause.map(("cause" -> _.toJson)) ++
-          actionOrNot())
-    } else summary
+    JsObject(
+      super.summaryAsJson.fields +
+        ("activationId" -> activationId.toJson) +
+        ("start" -> start.toJson) ++
+        cause.map(("cause" -> _.toJson)) ++
+        actionOrNot())
   }
 
   def resultAsJson = response.result.toJson.asJsObject
@@ -145,8 +143,8 @@ object WhiskActivation
   // which are readily available here; rather than introduce significant refactoring,
   // defer this fix until WhiskConfig is refactored itself, which is planned to introduce
   // type safe properties
-  private val mainDdoc = WhiskConfig.readFromEnv(dbActivationsDesignDoc).getOrElse("whisks")
-  private val filtersDdoc = WhiskConfig.readFromEnv(dbActivationsFilterDesignDoc).getOrElse("whisks")
+  private val mainDdoc = WhiskConfig.readFromEnv(dbActivationsDesignDoc).getOrElse("whisks.v2")
+  private val filtersDdoc = WhiskConfig.readFromEnv(dbActivationsFilterDesignDoc).getOrElse("whisks-filters.v2")
 
   /** The main view for activations, keyed by namespace, sorted by date. */
   override lazy val view = WhiskEntityQueries.view(mainDdoc, collectionName)

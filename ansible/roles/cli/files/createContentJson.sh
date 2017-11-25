@@ -56,7 +56,8 @@ create_cli_packages() {
   dirIndex="$(echo $dirIndex | rev | cut -c2- | rev)"
   dirIndex="$dirIndex}}"
 
-  echo $dirIndex > $PATH_CONTENT_JSON/content.json
+  mkdir -p "${PATH_CONTENT_JSON}"
+  echo $dirIndex > "${PATH_CONTENT_JSON}/content.json"
 };
 
 archs="386 amd64";

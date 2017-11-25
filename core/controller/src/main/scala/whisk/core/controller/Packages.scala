@@ -43,6 +43,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   protected override val collection = Collection(Collection.PACKAGES)
 
+  protected[core] val RESERVED_NAMES = Array("default")
+
   /** Database service to CRUD packages. */
   protected val entityStore: EntityStore
 
@@ -76,25 +78,29 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
-      entity(as[WhiskPackagePut]) { content =>
-        val request = content.resolve(entityName.namespace)
+      if (!overwrite && (RESERVED_NAMES contains entityName.name.asString)) {
+        terminate(BadRequest, Messages.packageNameIsReserved(entityName.name.asString))
+      } else {
+        entity(as[WhiskPackagePut]) { content =>
+          val request = content.resolve(entityName.namespace)
 
-        request.binding.map { b =>
-          logging.info(this, "checking if package is accessible")
-        }
-        val referencedentities = referencedEntities(request)
+          request.binding.map { b =>
+            logging.info(this, "checking if package is accessible")
+          }
+          val referencedentities = referencedEntities(request)
 
-        onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
-          case Success(_) =>
-            putEntity(
-              WhiskPackage,
-              entityStore,
-              entityName.toDocId,
-              overwrite,
-              update(request) _,
-              () => create(request, entityName))
-          case Failure(f) =>
-            rewriteEntitlementFailure(f)
+          onComplete(entitlementProvider.check(user, Privilege.READ, referencedentities)) {
+            case Success(_) =>
+              putEntity(
+                WhiskPackage,
+                entityStore,
+                entityName.toDocId,
+                overwrite,
+                update(request) _,
+                () => create(request, entityName))
+            case Failure(f) =>
+              rewriteEntitlementFailure(f)
+          }
         }
       }
     }

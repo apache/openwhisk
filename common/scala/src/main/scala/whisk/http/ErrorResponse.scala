@@ -64,6 +64,7 @@ object Messages {
 
   /** Standard message for resource not found. */
   val resourceDoesNotExist = "The requested resource does not exist."
+  def resourceDoesntExist(value: String) = s"The requested resource '$value' does not exist."
 
   /** Standard message for too many activation requests within a rolling time window. */
   def tooManyRequests(count: Int, allowed: Int) =
@@ -78,6 +79,8 @@ object Messages {
 
   /** Standard message when supplied authkey is not authorized for an operation. */
   val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."
+  def notAuthorizedtoAccessResource(value: String) =
+    s"The supplied authentication is not authorized to access '$value'."
 
   /** Standard error message for malformed fully qualified entity names. */
   val malformedFullyQualifiedEntityName =
@@ -106,6 +109,9 @@ object Messages {
   val bindingCannotReferenceBinding = "Cannot bind to another package binding."
   val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
   val notAllowedOnBinding = "Operation not permitted on package binding."
+  def packageNameIsReserved(name: String) = {
+    s"Package name '$name' is reserved."
+  }
 
   /** Error messages for sequence activations. */
   def sequenceRetrieveActivationTimeout(id: ActivationId) =

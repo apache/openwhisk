@@ -48,6 +48,8 @@
   file:
     path: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}"
     state: directory
+    mode: 0777
+  become: "{{ cli.dir.become }}"
 
 - name: "download cli ({{ os }}) {{ arc }} to Nginx directory"
   get_url:
