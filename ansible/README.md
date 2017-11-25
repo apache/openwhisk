@@ -96,8 +96,8 @@ default python interpreters for ansible tasks.
 ### Using Ansible
 
 **Caveat:** All Ansible commands are meant to be executed from the `ansible`
-**directory. This is important because that's where `ansible.cfg` is located
-**which contains generic settings that are needed for the remaining steps. 
+directory. This is important because that's where `ansible.cfg` is located
+which contains generic settings that are needed for the remaining steps. 
 
 In all instructions, replace `<environment>` with your target environment. The
 default environment is `local` which works for Ubuntu and Docker for Mac. To use
@@ -142,11 +142,9 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-<aside class="warning">
-If you're intend to run CouchDB locally with Docker for Mac, 
+**Warning:** If you intend to run CouchDB locally with Docker for Mac, 
 please see the notes [above](#Configure-the-Docker-for-Mac-network)
 regarding configuring your Mac network information.
-</aside>
 
 If you are operating on a fresh installation of CouchDB, you may need to create
 the user and add it to admins, which will look something like this:
@@ -177,12 +175,10 @@ change a configuration parameter in `/etc/couchdb/local.ini` (or your equivalent
 `bind_address = 0.0.0.0`.  (This is fairly necessary on Docker for Mac right now
 unless you want to do a _lot_ of network fu.)
 
-<aside class="warning">
-Change the bind address to zeroes opens your CouchDB instance up to
+**Warning:** Change the bind address to zeroes opens your CouchDB instance up to
 anyone who can connect to its port, so if you don't trust your firewall or other
 users on your machine, you should disable the
 [Admin Party](http://guide.couchdb.org/draft/security.html).
-</aside>
 
 ##### Cloudant
 
@@ -211,11 +207,9 @@ necessary prerequisites on all target hosts in the environment.
 ansible-playbook -i environments/<environment> prereq.yml
 ```
 
-<aside class="note">
-During playbook execution the `TASK [prereq : check for pip]` can show as
-failed. This is normal if no pip is installed. The playbook will then move on
+**Hint:** During playbook execution the `TASK [prereq : check for pip]` can show 
+as failed. This is normal if no pip is installed. The playbook will then move on
 and install pip on the target machines. 
-</aside>
 
 ### Deploying Using Ephemeral CouchDB
 -   Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
@@ -318,10 +312,8 @@ cd ansible
 ansible-playbook -i environments/<environment> invoker.yml -e docker_image_tag=myNewInvoker
 ```
 
-<aside class="note">
-You can omit the Docker image tag parameters in which case `latest` will be used
-implicitly.
-</aside>
+**Hint:** You can omit the Docker image tag parameters in which case `latest` 
+will be used implicitly.
 
 ### Cleaning a Single Component
 You can remove a single component just as you would remove the entire deployment
@@ -332,11 +324,10 @@ cd ansible
 ansible-playbook -i environments/<environment> controller.yml -e mode=clean
 ```
 
-<aside class="warning">
-In distributed environments some components (e.g. Invoker, etc.) exist on
-multiple machines. So if you run a playbook to clean or deploy those components,
-it will run on _every one_ of the hosts targeted by the component's playbook.
-</aside>
+**Caveat:** In distributed environments some components (e.g. Invoker, etc.) 
+exist on multiple machines. So if you run a playbook to clean or deploy those 
+components, it will run on _every one_ of the hosts targeted by the component's 
+playbook.
 
 
 ### Cleaning an OpenWhisk Deployment
