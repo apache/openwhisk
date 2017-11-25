@@ -74,3 +74,6 @@ trait LogStore {
 trait LogStoreProvider extends Spi {
   def logStore(actorSystem: ActorSystem): LogStore
 }
+
+/** Indicates reading logs has failed either terminally or truncated logs */
+case class LogCollectingException(partialLogs: ActivationLogs) extends Exception("Failed to read logs")

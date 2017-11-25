@@ -23,7 +23,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
 import scala.util.Failure
-
 import akka.actor.FSM
 import akka.actor.Props
 import akka.actor.Stash
@@ -31,13 +30,12 @@ import akka.actor.Status.{Failure => FailureMessage}
 import akka.pattern.pipe
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionId
+import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
 import whisk.core.connector.ActivationMessage
+import whisk.core.containerpool.logging.LogCollectingException
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.common.Counter
 import whisk.core.entity.ExecManifest.ImageName
-import whisk.common.AkkaLogging
 import whisk.http.Messages
 
 // States
@@ -362,28 +360,36 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
-    // Sending active ack and storing the activation are concurrent side-effects
-    // and do not block further execution of the future. They are completely
-    // asynchronous.
-    activation
-      .andThen {
-        // the activation future will always complete with Success
-        case Success(ack) => sendActiveAck(tid, ack, job.msg.blocking, job.msg.rootControllerIndex)
-      }
+    // Sending active ack. Entirely asynchronous and not waited upon.
+    activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
+
+    // Adds logs to the raw activation.
+    val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        collectLogs(tid, container, job.action).map { logs =>
-          activation.withLogs(logs)
-        }
+        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
+        collectLogs(tid, container, job.action)
+          .andThen {
+            case Success(_) => tid.finished(this, start)
+            case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
+          }
+          .map(logs => Right(activation.withLogs(logs)))
+          .recover {
+            case LogCollectingException(logs) =>
+              Left(ActivationLogReadingError(activation.withLogs(logs)))
+            case _ =>
+              Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
+          }
       }
-      .andThen {
-        case Success(activation) => storeActivation(tid, activation)
-      }
-      .flatMap { activation =>
-        // Fail the future iff the activation was unsuccessful to facilitate
-        // better cleanup logic.
-        if (activation.response.isSuccess) Future.successful(activation)
-        else Future.failed(ActivationUnsuccessfulError(activation))
-      }
+
+    // Storing the record. Entirely asynchronous and not waited upon.
+    activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _))
+
+    // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
+    activationWithLogs.flatMap {
+      case Right(act) if !act.response.isSuccess => Future.failed(ActivationUnsuccessfulError(act))
+      case Left(error)                           => Future.failed(error)
+      case Right(act)                            => Future.successful(act)
+    }
   }
 }
 
@@ -440,6 +446,13 @@ object ContainerProxy {
   }
 }
 
+/** Indicates that something went wrong with an activation and the container should be removed */
+trait ActivationError extends Exception {
+  val activation: WhiskActivation
+}
+
 /** Indicates an activation with a non-successful response */
-case class ActivationUnsuccessfulError(activation: WhiskActivation)
-    extends Exception(s"activation ${activation.activationId} failed")
+case class ActivationUnsuccessfulError(activation: WhiskActivation) extends ActivationError
+
+/** Indicates reading logs for an activation failed (terminally, truncated) */
+case class ActivationLogReadingError(activation: WhiskActivation) extends ActivationError

@@ -18,9 +18,6 @@
 package whisk.core.containerpool.docker.test
 
 import java.io.File
-import java.io.FileWriter
-import java.io.IOException
-import java.nio.charset.StandardCharsets
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -35,7 +32,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-import org.scalatest.fixture.{FlatSpec => FixtureFlatSpec}
 
 import common.StreamLogging
 import spray.json._
@@ -141,109 +137,5 @@ class DockerClientWithFileAccessTestsOom extends FlatSpec with Matchers with Str
   it should "default to 'false' if the json structure is unparseable" in {
     val dc = dockerClient(Future.successful(JsObject()))
     await(dc.isOomKilled(id)) shouldBe false
-  }
-}
-
-/**
- * The file access tests use fixtures (org.scalatest.fixture.FlatSpec) in contrast to
- * the IP address related tests. For this reason, the file access tests are in a separate
- * test suite.
- *
- * This test uses fixtures because they provide a good way for setup and cleanup(!) in a thread-safe
- * way such that tests could be run in parallel. In particular, this test suite creates
- * a temporary file for each test and cleans it up afterwards.
- */
-@RunWith(classOf[JUnitRunner])
-class DockerClientWithFileAccessTestsLogs
-    extends FixtureFlatSpec
-    with Matchers
-    with StreamLogging
-    with BeforeAndAfterEach {
-
-  override def beforeEach = stream.reset()
-
-  implicit val transid = TransactionId.testing
-
-  behavior of "DockerClientWithFileAccess - rawContainerLogs"
-
-  /** Returns a DockerClient with mocked results */
-  def dockerClient(logFile: File) = new DockerClientWithFileAccess()(global) {
-    override def containerLogFile(containerId: ContainerId) = logFile
-  }
-
-  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
-
-  /** The fixture parameter must be of type FixtureParam. This is hard-wired in fixture suits. */
-  case class FixtureParam(file: File, writer: FileWriter, docker: DockerClientWithFileAccess) {
-    def writeLogFile(content: String) = {
-      writer.write(content)
-      writer.flush()
-    }
-  }
-
-  /** This overridden method gets control for each test and actually invokes the test. */
-  override def withFixture(test: OneArgTest) = {
-    val file = File.createTempFile(this.getClass.getName, test.name.replaceAll("[^a-zA-Z0-9.-]", "_"))
-    val writer = new FileWriter(file)
-    val docker = dockerClient(file)
-
-    val fixture = FixtureParam(file, writer, docker)
-
-    try {
-      super.withFixture(test.toNoArgTest(fixture))
-    } finally {
-      writer.close()
-      file.delete()
-    }
-  }
-
-  val containerId = ContainerId("Id")
-
-  it should "tolerate an empty log file" in { fixture =>
-    val logText = ""
-    fixture.writeLogFile(logText)
-
-    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
-
-    logContent shouldBe logText
-    stream should have size 0
-  }
-
-  it should "read a full log file" in { fixture =>
-    val logText = "text"
-    fixture.writeLogFile(logText)
-
-    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
-
-    logContent shouldBe logText
-    stream should have size 0
-  }
-
-  it should "read a log file portion" in { fixture =>
-    val logText =
-      """Hey, dude-it'z true not sad
-              |Take a thrash song and make it better
-              |Admit it! Beatallica'z under your skin!
-              |So now begin to be a shredder""".stripMargin
-    val from = 66 // start at third line...
-    val expectedText = logText.substring(from)
-
-    fixture.writeLogFile(logText)
-
-    val buffer = await(fixture.docker.rawContainerLogs(containerId, fromPos = from))
-    val logContent = new String(buffer.array, buffer.arrayOffset, buffer.position, StandardCharsets.UTF_8)
-
-    logContent shouldBe expectedText
-    stream should have size 0
-  }
-
-  it should "provide an empty result on failure" in { fixture =>
-    fixture.writer.close()
-    fixture.file.delete()
-
-    an[IOException] should be thrownBy await(fixture.docker.rawContainerLogs(containerId, fromPos = 0))
-    stream should have size 0
   }
 }
