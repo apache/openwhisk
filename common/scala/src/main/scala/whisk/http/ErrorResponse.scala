@@ -186,6 +186,7 @@ object Messages {
   }
 
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
+  val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
