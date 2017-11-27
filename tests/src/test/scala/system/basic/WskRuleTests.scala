@@ -46,7 +46,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
    * the trigger was fired.
    */
   val activationTimeSkewFactorMs = 500
-  val fireLatencyMS = 100
 
   /**
    * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
@@ -236,10 +235,8 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
 
     val first = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
-    Thread.sleep(fireLatencyMS)
     wsk.rule.disable(ruleName)
     wsk.trigger.fire(triggerName, Map("payload" -> s"$testString with added words".toJson))
-    Thread.sleep(fireLatencyMS)
     wsk.rule.enable(ruleName)
     wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
 
