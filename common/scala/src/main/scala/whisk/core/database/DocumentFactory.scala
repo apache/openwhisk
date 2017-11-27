@@ -167,7 +167,6 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
   def attach[Wsuper >: W](
     db: ArtifactStore[Wsuper],
     doc: W,
-    docInfo: DocInfo,
     attachmentName: String,
     contentType: ContentType,
     bytes: InputStream)(implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
@@ -175,12 +174,15 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
     Try {
       require(db != null, "db undefined")
       require(doc != null, "doc undefined")
-      require(docInfo != null, "docInfo undefined")
     } map { _ =>
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
+      val rev = doc match {
+        case w: DocumentRevisionProvider => w.rev
+      }
       val key = CacheKey(doc)
+      val docInfo = DocInfo(DocId(key.mainId), rev)
       val src = StreamConverters.fromInputStream(() => bytes)
 
       cacheUpdate(doc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
