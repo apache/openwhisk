@@ -103,6 +103,7 @@ def parseArgs():
     subcmd = subparser.add_parser('get', help='get authorization key for user')
     subcmd.add_argument('subject', help='the subject to get key for')
     subcmd.add_argument('-ns', '--namespace', help='the namespace to get the key for, defaults to subject id')
+    subcmd.add_argument('-a', '--all', help='list all namespaces and their keys', action='store_true')
 
     subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
     subcmd.add_argument('authkey', help='the credentials to look up')
@@ -116,6 +117,7 @@ def parseArgs():
     subcmd = subparser.add_parser('list', help='list authorization keys associated with a namespace')
     subcmd.add_argument('namespace', help='the namespace to lookup')
     subcmd.add_argument('-p', '--pick', metavar='N', help='show no more than N identities', type=int, default=1)
+    subcmd.add_argument('-a', '--all', help='show all identities', action='store_true')
     subcmd.add_argument('-k', '--key', help='show only the keys', action='store_true')
 
     propmenu = subparsers.add_parser('limits', help='manage namespace-specific limits')
@@ -269,16 +271,23 @@ def getUserCmd(args, props):
     (doc, res) = getSubjectFromDb(args, props)
 
     if doc is not None:
-        # try default namespace if no namespace provided
-        namespaceName = args.namespace if args.namespace is not None else args.subject
-        namespaces = filter(lambda ns: ns['name'] == namespaceName, doc['namespaces'])
-        if len(namespaces) == 1:
-            ns = namespaces[0]
-            print('%s:%s' % (ns['uuid'], ns['key']))
+        if args.all is True:
+            # tabulate name of each space and its key
+            for ns in doc['namespaces']:
+                print('%s\t%s:%s' % (ns['name'], ns['uuid'], ns['key']))
             return 0
         else:
-            print('namespace "%s" not found for "%s"' % (namespaceName, args.subject))
-            return 1
+          # if requesting key for specific namespace, report only that key;
+          # use default namespace if no namespace provided
+          namespaceName = args.namespace if args.namespace is not None else args.subject
+          namespaces = filter(lambda ns: ns['name'] == namespaceName, doc['namespaces'])
+          if len(namespaces) == 1:
+              ns = namespaces[0]
+              print('%s:%s' % (ns['uuid'], ns['key']))
+              return 0
+          else:
+              print('namespace "%s" not found for "%s"' % (namespaceName, args.subject))
+              return 1
     else:
         print('Failed to get subject (%s)' % res.read().strip())
         return 1
@@ -291,7 +300,7 @@ def listUserCmd(args, props):
         return 2
 
     if nslist is not None:
-        nslist = nslist[:args.pick]
+        nslist = nslist if args.all is True else nslist[:args.pick]
         if len(nslist) > 0:
             for p in nslist:
                 print('%s:%s%s' % (p['uuid'], p['key'], "\t%s" % p['subject'] if not args.key else ""))
@@ -522,7 +531,11 @@ def getLimitsCmd(args, props):
             if givenLimit != None:
                 print('%s = %s' % (limit, givenLimit))
     else:
-        print('Failed to get limits (%s)' % res.read().strip())
+        error = json.loads(res.read())
+        if error['reason'] == 'missing':
+            print('No limits found, default system limits apply')
+        else:
+            print('Failed to get limits (%s)' % res.read().strip())
         return 1
 
 def deleteLimitsCmd(args, props):
