@@ -45,7 +45,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
    * for action activations that occur starting at most this amount of time before
    * the trigger was fired.
    */
-  val activationTimeSkewFactorMs = 1500
+  val activationTimeSkewFactorMs = 500
 
   /**
    * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
