@@ -11,7 +11,11 @@ RUN wget --no-verbose https://github.com/swagger-api/swagger-ui/archive/v2.1.4.t
 
 #
 # Copy app jars
-COPY build/distributions/controller.tar ./
+COPY build/distributions/controller.tar /
 RUN tar xf controller.tar
 
+COPY init.sh /
+RUN chmod +x init.sh
+
 EXPOSE 8080
+CMD ["init.sh", "0"]

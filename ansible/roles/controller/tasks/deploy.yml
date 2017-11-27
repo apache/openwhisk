@@ -75,27 +75,33 @@
       "LIMITS_ACTIONS_INVOKES_CONCURRENTINSYSTEM": "{{ limits.concurrentInvocationsSystem }}"
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
       "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
-      "CONTROLLER_BLACKBOXFRACTION": "{{ controller.blackboxFraction }}"
-      "LOADBALANCER_INVOKERBUSYTHRESHOLD": "{{ invoker.busyThreshold }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
-      "AKKA_CLUSTER_PORT": "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}"
-      "AKKA_CLUSTER_HOST": "{{ controller.akka.cluster.host[groups['controllers'].index(inventory_hostname)] }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
-      "AKKA_CLUSTER_BIND_PORT": "{{ controller.akka.cluster.bindPort }}"
-      "AKKA_ACTOR_PROVIDER": "{{ controller.akka.provider }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
-      "METRICS_KAMON_HOST": "{{ metrics.kamon.host }}"
-      "METRICS_KAMON_PORT": "{{ metrics.kamon.port }}"
       "CONTROLLER_HA": "{{ controller.ha }}"
+
+      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
+      "METRICS_LOG": "{{ metrics.log.enabled }}"
+
+      "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"
+      "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"
+
+      "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
+      "CONFIG_akka_remote_netty_tcp_hostname": "{{ controller.akka.cluster.host[groups['controllers'].index(inventory_hostname)] }}"
+      "CONFIG_akka_remote_netty_tcp_port": "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}"
+      "CONFIG_akka_remote_netty_tcp_bindPort": "{{ controller.akka.cluster.bindPort }}"
+
+      "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
+      "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
       - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
       - "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}:{{ controller.akka.cluster.bindPort }}"
-    command: /bin/sh -c "export CONTAINER_IP=$(hostname -I); controller/bin/controller {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
+    command: /bin/sh -c "exec /init.sh {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
