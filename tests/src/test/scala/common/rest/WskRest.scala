@@ -1181,6 +1181,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
+  val idleTimeout = 5 minutes
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
@@ -1224,7 +1225,8 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
     val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
-    val connectionPoolSettings = ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest)
+    val connectionPoolSettings =
+      ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest).withIdleTimeout(idleTimeout)
     val pool = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
       host = WhiskProperties.getApiHost,
       connectionContext = connectionContext,
