@@ -1,57 +1,40 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: "pull the zookeeper:{{ zookeeper.version }} image"
-  shell: "docker pull zookeeper:{{ zookeeper.version }}"
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
-
-- name: (re)start zookeeper
-  docker_container:
-    name: zookeeper
-    image: zookeeper:{{ zookeeper.version }}
-    state: started
-    recreate: true
-    restart_policy: "{{ docker.restart.policy }}"
-    ports:
-      - "{{ zookeeper.port }}:2181"
-
-- name: wait until the Zookeeper in this host is up and running
-  action: shell (echo ruok; sleep 1) | nc {{ ansible_host }} {{ zookeeper.port }}
-  register: result
-  until: (result.rc == 0) and (result.stdout == 'imok')
-  retries: 36
-  delay: 5
-
-- name: "pull the ches/kafka:{{ kafka.version }} image"
-  shell: "docker pull ches/kafka:{{ kafka.version }}"
+- name: "pull the wurstmeister/kafka:{{ kafka.version }} image"
+  shell: "docker pull wurstmeister/kafka:{{ kafka.version }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
 - name: (re)start kafka
+  vars:
+    zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
   docker_container:
-    name: kafka
-    image: ches/kafka:{{ kafka.version }}
+    name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
+    image: wurstmeister/kafka:{{ kafka.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    links:
-      - "zookeeper:zookeeper"
     env:
+      "KAFKA_DEFAULT_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
+      "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
+      "KAFKA_ADVERTISED_PORT": "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
+      "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
+      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
     ports:
-      - "{{ kafka.port }}:9092"
+      - "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:9092"
 
 - name: wait until the kafka server started up
-  shell: docker logs kafka
+  shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
   register: result
-  until: ('[Kafka Server 0], started' in result.stdout)
+  until: (('[Kafka Server ' + (groups['kafkas'].index(inventory_hostname)|string) + '], started') in result.stdout)
   retries: 10
   delay: 5
 
 - name: create the health and the cacheInvalidation topic
-  shell: "docker exec kafka bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item.name }} --replication-factor 1 --partitions 1 --zookeeper {{ ansible_host }}:{{ zookeeper.port }} --config retention.bytes={{ item.settings.retentionBytes }} --config retention.ms={{ item.settings.retentionMS }} --config segment.bytes={{ item.settings.segmentBytes }}'"
+  shell: "docker exec kafka0 bash -c 'unset JMX_PORT; kafka-topics.sh --create --topic {{ item.name }} --replication-factor {{ kafka.replicationFactor }} --partitions 1 --zookeeper $KAFKA_ZOOKEEPER_CONNECT --config retention.bytes={{ item.settings.retentionBytes }} --config retention.ms={{ item.settings.retentionMS }} --config segment.bytes={{ item.settings.segmentBytes }}'"
   register: command_result
   failed_when: "not ('Created topic' in command_result.stdout or 'already exists' in command_result.stdout)"
   changed_when: "'Created topic' in command_result.stdout"
@@ -60,3 +43,4 @@
     settings: "{{ kafka.topics.health }}"
   - name: cacheInvalidation
     settings: "{{ kafka.topics.cacheInvalidation }}"
+  when: groups['kafkas'].index(inventory_hostname ) == 0

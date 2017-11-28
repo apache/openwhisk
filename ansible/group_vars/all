@@ -129,32 +129,45 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
-  version: 0.10.2.1
+  version: 0.11.0.1
   port: 9092
   ras:
-    port: 9093
+    port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
+  replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
   topics:
     completed:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
-      retentionMS: 3600000
+      retentionMS: "{{ kafka_topics_completed_retentionMS | default(3600000) }}"
     health:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
-      retentionMS: 3600000
+      retentionMS: "{{ kafka_topics_health_retentionMS | default(3600000) }}"
     invoker:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
-      retentionMS: 172800000
+      retentionMS: "{{ kafka_topics_invoker_retentionMS | default(172800000) }}"
     cacheInvalidation:
       segmentBytes: 536870912
-      retentionBytes: 1073741824
-      retentionMS: 300000
+      retentionBytes: "{{ kafka_topics_cacheInvalidation_retentionBytes | default(1073741824) }}"
+      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}" 
+
+kafka_connect_string: "{% set ret = [] %}\
+                       {% for host in groups['kafkas'] %}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                       {% endfor %}\
+                       {{ ret | join(',') }}"
 
 zookeeper:
   version: 3.4
   port: 2181
+
+zookeeper_connect_string: "{% set ret = [] %}\
+                           {% for host in groups['zookeepers'] %}\
+                             {{ ret.append( hostvars[host].ansible_host + ':' + ((zookeeper.port+loop.index-1)|string) ) }}\
+                           {% endfor %}\
+                           {{ ret | join(',') }}"
 
 invoker:
   port: 12001
