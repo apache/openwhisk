@@ -27,6 +27,15 @@
     dest: "{{ nginx.confdir }}"
   when: nginx.ssl.password_enabled == true
 
+- name: copy controller cert for authentication
+  copy:
+    src: "{{ openwhisk_home }}/ansible/roles/controller/files/{{ item }}"
+    dest: "{{ nginx.confdir }}"
+  with_items:
+        - "{{ controller.ssl.cert }}"
+        - "{{ controller.ssl.key }}"
+  when: "{{ controller.protocol == 'https' }}"
+
 - name: ensure nginx log directory is created with permissions
   file:
     path: "{{ whisk_logs_dir }}/nginx"

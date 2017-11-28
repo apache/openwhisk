@@ -48,3 +48,15 @@
   - name: generate kafka certificates
     local_action: shell "{{ playbook_dir }}/files/genssl.sh" "openwhisk-kafka" "server_with_JKS_keystore" "{{ playbook_dir }}/roles/kafka/files" openwhisk "generateKey" "kafka-"
     when: kafka_protocol_for_setup == 'SSL'
+
+  - name: ensure controller files directory exists
+    file:
+      path: "{{ playbook_dir }}/roles/controller/files/"
+      state: directory
+      mode: 0777
+    become: "{{ logs.dir.become }}"
+    when: controllerProtocolForSetup == 'https'
+
+  - name: generate controller certificates
+    when: controllerProtocolForSetup == 'https'
+    local_action: shell "{{ playbook_dir }}/files/genssl.sh" "openwhisk-controllers" "server" "{{ playbook_dir }}/roles/controller/files" {{ controllerKeystorePassword }} "generateKey" {{ controllerKeyPrefix }}

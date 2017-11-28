@@ -34,8 +34,10 @@ import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol._
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import pureconfig.loadConfigOrThrow
 import spray.json._
-import whisk.common.TransactionId
+import whisk.common.{Https, TransactionId}
 import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
@@ -56,6 +58,29 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   /** Database service to CRUD triggers. */
   protected val entityStore: EntityStore
 
+  /** Connection context for HTTPS */
+  protected lazy val httpsConnectionContext = {
+    val sslConfig = AkkaSSLConfig().mapSettings { s =>
+      s.withLoose(s.loose.withDisableHostnameVerification(true))
+    }
+    Https.connectionContext(whiskConfig, Some(sslConfig))
+
+  }
+
+  protected val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+
+  /**
+   * Sends a request either over http or https depending on the configuration
+   * @param request http request to send
+   * @return http response packed in a future
+   */
+  private def singleRequest(request: HttpRequest): Future[HttpResponse] = {
+    if (controllerProtocol == "https")
+      Http().singleRequest(request, connectionContext = httpsConnectionContext)
+    else
+      Http().singleRequest(request)
+  }
+
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
@@ -65,7 +90,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   /** JSON response formatter. */
   /** Path to Triggers REST API. */
   protected val triggersPath = "triggers"
-  protected val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
+  protected val url = Uri(s"${controllerProtocol}://localhost:${whiskConfig.servicePort}")
 
   protected implicit val materializer: ActorMaterializer
 
@@ -372,7 +397,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
       entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
-    Http().singleRequest(request)
+    singleRequest(request)
   }
 
   /** Contains the result of invoking a rule */
@@ -395,4 +420,5 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
 }

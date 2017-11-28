@@ -23,6 +23,14 @@ http {
     proxy_http_version 1.1;
     proxy_set_header Connection "";
 
+{% if controller.protocol == 'https' %}
+    proxy_ssl_session_reuse on;
+    proxy_ssl_name {{ controller.ssl.cn }};
+    proxy_ssl_protocols TLSv1.1 TLSv1.2;
+    proxy_ssl_certificate /etc/nginx/{{ controller.ssl.cert }};
+    proxy_ssl_certificate_key /etc/nginx/{{ controller.ssl.key }};
+{% endif %}
+
     upstream controllers {
         # fail_timeout: period of time the server will be considered unavailable
         # Mark the controller as unavailable for at least 60 seconds, to not get any requests during restart.
@@ -80,7 +88,7 @@ http {
             if ($namespace) {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
-            proxy_pass http://controllers;
+            proxy_pass {{ controller.protocol }}://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
@@ -89,7 +97,7 @@ http {
             if ($namespace) {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
-            proxy_pass http://controllers;
+            proxy_pass {{ controller.protocol }}://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
