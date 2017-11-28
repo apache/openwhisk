@@ -5,7 +5,7 @@
   by simulating invoker interactions. Use it in combination with
   docker run <image> which starts up the action proxy.
   Example:
-     docker run -i -t -p 8080:8080 openwhisk/dockerskeleton
+     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
      ./invoke.py init <action source file> # should return OK
      ./invoke.py run '{"some":"json object as a string"}'
 /*
