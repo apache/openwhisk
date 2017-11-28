@@ -36,10 +36,15 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS = "nodejs"
   protected val NODEJS6 = "nodejs:6"
   protected val SWIFT = "swift"
-  protected val SWIFT3 = "swift:3"
+  protected val SWIFT3 = "swift:3.1.1"
 
-  protected def imagename(name: String) =
-    ExecManifest.ImageName(s"${name}action".replace(":", ""), Some("openwhisk"), Some("latest"))
+  protected def imagename(name: String) = {
+    var image = s"${name}action".replace(":", "")
+    if (name.equals("swift:3.1.1")) {
+      image = "action-swift-v3.1.1"
+    }
+    ExecManifest.ImageName(image, Some("openwhisk"), Some("latest"))
+  }
 
   protected def js(code: String, main: Option[String] = None) = {
     CodeExecAsString(RuntimeManifest(NODEJS, imagename(NODEJS), deprecated = Some(true)), trim(code), main.map(_.trim))
