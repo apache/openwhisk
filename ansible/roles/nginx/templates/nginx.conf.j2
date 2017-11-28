@@ -64,7 +64,7 @@ http {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
             proxy_pass http://controllers;
-            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
+            proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
         # proxy to 'public/html' web action by convention
@@ -73,7 +73,7 @@ http {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
             proxy_pass http://controllers;
-            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
+            proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
         location /blackbox.tar.gz {
