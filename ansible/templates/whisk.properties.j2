@@ -34,43 +34,39 @@ whisk.api.localhost.name={{ whisk_api_localhost_name | default(whisk_api_host_na
 whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
-defaultLimits.actions.invokes.perMinute={{ defaultLimits.actions.invokes.perMinute }}
-defaultLimits.actions.invokes.concurrent={{ defaultLimits.actions.invokes.concurrent }}
-defaultLimits.triggers.fires.perMinute={{ defaultLimits.triggers.fires.perMinute }}
-defaultLimits.actions.invokes.concurrentInSystem={{ defaultLimits.actions.invokes.concurrentInSystem }}
-defaultLimits.actions.sequence.maxLength={{ defaultLimits.actions.sequence.maxLength }}
 
-{% if limits is defined %}
-limits.actions.invokes.perMinute={{ limits.actions.invokes.perMinute }}
-limits.actions.invokes.concurrent={{ limits.actions.invokes.concurrent }}
-limits.actions.invokes.concurrentInSystem={{ limits.actions.invokes.concurrentInSystem }}
-limits.triggers.fires.perMinute={{ limits.triggers.fires.perMinute }}
-{% endif %}
+limits.actions.invokes.perMinute={{ limits.invocationsPerMinute }}
+limits.actions.invokes.concurrent={{ limits.concurrentInvocations }}
+limits.actions.invokes.concurrentInSystem={{ limits.concurrentInvocationsSystem }}
+limits.triggers.fires.perMinute={{ limits.firesPerMinute }}
+limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
-kafka.host={{ groups["kafka"]|first }}
+kafka.hosts={{ kafka_connect_string }}
+redis.host={{ groups["redis"]|default([""])|first }}
 router.host={{ groups["edge"]|first }}
-zookeeper.host={{ groups["kafka"]|first }}
-invoker.hosts={{ groups["invokers"] | join(",") }}
+zookeeper.hosts={{ zookeeper_connect_string }}
+invoker.hosts={{ groups["invokers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 
 edge.host.apiport=443
-zookeeper.host.port={{ zookeeper.port }}
-kafka.host.port={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}
-invoker.hosts.baseport={{ invoker.port }}
+redis.host.port={{ redis.port }}
+invoker.hosts.basePort={{ invoker.port }}
 
-controller.hosts={{ groups["controllers"] | join(",") }}
+controller.hosts={{ groups["controllers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 controller.host.basePort={{ controller.basePort }}
 controller.instances={{ controller.instances }}
+controller.ha={{ controller.ha }}
 
 invoker.container.network=bridge
 invoker.container.policy={{ invoker_container_policy_name | default()}}
 invoker.container.dns={{ invoker_container_network_dns_servers | default()}}
 invoker.numcore={{ invoker.numcore }}
 invoker.coreshare={{ invoker.coreshare }}
+invoker.useRunc={{ invoker.useRunc }}
 invoker.instances={{ invoker.instances }}
 
-main.docker.endpoint={{ groups["controllers"]|first }}:{{ docker.port }}
+main.docker.endpoint={{ hostvars[groups["controllers"]|first].ansible_host }}:{{ docker.port }}
 
 docker.registry={{ docker_registry }}
 docker.image.prefix={{ docker.image.prefix }}
@@ -90,13 +86,15 @@ db.port={{ db_port }}
 db.username={{ db_username }}
 db.password={{ db_password }}
 db.prefix={{ db_prefix }}
+db.whisk.auths={{ db.whisk.auth }}
 db.whisk.actions={{ db.whisk.actions }}
 db.whisk.activations={{ db.whisk.activations }}
-db.whisk.auths={{ db.whisk.auth }}
+db.whisk.actions.ddoc={{ db.whisk.actions_ddoc }}
+db.whisk.activations.ddoc={{ db.whisk.activations_ddoc }}
+db.whisk.activations.filter.ddoc={{ db.whisk.activations_filter_ddoc }}
 
 apigw.auth.user={{apigw_auth_user}}
 apigw.auth.pwd={{apigw_auth_pwd}}
-apigw.host={{apigw_host}}
 apigw.host.v2={{apigw_host_v2}}
 
 loadbalancer.invokerBusyThreshold={{ invoker.busyThreshold }}

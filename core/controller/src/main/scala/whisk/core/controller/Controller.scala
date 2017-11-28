@@ -19,31 +19,40 @@ package whisk.core.controller
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.util.{ Failure, Success }
-
-import akka.actor._
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
+import akka.Done
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
+
 import spray.json.DefaultJsonProtocol._
+
+import kamon.Kamon
+
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
 import whisk.common.ZipkinLogging
+import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.connector.MessagingProvider
+import whisk.core.database.RemoteCacheInvalidation
+import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.LoadBalancerService
-import whisk.core.tracing.TracingProvider
+import whisk.core.loadBalancer.{LoadBalancerService}
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
+import whisk.core.containerpool.logging.LogStoreProvider
+import whisk.core.tracing.TracingProvider
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -68,70 +77,81 @@ import whisk.spi.SpiLoader
  * @param verbosity logging verbosity
  * @param executionContext Scala runtime support for concurrent operations
  */
-class Controller(
-    override val instance: InstanceId,
-    runtimes: Runtimes,
-    implicit val whiskConfig: WhiskConfig,
-    implicit val actorSystem: ActorSystem,
-    implicit val materializer: ActorMaterializer,
-    implicit val logging: Logging)
+class Controller(val instance: InstanceId,
+                 runtimes: Runtimes,
+                 implicit val whiskConfig: WhiskConfig,
+                 implicit val actorSystem: ActorSystem,
+                 implicit val materializer: ActorMaterializer,
+                 implicit val logging: Logging)
     extends BasicRasService {
 
-    override val numberOfInstances = whiskConfig.controllerInstances.toInt
+  override val numberOfInstances = whiskConfig.controllerInstances.toInt
+  override val instanceOrdinal = instance.toInt
 
-    TransactionId.controller.mark(this, LoggingMarkers.CONTROLLER_STARTUP(instance.toInt), s"starting controller instance ${instance.toInt}")
+  TransactionId.controller.mark(
+    this,
+    LoggingMarkers.CONTROLLER_STARTUP(instance.toInt),
+    s"starting controller instance ${instance.toInt}")
 
-    /**
-     * A Route in Akka is technically a function taking a RequestContext as a parameter.
-     *
-     * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
-     * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
-     */
-    override def routes(implicit transid: TransactionId): Route = {
-        super.routes ~ {
-            (pathEndOrSingleSlash & get) {
-                complete(info)
-            }
-        } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+  /**
+   * A Route in Akka is technically a function taking a RequestContext as a parameter.
+   *
+   * The "~" Akka DSL operator composes two independent Routes, building a routing tree structure.
+   * @see http://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/routes.html#composing-routes
+   */
+  override def routes(implicit transid: TransactionId): Route = {
+    super.routes ~ {
+      (pathEndOrSingleSlash & get) {
+        complete(info)
+      }
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
+  }
+
+  // initialize datastores
+  private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
+  private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
+  private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+  private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
+    val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+    override def apply(k: CacheKey) = {
+      remoteCacheInvalidaton.invalidateWhiskActionMetaData(k)
+      remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
     }
+  })
 
-    // initialize datastores
-    private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
-    private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
-    private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+  // initialize backend services
+  private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
+  private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  private implicit val activationIdFactory = new ActivationIdGenerator {}
+  private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
-    // initialize backend services
-    private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
-    private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
-    private implicit val activationIdFactory = new ActivationIdGenerator {}
+  // register collections
+  Collection.initialize(entityStore)
 
-    // register collections
-    Collection.initialize(entityStore)
+  /** The REST APIs. */
+  implicit val controllerInstance = instance
+  private val apiV1 = new RestAPIVersion(whiskConfig, "api", "v1")
+  private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
 
-    /** The REST APIs. */
-    implicit val controllerInstance = instance
-    private val apiV1 = new RestAPIVersion(whiskConfig, "api", "v1")
-    private val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
+  /**
+   * Handles GET /invokers URI.
+   *
+   * @return JSON of invoker health
+   */
+  private val internalInvokerHealth = {
+    implicit val executionContext = actorSystem.dispatcher
 
-    /**
-     * Handles GET /invokers URI.
-     *
-     * @return JSON of invoker health
-     */
-    private val internalInvokerHealth = {
-        implicit val executionContext = actorSystem.dispatcher
-
-        (path("invokers") & get) {
-            complete {
-                loadBalancer.allInvokers.map(_.map {
-                    case (instance, state) => s"invoker${instance.toInt}" -> state.asString
-                }.toMap.toJson.asJsObject)
-            }
-        }
+    (path("invokers") & get) {
+      complete {
+        loadBalancer.allInvokers.map(_.map {
+          case (instance, state) => s"invoker${instance.toInt}" -> state.asString
+        }.toMap.toJson.asJsObject)
+      }
     }
+  }
 
-    // controller top level info
-    private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))
+  // controller top level info
+  private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))
 }
 
 /**
@@ -139,63 +159,88 @@ class Controller(
  */
 object Controller {
 
-    // requiredProperties is a Map whose keys define properties that must be bound to
-    // a value, and whose values are default values.   A null value in the Map means there is
-    // no default value specified, so it must appear in the properties file
-    def requiredProperties = Map(WhiskConfig.controllerInstances -> null) ++
-        ExecManifest.requiredProperties ++
-        RestApiCommons.requiredProperties ++
-        LoadBalancerService.requiredProperties ++
-        EntitlementProvider.requiredProperties
+  // requiredProperties is a Map whose keys define properties that must be bound to
+  // a value, and whose values are default values.   A null value in the Map means there is
+  // no default value specified, so it must appear in the properties file
+  def requiredProperties =
+    Map(WhiskConfig.controllerInstances -> null) ++
+      ExecManifest.requiredProperties ++
+      RestApiCommons.requiredProperties ++
+      LoadBalancerService.requiredProperties ++
+      EntitlementProvider.requiredProperties
 
-    def optionalProperties = EntitlementProvider.optionalProperties
+  private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
+    JsObject(
+      "description" -> "OpenWhisk".toJson,
+      "support" -> JsObject(
+        "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
+        "slack" -> "http://slack.openwhisk.org".toJson),
+      "api_paths" -> apis.toJson,
+      "limits" -> JsObject(
+        "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
+        "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
+        "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
+      "runtimes" -> runtimes.toJson)
 
-    private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) = JsObject(
-        "description" -> "OpenWhisk".toJson,
-        "support" -> JsObject(
-            "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
-            "slack" -> "http://slack.openwhisk.org".toJson),
-        "api_paths" -> apis.toJson,
-        "limits" -> JsObject(
-            "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
-            "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
-            "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson),
-        "runtimes" -> runtimes.toJson)
+  def main(args: Array[String]): Unit = {
+    Kamon.start()
+    implicit val actorSystem = ActorSystem("controller-actor-system")
+    implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
 
-    def main(args: Array[String]): Unit = {
-        implicit val actorSystem = ActorSystem("controller-actor-system")
-        implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
-
-        // extract configuration data from the environment
-        val config = new WhiskConfig(requiredProperties, optionalProperties)
-        val port = config.servicePort.toInt
-
-        // if deploying multiple instances (scale out), must pass the instance number as the
-        require(args.length >= 1, "controller instance required")
-        val instance = args(0).toInt
-
-        val tracer: TracingProvider = SpiLoader.get[TracingProvider]()
-        tracer.init("Controller")
-
-        def abort() = {
-            logger.error(this, "Bad configuration, cannot start.")
-            actorSystem.terminate()
-            Await.result(actorSystem.whenTerminated, 30.seconds)
-            sys.exit(1)
-        }
-
-        if (!config.isValid) {
-            abort()
-        }
-
-        ExecManifest.initialize(config) match {
-            case Success(_) =>
-                val controller = new Controller(InstanceId(instance), ExecManifest.runtimesManifest, config, actorSystem, ActorMaterializer.create(actorSystem), logger)
-                BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
-
-            case Failure(t) =>
-                logger.error(this, s"Invalid runtimes manifest: $t")
-                abort()
-        }
+    // Prepare Kamon shutdown
+    CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
+      logger.info(this, s"Shutting down Kamon with coordinated shutdown")
+      Kamon.shutdown()
+      Future.successful(Done)
     }
+
+    // extract configuration data from the environment
+    val config = new WhiskConfig(requiredProperties)
+    val port = config.servicePort.toInt
+
+    // if deploying multiple instances (scale out), must pass the instance number as the
+    require(args.length >= 1, "controller instance required")
+    val instance = args(0).toInt
+    val tracer: TracingProvider = SpiLoader.get[TracingProvider]
+    tracer.init("Controller")
+
+    def abort(message: String) = {
+      logger.error(this, message)
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
+      sys.exit(1)
+    }
+
+    if (!config.isValid) {
+      abort("Bad configuration, cannot start.")
+    }
+
+    val msgProvider = SpiLoader.get[MessagingProvider]
+    if (!msgProvider.ensureTopic(
+          config,
+          "completed" + instance,
+          Map(
+            "numPartitions" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
+            "retention.bytes" -> config.kafkaTopicsCompletedRetentionBytes,
+            "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
+            "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {
+      abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
+    }
+
+    ExecManifest.initialize(config) match {
+      case Success(_) =>
+        val controller = new Controller(
+          InstanceId(instance),
+          ExecManifest.runtimesManifest,
+          config,
+          actorSystem,
+          ActorMaterializer.create(actorSystem),
+          logger)
+        BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
+
+      case Failure(t) =>
+        abort(s"Invalid runtimes manifest: $t")
+    }
+  }
 }

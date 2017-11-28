@@ -17,27 +17,58 @@
 
 package whisk.connector.kafka
 
+import java.util.Properties
+import java.util.concurrent.ExecutionException
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import scala.collection.JavaConverters._
+
+import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.AdminClient
+import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.common.errors.TopicExistsException
+
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
-import whisk.spi.Dependencies
-import whisk.spi.SingletonSpiFactory
 
 /**
  * A Kafka based implementation of MessagingProvider
  */
-class KafkaMessagingProvider() extends MessagingProvider {
-    def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(implicit logging: Logging): MessageConsumer =
-        new KafkaConsumerConnector(config.kafkaHost, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
+object KafkaMessagingProvider extends MessagingProvider {
+  def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
+    implicit logging: Logging): MessageConsumer =
+    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
 
-    def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
-        new KafkaProducerConnector(config.kafkaHost, ec)
-}
+  def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
+    new KafkaProducerConnector(config.kafkaHosts, ec)
 
-object KafkaMessagingProvider extends SingletonSpiFactory[MessagingProvider] {
-    override def apply(dependencies: Dependencies): MessagingProvider = new KafkaMessagingProvider
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: Map[String, String])(
+    implicit logging: Logging): Boolean = {
+    val props = new Properties
+    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
+    val client = AdminClient.create(props)
+    val numPartitions = topicConfig.getOrElse("numPartitions", "1").toInt
+    val replicationFactor = topicConfig.getOrElse("replicationFactor", "1").toShort
+    val nt = new NewTopic(topic, numPartitions, replicationFactor)
+      .configs((topicConfig - ("numPartitions", "replicationFactor")).asJava)
+    val results = client.createTopics(List(nt).asJava)
+    try {
+      results.values().get(topic).get()
+      logging.info(this, s"created topic $topic")
+      true
+    } catch {
+      case e: ExecutionException if e.getCause.isInstanceOf[TopicExistsException] =>
+        logging.info(this, s"topic $topic already existed")
+        true
+      case _: Exception =>
+        logging.error(this, s"exception during creation of topic $topic")
+        false
+    } finally {
+      client.close()
+    }
+  }
 }

@@ -27,60 +27,63 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.size._
 
 object Attachments {
-    /**
-     * A marker for a field that is either inlined in an entity, or a reference
-     * to an attachment. In the case where the value is inlined, it (de)serializes
-     * to the same value as if it weren't wrapped.
-     *
-     * Note that such fields may be defined at any level of nesting in an entity,
-     * but the attachments will always be top-level. The logic for actually retrieving
-     * an attachment therefore must be separate for all use cases.
-     */
-    sealed trait Attachment[+T]
 
-    case class Inline[T](value: T) extends Attachment[T]
+  /**
+   * A marker for a field that is either inlined in an entity, or a reference
+   * to an attachment. In the case where the value is inlined, it (de)serializes
+   * to the same value as if it weren't wrapped.
+   *
+   * Note that such fields may be defined at any level of nesting in an entity,
+   * but the attachments will always be top-level. The logic for actually retrieving
+   * an attachment therefore must be separate for all use cases.
+   */
+  sealed trait Attachment[+T]
 
-    case class Attached(attachmentName: String, attachmentType: ContentType) extends Attachment[Nothing]
+  case class Inline[T](value: T) extends Attachment[T]
 
-    // Attachments are considered free because the name/content type are system determined
-    // and a size check for the content is done during create/update
-    implicit class SizeAttachment[T <% SizeConversion](a: Attachment[T]) extends SizeConversion {
-        def sizeIn(unit: SizeUnits.Unit): ByteSize = a match {
-            case Inline(v) => (v: SizeConversion).sizeIn(unit)
-            case _         => 0.bytes
-        }
+  case class Attached(attachmentName: String, attachmentType: ContentType) extends Attachment[Nothing]
+
+  // Attachments are considered free because the name/content type are system determined
+  // and a size check for the content is done during create/update
+  implicit class SizeAttachment[T <% SizeConversion](a: Attachment[T]) extends SizeConversion {
+    def sizeIn(unit: SizeUnits.Unit): ByteSize = a match {
+      case Inline(v) => (v: SizeConversion).sizeIn(unit)
+      case _         => 0.bytes
+    }
+  }
+
+  object Attached {
+    implicit val serdes = {
+      implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {
+        override def write(c: ContentType) = JsString(c.value)
+        override def read(js: JsValue) =
+          Try {
+            val JsString(c) = js
+            ContentType.parse(c).right.get
+          } getOrElse {
+            throw new DeserializationException("Could not deserialize content-type")
+          }
+      }
+
+      jsonFormat2(Attached.apply)
+    }
+  }
+
+  implicit def serdes[T: JsonFormat] = new JsonFormat[Attachment[T]] {
+    val sub = implicitly[JsonFormat[T]]
+
+    def write(a: Attachment[T]): JsValue = a match {
+      case Inline(v)   => sub.write(v)
+      case a: Attached => Attached.serdes.write(a)
     }
 
-    object Attached {
-        implicit val serdes = {
-            implicit val contentTypeSerdes = new RootJsonFormat[ContentType] {
-                override def write(c: ContentType) = JsString(c.value)
-                override def read(js: JsValue) = Try {
-                    val JsString(c) = js
-                    ContentType.parse(c).right.get
-                } getOrElse {
-                    throw new DeserializationException("Could not deserialize content-type")
-                }
-            }
-
-            jsonFormat2(Attached.apply)
-        }
-    }
-
-    implicit def serdes[T: JsonFormat] = new JsonFormat[Attachment[T]] {
-        val sub = implicitly[JsonFormat[T]]
-
-        def write(a: Attachment[T]): JsValue = a match {
-            case Inline(v)   => sub.write(v)
-            case a: Attached => Attached.serdes.write(a)
-        }
-
-        def read(js: JsValue): Attachment[T] = Try {
-            Inline(sub.read(js))
-        } recover {
-            case _: DeserializationException => Attached.serdes.read(js)
-        } getOrElse {
-            throw new DeserializationException("Could not deserialize as attachment record: " + js)
-        }
-    }
+    def read(js: JsValue): Attachment[T] =
+      Try {
+        Inline(sub.read(js))
+      } recover {
+        case _: DeserializationException => Attached.serdes.read(js)
+      } getOrElse {
+        throw new DeserializationException("Could not deserialize as attachment record: " + js)
+      }
+  }
 }

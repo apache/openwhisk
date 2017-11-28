@@ -22,9 +22,9 @@ import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class Swift311ActionContainerTests extends Swift3ActionContainerTests {
-    override lazy val swiftContainerImageName = "action-swift-v3.1.1"
+  override lazy val swiftContainerImageName = "action-swift-v3.1.1"
 
-    override lazy val watsonCode = """
+  override lazy val watsonCode = """
                 | import AlchemyDataNewsV1
                 | import ConversationV1
                 | import DiscoveryV1
@@ -41,5 +41,5 @@ class Swift311ActionContainerTests extends Swift3ActionContainerTests {
                 |     return ["message": "I compiled and was able to import Watson SDKs"]
                 | }
             """.stripMargin
-    override lazy val swiftBinaryName = "helloSwift311.zip"
+  override lazy val swiftBinaryName = "helloSwift311.zip"
 }

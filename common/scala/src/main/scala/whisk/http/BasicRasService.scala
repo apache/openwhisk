@@ -28,17 +28,17 @@ import whisk.common.TransactionId
  */
 trait BasicRasService extends BasicHttpService {
 
-    override def routes(implicit transid: TransactionId) = ping
+  override def routes(implicit transid: TransactionId) = ping
 
-    override def loglevelForRoute(route: String): Logging.LogLevel = {
-        if (route == "/ping") {
-            Logging.DebugLevel
-        } else {
-            super.loglevelForRoute(route)
-        }
+  override def loglevelForRoute(route: String): Logging.LogLevel = {
+    if (route == "/ping") {
+      Logging.DebugLevel
+    } else {
+      super.loglevelForRoute(route)
     }
+  }
 
-    val ping = path("ping") {
-        get { complete("pong") }
-    }
+  val ping = path("ping") {
+    get { complete("pong") }
+  }
 }

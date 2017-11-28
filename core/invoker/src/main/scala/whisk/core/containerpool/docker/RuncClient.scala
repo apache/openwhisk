@@ -25,6 +25,7 @@ import scala.util.Success
 import whisk.common.LoggingMarkers
 import whisk.common.Logging
 import akka.event.Logging.ErrorLevel
+import whisk.core.containerpool.ContainerId
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -35,40 +36,42 @@ import akka.event.Logging.ErrorLevel
  * You only need one instance (and you shouldn't get more).
  */
 class RuncClient(executionContext: ExecutionContext)(implicit log: Logging) extends RuncApi with ProcessRunner {
-    implicit private val ec = executionContext
+  implicit private val ec = executionContext
 
-    // Determines how to run docker. Failure to find a Docker binary implies
-    // a failure to initialize this instance of DockerClient.
-    protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
+  // Determines how to run docker. Failure to find a Docker binary implies
+  // a failure to initialize this instance of DockerClient.
+  protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
 
-    def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("pause", id.asString).map(_ => ())
+  def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("pause", id.asString).map(_ => ())
 
-    def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("resume", id.asString).map(_ => ())
+  def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
+    runCmd("resume", id.asString).map(_ => ())
 
-    private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
-        val cmd = runcCmd ++ args
-        val start = transid.started(this, LoggingMarkers.INVOKER_RUNC_CMD(args.head), s"running ${cmd.mkString(" ")}")
-        executeProcess(cmd: _*).andThen {
-            case Success(_) => transid.finished(this, start)
-            case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
-        }
+  private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
+    val cmd = runcCmd ++ args
+    val start = transid.started(this, LoggingMarkers.INVOKER_RUNC_CMD(args.head), s"running ${cmd.mkString(" ")}")
+    executeProcess(cmd: _*).andThen {
+      case Success(_) => transid.finished(this, start)
+      case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }
+  }
 }
 
 trait RuncApi {
-    /**
-     * Pauses the container with the given id.
-     *
-     * @param id the id of the container to pause
-     * @return a Future completing according to the command's exit-code
-     */
-    def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
 
-    /**
-     * Unpauses the container with the given id.
-     *
-     * @param id the id of the container to unpause
-     * @return a Future completing according to the command's exit-code
-     */
-    def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
+  /**
+   * Pauses the container with the given id.
+   *
+   * @param id the id of the container to pause
+   * @return a Future completing according to the command's exit-code
+   */
+  def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
+
+  /**
+   * Unpauses the container with the given id.
+   *
+   * @param id the id of the container to unpause
+   * @return a Future completing according to the command's exit-code
+   */
+  def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
 }

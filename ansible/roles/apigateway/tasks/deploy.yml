@@ -19,7 +19,7 @@
     env:
       "REDIS_HOST": "{{ groups['redis'] | first }}"
       "REDIS_PORT": "{{ redis.port }}"
-      "PUBLIC_MANAGEDURL_HOST": "{{ inventory_hostname }}"
+      "PUBLIC_MANAGEDURL_HOST": "{{ ansible_host }}"
       "PUBLIC_MANAGEDURL_PORT": "{{ apigateway.port.mgmt }}"
     ports:
       - "{{ apigateway.port.mgmt }}:8080"

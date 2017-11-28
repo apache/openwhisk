@@ -20,13 +20,13 @@ package whisk.common
 import org.apache.commons.collections.buffer.CircularFifoBuffer
 
 object RingBuffer {
-    def apply[T](size: Int) = new RingBuffer[T](size)
+  def apply[T](size: Int) = new RingBuffer[T](size)
 }
 
 class RingBuffer[T](size: Int) {
-    private val inner = new CircularFifoBuffer(size)
+  private val inner = new CircularFifoBuffer(size)
 
-    def add(el: T) = inner.add(el)
+  def add(el: T) = inner.add(el)
 
-    def toList() = inner.toArray().asInstanceOf[Array[T]].toList
+  def toList() = inner.toArray().asInstanceOf[Array[T]].toList
 }

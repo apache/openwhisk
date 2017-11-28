@@ -28,22 +28,24 @@ import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSystem {
-    // note: "out" will not be empty as the PHP web server outputs a message when
-    // it starts up
-    val enforceEmptyOutputStream = false
+  // note: "out" will not be empty as the PHP web server outputs a message when
+  // it starts up
+  val enforceEmptyOutputStream = false
 
-    lazy val php71ContainerImageName = "action-php-v7.1"
+  lazy val php71ContainerImageName = "action-php-v7.1"
 
-    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer(php71ContainerImageName, env)(code)
-    }
+  override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+    withContainer(php71ContainerImageName, env)(code)
+  }
 
-    def withPhp71Container(code: ActionContainer => Unit) = withActionContainer()(code)
+  def withPhp71Container(code: ActionContainer => Unit) = withActionContainer()(code)
 
-    behavior of php71ContainerImageName
+  behavior of php71ContainerImageName
 
-    testEcho(Seq {
-        ("PHP", """
+  testEcho(Seq {
+    (
+      "PHP",
+      """
           |<?php
           |function main(array $args) : array {
           |    echo 'hello stdout';
@@ -51,18 +53,19 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
           |    return $args;
           |}
           """.stripMargin)
-    })
+  })
 
-    testNotReturningJson(
-        """
+  testNotReturningJson("""
         |<?php
         |function main(array $args) {
         |    return "not a json object";
         |}
         """.stripMargin)
 
-    testUnicode(Seq {
-        ("PHP", """
+  testUnicode(Seq {
+    (
+      "PHP",
+      """
          |<?php
          |function main(array $args) : array {
          |    $str = $args['delimiter'] . " ☃ " . $args['delimiter'];
@@ -70,10 +73,13 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
          |    return  ["winter" => $str];
          |}
          """.stripMargin.trim)
-    })
+  })
 
-    testEnv(Seq {
-        ("PHP", """
+  testEnv(
+    Seq {
+      (
+        "PHP",
+        """
          |<?php
          |function main(array $args) : array {
          |    return [
@@ -87,96 +93,97 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
          |    ];
          |}
          """.stripMargin.trim)
-    }, enforceEmptyOutputStream)
+    },
+    enforceEmptyOutputStream)
 
-    it should "fail to initialize with bad code" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "fail to initialize with bad code" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 |<?php
                 | 10 PRINT "Hello world!"
                 | 20 GOTO 10
             """.stripMargin
 
-            val (initCode, error) = c.init(initPayload(code))
-            initCode should not be (200)
-            error shouldBe a[Some[_]]
-            error.get shouldBe a[JsObject]
-            error.get.fields("error").toString should include("PHP syntax error")
-        }
-
-        // Somewhere, the logs should mention an error occurred.
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("syntax")
-        })
+      val (initCode, error) = c.init(initPayload(code))
+      initCode should not be (200)
+      error shouldBe a[Some[_]]
+      error.get shouldBe a[JsObject]
+      error.get.fields("error").toString should include("PHP syntax error")
     }
 
-    it should "fail to initialize with no code" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = ""
+    // Somewhere, the logs should mention an error occurred.
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("syntax")
+    })
+  }
 
-            val (initCode, error) = c.init(initPayload(code))
+  it should "fail to initialize with no code" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = ""
 
-            initCode should not be (200)
-            error shouldBe a[Some[_]]
-            error.get shouldBe a[JsObject]
-            error.get.fields("error").toString should include("No code to execute")
-        }
+      val (initCode, error) = c.init(initPayload(code))
+
+      initCode should not be (200)
+      error shouldBe a[Some[_]]
+      error.get shouldBe a[JsObject]
+      error.get.fields("error").toString should include("No code to execute")
     }
+  }
 
-    it should "return some error on action error" in {
-         val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "return some error on action error" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 |<?php
                 | function main(array $args) : array {
                 |     throw new Exception ("nooooo");
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should not be (200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should not be (200)
 
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-            // runRes.get.fields("error").toString.toLowerCase should include("nooooo")
-        }
-
-        // Somewhere, the logs should be the error text
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("nooooo")
-        })
-
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
+    // runRes.get.fields("error").toString.toLowerCase should include("nooooo")
     }
 
-    it should "support application errors" in {
-        withPhp71Container { c =>
-            val code = """
+    // Somewhere, the logs should be the error text
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("nooooo")
+    })
+
+  }
+
+  it should "support application errors" in {
+    withPhp71Container { c =>
+      val code = """
                 |<?php
                 | function main(array $args) : array {
                 |     return [ "error" => "sorry" ];
                 | }
             """.stripMargin;
 
-            val (initCode, error) = c.init(initPayload(code))
-            initCode should be(200)
+      val (initCode, error) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200) // action writer returning an error is OK
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200) // action writer returning an error is OK
 
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-            runRes.get.fields("error").toString.toLowerCase should include("sorry")
-        }
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
+      runRes.get.fields("error").toString.toLowerCase should include("sorry")
     }
+  }
 
-    it should "fail gracefully when an action has a fatal error" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "fail gracefully when an action has a fatal error" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 | <?php
                 | function main(array $args) : array {
                 |     eval("class Error {};");
@@ -184,28 +191,27 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin;
 
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(502)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(502)
-
-            runRes shouldBe defined
-            runRes.get.fields.get("error") shouldBe defined
-            runRes.get.fields("error").toString should include("An error occurred running the action.")
-        }
-
-        // Somewhere, the logs should be the error text
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("fatal error")
-        })
+      runRes shouldBe defined
+      runRes.get.fields.get("error") shouldBe defined
+      runRes.get.fields("error").toString should include("An error occurred running the action.")
     }
 
-    it should "suport returning a stdClass" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+    // Somewhere, the logs should be the error text
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("fatal error")
+    })
+  }
+
+  it should "suport returning a stdClass" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 | <?php
                 | function main($params) {
                 |     $obj = new stdClass();
@@ -214,22 +220,21 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin
 
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200) // action writer returning an error is OK
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200) // action writer returning an error is OK
-
-            runRes shouldBe defined
-            runRes.get.fields.get("hello") shouldBe defined
-            runRes.get.fields("hello").toString.toLowerCase should include("world")
-        }
+      runRes shouldBe defined
+      runRes.get.fields.get("hello") shouldBe defined
+      runRes.get.fields("hello").toString.toLowerCase should include("world")
     }
+  }
 
-    it should "support returning an object with a getArrayCopy() method" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "support returning an object with a getArrayCopy() method" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 | <?php
                 | function main($params) {
                 |     $obj = new ArrayObject();
@@ -238,22 +243,21 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin
 
+      val (initCode, _) = c.init(initPayload(code))
+      initCode should be(200)
 
-            val (initCode, _) = c.init(initPayload(code))
-            initCode should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200) // action writer returning an error is OK
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runCode should be(200) // action writer returning an error is OK
-
-            runRes shouldBe defined
-            runRes.get.fields.get("hello") shouldBe defined
-            runRes.get.fields.get("hello") shouldBe Some(JsString("world"))
-        }
+      runRes shouldBe defined
+      runRes.get.fields.get("hello") shouldBe defined
+      runRes.get.fields.get("hello") shouldBe Some(JsString("world"))
     }
+  }
 
-    it should "support the documentation examples (1)" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "support the documentation examples (1)" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 | <?php
                 | function main($params) {
                 |     if ($params['payload'] == 0) {
@@ -266,27 +270,27 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin
 
-            c.init(initPayload(code))._1 should be(200)
+      c.init(initPayload(code))._1 should be(200)
 
-            val (c1, r1) = c.run(runPayload(JsObject("payload" -> JsNumber(0))))
-            val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsNumber(1))))
-            val (c3, r3) = c.run(runPayload(JsObject("payload" -> JsNumber(2))))
+      val (c1, r1) = c.run(runPayload(JsObject("payload" -> JsNumber(0))))
+      val (c2, r2) = c.run(runPayload(JsObject("payload" -> JsNumber(1))))
+      val (c3, r3) = c.run(runPayload(JsObject("payload" -> JsNumber(2))))
 
-            c1 should be(200)
-            r1 should be(Some(JsObject()))
+      c1 should be(200)
+      r1 should be(Some(JsObject()))
 
-            c2 should be(200)
-            r2 should be(Some(JsObject("payload" -> JsString("Hello, World!"))))
+      c2 should be(200)
+      r2 should be(Some(JsObject("payload" -> JsString("Hello, World!"))))
 
-            c3 should be(200) // application error, not container or system
-            r3.get.fields.get("error") shouldBe Some(JsString("payload must be 0 or 1"))
-        }
+      c3 should be(200) // application error, not container or system
+      r3.get.fields.get("error") shouldBe Some(JsString("payload must be 0 or 1"))
     }
+  }
 
-    it should "have Guzzle and Uuid packages available" in {
-        // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+  it should "have Guzzle and Uuid packages available" in {
+    // GIVEN that it should "error when requiring a non-existent package" (see test above for this)
+    val (out, err) = withPhp71Container { c =>
+      val code = """
                 | <?php
                 | use Ramsey\Uuid\Uuid;
                 | use GuzzleHttp\Client;
@@ -296,23 +300,23 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin
 
-            val (initCode, _) = c.init(initPayload(code))
+      val (initCode, _) = c.init(initPayload(code))
 
-            initCode should be(200)
+      initCode should be(200)
 
-            // WHEN I run an action that calls a Guzzle & a Uuid method
-            val (runCode, out) = c.run(runPayload(JsObject()))
+      // WHEN I run an action that calls a Guzzle & a Uuid method
+      val (runCode, out) = c.run(runPayload(JsObject()))
 
-            // THEN it should pass only when these packages are available
-            runCode should be(200)
-        }
+      // THEN it should pass only when these packages are available
+      runCode should be(200)
     }
+  }
 
-    it should "support large-ish actions" in {
-        val thought = " I took the one less traveled by, and that has made all the difference."
-        val assignment = "    $x = \"" + thought + "\";\n"
+  it should "support large-ish actions" in {
+    val thought = " I took the one less traveled by, and that has made all the difference."
+    val assignment = "    $x = \"" + thought + "\";\n"
 
-        val code = """
+    val code = """
             | <?php
             | function main(array $args) {
             |     $x = "hello";
@@ -322,31 +326,31 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
             | }
             """.stripMargin
 
-        // Lest someone should make it too easy.
-        code.length should be >= 500000
+    // Lest someone should make it too easy.
+    code.length should be >= 500000
 
-        val (out, err) = withPhp71Container { c =>
-            c.init(initPayload(code))._1 should be(200)
+    val (out, err) = withPhp71Container { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            runCode should be(200)
-            runRes.get.fields.get("message") shouldBe defined
-            runRes.get.fields.get("message") shouldBe Some(JsString("world"))
-        }
+      runCode should be(200)
+      runRes.get.fields.get("message") shouldBe defined
+      runRes.get.fields.get("message") shouldBe Some(JsString("world"))
     }
+  }
 
-    val exampleOutputDotPhp: String = """
+  val exampleOutputDotPhp: String = """
         | <?php
         | function output($data) {
         |     return ['result' => $data];
         | }
     """.stripMargin
 
-    it should "support zip-encoded packages" in {
-        val srcs = Seq(
-            Seq("output.php") -> exampleOutputDotPhp,
-            Seq("index.php") -> """
+  it should "support zip-encoded packages" in {
+    val srcs = Seq(
+      Seq("output.php") -> exampleOutputDotPhp,
+      Seq("index.php") -> """
                 | <?php
                 | require __DIR__ . '/output.php';
                 | function main(array $args) {
@@ -355,24 +359,23 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withPhp71Container { c =>
+    val (out, err) = withPhp71Container { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            c.init(initPayload(code))._1 should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-
-            runCode should be(200)
-            runRes.get.fields.get("result") shouldBe defined
-            runRes.get.fields.get("result") shouldBe Some(JsString("stranger"))
-        }
+      runCode should be(200)
+      runRes.get.fields.get("result") shouldBe defined
+      runRes.get.fields.get("result") shouldBe Some(JsString("stranger"))
     }
+  }
 
-    it should "support replacing vendor in zip-encoded packages " in {
-        val srcs = Seq(
-            Seq("vendor/autoload.php") -> exampleOutputDotPhp,
-            Seq("index.php") -> """
+  it should "support replacing vendor in zip-encoded packages " in {
+    val srcs = Seq(
+      Seq("vendor/autoload.php") -> exampleOutputDotPhp,
+      Seq("index.php") -> """
                 | <?php
                 | function main(array $args) {
                 |     $name = $args['name'] ?? 'stranger';
@@ -380,117 +383,112 @@ class Php71ActionContainerTests extends BasicActionRunnerTests with WskActorSyst
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withPhp71Container { c =>
+    val (out, err) = withPhp71Container { c =>
+      c.init(initPayload(code))._1 should be(200)
 
-            c.init(initPayload(code))._1 should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runCode should be(200)
+      runRes.get.fields.get("result") shouldBe defined
+      runRes.get.fields.get("result") shouldBe Some(JsString("stranger"))
+    }
+  }
 
-            runCode should be(200)
-            runRes.get.fields.get("result") shouldBe defined
-            runRes.get.fields.get("result") shouldBe Some(JsString("stranger"))
-        }
+  it should "fail gracefully on invalid zip files" in {
+    // Some text-file encoded to base64.
+    val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
+
+    val (out, err) = withPhp71Container { c =>
+      val (initCode, error) = c.init(initPayload(code))
+      initCode should not be (200)
+      error shouldBe a[Some[_]]
+      error.get shouldBe a[JsObject]
+      error.get.fields("error").toString should include("Failed to open zip file")
     }
 
-    it should "fail gracefully on invalid zip files" in {
-        // Some text-file encoded to base64.
-        val code = "Q2VjaSBuJ2VzdCBwYXMgdW4gemlwLgo="
+    // Somewhere, the logs should mention the failure
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("failed to open zip file")
+    })
+  }
 
-        val (out, err) = withPhp71Container { c =>
-
-            val (initCode, error) = c.init(initPayload(code))
-            initCode should not be(200)
-            error shouldBe a[Some[_]]
-            error.get shouldBe a[JsObject]
-            error.get.fields("error").toString should include("Failed to open zip file")
-        }
-
-        // Somewhere, the logs should mention the failure
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("failed to open zip file")
-        })
-    }
-
-    it should "fail gracefully on valid zip files that are not actions" in {
-        val srcs = Seq(
-            Seq("hello") -> """
+  it should "fail gracefully on valid zip files that are not actions" in {
+    val srcs = Seq(Seq("hello") -> """
                 | Hello world!
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        val (out, err) = withPhp71Container { c =>
-            c.init(initPayload(code))._1 should not be (200)
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("zipped actions must contain index.php at the root.")
-        })
+    val (out, err) = withPhp71Container { c =>
+      c.init(initPayload(code))._1 should not be (200)
     }
 
-    it should "fail gracefully on valid zip files with invalid code in index.php" in {
-        val (out, err) = withPhp71Container { c =>
-            val srcs = Seq(
-                Seq("index.php") -> """
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("zipped actions must contain index.php at the root.")
+    })
+  }
+
+  it should "fail gracefully on valid zip files with invalid code in index.php" in {
+    val (out, err) = withPhp71Container { c =>
+      val srcs = Seq(Seq("index.php") -> """
                     | <?php
                     | 10 PRINT "Hello world!"
                     | 20 GOTO 10
                 """.stripMargin)
 
-            val code = ZipBuilder.mkBase64Zip(srcs)
+      val code = ZipBuilder.mkBase64Zip(srcs)
 
-            val (initCode, error) = c.init(initPayload(code))
-            initCode should not be (200)
-            error shouldBe a[Some[_]]
-            error.get shouldBe a[JsObject]
-            error.get.fields("error").toString should include("PHP syntax error in index.php")
-        }
-
-        // Somewhere, the logs should mention an error occurred.
-        checkStreams(out, err, {
-            case (o, e) =>
-                (o + e).toLowerCase should include("error")
-                (o + e).toLowerCase should include("syntax")
-        })
+      val (initCode, error) = c.init(initPayload(code))
+      initCode should not be (200)
+      error shouldBe a[Some[_]]
+      error.get shouldBe a[JsObject]
+      error.get.fields("error").toString should include("PHP syntax error in index.php")
     }
 
-    it should "support actions using non-default entry point" in {
-        val (out, err) = withPhp71Container { c =>
-            val code = """
+    // Somewhere, the logs should mention an error occurred.
+    checkStreams(out, err, {
+      case (o, e) =>
+        (o + e).toLowerCase should include("error")
+        (o + e).toLowerCase should include("syntax")
+    })
+  }
+
+  it should "support actions using non-default entry point" in {
+    val (out, err) = withPhp71Container { c =>
+      val code = """
             | <?php
             | function niam(array $args) {
             |     return [result => "it works"];
             | }
             """.stripMargin
 
-            c.init(initPayload(code, main = "niam"))._1 should be(200)
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
-        }
+      c.init(initPayload(code, main = "niam"))._1 should be(200)
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
     }
+  }
 
-    it should "support zipped actions using non-default entry point" in {
-        val srcs = Seq(
-            Seq("index.php") -> """
+  it should "support zipped actions using non-default entry point" in {
+    val srcs = Seq(Seq("index.php") -> """
                 | <?php
                 | function niam(array $args) {
                 |     return [result => "it works"];
                 | }
             """.stripMargin)
 
-        val code = ZipBuilder.mkBase64Zip(srcs)
+    val code = ZipBuilder.mkBase64Zip(srcs)
 
-        withPhp71Container { c =>
-            c.init(initPayload(code, main = "niam"))._1 should be(200)
+    withPhp71Container { c =>
+      c.init(initPayload(code, main = "niam"))._1 should be(200)
 
-            val (runCode, runRes) = c.run(runPayload(JsObject()))
-            runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
-        }
+      val (runCode, runRes) = c.run(runPayload(JsObject()))
+      runRes.get.fields.get("result") shouldBe Some(JsString("it works"))
     }
+  }
 }

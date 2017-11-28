@@ -32,14 +32,14 @@ import whisk.utils.ExecutionContextFactory.FutureExtensions
 @RunWith(classOf[JUnitRunner])
 class ExecutionContextFactoryTests extends FlatSpec with Matchers with WskActorSystem {
 
-    behavior of "future extensions"
+  behavior of "future extensions"
 
-    it should "take first to complete" in {
-        val f1 = Future.successful({}).withTimeout(500.millis, new Throwable("error"))
-        Await.result(f1, 1.second) shouldBe ({})
+  it should "take first to complete" in {
+    val f1 = Future.successful({}).withTimeout(500.millis, new Throwable("error"))
+    Await.result(f1, 1.second) shouldBe ({})
 
-        val failure = new Throwable("error")
-        val f2 = Future { Thread.sleep(1.second.toMillis) }.withTimeout(500.millis, failure)
-        a[Throwable] shouldBe thrownBy { Await.result(f2, 1.seconds) }
-    }
+    val failure = new Throwable("error")
+    val f2 = Future { Thread.sleep(1.second.toMillis) }.withTimeout(500.millis, failure)
+    a[Throwable] shouldBe thrownBy { Await.result(f2, 1.seconds) }
+  }
 }

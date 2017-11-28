@@ -43,19 +43,19 @@ import whisk.core.controller.SwaggerDocs
 @RunWith(classOf[JUnitRunner])
 class SwaggerRoutesTests extends ControllerTestCommon with BeforeAndAfterEach {
 
-    behavior of "Swagger routes"
+  behavior of "Swagger routes"
 
-    it should "server docs" in {
-        implicit val tid = transid()
-        val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
-        Get("/docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
-            status shouldBe PermanentRedirect
-            header("location").get.value shouldBe "docs/index.html?url=/api-docs"
-        }
-
-        Get("/api-docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
-            status shouldBe OK
-            responseAs[JsObject].fields("swagger") shouldBe JsString("2.0")
-        }
+  it should "server docs" in {
+    implicit val tid = transid()
+    val swagger = new SwaggerDocs(Uri.Path.Empty, "infoswagger.json")
+    Get("/docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
+      status shouldBe PermanentRedirect
+      header("location").get.value shouldBe "docs/index.html?url=/api-docs"
     }
+
+    Get("/api-docs") ~> Route.seal(swagger.swaggerRoutes) ~> check {
+      status shouldBe OK
+      responseAs[JsObject].fields("swagger") shouldBe JsString("2.0")
+    }
+  }
 }

@@ -43,49 +43,49 @@ import whisk.core.controller.RespondWithHeaders
 @RunWith(classOf[JUnitRunner])
 class RespondWithHeadersTests extends ControllerTestCommon with RespondWithHeaders {
 
-    behavior of "General API"
+  behavior of "General API"
 
-    val routes = {
-        pathPrefix("api" / "v1") {
-            sendCorsHeaders {
-                path("one") {
-                    complete(OK)
-                } ~ path("two") {
-                    complete(OK)
-                } ~ options {
-                    complete(OK)
-                } ~ reject
-            }
-        } ~ pathPrefix("other") {
-            complete(OK)
-        }
+  val routes = {
+    pathPrefix("api" / "v1") {
+      sendCorsHeaders {
+        path("one") {
+          complete(OK)
+        } ~ path("two") {
+          complete(OK)
+        } ~ options {
+          complete(OK)
+        } ~ reject
+      }
+    } ~ pathPrefix("other") {
+      complete(OK)
     }
+  }
 
-    it should "respond to options" in {
-        Options("/api/v1") ~> Route.seal(routes) ~> check {
-            headers should contain allOf (allowOrigin, allowHeaders)
-        }
+  it should "respond to options" in {
+    Options("/api/v1") ~> Route.seal(routes) ~> check {
+      headers should contain allOf (allowOrigin, allowHeaders)
     }
+  }
 
-    it should "respond to options on every route under /api/v1" in {
-        Options("/api/v1/one") ~> Route.seal(routes) ~> check {
-            headers should contain allOf (allowOrigin, allowHeaders)
-        }
-        Options("/api/v1/two") ~> Route.seal(routes) ~> check {
-            headers should contain allOf (allowOrigin, allowHeaders)
-        }
+  it should "respond to options on every route under /api/v1" in {
+    Options("/api/v1/one") ~> Route.seal(routes) ~> check {
+      headers should contain allOf (allowOrigin, allowHeaders)
     }
+    Options("/api/v1/two") ~> Route.seal(routes) ~> check {
+      headers should contain allOf (allowOrigin, allowHeaders)
+    }
+  }
 
-    it should "respond to options even on bogus routes under /api/v1" in {
-        Options("/api/v1/bogus") ~> Route.seal(routes) ~> check {
-            headers should contain allOf (allowOrigin, allowHeaders)
-        }
+  it should "respond to options even on bogus routes under /api/v1" in {
+    Options("/api/v1/bogus") ~> Route.seal(routes) ~> check {
+      headers should contain allOf (allowOrigin, allowHeaders)
     }
+  }
 
-    it should "not respond to options on routes before /api/v1" in {
-        Options("/api") ~> Route.seal(routes) ~> check {
-            status shouldBe NotFound
-        }
+  it should "not respond to options on routes before /api/v1" in {
+    Options("/api") ~> Route.seal(routes) ~> check {
+      status shouldBe NotFound
     }
+  }
 
 }

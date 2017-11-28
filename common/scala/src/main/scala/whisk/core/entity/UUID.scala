@@ -17,8 +17,11 @@
 
 package whisk.core.entity
 
-import scala.util.Try
+import java.security.SecureRandom
 
+import com.fasterxml.uuid.Generators
+
+import scala.util.Try
 import spray.json.JsString
 import spray.json.JsValue
 import spray.json.RootJsonFormat
@@ -34,38 +37,56 @@ import spray.json.deserializationError
  * @param uuid the uuid, required not null
  */
 protected[core] class UUID private (private val uuid: java.util.UUID) extends AnyVal {
-    protected[core] def asString = toString
-    protected[core] def snippet = toString.substring(0, 8)
-    protected[entity] def toJson = JsString(toString)
-    override def toString = uuid.toString
+  protected[core] def asString = toString
+  protected[core] def snippet = toString.substring(0, 8)
+  protected[entity] def toJson = JsString(toString)
+  override def toString = uuid.toString
 }
 
 protected[core] object UUID extends ArgNormalizer[UUID] {
-    /**
-     * Creates a UUID from a string. The string must be a valid UUID.
-     *
-     * @param str the uuid as string
-     * @return UUID instance
-     * @throws IllegalArgumentException is argument is not a valid UUID
-     */
-    @throws[IllegalArgumentException]
-    override protected[entity] def factory(str: String): UUID = {
-        new UUID(java.util.UUID.fromString(str))
-    }
 
-    /**
-     * Generates a random UUID using java.util.UUID factory.
-     *
-     * @return new UUID
-     */
-    protected[core] def apply(): UUID = new UUID(java.util.UUID.randomUUID())
+  /**
+   * Creates a UUID from a string. The string must be a valid UUID.
+   *
+   * @param str the uuid as string
+   * @return UUID instance
+   * @throws IllegalArgumentException is argument is not a valid UUID
+   */
+  @throws[IllegalArgumentException]
+  override protected[entity] def factory(str: String): UUID = {
+    new UUID(java.util.UUID.fromString(str))
+  }
 
-    implicit val serdes = new RootJsonFormat[UUID] {
-        def write(u: UUID) = u.toJson
+  /**
+   * Generates a random UUID using java.util.UUID factory.
+   *
+   * @return new UUID
+   */
+  protected[core] def apply(): UUID = new UUID(UUIDs.randomUUID())
 
-        def read(value: JsValue) = Try {
-            val JsString(u) = value
-            UUID(u)
-        } getOrElse deserializationError("uuid malformed")
-    }
+  implicit val serdes = new RootJsonFormat[UUID] {
+    def write(u: UUID) = u.toJson
+
+    def read(value: JsValue) =
+      Try {
+        val JsString(u) = value
+        UUID(u)
+      } getOrElse deserializationError("uuid malformed")
+  }
+}
+
+object UUIDs {
+  private val generator = new ThreadLocal[SecureRandom] {
+    override def initialValue() = new SecureRandom()
+  }
+
+  /**
+   * Static factory to retrieve a type 4 (pseudo randomly generated) UUID.
+   *
+   * The {@code java.util.UUID} is generated using a pseudo random number
+   * generator local to the thread.
+   *
+   * @return  A randomly generated {@code java.util.UUID}
+   */
+  def randomUUID(): java.util.UUID = Generators.randomBasedGenerator(generator.get()).generate()
 }

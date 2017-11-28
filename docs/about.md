@@ -37,7 +37,7 @@ wsk action create myAction action.js
 ```
 Done. Now we actually want to invoke that action:
 ```
-wsk action invoke myAction
+wsk action invoke myAction --result
 ```
 
 ## The internal flow of processing

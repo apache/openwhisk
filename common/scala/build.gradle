@@ -6,19 +6,20 @@ apply from: '../../gradle/docker.gradle'
 
 repositories {
     mavenCentral()
-    maven { url "https://mvnrepository.com/artifact/" }
 }
 
 dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
 
-    compile 'io.spray:spray-caching_2.11:1.3.4'
+    compile 'com.github.pureconfig:pureconfig_2.11:0.7.2'
     compile 'io.spray:spray-json_2.11:1.3.3'
 
-    compile 'com.typesafe.akka:akka-actor_2.11:2.4.16'
-    compile 'com.typesafe.akka:akka-slf4j_2.11:2.4.16'
-    compile 'com.typesafe.akka:akka-http-core_2.11:10.0.9'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.2'
+    compile 'com.typesafe.akka:akka-actor_2.11:2.5.6'
+    compile 'com.typesafe.akka:akka-stream_2.11:2.5.6'
+    compile 'com.typesafe.akka:akka-slf4j_2.11:2.5.6'
+
+    compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
+    compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
 
     compile group:'io.opentracing', name:'opentracing-api', version: '0.30.0'
     compile group:'io.opentracing', name:'opentracing-util', version: '0.30.0'
@@ -26,16 +27,23 @@ dependencies {
     compile group:'io.zipkin.reporter', name:'zipkin-reporter', version: '0.7.1'
     compile group:'io.zipkin.reporter', name:'zipkin-sender-okhttp3', version: '0.7.1'
 
-    compile 'log4j:log4j:1.2.16'
+    compile 'ch.qos.logback:logback-classic:1.2.3'
+    compile 'org.slf4j:jcl-over-slf4j:1.7.25'
+    compile 'org.slf4j:log4j-over-slf4j:1.7.25'
     compile 'commons-codec:commons-codec:1.9'
     compile 'commons-io:commons-io:2.4'
-    compile 'commons-logging:commons-logging:1.2'
     compile 'commons-collections:commons-collections:3.2.2'
-    compile 'org.apache.zookeeper:zookeeper:3.4.10'
-    compile 'org.apache.kafka:kafka-clients:0.10.2.1'
-    compile 'org.apache.httpcomponents:httpclient:4.4.1'
+    compile 'org.apache.kafka:kafka-clients:0.11.0.1'
+    compile ('org.apache.httpcomponents:httpclient:4.4.1') {
+        exclude group: 'commons-logging'
+    }
+    compile ('com.fasterxml.uuid:java-uuid-generator:3.1.3') {
+        exclude group: 'log4j'
+    }
     compile 'com.github.ben-manes.caffeine:caffeine:2.4.0'
     compile 'com.google.code.findbugs:jsr305:3.0.2'
+    compile 'io.kamon:kamon-core_2.11:0.6.7'
+    compile 'io.kamon:kamon-statsd_2.11:0.6.7'
 }
 
 tasks.withType(ScalaCompile) {

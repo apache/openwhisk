@@ -12,10 +12,19 @@
   file:
     path: "{{ nginx.confdir }}"
     state: absent
-  become: true
+  become: "{{ nginx.dir.become }}"
+
+# As I changed the location of the log directory, this task will still remove the old config directory
+# This step will be removed soon again.
+- name: remove old config directory
+  file:
+    path: "{{ nginx.confdir | regex_replace('wskconf/nginx$', 'nginx') }}"
+    state: absent
+  become: "{{ nginx.dir.become }}"
+  when: nginx.confdir | match(".*/wskconf/nginx")
 
 - name: remove nginx log directory
   file:
     path: "{{ whisk_logs_dir }}/nginx"
     state: absent
-  become: true
+  become: "{{ logs.dir.become }}"

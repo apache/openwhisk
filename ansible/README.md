@@ -30,18 +30,7 @@ You need to depend on the workarounds until Docker provides official methods.
 If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
 
 ##### Enable Docker remote API
-
-During the deployment steps, each component communicates with Docker via Docker remote API.
-Currently however, Docker for Mac does not support such a feature.
-
-There are many workarounds for this.
-One way is to use `socat` command to setup proxy for the UNIX socket.
-
-```
-docker run -d -v /var/run/docker.sock:/var/run/docker.sock -p 4243:2375 bobrik/socat TCP4-LISTEN:2375,fork,reuseaddr UNIX-CONNECT:/var/run/docker.sock
-```
-
-If you want to deploy OpenWhisk in distributed environment, you are required to enable Docker remote API in all Mac hosts.
+The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
 
 ##### Activate docker0 network
 This is an optional step for local deployment.
@@ -74,8 +63,11 @@ systemProp.http.proxyPort=3128
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
-In all instructions, replace `<environment>` with your target environment. e.g. `mac`if you want to deploy using a local mac setup.
-By default, if you omit the `-i` parameter, the `local` environment will be used.
+In all instructions, replace `<environment>` with your target environment. The default environment is `local` which works for Ubuntu and
+Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
+use `-i environments/docker-machine`.
+
+
 
 In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
 
@@ -125,7 +117,9 @@ ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #### Install Prerequisites
-This step needs to be done only once per target environment (in a local setup the development environment and the target environment are the same). It will install necessary prerequisites on all target hosts in the environment.
+This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.`
+
+This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment.
 
 ```
 ansible-playbook -i environments/<environment> prereq.yml
@@ -176,10 +170,27 @@ data that include actions and activations are lost.
 
 Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
-### Verification after Deployment
-After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
-See main [README](https://github.com/apache/incubator-openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
+### Configuring the installation of `wsk` CLI
+There are two installation modes to install `wsk` CLI: remote and local.
 
+The mode "remote" means to download the `wsk` binaries from available web links. By default, OpenWhisk sets
+the installation mode to remote and downloads the binaries from the CLI [release page](https://github.com/apache/incubator-openwhisk-cli/releases), where OpenWhisk publishes the official `wsk` binaries.
+
+The mode "local" means to build and install the `wsk` binaries from local CLI project. You can download the source code
+of OpenWhisk CLI via [this link](https://github.com/apache/incubator-openwhisk-cli). Let's assume your OpenWhisk CLI home directory is <openwhisk_cli_home>. After you download the source code, use the gradle command to build the binaries:
+
+```
+cd <openwhisk_cli_home>
+./gradlew buildBinaries
+```
+
+All the binaries are generated and put under the folder of <openwhisk_cli_home>/bin. Then, use the following ansible command to configure the CLI installation mode:
+
+```
+ansible-playbook -i environments/<environment> openwhisk.yml -e cli_installation_mode=local -e openwhisk_cli_home=<openwhisk_cli_home>
+```
+
+The parameter cli_installation_mode specifies the CLI installation mode and the parameter openwhisk_cli_home specifies the home directory of your local OpenWhisk CLI.
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
@@ -269,6 +280,19 @@ Alternatively, you can also configure the location of Python interpreter in `env
 ansible_python_interpreter: "/usr/local/bin/python"
 ```
 
+#### Failed to import docker-py
+
+After `brew install ansible`, the following lines are printed out:
+
+```
+==> Caveats
+If you need Python to find the installed site-packages:
+  mkdir -p ~/Library/Python/2.7/lib/python/site-packages
+  echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
+```
+  
+Just run the two commands to fix this issue.
+
 #### Spaces in Paths
 Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
 Many file imports and roles will not work correctly when included from a path that contains spaces.
@@ -282,20 +306,24 @@ the path to your OpenWhisk `ansible` directory contains spaces. To fix this, ple
 without spaces as there is no current fix available to this problem.
 
 #### Changing limits
-The system throttling limits can be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+The default system throttling limits are configured in this file [./group_vars/all](./group_vars/all).
 ```
 limits:
-  actions:
-    invokes:
-      perMinute: 60
-      concurrent: 30
-      concurrentInSystem: 5000
-  triggers:
-    fires:
-      perMinute: 60
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(120) }}"
+  concurrentInvocations: "{{ limit_invocations_concurrent | default(100) }}"
+  concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
+  firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
+  sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 ```
-- The `perMinute` under `limits->actions->invokes` represents the allowed namespace action invocations per minute.
-- The `concurrent` under `limits->actions->invokes` represents the maximum concurrent invocations allowed per namespace.
-- The `concurrentInSystem` under `limits->actions->invokes` represents the maximum concurrent invocations the system will allow across all namespaces.
-- The `perMinute` under `limits->triggers-fires` represents the allowed namespace trigger firings per minute.
+These values may be changed by modifying the `group_vars` for your environment. For example,
+mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+```
+limit_invocations_per_minute: 60
+limit_invocations_concurrent: 30
+limit_invocations_concurrent_system: 5000
+limit_fires_per_minute: 60
+```
+- The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
+- The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
+- The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
+- The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.

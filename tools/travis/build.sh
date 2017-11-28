@@ -14,10 +14,14 @@ git clone https://github.com/apache/incubator-openwhisk-utilities.git
 # run the scancode util. against project source code starting at its root
 incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/tools/build/scanCode.cfg
 
+# run scalafmt checks
+cd $ROOTDIR
+TERM=dumb ./gradlew checkScalafmtAll
+
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
-GRADLE_PROJS_SKIP="-x :core:pythonAction:distDocker  -x :core:python2Action:distDocker -x :core:swift3Action:distDocker -x :core:javaAction:distDocker"
+GRADLE_PROJS_SKIP="-x :actionRuntimes:pythonAction:distDocker  -x :actionRuntimes:python2Action:distDocker -x :actionRuntimes:swift3Action:distDocker -x actionRuntimes:swift3.1.1Action:distDocker -x :actionRuntimes:javaAction:distDocker"
 
 $ANSIBLE_CMD setup.yml
 $ANSIBLE_CMD prereq.yml

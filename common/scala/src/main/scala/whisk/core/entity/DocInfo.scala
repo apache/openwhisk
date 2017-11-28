@@ -17,13 +17,16 @@
 
 package whisk.core.entity
 
-import whisk.core.entity.ArgNormalizer.trim
 import scala.util.Try
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+
+import spray.json.DefaultJsonProtocol
 import spray.json.JsNull
 import spray.json.JsString
+import spray.json.JsValue
+import spray.json.RootJsonFormat
 import spray.json.deserializationError
+
+import whisk.core.entity.ArgNormalizer.trim
 
 /**
  * A DocId is the document id === primary key in the datastore.
@@ -35,11 +38,11 @@ import spray.json.deserializationError
  * @param id the document id, required not null
  */
 protected[core] class DocId private (val id: String) extends AnyVal {
-    def asString = id // to make explicit that this is a string conversion
-    protected[core] def asDocInfo = DocInfo(this)
-    protected[core] def asDocInfo(rev: DocRevision) = DocInfo(this, rev)
-    protected[entity] def toJson = JsString(id)
-    override def toString = id
+  def asString = id // to make explicit that this is a string conversion
+  protected[core] def asDocInfo = DocInfo(this)
+  protected[core] def asDocInfo(rev: DocRevision) = DocInfo(this, rev)
+  protected[entity] def toJson = JsString(id)
+  override def toString = id
 }
 
 /**
@@ -53,9 +56,9 @@ protected[core] class DocId private (val id: String) extends AnyVal {
  * @param rev the document revision, optional
  */
 protected[core] class DocRevision private (val rev: String) extends AnyVal {
-    def asString = rev // to make explicit that this is a string conversion
-    def empty = rev == null
-    override def toString = rev
+  def asString = rev // to make explicit that this is a string conversion
+  def empty = rev == null
+  override def toString = rev
 }
 
 /**
@@ -68,79 +71,105 @@ protected[core] class DocRevision private (val rev: String) extends AnyVal {
  * @param rev the document revision, optional; this is an opaque value determined by the datastore
  */
 protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevision = DocRevision.empty) {
-    override def toString = {
-        if (rev.empty) {
-            s"id: $id"
-        } else {
-            s"id: $id, rev: $rev"
-        }
+  override def toString = {
+    if (rev.empty) {
+      s"id: $id"
+    } else {
+      s"id: $id, rev: $rev"
     }
+  }
 
-    override def hashCode = {
-        if (rev.empty) {
-            id.hashCode
-        } else {
-            s"$id.$rev".hashCode
-        }
+  override def hashCode = {
+    if (rev.empty) {
+      id.hashCode
+    } else {
+      s"$id.$rev".hashCode
     }
+  }
+}
+
+/**
+ * A BulkEntityResult is wrapping the fields that are returned for a single document on a bulk-put of several documents.
+ * http://docs.couchdb.org/en/2.1.0/api/database/bulk-api.html#post--db-_bulk_docs
+ *
+ * @param id the document id
+ * @param rev the document revision, optional; this is an opaque value determined by the datastore
+ * @param error the error, that occured on trying to put this document into CouchDB
+ * @param reason the error message that correspands to the error
+ */
+case class BulkEntityResult(id: String,
+                            rev: DocRevision = DocRevision.empty,
+                            error: Option[String],
+                            reason: Option[String]) {
+  def toDocInfo = DocInfo(DocId(id), rev)
 }
 
 protected[core] object DocId extends ArgNormalizer[DocId] {
-    /**
-     * Unapply method for convenience of case matching.
-     */
-    def unapply(s: String): Option[DocId] = Try(DocId(s)).toOption
 
-    implicit val serdes = new RootJsonFormat[DocId] {
-        def write(d: DocId) = d.toJson
+  /**
+   * Unapply method for convenience of case matching.
+   */
+  def unapply(s: String): Option[DocId] = Try(DocId(s)).toOption
 
-        def read(value: JsValue) = Try {
-            val JsString(s) = value
-            new DocId(s)
-        } getOrElse deserializationError("doc id malformed")
-    }
+  implicit val serdes = new RootJsonFormat[DocId] {
+    def write(d: DocId) = d.toJson
+
+    def read(value: JsValue) =
+      Try {
+        val JsString(s) = value
+        new DocId(s)
+      } getOrElse deserializationError("doc id malformed")
+  }
 }
 
 protected[core] object DocRevision {
-    /**
-     * Creates a DocRevision. Normalizes the revision if necessary.
-     *
-     * @param s is the document revision as a string, may be null
-     * @return DocRevision
-     */
-    protected[core] def apply(s: String): DocRevision = new DocRevision(trim(s))
 
-    protected[core] val empty: DocRevision = new DocRevision(null)
+  /**
+   * Creates a DocRevision. Normalizes the revision if necessary.
+   *
+   * @param s is the document revision as a string, may be null
+   * @return DocRevision
+   */
+  protected[core] def apply(s: String): DocRevision = new DocRevision(trim(s))
 
-    implicit val serdes = new RootJsonFormat[DocRevision] {
-        def write(d: DocRevision) = if (d.rev != null) JsString(d.rev) else JsNull
+  protected[core] val empty: DocRevision = new DocRevision(null)
 
-        def read(value: JsValue) = value match {
-            case JsString(s) => DocRevision(s)
-            case JsNull      => DocRevision.empty
-            case _           => deserializationError("doc revision malformed")
-        }
+  implicit val serdes = new RootJsonFormat[DocRevision] {
+    def write(d: DocRevision) = if (d.rev != null) JsString(d.rev) else JsNull
+
+    def read(value: JsValue) = value match {
+      case JsString(s) => DocRevision(s)
+      case JsNull      => DocRevision.empty
+      case _           => deserializationError("doc revision malformed")
     }
+  }
 }
 
-protected[core] object DocInfo {
-    /**
-     * Creates a DocInfo with id set to the argument and no revision.
-     *
-     * @param id is the document identifier, must be defined
-     * @throws IllegalArgumentException if id is null or empty
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def apply(id: String): DocInfo = DocInfo(DocId(id))
+protected[core] object DocInfo extends DefaultJsonProtocol {
 
-    /**
-     * Creates a DocInfo with id and revision per the provided arguments.
-     *
-     * @param id is the document identifier, must be defined
-     * @param rev the document revision, optional
-     * @return DocInfo for id and revision
-     * @throws IllegalArgumentException if id is null or empty
-     */
-    @throws[IllegalArgumentException]
-    protected[core] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
+  /**
+   * Creates a DocInfo with id set to the argument and no revision.
+   *
+   * @param id is the document identifier, must be defined
+   * @throws IllegalArgumentException if id is null or empty
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def apply(id: String): DocInfo = DocInfo(DocId(id))
+
+  /**
+   * Creates a DocInfo with id and revision per the provided arguments.
+   *
+   * @param id is the document identifier, must be defined
+   * @param rev the document revision, optional
+   * @return DocInfo for id and revision
+   * @throws IllegalArgumentException if id is null or empty
+   */
+  @throws[IllegalArgumentException]
+  protected[core] def !(id: String, rev: String): DocInfo = DocInfo(DocId(id), DocRevision(rev))
+
+  implicit val serdes = jsonFormat2(DocInfo.apply)
+}
+
+object BulkEntityResult extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat4(BulkEntityResult.apply)
 }

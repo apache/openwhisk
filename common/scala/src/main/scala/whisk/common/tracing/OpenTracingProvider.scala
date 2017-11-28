@@ -27,7 +27,7 @@ import zipkin.reporter.AsyncReporter
 import zipkin.reporter.Reporter
 import brave.opentracing.BraveTracer
 import whisk.core.tracing.TracingProvider
-import whisk.spi.{Dependencies, SingletonSpiFactory}
+
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -137,8 +137,4 @@ class OpenTracingProvider() extends TracingProvider {
       }
   }
 
-}
-
-object OpenTracingProvider extends SingletonSpiFactory[TracingProvider] {
-  override def apply(dependencies: Dependencies): TracingProvider = new OpenTracingProvider
 }

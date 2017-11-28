@@ -33,18 +33,18 @@ import spray.json._
 @RunWith(classOf[JUnitRunner])
 class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSystem {
 
-    override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
-        withContainer("dockerskeleton", env)(code)
-    }
+  override def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit) = {
+    withContainer("dockerskeleton", env)(code)
+  }
 
-    val codeNotReturningJson = """
+  val codeNotReturningJson = """
            |#!/bin/sh
            |echo not a json object
         """.stripMargin.trim
 
-    /** Standard code samples, should print 'hello' to stdout and echo the input args. */
-    val stdCodeSamples = {
-        val bash = """
+  /** Standard code samples, should print 'hello' to stdout and echo the input args. */
+  val stdCodeSamples = {
+    val bash = """
                 |#!/bin/bash
                 |echo 'hello stdout'
                 |echo 'hello stderr' 1>&2
@@ -55,7 +55,7 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |fi
             """.stripMargin.trim
 
-        val python = """
+    val python = """
                 |#!/usr/bin/env python
                 |from __future__ import print_function
                 |import sys
@@ -64,20 +64,20 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print(sys.argv[1])
             """.stripMargin.trim
 
-        val perl = """
+    val perl = """
                 |#!/usr/bin/env perl
                 |print STDOUT "hello stdout\n";
                 |print STDERR "hello stderr\n";
                 |print $ARGV[0];
             """.stripMargin.trim
 
-        // excluding perl as it not installed in alpine based image
-        Seq(("bash", bash), ("python", python))
-    }
+    // excluding perl as it not installed in alpine based image
+    Seq(("bash", bash), ("python", python))
+  }
 
-    val stdUnicodeSamples = {
-        // python 3 in base image
-        val python = """
+  val stdUnicodeSamples = {
+    // python 3 in base image
+    val python = """
                 |#!/usr/bin/env python
                 |import json, sys
                 |j = json.loads(sys.argv[1])
@@ -87,12 +87,12 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print(json.dumps({"winter": s}))
             """.stripMargin.trim
 
-        Seq(("python", python))
-    }
+    Seq(("python", python))
+  }
 
-    /** Standard code samples, should print 'hello' to stdout and echo the input args. */
-    val stdEnvSamples = {
-        val bash = """
+  /** Standard code samples, should print 'hello' to stdout and echo the input args. */
+  val stdEnvSamples = {
+    val bash = """
                 |#!/bin/bash
                 |echo "{ \
                 |\"api_host\": \"$__OW_API_HOST\", \"api_key\": \"$__OW_API_KEY\", \
@@ -100,7 +100,8 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |\"activation_id\": \"$__OW_ACTIVATION_ID\", \"deadline\": \"$__OW_DEADLINE\" }"
             """.stripMargin.trim
 
-        val python = """
+    val python =
+      """
                 |#!/usr/bin/env python
                 |import os
                 |
@@ -110,7 +111,8 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |  os.environ['__OW_ACTIVATION_ID'], os.environ['__OW_DEADLINE']))
             """.stripMargin.trim
 
-        val perl = """
+    val perl =
+      """
                 |#!/usr/bin/env perl
                 |$a = $ENV{'__OW_API_HOST'};
                 |$b = $ENV{'__OW_API_KEY'};
@@ -121,222 +123,226 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print "{ \"api_host\": \"$a\", \"api_key\": \"$b\", \"namespace\": \"$c\", \"action_name\": \"$d\", \"activation_id\": \"$e\", \"deadline\": \"$f\" }";
             """.stripMargin.trim
 
-        // excluding perl as it not installed in alpine based image
-        Seq(("bash", bash), ("python", python))
+    // excluding perl as it not installed in alpine based image
+    Seq(("bash", bash), ("python", python))
+  }
+
+  behavior of "openwhisk/dockerskeleton"
+
+  it should "run sample without init" in {
+    val (out, err) = withActionContainer() { c =>
+      val (runCode, out) = c.run(JsObject())
+      runCode should be(200)
+      out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
     }
 
-    behavior of "openwhisk/dockerskeleton"
+    checkStreams(out, err, {
+      case (o, _) => o should include("This is a stub action")
+    })
+  }
 
-    it should "run sample without init" in {
-        val (out, err) = withActionContainer() { c =>
-            val (runCode, out) = c.run(JsObject())
-            runCode should be(200)
-            out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
-        }
+  it should "run sample with 'null' init" in {
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(null))
+      initCode should be(200)
 
-        checkStreams(out, err, {
-            case (o, _) => o should include("This is a stub action")
-        })
+      val (runCode, out) = c.run(JsObject())
+      runCode should be(200)
+      out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
     }
 
-    it should "run sample with 'null' init" in {
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, _) = c.init(initPayload(null))
-            initCode should be(200)
+    checkStreams(out, err, {
+      case (o, _) => o should include("This is a stub action")
+    })
+  }
 
-            val (runCode, out) = c.run(JsObject())
-            runCode should be(200)
-            out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
-        }
-
-        checkStreams(out, err, {
-            case (o, _) => o should include("This is a stub action")
-        })
+  it should "run sample with init that does nothing" in {
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(JsObject())
+      initCode should be(200)
+      val (runCode, out) = c.run(JsObject())
+      runCode should be(200)
+      out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
     }
 
-    it should "run sample with init that does nothing" in {
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, _) = c.init(JsObject())
-            initCode should be(200)
-            val (runCode, out) = c.run(JsObject())
-            runCode should be(200)
-            out should be(Some(JsObject("error" -> JsString("This is a stub action. Replace it with custom logic."))))
-        }
+    checkStreams(out, err, {
+      case (o, _) => o should include("This is a stub action")
+    })
+  }
 
-        checkStreams(out, err, {
-            case (o, _) => o should include("This is a stub action")
-        })
+  it should "respond with 404 for bad run argument" in {
+    val (out, err) = withActionContainer() { c =>
+      val (runCode, out) = c.run(runPayload(JsString("A")))
+      runCode should be(404)
     }
 
-    it should "respond with 404 for bad run argument" in {
-        val (out, err) = withActionContainer() { c =>
-            val (runCode, out) = c.run(runPayload(JsString("A")))
-            runCode should be(404)
-        }
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe empty
+        e shouldBe empty
+    })
+  }
 
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe empty
-                e shouldBe empty
-        })
+  it should "fail to run a bad script" in {
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, _) = c.init(initPayload(""))
+      initCode should be(200)
+      val (runCode, out) = c.run(JsNull)
+      runCode should be(502)
+      out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
     }
 
-    it should "fail to run a bad script" in {
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, _) = c.init(initPayload(""))
-            initCode should be(200)
-            val (runCode, out) = c.run(JsNull)
-            runCode should be(502)
-            out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
-        }
+    checkStreams(out, err, {
+      case (o, _) => o should include("error")
+    })
+  }
 
-        checkStreams(out, err, {
-            case (o, _) => o should include("error")
-        })
+  it should "extract and run a compatible zip exec" in {
+    val zip = FileUtils.readFileToByteArray(new File(TestUtils.getTestActionFilename("blackbox.zip")))
+    val contents = Base64.getEncoder.encodeToString(zip)
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, err) =
+        c.init(JsObject("value" -> JsObject("code" -> JsString(contents), "binary" -> JsBoolean(true))))
+      initCode should be(200)
+      val (runCode, out) = c.run(JsObject())
+      runCode should be(200)
+      out.get should be(JsObject("msg" -> JsString("hello zip")))
     }
 
-    it should "extract and run a compatible zip exec" in {
-        val zip = FileUtils.readFileToByteArray(new File(TestUtils.getTestActionFilename("blackbox.zip")))
-        val contents = Base64.getEncoder.encodeToString(zip)
+    checkStreams(out, err, {
+      case (o, e) =>
+        o shouldBe "This is an example zip used with the docker skeleton action."
+        e shouldBe empty
+    })
+  }
 
-        val (out, err) = withActionContainer() { c =>
-            val (initCode, err) = c.init(JsObject("value" -> JsObject("code" -> JsString(contents), "binary" -> JsBoolean(true))))
-            initCode should be(200)
-            val (runCode, out) = c.run(JsObject())
-            runCode should be(200)
-            out.get should be(JsObject("msg" -> JsString("hello zip")))
-        }
-
-        checkStreams(out, err, {
-            case (o, e) =>
-                o shouldBe "This is an example zip used with the docker skeleton action."
-                e shouldBe empty
-        })
-    }
-
-    testNotReturningJson(codeNotReturningJson, checkResultInLogs = true)
-    testEcho(stdCodeSamples)
-    testUnicode(stdUnicodeSamples)
-    testEnv(stdEnvSamples)
+  testNotReturningJson(codeNotReturningJson, checkResultInLogs = true)
+  testEcho(stdCodeSamples)
+  testUnicode(stdUnicodeSamples)
+  testEnv(stdEnvSamples)
 }
 
 trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
-    def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit): (String, String)
+  def withActionContainer(env: Map[String, String] = Map.empty)(code: ActionContainer => Unit): (String, String)
 
-    /**
-     * Runs tests for actions which do not return a dictionary and confirms expected error messages.
-     * @param codeNotReturningJson code to execute, should not return a JSON object
-     * @param checkResultInLogs should be true iff the result of the action is expected to appear in stdout or stderr
-     */
-    def testNotReturningJson(codeNotReturningJson: String, checkResultInLogs: Boolean = true) = {
-        it should "run and report an error for script not returning a json object" in {
-            val (out, err) = withActionContainer() { c =>
-                val (initCode, _) = c.init(initPayload(codeNotReturningJson))
-                initCode should be(200)
-                val (runCode, out) = c.run(JsObject())
-                runCode should be(502)
-                out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
-            }
+  /**
+   * Runs tests for actions which do not return a dictionary and confirms expected error messages.
+   * @param codeNotReturningJson code to execute, should not return a JSON object
+   * @param checkResultInLogs should be true iff the result of the action is expected to appear in stdout or stderr
+   */
+  def testNotReturningJson(codeNotReturningJson: String, checkResultInLogs: Boolean = true) = {
+    it should "run and report an error for script not returning a json object" in {
+      val (out, err) = withActionContainer() { c =>
+        val (initCode, _) = c.init(initPayload(codeNotReturningJson))
+        initCode should be(200)
+        val (runCode, out) = c.run(JsObject())
+        runCode should be(502)
+        out should be(Some(JsObject("error" -> JsString("The action did not return a dictionary."))))
+      }
 
-            checkStreams(out, err, {
-                case (o, e) =>
-                    if (checkResultInLogs) {
-                        (o + e) should include("not a json object")
-                    } else {
-                        o shouldBe empty
-                        e shouldBe empty
-                    }
-            })
-        }
+      checkStreams(out, err, {
+        case (o, e) =>
+          if (checkResultInLogs) {
+            (o + e) should include("not a json object")
+          } else {
+            o shouldBe empty
+            e shouldBe empty
+          }
+      })
     }
+  }
 
-    /**
-     * Runs tests for code samples which are expected to echo the input arguments
-     * and print hello [stdout, stderr].
-     */
-    def testEcho(stdCodeSamples: Seq[(String, String)]) = {
-        stdCodeSamples.foreach { s =>
-            it should s"run a ${s._1} script" in {
-                val argss = List(
-                    JsObject("string" -> JsString("hello")),
-                    JsObject("string" -> JsString("❄ ☃ ❄")),
-                    JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
-                    // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
-                    JsObject("object" -> JsObject("a" -> JsString("A"))))
+  /**
+   * Runs tests for code samples which are expected to echo the input arguments
+   * and print hello [stdout, stderr].
+   */
+  def testEcho(stdCodeSamples: Seq[(String, String)]) = {
+    stdCodeSamples.foreach { s =>
+      it should s"run a ${s._1} script" in {
+        val argss = List(
+          JsObject("string" -> JsString("hello")),
+          JsObject("string" -> JsString("❄ ☃ ❄")),
+          JsObject("numbers" -> JsArray(JsNumber(42), JsNumber(1))),
+          // JsObject("boolean" -> JsBoolean(true)), // fails with swift3 returning boolean: 1
+          JsObject("object" -> JsObject("a" -> JsString("A"))))
 
-                val (out, err) = withActionContainer() { c =>
-                    val (initCode, _) = c.init(initPayload(s._2))
-                    initCode should be(200)
+        val (out, err) = withActionContainer() { c =>
+          val (initCode, _) = c.init(initPayload(s._2))
+          initCode should be(200)
 
-                    for (args <- argss) {
-                        val (runCode, out) = c.run(runPayload(args))
-                        runCode should be(200)
-                        out should be(Some(args))
-                    }
-                }
-
-                checkStreams(out, err, {
-                    case (o, e) =>
-                        o should include("hello stdout")
-                        e should include("hello stderr")
-                }, argss.length)
-            }
+          for (args <- argss) {
+            val (runCode, out) = c.run(runPayload(args))
+            runCode should be(200)
+            out should be(Some(args))
+          }
         }
+
+        checkStreams(out, err, {
+          case (o, e) =>
+            o should include("hello stdout")
+            e should include("hello stderr")
+        }, argss.length)
+      }
     }
+  }
 
-    def testUnicode(stdUnicodeSamples: Seq[(String, String)]) = {
-        stdUnicodeSamples.foreach { s =>
-            it should s"run a ${s._1} action and handle unicode in source, input params, logs, and result" in {
-                val (out, err) = withActionContainer() { c =>
-                    val (initCode, _) = c.init(initPayload(s._2))
-                    initCode should be(200)
+  def testUnicode(stdUnicodeSamples: Seq[(String, String)]) = {
+    stdUnicodeSamples.foreach { s =>
+      it should s"run a ${s._1} action and handle unicode in source, input params, logs, and result" in {
+        val (out, err) = withActionContainer() { c =>
+          val (initCode, _) = c.init(initPayload(s._2))
+          initCode should be(200)
 
-                    val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
-                    runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
-                }
-
-                checkStreams(out, err, {
-                    case (o, _) =>
-                        o.toLowerCase should include("❄ ☃ ❄")
-                })
-            }
+          val (runCode, runRes) = c.run(runPayload(JsObject("delimiter" -> JsString("❄"))))
+          runRes.get.fields.get("winter") shouldBe Some(JsString("❄ ☃ ❄"))
         }
+
+        checkStreams(out, err, {
+          case (o, _) =>
+            o.toLowerCase should include("❄ ☃ ❄")
+        })
+      }
     }
+  }
 
-    /** Runs tests for code samples which are expected to return the expected standard environment {auth, edge}. */
-    def testEnv(stdEnvSamples: Seq[(String, String)], enforceEmptyOutputStream: Boolean = true, enforceEmptyErrorStream: Boolean = true) = {
-        stdEnvSamples.foreach { s =>
-            it should s"run a ${s._1} script and confirm expected environment variables" in {
-                val props = Seq(
-                    "api_host" -> "xyz",
-                    "api_key" -> "abc",
-                    "namespace" -> "zzz",
-                    "action_name" -> "xxx",
-                    "activation_id" -> "iii",
-                    "deadline" -> "123")
-                val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
+  /** Runs tests for code samples which are expected to return the expected standard environment {auth, edge}. */
+  def testEnv(stdEnvSamples: Seq[(String, String)],
+              enforceEmptyOutputStream: Boolean = true,
+              enforceEmptyErrorStream: Boolean = true) = {
+    stdEnvSamples.foreach { s =>
+      it should s"run a ${s._1} script and confirm expected environment variables" in {
+        val props = Seq(
+          "api_host" -> "xyz",
+          "api_key" -> "abc",
+          "namespace" -> "zzz",
+          "action_name" -> "xxx",
+          "activation_id" -> "iii",
+          "deadline" -> "123")
+        val env = props.map { case (k, v) => s"__OW_${k.toUpperCase()}" -> v }
 
-                val (out, err) = withActionContainer(env.take(1).toMap) { c =>
-                    val (initCode, _) = c.init(initPayload(s._2))
-                    initCode should be(200)
+        val (out, err) = withActionContainer(env.take(1).toMap) { c =>
+          val (initCode, _) = c.init(initPayload(s._2))
+          initCode should be(200)
 
-                    val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
-                    runCode should be(200)
-                    out shouldBe defined
-                    props.map {
-                        case (k, v) => withClue(k) {
-                            out.get.fields(k) shouldBe JsString(v)
-                        }
+          val (runCode, out) = c.run(runPayload(JsObject(), Some(props.toMap.toJson.asJsObject)))
+          runCode should be(200)
+          out shouldBe defined
+          props.map {
+            case (k, v) =>
+              withClue(k) {
+                out.get.fields(k) shouldBe JsString(v)
+              }
 
-                    }
-                }
-
-                checkStreams(out, err, {
-                    case (o, e) =>
-                        if (enforceEmptyOutputStream) o shouldBe empty
-                        if (enforceEmptyErrorStream) e shouldBe empty
-                })
-            }
+          }
         }
+
+        checkStreams(out, err, {
+          case (o, e) =>
+            if (enforceEmptyOutputStream) o shouldBe empty
+            if (enforceEmptyErrorStream) e shouldBe empty
+        })
+      }
     }
+  }
 }

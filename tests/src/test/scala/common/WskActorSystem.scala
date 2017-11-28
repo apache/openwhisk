@@ -34,19 +34,19 @@ import org.scalatest.Suite
  *  If you use this trait and override afterAll(), make sure to also call super.afterAll().
  */
 trait WskActorSystem extends BeforeAndAfterAll {
-    self: Suite =>
+  self: Suite =>
 
-    implicit val actorSystem: ActorSystem = ActorSystem()
+  implicit val actorSystem: ActorSystem = ActorSystem()
 
-    implicit def executionContext: ExecutionContext = actorSystem.dispatcher
+  implicit def executionContext: ExecutionContext = actorSystem.dispatcher
 
-    override def afterAll() {
-        try {
-            Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
-        } finally {
-            actorSystem.terminate()
-            Await.result(actorSystem.whenTerminated, 30.seconds)
-        }
-        super.afterAll()
+  override def afterAll() {
+    try {
+      Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
+    } finally {
+      actorSystem.terminate()
+      Await.result(actorSystem.whenTerminated, 30.seconds)
     }
+    super.afterAll()
+  }
 }

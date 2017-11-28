@@ -30,66 +30,70 @@ import whisk.core.entity.size.SizeString
  * - EntityName: the name of the entity
  * - Version: the semantic version of the resource
  */
-protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None) extends ByteSizeable {
-    private val qualifiedName: String = path + EntityPath.PATHSEP + name
-    /** Resolves default namespace in path to given name if the root path is the default namespace. */
-    def resolve(namespace: EntityName) = FullyQualifiedEntityName(path.resolveNamespace(namespace), name, version)
+protected[core] case class FullyQualifiedEntityName(path: EntityPath, name: EntityName, version: Option[SemVer] = None)
+    extends ByteSizeable {
+  private val qualifiedName: String = path + EntityPath.PATHSEP + name
 
-    /** @return full path including name, i.e., "path/name" */
-    def fullPath: EntityPath = path.addPath(name)
+  /** Resolves default namespace in path to given name if the root path is the default namespace. */
+  def resolve(namespace: EntityName) = FullyQualifiedEntityName(path.resolveNamespace(namespace), name, version)
 
-    /**
-     * Creates new fully qualified entity name that shifts the name into the path and adds a new name:
-     * (p, n).add(x) -> (p/n, x).
-     *
-     * @return new fully qualified name
-     */
-    def add(n: EntityName) = FullyQualifiedEntityName(path.addPath(name), n)
+  /** @return full path including name, i.e., "path/name" */
+  def fullPath: EntityPath = path.addPath(name)
 
-    def toDocId = DocId(qualifiedName)
-    def namespace: EntityName = path.root
-    def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
-    def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+  /**
+   * Creates new fully qualified entity name that shifts the name into the path and adds a new name:
+   * (p, n).add(x) -> (p/n, x).
+   *
+   * @return new fully qualified name
+   */
+  def add(n: EntityName) = FullyQualifiedEntityName(path.addPath(name), n)
 
-    override def size = qualifiedName.sizeInBytes
-    override def toString = asString
-    override def hashCode = qualifiedName.hashCode
+  def toDocId = DocId(qualifiedName)
+  def namespace: EntityName = path.root
+  def qualifiedNameWithLeadingSlash: String = EntityPath.PATHSEP + qualifiedName
+  def asString = path.addPath(name) + version.map("@" + _.toString).getOrElse("")
+
+  override def size = qualifiedName.sizeInBytes
+  override def toString = asString
+  override def hashCode = qualifiedName.hashCode
 }
 
 protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
-    // must use jsonFormat with explicit field names and order because class extends a trait
-    private val caseClassSerdes = jsonFormat(FullyQualifiedEntityName.apply _, "path", "name", "version")
+  // must use jsonFormat with explicit field names and order because class extends a trait
+  private val caseClassSerdes = jsonFormat(FullyQualifiedEntityName.apply _, "path", "name", "version")
 
-    protected[core] val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
-        def write(n: FullyQualifiedEntityName) = caseClassSerdes.write(n)
+  protected[core] val serdes = new RootJsonFormat[FullyQualifiedEntityName] {
+    def write(n: FullyQualifiedEntityName) = caseClassSerdes.write(n)
 
-        def read(value: JsValue) = Try {
-            value match {
-                case JsObject(fields) => caseClassSerdes.read(value)
-                // tolerate dual serialization modes; Exec serializes a sequence of fully qualified names
-                // by their document id which excludes the version (hence it is just a string)
-                case JsString(name)   => EntityPath(name).toFullyQualifiedEntityName
-                case _                => deserializationError("fully qualified name malformed")
-            }
-        } match {
-            case Success(s)                           => s
-            case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
-            case Failure(t)                           => deserializationError("fully qualified name malformed")
+    def read(value: JsValue) =
+      Try {
+        value match {
+          case JsObject(fields) => caseClassSerdes.read(value)
+          // tolerate dual serialization modes; Exec serializes a sequence of fully qualified names
+          // by their document id which excludes the version (hence it is just a string)
+          case JsString(name) => EntityPath(name).toFullyQualifiedEntityName
+          case _              => deserializationError("fully qualified name malformed")
         }
-    }
+      } match {
+        case Success(s)                           => s
+        case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
+        case Failure(t)                           => deserializationError("fully qualified name malformed")
+      }
+  }
 
-    // alternate serializer that drops version
-    protected[entity] val serdesAsDocId = new RootJsonFormat[FullyQualifiedEntityName] {
-        def write(n: FullyQualifiedEntityName) = n.toDocId.toJson
-        def read(value: JsValue) = Try {
-            value match {
-                case JsString(name) => EntityPath(name).toFullyQualifiedEntityName
-                case _              => deserializationError("fully qualified name malformed")
-            }
-        } match {
-            case Success(s)                           => s
-            case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
-            case Failure(t)                           => deserializationError("fully qualified name malformed")
+  // alternate serializer that drops version
+  protected[entity] val serdesAsDocId = new RootJsonFormat[FullyQualifiedEntityName] {
+    def write(n: FullyQualifiedEntityName) = n.toDocId.toJson
+    def read(value: JsValue) =
+      Try {
+        value match {
+          case JsString(name) => EntityPath(name).toFullyQualifiedEntityName
+          case _              => deserializationError("fully qualified name malformed")
         }
-    }
+      } match {
+        case Success(s)                           => s
+        case Failure(t: IllegalArgumentException) => deserializationError(t.getMessage)
+        case Failure(t)                           => deserializationError("fully qualified name malformed")
+      }
+  }
 }

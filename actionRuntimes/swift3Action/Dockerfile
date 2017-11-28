@@ -1,0 +1,1 @@
+FROM openwhisk/swift3action:1.0.0

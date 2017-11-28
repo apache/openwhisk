@@ -18,28 +18,36 @@
 package whisk.core.database
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.spi.Dependencies
-import whisk.spi.SpiFactory
+import whisk.core.entity.DocumentReader
 
-/**
- * A CouchDB implementation of ArtifactStoreProvider
- */
-class CouchDbStoreProvider extends ArtifactStoreProvider {
-    def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String)(
-        implicit jsonFormat: RootJsonFormat[D],
-        actorSystem: ActorSystem,
-        logging: Logging): ArtifactStore[D] = {
-        require(config != null && config.isValid, "config is undefined or not valid")
-        require(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB", "Unsupported db.provider: " + config.dbProvider)
-        assume(Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config)).forall(_.nonEmpty), "At least one expected property is missing")
+object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-        new CouchDbRestStore[D](config.dbProtocol, config.dbHost, config.dbPort.toInt, config.dbUsername, config.dbPassword, name(config))
-    }
-}
+  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String, useBatching: Boolean)(
+    implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
+    actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): ArtifactStore[D] = {
+    require(config != null && config.isValid, "config is undefined or not valid")
+    require(
+      config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB",
+      "Unsupported db.provider: " + config.dbProvider)
+    assume(
+      Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config))
+        .forall(_.nonEmpty),
+      "At least one expected property is missing")
 
-object CouchDbStoreProvider extends SpiFactory[ArtifactStoreProvider] {
-    override def apply(deps: Dependencies): ArtifactStoreProvider = new CouchDbStoreProvider
+    new CouchDbRestStore[D](
+      config.dbProtocol,
+      config.dbHost,
+      config.dbPort.toInt,
+      config.dbUsername,
+      config.dbPassword,
+      name(config),
+      useBatching)
+  }
 }

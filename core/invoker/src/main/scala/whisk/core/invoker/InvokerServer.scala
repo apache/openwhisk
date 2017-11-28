@@ -17,16 +17,14 @@
 
 package whisk.core.invoker
 
-import whisk.core.entity.InstanceId
-
 import whisk.http.BasicRasService
 
 /**
  * Implements web server to handle certain REST API calls.
  * Currently provides a health ping route, only.
  */
-class InvokerServer(
-    override val instance: InstanceId,
-    override val numberOfInstances: Int)
-    extends BasicRasService {
+class InvokerServer() extends BasicRasService {
+
+  override val numberOfInstances = 1
+  override val instanceOrdinal = 1
 }

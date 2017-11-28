@@ -132,12 +132,8 @@ public class WhiskProperties {
         return whiskProperties.getProperty(string);
     }
 
-    public static String getKafkaHost() {
-        return whiskProperties.getProperty("kafka.host");
-    }
-
-    public static int getKafkaPort() {
-        return Integer.parseInt(whiskProperties.getProperty("kafka.host.port"));
+    public static String getKafkaHosts() {
+        return whiskProperties.getProperty("kafka.hosts");
     }
 
     public static int getKafkaMonitorPort() {
@@ -145,11 +141,7 @@ public class WhiskProperties {
     }
 
     public static String getZookeeperHost() {
-        return whiskProperties.getProperty("zookeeper.host");
-    }
-
-    public static int getZookeeperPort() {
-        return Integer.parseInt(whiskProperties.getProperty("zookeeper.host.port"));
+        return whiskProperties.getProperty("zookeeper.hosts");
     }
 
     public static String getMainDockerEndpoint() {
@@ -200,11 +192,20 @@ public class WhiskProperties {
         return whiskProperties.getProperty("router.host");
     }
 
+    public static String getApiProto() {
+        return whiskProperties.getProperty("whisk.api.host.proto");
+    }
+
+    public static String getApiHost() {
+        return whiskProperties.getProperty("whisk.api.host.name");
+    }
+
+    public static String getApiPort() {
+        return whiskProperties.getProperty("whisk.api.host.port");
+    }
+
     public static String getApiHostForAction() {
-        String proto = whiskProperties.getProperty("whisk.api.host.proto");
-        String port = whiskProperties.getProperty("whisk.api.host.port");
-        String host = whiskProperties.getProperty("whisk.api.host.name");
-        return proto + "://" + host + ":" + port;
+        return getApiProto() + "://" + getApiHost() + ":" + getApiPort();
     }
 
     public static String getApiHostForClient(String subdomain, boolean includeProtocol) {
@@ -235,18 +236,15 @@ public class WhiskProperties {
     }
 
     public static String getBaseControllerHost() {
-    	return getControllerHosts().split(",")[0];
+        return getControllerHosts().split(",")[0];
     }
 
     public static String getBaseControllerAddress() {
-    	return getBaseControllerHost() + ":" + getControllerBasePort();
+        return getBaseControllerHost() + ":" + getControllerBasePort();
     }
 
     public static int getMaxActionInvokesPerMinute() {
         String valStr = whiskProperties.getProperty("limits.actions.invokes.perMinute");
-        if (null == valStr) {
-            valStr = whiskProperties.getProperty("defaultLimits.actions.invokes.perMinute");
-        }
         return Integer.parseInt(valStr);
     }
 

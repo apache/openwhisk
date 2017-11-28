@@ -7,8 +7,8 @@ db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
 db_prefix: whisk_distributed_
 
-whisk_version_name: local
-config_root_dir: /tmp
+whisk_version_name: distributed
+config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 registry_storage_dir: "/"
 docker_registry: "{{ groups['registry'] | first }}:5000/"
@@ -21,16 +21,6 @@ registry:
   recycle:
     threshold: 80
     keeptags: 5
-
-limits:
-  actions:
-    invokes:
-      perMinute: 60
-      concurrent: 30
-      concurrentInSystem: 5000
-  triggers:
-    fires:
-      perMinute: 60
 
 # openstack vars
 # TODO, should move these to a role and create a designated "defaults.yml" file
@@ -82,5 +72,4 @@ instances:
 # API GW connection configuration
 apigw_auth_user: ""
 apigw_auth_pwd: ""
-apigw_host: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v1"
 apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"

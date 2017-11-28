@@ -27,13 +27,13 @@ import spray.json.JsValue
  */
 @Deprecated
 trait JsHelpers {
-    implicit class JsObjectHelper(js: JsObject) {
-        def getFieldPath(path: String*): Option[JsValue] = {
-            whisk.utils.JsHelpers.getFieldPath(js, path.toList)
-        }
-
-        def fieldPathExists(path: String*): Boolean = {
-            whisk.utils.JsHelpers.fieldPathExists(js, path.toList)
-        }
+  implicit class JsObjectHelper(js: JsObject) {
+    def getFieldPath(path: String*): Option[JsValue] = {
+      whisk.utils.JsHelpers.getFieldPath(js, path.toList)
     }
+
+    def fieldPathExists(path: String*): Boolean = {
+      whisk.utils.JsHelpers.fieldPathExists(js, path.toList)
+    }
+  }
 }

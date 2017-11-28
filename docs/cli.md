@@ -36,7 +36,7 @@ you can run the following command from your `openwhisk` directory:
 
 **Tip:** The OpenWhisk CLI stores the properties set in `~/.wskprops` by default. The location of this file can be altered by setting the `WSK_CONFIG_FILE` environment variable.
 
-To verify your CLI setup, try [creating and running an action](#openwhisk-hello-world-example).
+To verify your CLI setup, try [creating and running an action](./samples.md).
 
 ### Configure command completion for Openwhisk CLI
 
@@ -48,7 +48,7 @@ bash --version
 brew install bash-completion
 ```
 
-To download the bash command completion to your local directory, run the following command:
+To write the bash command completion to your local directory, run the following command:
 
 ```
 wsk sdk install bashauto
@@ -63,6 +63,11 @@ Alternatively, to install bash command completion, run the following command:
 
 ```
 eval "`wsk sdk install bashauto --stdout`"
+```
+
+For Mac users, autocomplete doesn't insert space after using TAB. To workaround this, you need to modify the output script like the following:
+```
+eval "`wsk sdk install bashauto --stdout | sed 's/-o nospace//'`"
 ```
 
 **Note:** Every time a new terminal is opened, this command must run to enable bash command completion. Alternatively, adding the previous command to the `.bashrc` or `.profile` will prevent this.

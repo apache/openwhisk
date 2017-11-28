@@ -24,17 +24,28 @@ task testLean(type: Test) {
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
     exclude '**/*ApiGwTests*'
+    exclude '**/*Cli*'
+}
+
+task testLeanCli(type: Test) {
+    exclude '**/*Swift*'
+    exclude '**/*Python*'
+    exclude '**/*Java*'
+    exclude '**/*ThrottleTests*'
+    exclude '**/MaxActionDurationTests*'
+    exclude '**/*ApiGwTests*'
+    exclude '**/*Rest*'
 }
 
 // Add all images needed for local testing here
 test.dependsOn([
-    ':core:nodejs6Action:distDocker',
-    ':core:actionProxy:distDocker',
-    ':core:pythonAction:distDocker',
-    ':core:python2Action:distDocker',
-    ':core:javaAction:distDocker',
-    ':core:swift3Action:distDocker',
-    ':core:swift3.1.1Action:distDocker',
+    ':actionRuntimes:nodejs6Action:distDocker',
+    ':actionRuntimes:actionProxy:distDocker',
+    ':actionRuntimes:pythonAction:distDocker',
+    ':actionRuntimes:python2Action:distDocker',
+    ':actionRuntimes:javaAction:distDocker',
+    ':actionRuntimes:swift3Action:distDocker',
+    ':actionRuntimes:swift3.1.1Action:distDocker',
     ':sdk:docker:distDocker',
     ':tests:dat:blackbox:badaction:distDocker',
     ':tests:dat:blackbox:badproxy:distDocker'
@@ -48,10 +59,11 @@ dependencies {
     compile 'junit:junit:4.11'
     compile 'com.jayway.restassured:rest-assured:2.6.0'
     compile 'org.scalatest:scalatest_2.11:3.0.1'
+    compile 'com.typesafe.akka:akka-testkit_2.11:2.5.4'
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.scalamock:scalamock-scalatest-support_2.11:3.4.2'
     compile 'com.typesafe.akka:akka-testkit_2.11:2.4.16'
-    compile 'com.typesafe.akka:akka-http-testkit_2.11:10.0.9'
+    compile 'com.typesafe.akka:akka-http-testkit_2.11:10.0.10'
     compile 'com.github.java-json-tools:json-schema-validator:2.2.8';
 
     compile project(':common:scala')

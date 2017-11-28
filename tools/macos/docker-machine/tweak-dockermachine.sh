@@ -12,14 +12,9 @@ docker-machine ssh $MACHINE_NAME "echo DOCKER_HOST=\'-H tcp://0.0.0.0:4243\' |su
 docker-machine ssh $MACHINE_NAME "echo EXTRA_ARGS=\'--userns-remap=default\' |sudo tee -a /var/lib/boot2docker/profile > /dev/null"
 docker-machine ssh $MACHINE_NAME "echo '#!/bin/sh
 /sbin/syslogd
-sudo ping -c 3 repo.tinycorelinux.net > /dev/null
-if [ \$? -ne 0 ]; then
-    sudo ping -c 3 ftp.gtlib.gatech.edu > /dev/null
-    if [ \$? -eq 0 ]; then
-        sudo echo \"ftp://ftp.gtlib.gatech.edu/pub/tinycore/\" > /opt/tcemirror
-    else
-        sudo echo \"http://ftp.nluug.nl/os/Linux/distr/tinycorelinux/\" > /opt/tcemirror        
-    fi
+STATUS=\$(curl -s -o /dev/null -w '%{http_code}' repo.tinycorelinux.net)
+if [ \$STATUS -ne 200 ]; then
+    sudo echo \"http://ftp.nluug.nl/os/Linux/distr/tinycorelinux/\" > /opt/tcemirror
 fi
 su - docker -c \"tce-load -wi python\"
 if ! [ -x /usr/local/bin/pip ]; then

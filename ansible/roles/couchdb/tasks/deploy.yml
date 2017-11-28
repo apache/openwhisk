@@ -1,6 +1,10 @@
 ---
 # This role will run a CouchDB server on the db group
 
+- name: "Set node name to couchdb{{ groups['db'].index(inventory_hostname) }}"
+  set_fact:
+    nodeName: "couchdb{{ groups['db'].index(inventory_hostname) }}"
+
 - name: check if db credentials are valid for CouchDB
   fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
   when: db_provider != "CouchDB"
@@ -17,41 +21,37 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: (block_device is defined) and (block_device in disk_status.stdout)
 
-- name: "pull the couchdb:{{ couchdb.version }} image"
-  shell: "docker pull couchdb:{{ couchdb.version }}"
+- name: "pull the klaemo/couchdb:{{ couchdb.version }} image"
+  shell: "docker pull klaemo/couchdb:{{ couchdb.version }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
 - name: (re)start CouchDB
   docker_container:
     name: couchdb
-    image: couchdb:{{ couchdb.version }}
+    image: klaemo/couchdb:{{ couchdb.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
     ports:
       - "{{ db_port }}:5984"
+    env:
+      COUCHDB_USER: "{{ db_username }}"
+      COUCHDB_PASSWORD: "{{ db_password }}"
+      NODENAME: "{{ nodeName }}"
 
-- name: wait until the CouchDB in this host is up and running
-  wait_for:
-    delay: 2
-    host: "{{ inventory_hostname }}"
-    port: "{{ db_port }}"
-    timeout: 60
-
-- name: create admin user
+- name: wait until CouchDB in this host is up and running
   uri:
-    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/admins/{{ db_username }}"
-    method: PUT
-    body: >
-        "{{ db_password }}"
-    body_format: json
-    status_code: 200
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_utils/"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
 
 - name: disable reduce limit on views
   uri:
-    url: "{{ db_protocol }}://{{ inventory_hostname }}:{{ db_port }}/_config/query_server_config/reduce_limit"
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_node/couchdb@{{ nodeName }}/_config/query_server_config/reduce_limit"
     method: PUT
     body: >
         "false"
