@@ -64,8 +64,8 @@ object KafkaMessagingProvider extends MessagingProvider {
       case e: ExecutionException if e.getCause.isInstanceOf[TopicExistsException] =>
         logging.info(this, s"topic $topic already existed")
         true
-      case _: Exception =>
-        logging.error(this, s"exception during creation of topic $topic")
+      case e: Exception =>
+        logging.error(this, s"ensureTopic for $topic failed due to $e")
         false
     } finally {
       client.close()
