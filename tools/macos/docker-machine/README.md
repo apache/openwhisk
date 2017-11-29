@@ -60,7 +60,7 @@ Enter your sudo Mac password when prompted.
 
 ```
 cd /your/path/to/openwhisk
-./tools/macos/docker-machine/tweak-dockermachine.sh
+sh ./tools/macos/docker-machine/tweak-dockermachine.sh
 ```
 
 The final output of the script should resemble the following two lines.
@@ -99,7 +99,7 @@ communication with Docker containers will fail. To run just the Mac host tweaks,
 run the following [script](./tweak-dockerhost.sh). Enter your sudo Mac password when prompted.
 ```
 cd /your/path/to/openwhisk
-./tools/macos/docker-machine/tweak-dockerhost.sh
+sh ./tools/macos/docker-machine/tweak-dockerhost.sh
 ```
 
 # Build
