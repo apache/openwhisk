@@ -21,18 +21,6 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: (block_device is defined) and (block_device in disk_status.stdout)
 
-- name: "set the num_instances"
-  vars:
-    instance: "{{instances | selectattr('name', 'equalto', 'db') | list }}"
-  set_fact:
-    num_instances: "{{ instance.num_instances | default(1) }}"
-  when: instances is defined
-
-- name: "set the num_instances"
-  set_fact:
-    num_instances: "1"
-  when: instances is undefined
-
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
   shell: "docker pull apache/couchdb:{{ couchdb.version }}"
   retries: "{{ docker.pull.retries }}"
@@ -68,7 +56,7 @@
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
     method: POST
     body: >
-        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db_username }}", "password":"{{ db_password }}", "port": {{ db_port }}, "node_count": "{{ num_instances }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db_username }}", "remote_current_password": "{{ db_password }}"}
+        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db_username }}", "password":"{{ db_password }}", "port": {{ db_port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db_username }}", "remote_current_password": "{{ db_password }}"}
     body_format: json
     status_code: 201
     user: "{{ db_username }}"
