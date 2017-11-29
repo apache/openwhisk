@@ -64,7 +64,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
     WhiskConfig.dockerPort)
 
   val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
-  val dbHostsList = WhiskProperties.getProperty(WhiskConfig.dbHostsList)
+  val dbHostsList = WhiskProperties.getDBHosts
   val dbPort = WhiskProperties.getProperty(WhiskConfig.dbPort)
   val dbUsername = WhiskProperties.getProperty(WhiskConfig.dbUsername)
   val dbPassword = WhiskProperties.getProperty(WhiskConfig.dbPassword)

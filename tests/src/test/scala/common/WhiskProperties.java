@@ -232,7 +232,7 @@ public class WhiskProperties {
     }
 
     public static String getDBHosts() {
-        return whiskProperties.getProperty("db.hosts");
+        return whiskProperties.getProperty("db.hostsList");
     }
 
     public static int getDBPort() {
