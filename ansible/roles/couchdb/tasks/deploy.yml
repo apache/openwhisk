@@ -76,7 +76,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: db.instances|int >= 2
+  when: (inventory_hostname != coordinator) and (db.instances|int >= 2)
 
 - name: finish the cluster setup mode
   uri:
