@@ -4,6 +4,7 @@
 - name: "Set the coordinator to the first node"
   set_fact:
     coordinator: "{{ groups['db'][0] }}"
+    db_port: "{{ db_port|int + groups['db'].index(inventory_hostname) }}"
 
 - name: check if db credentials are valid for CouchDB
   fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
@@ -28,7 +29,7 @@
 
 - name: (re)start CouchDB
   docker_container:
-    name: couchdb
+    name: couchdb{{ groups['db'].index(inventory_hostname) }}
     image: apache/couchdb:{{ couchdb.version }}
     state: started
     recreate: true
@@ -36,8 +37,8 @@
     volumes: "{{volume_dir | default([])}}"
     ports:
       - "{{ db_port }}:5984"
-      - "4369:4369"
-      - "9100:9100"
+      - "{{ 4369 + groups['db'].index(inventory_hostname) }}:4369"
+      - "{{ 9100 + groups['db'].index(inventory_hostname) }}:9100"
     env:
       COUCHDB_USER: "{{ db_username }}"
       COUCHDB_PASSWORD: "{{ db_password }}"
@@ -62,11 +63,11 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname == coordinator
+  when: (inventory_hostname == coordinator) and (db.instances|int >= 2) 
 
 - name: add remote nodes to the cluster
   uri:
-    url: "{{ db_protocol }}://{{ coordinator }}:{{ db_port }}/_cluster_setup"
+    url: "{{ db_protocol }}://{{ hostvars[groups['db'] | first].ansible_host }}:{{ db_port }}/_cluster_setup"
     method: POST
     body: >
         {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db_port }}, "username": "{{ db_username }}", "password":"{{ db_password }}"}
@@ -75,7 +76,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname != coordinator
+  when: db.instances|int >= 2
 
 - name: finish the cluster setup mode
   uri:
@@ -88,7 +89,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname == coordinator
+  when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
 
 - name: disable reduce limit on views
   uri:
