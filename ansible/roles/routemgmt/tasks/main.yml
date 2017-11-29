@@ -1,0 +1,10 @@
+---
+# This role will install the API Gateway route management actions
+# In deploy mode it will deploy the API Gateway route management actions.
+# In clean mode it will remove the API Gateway route management actions.
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"
