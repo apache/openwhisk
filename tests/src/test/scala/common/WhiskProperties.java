@@ -17,14 +17,14 @@
 
 package common;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Properties;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Properties that describe a whisk installation
@@ -231,12 +231,24 @@ public class WhiskProperties {
         return whiskProperties.getProperty("controller.hosts");
     }
 
+    public static String getDBHosts() {
+        return whiskProperties.getProperty("db.hostsList");
+    }
+
+    public static int getDBPort() {
+        return Integer.parseInt(whiskProperties.getProperty("db.port"));
+    }
+
     public static int getControllerBasePort() {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
     }
 
     public static String getBaseControllerHost() {
         return getControllerHosts().split(",")[0];
+    }
+
+    public static String getBaseDBHost() {
+        return getDBHosts().split(",")[0];
     }
 
     public static String getBaseControllerAddress() {

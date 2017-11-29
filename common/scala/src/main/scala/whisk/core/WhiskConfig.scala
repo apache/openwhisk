@@ -94,7 +94,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbAuths = this(WhiskConfig.dbAuths)
   val dbWhisk = this(WhiskConfig.dbWhisk)
   val dbActivations = this(WhiskConfig.dbActivations)
-
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
   val kafkaTopicsInvokerRetentionBytes = this(WhiskConfig.kafkaTopicsInvokerRetentionBytes)
@@ -222,6 +221,7 @@ object WhiskConfig {
 
   val controllerBlackboxFraction = "controller.blackboxFraction"
   val controllerInstances = "controller.instances"
+  val dbInstances = "db.instances"
 
   val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
 
@@ -233,6 +233,7 @@ object WhiskConfig {
   val redisHostPort = "redis.host.port"
 
   val invokerHostsList = "invoker.hosts"
+  val dbHostsList = "db.hostsList"
 
   val edgeHost = Map(edgeHostName -> null, edgeHostApiPort -> null)
   val invokerHosts = Map(invokerHostsList -> null)

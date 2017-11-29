@@ -1,9 +1,9 @@
 ---
 # This role will run a CouchDB server on the db group
 
-- name: "Set node name to couchdb{{ groups['db'].index(inventory_hostname) }}"
+- name: "Set the coordinator to the first node"
   set_fact:
-    nodeName: "couchdb{{ groups['db'].index(inventory_hostname) }}"
+    coordinator: "{{ groups['db'][0] }}"
 
 - name: check if db credentials are valid for CouchDB
   fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
@@ -21,25 +21,27 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: (block_device is defined) and (block_device in disk_status.stdout)
 
-- name: "pull the klaemo/couchdb:{{ couchdb.version }} image"
-  shell: "docker pull klaemo/couchdb:{{ couchdb.version }}"
+- name: "pull the apache/couchdb:{{ couchdb.version }} image"
+  shell: "docker pull apache/couchdb:{{ couchdb.version }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
 - name: (re)start CouchDB
   docker_container:
     name: couchdb
-    image: klaemo/couchdb:{{ couchdb.version }}
+    image: apache/couchdb:{{ couchdb.version }}
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
     ports:
       - "{{ db_port }}:5984"
+      - "4369:4369"
+      - "9100:9100"
     env:
       COUCHDB_USER: "{{ db_username }}"
       COUCHDB_PASSWORD: "{{ db_password }}"
-      NODENAME: "{{ nodeName }}"
+      NODENAME: "{{ ansible_host }}"
 
 - name: wait until CouchDB in this host is up and running
   uri:
@@ -49,9 +51,48 @@
   retries: 12
   delay: 5
 
+- name: enable the cluster setup mode
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
+    method: POST
+    body: >
+        {"action": "enable_cluster", "bind_address":"0.0.0.0", "username": "{{ db_username }}", "password":"{{ db_password }}", "port": {{ db_port }}, "node_count": "{{ groups['db'] | length }}", "remote_node": "{{ ansible_host }}", "remote_current_user": "{{ db_username }}", "remote_current_password": "{{ db_password }}"}
+    body_format: json
+    status_code: 201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: inventory_hostname == coordinator
+
+- name: add remote nodes to the cluster
+  uri:
+    url: "{{ db_protocol }}://{{ coordinator }}:{{ db_port }}/_cluster_setup"
+    method: POST
+    body: >
+        {"action": "add_node", "host":"{{ ansible_host }}", "port": {{ db_port }}, "username": "{{ db_username }}", "password":"{{ db_password }}"}
+    body_format: json
+    status_code: 201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: inventory_hostname != coordinator
+
+- name: finish the cluster setup mode
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
+    method: POST
+    body: >
+        {"action": "finish_cluster"}
+    body_format: json
+    status_code: 201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: inventory_hostname == coordinator
+
 - name: disable reduce limit on views
   uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_node/couchdb@{{ nodeName }}/_config/query_server_config/reduce_limit"
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_node/couchdb@{{ ansible_host }}/_config/query_server_config/reduce_limit"
     method: PUT
     body: >
         "false"
@@ -60,3 +101,4 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
+  when: inventory_hostname == coordinator
