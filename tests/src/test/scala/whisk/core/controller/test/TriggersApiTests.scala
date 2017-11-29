@@ -316,7 +316,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, trigger)
     Post(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
+      status should be(Accepted)
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
       val activationId = ActivationId(id)
