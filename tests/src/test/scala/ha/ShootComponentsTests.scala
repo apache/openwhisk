@@ -101,19 +101,9 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
     TestUtils.runCmd(0, new File("."), cmd: _*)
   }
 
-  def ping(host: String, port: Int) = {
+  def ping(host: String, port: Int, path: String = "/") = {
     val response = Try {
-      Http().singleRequest(HttpRequest(uri = s"http://$host:$port/ping")).futureValue
-    }.toOption
-
-    response.map { res =>
-      (res.status, Unmarshal(res).to[String].futureValue)
-    }
-  }
-
-  def pingDB(host: String, port: Int) = {
-    val response = Try {
-      Http().singleRequest(HttpRequest(uri = s"http://$host:$port/")).futureValue
+      Http().singleRequest(HttpRequest(uri = s"http://$host:$port$path")).futureValue
     }.toOption
 
     response.map { res =>
@@ -127,7 +117,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
     val host = WhiskProperties.getProperty("controller.hosts").split(",")(instance)
     val port = WhiskProperties.getControllerBasePort + instance
 
-    val res = ping(host, port)
+    val res = ping(host, port, "/ping")
     res == Some((StatusCodes.OK, "pong"))
   }
 
@@ -137,7 +127,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
     val host = WhiskProperties.getProperty("db.hosts").split(",")(instance)
     val port = WhiskProperties.getDBPort + instance
 
-    val res = pingDB(host, port)
+    val res = ping(host, port)
     res == Some((StatusCodes.OK, "{\"couchdb\":\"Welcome\",\"version\":\"2.1.1\",\"features\":[\"scheduler\"],\"vendor\":{\"name\":\"The Apache Software Foundation\"}}\n"))
   }
 
