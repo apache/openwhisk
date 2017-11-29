@@ -21,7 +21,6 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -144,9 +143,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             duration = None)
 
           logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
-          WhiskActivation.put(activationStore, triggerActivation) onComplete {
-            case Success(_) =>
-            case Failure(t: Throwable) =>
+          WhiskActivation.put(activationStore, triggerActivation) recover {
+            case t =>
               logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
           }
 
@@ -172,9 +170,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                 logging.info(
                   this,
                   s"[POST] rule ${ruleName} activated, writing activation record to datastore: $ruleActivationId")
-                WhiskActivation.put(activationStore, ruleActivation) onComplete {
-                  case Success(_) =>
-                  case Failure(t: Throwable) =>
+                WhiskActivation.put(activationStore, ruleActivation) recover {
+                  case t =>
                     logging.error(this, s"[POST] storing rule activation $ruleActivationId failed: ${t.getMessage}")
                 }
 
