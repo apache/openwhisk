@@ -18,6 +18,8 @@
 package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.Set
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
@@ -35,6 +37,8 @@ import whisk.core.WhiskConfig
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
 import whisk.core.loadBalancer.LoadBalancer
+import whisk.http.ErrorResponse
+import whisk.http.Messages
 import whisk.http.Messages._
 
 package object types {
@@ -56,6 +60,7 @@ protected[core] case class Resource(namespace: EntityPath,
                                     env: Option[Parameters] = None) {
   def parent = collection.path + EntityPath.PATHSEP + namespace
   def id = parent + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
+  def fqname = namespace.asString + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
   override def toString = id
 }
 
@@ -65,7 +70,9 @@ protected[core] object EntitlementProvider {
     WhiskConfig.actionInvokePerMinuteLimit -> null,
     WhiskConfig.actionInvokeConcurrentLimit -> null,
     WhiskConfig.triggerFirePerMinuteLimit -> null,
-    WhiskConfig.actionInvokeSystemOverloadLimit -> null)
+    WhiskConfig.actionInvokeSystemOverloadLimit -> null,
+    WhiskConfig.controllerInstances -> null,
+    WhiskConfig.controllerHighAvailability -> null)
 }
 
 /**
@@ -78,10 +85,36 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
   private implicit val executionContext = actorSystem.dispatcher
 
+  /**
+   * The number of controllers if HA is enabled, 1 otherwise
+   */
+  private val diviser = if (config.controllerHighAvailability) config.controllerInstances.toInt else 1
+
+  /**
+   * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
+   * controllers
+   */
+  private val overcommit = if (config.controllerHighAvailability) 1.2 else 1
+
+  /**
+   * Adjust the throttles for a single controller with the diviser and the overcommit.
+   *
+   * @param originalThrottle The throttle that needs to be adjusted for this controller.
+   */
+  private def dilateThrottle(originalThrottle: Int): Int = {
+    Math.ceil((originalThrottle.toDouble / diviser.toDouble) * overcommit).toInt
+  }
+
   private val invokeRateThrottler =
-    new RateThrottler("actions per minute", config.actionInvokePerMinuteLimit.toInt, _.limits.invocationsPerMinute)
+    new RateThrottler(
+      "actions per minute",
+      dilateThrottle(config.actionInvokePerMinuteLimit.toInt),
+      _.limits.invocationsPerMinute.map(dilateThrottle))
   private val triggerRateThrottler =
-    new RateThrottler("triggers per minute", config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute)
+    new RateThrottler(
+      "triggers per minute",
+      dilateThrottle(config.triggerFirePerMinuteLimit.toInt),
+      _.limits.firesPerMinute.map(dilateThrottle))
   private val concurrentInvokeThrottler = new ActivationThrottler(
     loadBalancer,
     config.actionInvokeConcurrentLimit.toInt,
@@ -167,21 +200,37 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Unit] = {
     val subject = user.subject
+    val inaccessibleResources = ListBuffer[Resource]()
 
     val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
-        logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(",")}'")
+        logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
         checkSystemOverload(right)
           .flatMap(_ => checkUserThrottle(user, right, resources))
           .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
           .flatMap(_ => checkPrivilege(user, right, resources))
+          .flatMap(resourcePrivSet => {
+            resourcePrivSet.map { resourcePriv =>
+              if (!resourcePriv._2) inaccessibleResources += resourcePriv._1
+            }
+            Future.successful(inaccessibleResources.length == 0)
+          })
       } else Future.successful(true)
     } else if (right != REJECT) {
+      resources.map(r => inaccessibleResources += r)
       logging.info(
         this,
-        s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(",")}'")
-      Future.failed(RejectRequest(Forbidden))
+        s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(", ")}'")
+      Future.failed(
+        RejectRequest(
+          Forbidden,
+          Some(
+            ErrorResponse(
+              Messages.notAuthorizedtoAccessResource(
+                inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
+              transid))))
     } else {
+      resources.map(r => inaccessibleResources += r)
       Future.successful(false)
     }
     entitlementCheck andThen {
@@ -193,7 +242,16 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
     } flatMap { isAuthorized =>
       if (isAuthorized) Future.successful({})
-      else Future.failed(RejectRequest(Forbidden))
+      else {
+        Future.failed(
+          RejectRequest(
+            Forbidden,
+            Some(
+              ErrorResponse(
+                Messages.notAuthorizedtoAccessResource(
+                  inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
+                transid))))
+      }
     }
   }
 
@@ -204,23 +262,23 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * and the referenced package.
    */
   protected def checkPrivilege(user: Identity, right: Privilege, resources: Set[Resource])(
-    implicit transid: TransactionId): Future[Boolean] = {
+    implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.asString)
     implicit val es = this
 
-    Future
-      .sequence {
-        resources.map { resource =>
-          resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
-            case true => Future.successful(true)
-            case false =>
-              logging.info(this, "checking explicit grants")
-              entitled(user.subject, right, resource)
-          }
+    Future.sequence {
+      resources.map { resource =>
+        resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
+          case true => Future.successful(resource -> true)
+          case false =>
+            logging.info(this, "checking explicit grants")
+            entitled(user.subject, right, resource) flatMap {
+              case b => Future.successful(resource -> b)
+            }
         }
       }
-      .map { _.forall(identity) }
+    }
   }
 
   /**
@@ -322,6 +380,10 @@ trait ReferencedEntities {
         }
         Set(triggerResource, actionResource).flatten
       case e: SequenceExec =>
+        e.components.map { c =>
+          Resource(c.path, Collection(Collection.ACTIONS), Some(c.name.asString))
+        }.toSet
+      case e: SequenceExecMetaData =>
         e.components.map { c =>
           Resource(c.path, Collection(Collection.ACTIONS), Some(c.name.asString))
         }.toSet

@@ -35,6 +35,7 @@ import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
 import whisk.core.entity.Exec
+import whisk.core.entity.ExecMetaDataBase
 import whisk.core.entity.ActivationId
 
 object Messages {
@@ -55,8 +56,15 @@ object Messages {
   def runtimeDeprecated(e: Exec) =
     s"The '${e.kind}' runtime is no longer supported. You may read and delete but not update or invoke this action."
 
+  /**
+   * Standard message for reporting deprecated runtimes.
+   */
+  def runtimeDeprecated(e: ExecMetaDataBase) =
+    s"The '${e.kind}' runtime is no longer supported. You may read and delete but not update or invoke this action."
+
   /** Standard message for resource not found. */
   val resourceDoesNotExist = "The requested resource does not exist."
+  def resourceDoesntExist(value: String) = s"The requested resource '$value' does not exist."
 
   /** Standard message for too many activation requests within a rolling time window. */
   def tooManyRequests(count: Int, allowed: Int) =
@@ -71,6 +79,8 @@ object Messages {
 
   /** Standard message when supplied authkey is not authorized for an operation. */
   val notAuthorizedtoOperateOnResource = "The supplied authentication is not authorized to access this resource."
+  def notAuthorizedtoAccessResource(value: String) =
+    s"The supplied authentication is not authorized to access '$value'."
 
   /** Standard error message for malformed fully qualified entity names. */
   val malformedFullyQualifiedEntityName =
@@ -99,6 +109,9 @@ object Messages {
   val bindingCannotReferenceBinding = "Cannot bind to another package binding."
   val requestedBindingIsNotValid = "Cannot bind to a resource that is not a package."
   val notAllowedOnBinding = "Operation not permitted on package binding."
+  def packageNameIsReserved(name: String) = {
+    s"Package name '$name' is reserved."
+  }
 
   /** Error messages for sequence activations. */
   def sequenceRetrieveActivationTimeout(id: ActivationId) =
@@ -113,8 +126,7 @@ object Messages {
   val abnormalInitialization = "The action did not initialize and exited unexpectedly."
   val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
   val memoryExhausted = "The action exhausted its memory and was aborted."
-  def badEntityName(value: String) = s"Parameter is not a valid value for a entity name: $value"
-  def badNamespace(value: String) = s"Parameter is not a valid value for a namespace: $value"
+  def badNameFilter(value: String) = s"Parameter may be a 'simple' name or 'package-name/simple' name: $value"
   def badEpoch(value: String) = s"Parameter is not a valid value for epoch seconds: $value"
 
   /** Error message for size conformance. */

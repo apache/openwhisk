@@ -88,7 +88,7 @@ trait DbUtils extends TransactionCounter {
    * where the step performs a direct db query to retrieve the view and check the count
    * matches the given value.
    */
-  def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityName, count: Int, viewName: String)(
+  def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityName, count: Int, view: View)(
     implicit context: ExecutionContext,
     transid: TransactionId,
     timeout: Duration) = {
@@ -96,11 +96,10 @@ trait DbUtils extends TransactionCounter {
       () => {
         val startKey = List(namespace.asString)
         val endKey = List(namespace.asString, WhiskEntityQueries.TOP)
-        db.query(WhiskEntityQueries.viewname(viewName), startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map {
-          l =>
-            if (l.length != count) {
-              throw RetryOp()
-            } else true
+        db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
+          if (l.length != count) {
+            throw RetryOp()
+          } else true
         }
       },
       timeout)

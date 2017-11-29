@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
+import scala.util.Try
 
 import kamon.Kamon
 
@@ -42,10 +43,13 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity.size._
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
+
+case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
 
 object Invoker {
 
@@ -58,6 +62,10 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHost ++
+      Map(
+        kafkaTopicsInvokerRetentionBytes -> 1024.MB.toBytes.toString,
+        kafkaTopicsInvokerRetentionMS -> 48.hour.toMillis.toString,
+        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString) ++
       Map(zookeeperHostName -> "", zookeeperHostPort -> "") ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
@@ -104,8 +112,24 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val proposedInvokerId: Option[Int] = args.headOption.map(_.toInt)
-    val assignedInvokerId = proposedInvokerId
+    // process command line arguments
+    // We accept the command line grammar of:
+    // Usage: invoker [options] [<proposedInvokerId>]
+    //    --name <value>   a unique name to use for this invoker
+    //    --id <value>     proposed invokerId
+    def parse(ls: List[String], c: CmdLineArgs): CmdLineArgs = {
+      ls match {
+        case "--name" :: name :: tail                        => parse(tail, c.copy(name = Some(name)))
+        case "--id" :: id :: tail if Try(id.toInt).isSuccess => parse(tail, c.copy(id = Some(id.toInt)))
+        case id :: Nil if Try(id.toInt).isSuccess            => c.copy(id = Some(id.toInt))
+        case Nil                                             => c
+        case _                                               => abort(s"Error processing command line arguments $ls")
+      }
+    }
+    val cmdLineArgs = parse(args.toList, CmdLineArgs())
+    logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
+
+    val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
         id
@@ -114,23 +138,26 @@ object Invoker {
         if (config.zookeeperHost.startsWith(":") || config.zookeeperHost.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHost})")
         }
-        val invokerName = config.invokerName
+        val invokerName = cmdLineArgs.name.getOrElse(config.invokerName)
         if (invokerName.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
+
         logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHost}")
         val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
         val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHost, retryPolicy)
         zkClient.start()
-        zkClient.blockUntilConnected();
+        zkClient.blockUntilConnected()
         logger.info(this, "invokerReg: connected to zookeeper")
+
         val myIdPath = "/invokers/idAssignment/mapping/" + invokerName
         val assignedId = Option(zkClient.checkExists().forPath(myIdPath)) match {
           case None =>
-            // path doesn't exist ==> no previous mapping for this invoker
+            // path doesn't exist -> no previous mapping for this invoker
             logger.info(this, s"invokerReg: no prior assignment of id for invoker $invokerName")
             val idCounter = new SharedCount(zkClient, "/invokers/idAssignment/counter", 0)
             idCounter.start()
+
             def assignId(): Int = {
               val current = idCounter.getVersionedValue()
               if (idCounter.trySetCount(current, current.getValue() + 1)) {
@@ -139,23 +166,38 @@ object Invoker {
                 assignId()
               }
             }
+
             val newId = assignId()
             idCounter.close()
             zkClient.create().creatingParentContainersIfNeeded().forPath(myIdPath, BigInt(newId).toByteArray)
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned invokerId ${newId}")
             newId
+
           case Some(_) =>
-            // path already exists ==> there is a previous mapping for this invoker we should use
+            // path already exists -> there is a previous mapping for this invoker we should use
             val rawOldId = zkClient.getData().forPath(myIdPath)
             val oldId = BigInt(rawOldId).intValue
             logger.info(this, s"invokerReg: invoker ${invokerName} was assigned its previous invokerId ${oldId}")
             oldId
         }
+
         zkClient.close()
         assignedId
       }
-    val invokerInstance = InstanceId(assignedInvokerId);
+
+    val invokerInstance = InstanceId(assignedInvokerId)
     val msgProvider = SpiLoader.get[MessagingProvider]
+    if (!msgProvider.ensureTopic(
+          config,
+          "invoker" + assignedInvokerId,
+          Map(
+            "numPartitions" -> "1",
+            "replicationFactor" -> "1",
+            "retention.bytes" -> config.kafkaTopicsInvokerRetentionBytes,
+            "retention.ms" -> config.kafkaTopicsInvokerRetentionMS,
+            "segment.bytes" -> config.kafkaTopicsInvokerSegmentBytes))) {
+      abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
+    }
     val producer = msgProvider.getProducer(config, ec)
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)

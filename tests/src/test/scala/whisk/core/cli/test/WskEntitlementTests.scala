@@ -23,10 +23,8 @@ import org.scalatest.junit.JUnitRunner
 
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils.FORBIDDEN
-import common.TestUtils.NOT_FOUND
-import common.TestUtils.TIMEOUT
-import common.Wsk
+import common.TestUtils.RunResult
+import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
@@ -35,11 +33,14 @@ import whisk.core.entity.Subject
 import whisk.core.entity.WhiskPackage
 
 @RunWith(classOf[JUnitRunner])
-class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAndAfterAll {
+abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAndAfterAll {
 
-  val wsk = new Wsk
+  val wsk: BaseWsk
   lazy val defaultWskProps = WskProps()
   lazy val guestWskProps = getAdditionalTestSubject(Subject().asString)
+  val forbiddenCode: Int
+  val timeoutCode: Int
+  val notFoundCode: Int
 
   override def afterAll() = {
     disposeAdditionalTestSubject(guestWskProps.namespace)
@@ -61,12 +62,13 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
       }
 
       val fullyQualifiedActionName = s"/$guestNamespace/$privateAction"
-      wsk.action.get(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).stderr should include(
-        "not authorized")
+      wsk.action
+        .get(fullyQualifiedActionName, expectedExitCode = forbiddenCode)(defaultWskProps)
+        .stderr should include("not authorized")
 
       withAssetCleaner(defaultWskProps) { (wp, assetHelper) =>
         assetHelper.withCleaner(wsk.action, fullyQualifiedActionName, confirmDelete = false) { (action, name) =>
-          val rr = action.create(name, None, update = true, expectedExitCode = FORBIDDEN)(wp)
+          val rr = action.create(name, None, update = true, expectedExitCode = forbiddenCode)(wp)
           rr.stderr should include("not authorized")
           rr
         }
@@ -77,17 +79,19 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
             Some(fullyQualifiedActionName),
             kind = Some("sequence"),
             update = true,
-            expectedExitCode = FORBIDDEN)(wp)
+            expectedExitCode = forbiddenCode)(wp)
           rr.stderr should include("not authorized")
           rr
         }
       }
 
-      wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).stderr should include(
-        "not authorized")
+      wsk.action
+        .delete(fullyQualifiedActionName, expectedExitCode = forbiddenCode)(defaultWskProps)
+        .stderr should include("not authorized")
 
-      wsk.action.invoke(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps).stderr should include(
-        "not authorized")
+      wsk.action
+        .invoke(fullyQualifiedActionName, expectedExitCode = forbiddenCode)(defaultWskProps)
+        .stderr should include("not authorized")
   }
 
   it should "reject deleting action in shared package not owned by authkey" in withAssetCleaner(guestWskProps) {
@@ -104,7 +108,7 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
 
       val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
       wsk.action.get(fullyQualifiedActionName)(defaultWskProps)
-      wsk.action.delete(fullyQualifiedActionName, expectedExitCode = FORBIDDEN)(defaultWskProps)
+      wsk.action.delete(fullyQualifiedActionName, expectedExitCode = forbiddenCode)(defaultWskProps)
   }
 
   it should "reject create action in shared package not owned by authkey" in withAssetCleaner(guestWskProps) {
@@ -118,7 +122,7 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
 
       withAssetCleaner(defaultWskProps) { (wp, assetHelper) =>
         assetHelper.withCleaner(wsk.action, fullyQualifiedActionName, confirmDelete = false) { (action, name) =>
-          action.create(name, file, expectedExitCode = FORBIDDEN)(wp)
+          action.create(name, file, expectedExitCode = forbiddenCode)(wp)
         }
       }
   }
@@ -136,7 +140,8 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
       }
 
       val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
-      wsk.action.create(fullyQualifiedActionName, None, update = true, expectedExitCode = FORBIDDEN)(defaultWskProps)
+      wsk.action.create(fullyQualifiedActionName, None, update = true, expectedExitCode = forbiddenCode)(
+        defaultWskProps)
   }
 
   behavior of "Wsk Package Listing"
@@ -146,9 +151,13 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
       pkg.create(samplePackage, shared = Some(true))(wp)
     }
 
-    val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-    val result = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps).stdout
-    result should include regex (fullyQualifiedPackageName + """\s+shared""")
+    val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+    verifyPackageSharedList(packageList, guestNamespace, samplePackage)
+  }
+
+  def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
+    val fullyQualifiedPackageName = s"/$namespace/$packageName"
+    packageList.stdout should include regex (fullyQualifiedPackageName + """\s+shared""")
   }
 
   it should "not list private packages" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -156,9 +165,13 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
       pkg.create(samplePackage)(wp)
     }
 
-    val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-    val result = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps).stdout
-    result should not include regex(fullyQualifiedPackageName)
+    val packageList = wsk.pkg.list(Some(s"/$guestNamespace"))(defaultWskProps)
+    verifyPackageNotSharedList(packageList, guestNamespace, samplePackage)
+  }
+
+  def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
+    val fullyQualifiedPackageName = s"/$namespace/$packageName"
+    packageList.stdout should not include regex(fullyQualifiedPackageName)
   }
 
   it should "list shared package actions" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -173,9 +186,13 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
     }
 
     val fullyQualifiedPackageName = s"/$guestNamespace/$samplePackage"
-    val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
-    val result = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps).stdout
-    result should include regex (fullyQualifiedActionName)
+    val packageList = wsk.action.list(Some(fullyQualifiedPackageName))(defaultWskProps)
+    verifyPackageList(packageList, guestNamespace, samplePackage, sampleAction)
+  }
+
+  def verifyPackageList(packageList: RunResult, namespace: String, packageName: String, actionName: String): Unit = {
+    val result = packageList.stdout
+    result should include regex (s"/$namespace/$packageName/$actionName")
   }
 
   behavior of "Wsk Package Binding"
@@ -212,7 +229,7 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
     val provider = s"/$guestNamespace/$samplePackage"
     withAssetCleaner(defaultWskProps) { (wp, assetHelper) =>
       assetHelper.withCleaner(wsk.pkg, name, confirmDelete = false) { (pkg, _) =>
-        pkg.bind(provider, name, expectedExitCode = FORBIDDEN)(wp)
+        pkg.bind(provider, name, expectedExitCode = forbiddenCode)(wp)
       }
     }
   }
@@ -231,18 +248,23 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
     }
 
     val fullyQualifiedActionName = s"/$guestNamespace/$fullSampleActionName"
-    val stdout = wsk.action.get(fullyQualifiedActionName)(defaultWskProps).stdout
-    stdout should include("name")
-    stdout should include("parameters")
-    stdout should include("limits")
-    stdout should include regex (""""key": "a"""")
-    stdout should include regex (""""value": "A"""")
+    val action = wsk.action.get(fullyQualifiedActionName)(defaultWskProps)
+    verifyAction(action)
 
     val run = wsk.action.invoke(fullyQualifiedActionName)(defaultWskProps)
 
     withActivation(wsk.activation, run)({
       _.response.success shouldBe true
     })(defaultWskProps)
+  }
+
+  def verifyAction(action: RunResult) = {
+    val stdout = action.stdout
+    stdout should include("name")
+    stdout should include("parameters")
+    stdout should include("limits")
+    stdout should include regex (""""key": "a"""")
+    stdout should include regex (""""value": "A"""")
   }
 
   it should "invoke an action sequence from package" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -294,7 +316,7 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
 
       // change package visibility
       wsk.pkg.create(privateSamplePackage, update = true, shared = Some(false))(guestwp)
-      wsk.action.invoke("sequence", expectedExitCode = FORBIDDEN)(defaultWskProps)
+      wsk.action.invoke("sequence", expectedExitCode = forbiddenCode)(defaultWskProps)
     }
   }
 
@@ -342,9 +364,9 @@ class WskEntitlementTests extends TestHelpers with WskTestHelpers with BeforeAnd
       val fullyQualifiedFeedName = s"/$guestNamespace/$sampleFeed"
       withAssetCleaner(defaultWskProps) { (wp, assetHelper) =>
         assetHelper.withCleaner(wsk.trigger, "badfeed", confirmDelete = false) { (trigger, name) =>
-          trigger.create(name, feed = Some(fullyQualifiedFeedName), expectedExitCode = TIMEOUT)(wp)
+          trigger.create(name, feed = Some(fullyQualifiedFeedName), expectedExitCode = timeoutCode)(wp)
         }
-        wsk.trigger.get("badfeed", expectedExitCode = NOT_FOUND)(wp)
+        wsk.trigger.get("badfeed", expectedExitCode = notFoundCode)(wp)
       }
   }
 

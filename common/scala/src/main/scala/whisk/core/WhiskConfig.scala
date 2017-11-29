@@ -30,12 +30,13 @@ import whisk.common.{Config, Logging}
  * a value, and whose values are default values. A null value in the Map means there is
  * no default value specified, so it must appear in the properties file.
  * @param optionalProperties a set of optional properties (which may not be defined).
- * @param whiskPropertiesFile a File object, the whisk.properties file, which if given contains the property values.
+ * @param propertiesFile a File object, the whisk.properties file, which if given contains the property values.
+ * @param env an optional environment to initialize from.
  */
 class WhiskConfig(requiredProperties: Map[String, String],
                   optionalProperties: Set[String] = Set(),
                   propertiesFile: File = null,
-                  env: Map[String, String] = sys.env)(implicit val logging: Logging)
+                  env: Map[String, String] = sys.env)(implicit logging: Logging)
     extends Config(requiredProperties, optionalProperties)(env) {
 
   /**
@@ -89,12 +90,19 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbProtocol = this(WhiskConfig.dbProtocol)
   val dbHost = this(WhiskConfig.dbHost)
   val dbPort = this(WhiskConfig.dbPort)
-  val dbWhisk = this(WhiskConfig.dbWhisk)
-  val dbAuths = this(WhiskConfig.dbAuths)
-  val dbActivations = this(WhiskConfig.dbActivations)
   val dbPrefix = this(WhiskConfig.dbPrefix)
+  val dbAuths = this(WhiskConfig.dbAuths)
+  val dbWhisk = this(WhiskConfig.dbWhisk)
+  val dbActivations = this(WhiskConfig.dbActivations)
 
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
+
+  val kafkaTopicsInvokerRetentionBytes = this(WhiskConfig.kafkaTopicsInvokerRetentionBytes)
+  val kafkaTopicsInvokerRetentionMS = this(WhiskConfig.kafkaTopicsInvokerRetentionMS)
+  val kafkaTopicsInvokerSegmentBytes = this(WhiskConfig.kafkaTopicsInvokerSegmentBytes)
+  val kafkaTopicsCompletedRetentionBytes = this(WhiskConfig.kafkaTopicsCompletedRetentionBytes)
+  val kafkaTopicsCompletedRetentionMS = this(WhiskConfig.kafkaTopicsCompletedRetentionMS)
+  val kafkaTopicsCompletedSegmentBytes = this(WhiskConfig.kafkaTopicsCompletedSegmentBytes)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
@@ -104,10 +112,15 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
   val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
   val controllerLocalBookkeeping = getAsBoolean(WhiskConfig.controllerLocalBookkeeping, false)
-
+  val controllerHighAvailability = getAsBoolean(WhiskConfig.controllerHighAvailability, false)
 }
 
 object WhiskConfig {
+
+  /**
+   * Reads a key from system environment as if it was part of WhiskConfig.
+   */
+  def readFromEnv(key: String): Option[String] = sys.env.get(asEnvVar(key))
 
   private def whiskPropertiesFile: File = {
     def propfile(dir: String, recurse: Boolean = false): File =
@@ -153,10 +166,11 @@ object WhiskConfig {
     }
   }
 
-  def asEnvVar(key: String): String =
+  def asEnvVar(key: String): String = {
     if (key != null)
       key.replace('.', '_').toUpperCase
     else null
+  }
 
   val servicePort = "port"
   val dockerRegistry = "docker.registry"
@@ -170,10 +184,13 @@ object WhiskConfig {
   val dbPort = "db.port"
   val dbUsername = "db.username"
   val dbPassword = "db.password"
-  val dbWhisk = "db.whisk.actions"
-  val dbAuths = "db.whisk.auths"
   val dbPrefix = "db.prefix"
+  val dbAuths = "db.whisk.auths"
+  val dbWhisk = "db.whisk.actions"
   val dbActivations = "db.whisk.activations"
+  val dbWhiskDesignDoc = "db.whisk.actions.ddoc"
+  val dbActivationsDesignDoc = "db.whisk.activations.ddoc"
+  val dbActivationsFilterDesignDoc = "db.whisk.activations.filter.ddoc"
 
   // these are not private because they are needed
   // in the invoker (they are part of the environment
@@ -224,6 +241,13 @@ object WhiskConfig {
 
   val runtimesManifest = "runtimes.manifest"
 
+  val kafkaTopicsInvokerRetentionBytes = "kafka.topics.invoker.retentionBytes"
+  val kafkaTopicsInvokerRetentionMS = "kafka.topics.invoker.retentionMS"
+  val kafkaTopicsInvokerSegmentBytes = "kafka.topics.invoker.segmentBytes"
+  val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retentionBytes"
+  val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retentionMS"
+  val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segmentBytes"
+
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"
@@ -231,4 +255,5 @@ object WhiskConfig {
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
   val controllerSeedNodes = "akka.cluster.seed.nodes"
   val controllerLocalBookkeeping = "controller.localBookkeeping"
+  val controllerHighAvailability = "controller.ha"
 }

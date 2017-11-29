@@ -22,11 +22,13 @@ import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
+import whisk.core.entity.DocumentReader
 
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
   def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String, useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {

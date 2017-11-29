@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package system.basic
-
-import common.Wsk
+package whisk.core.cli.test
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
+import common.Wsk
+
 @RunWith(classOf[JUnitRunner])
-class WskCliBasicNodeTests extends WskBasicNodeTests {
-  override val wsk: Wsk = new Wsk
+class WskCliWebActionsTests extends WskWebActionsTests {
+  override lazy val wsk: common.Wsk = new Wsk
 }

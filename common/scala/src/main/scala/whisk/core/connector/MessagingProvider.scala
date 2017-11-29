@@ -34,4 +34,6 @@ trait MessagingProvider extends Spi {
                   maxPeek: Int = Int.MaxValue,
                   maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging): MessageConsumer
   def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: Map[String, String])(
+    implicit logging: Logging): Boolean
 }

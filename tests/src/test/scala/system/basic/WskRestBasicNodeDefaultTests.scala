@@ -15,16 +15,14 @@
  * limitations under the License.
  */
 
-package system.basic;
+package system.basic
+
+import common.rest.WskRest
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import common.rest.WskRest
 
-/**
- * Tests of the text console
- */
 @RunWith(classOf[JUnitRunner])
-class WskRestConsoleTests extends WskConsoleTests {
-  override val wsk: WskRest = new WskRest
+class WskRestBasicNodeDefaultTests extends WskBasicNodeDefaultTests {
+  override val wsk: common.rest.WskRest = new WskRest
 }

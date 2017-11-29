@@ -8,7 +8,7 @@ db_host: "{{ groups['db'] | first }}"
 db_prefix: whisk_distributed_
 
 whisk_version_name: distributed
-config_root_dir: /tmp
+config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 registry_storage_dir: "/"
 docker_registry: "{{ groups['registry'] | first }}:5000/"

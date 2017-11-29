@@ -15,20 +15,19 @@
  * limitations under the License.
  */
 
-package system.basic
+package apigw.healthtests
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.JsHelpers
-import common.WskTestHelpers
-import common.rest.WskRest
+import common.Wsk
+import common.TestUtils._
 
+/**
+ * Basic tests of the download link for Go CLI binaries
+ */
 @RunWith(classOf[JUnitRunner])
-class WskRestUnicodeNodeTests extends WskUnicodeTests with WskTestHelpers with JsHelpers {
-
-  override val wsk: common.rest.WskRest = new WskRest
-  override lazy val actionKind = "nodejs:6"
-  override lazy val actionSource = "unicode.js"
-
+class ApiGwCliEndToEndTests extends ApiGwEndToEndTests {
+  override lazy val wsk: common.Wsk = new Wsk
+  override val createCode: Int = SUCCESS_EXIT
 }
