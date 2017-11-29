@@ -41,7 +41,13 @@ import whisk.core.database.test.ExtendedCouchDbRestClient
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers with ScalaFutures with WskActorSystem with StreamLogging {
+class ShootComponentsTests
+    extends FlatSpec
+    with Matchers
+    with WskTestHelpers
+    with ScalaFutures
+    with WskActorSystem
+    with StreamLogging {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRest
@@ -60,8 +66,7 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
   val controller0DockerHost = WhiskProperties.getBaseControllerHost() + ":" + WhiskProperties.getProperty(
     WhiskConfig.dockerPort)
 
-  val couchDB0DockerHost = WhiskProperties.getBaseDBHost() + ":" + WhiskProperties.getProperty(
-    WhiskConfig.dockerPort)
+  val couchDB0DockerHost = WhiskProperties.getBaseDBHost() + ":" + WhiskProperties.getProperty(WhiskConfig.dockerPort)
 
   val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
   val dbHostsList = WhiskProperties.getDBHosts
@@ -92,7 +97,6 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
 
     TestUtils.runCmd(0, new File("."), cmd: _*)
   }
-
 
   def startComponent(host: String, component: String) = {
     val cmd: Seq[String] = getDockerCommand(host, component, "start")
@@ -128,7 +132,10 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
     val port = WhiskProperties.getDBPort + instance
 
     val res = ping(host, port)
-    res == Some((StatusCodes.OK, "{\"couchdb\":\"Welcome\",\"version\":\"2.1.1\",\"features\":[\"scheduler\"],\"vendor\":{\"name\":\"The Apache Software Foundation\"}}\n"))
+    res == Some(
+      (
+        StatusCodes.OK,
+        "{\"couchdb\":\"Welcome\",\"version\":\"2.1.1\",\"features\":[\"scheduler\"],\"vendor\":{\"name\":\"The Apache Software Foundation\"}}\n"))
   }
 
   def doRequests(amount: Int, actionName: String): Seq[(Int, Int)] = {
@@ -197,98 +204,116 @@ class ShootComponentsTests extends FlatSpec with Matchers with WskTestHelpers wi
 
   behavior of "CouchDB HA"
 
-  it should "be able to retrieve documents from couchdb1 if couchdb0 goes down" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    if (WhiskProperties.getProperty(WhiskConfig.dbInstances).toInt >= 2) {
+  it should "be able to retrieve documents from couchdb1 if couchdb0 goes down" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      if (WhiskProperties.getProperty(WhiskConfig.dbInstances).toInt >= 2) {
 
-      val dbName: String = dbWhiskAuth
-      val db1 = new ExtendedCouchDbRestClient(dbProtocol, dbHostsList.split(",")(0), dbPort.toInt, dbUsername, dbPassword, dbName)
-      val db2 = new ExtendedCouchDbRestClient(dbProtocol, dbHostsList.split(",")(1), dbPort.toInt, dbUsername, dbPassword, dbName)
+        val dbName: String = dbWhiskAuth
+        val db1 = new ExtendedCouchDbRestClient(
+          dbProtocol,
+          dbHostsList.split(",")(0),
+          dbPort.toInt,
+          dbUsername,
+          dbPassword,
+          dbName)
+        val db2 = new ExtendedCouchDbRestClient(
+          dbProtocol,
+          dbHostsList.split(",")(1),
+          dbPort.toInt,
+          dbUsername,
+          dbPassword,
+          dbName)
 
-      println("Creating test document")
-      val docId = "couchdb-ha-test"
-      val testDocument = JsObject(
-        "_id" -> docId.toJson,
-        "namespaces" -> JsArray(
-          JsObject(
-            "name" -> docId.toJson,
-            "uuid" -> "789c46b1-71f6-4ed5-8c54-816aa4f8c502".toJson,
-            "key" -> "abczO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP".toJson
-          )),
-        "subject" -> docId.toJson
-      )
+        println("Creating test document")
+        val docId = "couchdb-ha-test"
+        val testDocument = JsObject(
+          "_id" -> docId.toJson,
+          "namespaces" -> JsArray(
+            JsObject(
+              "name" -> docId.toJson,
+              "uuid" -> "789c46b1-71f6-4ed5-8c54-816aa4f8c502".toJson,
+              "key" -> "abczO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP".toJson)),
+          "subject" -> docId.toJson)
 
-      val docId2 = "couchdb-ha-test2"
-      val testDocument2 = JsObject(
-        "_id" -> docId2.toJson,
-        "namespaces" -> JsArray(
-          JsObject(
-            "name" -> docId2.toJson,
-            "uuid" -> "789c46b1-71f6-4ed5-8c54-816aa4f8c502".toJson,
-            "key" -> "abczO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP".toJson
-          )),
-        "subject" -> docId2.toJson
-      )
+        val docId2 = "couchdb-ha-test2"
+        val testDocument2 = JsObject(
+          "_id" -> docId2.toJson,
+          "namespaces" -> JsArray(
+            JsObject(
+              "name" -> docId2.toJson,
+              "uuid" -> "789c46b1-71f6-4ed5-8c54-816aa4f8c502".toJson,
+              "key" -> "abczO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP".toJson)),
+          "subject" -> docId2.toJson)
 
-      isDBAlive(0) shouldBe true
+        isDBAlive(0) shouldBe true
 
-      retry(db1.putDoc(docId, testDocument))
+        retry(db1.putDoc(docId, testDocument))
 
-      stopComponent(couchDB0DockerHost, "couchdb")
+        stopComponent(couchDB0DockerHost, "couchdb")
 
-      retry({
-        isDBAlive(0) shouldBe false
-      }, 100, Some(100.milliseconds))
-
-      retry({
-        val result = Await.result(db2.getDoc(docId), 15.seconds)
-        result should be('right)
-        result.right.get.getFields("_id") shouldBe testDocument.getFields("_id")
-      })
-
-       retry({
-         val result = Await.result(db2.executeView("subjects", "identities")(startKey = List(docId), endKey = List(docId)), 15.seconds)
-         result should be('right)
-         result.right.get.getFields("_id") shouldBe testDocument.getFields("namespace")
+        retry({
+          isDBAlive(0) shouldBe false
         }, 100, Some(100.milliseconds))
 
-      retry(db2.putDoc(docId2, testDocument2))
+        retry({
+          val result = Await.result(db2.getDoc(docId), 15.seconds)
+          result should be('right)
+          result.right.get.getFields("_id") shouldBe testDocument.getFields("_id")
+        })
 
-      isDBAlive(0) shouldBe false
+        retry(
+          {
+            val result = Await.result(
+              db2.executeView("subjects", "identities")(startKey = List(docId), endKey = List(docId)),
+              15.seconds)
+            result should be('right)
+            result.right.get.getFields("_id") shouldBe testDocument.getFields("namespace")
+          },
+          100,
+          Some(100.milliseconds))
 
-      startComponent(couchDB0DockerHost, "couchdb")
+        retry(db2.putDoc(docId2, testDocument2))
 
-      retry({
-        isDBAlive(0) shouldBe true
-      }, 100, Some(100.milliseconds))
+        isDBAlive(0) shouldBe false
 
-      retry({
-        val result = Await.result(db1.getDoc(docId2), 15.seconds)
-        result should be('right)
-        result.right.get.getFields("_id") shouldBe testDocument2.getFields("_id")
-      })
+        startComponent(couchDB0DockerHost, "couchdb")
 
-      retry({
-        val result = Await.result(db1.executeView("subjects", "identities")(startKey = List(docId2), endKey = List(docId2)), 15.seconds)
-        result should be('right)
-        result.right.get.getFields("_id") shouldBe testDocument2.getFields("namespace")
-      }, 100, Some(100.milliseconds))
+        retry({
+          isDBAlive(0) shouldBe true
+        }, 100, Some(100.milliseconds))
 
-      val doc1Result = Await.result(db1.getDoc(docId), 15.seconds)
-      val doc2Result = Await.result(db1.getDoc(docId2), 15.seconds)
-      val rev1 = doc1Result.right.get.fields.get("_rev").get.convertTo[String]
-      val rev2 = doc2Result.right.get.fields.get("_rev").get.convertTo[String]
-      Await.result(db1.deleteDoc(docId, rev1), 15.seconds)
-      Await.result(db1.deleteDoc(docId2, rev2), 15.seconds)
+        retry({
+          val result = Await.result(db1.getDoc(docId2), 15.seconds)
+          result should be('right)
+          result.right.get.getFields("_id") shouldBe testDocument2.getFields("_id")
+        })
 
-      retry({
-        val result = Await.result(db1.getDoc(docId), 15.seconds)
-        result should be('left)
-      })
-      retry({
-        val result = Await.result(db1.getDoc(docId2), 15.seconds)
-        result should be('left)
-      })
-    }
+        retry(
+          {
+            val result = Await.result(
+              db1.executeView("subjects", "identities")(startKey = List(docId2), endKey = List(docId2)),
+              15.seconds)
+            result should be('right)
+            result.right.get.getFields("_id") shouldBe testDocument2.getFields("namespace")
+          },
+          100,
+          Some(100.milliseconds))
+
+        val doc1Result = Await.result(db1.getDoc(docId), 15.seconds)
+        val doc2Result = Await.result(db1.getDoc(docId2), 15.seconds)
+        val rev1 = doc1Result.right.get.fields.get("_rev").get.convertTo[String]
+        val rev2 = doc2Result.right.get.fields.get("_rev").get.convertTo[String]
+        Await.result(db1.deleteDoc(docId, rev1), 15.seconds)
+        Await.result(db1.deleteDoc(docId2, rev2), 15.seconds)
+
+        retry({
+          val result = Await.result(db1.getDoc(docId), 15.seconds)
+          result should be('left)
+        })
+        retry({
+          val result = Await.result(db1.getDoc(docId2), 15.seconds)
+          result should be('left)
+        })
+      }
   }
 }
-
