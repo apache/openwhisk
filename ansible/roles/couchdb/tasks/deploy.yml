@@ -62,7 +62,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname == coordinator
+  when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
 
 - name: add remote nodes to the cluster
   uri:
@@ -75,7 +75,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname != coordinator
+  when: (inventory_hostname != coordinator) and (db.instances|int >= 2)
 
 - name: finish the cluster setup mode
   uri:
@@ -88,7 +88,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname == coordinator
+  when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
 
 - name: disable reduce limit on views
   uri:
