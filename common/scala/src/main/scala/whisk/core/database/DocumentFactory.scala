@@ -108,15 +108,12 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
 
       val key = CacheKey(doc)
+      val docInfo = doc.docinfo
 
-      cacheUpdate(doc, key, db.put(doc) map { docInfo =>
-        doc match {
-          // if doc has a revision id, update it with new version
-          case w: DocumentRevisionProvider => w.revision[W](docInfo.rev)
-        }
-        docInfo
+      cacheUpdate(doc, key, db.put(doc) map { newDocInfo =>
+        doc.revision[W](newDocInfo.rev)
+        docInfo.copy(rev = newDocInfo.rev)
       })
-
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)
