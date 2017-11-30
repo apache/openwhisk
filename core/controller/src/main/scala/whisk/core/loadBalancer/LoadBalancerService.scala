@@ -185,11 +185,13 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                               namespaceId: UUID,
                               invokerName: InstanceId,
                               transid: TransactionId): ActivationEntry = {
-    val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+    val timeout = (action.limits.timeout.duration * config.controllerInstances.toInt) + activeAckTimeoutGrace
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
+    // in case of missing synchronization between n controllers in HA configuration the invoker queue can be overloaded
+    // n-1 times and the maximal time for answering with active ack can be n times the action time (plus some overhead)
     loadBalancerData.putActivation(activationId, {
       actorSystem.scheduler.scheduleOnce(timeout) {
         processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
