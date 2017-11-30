@@ -165,8 +165,7 @@ object Controller {
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       LoadBalancerService.requiredProperties ++
-      EntitlementProvider.requiredProperties ++
-      RemoteCacheInvalidation.requiredProperties
+      EntitlementProvider.requiredProperties
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
     JsObject(
@@ -213,37 +212,13 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(
-          config,
-          "completed" + instance,
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> config.kafkaReplicationFactor,
-            "retention.bytes" -> config.kafkaTopicsCompletedRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {
+    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
       abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
     }
-    if (!msgProvider.ensureTopic(
-          config,
-          "health",
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> config.kafkaReplicationFactor,
-            "retention.bytes" -> config.kafkaTopicsHealthRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsHealthRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsHealthSegmentBytes))) {
+    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
       abort(s"failure during msgProvider.ensureTopic for topic health")
     }
-    if (!msgProvider.ensureTopic(
-          config,
-          "cacheInvalidation",
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> config.kafkaReplicationFactor,
-            "retention.bytes" -> config.kafkaTopicsCacheInvalidationRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsCacheInvalidationRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsCacheInvalidationSegmentBytes))) {
+    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
       abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
 

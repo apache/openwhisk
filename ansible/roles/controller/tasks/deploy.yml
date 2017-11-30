@@ -52,9 +52,6 @@
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
-      "KAFKA_TOPICS_COMPLETED_RETENTION_BYTES": "{{ kafka.topics.completed.retentionBytes }}"
-      "KAFKA_TOPICS_COMPLETED_RETENTION_MS": "{{ kafka.topics.completed.retentionMS }}"
-      "KAFKA_TOPICS_COMPLETED_SEGMENT_BYTES": "{{ kafka.topics.completed.segmentBytes }}"
       "KAFKA_REPLICATIONFACTOR": "{{ kafka.replicationFactor }}"
 
       "DB_PROTOCOL": "{{ db_protocol }}"

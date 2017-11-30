@@ -135,23 +135,6 @@ kafka:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
-  topics:
-    completed:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_completed_retentionMS | default(3600000) }}"
-    health:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_health_retentionMS | default(3600000) }}"
-    invoker:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_invoker_retentionMS | default(172800000) }}"
-    cacheInvalidation:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_cacheInvalidation_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
