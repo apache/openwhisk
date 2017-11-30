@@ -24,7 +24,6 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import akka.http.scaladsl.model.ContentType
 import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
@@ -36,54 +35,14 @@ import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
 
 /**
- * A common trait for all records that are stored in the datastore requiring an _id field,
- * the unique document identifier. The _id field on a document must be defined (not null,
- * not empty) before the document is added to the datastore, otherwise the operation will
- * reject the document.
- *
- * The field is writable because a document retrieved from the datastore will write this
- * field. Reading from the datastore requires a nullary constructor and hence a field from
- * the datastore is declared as a var for that purpose.
- */
-trait Document {
-
-  /** The document id, this is the primary key for the document and must be unique. */
-  protected var _id: String = null
-
-  /** The document revision as determined by the datastore; an opaque value. */
-  protected[database] var _rev: String = null
-
-  /** Gets the document id and revision as an instance of DocInfo. */
-  protected[database] def docInfo: DocInfo
-
-  /**
-   * Checks if the document has a valid revision set, in which case
-   * this is an update operation.
-   *
-   * @return true iff document has a valid revision
-   */
-  protected[database] final def update: Boolean = _rev != null
-
-  /**
-   * Confirms the document has a valid id set.
-   *
-   * @return true iff document has a valid id
-   * @throws IllegalArgumentException iff document does not have a valid id
-   */
-  @throws[IllegalArgumentException]
-  protected[database] final def confirmId: Boolean = {
-    require(_id != null, "document id undefined")
-    require(_id.trim.nonEmpty, "document id undefined")
-    true
-  }
-}
-
-/**
  * An interface for modifying the revision number on a document. Hides the details of
  * the revision to some extent while providing a marker interface for operations that
  * need to update the revision on a document.
  */
 protected[core] trait DocumentRevisionProvider {
+
+  /** Gets the document id and revision as an instance of DocInfo. */
+  protected[database] def docinfo: DocInfo
 
   /**
    * Sets the revision number when a document is deserialized from datastore. The
@@ -123,7 +82,7 @@ trait DocumentSerializer {
  * but the get permits a datastore of its super type so that a single datastore client
  * may be used for multiple types (because the types are stored in the same database for example).
  */
-trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
+trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSingleWriterCache[W, DocInfo] {
 
   /**
    * Puts a record of type W in the datastore.
@@ -178,19 +137,13 @@ trait DocumentFactory[W] extends MultipleReadersSingleWriterCache[W, DocInfo] {
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val rev = doc match {
-        case w: DocumentRevisionProvider => w.rev
-      }
       val key = CacheKey(doc)
-      val docInfo = DocInfo(DocId(key.mainId), rev)
+      val docInfo = doc.docinfo
       val src = StreamConverters.fromInputStream(() => bytes)
 
       cacheUpdate(doc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
-        doc match {
-          // if doc has a revision id, update it with new version
-          case w: DocumentRevisionProvider => w.revision[W](newDocInfo.rev)
-        }
-        docInfo
+        doc.revision[W](newDocInfo.rev)
+        docInfo.copy(rev = newDocInfo.rev)
       })
     } match {
       case Success(f) => f
