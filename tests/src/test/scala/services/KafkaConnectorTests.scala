@@ -78,7 +78,10 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
                             waitForSend: FiniteDuration,
                             waitForReceive: FiniteDuration): Iterable[String] = {
     val start = java.lang.System.currentTimeMillis
+    println(s"Send message to topic.\n")
     val sent = Await.result(producer.send(topic, message), waitForSend)
+    println(s"Successfully sent message to topic: ${sent}\n")
+    println(s"Receiving message from topic.\n")
     val received = consumer.peek(waitForReceive).map { case (_, _, _, msg) => new String(msg, "utf-8") }
     val end = java.lang.System.currentTimeMillis
     val elapsed = end - start
