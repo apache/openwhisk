@@ -4,13 +4,13 @@ Deploying OpenWhisk using Ansible
 
 ### Getting started
 
-If you want to deploy OpenWhisk locally using Ansible, you first need to install Ansible on your development environment:
+If you want to deploy OpenWhisk locally using Ansible, you first need to install 
+Ansible on your development environment:
 
 #### Ubuntu users
 ```
-sudo apt-get install python-pip
-sudo pip install ansible==2.3.0.0
-sudo pip install jinja2==2.9.6
+sudo apt-get install python-pip libffi-dev
+sudo -H pip install ansible==2.3.0.0 jinja2==2.9.6 docker.py
 ```
 
 #### Vagrant users
@@ -24,23 +24,44 @@ sudo easy_install pip
 sudo pip install ansible==2.3.0.0
 pip install jinja2==2.9.6
 ```
-Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
-You need to depend on the workarounds until Docker provides official methods.
+Docker for Mac does not provide any official ways to meet some requirements for
+OpenWhisk. You need to depend on the workarounds until Docker provides official
 
-If you prefer [Docker-machine](https://docs.docker.com/machine/) to [Docker for mac](https://docs.docker.com/docker-for-mac/), you can follow instructions in [docker-machine/README.md](../tools/macos/docker-machine/README.md).
+If you prefer [Docker-machine](https://docs.docker.com/machine/) to 
+[Docker for mac](https://docs.docker.com/docker-for-mac/), 
+you can follow instructions in 
+[docker-machine/README.md](../tools/macos/docker-machine/README.md).
 
 ##### Enable Docker remote API
-The remote Docker API is required for collecting logs using the Ansible playbook [logs.yml](logs.yml).
+The remote Docker API is required for collecting logs using the Ansible playbook 
+[logs.yml](logs.yml).
 
-##### Activate docker0 network
-This is an optional step for local deployment.
-The OpenWhisk deployment via Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not exist on Docker for Mac environment.
+##### Configure the Docker for Mac network
+This is an optional step for local deployment.  The OpenWhisk deployment via 
+Ansible uses the `docker0` network interface to deploy OpenWhisk and it does not 
+exist on Docker for Mac environment.
 
-An expedient workaround is to add alias for `docker0` network to loopback interface.
+An expedient workaround is to add alias for `docker0` network to loopback 
+interface.
 
 ```
 sudo ifconfig lo0 alias 172.17.0.1/24
 ```
+
+You may also wish to add a special DNS entry Docker for Mac uses in its
+containers to your `/etc/hosts` file.
+
+```
+sudo cat '172.17.0.1 docker.for.mac.localhost' >> /etc/hosts
+```
+
+_Note:_  Access to the host machine from within docker containers is still 
+spotty, so your best bet if you intend to reach an external CouchDB or
+similar is to ensure it has a DNS-resolvable IP assigned to it, an open 
+(preferably HTTPS port), and appropriate security (turn off 
+[Admin Party](http://guide.couchdb.org/draft/security.html) ).  That makes
+CouchDB use difficult on personal machines, so we recommend using the 
+[Ephemeral CouchDB](#ephemeral-couchbd) approach for local development.
 
 ##### Setup proxy container to run unit tests (optional)
 
@@ -59,24 +80,45 @@ systemProp.http.proxyHost=localhost
 systemProp.http.proxyPort=3128
 ```
 
+<!--- 
+
+Leaving this commented for now because  'homebrew' environment is not yet canon
+
+#### Mac Homebrew users
+Ansible makes some rather aggressive assumptions about python in its target
+environments that will create a hastle for you if you generally use the
+homebrew `/usr/local/bin/python2` interpreter as your go-to Python.  
+To address them, `sudo ln -s /usr/local/bin/pip2 /usr/local/bin/pip`
+and be sure to use `-i environment/homebrew` in ansible, which sets sensible
+default python interpreters for ansible tasks. 
+-->
+
 ### Using Ansible
-**Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
-This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
 
-In all instructions, replace `<environment>` with your target environment. The default environment is `local` which works for Ubuntu and
-Docker for Mac. To use the default environment, you may omit the `-i` parameter entirely. For older Mac installation using Docker Machine,
-use `-i environments/docker-machine`.
+**Caveat:** All Ansible commands are meant to be executed from the `ansible`
+directory. This is important because that's where `ansible.cfg` is located
+which contains generic settings that are needed for the remaining steps. 
 
+In all instructions, replace `<environment>` with your target environment. The
+default environment is `local` which works for Ubuntu and Docker for Mac. To use
+the default environment, you may omit the `-i` parameter entirely. For older Mac
+installation using Docker Machine, use `-i environments/docker-machine`.  For
+Mac installations using Homebrew python use `-i environments/homebrew`. 
 
-
-In all instructions, replace `<openwhisk_home>` with the base directory of your OpenWhisk source tree. e.g. `openwhisk`
+In all instructions, replace `<openwhisk_home>` with the base directory of your
+OpenWhisk source tree. e.g. `openwhisk`. 
 
 #### Setup
 
-This step needs to be done only once per development environment. It will generate configuration files based on your local settings. Notice that for the following playbook you don't need to specify a target environment as it will run only local actions.
-After the playbook is done you should see a file called `db_local.ini` in your `ansible` directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini`.
+This step needs to be done only once per development environment. It will
+generate configuration files based on your local settings. Notice that for the
+following playbook you don't need to specify a target environment as it will run
+only local actions. After the playbook is done you should see a file called
+`db_local.ini` in your `ansible` directory. It will by default contain settings
+for a local ephemeral CouchDB setup. Afterwards, you can change the values
+directly in `db_local.ini`. 
 
-#####  Ephemeral CouchDB
+##### Ephemeral CouchDB
 
 If you want to use the ephemeral CouchDB, run this command
 
@@ -84,9 +126,10 @@ If you want to use the ephemeral CouchDB, run this command
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-#####  Persistent CouchDB
+##### Persistent CouchDB
 
-If you want to use the persistent CouchDB instead, you can use env variables that are read by the playbook:
+If you want to use the persistent CouchDB instead, you can use env variables 
+that are read by the playbook:
 
 ```
 export OW_DB=CouchDB
@@ -99,11 +142,48 @@ export OW_DB_PORT=<your couchdb port>
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`. This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
+**Warning:** If you intend to run CouchDB locally with Docker for Mac, 
+please see the notes [above](#Configure-the-Docker-for-Mac-network)
+regarding configuring your Mac network information.
+
+If you are operating on a fresh installation of CouchDB, you may need to create
+the user and add it to admins, which will look something like this:
+
+```
+couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
+curl -X PUT ${couch_url}/_users/org.couchdb.user:${OW_DB_USERNAME} \
+     -H "Accept: application/json" \
+     -H "Content-Type: application/json" \
+     -d "{\"name\": \"${OW_DB_USERNAME}\", \"password\": \"${OW_DB_PASSWORD}\", \"roles\": [], \"type\": \"user\"}" \
+&& \
+curl -X PUT ${couch_url}/_config/admins/${OW_DB_USERNAME} -d "\"${OW_DB_PASSWORD}\""
+```
+
+If you deploy CouchDB manually (i.e., without using the deploy CouchDB
+playbook), you must set the `reduce_limit` property on views to `false`. This
+may be done via the REST API, as in:
+
+```
+couch_url="${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}" && \
+curl -X PUT ${couch_url}/_config/query_server_config/reduce_limit \
+  -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}
+```
+
+Finally, networking is a hastle with CouchDB.  To connect from localhost and from
+containers on a local environment (i.e. Laptop, Local dev machine), you'll likely
+change a configuration parameter in `/etc/couchdb/local.ini` (or your equivalent):
+`bind_address = 0.0.0.0`.  (This is fairly necessary on Docker for Mac right now
+unless you want to do a _lot_ of network fu.)
+
+**Warning:** Change the bind address to zeroes opens your CouchDB instance up to
+anyone who can connect to its port, so if you don't trust your firewall or other
+users on your machine, you should disable the
+[Admin Party](http://guide.couchdb.org/draft/security.html).
 
 ##### Cloudant
 
-If you want to use Cloudant instead, you can use env variables that are read by the playbook:
+If you want to use Cloudant instead, you can use env variables that are read by
+the playbook: 
 
 ```
 export OW_DB=Cloudant
@@ -117,19 +197,23 @@ ansible-playbook -i environments/<environment> setup.yml
 ```
 
 #### Install Prerequisites
-This step is not required for local environments since all prerequisites are already installed, and therefore may be skipped.`
+This step is not required for local environments since all prerequisites are
+already installed, and therefore may be skipped. 
 
-This step needs to be done only once per target environment. It will install necessary prerequisites on all target hosts in the environment.
+This step needs to be done only once per target environment. It will install
+necessary prerequisites on all target hosts in the environment. 
 
 ```
 ansible-playbook -i environments/<environment> prereq.yml
 ```
 
-**Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
+**Hint:** During playbook execution the `TASK [prereq : check for pip]` can show 
+as failed. This is normal if no pip is installed. The playbook will then move on
+and install pip on the target machines. 
 
-### Deploying Using CouchDB
-- Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
-- Then execute
+### Deploying Using Ephemeral CouchDB
+-   Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
+-   Then execute
 
 ```
 cd <openwhisk_home>
@@ -143,13 +227,14 @@ ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy CouchDB to initialize the subjects database.
-The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
-data that include actions and activations are lost.
+You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy
+CouchDB to initialize the subjects database. The playbooks `wipe.yml` and
+`postdeploy.yml` should be run on a fresh deployment only, otherwise all
+transient data that include actions and activations are lost. 
 
-### Deploying Using Cloudant
-- Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
-- Then execute
+### Deploying Using Persistent CouchDB and Cloudant
+-   Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
+-   Then execute
 
 ```
 cd <openwhisk_home>
@@ -162,43 +247,64 @@ ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb` on Cloudant **only once** per Cloudant database to initialize the subjects database.
-The `initdb.yml` playbook will only initialize your database if it is not initialized already, else it will skip initialization steps.
+You need to run `initdb` on Cloudant **only once** per Cloudant database to
+initialize the subjects database. The `initdb.yml` playbook will only initialize
+your database if it is not initialized already, else it will skip 
+initialization.
 
-The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
-data that include actions and activations are lost.
+The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh
+deployment only, otherwise all transient data that include actions and
+activations are lost. 
 
-Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
+Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid
+wiping the data store. This is useful to start OpenWhisk after restarting your
+Operating System. 
 
 ### Configuring the installation of `wsk` CLI
 There are two installation modes to install `wsk` CLI: remote and local.
 
-The mode "remote" means to download the `wsk` binaries from available web links. By default, OpenWhisk sets
-the installation mode to remote and downloads the binaries from the CLI [release page](https://github.com/apache/incubator-openwhisk-cli/releases), where OpenWhisk publishes the official `wsk` binaries.
+The mode "remote" means to download the `wsk` binaries from available web links.
+By default, OpenWhisk sets the installation mode to remote and downloads the
+binaries from the CLI 
+[release page](https://github.com/apache/incubator-openwhisk-cli/releases), 
+where OpenWhisk publishes the official `wsk` binaries. 
 
-The mode "local" means to build and install the `wsk` binaries from local CLI project. You can download the source code
-of OpenWhisk CLI via [this link](https://github.com/apache/incubator-openwhisk-cli). Let's assume your OpenWhisk CLI home directory is <openwhisk_cli_home>. After you download the source code, use the gradle command to build the binaries:
+The mode "local" means to build and install the `wsk` binaries from local CLI
+project. You can download the source code of OpenWhisk CLI via 
+[this link](https://github.com/apache/incubator-openwhisk-cli). Let's assume your
+OpenWhisk CLI home directory is <openwhisk_cli_home>. After you download the
+source code, use the gradle command to build the binaries: 
 
 ```
 cd <openwhisk_cli_home>
 ./gradlew buildBinaries
 ```
 
-All the binaries are generated and put under the folder of <openwhisk_cli_home>/bin. Then, use the following ansible command to configure the CLI installation mode:
+All the binaries are generated and put under the folder of
+<openwhisk_cli_home>/bin. Then, use the following ansible command to configure
+the CLI installation mode: 
 
 ```
-ansible-playbook -i environments/<environment> openwhisk.yml -e cli_installation_mode=local -e openwhisk_cli_home=<openwhisk_cli_home>
+ansible-playbook -i environments/<environment> openwhisk.yml \
+    -e cli_installation_mode=local -e openwhisk_cli_home=<openwhisk_cli_home>
 ```
 
-The parameter cli_installation_mode specifies the CLI installation mode and the parameter openwhisk_cli_home specifies the home directory of your local OpenWhisk CLI.
+The parameter cli_installation_mode specifies the CLI installation mode and the
+parameter openwhisk_cli_home specifies the home directory of your local
+OpenWhisk CLI.
 
 ### Hot-swapping a Single Component
-The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
+The playbook structure allows you to clean, deploy or re-deploy a single
+component as well as the entire OpenWhisk stack. Let's assume you have deployed
+the entire stack using the `openwhisk.yml` playbook. You then make a change to a
+single component, for example the invoker. You will probably want a new tag on
+the invoker image so you first build it using:
 
 ```
 cd <openwhisk_home>
 gradle :core:invoker:distDocker -PdockerImageTag=myNewInvoker
 ```
+
 Then all you need to do is re-deploy the invoker using the new image:
 
 ```
@@ -206,34 +312,39 @@ cd ansible
 ansible-playbook -i environments/<environment> invoker.yml -e docker_image_tag=myNewInvoker
 ```
 
-**Hint:** You can omit the Docker image tag parameters in which case `latest` will be used implicitly.
+**Hint:** You can omit the Docker image tag parameters in which case `latest` 
+will be used implicitly.
 
 ### Cleaning a Single Component
-You can remove a single component just as you would remove the entire deployment stack.
-For example, if you wanted to remove only the controller you would run:
+You can remove a single component just as you would remove the entire deployment
+stack. For example, if you wanted to remove only the controller you would run:
 
 ```
 cd ansible
 ansible-playbook -i environments/<environment> controller.yml -e mode=clean
 ```
 
-**Caveat:** In distributed environments some components (e.g. Invoker, etc.) exist on multiple machines. So if you run a playbook to clean or deploy those components, it will run on **all** of the hosts targeted by the component's playbook.
+**Caveat:** In distributed environments some components (e.g. Invoker, etc.) 
+exist on multiple machines. So if you run a playbook to clean or deploy those 
+components, it will run on _every one_ of the hosts targeted by the component's 
+playbook.
 
 
 ### Cleaning an OpenWhisk Deployment
-Once you are done with the deployment you can clean it from the target environment.
+Once you are done with the deployment you can clean it from the target 
+environment.
 
 ```
 ansible-playbook -i environments/<environment> openwhisk.yml -e mode=clean
 ```
 
 ### Removing all prereqs from an environment
-This is usually not necessary, however in case you want to uninstall all prereqs from a target environment, execute:
+This is usually not necessary, however in case you want to uninstall all 
+prerequisites from a target environment, execute:
 
 ```
 ansible-playbook -i environments/<environment> prereq.yml -e mode=clean
 ```
-
 
 ### Troubleshooting
 Some of the more common problems and their solution are listed here.
@@ -245,7 +356,8 @@ If you encounter the following error message during `ansible` execution
 ERROR! Unexpected Exception: ... Requirement.parse('setuptools>=11.3'))
 ```
 
-your `setuptools` package is likely out of date. You can upgrade the package using this command:
+your `setuptools` package is likely out of date. You can upgrade the package 
+using this command:
 
 ```
 pip install --upgrade setuptools --user python
@@ -253,8 +365,9 @@ pip install --upgrade setuptools --user python
 
 
 #### Mac Setup - Python Interpreter
-The MacOS environment assumes Python is installed in `/usr/local/bin` which is the default location when using `brew`.
-The following error will occur if Python is located elsewhere:
+The MacOS environment assumes Python is installed in `/usr/local/bin` which is 
+the default location when using `brew`.  The following error will occur if Python 
+is located elsewhere:
 
 ```
 ansible all -i environments/mac -m ping
@@ -290,23 +403,26 @@ If you need Python to find the installed site-packages:
   mkdir -p ~/Library/Python/2.7/lib/python/site-packages
   echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
 ```
-  
+
 Just run the two commands to fix this issue.
 
 #### Spaces in Paths
-Ansible 2.1.0.0 and earlier versions do not support a space in file paths.
-Many file imports and roles will not work correctly when included from a path that contains spaces.
-If you encounter this error message during Ansible execution
+Ansible 2.1.0.0 and earlier versions do not support a space in file paths. Many
+file imports and roles will not work correctly when included from a path that
+contains spaces. If you encounter this error message during Ansible execution
 
 ```
 fatal: [ansible]: FAILED! => {"failed": true, "msg": "need more than 1 value to unpack"}
 ```
 
-the path to your OpenWhisk `ansible` directory contains spaces. To fix this, please copy the source tree to a path
-without spaces as there is no current fix available to this problem.
+the path to your OpenWhisk `ansible` directory contains spaces. To fix this,
+please copy the source tree to a path without spaces as there is no current fix
+available to this problem. 
 
 #### Changing limits
-The default system throttling limits are configured in this file [./group_vars/all](./group_vars/all).
+The default system throttling limits are configured in this file 
+[./group_vars/all](./group_vars/all).
+
 ```
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(120) }}"
@@ -315,15 +431,19 @@ limits:
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 ```
-These values may be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+
+These values may be changed by modifying the `group_vars` for your environment. 
+For example, mac users will find the limits in this file 
+[./environments/mac/group_vars/all](./environments/mac/group_vars/all):
+
 ```
 limit_invocations_per_minute: 60
 limit_invocations_concurrent: 30
 limit_invocations_concurrent_system: 5000
 limit_fires_per_minute: 60
 ```
-- The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
-- The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
-- The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
-- The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.
+
+-   The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
+-   The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
+-   The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
+-   The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.
