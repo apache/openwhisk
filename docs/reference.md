@@ -451,6 +451,7 @@ The following table lists the default limits for actions.
 | minuteRate | no more than N activations may be submitted per namespace per minute | per namespace | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
+| result | the maximum size of the action result | not configurable, limit per action | MB | 1 |
 
 ### Per action timeout (ms) (Default: 60s)
 * The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
@@ -473,6 +474,9 @@ The following table lists the default limits for actions.
 
 ### Per activation payload size (MB) (Fixed: 1MB)
 * The maximum POST content size plus any curried parameters for an action invocation or trigger firing is 1MB.
+
+### Per activation result size (MB) (Fixed: 1MB)
+* The maximum size of a result returned from an action is 1MB.
 
 ### Per namespace concurrent invocation (Default: 100)
 * The number of activations that are either executing or queued for execution for a namespace cannot exceed 100.

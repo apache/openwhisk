@@ -3,9 +3,9 @@
 
   This script is useful for testing the action proxy (or its derivatives)
   by simulating invoker interactions. Use it in combination with
-  delete-build-run.sh which builds and starts up the action proxy.
-  Examples:
-     ./delete-build-run.sh &
+  docker run <image> which starts up the action proxy.
+  Example:
+     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
      ./invoke.py init <action source file> # should return OK
      ./invoke.py run '{"some":"json object as a string"}'
 /*
