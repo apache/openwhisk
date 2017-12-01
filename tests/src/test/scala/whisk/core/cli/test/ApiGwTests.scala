@@ -344,9 +344,8 @@ abstract class ApiGwTests extends BaseApiGwTests {
       val file = TestUtils.getTestActionFilename(s"echo.js")
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
       val protocol = WhiskProperties.getProperty("whisk.api.host.proto")
-      val apihost = WhiskProperties.getProperty("whisk.api.host.name")
-      // The action is created in the default package
       val pkg = "default"
+      val apihost = WhiskProperties.getApiHostForClient(wsk.namespace.whois(), true)
 
       var rr = apiCreate(
         basepath = Some(testbasepath),
@@ -360,14 +359,13 @@ abstract class ApiGwTests extends BaseApiGwTests {
       rr.stdout should include(s"${actionName}")
       rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
       rr.stdout should include regex (
-        s""""target-url":\\s+.*"${protocol}://${apihost}/api/v\\d+/web/${clinamespace}/${pkg}/${actionName}.json"""")
+        s""""target-url":\\s+.*web/${clinamespace}/${pkg}/${actionName}.json"""")
 
-      // Now directly access the web action through the controller
+      // Now directly access the web action
       val paramName = "brewery"
       val paramVal = "WickedWeed"
-      val controllerURL = "http://" + WhiskProperties.getBaseControllerAddress +
-        s"/api/v1/web/$clinamespace/$pkg/$actionName.json?$paramName=$paramVal"
-      val response = RestAssured.given().get(controllerURL)
+      RestAssured.useRelaxedHTTPSValidation()
+      val response = RestAssured.given().get(s"$apihost/$pkg/$actionName.json?$paramName=$paramVal")
       response.statusCode shouldBe 200
       response.body.asString should include regex(s""""$paramName":\\s+"$paramVal""")
     } finally {
