@@ -46,6 +46,7 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 
 import whisk.common.TransactionId
 import whisk.core.database.CacheChangeNotification
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Collection
 import whisk.core.entity.ActivationResponse
 import whisk.core.entity.EntityPath
@@ -143,71 +144,81 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             response = ActivationResponse.success(payload orElse Some(JsObject())),
             version = trigger.version,
             duration = None)
-          logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
-          val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map { _ =>
-            triggerActivationId
-          }
 
           val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
 
-          trigger.rules.map {
-            _.filter {
-              case (ruleName, rule) => rule.status == Status.ACTIVE
-            } foreach {
-              case (ruleName, rule) =>
-                val ruleActivation = WhiskActivation(
-                  namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
-                  ruleName.name,
-                  user.subject,
-                  activationIdFactory.make(),
-                  Instant.now(Clock.systemUTC()),
-                  Instant.EPOCH,
-                  cause = Some(triggerActivationId),
-                  response = ActivationResponse.success(),
-                  version = trigger.version,
-                  duration = None)
-                logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
-                WhiskActivation.put(activationStore, ruleActivation)
+          val activeRules = trigger.rules map { _.filter((r) => r._2.status == Status.ACTIVE) } getOrElse Map[
+            FullyQualifiedEntityName,
+            whisk.core.entity.ReducedRule]()
 
-                val actionNamespace = rule.action.path.root.asString
-                val actionPath = {
-                  rule.action.path.relativePath.map { pkg =>
-                    (Path.SingleSlash + pkg.namespace) / rule.action.name.asString
-                  } getOrElse {
-                    Path.SingleSlash + rule.action.name.asString
-                  }
-                }.toString
-
-                val actionUrl = Path("/api/v1") / "namespaces" / actionNamespace / "actions"
-                val request = HttpRequest(
-                  method = POST,
-                  uri = url.withPath(actionUrl + actionPath),
-                  headers =
-                    List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
-                  entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint))
-
-                Http().singleRequest(request).map {
-                  response =>
-                    response.status match {
-                      case OK | Accepted =>
-                        Unmarshal(response.entity).to[JsObject].map { a =>
-                          logging.info(this, s"${rule.action} activated ${a.fields("activationId")}")
-                        }
-                      case NotFound =>
-                        response.discardEntityBytes()
-                        logging.info(this, s"${rule.action} failed, action not found")
-                      case _ =>
-                        Unmarshal(response.entity).to[String].map { error =>
-                          logging.warn(this, s"${rule.action} failed due to $error")
-                        }
-                    }
-                }
+          val saveTriggerActivation = if (activeRules.size > 0) {
+            logging.info(
+              this,
+              s"[POST] trigger activated against active rule(s), writing activation record to datastore: $triggerActivationId")
+            WhiskActivation.put(activationStore, triggerActivation) map { _ =>
+              triggerActivationId
             }
+          } else {
+            logging.info(this, s"[POST] trigger activated against no active rule(s)")
+            Future.failed(NoDocumentException("trigger has no active rules"))
+          }
+
+          activeRules.foreach {
+            case (ruleName, rule) =>
+              val ruleActivation = WhiskActivation(
+                namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
+                ruleName.name,
+                user.subject,
+                activationIdFactory.make(),
+                Instant.now(Clock.systemUTC()),
+                Instant.EPOCH,
+                cause = Some(triggerActivationId),
+                response = ActivationResponse.success(),
+                version = trigger.version,
+                duration = None)
+              logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
+              WhiskActivation.put(activationStore, ruleActivation)
+
+              val actionNamespace = rule.action.path.root.asString
+              val actionPath = {
+                rule.action.path.relativePath.map { pkg =>
+                  (Path.SingleSlash + pkg.namespace) / rule.action.name.asString
+                } getOrElse {
+                  Path.SingleSlash + rule.action.name.asString
+                }
+              }.toString
+
+              val actionUrl = Path("/api/v1") / "namespaces" / actionNamespace / "actions"
+              val request = HttpRequest(
+                method = POST,
+                uri = url.withPath(actionUrl + actionPath),
+                headers =
+                  List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
+                entity = HttpEntity(MediaTypes.`application/json`, args.getOrElse(JsObject()).compactPrint))
+
+              Http().singleRequest(request).map {
+                response =>
+                  response.status match {
+                    case OK | Accepted =>
+                      Unmarshal(response.entity).to[JsObject].map { a =>
+                        logging.info(this, s"${rule.action} activated ${a.fields("activationId")}")
+                      }
+                    case NotFound =>
+                      response.discardEntityBytes()
+                      logging.info(this, s"${rule.action} failed, action not found")
+                    case _ =>
+                      Unmarshal(response.entity).to[String].map { error =>
+                        logging.warn(this, s"${rule.action} failed due to $error")
+                      }
+                  }
+              }
           }
 
           onComplete(saveTriggerActivation) {
             case Success(activationId) =>
-              complete(OK, activationId.toJsObject)
+              complete(Accepted, activationId.toJsObject)
+            case Failure(t: NoDocumentException) =>
+              terminate(NoContent)
             case Failure(t: Throwable) =>
               logging.error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
               terminate(InternalServerError)
