@@ -123,7 +123,7 @@ controller:
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(true) }}"
+  ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -151,7 +151,7 @@ kafka:
     cacheInvalidation:
       segmentBytes: 536870912
       retentionBytes: "{{ kafka_topics_cacheInvalidation_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}" 
+      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
@@ -351,10 +351,9 @@ logs:
 
 # Metrics Configuration
 metrics:
-  log: 
-    enabled: "{{ metrics_log | default(true) }}"    
-  kamon: 
+  log:
+    enabled: "{{ metrics_log | default(true) }}"
+  kamon:
     enabled: "{{ metrics_kamon | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
-
