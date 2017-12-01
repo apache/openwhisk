@@ -37,11 +37,12 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS6 = "nodejs:6"
   protected val SWIFT = "swift"
   protected val SWIFT3 = "swift:3.1.1"
+  protected val SWIFT3_IMAGE = "action-swift-v3.1.1"
 
   protected def imagename(name: String) = {
     var image = s"${name}action".replace(":", "")
-    if (name.equals("swift:3.1.1")) {
-      image = "action-swift-v3.1.1"
+    if (name.equals(SWIFT3)) {
+      image = SWIFT3_IMAGE
     }
     ExecManifest.ImageName(image, Some("openwhisk"), Some("latest"))
   }
