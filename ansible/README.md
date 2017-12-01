@@ -147,6 +147,15 @@ You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy Cou
 The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
 data that include actions and activations are lost.
 
+#### Limitation
+
+You can not run multiple CouchDB nodes on a single machine.
+This limitation comes from Erlang EPMD.
+When CouchDB forms a cluster, it counts on EPMD to find other nodes.
+If we want to run multiple nodes on a single machine, we must differentiate EPMD port(`4369`) for each nodes. But if this port is different on each nodes, they cannot find each other.
+So if you want to deploy multiple CouchDB nodes, all nodes should be placed on different machines respectively.
+
+
 ### Deploying Using Cloudant
 - Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
 - Then execute
