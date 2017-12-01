@@ -82,7 +82,7 @@ trait LoadBalancer {
    *         plus a grace period (see activeAckTimeoutGrace).
    */
   def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
+    implicit transid: TransactionId): Future[Future[WhiskActivation.Outcome]]
 
 }
 
@@ -118,7 +118,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   override def totalActiveActivations = loadBalancerData.totalActivationCount
 
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
+    implicit transid: TransactionId): Future[Future[WhiskActivation.Outcome]] = {
     chooseInvoker(msg.user, action).flatMap { invokerName =>
       val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
       sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
@@ -139,7 +139,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
    *
    * @param msg is the kafka message payload as Json
    */
-  private def processCompletion(response: Either[ActivationId, WhiskActivation],
+  private def processCompletion(response: WhiskActivation.Outcome,
                                 tid: TransactionId,
                                 forced: Boolean,
                                 invoker: InstanceId): Unit = {
@@ -195,7 +195,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
       }
 
-      ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
+      ActivationEntry(activationId, namespaceId, invokerName, Promise[WhiskActivation.Outcome]())
     })
   }
 

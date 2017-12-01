@@ -66,7 +66,7 @@ protected[actions] trait SequenceActions {
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[WhiskActivation.Outcome]
 
   /**
    * Executes a sequence by invoking in a blocking fashion each of its components.
@@ -90,7 +90,7 @@ protected[actions] trait SequenceActions {
     waitForOutermostResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
     topmost: Boolean,
-    atomicActionsCount: Int)(implicit transid: TransactionId): Future[(Either[ActivationId, WhiskActivation], Int)] = {
+    atomicActionsCount: Int)(implicit transid: TransactionId): Future[(WhiskActivation.Outcome, Int)] = {
     require(action.exec.kind == Exec.SEQUENCE, "this method requires an action sequence")
 
     // create new activation id that corresponds to the sequence
@@ -98,7 +98,7 @@ protected[actions] trait SequenceActions {
     logging.info(this, s"invoking sequence $action topmost $topmost activationid '$seqActivationId'")
 
     val start = Instant.now(Clock.systemUTC())
-    val futureSeqResult: Future[(Either[ActivationId, WhiskActivation], Int)] = {
+    val futureSeqResult: Future[(WhiskActivation.Outcome, Int)] = {
       // even though the result of completeSequenceActivation is Right[WhiskActivation],
       // use a more general type for futureSeqResult in case a blocking invoke takes
       // longer than expected and we must return Left[ActivationId] instead
