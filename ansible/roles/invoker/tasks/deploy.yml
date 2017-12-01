@@ -154,6 +154,7 @@
         -e CONFIG_kamon_statsd_hostname='{{ metrics.kamon.host }}'
         -e CONFIG_kamon_statsd_port='{{ metrics.kamon.port }}'
         -e CONFIG_whisk_spi_LogStoreProvider='{{ userLogs.spi }}'
+        -e CONFIG_logback_log_level='{{ invoker.loglevel }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
