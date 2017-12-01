@@ -21,13 +21,11 @@ import java.io.File
 import java.io.BufferedWriter
 import java.io.FileWriter
 
+import com.jayway.restassured.RestAssured
 import org.junit.runner.RunWith
-
 import org.scalatest.junit.JUnitRunner
-
 import common.TestUtils._
-import common.TestUtils
-import common.WskProps
+import common.{TestUtils, WhiskProperties, WskProps}
 
 /**
  * Tests for testing the CLI "api" subcommand.  Most of these tests require a deployed backend.
@@ -342,8 +340,7 @@ abstract class ApiGwTests extends BaseApiGwTests {
     try {
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo.js")
-      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = SUCCESS_EXIT, web = Some("true"))
-      val protocol = WhiskProperties.getProperty("whisk.api.host.proto")
+      wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = 200, web = Some("true"))
       val pkg = "default"
       val apihost = WhiskProperties.getApiHostForClient(wsk.namespace.whois(), true)
 
@@ -353,13 +350,14 @@ abstract class ApiGwTests extends BaseApiGwTests {
         operation = Some(testurlop),
         action = Some(actionName),
         apiname = Some(testapiname))
-      rr.stdout should include("ok: created API")
-      rr = apiGet(basepathOrApiName = Some(testapiname))
-      rr.stdout should include(testbasepath)
-      rr.stdout should include(s"${actionName}")
-      rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
-      rr.stdout should include regex (
-        s""""target-url":\\s+.*web/${clinamespace}/${pkg}/${actionName}.json"""")
+      verifyApiCreated(rr)
+//      rr.stdout should include("ok: created API")
+//      rr = apiGet(basepathOrApiName = Some(testapiname))
+//      rr.stdout should include(testbasepath)
+//      rr.stdout should include(s"${actionName}")
+//      rr.stdout should include regex (""""cors":\s*\{\s*\n\s*"enabled":\s*true""")
+//      rr.stdout should include regex (
+//        s""""target-url":\\s+.*web/${clinamespace}/${pkg}/${actionName}.json"""")
 
       // Now directly access the web action
       val paramName = "brewery"
