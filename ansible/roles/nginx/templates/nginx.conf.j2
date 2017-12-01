@@ -1,6 +1,7 @@
 {# this template is used to generate a nginx.conf for booting a nginx server based on the given environment inventory #}
 
 worker_processes {{ nginx.wpn.router }};
+worker_rlimit_nofile 4096;
 
 events {
 {# default: 1024 #}
@@ -56,7 +57,8 @@ http {
         ssl_protocols        TLSv1 TLSv1.1 TLSv1.2;
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers on;
-        proxy_ssl_session_reuse off;
+        proxy_ssl_verify off;
+        proxy_ssl_session_reuse on;
 
         # proxy to the web action path
         location / {
