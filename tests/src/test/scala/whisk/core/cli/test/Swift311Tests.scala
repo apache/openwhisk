@@ -31,7 +31,7 @@ import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
-class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
+class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRest
@@ -155,7 +155,7 @@ class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
     assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
       assetHelper.withCleaner(wsk.trigger, triggerName) { (_, _) =>
         // using an asset cleaner on the created trigger name will clean it up at the conclusion of the test
-        action.create(name = actionName, artifact = Some(file), kind = Some("swift:3"))
+        action.create(name = actionName, artifact = Some(file), kind = Some(runtimeContainer))
       }
     }
 
@@ -178,7 +178,7 @@ class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
     // create a dummy action and trigger for the rule
     assetHelper.withCleaner(wsk.action, ruleActionName) { (action, name) =>
       val dummyFile = TestUtils.getTestActionFilename("hello.swift")
-      action.create(name, artifact = Some(dummyFile), kind = Some("swift:3"))
+      action.create(name, artifact = Some(dummyFile), kind = Some(runtimeContainer))
     }
 
     assetHelper.withCleaner(wsk.trigger, ruleTriggerName) { (trigger, name) =>
@@ -191,7 +191,7 @@ class Swift3Tests extends TestHelpers with WskTestHelpers with Matchers {
     // create an action that creates the rule
     val createRuleFile = TestUtils.getTestActionFilename("createRule.swift")
     assetHelper.withCleaner(wsk.action, "ActionThatCreatesRule") { (action, name) =>
-      action.create(name, artifact = Some(createRuleFile), kind = Some("swift:3"))
+      action.create(name, artifact = Some(createRuleFile), kind = Some(runtimeContainer))
     }
 
     // invoke the create rule action
