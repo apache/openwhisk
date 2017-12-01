@@ -101,7 +101,7 @@ class Controller(val instance: InstanceId,
       (pathEndOrSingleSlash & get) {
         complete(info)
       }
-    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth ~ invokerInstances
+    } ~ apiV1.routes ~ swagger.swaggerRoutes ~ internalInvokerHealth
   }
 
   // initialize datastores
@@ -143,22 +143,6 @@ class Controller(val instance: InstanceId,
       }
     }
   }
-
-  /**
-   * Handles GET /invokers URI - @return JSON of invoker health
-   */
-  private val invokerInstances = {
-    implicit val executionContext = actorSystem.dispatcher
-
-    (path("invokerId") & get) {
-      complete {
-        loadBalancer.allInvokers.map(_.map {
-          case (instance, state) => s"invoker${instance.toInt}" -> state.asString
-        }.size.toJson)
-      }
-    }
-  }
-
 
   // controller top level info
   private val info = Controller.info(whiskConfig, runtimes, List(apiV1.basepath()))
