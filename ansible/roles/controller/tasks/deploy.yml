@@ -79,8 +79,6 @@
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
-      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
-      "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONTROLLER_HA": "{{ controller.ha }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
