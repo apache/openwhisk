@@ -73,7 +73,7 @@ runtimesManifestDefault:
     - kind: "swift:3"
       image:
         name: "swift3action"
-      deprecated: false
+      deprecated: true
     - kind: "swift:3.1.1"
       default: true
       image:
