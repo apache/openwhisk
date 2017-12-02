@@ -69,7 +69,7 @@ def init(args):
     main = args[1] if len(args) == 2 else "main"
     args = args[0] if len(args) >= 1 else None
 
-    if args and args.endswith(".zip"):
+    if args and (args.endswith(".zip") or args.endswith("tgz")):
         with open(args, "rb") as fp:
             contents = fp.read().encode("base64")
         binary = True
