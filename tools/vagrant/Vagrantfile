@@ -47,6 +47,7 @@ $script_common = <<SCRIPT
   set -x
   echo "`date`: ubuntu-setup-start" >> /tmp/vagrant-times.txt
   sudo add-apt-repository ppa:git-core/ppa
+  sudo rm -rfv /var/lib/apt/lists/* && sed -i 's/# \(.*multiverse$\)/\1/g' /etc/apt/sources.list
   sudo apt-get update
   sudo apt-get install git -y
   sudo apt-get install htop
