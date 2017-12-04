@@ -167,9 +167,6 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                   response = ActivationResponse.success(),
                   version = trigger.version,
                   duration = None)
-                logging.info(
-                  this,
-                  s"[POST] rule ${ruleName} activated, writing activation record to datastore: $ruleActivationId")
                 WhiskActivation.put(activationStore, ruleActivation) recover {
                   case t =>
                     logging.error(this, s"[POST] storing rule activation $ruleActivationId failed: ${t.getMessage}")
