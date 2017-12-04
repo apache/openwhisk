@@ -510,7 +510,7 @@ class WskRestTrigger
   override def fire(name: String,
                     parameters: Map[String, JsValue] = Map(),
                     parameterFile: Option[String] = None,
-                    expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
+                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val path = getNamePath(noun, name)
     val params = parameterFile map { l =>
       val input = FileUtils.readFileToString(new File(l))
