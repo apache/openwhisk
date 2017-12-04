@@ -19,6 +19,7 @@ package whisk.core.controller.test
 
 import java.time.Instant
 
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 import org.junit.runner.RunWith
@@ -323,10 +324,13 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       response.fields("activationId") should not be None
 
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
-      val activation = get(activationStore, activationDoc, WhiskActivation, garbageCollect = false)
-      del(activationStore, DocId(WhiskEntity.qualifiedName(namespace, activationId)), WhiskActivation)
-      activation.end should be(Instant.EPOCH)
-      activation.response.result should be(Some(content))
+      whisk.utils.retry( {
+        println(s"trying to obtain async activation doc: '${activationDoc}'")
+        val activation = get(activationStore, activationDoc, WhiskActivation, garbageCollect = false)
+        del(activationStore, DocId(WhiskEntity.qualifiedName(namespace, activationId)), WhiskActivation)
+        activation.end should be(Instant.EPOCH)
+        activation.response.result should be(Some(content))
+      }, 30, Some(1.second))
     }
   }
 
