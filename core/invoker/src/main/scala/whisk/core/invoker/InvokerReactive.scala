@@ -202,7 +202,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
               // errors and should cause the invoker to be considered unhealthy.
               val response = t match {
                 case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                case _                      => ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
               }
               val now = Instant.now
               val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
