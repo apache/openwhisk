@@ -1,6 +1,7 @@
 apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
+apply plugin: 'maven'
 
 ext.dockerImageName = 'invoker'
 apply from: '../../gradle/docker.gradle'
