@@ -11,10 +11,8 @@
 
   <!-- Kafka -->
   <logger name="org.apache.kafka" level="ERROR" />
-
-  <variable name="WHISK_LOG_LEVEL" value="${WHISK_LOG_LEVEL:-INFO}" />
   
-  <root level="${WHISK_LOG_LEVEL}">
+  <root level="${logback.log.level:-INFO}">
     <appender-ref ref="console" />
   </root>
 </configuration>
