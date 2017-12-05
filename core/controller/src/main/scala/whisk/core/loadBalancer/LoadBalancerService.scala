@@ -44,17 +44,10 @@ import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.{ActivationId, WhiskActivation}
-import whisk.core.entity.EntityName
-import whisk.core.entity.ExecutableWhiskActionMetaData
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAction
+import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
-
 import pureconfig._
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
@@ -185,7 +178,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                               namespaceId: UUID,
                               invokerName: InstanceId,
                               transid: TransactionId): ActivationEntry = {
-    val timeout = (action.limits.timeout.duration * config.controllerInstances.toInt) + activeAckTimeoutGrace
+    val timeout = (action.limits.timeout.duration
+      .max(TimeLimit.STD_DURATION) * config.controllerInstances.toInt) + activeAckTimeoutGrace
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
