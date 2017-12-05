@@ -112,7 +112,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
 
       cacheUpdate(doc, key, db.put(doc) map { newDocInfo =>
         doc.revision[W](newDocInfo.rev)
-        docInfo.copy(rev = newDocInfo.rev)
+        doc.docinfo
       })
     } match {
       case Success(f) => f
@@ -140,7 +140,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
 
       cacheUpdate(doc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
         doc.revision[W](newDocInfo.rev)
-        docInfo.copy(rev = newDocInfo.rev)
+        doc.docinfo
       })
     } match {
       case Success(f) => f
