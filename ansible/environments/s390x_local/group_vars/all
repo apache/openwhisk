@@ -44,6 +44,7 @@ invoker_use_reactive_pool: false
 couchdb:
     docker_image: "jpspring/s390x-openwhisk:couchdb"
 
+# TODO - zookeeper image is now multi-architecture
 zookeeper:
     docker_image: "jpspring/s390x-openwhisk:zookeeper"
 kafka:
@@ -56,3 +57,6 @@ kafka:
 
 apigateway:
     docker_image: "jpspring/s390x-openwhisk:apigateway"
+
+#  Because we don't (yet) support s390x compiles of the CLI; a different challenge...
+cli_installation_mode: local

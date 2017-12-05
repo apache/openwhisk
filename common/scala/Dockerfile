@@ -1,4 +1,4 @@
-FROM buildpack-deps:trusty-curl
+FROM buildpack-deps:xenial-curl
 
 ENV DEBIAN_FRONTEND noninteractive
 
