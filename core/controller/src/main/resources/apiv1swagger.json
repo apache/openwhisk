@@ -928,7 +928,7 @@
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "202": {
                         "description": "Activation id",
                         "schema": {
                             "$ref": "#/definitions/ItemId"
