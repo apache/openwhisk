@@ -37,8 +37,10 @@ import whisk.core.connector.MessagingProvider
 
 import pureconfig._
 
+case class KafkaConfig(replicationFactor: Short)
+
 case class TopicConfig(segmentBytes: Long, retentionBytes: Long, retentionMs: Long) {
-  def toMap(): Map[String, String] = {
+  def toMap: Map[String, String] = {
     Map(
       "retention.bytes" -> retentionBytes.toString,
       "retention.ms" -> retentionMs.toString,
@@ -58,13 +60,13 @@ object KafkaMessagingProvider extends MessagingProvider {
     new KafkaProducerConnector(config.kafkaHosts, ec)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
-    val tc = loadConfigOrThrow[TopicConfig](s"kafka.topics.$topicConfig")
+    val kc = loadConfigOrThrow[KafkaConfig]("whisk.kafka")
+    val tc = loadConfigOrThrow[TopicConfig](s"whisk.kafka.topics.$topicConfig")
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)
     val numPartitions = 1
-    val replicationFactor = config.kafkaReplicationFactor.toShort
-    val nt = new NewTopic(topic, numPartitions, replicationFactor).configs(tc.toMap.asJava)
+    val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.toMap.asJava)
     val results = client.createTopics(List(nt).asJava)
     try {
       results.values().get(topic).get()

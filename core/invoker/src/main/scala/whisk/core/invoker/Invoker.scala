@@ -61,7 +61,6 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHosts ++
-      Map(kafkaReplicationFactor -> "1") ++
       zookeeperHosts ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
