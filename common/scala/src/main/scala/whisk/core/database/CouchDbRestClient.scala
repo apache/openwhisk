@@ -53,7 +53,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
   logging: Logging) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
-  private implicit val context = system.dispatcher
+  private implicit val context = system.dispatchers.lookup("dispatchers.couch-dispatcher")
+
   private implicit val materializer = ActorMaterializer()
 
   // Creates or retrieves a connection pool for the host.
