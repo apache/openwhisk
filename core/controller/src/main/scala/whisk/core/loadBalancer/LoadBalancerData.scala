@@ -24,7 +24,7 @@ import scala.concurrent.{Future, Promise}
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
                            invokerName: InstanceId,
-                           promise: Promise[Either[ActivationId, WhiskActivation]])
+                           promise: Promise[WhiskActivation.Outcome])
 trait LoadBalancerData {
 
   /** Get the number of activations across all namespaces. */

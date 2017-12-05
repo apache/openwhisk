@@ -624,7 +624,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
     completeRequest(queuedActivation, projectResultField(context, responseType), responseType)
   }
 
-  private def completeRequest(queuedActivation: Future[Either[ActivationId, WhiskActivation]],
+  private def completeRequest(queuedActivation: Future[WhiskActivation.Outcome],
                               projectResultField: => List[String],
                               responseType: MediaExtension)(implicit transid: TransactionId) = {
     onComplete(queuedActivation) {

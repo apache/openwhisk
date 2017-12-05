@@ -95,7 +95,7 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[WhiskActivation.Outcome] = {
 
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
@@ -152,8 +152,8 @@ protected[actions] trait PrimitiveActions {
   private def waitForActivationResponse(user: Identity,
                                         activationId: ActivationId,
                                         totalWaitTime: FiniteDuration,
-                                        activeAckResponse: Future[Either[ActivationId, WhiskActivation]])(
-    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+                                        activeAckResponse: Future[WhiskActivation.Outcome])(
+    implicit transid: TransactionId): Future[WhiskActivation.Outcome] = {
     // this is the promise which active ack or db polling will try to complete via:
     // 1. active ack response, or
     // 2. failing active ack (due to active ack timeout), fall over to db polling
@@ -207,11 +207,10 @@ protected[actions] object ActivationFinisher {
    */
   private val datastorePreemptivePolling = Seq(1.second, 3.seconds, 5.seconds, 7.seconds)
 
-  def props(activationLookup: ActivationLookup)(
-    implicit transid: TransactionId,
-    actorSystem: ActorSystem,
-    executionContext: ExecutionContext,
-    logging: Logging): (Future[Either[ActivationId, WhiskActivation]], ActorRef) = {
+  def props(activationLookup: ActivationLookup)(implicit transid: TransactionId,
+                                                actorSystem: ActorSystem,
+                                                executionContext: ExecutionContext,
+                                                logging: Logging): (Future[WhiskActivation.Outcome], ActorRef) = {
 
     val (p, _, f) = props(activationLookup, datastorePollPeriodForActivation, datastorePreemptivePolling)
     (p.future, f) // hides the polling actor
@@ -227,10 +226,10 @@ protected[actions] object ActivationFinisher {
     implicit transid: TransactionId,
     actorSystem: ActorSystem,
     executionContext: ExecutionContext,
-    logging: Logging): (Promise[Either[ActivationId, WhiskActivation]], ActorRef, ActorRef) = {
+    logging: Logging): (Promise[WhiskActivation.Outcome], ActorRef, ActorRef) = {
 
     // this is strictly completed by the finishing actor
-    val promise = Promise[Either[ActivationId, WhiskActivation]]
+    val promise = Promise[WhiskActivation.Outcome]
     val dbpoller = poller(slowPoll, promise, activationLookup)
     val finisher = Props(new ActivationFinisher(dbpoller, fastPolls, promise))
 
@@ -247,11 +246,10 @@ protected[actions] object ActivationFinisher {
    */
   private class ActivationFinisher(poller: ActorRef, // the activation poller
                                    fastPollPeriods: Seq[FiniteDuration],
-                                   promise: Promise[Either[ActivationId, WhiskActivation]])(
-    implicit transid: TransactionId,
-    actorSystem: ActorSystem,
-    executionContext: ExecutionContext,
-    logging: Logging)
+                                   promise: Promise[WhiskActivation.Outcome])(implicit transid: TransactionId,
+                                                                              actorSystem: ActorSystem,
+                                                                              executionContext: ExecutionContext,
+                                                                              logging: Logging)
       extends Actor {
 
     // when the future completes, self-destruct
@@ -290,7 +288,7 @@ protected[actions] object ActivationFinisher {
    * It is a factory method to facilitate testing.
    */
   private def poller(slowPollPeriod: FiniteDuration,
-                     promise: Promise[Either[ActivationId, WhiskActivation]],
+                     promise: Promise[WhiskActivation.Outcome],
                      activationLookup: ActivationLookup)(implicit transid: TransactionId,
                                                          actorSystem: ActorSystem,
                                                          executionContext: ExecutionContext,

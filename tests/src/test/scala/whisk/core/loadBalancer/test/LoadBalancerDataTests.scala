@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 
 class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
-  val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
+  val activationIdPromise = Promise[WhiskActivation.Outcome]()
   val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(0), activationIdPromise)
   val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
 

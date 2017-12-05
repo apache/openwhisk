@@ -245,7 +245,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[WhiskActivation.Outcome] = {
     invocationCount = invocationCount + 1
 
     if (failActivation == 0) {

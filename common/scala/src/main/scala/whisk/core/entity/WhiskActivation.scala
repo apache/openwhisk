@@ -123,6 +123,13 @@ object WhiskActivation
     with WhiskEntityQueries[WhiskActivation]
     with DefaultJsonProtocol {
 
+  /**
+   * The invoker's result for an activation might only be an ActivationId,
+   * e.g. in the case of RecordTooLargeException; see InvokerReactive
+   *
+   */
+  type Outcome = Either[ActivationId, WhiskActivation]
+
   private implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
