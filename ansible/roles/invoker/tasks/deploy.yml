@@ -60,6 +60,16 @@
     mode: 0777
   become: "{{ invoker.dir.become }}"
 
+- name: "copy truststore"
+  copy:
+    src: "files/server.truststore.jks"
+    dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+
+- name: "copy keystore"
+  copy:
+    src: "files/client.keystore.jks"
+    dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -149,6 +159,8 @@
         -e CONFIG_whisk_kafka_topics_invoker_retentionBytes='{{ kafka_topics_invoker_retentionBytes | default() }}'
         -e CONFIG_whisk_kafka_topics_invoker_retentionMs='{{ kafka_topics_invoker_retentionMS | default() }}'
         -e CONFIG_whisk_kakfa_topics_invoker_segmentBytes='{{ kafka_topics_invoker_segmentBytes | default() }}'
+        -e KAFKA_SSL_ENABLED='{{ kafka.ssl_enabled }}'
+        -e KAFKA_SSL_CLIENT_AUTHENTICATION='{{ kafka.client_authentication }}'
         -e ZOOKEEPER_HOSTS='{{ zookeeper_connect_string }}'
         -e DB_PROTOCOL='{{ db_protocol }}'
         -e DB_PROVIDER='{{ db_provider }}'

@@ -20,15 +20,16 @@ package whisk.connector.kafka
 import java.util.Properties
 import java.util.concurrent.ExecutionException
 
+import org.apache.kafka.clients.CommonClientConfigs
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 import scala.collection.JavaConverters._
-
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.errors.TopicExistsException
-
 import whisk.common.Logging
 import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
@@ -46,10 +47,17 @@ case class KafkaConfig(replicationFactor: Short)
 object KafkaMessagingProvider extends MessagingProvider {
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging): MessageConsumer =
-    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
+    new KafkaConsumerConnector(
+      config.kafkaHosts,
+      groupId,
+      topic,
+      config.kafkaSslEnabled,
+      config.kafkaSslClientAuthentication,
+      maxPeek,
+      maxPollInterval = maxPollInterval)
 
   def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHosts, ec)
+    new KafkaProducerConnector(config.kafkaHosts, config.kafkaSslEnabled, config.kafkaSslClientAuthentication, ec)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
@@ -57,6 +65,16 @@ object KafkaMessagingProvider extends MessagingProvider {
       loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
+    if (config.kafkaSslEnabled) {
+      props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+      props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "/conf/server.truststore.jks")
+      props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "openwhisk")
+    }
+    if (config.kafkaSslClientAuthentication) {
+      props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "/conf/client.keystore.jks")
+      props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "openwhisk")
+    }
+
     val client = AdminClient.create(props)
     val numPartitions = 1
     val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.asJava)

@@ -45,6 +45,16 @@
     dest: "{{ controller.confdir }}/{{ controller_name }}/jmxremote.access"
     mode: 0777
 
+- name: "copy truststore"
+  copy:
+    src: "files/server.truststore.jks"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+
+- name: "copy keystore"
+  copy:
+    src: "files/client.keystore.jks"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -106,6 +116,8 @@
       "CONFIG_whisk_kafka_topics_health_retentionBytes": "{{ kafka_topics_health_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_health_retentionMs": "{{ kafka_topics_health_retentionMS | default() }}"
       "CONFIG_whisk_kafka_topics_health_segmentBytes": "{{ kafka_topics_health_segmentBytes | default() }}"
+      "KAFKA_SSL_ENABLED": "{{ kafka.ssl_enabled }}"
+      "KAFKA_SSL_CLIENT_AUTHENTICATION": "{{ kafka.client_authentication }}"
 
       "DB_PROTOCOL": "{{ db_protocol }}"
       "DB_PROVIDER": "{{ db_provider }}"
@@ -157,7 +169,6 @@
 
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       "CONFIG_whisk_spi_LoadBalancerProvider": "{{ controller.loadbalancer.spi }}"
-      
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
       "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"

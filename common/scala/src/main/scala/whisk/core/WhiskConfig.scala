@@ -89,6 +89,8 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbActivations = this(WhiskConfig.dbActivations)
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
+  val kafkaSslEnabled = getAsBoolean(WhiskConfig.kafkaSslEnabled, true)
+  val kafkaSslClientAuthentication = getAsBoolean(WhiskConfig.kafkaSslClientAuthentication, true)
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
@@ -223,6 +225,8 @@ object WhiskConfig {
 
   val runtimesManifest = "runtimes.manifest"
 
+  val kafkaSslEnabled = "kafka.ssl.enabled"
+  val kafkaSslClientAuthentication = "kafka.ssl.client.authentication"
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"
   val actionInvokeConcurrentLimit = "limits.actions.invokes.concurrent"

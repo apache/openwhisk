@@ -75,8 +75,11 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  client_authentication: false
+  ssl_enabled: "{{ kafka_ssl_enabled | default(true) }}"
   version: 0.11.0.1
   port: 9092
+  advertisedPort: 9093
   ras:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
@@ -84,7 +87,7 @@ kafka:
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
-                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.advertisedPort+loop.index-1)|string) ) }}\
                        {% endfor %}\
                        {{ ret | join(',') }}"
 

@@ -19,6 +19,8 @@ package whisk.connector.kafka
 
 import java.util.Properties
 
+import org.apache.kafka.clients.CommonClientConfigs
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -29,6 +31,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.errors.NotLeaderForPartitionException
 import org.apache.kafka.common.serialization.StringSerializer
 import whisk.common.Counter
@@ -40,6 +43,8 @@ import pureconfig._
 import whisk.core.ConfigKeys
 
 class KafkaProducerConnector(kafkahosts: String,
+                             sslEnabled: Boolean,
+                             sslClientAuthentication: Boolean,
                              implicit val executionContext: ExecutionContext,
                              id: String = UUIDs.randomUUID().toString)(implicit logging: Logging)
     extends MessageProducer {
@@ -91,6 +96,17 @@ class KafkaProducerConnector(kafkahosts: String,
     val config =
       KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
     config.foreach { case (key, value) => props.put(key, value) }
+
+    if (sslEnabled) {
+      //configure the following three settings for SSL Encryption//configure the following three settings for SSL Encryption
+      props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+      props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "/conf/server.truststore.jks")
+      props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "openwhisk")
+    }
+    if (sslClientAuthentication) {
+      props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "/conf/client.keystore.jks")
+      props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "openwhisk")
+    }
     props
   }
 
