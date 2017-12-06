@@ -21,7 +21,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
-
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Conflict
@@ -39,13 +38,7 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.controller.PostProcess.PostProcessEntity
-import whisk.core.database.ArtifactStore
-import whisk.core.database.ArtifactStoreException
-import whisk.core.database.DocumentConflictException
-import whisk.core.database.DocumentFactory
-import whisk.core.database.DocumentTypeMismatchException
-import whisk.core.database.CacheChangeNotification
-import whisk.core.database.NoDocumentException
+import whisk.core.database._
 import whisk.core.entity.DocId
 import whisk.core.entity.WhiskDocument
 import whisk.core.entity.WhiskEntity
@@ -158,12 +151,13 @@ trait ReadOps extends Directives {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  protected def getEntity[A, Au >: A](factory: DocumentFactory[A],
-                                      datastore: ArtifactStore[Au],
-                                      docid: DocId,
-                                      postProcess: Option[PostProcessEntity[A]] = None)(implicit transid: TransactionId,
-                                                                                        format: RootJsonFormat[A],
-                                                                                        ma: Manifest[A]) = {
+  protected def getEntity[A <: DocumentRevisionProvider, Au >: A](factory: DocumentFactory[A],
+                                                                  datastore: ArtifactStore[Au],
+                                                                  docid: DocId,
+                                                                  postProcess: Option[PostProcessEntity[A]] = None)(
+    implicit transid: TransactionId,
+    format: RootJsonFormat[A],
+    ma: Manifest[A]) = {
     onComplete(factory.get(datastore, docid)) {
       case Success(entity) =>
         logging.info(this, s"[GET] entity success")
@@ -196,7 +190,7 @@ trait ReadOps extends Directives {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  protected def getEntityAndProject[A, Au >: A](
+  protected def getEntityAndProject[A <: DocumentRevisionProvider, Au >: A](
     factory: DocumentFactory[A],
     datastore: ArtifactStore[Au],
     docid: DocId,
@@ -259,14 +253,14 @@ trait WriteOps extends Directives {
    * - 409 Conflict
    * - 500 Internal Server Error
    */
-  protected def putEntity[A, Au >: A](factory: DocumentFactory[A],
-                                      datastore: ArtifactStore[Au],
-                                      docid: DocId,
-                                      overwrite: Boolean,
-                                      update: A => Future[A],
-                                      create: () => Future[A],
-                                      treatExistsAsConflict: Boolean = true,
-                                      postProcess: Option[PostProcessEntity[A]] = None)(
+  protected def putEntity[A <: DocumentRevisionProvider, Au >: A](factory: DocumentFactory[A],
+                                                                  datastore: ArtifactStore[Au],
+                                                                  docid: DocId,
+                                                                  overwrite: Boolean,
+                                                                  update: A => Future[A],
+                                                                  create: () => Future[A],
+                                                                  treatExistsAsConflict: Boolean = true,
+                                                                  postProcess: Option[PostProcessEntity[A]] = None)(
     implicit transid: TransactionId,
     format: RootJsonFormat[A],
     notifier: Option[CacheChangeNotification],
