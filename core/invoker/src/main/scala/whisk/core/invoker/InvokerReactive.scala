@@ -98,7 +98,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val msgProvider = SpiLoader.get[MessagingProvider]
   val consumer = msgProvider.getConsumer(
     config,
-    "invokers",
+    topic,
     topic,
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
