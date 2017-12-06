@@ -515,10 +515,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(action.exec),
           Some(action.parameters),
           Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
-        val name = action.name
 
         // first request invalidates any previous entries and caches new result
-        Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
           response should be(
@@ -537,7 +536,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         stream.reset()
 
         // second request should fetch from cache
-        Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
           response should be(
@@ -554,8 +553,29 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         stream.toString should include(s"serving from cache: ${CacheKey(action)}")
         stream.reset()
 
+        // update should invalidate cache
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be {
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version.upPatch,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind))
+          }
+        }
+        stream.toString should include(s"entity exists, will try to update '$action'")
+        stream.toString should include(s"invalidating ${CacheKey(action)}")
+        stream.toString should include(s"caching ${CacheKey(action)}")
+        stream.reset()
+
         // delete should invalidate cache
-        Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
           response should be(
@@ -565,7 +585,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
               action.exec,
               action.parameters,
               action.limits,
-              action.version,
+              action.version.upPatch,
               action.publish,
               action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
         }
