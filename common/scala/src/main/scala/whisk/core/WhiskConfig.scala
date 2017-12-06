@@ -242,12 +242,12 @@ object WhiskConfig {
 
   val runtimesManifest = "runtimes.manifest"
 
-  val kafkaTopicsInvokerRetentionBytes = "kafka.topics.invoker.retentionBytes"
-  val kafkaTopicsInvokerRetentionMS = "kafka.topics.invoker.retentionMS"
-  val kafkaTopicsInvokerSegmentBytes = "kafka.topics.invoker.segmentBytes"
-  val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retentionBytes"
-  val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retentionMS"
-  val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segmentBytes"
+  val kafkaTopicsInvokerRetentionBytes = "kafka.topics.invoker.retention.bytes"
+  val kafkaTopicsInvokerRetentionMS = "kafka.topics.invoker.retention.ms"
+  val kafkaTopicsInvokerSegmentBytes = "kafka.topics.invoker.segment.bytes"
+  val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retention.bytes"
+  val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retention.ms"
+  val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segment.bytes"
   val kafkaReplicationFactor = "kafka.replicationFactor"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
