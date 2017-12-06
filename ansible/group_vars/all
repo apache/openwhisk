@@ -184,6 +184,8 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
 
+userLogs:
+  spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
