@@ -18,20 +18,18 @@
 package whisk.core.entity.test
 
 import java.io.{BufferedWriter, File, FileWriter}
-import java.util.NoSuchElementException
 
-import scala.util.{Success}
+import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.WhiskConfig
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
-import common.StreamLogging
-import common.WskActorSystem
+
+import scala.util.Success
 
 @RunWith(classOf[JUnitRunner])
 class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging with Matchers {
@@ -112,7 +110,10 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
 
     val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
     val runtimes = ExecManifest.runtimes(mf).get
+
     runtimes.blackboxImages shouldBe imgs
+    imgs.foreach(img => runtimes.skipDockerPull(img) shouldBe true)
+    runtimes.skipDockerPull(ImageName("???", Some("bbb"))) shouldBe false
   }
 
   it should "read a valid configuration with blackbox images, default prefix and tag" in {
@@ -137,6 +138,8 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
         ImageName("???", Some("pre"), Some("ttt")))
     }
 
+    runtimes.skipDockerPull(ImageName("???", Some("pre"), Some("test"))) shouldBe true
+    runtimes.skipDockerPull(ImageName("???", Some("bbb"), Some("test"))) shouldBe false
   }
 
   it should "reject runtimes with multiple defaults" in {
@@ -175,21 +178,22 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     }
   }
 
-  it should "throw an error when configured manifest is a valid JSON, but with a missing key" in {
-    val config_manifest = """{"nodejs":[{"kind":"nodejs:6","default":true,"image":{"name":"nodejs6action"}}]}"""
+  it should "indicate image is local if it matches deployment docker prefix" in {
+    val config_manifest = """{"bypassPullForLocalImages":true}"""
     val file = File.createTempFile("cxt", ".txt")
     file.deleteOnExit()
 
     val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("runtimes.manifest=" + config_manifest + "\n")
+    bw.write(WhiskConfig.runtimesManifest + s"=$config_manifest\n")
     bw.close()
 
-    val result = ExecManifest.initialize(new WhiskConfig(Map("runtimes.manifest" -> null), Set(), file), true)
+    val props = Map(WhiskConfig.runtimesManifest -> null)
+    val manifest =
+      ExecManifest.initialize(new WhiskConfig(props, Set(), file), localDockerImagePrefix = Some("localpre"))
+    manifest should be a 'success
 
-    result should be a 'failure
-
-    the[NoSuchElementException] thrownBy {
-      result.get
-    } should have message ("key not found: runtimes")
+    manifest.get.skipDockerPull(ImageName(prefix = Some("x"), name = "y")) shouldBe false
+    manifest.get.skipDockerPull(ImageName(prefix = Some("localpre"), name = "y")) shouldBe true
   }
+
 }

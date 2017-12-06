@@ -74,7 +74,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   private val maxOpenDbRequests = system.settings.config.getInt("akka.http.host-connection-pool.max-connections") / 2
 
   private val batcher: Batcher[JsObject, Either[ArtifactStoreException, DocInfo]] =
-    new Batcher(500, maxOpenDbRequests)(put(_)(TransactionId.unknown))
+    new Batcher(500, maxOpenDbRequests)(put(_)(TransactionId.dbBatcher))
 
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord

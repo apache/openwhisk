@@ -266,7 +266,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
                 s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
             case None => None
           }
-          val native = execManifests.blackboxImages.contains(image)
+          val native = execManifests.skipDockerPull(image)
           BlackBoxExec(image, code, optMainField, native)
 
         case _ =>
@@ -384,8 +384,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
               throw new DeserializationException(
                 s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
           }
-
-          val native = execManifests.blackboxImages.contains(image)
+          val native = execManifests.skipDockerPull(image)
           BlackBoxExecMetaData(native)
 
         case _ =>
