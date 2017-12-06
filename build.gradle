@@ -30,8 +30,14 @@ subprojects {
                 from sourceSets.main.allSource
             }
 
+            task testSourcesJar(type: Jar, dependsOn: testClasses) {
+                classifier = 'test-sources'
+                from sourceSets.test.allSource
+            }
+
             artifacts {
                 archives sourcesJar
+                archives testSourcesJar
             }
         }
     }
