@@ -99,10 +99,14 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
 
     val logs = container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
 
+    // Adding the userId field to every written record, so any background process can properly correlate.
+    val userIdField = Map("namespaceId" -> user.authkey.uuid.toJson)
+
     val additionalMetadata = Map(
       "activationId" -> activation.activationId.asString.toJson,
-      "action" -> action.fullyQualifiedName(false).asString.toJson,
-      "userId" -> user.authkey.uuid.toJson)
+      "action" -> action.fullyQualifiedName(false).asString.toJson) ++ userIdField
+
+    val augmentedActivation = JsObject(activation.toJson.fields ++ userIdField)
 
     // Manually construct JSON fields to omit parsing the whole structure
     val metadata = ByteString("," + fieldsString(additionalMetadata))
@@ -113,7 +117,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
     // the closing "}", adding the fields and finally add "}\n" to the end again.
       .map(_.dropRight(1) ++ metadata ++ eventEnd)
       // As the last element of the stream, print the activation record.
-      .concat(Source.single(ByteString(activation.toJson.compactPrint + "\n")))
+      .concat(Source.single(ByteString(augmentedActivation.toJson.compactPrint + "\n")))
       .to(writeToFile)
 
     val combined = OwSink.combine(toSeq, toFile)(Broadcast[ByteString](_))

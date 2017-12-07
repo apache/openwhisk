@@ -25,6 +25,7 @@ import akka.util.ByteString
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.Matchers
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.{DockerToActivationFileLogStore, LogLine}
 import whisk.core.entity._
@@ -41,12 +42,19 @@ class DockerToActivationFileLogStoreTests
 
   override def createStore() = new TestLogStoreTo(Sink.ignore)
 
-  def toLoggedEvent(line: LogLine, userId: UUID, activationId: ActivationId, actionName: FullyQualifiedEntityName) = {
+  def toLoggedEvent(line: LogLine,
+                    userId: UUID,
+                    activationId: ActivationId,
+                    actionName: FullyQualifiedEntityName): String = {
     val event = line.toJson.compactPrint
     val concatenated =
-      s""","activationId":"${activationId.asString}","action":"${actionName.asString}","userId":"${userId.asString}""""
+      s""","activationId":"${activationId.asString}","action":"${actionName.asString}","namespaceId":"${userId.asString}""""
 
     event.dropRight(1) ++ concatenated ++ "}\n"
+  }
+
+  def toLoggedActivation(activation: WhiskActivation): String = {
+    JsObject(activation.toJson.fields ++ Map("namespaceId" -> user.authkey.uuid.asString.toJson)).compactPrint + "\n"
   }
 
   behavior of "DockerCouchDbFileLogStore"
@@ -70,7 +78,7 @@ class DockerToActivationFileLogStoreTests
     }
 
     // Last message should be the full activation
-    testActor.expectMsg(activation.toJson.compactPrint + "\n")
+    testActor.expectMsg(toLoggedActivation(activation))
   }
 
   class TestLogStoreTo(override val writeToFile: Sink[ByteString, _])
