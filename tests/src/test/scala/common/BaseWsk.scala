@@ -284,10 +284,13 @@ trait BaseActivation extends BaseRunWsk {
   def get(activationId: Option[String] = None,
           expectedExitCode: Int = SUCCESS_EXIT,
           fieldFilter: Option[String] = None,
-          last: Option[Boolean] = None)(implicit wp: WskProps): RunResult
+          last: Option[Boolean] = None,
+          summary: Option[Boolean] = None)(implicit wp: WskProps): RunResult
 
-  def console(duration: Duration, since: Option[Duration] = None, expectedExitCode: Int = SUCCESS_EXIT)(
-    implicit wp: WskProps): RunResult
+  def console(duration: Duration,
+              since: Option[Duration] = None,
+              expectedExitCode: Int = SUCCESS_EXIT,
+              actionName: Option[String] = None)(implicit wp: WskProps): RunResult
 
   def logs(activationId: Option[String] = None, expectedExitCode: Int = SUCCESS_EXIT, last: Option[Boolean] = None)(
     implicit wp: WskProps): RunResult
