@@ -182,7 +182,7 @@ object Invoker {
     if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
-    val producer = msgProvider.getProducer(config, ec)
+    val producer = msgProvider.getProducer(config)
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)
     } catch {

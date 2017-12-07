@@ -173,7 +173,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+  private val messageProducer = messagingProvider.getProducer(config)
 
   /** 3. Send the activation to the invoker */
   private def sendActivationToInvoker(producer: MessageProducer,
