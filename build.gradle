@@ -40,6 +40,22 @@ subprojects {
                 archives testSourcesJar
             }
         }
+
+        if (project.plugins.hasPlugin('application')) {
+            //Ensure that dist archive name does not contain version
+            distTar {
+                archiveName = "${project.name}.tar"
+            }
+
+            //Avoid generating the zip files from maven installations
+            distZip {
+                enabled false
+            }
+
+            configurations.archives.with {
+                artifacts.remove artifacts.find { it.archiveTask.is distZip }
+            }
+        }
     }
 }
 
