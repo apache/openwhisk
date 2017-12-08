@@ -17,30 +17,17 @@
 
 package whisk.core.database
 
-import java.nio.charset.StandardCharsets
-
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common.Logging
 import whisk.core.WhiskConfig
-import whisk.core.connector.Message
-import whisk.core.connector.MessageFeed
-import whisk.core.connector.MessagingProvider
-import whisk.core.entity.CacheKey
-import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.WhiskActionMetaData
-import whisk.core.entity.WhiskPackage
-import whisk.core.entity.WhiskRule
-import whisk.core.entity.WhiskTrigger
+import whisk.core.connector.{Message, MessagingProvider}
+import whisk.core.entity._
 import whisk.spi.SpiLoader
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 case class CacheInvalidationMessage(key: CacheKey, instanceId: String) extends Message {
   override def serialize = CacheInvalidationMessage.serdes.write(this).compactPrint
@@ -54,35 +41,26 @@ object CacheInvalidationMessage extends DefaultJsonProtocol {
 class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging,
                                                                                             as: ActorSystem) {
 
+  implicit private val materializer = ActorMaterializer()
   implicit private val ec = as.dispatcher
 
   private val topic = "cacheInvalidation"
   private val instanceId = s"$component${instance.toInt}"
 
   private val msgProvider = SpiLoader.get[MessagingProvider]
-  private val cacheInvalidationConsumer = msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
-  private val cacheInvalidationProducer = msgProvider.getProducer(config, ec)
+
+  msgProvider.getConsumer(s"$topic$instanceId", topic, 128).runForeach(removeFromLocalCache)
+
+  private val cacheInvalidationProducer = msgProvider.getProducer()
 
   def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
     cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)
   }
 
-  private val invalidationFeed = as.actorOf(Props {
-    new MessageFeed(
-      "cacheInvalidation",
-      logging,
-      cacheInvalidationConsumer,
-      cacheInvalidationConsumer.maxPeek,
-      1.second,
-      removeFromLocalCache)
-  })
-
   def invalidateWhiskActionMetaData(key: CacheKey) =
     WhiskActionMetaData.removeId(key)
 
-  private def removeFromLocalCache(bytes: Array[Byte]): Future[Unit] = Future {
-    val raw = new String(bytes, StandardCharsets.UTF_8)
-
+  private def removeFromLocalCache(raw: String): Unit = {
     CacheInvalidationMessage.parse(raw) match {
       case Success(msg: CacheInvalidationMessage) => {
         if (msg.instanceId != instanceId) {
@@ -95,6 +73,5 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
       }
       case Failure(t) => logging.error(this, s"failed processing message: $raw with $t")
     }
-    invalidationFeed ! MessageFeed.Processed
   }
 }

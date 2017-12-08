@@ -17,22 +17,20 @@
 
 package whisk.core.connector
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import akka.actor.ActorSystem
+import akka.stream.UniqueKillSwitch
+import akka.stream.scaladsl.Source
 import whisk.common.Logging
-import whisk.core.WhiskConfig
 import whisk.spi.Spi
 
 /**
  * An Spi for providing Messaging implementations.
  */
 trait MessagingProvider extends Spi {
-  def getConsumer(config: WhiskConfig,
-                  groupId: String,
-                  topic: String,
-                  maxPeek: Int = Int.MaxValue,
-                  maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging): MessageConsumer
-  def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean
+  def getConsumer(group: String, topic: String, maxBatchSize: Int)(
+    implicit actorSystem: ActorSystem): Source[String, UniqueKillSwitch]
+
+  def getProducer()(implicit actorSystem: ActorSystem, logging: Logging): MessageProducer
+
+  def ensureTopic(topic: String, topicConfig: String)(implicit logging: Logging): Boolean
 }

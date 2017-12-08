@@ -60,7 +60,6 @@ object Invoker {
       ExecManifest.requiredProperties ++
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
-      kafkaHosts ++
       zookeeperHosts ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
@@ -182,10 +181,10 @@ object Invoker {
 
     val invokerInstance = InstanceId(assignedInvokerId)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
+    if (!msgProvider.ensureTopic(topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
-    val producer = msgProvider.getProducer(config, ec)
+    val producer = msgProvider.getProducer()
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)
     } catch {
