@@ -19,7 +19,6 @@ package whisk.core.entitlement
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Set
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
@@ -49,7 +48,7 @@ package object types {
  * Resource is a type that encapsulates details relevant to identify a specific resource.
  * It may be an entire collection, or an element in a collection.
  *
- * @param ns the namespace the resource resides in
+ * @param namespace the namespace the resource resides in
  * @param collection the collection (e.g., actions, triggers) identifying a resource
  * @param entity an optional entity name that identifies a specific item in the collection
  * @param env an optional environment to bind to the resource during an activation
@@ -59,8 +58,8 @@ protected[core] case class Resource(namespace: EntityPath,
                                     entity: Option[String],
                                     env: Option[Parameters] = None) {
   def parent = collection.path + EntityPath.PATHSEP + namespace
-  def id = parent + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
-  def fqname = namespace.asString + (entity map { EntityPath.PATHSEP + _ } getOrElse (""))
+  def id = parent + entity.map(EntityPath.PATHSEP + _).getOrElse("")
+  def fqname = namespace.asString + entity.map(EntityPath.PATHSEP + _).getOrElse("")
   override def toString = id
 }
 
@@ -187,6 +186,21 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     implicit transid: TransactionId): Future[Unit] = check(user, right, Set(resource))
 
   /**
+   * Constructs a RejectRequest containing the forbidden resources.
+   *
+   * @param resources resources forbidden to access
+   * @return a RejectRequest with the appropriate message
+   */
+  private def unauthorizedOn(resources: Set[Resource])(implicit transid: TransactionId) = {
+    RejectRequest(
+      Forbidden,
+      Some(
+        ErrorResponse(
+          Messages.notAuthorizedtoAccessResource(resources.map(_.fqname).toSeq.sorted.toSet.mkString(", ")),
+          transid)))
+  }
+
+  /**
    * Checks if a subject has the right to access a set of resources. The entitlement may be implicit,
    * that is, inferred based on namespaces that a subject belongs to and the namespace of the
    * resource for example, or explicit. The implicit check is computed here. The explicit check
@@ -200,58 +214,36 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Unit] = {
     val subject = user.subject
-    val inaccessibleResources = ListBuffer[Resource]()
 
-    val entitlementCheck: Future[Boolean] = if (user.rights.contains(right)) {
+    val entitlementCheck: Future[Unit] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
         logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
         checkSystemOverload(right)
           .flatMap(_ => checkUserThrottle(user, right, resources))
           .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
           .flatMap(_ => checkPrivilege(user, right, resources))
-          .flatMap(resourcePrivSet => {
-            resourcePrivSet.map { resourcePriv =>
-              if (!resourcePriv._2) inaccessibleResources += resourcePriv._1
-            }
-            Future.successful(inaccessibleResources.length == 0)
+          .flatMap(checkedResources => {
+            val failedResources = checkedResources.filterNot(_._2)
+            if (failedResources.isEmpty) Future.successful(())
+            else Future.failed(unauthorizedOn(failedResources.map(_._1)))
           })
-      } else Future.successful(true)
+      } else Future.successful(())
     } else if (right != REJECT) {
-      resources.map(r => inaccessibleResources += r)
       logging.info(
         this,
         s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(", ")}'")
-      Future.failed(
-        RejectRequest(
-          Forbidden,
-          Some(
-            ErrorResponse(
-              Messages.notAuthorizedtoAccessResource(
-                inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
-              transid))))
+      Future.failed(unauthorizedOn(resources))
     } else {
-      resources.map(r => inaccessibleResources += r)
-      Future.successful(false)
+      Future.failed(unauthorizedOn(resources))
     }
+
     entitlementCheck andThen {
-      case Success(r) if resources.nonEmpty =>
-        logging.info(this, if (r) "authorized" else "not authorized")
+      case Success(rs) =>
+        logging.info(this, "authorized")
       case Failure(r: RejectRequest) =>
         logging.info(this, s"not authorized: $r")
       case Failure(t) =>
         logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
-    } flatMap { isAuthorized =>
-      if (isAuthorized) Future.successful({})
-      else {
-        Future.failed(
-          RejectRequest(
-            Forbidden,
-            Some(
-              ErrorResponse(
-                Messages.notAuthorizedtoAccessResource(
-                  inaccessibleResources.map(r => r.fqname).sorted.toSet.mkString(", ")),
-                transid))))
-      }
     }
   }
 
@@ -273,9 +265,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           case true => Future.successful(resource -> true)
           case false =>
             logging.info(this, "checking explicit grants")
-            entitled(user.subject, right, resource) flatMap {
-              case b => Future.successful(resource -> b)
-            }
+            entitled(user.subject, right, resource).flatMap(b => Future.successful(resource -> b))
         }
       }
     }
@@ -305,7 +295,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    *
    * @param user the subject identity to check rights for
    * @param right the privilege, if ACTIVATE then check quota else return None
-   * @param resource the set of resources must contain at least one resource that can be activated else return None
+   * @param resources the set of resources must contain at least one resource that can be activated else return None
    * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
@@ -327,7 +317,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    *
    * @param user the subject identity to check rights for
    * @param right the privilege, if ACTIVATE then check quota else return None
-   * @param resource the set of resources must contain at least one resource that can be activated else return None
+   * @param resources the set of resources must contain at least one resource that can be activated else return None
    * @return future completing successfully if user is below limits else failing with a rejection
    */
   private def checkConcurrentUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
