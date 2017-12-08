@@ -167,11 +167,13 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("exec").asJsObject.fields should not(contain key "code")
+      responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
     }
     Get(s"$collectionPath/${action.name}?code=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("exec").asJsObject.fields("code") should be("??".toJson)
+      responseAs[WhiskAction] shouldBe a[WhiskAction]
     }
   }
 
