@@ -35,6 +35,19 @@ import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 
+import pureconfig._
+
+case class KafkaConfig(replicationFactor: Short)
+
+case class TopicConfig(segmentBytes: Long, retentionBytes: Long, retentionMs: Long) {
+  def toMap: Map[String, String] = {
+    Map(
+      "retention.bytes" -> retentionBytes.toString,
+      "retention.ms" -> retentionMs.toString,
+      "segment.bytes" -> segmentBytes.toString)
+  }
+}
+
 /**
  * A Kafka based implementation of MessagingProvider
  */
@@ -46,15 +59,14 @@ object KafkaMessagingProvider extends MessagingProvider {
   def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
     new KafkaProducerConnector(config.kafkaHosts, ec)
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: Map[String, String])(
-    implicit logging: Logging): Boolean = {
+  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
+    val kc = loadConfigOrThrow[KafkaConfig]("whisk.kafka")
+    val tc = loadConfigOrThrow[TopicConfig](s"whisk.kafka.topics.$topicConfig")
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)
-    val numPartitions = topicConfig.getOrElse("numPartitions", "1").toInt
-    val replicationFactor = topicConfig.getOrElse("replicationFactor", "1").toShort
-    val nt = new NewTopic(topic, numPartitions, replicationFactor)
-      .configs((topicConfig - ("numPartitions", "replicationFactor")).asJava)
+    val numPartitions = 1
+    val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.toMap.asJava)
     val results = client.createTopics(List(nt).asJava)
     try {
       results.values().get(topic).get()

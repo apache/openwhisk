@@ -45,7 +45,13 @@ import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
-import whisk.core.entity.size._
+import whisk.core.entity.{ActivationId, WhiskActivation}
+import whisk.core.entity.EntityName
+import whisk.core.entity.ExecutableWhiskActionMetaData
+import whisk.core.entity.Identity
+import whisk.core.entity.InstanceId
+import whisk.core.entity.UUID
+import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
 import pureconfig._
@@ -345,11 +351,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 object LoadBalancerService {
   def requiredProperties =
     kafkaHosts ++
-      Map(
-        kafkaTopicsCompletedRetentionBytes -> 1024.MB.toBytes.toString,
-        kafkaTopicsCompletedRetentionMS -> 1.hour.toMillis.toString,
-        kafkaTopicsCompletedSegmentBytes -> 512.MB.toBytes.toString,
-        kafkaReplicationFactor -> "1") ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
