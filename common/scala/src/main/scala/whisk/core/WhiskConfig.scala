@@ -76,8 +76,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
   val kafkaHosts = this(WhiskConfig.kafkaHostList)
-  val redisHostName = this(WhiskConfig.redisHostName)
-  val redisHostPort = this(WhiskConfig.redisHostPort)
 
   val edgeHostName = this(WhiskConfig.edgeHostName)
 
@@ -219,10 +217,8 @@ object WhiskConfig {
 
   val kafkaHostList = "kafka.hosts"
   val zookeeperHostList = "zookeeper.hosts"
-  val redisHostName = "redis.host"
 
   private val edgeHostApiPort = "edge.host.apiport"
-  val redisHostPort = "redis.host.port"
 
   val invokerHostsList = "invoker.hosts"
   val dbHostsList = "db.hostsList"
