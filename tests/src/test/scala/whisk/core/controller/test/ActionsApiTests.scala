@@ -159,6 +159,29 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "get action using code query parameter" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
+
+    put(entityStore, action)
+
+    Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[JsObject]
+      response.fields("exec").asJsObject.fields should not(contain key "code")
+      responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
+    }
+
+    Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
+      Get(path) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response.fields("exec").asJsObject.fields("code") should be("??".toJson)
+        responseAs[WhiskAction] shouldBe a[WhiskAction]
+      }
+    }
+  }
+
   it should "report NotFound for get non existent action" in {
     implicit val tid = transid()
     Get(s"$collectionPath/xyz") ~> Route.seal(routes(creds)) ~> check {

@@ -203,6 +203,13 @@
                         "description": "Name of action to fetch",
                         "required": true,
                         "type": "string"
+                    },
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "description": "Include action code in the result",
+                        "required": false,
+                        "type": "boolean"
                     }
                 ],
                 "produces": [

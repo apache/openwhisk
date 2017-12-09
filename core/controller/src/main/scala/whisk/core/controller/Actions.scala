@@ -294,10 +294,24 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskAction, entityStore, entityName.toDocId, Some { action: WhiskAction =>
-      val mergedAction = env map { action inherit _ } getOrElse action
-      complete(OK, mergedAction)
-    })
+    parameter('code ? true) { code =>
+      code match {
+        case true =>
+          getEntity(WhiskAction, entityStore, entityName.toDocId, Some { action: WhiskAction =>
+            val mergedAction = env map {
+              action inherit _
+            } getOrElse action
+            complete(OK, mergedAction)
+          })
+        case false =>
+          getEntity(WhiskActionMetaData, entityStore, entityName.toDocId, Some { action: WhiskActionMetaData =>
+            val mergedAction = env map {
+              action inherit _
+            } getOrElse action
+            complete(OK, mergedAction)
+          })
+      }
+    }
   }
 
   /**
