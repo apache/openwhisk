@@ -26,7 +26,7 @@ import com.jayway.restassured.config.SSLConfig
 import common.WhiskProperties
 import spray.json.JsObject
 import spray.json.JsValue
-import spray.json.pimpString
+import spray.json._
 
 /**
  * Utilities for REST tests

@@ -18,8 +18,8 @@
 package whisk.core.entity
 
 import spray.json.RootJsonFormat
-import spray.json.pimpString
 import spray.json.JsString
+import spray.json._
 import scala.util.Try
 
 protected[entity] trait ArgNormalizer[T] {

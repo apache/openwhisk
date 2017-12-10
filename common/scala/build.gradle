@@ -18,8 +18,8 @@ dependencies {
     compile 'com.typesafe.akka:akka-stream_2.11:2.5.6'
     compile 'com.typesafe.akka:akka-slf4j_2.11:2.5.6'
 
-    compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
+    compile "com.typesafe.akka:akka-http-core_2.11:${gradle.akkahttp.version}"
+    compile "com.typesafe.akka:akka-http-spray-json_2.11:${gradle.akkahttp.version}"
 
     compile 'ch.qos.logback:logback-classic:1.2.3'
     compile 'org.slf4j:jcl-over-slf4j:1.7.25'

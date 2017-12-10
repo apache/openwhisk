@@ -22,8 +22,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import spray.json.pimpAny
-import spray.json.pimpString
+import spray.json._
 import whisk.common.PrintStreamLogging
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.size.SizeInt

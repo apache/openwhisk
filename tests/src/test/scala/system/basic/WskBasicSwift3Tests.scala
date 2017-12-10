@@ -26,7 +26,7 @@ import common.TestUtils
 import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.pimpString
+import spray.json._
 import spray.json.JsString
 import common.TestUtils.RunResult
 import spray.json.JsObject
