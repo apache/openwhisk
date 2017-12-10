@@ -30,5 +30,5 @@ gradle.ext.scalafmt = [
 ]
 
 gradle.ext.akkahttp = [
-        version: '10.0.11'
+    version: '10.0.11'
 ]
