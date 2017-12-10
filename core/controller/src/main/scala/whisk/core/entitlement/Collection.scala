@@ -47,7 +47,8 @@ import whisk.core.entity.types.EntityStore
  * @param activate the privilege for an activate (may be ACTIVATE or REJECT for example)
  * @param listLimit the default limit on number of entities returned from a collection on a list operation
  */
-protected[core] case class Collection protected (val path: String, val listLimit: Int = 30) {
+protected[core] case class Collection protected (val path: String,
+                                                 val defaultListLimit: Int = Collection.DEFAULT_LIST_LIMIT) {
   override def toString = path
 
   /** Determines the right to request for the resources and context. */
@@ -108,6 +109,10 @@ protected[core] case class Collection protected (val path: String, val listLimit
 protected[core] object Collection {
 
   protected[core] def requiredProperties = WhiskEntityStore.requiredProperties
+
+  /** Number of records allowed per query. */
+  protected[core] val DEFAULT_LIST_LIMIT = 30
+  protected[core] val MAX_LIST_LIMIT = 200
 
   protected[core] val ACTIONS = WhiskAction.collectionName
   protected[core] val TRIGGERS = WhiskTrigger.collectionName

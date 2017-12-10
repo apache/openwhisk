@@ -19,6 +19,10 @@ package whisk.core.controller
 
 import scala.concurrent.ExecutionContext
 
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.Uri
@@ -43,6 +47,7 @@ import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.types._
 import whisk.core.loadBalancer.LoadBalancerService
+import whisk.http.Messages
 
 /**
  * Abstract class which provides basic Directives which are used to construct route structures
@@ -111,6 +116,22 @@ protected[controller] object RestApiCommons {
         }
 
         JsonParser(input).asJsObject
+      }
+    }
+  }
+
+  /** Custom unmarshaller for query parameters "limit" for "list" operations. */
+  case class ListLimit(n: Int)
+
+  def stringToListLimit(collection: Collection): Unmarshaller[String, ListLimit] = {
+    Unmarshaller.strict[String, ListLimit] { value =>
+      Try { value.toInt } match {
+        case Success(n) if (n == 0)                                  => ListLimit(Collection.MAX_LIST_LIMIT)
+        case Success(n) if (n > 0 && n <= Collection.MAX_LIST_LIMIT) => ListLimit(n)
+        case Success(n) =>
+          throw new IllegalArgumentException(
+            Messages.maxListLimitExceeded(collection.path, n, Collection.MAX_LIST_LIMIT))
+        case Failure(t) => throw new IllegalArgumentException(Messages.listLimitIsNotAString)
       }
     }
   }

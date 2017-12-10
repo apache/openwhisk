@@ -21,9 +21,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-
 import org.apache.kafka.common.errors.RecordTooLargeException
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.StatusCodes._
@@ -32,12 +30,11 @@ import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.unmarshalling._
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
+import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
@@ -331,13 +328,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     // and would require finding all bindings in namespace and
     // joining the actions explicitly here.
     val docs = false
-    parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) { (skip, limit, count) =>
-      listEntities {
-        WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
-          val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
-          FilterEntityList.filter(actions, excludePrivate)
+    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
+      (skip, limit, count) =>
+        listEntities {
+          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
+            val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+            FilterEntityList.filter(actions, excludePrivate)
+          }
         }
-      }
     }
   }
 
@@ -682,6 +680,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       }
     }
   }
+
+  /** Custom unmarshaller for query parameters "limit" for "list" operations. */
+  private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
 }
 
 private case class TooManyActionsInSequence() extends IllegalArgumentException
