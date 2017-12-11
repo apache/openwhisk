@@ -62,3 +62,15 @@ Since SPI implementations are loaded from the classpath, and a specific implemen
 * Include all implementations, and only use the specified implementations.
 * Include some combination of defaults and alternative implementations, and use the specified implementations for the alternatives, and default implementations for the rest.
 
+## Including the implementation
+
+Base openwhisk docker images provide 2 extension points in the classpath for including the implementation.
+
+### Application Jars
+
+The application jars can be added to `$APP_HOME/ext-lib` for e.g. in `openwhisk/controller` image the implementation jars can be added to `/controller/ext-lib` and for `openwhisk/invoker` they can be added to `/invoker/ext-lib`.
+
+### Application Configuration
+
+The configuration files can be added to `$APP_HOME/config`.
+
