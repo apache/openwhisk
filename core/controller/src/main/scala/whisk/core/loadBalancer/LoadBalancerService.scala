@@ -324,7 +324,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
       allInvokers.flatMap { invokers =>
-        val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+        val healthyInvokers = invokers.filter(_._2 == Healthy)
+        val invokersToUse =
+          if (action.exec.pull) blackboxInvokers(healthyInvokers) else managedInvokers(healthyInvokers)
         val invokersWithUsage = invokersToUse.view.map {
           // Using a view defers the comparably expensive lookup to actual access of the element
           case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
