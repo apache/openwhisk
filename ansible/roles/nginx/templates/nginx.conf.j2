@@ -44,7 +44,7 @@ http {
     }
 
     map "$special_user:$http_x_ow_extra_logging" $extra_logging {
-      default              "off";
+      default "off";
       "special:off" off;
       "special:on" on;
       "special:" on;
