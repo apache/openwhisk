@@ -61,6 +61,7 @@ protected trait ControllerTestCommon
   override val instanceOrdinal = 0
   override val instance = InstanceId(instanceOrdinal)
   override val numberOfInstances = 1
+  override val tidStrides = 1
   val activeAckTopicIndex = InstanceId(instanceOrdinal)
 
   implicit val routeTestTimeout = RouteTestTimeout(90 seconds)

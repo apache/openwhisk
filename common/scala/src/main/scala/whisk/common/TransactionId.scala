@@ -241,12 +241,12 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-  val numberOfInstances: Int
+  val tidStrides: Int
   val instanceOrdinal: Int
 
-  private lazy val cnt = new AtomicInteger(numberOfInstances + instanceOrdinal)
+  private lazy val cnt = new AtomicInteger(tidStrides + instanceOrdinal)
 
   def transid(): TransactionId = {
-    TransactionId(cnt.addAndGet(numberOfInstances))
+    TransactionId(cnt.addAndGet(tidStrides))
   }
 }

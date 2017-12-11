@@ -83,7 +83,8 @@ class Controller(val instance: InstanceId,
                  implicit val logging: Logging)
     extends BasicRasService {
 
-  override val numberOfInstances = whiskConfig.controllerInstances.toInt
+  val numberOfInstances = whiskConfig.controllerInstances.toInt
+  override val tidStrides = whiskConfig.controllerTidStrides.toInt
   override val instanceOrdinal = instance.toInt
 
   TransactionId.controller.mark(
@@ -162,6 +163,7 @@ object Controller {
   // no default value specified, so it must appear in the properties file
   def requiredProperties =
     Map(WhiskConfig.controllerInstances -> null) ++
+    Map(WhiskConfig.controllerTidStrides -> null) ++
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       LoadBalancerService.requiredProperties ++

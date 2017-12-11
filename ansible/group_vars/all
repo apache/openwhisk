@@ -50,6 +50,7 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
+  tidStrides: "{{ groups['controllers'] | length }}"
   localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:
     provider: cluster
