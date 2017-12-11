@@ -26,7 +26,7 @@ import scala.math.BigDecimal.int2bigDecimal
 import scala.util.Try
 import akka.event.Logging.{InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
-import spray.json.{JsArray, JsBoolean, JsNumber, JsValue, RootJsonFormat}
+import spray.json._
 
 import whisk.core.ConfigKeys
 
@@ -225,12 +225,19 @@ object TransactionId {
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) =
-      JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
+    def write(t: TransactionId) = {
+      val baseJsArray = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+      if (t.meta.extraLogging)
+        JsArray(baseJsArray, JsBoolean(t.meta.extraLogging))
+      else
+        baseJsArray
+    }
 
     def read(value: JsValue) =
       Try {
         value match {
+          case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
+            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), false))
           case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
             TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
