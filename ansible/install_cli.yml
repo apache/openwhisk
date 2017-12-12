@@ -1,0 +1,7 @@
+---
+# This playbook installs the cli to {{ openwhisk_home }}/bin/wsk
+
+- hosts: ansible
+  tasks:
+    - include: tasks/install_cli.yml
+      when: mode == "deploy"

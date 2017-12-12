@@ -251,7 +251,6 @@ sdk:
 
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
-  nginxdir: "{{ nginx.confdir }}/cli/go/download"
   dir:
     become: "{{ cli_dir_become | default(false) }}"
 
@@ -292,41 +291,23 @@ catalog_repos:
     version: "HEAD"
     repo_update: "no"
 
+# The version of the openwhisk cli to use
 openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
 
-# The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
-# installation_mode can be specified into two modes: remote and local.
-# The mode remote means to download the available binaries from the releases page
-# of the official openwhisk cli repository. The mode local means to build the binaries
-# locally in a directory and get them from the local directory. The default value
-# for openwhisk is local.
-#
-# The name specifies the package name of the binaries in remote mode.
-#
-# The dest_name specifies the package name of the binaries in Nginx in remote mode.
-#
-# The location specifies the official website where Openwhisk CLI is hosted in
-# remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
-#
-
+# Where to find cli binaries
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('remote') }}"
-  local:
-    location: "{{ openwhisk_cli_home }}/bin"
   remote:
-    name: OpenWhisk_CLI
-    dest_name: OpenWhisk_CLI
-    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+    package_name: OpenWhisk_CLI
+    location_browse: "https://github.com/apache/incubator-openwhisk-cli/releases/{{ openwhisk_cli_tag }}"
+    location_download: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
-# The list of operating systems for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
+# The list of operating systems for which openwhisk cli binaries are available
 cli_os:
   - linux
   - mac
   - windows
 
-# The list of architectures for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
+# The list of architectures for which openwhisk cli binaries are available
 cli_arch:
   - amd64
   - 386
