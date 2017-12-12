@@ -12,10 +12,23 @@
     cli_download_name={{ openwhisk_cli.remote.package_name }}-{{ openwhisk_cli_tag }}-mac-amd64.zip
   when: ('environments/docker-machine' in inventory_dir ) or (ansible_os_family == "Darwin")
 
+
+- name: "set the http header for downloading the binary packages"
+  set_fact:
+    headers="{{ openwhisk_cli.remote.headers }}"
+  when: openwhisk_cli.remote.headers is defined
+
+- name: "set the http header for downloading the binary packages to empty"
+  set_fact:
+    headers=""
+  when: openwhisk_cli.remote.headers is not defined
+
+
 - name: "download cli package to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
     url="{{ openwhisk_cli.remote.location_download }}/{{ cli_download_name }}"
+    headers="{{ headers }}"
     dest="{{ openwhisk_home }}/bin/{{ cli_download_name }}"
     mode=0755
 
