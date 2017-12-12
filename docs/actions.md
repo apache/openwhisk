@@ -8,7 +8,7 @@ Actions can be explicitly invoked, or run in response to an event. In either cas
 
 ## Prerequisites
 
-You will need to use OpenWhisk CLI. Find out how to use it from with a VM installation [here](https://github.com/apache/incubator-openwhisk/blob/master/tools/vagrant/README.md#using-cli-from-outside-the-vm), or download binaries for your platform [here](https://github.com/apache/incubator-openwhisk-cli/releases).
+You will need to use OpenWhisk CLI. Read how to use it when running OpenWhisk from a VM [here](https://github.com/apache/incubator-openwhisk/blob/master/tools/vagrant/README.md#using-cli-from-outside-the-vm). Or download binaries for your platform [here](https://github.com/apache/incubator-openwhisk-cli/releases). You can also download the CLI directly from your local installation at the _https://<IP_ADDRESS>/cli/go/download/_ path.
 
 Learn how to create, invoke, and debug actions in your preferred development environment:
 
