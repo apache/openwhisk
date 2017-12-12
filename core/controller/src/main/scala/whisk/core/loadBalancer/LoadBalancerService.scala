@@ -152,10 +152,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
-        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
-        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
-        // to that invoker topic.
-        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
           entry.promise.trySuccess(response)
         } else {
@@ -165,8 +162,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
         // for activations that already timed out.
-        // For both cases, it looks like the invoker works again and we should send the status of
-        // the activation to the invokerPool.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
