@@ -124,6 +124,7 @@ controller:
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
   ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
+  loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -166,6 +167,7 @@ invoker:
   useRunc: "{{ invoker_use_runc | default(true) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
+  loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"

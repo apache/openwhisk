@@ -102,6 +102,8 @@
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
 
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      
+      "CONFIG_logback_log_level": "{{ controller.loglevel }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:
