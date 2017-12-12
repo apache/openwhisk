@@ -291,16 +291,23 @@ catalog_repos:
     version: "HEAD"
     repo_update: "no"
 
-# The version of the openwhisk cli to which we will redirect download requests
+# The version of the openwhisk cli to use
 openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
 
-# The list of operating systems for which openwhisk cli binaries are available,
+# Where to find cli binaries
+openwhisk_cli:
+  remote:
+    package_name: OpenWhisk_CLI
+    location_browse: "https://github.com/apache/incubator-openwhisk-cli/releases/{{ openwhisk_cli_tag }}"
+    location_download: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+
+# The list of operating systems for which openwhisk cli binaries are available
 cli_os:
   - linux
   - mac
   - windows
 
-# The list of architectures for which openwhisk cli binaries are available,
+# The list of architectures for which openwhisk cli binaries are available
 cli_arch:
   - amd64
   - 386

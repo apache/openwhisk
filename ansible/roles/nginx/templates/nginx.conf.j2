@@ -94,14 +94,14 @@ http {
 {% for os in cli_os %}
     {% for arch in cli_arch %}
         location /cli/go/download/{{ os }}/{{ arch }} {
-            return 301 https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}/OpenWhisk_CLI-{{ openwhisk_cli_tag }}-{{ os }}-{{ arch }}.{% if os == 'linux' %}tgz{% else %}zip{% endif %};
+            return 301 {{ openwhisk_cli.remote.location_download }}/{{ openwhisk_cli.remote.package_name }}-{{ openwhisk_cli_tag }}-{{ os }}-{{ arch }}{% if os == 'linux' %}.tgz{% else %}.zip{% endif %};
         }
     {% endfor %}
 {% endfor %}
 
         # redirect top-level cli downloads to the {{ openwhisk_cli_tag }} openwhisk-cli release.
         location /cli/go/download {
-            return 301 https://github.com/apache/incubator-openwhisk-cli/releases/{{ openwhisk_cli_tag }};
+            return 301 {{ openwhisk_cli.remote.location_browse }};
         }
     }
 }

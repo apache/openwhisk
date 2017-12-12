@@ -1,0 +1,27 @@
+---
+
+# Download the cli to openwhisk_home/bin and unarchive it.
+
+- name: "set the file name to download for linux"
+  set_fact:
+    cli_download_name={{ openwhisk_cli.remote.package_name }}-{{ openwhisk_cli_tag }}-linux-amd64.tgz
+  when: ('environments/docker-machine' not in inventory_dir) and (ansible_os_family != "Darwin")
+
+- name: "set the file name to download for mac"
+  set_fact:
+    cli_download_name={{ openwhisk_cli.remote.package_name }}-{{ openwhisk_cli_tag }}-mac-amd64.zip
+  when: ('environments/docker-machine' in inventory_dir ) or (ansible_os_family == "Darwin")
+
+- name: "download cli package to openwhisk home at {{ openwhisk_home }}"
+  local_action: >
+    get_url
+    url="{{ openwhisk_cli.remote.location_download }}/{{ cli_download_name }}"
+    dest="{{ openwhisk_home }}/bin/{{ cli_download_name }}"
+    mode=0755
+
+- name: "unarchive cli {{ openwhisk_home }}/bin/wsk"
+  local_action: >
+    unarchive
+    src="{{ openwhisk_home }}/bin/{{ cli_download_name }}"
+    dest="{{ openwhisk_home }}/bin"
+    creates="{{ openwhisk_home }}/bin/wsk"
