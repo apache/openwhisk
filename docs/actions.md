@@ -6,6 +6,10 @@ Actions are stateless code snippets that run on the OpenWhisk platform. An actio
 
 Actions can be explicitly invoked, or run in response to an event. In either case, each run of an action results in an activation record that is identified by a unique activation ID. The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value. Actions can also be composed of calls to other actions or a defined sequence of actions.
 
+## Prerequisites
+
+You will need to use OpenWhisk CLI. Read how to use it when running OpenWhisk from a VM [here](https://github.com/apache/incubator-openwhisk/blob/master/tools/vagrant/README.md#using-cli-from-outside-the-vm). Or download binaries for your platform [here](https://github.com/apache/incubator-openwhisk-cli/releases). You can also download the CLI directly from your local installation at the _https://<IP_ADDRESS>/cli/go/download/_ path.
+
 Learn how to create, invoke, and debug actions in your preferred development environment:
 
 * [JavaScript](#creating-and-invoking-javascript-actions)
@@ -51,7 +55,7 @@ Review the following steps and examples to create your first JavaScript action.
   ok: created action hello
   ```
   The CLI automatically infers the type of the action by using the source file extension. For `.js` source files, the action runs by using a Node.js 6 runtime. You can also create an action that runs with Node.js 8 by explicitly specifying the parameter `--kind nodejs:8`. For more information, see the Node.js 6 vs 8 [reference](./openwhisk_reference.html#openwhisk_ref_javascript_environments).
-  
+
 3. List the actions that you have created:
 
   ```
