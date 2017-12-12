@@ -310,8 +310,8 @@ openwhisk_cli:
 #    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 routemgmt:
-  url: https://github.com/apache/incubator-openwhisk-apigateway.git
-  location: "{{ openwhisk_home }}/../openwhisk-cli-gw"
+  url: https://github.com/apache/incubator-openwhisk-cli.git
+  location: "{{ openwhisk_home }}/../openwhisk-cli"
   version: "HEAD"
   repo_update: "no"
 
