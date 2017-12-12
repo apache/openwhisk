@@ -63,7 +63,6 @@ import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
 import akka.http.scaladsl.HttpsConnectionContext
 import akka.http.scaladsl.settings.ConnectionPoolSettings
-import akka.http.scaladsl.settings.ClientConnectionSettings
 
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
@@ -1182,7 +1181,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
-  val idleTimeout = 5 minutes
+  val idleTimeout = 90 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
@@ -1226,12 +1225,8 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
     val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
-    val connectionSettings = ClientConnectionSettings(actorSystem).withIdleTimeout(idleTimeout)
     val connectionPoolSettings =
-      ConnectionPoolSettings(actorSystem)
-        .withMaxOpenRequests(maxOpenRequest)
-        .withIdleTimeout(idleTimeout)
-        .withConnectionSettings(connectionSettings)
+      ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest).withIdleTimeout(idleTimeout)
     val pool = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
       host = WhiskProperties.getApiHost,
       connectionContext = connectionContext,
