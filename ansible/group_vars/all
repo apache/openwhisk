@@ -318,6 +318,12 @@ openwhisk_cli:
     dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
+routemgmt:
+  url: https://github.com/apache/incubator-openwhisk-cli.git
+  location: "{{ openwhisk_home }}/../openwhisk-cli"
+  version: "HEAD"
+  repo_update: "no"
+
 # The list of operating systems for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
 cli_os:

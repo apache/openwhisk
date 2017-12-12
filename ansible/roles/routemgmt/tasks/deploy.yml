@@ -1,6 +1,13 @@
 ---
 # Install the API Gateway route management actions.
+- name: download routemgmt catalogue/repo
+  git:
+    repo: "{{ routemgmt.url }}"
+    dest: "{{ routemgmt.location }}"
+    update: "{{ routemgmt.repo_update }}"
+    version: "{{ routemgmt.version }}"
+
 - name: install route management actions
-  shell: ./installRouteMgmt.sh {{ catalog_auth_key }} {{ groups['edge'] | first }} {{ catalog_namespace }} {{ cli.path }} chdir="{{ openwhisk_home }}/ansible/roles/routemgmt/files"
+  shell: ./installRouteMgmt.sh {{ catalog_auth_key }} {{ groups['edge'] | first }} {{ catalog_namespace }} {{ cli.path }} {{ apigw_auth_user }} {{apigw_auth_pwd}} {{apigw_host_v2}} chdir="{{ routemgmt.location }}/routemgmt"
   environment:
     OPENWHISK_HOME: "{{ openwhisk_home }}"
