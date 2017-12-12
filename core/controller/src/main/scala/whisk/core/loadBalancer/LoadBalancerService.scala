@@ -162,8 +162,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
         // for activations that already timed out.
-        // For both cases, it looks like the invoker works again and we should send the status of
-        // the activation to the invokerPool.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
