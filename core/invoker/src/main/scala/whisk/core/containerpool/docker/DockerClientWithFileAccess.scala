@@ -20,6 +20,7 @@ package whisk.core.containerpool.docker
 import java.io.File
 import java.nio.file.Paths
 
+import akka.actor.ActorSystem
 import akka.stream.alpakka.file.scaladsl.FileTailSource
 import akka.stream.scaladsl.{FileIO, Source => AkkaSource}
 import akka.util.ByteString
@@ -37,10 +38,10 @@ import whisk.core.containerpool.ContainerAddress
 import scala.io.Source
 import scala.concurrent.duration.FiniteDuration
 
-class DockerClientWithFileAccess(
-  dockerHost: Option[String] = None,
-  containersDirectory: File = Paths.get("containers").toFile)(executionContext: ExecutionContext)(implicit log: Logging)
-    extends DockerClient(dockerHost)(executionContext)(log)
+class DockerClientWithFileAccess(dockerHost: Option[String] = None,
+                                 containersDirectory: File = Paths.get("containers").toFile)(
+  executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
+    extends DockerClient(dockerHost)(executionContext)
     with DockerApiWithFileAccess {
 
   implicit private val ec = executionContext
