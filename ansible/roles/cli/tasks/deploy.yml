@@ -1,14 +1,15 @@
 ---
 # Tasks for handling CLI customization and publishing
 
+- set_fact:
+    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+
 - name: "ensure nginx directory for cli exists"
   file:
     path: "{{ cli.nginxdir  }}"
     state: directory
   become: "{{ cli.dir.become }}"
-
-- set_fact:
-    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+  when: cli_installation_mode != "remote_redirect"
 
 - include: docker_login.yml
 
@@ -26,3 +27,7 @@
   when: cli_installation_mode == "local"
 
 - include: download_cli.yml
+  when: cli_installation_mode != "remote_redirect"
+
+- include: download_remote_redirect_cli.yml
+  when: cli_installation_mode == "remote_redirect"

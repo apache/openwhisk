@@ -152,6 +152,10 @@ public class WhiskProperties {
         return whiskProperties.getProperty("use.cli.download").equals("true");
     }
 
+    public static boolean nginxCLIRedirect() {
+        return whiskProperties.getProperty("nginx.cli.redirect").equalsIgnoreCase("true");
+    }
+
     public static String[] getInvokerHosts() {
         // split of empty string is non-empty array
         String hosts = whiskProperties.getProperty("invoker.hosts");
