@@ -215,6 +215,7 @@ object TransactionId {
   val loadbalancer = TransactionId(-120) // Loadbalancer thread
   val invokerHealth = TransactionId(-121) // Invoker supervision
   val controller = TransactionId(-130) // Controller startup
+  val dbBatcher = TransactionId(-140) // Database batcher
 
   def apply(tid: BigDecimal): TransactionId = {
     Try {
