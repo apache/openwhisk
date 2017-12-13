@@ -29,10 +29,13 @@ whisk:
 #   defaultImageTag: the default image tag
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
+#                             to skip docker pull in invoker even if the image is not part of the blackboxe set
 #
 runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
 
 runtimesManifestDefault:
+  bypassPullForLocalImages: "{{ bypass_pull_for_local_images | default(false) }}"
   defaultImagePrefix: "openwhisk"
   defaultImageTag: "latest"
   runtimes:

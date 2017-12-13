@@ -499,10 +499,17 @@ class WskActivation() extends RunWskCmd with HasActivation with WaitFor with Bas
    *
    * @param duration exits console after duration
    * @param since (optional) time travels back to activation since given duration
+   * @param actionName (optional) name of entity to filter activation records on.
    */
-  override def console(duration: Duration, since: Option[Duration] = None, expectedExitCode: Int = SUCCESS_EXIT)(
-    implicit wp: WskProps): RunResult = {
-    val params = Seq(noun, "poll", "--auth", wp.authKey, "--exit", duration.toSeconds.toString) ++ {
+  override def console(duration: Duration,
+                       since: Option[Duration] = None,
+                       expectedExitCode: Int = SUCCESS_EXIT,
+                       actionName: Option[String] = None)(implicit wp: WskProps): RunResult = {
+    val params = Seq(noun, "poll") ++ {
+      actionName map { name =>
+        Seq(name)
+      } getOrElse Seq()
+    } ++ Seq("--auth", wp.authKey, "--exit", duration.toSeconds.toString) ++ {
       since map { s =>
         Seq("--since-seconds", s.toSeconds.toString)
       } getOrElse Seq()
@@ -563,7 +570,8 @@ class WskActivation() extends RunWskCmd with HasActivation with WaitFor with Bas
   override def get(activationId: Option[String] = None,
                    expectedExitCode: Int = SUCCESS_EXIT,
                    fieldFilter: Option[String] = None,
-                   last: Option[Boolean] = None)(implicit wp: WskProps): RunResult = {
+                   last: Option[Boolean] = None,
+                   summary: Option[Boolean] = None)(implicit wp: WskProps): RunResult = {
     val params = {
       activationId map { a =>
         Seq(a)
@@ -575,6 +583,10 @@ class WskActivation() extends RunWskCmd with HasActivation with WaitFor with Bas
     } ++ {
       last map { l =>
         Seq("--last")
+      } getOrElse Seq()
+    } ++ {
+      summary map { s =>
+        Seq("--summary")
       } getOrElse Seq()
     }
     cli(wp.overrides ++ Seq(noun, "get", "--auth", wp.authKey) ++ params, expectedExitCode)

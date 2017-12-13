@@ -617,8 +617,10 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
    * @param duration exits console after duration
    * @param since (optional) time travels back to activation since given duration
    */
-  override def console(duration: Duration, since: Option[Duration] = None, expectedExitCode: Int = SUCCESS_EXIT)(
-    implicit wp: WskProps): RestResult = {
+  override def console(duration: Duration,
+                       since: Option[Duration] = None,
+                       expectedExitCode: Int = SUCCESS_EXIT,
+                       actionName: Option[String] = None)(implicit wp: WskProps): RestResult = {
     require(duration > 1.second, "duration must be at least 1 second")
     val sinceTime = {
       val now = System.currentTimeMillis()
@@ -743,7 +745,8 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
   override def get(activationId: Option[String],
                    expectedExitCode: Int = OK.intValue,
                    fieldFilter: Option[String] = None,
-                   last: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
+                   last: Option[Boolean] = None,
+                   summary: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
     val r = activationId match {
       case Some(id) => {
         val resp = requestEntity(GET, getNamePath(noun, id))

@@ -123,6 +123,15 @@ object WhiskActivation
     with WhiskEntityQueries[WhiskActivation]
     with DefaultJsonProtocol {
 
+  /** Some field names for annotations */
+  val pathAnnotation = "path"
+  val kindAnnotation = "kind"
+  val limitsAnnotation = "limits"
+  val topmostAnnotation = "topmost"
+  val causedByAnnotation = "causedBy"
+  val initTimeAnnotation = "initTime"
+  val waitTimeAnnotation = "waitTime"
+
   private implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
@@ -133,7 +142,7 @@ object WhiskActivation
           case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
           case _           => deserializationError("timetsamp malformed")
         }
-      } getOrElse deserializationError("timetsamp malformed 2")
+      } getOrElse deserializationError("timetsamp malformed")
   }
 
   override val collectionName = "activations"

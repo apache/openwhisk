@@ -3,6 +3,7 @@ config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 docker_registry: ""
 docker_dns: ""
+bypass_pull_for_local_images: true
 
 db_prefix: whisk_local_
 

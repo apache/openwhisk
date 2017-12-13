@@ -32,7 +32,6 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.stream.ActorMaterializer
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -206,7 +205,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                 case _                      => ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
               }
               val now = Instant.now
-              val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+              val causedBy = if (msg.causedBySequence) {
+                Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
+              } else None
               val activation = WhiskActivation(
                 activationId = msg.activationId,
                 namespace = msg.activationNamespace,
@@ -219,7 +220,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                 duration = Some(0),
                 response = response,
                 annotations = {
-                  Parameters("path", msg.action.toString.toJson) ++ causedBy
+                  Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++ causedBy
                 })
 
               activationFeed ! MessageFeed.Processed

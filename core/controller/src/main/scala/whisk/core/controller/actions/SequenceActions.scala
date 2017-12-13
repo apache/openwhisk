@@ -199,16 +199,14 @@ protected[actions] trait SequenceActions {
     // compute max memory
     val sequenceLimits = accounting.maxMemory map { maxMemoryAcrossActionsInSequence =>
       Parameters(
-        "limits",
+        WhiskActivation.limitsAnnotation,
         ActionLimits(action.limits.timeout, MemoryLimit(maxMemoryAcrossActionsInSequence MB), action.limits.logs).toJson)
-    } getOrElse (Parameters())
+    }
 
     // set causedBy if not topmost sequence
     val causedBy = if (!topmost) {
-      Parameters("causedBy", JsString("sequence"))
-    } else {
-      Parameters()
-    }
+      Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
+    } else None
 
     // create the whisk activation
     WhiskActivation(
@@ -223,9 +221,9 @@ protected[actions] trait SequenceActions {
       logs = accounting.finalLogs,
       version = action.version,
       publish = false,
-      annotations = Parameters("topmost", JsBoolean(topmost)) ++
-        Parameters("path", action.fullyQualifiedName(false).toString) ++
-        Parameters("kind", "sequence") ++
+      annotations = Parameters(WhiskActivation.topmostAnnotation, JsBoolean(topmost)) ++
+        Parameters(WhiskActivation.pathAnnotation, JsString(action.fullyQualifiedName(false).asString)) ++
+        Parameters(WhiskActivation.kindAnnotation, JsString(Exec.SEQUENCE)) ++
         causedBy ++
         sequenceLimits,
       duration = Some(accounting.duration))
