@@ -16,7 +16,6 @@ dependencies {
 
     compile 'org.apache.curator:curator-recipes:4.0.0', { exclude group: 'org.apache.zookeeper', module:'zookeeper' }
     compile 'org.apache.zookeeper:zookeeper:3.4.11'
-    compile 'com.lightbend.akka:akka-stream-alpakka-file_2.11:0.14'
 }
 
 tasks.withType(ScalaCompile) {

@@ -21,6 +21,8 @@ dependencies {
     compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
     compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
 
+    compile 'com.lightbend.akka:akka-stream-alpakka-file_2.11:0.15'
+
     compile 'ch.qos.logback:logback-classic:1.2.3'
     compile 'org.slf4j:jcl-over-slf4j:1.7.25'
     compile 'org.slf4j:log4j-over-slf4j:1.7.25'
