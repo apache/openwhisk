@@ -101,4 +101,3 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: inventory_hostname == coordinator
