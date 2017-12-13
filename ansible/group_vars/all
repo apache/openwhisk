@@ -124,6 +124,7 @@ controller:
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
   ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
+  loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -135,23 +136,6 @@ kafka:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
-  topics:
-    completed:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_completed_retentionMS | default(3600000) }}"
-    health:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_health_retentionMS | default(3600000) }}"
-    invoker:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_invoker_retentionMS | default(172800000) }}"
-    cacheInvalidation:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_cacheInvalidation_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
@@ -183,7 +167,10 @@ invoker:
   useRunc: "{{ invoker_use_runc | default(true) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
+  loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
+userLogs:
+  spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"

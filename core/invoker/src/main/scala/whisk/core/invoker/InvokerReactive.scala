@@ -63,6 +63,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val cfg = config
 
   private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
 
   /**
    * Factory used by the ContainerProxy to physically create a new container.
@@ -97,7 +98,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val msgProvider = SpiLoader.get[MessagingProvider]
   val consumer = msgProvider.getConsumer(
     config,
-    "invokers",
+    topic,
     topic,
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)

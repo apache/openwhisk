@@ -20,7 +20,7 @@ package whisk.core.containerpool.logging
 import akka.actor.ActorSystem
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import whisk.spi.Spi
 
 import scala.concurrent.Future
@@ -54,11 +54,17 @@ trait LogStore {
    * record in the database.
    *
    * @param transid transaction the activation ran in
+   * @param user the user who ran the activation
+   * @param activation the activation record
    * @param container container used by the activation
    * @param action action that was activated
    * @return logs for the given activation
    */
-  def collectLogs(transid: TransactionId, container: Container, action: ExecutableWhiskAction): Future[ActivationLogs]
+  def collectLogs(transid: TransactionId,
+                  user: Identity,
+                  activation: WhiskActivation,
+                  container: Container,
+                  action: ExecutableWhiskAction): Future[ActivationLogs]
 
   /**
    * Fetch relevant logs for the given activation from the store.

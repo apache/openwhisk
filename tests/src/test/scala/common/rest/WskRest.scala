@@ -1181,7 +1181,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
-  val idleTimeout = 5 minutes
+  val idleTimeout = 90 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")

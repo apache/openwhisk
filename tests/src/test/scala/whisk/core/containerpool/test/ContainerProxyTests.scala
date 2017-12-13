@@ -151,8 +151,13 @@ class ContainerProxyTests
   }
 
   def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs(Vector.empty))) =
-    LoggedFunction { (transid: TransactionId, container: Container, action: ExecutableWhiskAction) =>
-      response
+    LoggedFunction {
+      (transid: TransactionId,
+       user: Identity,
+       activation: WhiskActivation,
+       container: Container,
+       action: ExecutableWhiskAction) =>
+        response
     }
 
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation) =>

@@ -207,12 +207,12 @@ For the `whisk.error()` you can return a rejected Promise (i.e. Promise.reject).
 ### JavaScript runtime environments
 
 JavaScript actions can be executed in Node.js version 6 or Node.js version 8.
-Currently actions are executed by default in a Node.js version 6.12.0 environment.  
+Currently actions are executed by default in a Node.js version 6.12.2 environment.  
 
 ### Node.js version 6 environment
-The Node.js 6.12.0 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
+The Node.js 6.12.2 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
 
-The following packages are available to be used in the Node.js 6.12.0 environment:
+The following packages are available to be used in the Node.js 6.12.2 environment:
 
 - [apn v2.1.2](https://www.npmjs.com/package/apn) - A Node.js module for interfacing with the Apple Push Notification service.
 - [async v2.1.4](https://www.npmjs.com/package/async) - Provides functions for working with asynchronous functions.
@@ -238,7 +238,7 @@ The following packages are available to be used in the Node.js 6.12.0 environmen
 - [node-uuid v1.4.7](https://www.npmjs.com/package/node-uuid) - Deprecated UUID packaged.
 - [nodemailer v2.6.4](https://www.npmjs.com/package/nodemailer) - Send e-mails from Node.js – easy as cake!
 - [oauth2-server v2.4.1](https://www.npmjs.com/package/oauth2-server) - Complete, compliant, and well tested module for implementing an OAuth2 Server/Provider with express in Node.js.
-- [openwhisk v3.10.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.11.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 - [pkgcloud v1.4.0](https://www.npmjs.com/package/pkgcloud) - pkgcloud is a standard library for Node.js that abstracts away differences among multiple cloud providers.
 - [process v0.11.9](https://www.npmjs.com/package/process) - Require('process'); just like any other module.
 - [pug v2.0.0-beta6](https://www.npmjs.com/package/pug) - Implements the Pug templating language.
@@ -267,11 +267,11 @@ The following packages are available to be used in the Node.js 6.12.0 environmen
 - [yauzl v2.7.0](https://www.npmjs.com/package/yauzl) - Yet another unzip library for node. For zipping.
 
 ### Node.js version 8 environment
-The Node.js version 8.9.1 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:8' when creating or updating an Action.
+The Node.js version 8.9.3 environment is used if the `--kind` flag is explicitly specified with a value of 'nodejs:8' when creating or updating an Action.
 
-The following packages are pre-installed in the Node.js version 8.9.1 environment:
+The following packages are pre-installed in the Node.js version 8.9.3 environment:
 
-- [openwhisk v3.10.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.11.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 
 ### Packaging npm packages with your actions
 For any `npm` packages that are not pre-installed in the Node.js environment, you can bundle them as dependencies when you create or update your action.

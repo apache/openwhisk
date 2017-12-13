@@ -76,8 +76,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
   val kafkaHosts = this(WhiskConfig.kafkaHostList)
-  val redisHostName = this(WhiskConfig.redisHostName)
-  val redisHostPort = this(WhiskConfig.redisHostPort)
 
   val edgeHostName = this(WhiskConfig.edgeHostName)
 
@@ -95,14 +93,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dbWhisk = this(WhiskConfig.dbWhisk)
   val dbActivations = this(WhiskConfig.dbActivations)
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
-
-  val kafkaTopicsInvokerRetentionBytes = this(WhiskConfig.kafkaTopicsInvokerRetentionBytes)
-  val kafkaTopicsInvokerRetentionMS = this(WhiskConfig.kafkaTopicsInvokerRetentionMS)
-  val kafkaTopicsInvokerSegmentBytes = this(WhiskConfig.kafkaTopicsInvokerSegmentBytes)
-  val kafkaTopicsCompletedRetentionBytes = this(WhiskConfig.kafkaTopicsCompletedRetentionBytes)
-  val kafkaTopicsCompletedRetentionMS = this(WhiskConfig.kafkaTopicsCompletedRetentionMS)
-  val kafkaTopicsCompletedSegmentBytes = this(WhiskConfig.kafkaTopicsCompletedSegmentBytes)
-  val kafkaReplicationFactor = this(WhiskConfig.kafkaReplicationFactor)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
@@ -227,10 +217,8 @@ object WhiskConfig {
 
   val kafkaHostList = "kafka.hosts"
   val zookeeperHostList = "zookeeper.hosts"
-  val redisHostName = "redis.host"
 
   private val edgeHostApiPort = "edge.host.apiport"
-  val redisHostPort = "redis.host.port"
 
   val invokerHostsList = "invoker.hosts"
   val dbHostsList = "db.hostsList"
@@ -241,14 +229,6 @@ object WhiskConfig {
   val zookeeperHosts = Map(zookeeperHostList -> null)
 
   val runtimesManifest = "runtimes.manifest"
-
-  val kafkaTopicsInvokerRetentionBytes = "kafka.topics.invoker.retentionBytes"
-  val kafkaTopicsInvokerRetentionMS = "kafka.topics.invoker.retentionMS"
-  val kafkaTopicsInvokerSegmentBytes = "kafka.topics.invoker.segmentBytes"
-  val kafkaTopicsCompletedRetentionBytes = "kafka.topics.completed.retentionBytes"
-  val kafkaTopicsCompletedRetentionMS = "kafka.topics.completed.retentionMS"
-  val kafkaTopicsCompletedSegmentBytes = "kafka.topics.completed.segmentBytes"
-  val kafkaReplicationFactor = "kafka.replicationFactor"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"

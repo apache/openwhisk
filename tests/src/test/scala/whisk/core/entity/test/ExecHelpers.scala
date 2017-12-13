@@ -27,6 +27,9 @@ import whisk.core.entity._
 import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.ExecManifest._
 
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+
 trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   self: Suite =>
 
@@ -38,6 +41,9 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val SWIFT = "swift"
   protected val SWIFT3 = "swift:3.1.1"
   protected val SWIFT3_IMAGE = "action-swift-v3.1.1"
+  protected val JAVA_DEFAULT = "java"
+
+  private def attFmt[T: JsonFormat] = Attachments.serdes[T]
 
   protected def imagename(name: String) = {
     var image = s"${name}action".replace(":", "")
@@ -62,13 +68,16 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     js6(code, main)
   }
 
-  protected def js6MetaData(code: String, main: Option[String] = None) = {
+  protected def js6MetaData(main: Option[String] = None) = {
     CodeExecMetaDataAsString(
       RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)))
   }
 
-  protected def jsDefaultMetaData(code: String, main: Option[String] = None) = {
-    js6MetaData(code, main)
+  protected def javaDefault(code: String, main: Option[String] = None) = {
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(JAVA_DEFAULT).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim))
   }
 
   protected def swift(code: String, main: Option[String] = None) = {

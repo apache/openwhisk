@@ -89,13 +89,14 @@ case object ContainerRemoved
  * @param unusedTimeout time after which the container is automatically thrown away
  * @param pauseGrace time to wait for new work before pausing the container
  */
-class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-                     sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
-                     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
-                     collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-                     instance: InstanceId,
-                     unusedTimeout: FiniteDuration,
-                     pauseGrace: FiniteDuration)
+class ContainerProxy(
+  factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+  sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+  storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+  collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
+  instance: InstanceId,
+  unusedTimeout: FiniteDuration,
+  pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -367,7 +368,7 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
         val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
-        collectLogs(tid, container, job.action)
+        collectLogs(tid, job.msg.user, activation, container, job.action)
           .andThen {
             case Success(_) => tid.finished(this, start)
             case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
@@ -394,13 +395,14 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
 }
 
 object ContainerProxy {
-  def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-            ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
-            store: (TransactionId, WhiskActivation) => Future[Any],
-            collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-            instance: InstanceId,
-            unusedTimeout: FiniteDuration = 10.minutes,
-            pauseGrace: FiniteDuration = 50.milliseconds) =
+  def props(
+    factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+    ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+    store: (TransactionId, WhiskActivation) => Future[Any],
+    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
+    instance: InstanceId,
+    unusedTimeout: FiniteDuration = 10.minutes,
+    pauseGrace: FiniteDuration = 50.milliseconds) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
