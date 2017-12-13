@@ -52,20 +52,24 @@ class WskRestEntitlementTests extends WskEntitlementTests {
     val packages = packageListResultRest.getBodyListJsObject()
     val ns = s"$namespace/$packageName"
     packages.exists(pack =>
-      RestResult.getField(pack, "namespace") == ns && RestResult.getField(pack, "name") == actionName)
+      RestResult.getField(pack, "namespace") == ns && RestResult.getField(pack, "name") == actionName) shouldBe true
   }
 
   override def verifyPackageSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val packageListResultRest = packageList.asInstanceOf[RestResult]
     val packages = packageListResultRest.getBodyListJsObject()
-    packages.exists(pack =>
-      RestResult.getField(pack, "namespace") == namespace && RestResult.getField(pack, "name") == packageName)
+    packages.exists(
+      pack =>
+        RestResult.getField(pack, "namespace") == namespace && RestResult
+          .getField(pack, "name") == packageName) shouldBe true
   }
 
   override def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val packageListResultRest = packageList.asInstanceOf[RestResult]
     val packages = packageListResultRest.getBodyListJsObject()
-    packages.exists(pack => RestResult.getField(pack, "namespace") != namespace)
-    packages.exists(pack => RestResult.getField(pack, "name") != packageName)
+    packages.exists(
+      pack =>
+        RestResult.getField(pack, "namespace") == namespace && RestResult
+          .getField(pack, "name") == packageName) shouldBe false
   }
 }

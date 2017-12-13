@@ -37,8 +37,8 @@ class WskRestRuleTests extends WskRuleTests {
     ruleEnable.getField("status") shouldBe "active"
     val ruleDisable = wsk.rule.get(ruleName)
     ruleDisable.getField("status") shouldBe "inactive"
-    rules.exists(rule => RestResult.getField(rule, "name") == ruleNameEnable)
-    rules.exists(rule => RestResult.getField(rule, "name") == ruleName)
+    rules.exists(rule => RestResult.getField(rule, "name") == ruleNameEnable) shouldBe true
+    rules.exists(rule => RestResult.getField(rule, "name") == ruleName) shouldBe true
     ruleListResultRest.respData should not include ("Unknown")
   }
 }
