@@ -155,6 +155,12 @@ class DockerClient(dockerHost: Option[String] = None)(executionContext: Executio
       runCmd("pull", image).map(_ => ()).andThen { case _ => pullsInFlight.remove(image) }
     })
 
+  def imagePresent(image: String)(implicit transid: TransactionId): Future[String] = {
+    // --format only added to keep the output minimal
+    val cmd = dockerCmd ++ Seq("inspect", "--format={{.Config.Image}}", image)
+    executeProcess(cmd: _*)
+  }
+
   def isOomKilled(id: ContainerId)(implicit transid: TransactionId): Future[Boolean] =
     runCmd("inspect", id.asString, "--format", "{{.State.OOMKilled}}").map(_.toBoolean)
 
@@ -233,6 +239,14 @@ trait DockerApi {
    * @return a Future completing once the pull is complete
    */
   def pull(image: String)(implicit transid: TransactionId): Future[Unit]
+
+  /**
+   * Checks if image is present locally.
+   *
+   * @param image the image to check
+   * @return a Future completing successful wif the image is present locally, or failing if not
+   */
+  def imagePresent(image: String)(implicit transid: TransactionId): Future[String]
 
   /**
    * Determines whether the given container was killed due to
