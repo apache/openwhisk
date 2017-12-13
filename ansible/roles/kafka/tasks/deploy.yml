@@ -6,7 +6,7 @@
     kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
 
 - name: "pull the wurstmeister/kafka:{{ kafka.version }} image"
-  shell: "docker pull {{ kafka_image }}
+  shell: "docker pull {{ kafka_image }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 

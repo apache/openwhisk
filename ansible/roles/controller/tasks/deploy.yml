@@ -93,6 +93,7 @@
       "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"
 
+      "AKKA_ACTOR_PROVIDER": "{{ controller.akka.provider }}"
       "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
       "CONFIG_akka_remote_netty_tcp_hostname": "{{ controller.akka.cluster.host[groups['controllers'].index(inventory_hostname)] }}"
       "CONFIG_akka_remote_netty_tcp_port": "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}"
