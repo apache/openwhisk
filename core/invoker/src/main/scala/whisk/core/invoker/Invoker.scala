@@ -61,12 +61,13 @@ object Invoker {
       ExecManifest.requiredProperties ++
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
-      kafkaHost ++
+      kafkaHosts ++
       Map(
         kafkaTopicsInvokerRetentionBytes -> 1024.MB.toBytes.toString,
         kafkaTopicsInvokerRetentionMS -> 48.hour.toMillis.toString,
-        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString) ++
-      Map(zookeeperHostName -> "", zookeeperHostPort -> "") ++
+        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString,
+        kafkaReplicationFactor -> "1") ++
+      zookeeperHosts ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
@@ -135,17 +136,17 @@ object Invoker {
         id
       }
       .getOrElse {
-        if (config.zookeeperHost.startsWith(":") || config.zookeeperHost.endsWith(":")) {
-          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHost})")
+        if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
+          abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
         val invokerName = cmdLineArgs.name.getOrElse(config.invokerName)
         if (invokerName.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
-        logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHost}")
+        logger.info(this, s"invokerReg: creating zkClient to ${config.zookeeperHosts}")
         val retryPolicy = new RetryUntilElapsed(5000, 500) // retry at 500ms intervals until 5 seconds have elapsed
-        val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHost, retryPolicy)
+        val zkClient = CuratorFrameworkFactory.newClient(config.zookeeperHosts, retryPolicy)
         zkClient.start()
         zkClient.blockUntilConnected()
         logger.info(this, "invokerReg: connected to zookeeper")
@@ -192,7 +193,7 @@ object Invoker {
           "invoker" + assignedInvokerId,
           Map(
             "numPartitions" -> "1",
-            "replicationFactor" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
             "retention.bytes" -> config.kafkaTopicsInvokerRetentionBytes,
             "retention.ms" -> config.kafkaTopicsInvokerRetentionMS,
             "segment.bytes" -> config.kafkaTopicsInvokerSegmentBytes))) {

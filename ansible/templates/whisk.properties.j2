@@ -42,18 +42,16 @@ limits.triggers.fires.perMinute={{ limits.firesPerMinute }}
 limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
-kafka.host={{ groups["kafka"]|first }}
+kafka.hosts={{ kafka_connect_string }}
 redis.host={{ groups["redis"]|default([""])|first }}
 router.host={{ groups["edge"]|first }}
-zookeeper.host={{ groups["kafka"]|first }}
+zookeeper.hosts={{ zookeeper_connect_string }}
 invoker.hosts={{ groups["invokers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 
 edge.host.apiport=443
-zookeeper.host.port={{ zookeeper.port }}
-kafka.host.port={{ kafka.port }}
 kafkaras.host.port={{ kafka.ras.port }}
 redis.host.port={{ redis.port }}
-invoker.hosts.baseport={{ invoker.port }}
+invoker.hosts.basePort={{ invoker.port }}
 
 controller.hosts={{ groups["controllers"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 controller.host.basePort={{ controller.basePort }}
@@ -94,6 +92,8 @@ db.whisk.activations={{ db.whisk.activations }}
 db.whisk.actions.ddoc={{ db.whisk.actions_ddoc }}
 db.whisk.activations.ddoc={{ db.whisk.activations_ddoc }}
 db.whisk.activations.filter.ddoc={{ db.whisk.activations_filter_ddoc }}
+db.hostsList={{ groups["db"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
+db.instances={{ db.instances }}
 
 apigw.auth.user={{apigw_auth_user}}
 apigw.auth.pwd={{apigw_auth_pwd}}

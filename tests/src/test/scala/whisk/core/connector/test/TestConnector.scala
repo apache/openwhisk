@@ -73,7 +73,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
   }
 
   private val producer = new MessageProducer {
-    def send(topic: String, msg: Message): Future[RecordMetadata] = {
+    def send(topic: String, msg: Message, retry: Int = 0): Future[RecordMetadata] = {
       queue.synchronized {
         if (queue.offer(msg)) {
           logging.info(this, s"put: $msg")

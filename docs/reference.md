@@ -377,16 +377,8 @@ Python 2 actions are executed using Python 2.7.12. This is the default runtime f
 ## Swift actions
 
 ### Swift 3
-Swift 3 actions are executed using Swift 3.1.1  `--kind swift:3.1.1` or Swift 3.0.2 `--kind swift:3`, respectively.  
+Swift 3 actions are executed using Swift 3.1.1  `--kind swift:3.1.1`.  
 The default `--kind swift:default` is Swift 3.1.1.
-
-**Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`.
-
-
-Swift 3.0.2 actions can use the following packages:
-- KituraNet version 1.0.1, https://github.com/IBM-Swift/Kitura-net
-- SwiftyJSON version 14.2.0, https://github.com/IBM-Swift/SwiftyJSON
-- IBM Swift Watson SDK version 0.4.1, https://github.com/IBM-Swift/swift-watson-sdk
 
 Swift 3.1.1 actions can use the following packages:
 - KituraNet version 1.7.6, https://github.com/IBM-Swift/Kitura-net
@@ -451,6 +443,7 @@ The following table lists the default limits for actions.
 | minuteRate | no more than N activations may be submitted per namespace per minute | per namespace | number | 120 |
 | codeSize | the maximum size of the actioncode | not configurable, limit per action | MB | 48 |
 | parameters | the maximum size of the parameters that can be attached | not configurable, limit per action/package/trigger | MB | 1 |
+| result | the maximum size of the action result | not configurable, limit per action | MB | 1 |
 
 ### Per action timeout (ms) (Default: 60s)
 * The timeout limit N is in the range [100ms..300000ms] and is set per action in milliseconds.
@@ -473,6 +466,9 @@ The following table lists the default limits for actions.
 
 ### Per activation payload size (MB) (Fixed: 1MB)
 * The maximum POST content size plus any curried parameters for an action invocation or trigger firing is 1MB.
+
+### Per activation result size (MB) (Fixed: 1MB)
+* The maximum size of a result returned from an action is 1MB.
 
 ### Per namespace concurrent invocation (Default: 100)
 * The number of activations that are either executing or queued for execution for a namespace cannot exceed 100.

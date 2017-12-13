@@ -217,7 +217,7 @@ object Controller {
           "completed" + instance,
           Map(
             "numPartitions" -> "1",
-            "replicationFactor" -> "1",
+            "replicationFactor" -> config.kafkaReplicationFactor,
             "retention.bytes" -> config.kafkaTopicsCompletedRetentionBytes,
             "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
             "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {

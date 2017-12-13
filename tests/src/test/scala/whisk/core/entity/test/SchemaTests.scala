@@ -400,7 +400,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject("kind" -> "nodejs:6".toJson, "code" -> "js1".toJson, "binary" -> false.toJson),
       JsObject("kind" -> "nodejs:6".toJson, "code" -> "js2".toJson, "binary" -> false.toJson, "foo" -> "bar".toJson),
       JsObject("kind" -> "swift".toJson, "code" -> "swift1".toJson, "binary" -> false.toJson),
-      JsObject("kind" -> "swift:3".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
+      JsObject("kind" -> "swift:3.1.1".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson),
       JsObject("kind" -> "nodejs:6".toJson, "code" -> b64Body.toJson, "binary" -> true.toJson))
 
     val execs = json.map { e =>

@@ -1,3 +1,0 @@
-ext.dockerImageName = 'swift3action'
-apply from: '../../gradle/docker.gradle'
-

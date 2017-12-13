@@ -288,11 +288,6 @@ Components = [
                   yaml = False,
                   gradle = 'actionRuntimes:pythonAction'),
 
-    makeComponent('swift3action',
-                  'build swift v3 action container',
-                  yaml = False,
-                  gradle = 'actionRuntimes:swift3Action'),
-
     makeComponent('action-swift-v3.1.1',
                   'build swift v3.1.1 action container',
                   yaml = False,

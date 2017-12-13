@@ -84,6 +84,25 @@ class WskAdminTests extends TestHelpers with Matchers {
     }
   }
 
+  it should "list all namespaces for a subject" in {
+    val wskadmin = new RunWskAdminCmd {}
+    val auth = AuthKey()
+    val subject = Subject().asString
+    try {
+      println(s"CRD subject: $subject")
+      val first = wskadmin.cli(Seq("user", "create", subject, "-ns", s"$subject.space1"))
+      val second = wskadmin.cli(Seq("user", "create", subject, "-ns", s"$subject.space2"))
+      wskadmin.cli(Seq("user", "get", subject, "--all")).stdout.trim should be {
+        s"""
+           |$subject.space1\t${first.stdout.trim}
+           |$subject.space2\t${second.stdout.trim}
+           |""".stripMargin.trim
+      }
+    } finally {
+      wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+    }
+  }
+
   it should "verify guest account installed correctly" in {
     val wskadmin = new RunWskAdminCmd {}
     implicit val wskprops = WskProps()

@@ -21,7 +21,6 @@ import java.time.Clock
 import java.time.Instant
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -60,7 +59,6 @@ import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.core.entity.Identity
 import whisk.core.entity.FullyQualifiedEntityName
-import whisk.http.ErrorResponse.terminate
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -143,9 +141,11 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             response = ActivationResponse.success(payload orElse Some(JsObject())),
             version = trigger.version,
             duration = None)
+
           logging.info(this, s"[POST] trigger activated, writing activation record to datastore: $triggerActivationId")
-          val saveTriggerActivation = WhiskActivation.put(activationStore, triggerActivation) map { _ =>
-            triggerActivationId
+          WhiskActivation.put(activationStore, triggerActivation) recover {
+            case t =>
+              logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
           }
 
           val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
@@ -155,19 +155,22 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
               case (ruleName, rule) => rule.status == Status.ACTIVE
             } foreach {
               case (ruleName, rule) =>
+                val ruleActivationId = activationIdFactory.make()
                 val ruleActivation = WhiskActivation(
                   namespace = user.namespace.toPath, // all activations should end up in the one space regardless trigger.namespace,
                   ruleName.name,
                   user.subject,
-                  activationIdFactory.make(),
+                  ruleActivationId,
                   Instant.now(Clock.systemUTC()),
                   Instant.EPOCH,
                   cause = Some(triggerActivationId),
                   response = ActivationResponse.success(),
                   version = trigger.version,
                   duration = None)
-                logging.info(this, s"[POST] rule ${ruleName} activated, writing activation record to datastore")
-                WhiskActivation.put(activationStore, ruleActivation)
+                WhiskActivation.put(activationStore, ruleActivation) recover {
+                  case t =>
+                    logging.error(this, s"[POST] storing rule activation $ruleActivationId failed: ${t.getMessage}")
+                }
 
                 val actionNamespace = rule.action.path.root.asString
                 val actionPath = {
@@ -205,13 +208,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             }
           }
 
-          onComplete(saveTriggerActivation) {
-            case Success(activationId) =>
-              complete(OK, activationId.toJsObject)
-            case Failure(t: Throwable) =>
-              logging.error(this, s"[POST] storing trigger activation failed: ${t.getMessage}")
-              terminate(InternalServerError)
-          }
+          complete(Accepted, triggerActivationId.toJsObject)
       })
     }
   }

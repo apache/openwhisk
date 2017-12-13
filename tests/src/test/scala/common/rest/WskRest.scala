@@ -510,7 +510,7 @@ class WskRestTrigger
   override def fire(name: String,
                     parameters: Map[String, JsValue] = Map(),
                     parameterFile: Option[String] = None,
-                    expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
+                    expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val path = getNamePath(noun, name)
     val params = parameterFile map { l =>
       val input = FileUtils.readFileToString(new File(l))
@@ -1181,6 +1181,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
+  val idleTimeout = 5 minutes
   val queueSize = 10
   val maxOpenRequest = 1024
   val basePath = Path("/api/v1")
@@ -1224,7 +1225,8 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
     val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
-    val connectionPoolSettings = ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest)
+    val connectionPoolSettings =
+      ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest).withIdleTimeout(idleTimeout)
     val pool = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
       host = WhiskProperties.getApiHost,
       connectionContext = connectionContext,
