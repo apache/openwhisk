@@ -161,25 +161,127 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "get action using code query parameter" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
 
-    put(entityStore, action)
+    // BlackBox: binary: true, main: bbMain
+    val bbAction1 = WhiskAction(namespace, aname(), bb("bb", "RHViZWU=", Some("bbMain")))
+    val bbAction1Content = Map(
+      "exec" -> Map("kind" -> "blackbox", "code" -> "RHViZWU=", "image" -> "bb", "main" -> "bbMain")).toJson.asJsObject
+    val bbAction1ExpectedWhiskAction = WhiskAction(
+      bbAction1.namespace,
+      bbAction1.name,
+      bbAction1.exec,
+      bbAction1.parameters,
+      bbAction1.limits,
+      bbAction1.version,
+      bbAction1.publish,
+      bbAction1.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
+    val bbAction1ExpectedWhiskActionMetaData = WhiskActionMetaData(
+      bbAction1.namespace,
+      bbAction1.name,
+      blackBoxMetaData("bb", Some("bbMain"), true),
+      bbAction1.parameters,
+      bbAction1.limits,
+      bbAction1.version,
+      bbAction1.publish,
+      bbAction1.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
 
-    Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[JsObject]
-      response.fields("exec").asJsObject.fields should not(contain key "code")
-      response.fields("exec").asJsObject.fields should contain key "binary"
-      responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
-    }
+    // BlackBox: binary: false, main: bbMain
+    val bbAction2 = WhiskAction(namespace, aname(), bb("bb", "", Some("bbMain")))
+    val bbAction2Content =
+      Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "bb", "main" -> "bbMain")).toJson.asJsObject
+    val bbAction2ExpectedWhiskAction = WhiskAction(
+      bbAction2.namespace,
+      bbAction2.name,
+      bbAction2.exec,
+      bbAction2.parameters,
+      bbAction2.limits,
+      bbAction2.version,
+      bbAction2.publish,
+      bbAction2.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
+    val bbAction2ExpectedWhiskActionMetaData = WhiskActionMetaData(
+      bbAction2.namespace,
+      bbAction2.name,
+      blackBoxMetaData("bb", Some("bbMain"), false),
+      bbAction2.parameters,
+      bbAction2.limits,
+      bbAction2.version,
+      bbAction2.publish,
+      bbAction2.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
 
-    Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
-      Get(path) ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[JsObject]
-        response.fields("exec").asJsObject.fields("code") should be("??".toJson)
-        responseAs[WhiskAction] shouldBe a[WhiskAction]
-      }
+    // BlackBox: binary: true, no main
+    val bbAction3 = WhiskAction(namespace, aname(), bb("bb", "RHViZWU="))
+    val bbAction3Content =
+      Map("exec" -> Map("kind" -> "blackbox", "code" -> "RHViZWU=", "image" -> "bb")).toJson.asJsObject
+    val bbAction3ExpectedWhiskAction = WhiskAction(
+      bbAction3.namespace,
+      bbAction3.name,
+      bbAction3.exec,
+      bbAction3.parameters,
+      bbAction3.limits,
+      bbAction3.version,
+      bbAction3.publish,
+      bbAction3.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
+    val bbAction3ExpectedWhiskActionMetaData = WhiskActionMetaData(
+      bbAction3.namespace,
+      bbAction3.name,
+      blackBoxMetaData("bb", None, true),
+      bbAction3.parameters,
+      bbAction3.limits,
+      bbAction3.version,
+      bbAction3.publish,
+      bbAction3.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+
+    // BlackBox: binary: false, no main
+    val bbAction4 = WhiskAction(namespace, aname(), bb("bb", ""))
+    val bbAction4Content = Map("exec" -> Map("kind" -> "blackbox", "code" -> "", "image" -> "bb")).toJson.asJsObject
+    val bbAction4ExpectedWhiskAction = WhiskAction(
+      bbAction4.namespace,
+      bbAction4.name,
+      bbAction4.exec,
+      bbAction4.parameters,
+      bbAction4.limits,
+      bbAction4.version,
+      bbAction4.publish,
+      bbAction4.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
+    val bbAction4ExpectedWhiskActionMetaData = WhiskActionMetaData(
+      bbAction4.namespace,
+      bbAction4.name,
+      blackBoxMetaData("bb", None, false),
+      bbAction4.parameters,
+      bbAction4.limits,
+      bbAction4.version,
+      bbAction4.publish,
+      bbAction4.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+
+    val actions = Seq(
+      (bbAction1, bbAction1Content, bbAction1ExpectedWhiskAction, bbAction1ExpectedWhiskActionMetaData),
+      (bbAction2, bbAction2Content, bbAction2ExpectedWhiskAction, bbAction2ExpectedWhiskActionMetaData),
+      (bbAction3, bbAction3Content, bbAction3ExpectedWhiskAction, bbAction3ExpectedWhiskActionMetaData),
+      (bbAction4, bbAction4Content, bbAction4ExpectedWhiskAction, bbAction4ExpectedWhiskActionMetaData))
+
+    actions.foreach {
+      case (action, content, expectedWhiskAction, expectedWhiskActionMetaData) =>
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(expectedWhiskAction)
+        }
+
+        Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val responseJson = responseAs[JsObject]
+          responseJson.fields("exec").asJsObject.fields should not(contain key "code")
+          val response = responseAs[WhiskActionMetaData]
+          response should be(expectedWhiskActionMetaData)
+        }
+
+        Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
+          Get(path) ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(expectedWhiskAction)
+          }
+        }
     }
   }
 

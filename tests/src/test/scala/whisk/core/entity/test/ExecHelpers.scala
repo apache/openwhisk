@@ -68,9 +68,11 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     js6(code, main)
   }
 
-  protected def js6MetaData(main: Option[String] = None) = {
+  protected def js6MetaData(binary: Boolean, main: Option[String] = None) = {
     CodeExecMetaDataAsString(
-      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)))
+      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
+      binary,
+      main.map(_.trim))
   }
 
   protected def javaDefault(code: String, main: Option[String] = None) = {
@@ -98,5 +100,9 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def bb(image: String, code: String, main: Option[String] = None) = {
     BlackBoxExec(ExecManifest.ImageName(trim(image)), Some(trim(code)).filter(_.nonEmpty), main, false)
+  }
+
+  protected def blackBoxMetaData(image: String, main: Option[String] = None, binary: Boolean) = {
+    BlackBoxExecMetaData(ExecManifest.ImageName(trim(image)), main, false, binary)
   }
 }
