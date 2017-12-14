@@ -37,23 +37,20 @@ kafka_topics_invoker_retentionMS: 300000
 invoker_use_runc: true
 invoker_use_reactive_pool: false
 
-### S390X - validate that it's needed ###
+### S390X specifics (TODO: could I include what's above?) ###
+
+nginx_version: 1.12
 
 # Docker images to pull for S390X docker
 
-# TODO:  Set up defaults for the affected roles so these
-#        serve as overrides.  Consider moving other settings
-#        from ${ANSIBLE_HOME}/group_vars/all to those
-#        defaults.
-
 couchdb:
-    docker_image: "jpspring/s390x-openwhisk:couchdb"
+    docker_image: "docker.xanophis.com/s390x/couchdb:latest"
 
 kafka:
     docker_image: "docker.xanophis.com/s390x/wurstmeister-kafka:0.11"
 
 apigateway:
-    docker_image: "jpspring/s390x-openwhisk:apigateway"
+    docker_image: "docker.xanophis.com/s390x/openwhisk-apigateway:latest"
 
 #  Because we don't (yet) support s390x compiles of the CLI; a different challenge...
 cli_installation_mode: local
