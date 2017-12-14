@@ -68,7 +68,7 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     js6(code, main)
   }
 
-  protected def js6MetaData(binary: Boolean, main: Option[String] = None) = {
+  protected def js6MetaData(main: Option[String] = None, binary: Boolean) = {
     CodeExecMetaDataAsString(
       RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)),
       binary,
@@ -80,6 +80,12 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(JAVA_DEFAULT).get
 
     CodeExecAsAttachment(manifest, attachment, main.map(_.trim))
+  }
+
+  protected def javaMetaData(main: Option[String] = None, binary: Boolean) = {
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(JAVA_DEFAULT).get
+
+    CodeExecMetaDataAsAttachment(manifest, binary, main.map(_.trim))
   }
 
   protected def swift(code: String, main: Option[String] = None) = {
