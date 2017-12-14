@@ -82,7 +82,6 @@ class Controller(val instance: InstanceId,
                  implicit val materializer: ActorMaterializer,
                  implicit val logging: Logging)
     extends BasicRasService {
-
   val numberOfInstances = whiskConfig.controllerInstances.toInt
   override val tidStrides = whiskConfig.controllerTidStrides.toInt
   override val instanceOrdinal = instance.toInt
@@ -163,11 +162,13 @@ object Controller {
   // no default value specified, so it must appear in the properties file
   def requiredProperties =
     Map(WhiskConfig.controllerInstances -> null) ++
-    Map(WhiskConfig.controllerTidStrides -> null) ++
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
       LoadBalancerService.requiredProperties ++
       EntitlementProvider.requiredProperties
+
+  def optionalProperties =
+    Set(WhiskConfig.controllerTidStrides)
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
     JsObject(
@@ -195,7 +196,7 @@ object Controller {
     }
 
     // extract configuration data from the environment
-    val config = new WhiskConfig(requiredProperties)
+    val config = new WhiskConfig(requiredProperties, optionalProperties)
     val port = config.servicePort.toInt
 
     // if deploying multiple instances (scale out), must pass the instance number as the
