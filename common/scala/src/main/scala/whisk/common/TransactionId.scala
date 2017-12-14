@@ -114,13 +114,13 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     val endMarker =
       LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
     val deltaToEnd = deltaToMarker(startMarker, endTime)
-
+    val logMarker = LogMarker(endMarker, deltaToStart, Some(deltaToEnd))
     if (TransactionId.metricsLog) {
       logging.emit(
         logLevel,
         this,
         from,
-        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+        createMessageWithMarker(message, logMarker), logMarker)
     } else if (message.nonEmpty) {
       logging.emit(logLevel, this, from, message)
     }

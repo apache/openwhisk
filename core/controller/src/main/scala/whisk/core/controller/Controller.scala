@@ -29,16 +29,14 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
-
 import spray.json.DefaultJsonProtocol._
-
 import kamon.Kamon
-
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.ZipkinLogging
 import whisk.common.TransactionId
+import whisk.common.tracing.OpenTracingProvider
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.RemoteCacheInvalidation
@@ -52,7 +50,6 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
-import whisk.core.tracing.TracingProvider
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -201,8 +198,7 @@ object Controller {
     // if deploying multiple instances (scale out), must pass the instance number as the
     require(args.length >= 1, "controller instance required")
     val instance = args(0).toInt
-    val tracer: TracingProvider = SpiLoader.get[TracingProvider]
-    tracer.init("Controller")
+    OpenTracingProvider.apply("Controller")
 
     def abort(message: String) = {
       logger.error(this, message)

@@ -27,8 +27,7 @@ import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import whisk.core.tracing.TracingProvider
-import whisk.spi.SpiLoader
+import whisk.common.tracing.OpenTracingProvider
 
 trait Logging {
 
@@ -142,8 +141,6 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
   */
 class ZipkinLogging (logger: Logging) extends Logging {
 
-    val tracingProvider = SpiLoader.get[TracingProvider]
-
     def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
         logger.emit(loglevel, id, from, message)
     }
@@ -157,15 +154,15 @@ class ZipkinLogging (logger: Logging) extends Logging {
         logMarker.token.state match {
 
             case LoggingMarkers.start => {
-                  tracingProvider.startTrace(logMarker.token.component, logMarker.token.action, id)
+                  OpenTracingProvider.startTrace(logMarker.token.component, logMarker.token.action, id)
             }
 
             case LoggingMarkers.finish => {
-                tracingProvider.finish(id)
+              OpenTracingProvider.finish(id)
             }
 
             case LoggingMarkers.error => {
-                tracingProvider.error(id)
+              OpenTracingProvider.error(id)
             }
 
             case _ =>

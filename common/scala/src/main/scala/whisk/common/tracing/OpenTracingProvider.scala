@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package whisk.common.tracing
 
 import com.typesafe.config.ConfigFactory
@@ -26,8 +27,6 @@ import zipkin.reporter.okhttp3.OkHttpSender
 import zipkin.reporter.AsyncReporter
 import zipkin.reporter.Reporter
 import brave.opentracing.BraveTracer
-import whisk.core.tracing.TracingProvider
-
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -35,13 +34,13 @@ import scala.collection.mutable
 /**
   * OpenTracing based implementation for tracing
   */
-class OpenTracingProvider() extends TracingProvider {
+object OpenTracingProvider{
 
   private val traceMap : mutable.Map[Long, ActiveSpan] =  TrieMap[Long, ActiveSpan]()
 
   var enabled = false;
 
-  override def init(serviceName: String): Unit = {
+  def apply(serviceName: String): Unit = {
     configureTracer(serviceName)
   }
 
@@ -52,7 +51,7 @@ class OpenTracingProvider() extends TracingProvider {
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  override def startTrace(serviceName: String, spanName: String, transactionId: TransactionId): Unit = {
+  def startTrace(serviceName: String, spanName: String, transactionId: TransactionId): Unit = {
     if(enabled) {
       var activeSpan: Option[ActiveSpan] = None
 
@@ -66,9 +65,8 @@ class OpenTracingProvider() extends TracingProvider {
         }
       }
 
-      if (activeSpan.isDefined) {
+      if (activeSpan.isDefined)
         traceMap.put(transactionId.meta.id, activeSpan.get)
-      }
     }
   }
 
@@ -77,7 +75,7 @@ class OpenTracingProvider() extends TracingProvider {
     *
     * @param transactionId
     */
-  override def finish(transactionId: TransactionId): Unit = {
+  def finish(transactionId: TransactionId): Unit = {
     if(enabled) {
       traceMap.get(transactionId.meta.id) match {
         case Some(currentSpan) => {
@@ -93,7 +91,7 @@ class OpenTracingProvider() extends TracingProvider {
     *
     * @param transactionId
     */
-  override def error(transactionId: TransactionId): Unit = {
+  def error(transactionId: TransactionId): Unit = {
     if(enabled) {
       traceMap.get(transactionId.meta.id) match {
         case Some(currentSpan) => {
@@ -110,7 +108,7 @@ class OpenTracingProvider() extends TracingProvider {
     * @param transactionId
     * @return
     */
-  override def getTraceContext(transactionId: TransactionId): Option[SpanContext] = {
+  def getTraceContext(transactionId: TransactionId): Option[SpanContext] = {
     traceMap.get(transactionId.meta.id) match {
       case Some(currentSpan) => {
         Some(currentSpan.context())
@@ -119,12 +117,13 @@ class OpenTracingProvider() extends TracingProvider {
     }
   }
 
-  private def configureTracer(componentName: String): Unit = {
+  def configureTracer(componentName: String): Unit = {
     enabled = ConfigFactory.load().getBoolean("tracing_enabled")
-    val tracer = ConfigFactory.load().getString("tracer")
+    if(enabled) {
+      val tracer = ConfigFactory.load().getString("tracer")
 
-    //configure opentracing with zipkin
-    if(tracer.equalsIgnoreCase("zipkin")){
+      //configure opentracing with zipkin
+      if (tracer.equalsIgnoreCase("zipkin")) {
         val sender: Sender = OkHttpSender.create("http://" +
           ConfigFactory.load().getString("zipkin.reporter_host") + ":" +
           ConfigFactory.load().getString("zipkin.reporter_port") + "/api/v1/spans")
@@ -135,6 +134,6 @@ class OpenTracingProvider() extends TracingProvider {
           .reporter(reporter)
           .build()));
       }
+    }
   }
-
 }
