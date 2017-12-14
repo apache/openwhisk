@@ -6,8 +6,11 @@
   docker run <image> which starts up the action proxy.
   Example:
      docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
-     ./invoke.py init <action source file> # should return OK
+     ./invoke.py init <action source file>
      ./invoke.py run '{"some":"json object as a string"}'
+
+  For additional help, try ./invoke.py -h
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -32,71 +35,100 @@ import sys
 import json
 import requests
 import codecs
+import traceback
+import argparse
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = False
 
-DOCKER_HOST = "localhost"
-if "DOCKER_HOST" in os.environ:
+def main():
     try:
-        DOCKER_HOST = re.compile("tcp://(.*):[\d]+").findall(
-            os.environ["DOCKER_HOST"])[0]
-    except Exception:
-        print("cannot determine docker host from %s" %
-              os.environ["DOCKER_HOST"])
-        sys.exit(-1)
-DEST = "http://%s:8080" % DOCKER_HOST
+        args = parseArgs()
+        exitCode = {
+            'init' : init,
+            'run'   : run
+        }[args.cmd](args)
+    except Exception as e:
+        print(e)
+        exitCode = 1
+    sys.exit(exitCode)
 
+def dockerHost():
+    dockerHost = 'localhost'
+    if 'DOCKER_HOST' in os.environ:
+        try:
+            dockerHost = re.compile('tcp://(.*):[\d]+').findall(os.environ['DOCKER_HOST'])[0]
+        except Exception:
+            print('cannot determine docker host from %s' % os.environ['DOCKER_HOST'])
+            sys.exit(-1)
+    return dockerHost
 
-def content_from_args(args):
-    if len(args) == 0:
-        return None
+def containerRoute(args, path):
+    return 'http://%s:%s/%s' % (args.host, args.port, path)
 
-    if len(args) == 1 and os.path.exists(args[0]):
-        with open(args[0]) as fp:
-            return json.load(fp)
+def parseArgs():
+    parser = argparse.ArgumentParser(description='initialize and run an OpenWhisk action container')
+    parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
+    parser.add_argument('--host', help='action container host', default=dockerHost())
+    parser.add_argument('-p', '--port', help='action container port number', default=8080, type=int)
 
-    # else...
-    in_str = " ".join(args)
-    try:
-        d = json.loads(in_str)
-        if isinstance(d, dict):
-            return d
-        else:
-            raise "Not a dict."
-    except:
-        return in_str
+    subparsers = parser.add_subparsers(title='available commands', dest='cmd')
 
+    initmenu = subparsers.add_parser('init', help='initialize container with src or zip/tgz file')
+    initmenu.add_argument('main', nargs='?', default='main', help='name of the "main" entry method for the action')
+    initmenu.add_argument('artifact', help='a source file or zip/tgz archive')
+
+    runmenu = subparsers.add_parser('run', help='send arguments to container to run action')
+    runmenu.add_argument('payload', nargs='?', help='the arguments to send to the action, either a reference to a file or an inline JSON object', default=None)
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
+    return parser.parse_args()
 
 def init(args):
-    main = args[1] if len(args) == 2 else "main"
-    args = args[0] if len(args) >= 1 else None
+    main = args.main
+    artifact = args.artifact
 
-    if args and (args.endswith(".zip") or args.endswith("tgz")):
-        with open(args, "rb") as fp:
-            contents = fp.read().encode("base64")
+    if artifact and (artifact.endswith('.zip') or artifact.endswith('tgz')):
+        with open(artifact, 'rb') as fp:
+            contents = fp.read().encode('base64')
         binary = True
-    elif args:
-        with(codecs.open(args, "r", "utf-8")) as fp:
+    elif artifact is not '':
+        with(codecs.open(artifact, 'r', 'utf-8')) as fp:
             contents = fp.read()
         binary = False
     else:
         contents = None
         binary = False
 
-    r = requests.post("%s/init" % DEST, json={"value": {"code": contents,
-                                                        "binary": binary,
-                                                        "main": main}})
+    r = requests.post(
+        containerRoute(args, 'init'),
+        json = {"value": {"code": contents,
+                          "binary": binary,
+                          "main": main}})
     print(r.text)
-
 
 def run(args):
-    value = content_from_args(args)
-    # print("Sending value: %s..." % json.dumps(value)[0:40])
-    r = requests.post("%s/run" % DEST, json={"value": value})
+    value = processPayload(args.payload)
+    if args.verbose:
+        print('Sending value: %s...' % json.dumps(value)[0:40])
+    r = requests.post(containerRoute(args, 'run'), json = {"value": value})
     print(r.text)
 
+def processPayload(payload):
+    if payload and os.path.exists(payload):
+        with open(payload) as fp:
+            return json.load(fp)
+    try:
+        d = json.loads(payload if payload else '{}')
+        if isinstance(d, dict):
+            return d
+        else:
+            raise
+    except:
+        print('payload must be a JSON object.')
+        sys.exit(-1)
 
-if sys.argv[1] == "init":
-    init(sys.argv[2:])
-elif sys.argv[1] == "run":
-    run(sys.argv[2:])
-else:
-    print("usage: 'init <filename>' or 'run JSON-as-string'")
+if __name__ == '__main__':
+    main()
