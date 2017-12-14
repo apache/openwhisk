@@ -75,7 +75,12 @@ def getArgs():
         if osname == 'Linux':
             return 'local'
         elif osname == 'Darwin':
-            return 'docker-machine'
+            if os.getenv('DOCKER_HOST', None) is not None:
+                # docker-machine typically has docker host set in the environment
+                return 'docker-machine'
+            else:
+                # otherwise assume docker-for-mac
+                return 'local'
         else:
             return None
 
