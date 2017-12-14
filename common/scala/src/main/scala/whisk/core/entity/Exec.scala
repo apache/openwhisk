@@ -97,6 +97,7 @@ sealed abstract class ExecMetaData extends ExecMetaDataBase {
 
   /** Indicates if a container image is required from the registry to execute the action. */
   val pull: Boolean
+  val binary: Boolean
 
   override def size = 0.B
 }
@@ -114,7 +115,8 @@ protected[core] case class CodeExecAsString(manifest: RuntimeManifest,
   override def codeAsJson = JsString(code)
 }
 
-protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest) extends ExecMetaData {
+protected[core] case class CodeExecMetaDataAsString(manifest: RuntimeManifest, override val binary: Boolean = false)
+    extends ExecMetaData {
   override val kind = manifest.kind
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -144,7 +146,8 @@ protected[core] case class CodeExecAsAttachment(manifest: RuntimeManifest,
   }
 }
 
-protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifest) extends ExecMetaData {
+protected[core] case class CodeExecMetaDataAsAttachment(manifest: RuntimeManifest, override val binary: Boolean = false)
+    extends ExecMetaData {
   override val kind = manifest.kind
   override val deprecated = manifest.deprecated.getOrElse(false)
   override val pull = false
@@ -168,7 +171,8 @@ protected[core] case class BlackBoxExec(override val image: ImageName,
   override def size = super.size + image.publicImageName.sizeInBytes
 }
 
-protected[core] case class BlackBoxExecMetaData(val native: Boolean) extends ExecMetaData {
+protected[core] case class BlackBoxExecMetaData(val native: Boolean, override val binary: Boolean = false)
+    extends ExecMetaData {
   override val kind = ExecMetaDataBase.BLACKBOX
   override val deprecated = false
   override val pull = !native
@@ -334,12 +338,12 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
 
     override def write(e: ExecMetaDataBase) = e match {
       case c: CodeExecMetaDataAsString =>
-        val base = Map("kind" -> JsString(c.kind))
+        val base = Map("kind" -> JsString(c.kind), "binary" -> JsBoolean(c.binary))
         JsObject(base)
 
       case a: CodeExecMetaDataAsAttachment =>
         val base =
-          Map("kind" -> JsString(a.kind))
+          Map("kind" -> JsString(a.kind), "binary" -> JsBoolean(a.binary))
         JsObject(base)
 
       case s @ SequenceExecMetaData(comp) =>
@@ -347,7 +351,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
 
       case b: BlackBoxExecMetaData =>
         val base =
-          Map("kind" -> JsString(b.kind))
+          Map("kind" -> JsString(b.kind), "binary" -> JsBoolean(b.binary))
         JsObject(base)
     }
 
@@ -368,6 +372,12 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
         case None => None
       }
 
+      val binary: Boolean = obj.fields.get("binary") match {
+        case Some(JsBoolean(b)) => b
+        case None               => false
+        case _                  => throw new DeserializationException("'binary' must be a boolean defined in 'exec'")
+      }
+
       kind match {
         case ExecMetaDataBase.SEQUENCE =>
           val comp: Vector[FullyQualifiedEntityName] = obj.fields.get("components") match {
@@ -385,7 +395,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
                 s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
           }
           val native = execManifests.skipDockerPull(image)
-          BlackBoxExecMetaData(native)
+          BlackBoxExecMetaData(native, binary)
 
         case _ =>
           // map "default" virtual runtime versions to the currently blessed actual runtime version
@@ -396,10 +406,10 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
 
           manifest.attached
             .map { a =>
-              CodeExecMetaDataAsAttachment(manifest)
+              CodeExecMetaDataAsAttachment(manifest, binary)
             }
             .getOrElse {
-              CodeExecMetaDataAsString(manifest)
+              CodeExecMetaDataAsString(manifest, binary)
             }
       }
     }

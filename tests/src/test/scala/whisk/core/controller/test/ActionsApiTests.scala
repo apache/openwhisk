@@ -169,6 +169,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[JsObject]
       response.fields("exec").asJsObject.fields should not(contain key "code")
+      response.fields("exec").asJsObject.fields should contain key "binary"
       responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
     }
 
