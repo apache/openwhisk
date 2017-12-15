@@ -373,7 +373,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     put(entityStore, component)
     val components = Vector(s"/$namespace/${component.name}").map(stringToFullyQualifiedName(_))
     val seqAction = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
-    val seqActionContent = JsObject("exec" -> JsObject("kind" -> "sequence".toJson, "components" -> JsArray(s"/$namespace/${component.name}".toJson)))
+    val seqActionContent = JsObject(
+      "exec" -> JsObject("kind" -> "sequence".toJson, "components" -> JsArray(s"/$namespace/${component.name}".toJson)))
     val seqActionExpectedWhiskAction = WhiskAction(
       seqAction.namespace,
       seqAction.name,
@@ -678,7 +679,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) = Parameters("_actions", seq.map("/" + _.asString).toJson)
+  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
+    Parameters("_actions", seq.map("/" + _.asString).toJson)
 
   // this test is sneaky; the installation of the sequence is done directly in the db
   // and api checks are skipped
