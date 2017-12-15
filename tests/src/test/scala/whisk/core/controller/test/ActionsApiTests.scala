@@ -169,204 +169,51 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       "code" -> "RHViZWU=",
       "image" -> "bb",
       "main" -> "bbMain")).toJson.asJsObject
-    val bbAction1ExpectedWhiskAction = WhiskAction(
-      bbAction1.namespace,
-      bbAction1.name,
-      bbAction1.exec,
-      bbAction1.parameters,
-      bbAction1.limits,
-      bbAction1.version,
-      bbAction1.publish,
-      bbAction1.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
-    val bbAction1ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      bbAction1.namespace,
-      bbAction1.name,
-      blackBoxMetaData("bb", Some("bbMain"), true),
-      bbAction1.parameters,
-      bbAction1.limits,
-      bbAction1.version,
-      bbAction1.publish,
-      bbAction1.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+    val bbAction1Exec = blackBoxMetaData("bb", Some("bbMain"), true)
 
     // BlackBox: binary: false, main: bbMain
     val bbAction2 = WhiskAction(namespace, aname(), bb("bb", "", Some("bbMain")))
     val bbAction2Content =
       Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "", "image" -> "bb", "main" -> "bbMain")).toJson.asJsObject
-    val bbAction2ExpectedWhiskAction = WhiskAction(
-      bbAction2.namespace,
-      bbAction2.name,
-      bbAction2.exec,
-      bbAction2.parameters,
-      bbAction2.limits,
-      bbAction2.version,
-      bbAction2.publish,
-      bbAction2.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
-    val bbAction2ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      bbAction2.namespace,
-      bbAction2.name,
-      blackBoxMetaData("bb", Some("bbMain"), false),
-      bbAction2.parameters,
-      bbAction2.limits,
-      bbAction2.version,
-      bbAction2.publish,
-      bbAction2.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+    val bbAction2Exec = blackBoxMetaData("bb", Some("bbMain"), false)
 
     // BlackBox: binary: true, no main
     val bbAction3 = WhiskAction(namespace, aname(), bb("bb", "RHViZWU="))
     val bbAction3Content =
       Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "RHViZWU=", "image" -> "bb")).toJson.asJsObject
-    val bbAction3ExpectedWhiskAction = WhiskAction(
-      bbAction3.namespace,
-      bbAction3.name,
-      bbAction3.exec,
-      bbAction3.parameters,
-      bbAction3.limits,
-      bbAction3.version,
-      bbAction3.publish,
-      bbAction3.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
-    val bbAction3ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      bbAction3.namespace,
-      bbAction3.name,
-      blackBoxMetaData("bb", None, true),
-      bbAction3.parameters,
-      bbAction3.limits,
-      bbAction3.version,
-      bbAction3.publish,
-      bbAction3.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+    val bbAction3Exec = blackBoxMetaData("bb", None, true)
 
     // BlackBox: binary: false, no main
     val bbAction4 = WhiskAction(namespace, aname(), bb("bb", ""))
     val bbAction4Content = Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "", "image" -> "bb")).toJson.asJsObject
-    val bbAction4ExpectedWhiskAction = WhiskAction(
-      bbAction4.namespace,
-      bbAction4.name,
-      bbAction4.exec,
-      bbAction4.parameters,
-      bbAction4.limits,
-      bbAction4.version,
-      bbAction4.publish,
-      bbAction4.annotations ++ Parameters(WhiskAction.execFieldName, Exec.BLACKBOX))
-    val bbAction4ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      bbAction4.namespace,
-      bbAction4.name,
-      blackBoxMetaData("bb", None, false),
-      bbAction4.parameters,
-      bbAction4.limits,
-      bbAction4.version,
-      bbAction4.publish,
-      bbAction4.annotations ++ Parameters(WhiskActionMetaData.execFieldName, Exec.BLACKBOX))
+    val bbAction4Exec = blackBoxMetaData("bb", None, false)
 
     // Attachment: binary: true, main: javaMain
     val javaAction1 = WhiskAction(namespace, aname(), javaDefault("RHViZWU=", Some("javaMain")))
     val javaAction1Content =
       Map("exec" -> Map("kind" -> JAVA_DEFAULT, "code" -> "RHViZWU=", "main" -> "javaMain")).toJson.asJsObject
-    val javaAction1ExpectedWhiskAction = WhiskAction(
-      javaAction1.namespace,
-      javaAction1.name,
-      javaAction1.exec,
-      javaAction1.parameters,
-      javaAction1.limits,
-      javaAction1.version,
-      javaAction1.publish,
-      javaAction1.annotations ++ Parameters(WhiskAction.execFieldName, JAVA_DEFAULT))
-    val javaAction1ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      javaAction1.namespace,
-      javaAction1.name,
-      javaMetaData(Some("javaMain"), true),
-      javaAction1.parameters,
-      javaAction1.limits,
-      javaAction1.version,
-      javaAction1.publish,
-      javaAction1.annotations ++ Parameters(WhiskActionMetaData.execFieldName, JAVA_DEFAULT))
+    val javaAction1Exec = javaMetaData(Some("javaMain"), true)
 
     // String: binary: true, main: jsMain
     val jsAction1 = WhiskAction(namespace, aname(), jsDefault("RHViZWU=", Some("jsMain")))
     val jsAction1Content =
       Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction1ExpectedWhiskAction = WhiskAction(
-      jsAction1.namespace,
-      jsAction1.name,
-      jsAction1.exec,
-      jsAction1.parameters,
-      jsAction1.limits,
-      jsAction1.version,
-      jsAction1.publish,
-      jsAction1.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
-    val jsAction1ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      jsAction1.namespace,
-      jsAction1.name,
-      js6MetaData(Some("jsMain"), true),
-      jsAction1.parameters,
-      jsAction1.limits,
-      jsAction1.version,
-      jsAction1.publish,
-      jsAction1.annotations ++ Parameters(WhiskActionMetaData.execFieldName, NODEJS6))
+    val jsAction1Exec = js6MetaData(Some("jsMain"), true)
 
     // String: binary: false, main: jsMain
     val jsAction2 = WhiskAction(namespace, aname(), jsDefault("", Some("jsMain")))
     val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
-    val jsAction2ExpectedWhiskAction = WhiskAction(
-      jsAction2.namespace,
-      jsAction2.name,
-      jsAction2.exec,
-      jsAction2.parameters,
-      jsAction2.limits,
-      jsAction2.version,
-      jsAction2.publish,
-      jsAction2.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
-    val jsAction2ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      jsAction2.namespace,
-      jsAction2.name,
-      js6MetaData(Some("jsMain"), false),
-      jsAction2.parameters,
-      jsAction2.limits,
-      jsAction2.version,
-      jsAction2.publish,
-      jsAction2.annotations ++ Parameters(WhiskActionMetaData.execFieldName, NODEJS6))
+    val jsAction2Exec = js6MetaData(Some("jsMain"), false)
 
     // String: binary: true, no main
     val jsAction3 = WhiskAction(namespace, aname(), jsDefault("RHViZWU="))
     val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=")).toJson.asJsObject
-    val jsAction3ExpectedWhiskAction = WhiskAction(
-      jsAction3.namespace,
-      jsAction3.name,
-      jsAction3.exec,
-      jsAction3.parameters,
-      jsAction3.limits,
-      jsAction3.version,
-      jsAction3.publish,
-      jsAction3.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
-    val jsAction3ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      jsAction3.namespace,
-      jsAction3.name,
-      js6MetaData(None, true),
-      jsAction3.parameters,
-      jsAction3.limits,
-      jsAction3.version,
-      jsAction3.publish,
-      jsAction3.annotations ++ Parameters(WhiskActionMetaData.execFieldName, NODEJS6))
+    val jsAction3Exec = js6MetaData(None, true)
 
     // String: binary: false, no main
     val jsAction4 = WhiskAction(namespace, aname(), jsDefault(""))
     val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "")).toJson.asJsObject
-    val jsAction4ExpectedWhiskAction = WhiskAction(
-      jsAction4.namespace,
-      jsAction4.name,
-      jsAction4.exec,
-      jsAction4.parameters,
-      jsAction4.limits,
-      jsAction4.version,
-      jsAction4.publish,
-      jsAction4.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6))
-    val jsAction4ExpectedWhiskActionMetaData = WhiskActionMetaData(
-      jsAction4.namespace,
-      jsAction4.name,
-      js6MetaData(None, false),
-      jsAction4.parameters,
-      jsAction4.limits,
-      jsAction4.version,
-      jsAction4.publish,
-      jsAction4.annotations ++ Parameters(WhiskActionMetaData.execFieldName, NODEJS6))
+    val jsAction4Exec = js6MetaData(None, false)
 
     // Sequence
     val component = WhiskAction(namespace, aname(), jsDefault("??"))
@@ -375,39 +222,42 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val seqAction = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
     val seqActionContent = JsObject(
       "exec" -> JsObject("kind" -> "sequence".toJson, "components" -> JsArray(s"/$namespace/${component.name}".toJson)))
-    val seqActionExpectedWhiskAction = WhiskAction(
-      seqAction.namespace,
-      seqAction.name,
-      seqAction.exec,
-      seqAction.parameters,
-      seqAction.limits,
-      seqAction.version,
-      seqAction.publish,
-      seqAction.annotations ++ Parameters(WhiskAction.execFieldName, "sequence"))
-    val seqActionExpectedWhiskActionMetaData = WhiskActionMetaData(
-      seqAction.namespace,
-      seqAction.name,
-      sequenceMetaData(components),
-      seqAction.parameters,
-      seqAction.limits,
-      seqAction.version,
-      seqAction.publish,
-      seqAction.annotations ++ Parameters(WhiskActionMetaData.execFieldName, "sequence"))
+    val seqActionExec = sequenceMetaData(components)
 
     val actions = Seq(
-      (bbAction1, bbAction1Content, bbAction1ExpectedWhiskAction, bbAction1ExpectedWhiskActionMetaData),
-      (bbAction2, bbAction2Content, bbAction2ExpectedWhiskAction, bbAction2ExpectedWhiskActionMetaData),
-      (bbAction3, bbAction3Content, bbAction3ExpectedWhiskAction, bbAction3ExpectedWhiskActionMetaData),
-      (bbAction4, bbAction4Content, bbAction4ExpectedWhiskAction, bbAction4ExpectedWhiskActionMetaData),
-      (javaAction1, javaAction1Content, javaAction1ExpectedWhiskAction, javaAction1ExpectedWhiskActionMetaData),
-      (jsAction1, jsAction1Content, jsAction1ExpectedWhiskAction, jsAction1ExpectedWhiskActionMetaData),
-      (jsAction2, jsAction2Content, jsAction2ExpectedWhiskAction, jsAction2ExpectedWhiskActionMetaData),
-      (jsAction3, jsAction3Content, jsAction3ExpectedWhiskAction, jsAction3ExpectedWhiskActionMetaData),
-      (jsAction4, jsAction4Content, jsAction4ExpectedWhiskAction, jsAction4ExpectedWhiskActionMetaData),
-      (seqAction, seqActionContent, seqActionExpectedWhiskAction, seqActionExpectedWhiskActionMetaData))
+      (bbAction1, bbAction1Content, bbAction1Exec),
+      (bbAction2, bbAction2Content, bbAction2Exec),
+      (bbAction3, bbAction3Content, bbAction3Exec),
+      (bbAction4, bbAction4Content, bbAction4Exec),
+      (javaAction1, javaAction1Content, javaAction1Exec),
+      (jsAction1, jsAction1Content, jsAction1Exec),
+      (jsAction2, jsAction2Content, jsAction2Exec),
+      (jsAction3, jsAction3Content, jsAction3Exec),
+      (jsAction4, jsAction4Content, jsAction4Exec),
+      (seqAction, seqActionContent, seqActionExec))
 
     actions.foreach {
-      case (action, content, expectedWhiskAction, expectedWhiskActionMetaData) =>
+      case (action, content, exec) =>
+        val expectedWhiskAction = WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version,
+          action.publish,
+          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind))
+
+        val expectedWhiskActionMetaData = WhiskActionMetaData(
+          action.namespace,
+          action.name,
+          exec,
+          action.parameters,
+          action.limits,
+          action.version,
+          action.publish,
+          action.annotations ++ Parameters(WhiskActionMetaData.execFieldName, action.exec.kind))
+
         Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[WhiskAction]
