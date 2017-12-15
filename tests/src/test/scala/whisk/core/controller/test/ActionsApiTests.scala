@@ -26,6 +26,7 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import akka.http.scaladsl.model.StatusCodes._
+
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonUnmarshaller
 import akka.http.scaladsl.server.Route
@@ -368,6 +369,32 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       jsAction4.publish,
       jsAction4.annotations ++ Parameters(WhiskActionMetaData.execFieldName, NODEJS6))
 
+    // Sequence
+    val component = WhiskAction(namespace, aname(), jsDefault("??"))
+    put(entityStore, component)
+    val components = Vector(s"/$namespace/${component.name}").map(stringToFullyQualifiedName(_))
+    val seqAction = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
+    val seqActionContent = JsObject(
+      "exec" -> JsObject("kind" -> "sequence".toJson, "components" -> JsArray(s"/$namespace/${component.name}".toJson)))
+    val seqActionExpectedWhiskAction = WhiskAction(
+      seqAction.namespace,
+      seqAction.name,
+      seqAction.exec,
+      seqAction.parameters,
+      seqAction.limits,
+      seqAction.version,
+      seqAction.publish,
+      seqAction.annotations ++ Parameters(WhiskAction.execFieldName, "sequence"))
+    val seqActionExpectedWhiskActionMetaData = WhiskActionMetaData(
+      seqAction.namespace,
+      seqAction.name,
+      sequenceMetaData(components),
+      seqAction.parameters,
+      seqAction.limits,
+      seqAction.version,
+      seqAction.publish,
+      seqAction.annotations ++ Parameters(WhiskActionMetaData.execFieldName, "sequence"))
+
     val actions = Seq(
       (bbAction1, bbAction1Content, bbAction1ExpectedWhiskAction, bbAction1ExpectedWhiskActionMetaData),
       (bbAction2, bbAction2Content, bbAction2ExpectedWhiskAction, bbAction2ExpectedWhiskActionMetaData),
@@ -377,7 +404,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       (jsAction1, jsAction1Content, jsAction1ExpectedWhiskAction, jsAction1ExpectedWhiskActionMetaData),
       (jsAction2, jsAction2Content, jsAction2ExpectedWhiskAction, jsAction2ExpectedWhiskActionMetaData),
       (jsAction3, jsAction3Content, jsAction3ExpectedWhiskAction, jsAction3ExpectedWhiskActionMetaData),
-      (jsAction4, jsAction4Content, jsAction4ExpectedWhiskAction, jsAction4ExpectedWhiskActionMetaData))
+      (jsAction4, jsAction4Content, jsAction4ExpectedWhiskAction, jsAction4ExpectedWhiskActionMetaData),
+      (seqAction, seqActionContent, seqActionExpectedWhiskAction, seqActionExpectedWhiskActionMetaData))
 
     actions.foreach {
       case (action, content, expectedWhiskAction, expectedWhiskActionMetaData) =>
@@ -401,6 +429,12 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
             val response = responseAs[WhiskAction]
             response should be(expectedWhiskAction)
           }
+        }
+
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(expectedWhiskAction)
         }
     }
   }
@@ -646,7 +680,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) = Parameters("_actions", seq.toJson)
+  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
+    Parameters("_actions", seq.map("/" + _.asString).toJson)
 
   // this test is sneaky; the installation of the sequence is done directly in the db
   // and api checks are skipped

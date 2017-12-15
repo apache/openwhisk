@@ -102,6 +102,8 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def sequence(components: Vector[FullyQualifiedEntityName]) = SequenceExec(components)
 
+  protected def sequenceMetaData(components: Vector[FullyQualifiedEntityName]) = SequenceExecMetaData(components)
+
   protected def bb(image: String) = BlackBoxExec(ExecManifest.ImageName(trim(image)), None, None, false)
 
   protected def bb(image: String, code: String, main: Option[String] = None) = {
