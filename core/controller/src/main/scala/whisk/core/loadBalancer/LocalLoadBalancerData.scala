@@ -19,6 +19,7 @@ package whisk.core.loadBalancer
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.Cancellable
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
 import whisk.core.entity.{ActivationId, UUID}
@@ -34,7 +35,7 @@ class LocalLoadBalancerData() extends LoadBalancerData {
 
   private val activationByInvoker = TrieMap[String, AtomicInteger]()
   private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
-  private val activationsById = TrieMap[ActivationId, ActivationEntry]()
+  private val activationsById = TrieMap[ActivationId, (Cancellable, ActivationEntry)]()
   private val totalActivations = new AtomicInteger(0)
 
   override def totalActivationCount: Future[Int] = Future.successful(totalActivations.get)
@@ -47,21 +48,21 @@ class LocalLoadBalancerData() extends LoadBalancerData {
     Future.successful(activationByInvoker.toMap.mapValues(_.get))
   }
 
-  override def activationById(activationId: ActivationId): Option[ActivationEntry] = {
+  override def activationById(activationId: ActivationId): Option[(Cancellable, ActivationEntry)] = {
     activationsById.get(activationId)
   }
 
-  override def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
+  override def putActivation(id: ActivationId, update: => (Cancellable, ActivationEntry)): (Cancellable, ActivationEntry) = {
     activationsById.getOrElseUpdate(id, {
       val entry = update
       totalActivations.incrementAndGet()
-      activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).incrementAndGet()
-      activationByInvoker.getOrElseUpdate(entry.invokerName.toString, new AtomicInteger(0)).incrementAndGet()
+      activationByNamespaceId.getOrElseUpdate(entry._2.namespaceId, new AtomicInteger(0)).incrementAndGet()
+      activationByInvoker.getOrElseUpdate(entry._2.invokerName.toString, new AtomicInteger(0)).incrementAndGet()
       entry
     })
   }
 
-  override def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
+  override def removeActivation(entry: ActivationEntry): Option[(Cancellable, ActivationEntry)] = {
     activationsById.remove(entry.id).map { x =>
       totalActivations.decrementAndGet()
       activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).decrementAndGet()
@@ -70,7 +71,7 @@ class LocalLoadBalancerData() extends LoadBalancerData {
     }
   }
 
-  override def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
-    activationsById.get(aid).flatMap(removeActivation)
+  override def removeActivation(aid: ActivationId): Option[(Cancellable, ActivationEntry)] = {
+    activationsById.get(aid).flatMap(entry => removeActivation(entry._2))
   }
 }

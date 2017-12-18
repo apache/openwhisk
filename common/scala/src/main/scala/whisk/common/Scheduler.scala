@@ -17,6 +17,7 @@
 
 package whisk.common
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -53,6 +54,8 @@ object Scheduler {
 
     var lastSchedule: Option[Cancellable] = None
 
+    val cref = new AtomicReference(closure)
+
     override def preStart() = {
       if (initialDelay != Duration.Zero) {
         lastSchedule = Some(context.system.scheduler.scheduleOnce(initialDelay, self, ScheduledWork))
@@ -62,24 +65,32 @@ object Scheduler {
     }
     override def postStop() = {
       logging.info(this, s"$name shutdown")
+      cref.set(null)
       lastSchedule.foreach(_.cancel())
     }
 
     def receive = {
-      case WorkOnceNow => Try(closure())
+      case WorkOnceNow => 
+         val closure = cref.getAndSet(null)
+         if (closure != null) {
+            Try(closure())
+         }
 
       case ScheduledWork =>
         val deadline = interval.fromNow
-        Try(closure()) match {
-          case Success(result) =>
-            result onComplete { _ =>
-              val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
-              // context might be null here if a PoisonPill is sent while doing computations
-              lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
-            }
+        val closure = cref.getAndSet(null)
+        if (closure != null) {
+           Try(closure()) match {
+             case Success(result) =>
+               result onComplete { _ =>
+                 val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
+                 // context might be null here if a PoisonPill is sent while doing computations
+                 lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
+               }
 
-          case Failure(e) =>
-            logging.error(name, s"halted because ${e.getMessage}")
+             case Failure(e) =>
+               logging.error(name, s"halted because ${e.getMessage}")
+           }
         }
     }
   }
