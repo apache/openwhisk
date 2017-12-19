@@ -19,11 +19,14 @@ package whisk.core.loadBalancer
 
 import whisk.core.entity.{ActivationId, InstanceId, UUID, WhiskActivation}
 
+import akka.actor.Cancellable
 import scala.concurrent.{Future, Promise}
 
+// please note: the timeoutHandler *must* be .cancel()'d on any non-timeout paths, else memory drags
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
                            invokerName: InstanceId,
+                           timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]])
 trait LoadBalancerData {
 

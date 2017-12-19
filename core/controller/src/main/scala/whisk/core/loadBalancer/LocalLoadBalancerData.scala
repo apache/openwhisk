@@ -71,6 +71,6 @@ class LocalLoadBalancerData() extends LoadBalancerData {
   }
 
   override def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
-    activationsById.get(aid).flatMap(removeActivation)
+    activationsById.get(aid).flatMap(entry => removeActivation(entry))
   }
 }

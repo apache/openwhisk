@@ -17,6 +17,7 @@
 
 package whisk.core.controller.actions
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -166,16 +167,23 @@ protected[actions] trait PrimitiveActions {
 
     logging.info(this, s"action activation will block for result upto $totalWaitTime")
 
+    val finisherRef = new AtomicReference(finisher)
     activeAckResponse map {
       case result @ Right(_) =>
         // activation complete, result is available
-        finisher ! ActivationFinisher.Finish(result)
+        val finisher = finisherRef.getAndSet(null)
+        if (finisher != null) {
+           finisher ! ActivationFinisher.Finish(result)
+        }
 
       case _ =>
         // active ack received but it does not carry the response,
         // no result available except by polling the db
         logging.warn(this, "pre-emptively polling db because active ack is missing result")
-        finisher ! Scheduler.WorkOnceNow
+        val finisher = finisherRef.getAndSet(null)
+        if (finisher != null) {
+           finisher ! Scheduler.WorkOnceNow
+        }
     }
 
     // return the promise which is either fulfilled by active ack, polling from the database,
@@ -185,7 +193,11 @@ protected[actions] trait PrimitiveActions {
       totalWaitTime, {
         Future.successful(Left(activationId)).andThen {
           // result no longer interesting; terminate the finisher/shut down db polling if necessary
-          case _ => actorSystem.stop(finisher)
+          case _ =>
+             val finisher = finisherRef.getAndSet(null)
+             if (finisher != null) {
+                actorSystem.stop(finisher)
+             }
         }
       })
   }
@@ -196,6 +208,7 @@ protected[actions] object ActivationFinisher {
   case class Finish(activation: Right[ActivationId, WhiskActivation])
 
   private type ActivationLookup = () => Future[WhiskActivation]
+  private type ActivationPromise = AtomicReference[Promise[Either[ActivationId, WhiskActivation]]]
 
   /** Periodically polls the db to cover missing active acks. */
   private val datastorePollPeriodForActivation = 15.seconds
@@ -214,7 +227,7 @@ protected[actions] object ActivationFinisher {
     logging: Logging): (Future[Either[ActivationId, WhiskActivation]], ActorRef) = {
 
     val (p, _, f) = props(activationLookup, datastorePollPeriodForActivation, datastorePreemptivePolling)
-    (p.future, f) // hides the polling actor
+    (p.get.future, f) // hides the polling actor
   }
 
   /**
@@ -227,10 +240,10 @@ protected[actions] object ActivationFinisher {
     implicit transid: TransactionId,
     actorSystem: ActorSystem,
     executionContext: ExecutionContext,
-    logging: Logging): (Promise[Either[ActivationId, WhiskActivation]], ActorRef, ActorRef) = {
+    logging: Logging): (ActivationPromise, ActorRef, ActorRef) = {
 
     // this is strictly completed by the finishing actor
-    val promise = Promise[Either[ActivationId, WhiskActivation]]
+    val promise = new AtomicReference(Promise[Either[ActivationId, WhiskActivation]])
     val dbpoller = poller(slowPoll, promise, activationLookup)
     val finisher = Props(new ActivationFinisher(dbpoller, fastPolls, promise))
 
@@ -247,7 +260,7 @@ protected[actions] object ActivationFinisher {
    */
   private class ActivationFinisher(poller: ActorRef, // the activation poller
                                    fastPollPeriods: Seq[FiniteDuration],
-                                   promise: Promise[Either[ActivationId, WhiskActivation]])(
+                                   prom: ActivationPromise)(
     implicit transid: TransactionId,
     actorSystem: ActorSystem,
     executionContext: ExecutionContext,
@@ -255,13 +268,16 @@ protected[actions] object ActivationFinisher {
       extends Actor {
 
     // when the future completes, self-destruct
-    promise.future.andThen { case _ => shutdown() }
+    prom.get.future.andThen { case _ => shutdown() }
 
     var preemptiveMsgs = Vector.empty[Cancellable]
 
     def receive = {
       case ActivationFinisher.Finish(activation) =>
-        promise.trySuccess(activation)
+        val promise = prom.getAndSet(null)
+        if (promise != null) {
+           promise.trySuccess(activation)
+        }
 
       case msg @ Scheduler.WorkOnceNow =>
         // try up to three times when pre-emptying the schedule
@@ -271,6 +287,7 @@ protected[actions] object ActivationFinisher {
     }
 
     def shutdown(): Unit = {
+      prom.set(null) // just in case
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
       context.stop(poller)
@@ -279,6 +296,7 @@ protected[actions] object ActivationFinisher {
 
     override def postStop() = {
       logging.info(this, "finisher shutdown")
+      prom.set(null) // just in case
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
       context.stop(poller)
@@ -290,13 +308,14 @@ protected[actions] object ActivationFinisher {
    * It is a factory method to facilitate testing.
    */
   private def poller(slowPollPeriod: FiniteDuration,
-                     promise: Promise[Either[ActivationId, WhiskActivation]],
+                     prom: ActivationPromise,
                      activationLookup: ActivationLookup)(implicit transid: TransactionId,
                                                          actorSystem: ActorSystem,
                                                          executionContext: ExecutionContext,
                                                          logging: Logging): ActorRef = {
     Scheduler.scheduleWaitAtMost(slowPollPeriod, initialDelay = slowPollPeriod, name = "dbpoll")(() => {
-      if (!promise.isCompleted) {
+      val promise = prom.getAndSet(null)
+      if (promise != null && !promise.isCompleted) {
         activationLookup() map {
           // complete the future, which in turn will poison pill this scheduler
           activation =>
