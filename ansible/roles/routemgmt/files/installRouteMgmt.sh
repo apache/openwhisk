@@ -22,9 +22,15 @@ NAMESPACE="$3"
 WSK_CLI="$4"
 
 WHISKPROPS_FILE="$OPENWHISK_HOME/whisk.properties"
-GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
-GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2-`
-GW_HOST_V2=`fgrep apigw.host.v2= $WHISKPROPS_FILE | cut -d'=' -f2`
+if [ -z "$GW_USER" ]; then
+   GW_USER=`fgrep apigw.auth.user= $WHISKPROPS_FILE | cut -d'=' -f2`
+fi
+if [ -z "$GW_PWD" ]; then
+    GW_PWD=`fgrep apigw.auth.pwd= $WHISKPROPS_FILE | cut -d'=' -f2-`
+fi
+if [ -z "$GW_HOST_V2" ]; then
+    GW_HOST_V2=`fgrep apigw.host.v2= $WHISKPROPS_FILE | cut -d'=' -f2`
+fi
 
 # If the auth key file exists, read the key in the file. Otherwise, take the
 # first argument as the key itself.
