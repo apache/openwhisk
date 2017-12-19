@@ -80,9 +80,9 @@ It will generate the `hosts` configuration file based on your environment settin
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-The default configuration does not replicate core components.
+The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
 You may elect to enable high-availability (HA) mode by passing tne ansible option `-e mode=HA` when executing this playbook.
-This will configure your deployment with two controllers, two kafka instancess, and two invokers.
+This will configure your deployment with multiple instances (e.g., two kafka instancess, and two invokers).
 
 In addition to the host file generation, you need to configure the database for your deployment. This is done
 by creating a file `ansible/db_local.ini` to provide the following properties.
