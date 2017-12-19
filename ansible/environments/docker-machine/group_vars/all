@@ -30,3 +30,12 @@ controller_arguments: '-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxre
 invoker_arguments: "{{ controller_arguments }}"
 
 invoker_allow_multiple_instances: true
+
+# Set kafka configuration
+kafka_heap: '512m'
+kafka_topics_completed_retentionBytes: 104857600
+kafka_topics_completed_retentionMS: 300000
+kafka_topics_health_retentionBytes: 104857600
+kafka_topics_health_retentionMS: 300000
+kafka_topics_invoker_retentionBytes: 104857600
+kafka_topics_invoker_retentionMS: 300000
