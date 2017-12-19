@@ -193,7 +193,7 @@ protected[actions] trait PrimitiveActions {
       totalWaitTime, {
         Future.successful(Left(activationId)).andThen {
           // result no longer interesting; terminate the finisher/shut down db polling if necessary
-          case _ => 
+          case _ =>
              val finisher = finisherRef.getAndSet(null)
              if (finisher != null) {
                 actorSystem.stop(finisher)

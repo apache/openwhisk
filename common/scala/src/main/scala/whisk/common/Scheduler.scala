@@ -70,7 +70,7 @@ object Scheduler {
     }
 
     def receive = {
-      case WorkOnceNow => 
+      case WorkOnceNow =>
          val closure = cref.getAndSet(null)
          if (closure != null) {
             Try(closure())
