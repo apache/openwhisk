@@ -71,6 +71,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  var lastRetryLog: Option[Long] = None
+  val logMessageInterval = 10000;
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
@@ -117,8 +119,24 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           // this can also happen if createContainer fails to start a new container, or
           // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
           // (and a new container would over commit the pool)
-          logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
-          self ! r
+          lastRetryLog
+            .map { lastLogTime =>
+              // log every following 10 seconds
+              if ((System.currentTimeMillis() - lastLogTime) > logMessageInterval) {
+                LogTooManyMessagesError(r)
+                lastRetryLog = Some(System.currentTimeMillis())
+                lastLogTime
+              }
+            }
+            .orElse {
+              // log at first occurance
+              LogTooManyMessagesError(r)
+              lastRetryLog = Some(System.currentTimeMillis())
+              None
+            }
+
+          val retryRun = Run(r.action, r.msg, r.retryCount + 1)
+          self ! retryRun
       }
 
     // Container is free to take more work
@@ -150,6 +168,14 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case RescheduleJob =>
       freePool = freePool - sender()
       busyPool = busyPool - sender()
+  }
+
+  private def LogTooManyMessagesError(r: Run) = {
+    logging.error(
+      this,
+      s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
+        s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, userNamespace: ${r.msg.user.namespace}, " +
+        s"action: ${r.action}, retries: ${r.retryCount}")(r.msg.transid)
   }
 
   /** Creates a new container and updates state accordingly. */
