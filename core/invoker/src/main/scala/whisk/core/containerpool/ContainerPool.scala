@@ -71,6 +71,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  val logRetriesInterval = 1000
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
@@ -110,8 +111,15 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           freePool = freePool - actor
           actor ! r // forwards the run request to the container
         case None =>
-          logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
-          self ! r
+          if (r.retryCount % logRetriesInterval == 0) {
+            logging.error(
+              this,
+              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
+                s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, userNamespace: ${r.msg.user.namespace}, action: ${r.action}, retries: ${r.retryCount}")(
+              r.msg.transid)
+          }
+          val retryRun = Run(r.action, r.msg, r.retryCount + 1)
+          self ! retryRun
       }
 
     // Container is free to take more work
