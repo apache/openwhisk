@@ -287,7 +287,6 @@ protected[actions] object ActivationFinisher {
     }
 
     def shutdown(): Unit = {
-      logging.error(this, "SHUTDOWN")
       prom.set(null) // just in case
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
