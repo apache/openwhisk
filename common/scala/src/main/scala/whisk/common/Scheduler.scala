@@ -71,26 +71,26 @@ object Scheduler {
 
     def receive = {
       case WorkOnceNow =>
-         val closure = cref.getAndSet(null)
-         if (closure != null) {
-            Try(closure())
-         }
+        val closure = cref.getAndSet(null)
+        if (closure != null) {
+          Try(closure())
+        }
 
       case ScheduledWork =>
         val deadline = interval.fromNow
         val closure = cref.getAndSet(null)
         if (closure != null) {
-           Try(closure()) match {
-             case Success(result) =>
-               result onComplete { _ =>
-                 val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
-                 // context might be null here if a PoisonPill is sent while doing computations
-                 lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
-               }
+          Try(closure()) match {
+            case Success(result) =>
+              result onComplete { _ =>
+                val timeToWait = if (alwaysWait) interval else deadline.timeLeft.max(Duration.Zero)
+                // context might be null here if a PoisonPill is sent while doing computations
+                lastSchedule = Option(context).map(_.system.scheduler.scheduleOnce(timeToWait, self, ScheduledWork))
+              }
 
-             case Failure(e) =>
-               logging.error(name, s"halted because ${e.getMessage}")
-           }
+            case Failure(e) =>
+              logging.error(name, s"halted because ${e.getMessage}")
+          }
         }
     }
   }
