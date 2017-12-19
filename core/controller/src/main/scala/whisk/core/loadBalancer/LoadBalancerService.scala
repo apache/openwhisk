@@ -153,9 +153,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
-        entry._1.cancel
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
+          entry._1.cancel()
           entry._2.promise.trySuccess(response)
         } else {
           entry._2.promise.tryFailure(new Throwable("no active ack received"))
