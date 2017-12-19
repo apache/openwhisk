@@ -22,9 +22,11 @@ import whisk.core.entity.{ActivationId, InstanceId, UUID, WhiskActivation}
 import akka.actor.Cancellable
 import scala.concurrent.{Future, Promise}
 
+// please note: the timeoutHandler *must* be .cancel()'d on any non-timeout paths, else memory drags
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
                            invokerName: InstanceId,
+                           timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]])
 trait LoadBalancerData {
 
@@ -52,7 +54,7 @@ trait LoadBalancerData {
    * @param activationId activation id to get data for
    * @return the respective activation or None if it doesn't exist
    */
-  def activationById(activationId: ActivationId): Option[(Cancellable, ActivationEntry)]
+  def activationById(activationId: ActivationId): Option[ActivationEntry]
 
   /**
    * Adds an activation entry.
@@ -64,7 +66,7 @@ trait LoadBalancerData {
    * @return the entry calculated by the block or iff it did
    *         exist before the entry from the state
    */
-  def putActivation(id: ActivationId, update: => (Cancellable, ActivationEntry)): (Cancellable, ActivationEntry)
+  def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry
 
   /**
    * Removes the given entry.
@@ -72,7 +74,7 @@ trait LoadBalancerData {
    * @param entry the entry to remove
    * @return The deleted entry or None if nothing got deleted
    */
-  def removeActivation(entry: ActivationEntry): Option[(Cancellable, ActivationEntry)]
+  def removeActivation(entry: ActivationEntry): Option[ActivationEntry]
 
   /**
    * Removes the activation identified by the given activation id.
@@ -80,5 +82,5 @@ trait LoadBalancerData {
    * @param aid activation id to remove
    * @return The deleted entry or None if nothing got deleted
    */
-  def removeActivation(aid: ActivationId): Option[(Cancellable, ActivationEntry)]
+  def removeActivation(aid: ActivationId): Option[ActivationEntry]
 }

@@ -30,7 +30,6 @@ import scala.util.Success
 import org.apache.kafka.clients.producer.RecordMetadata
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
-import akka.actor.Cancellable
 import akka.actor.Props
 import akka.cluster.Cluster
 import akka.util.Timeout
@@ -122,7 +121,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     chooseInvoker(msg.user, action).flatMap { invokerName =>
       val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
       sendActivationToInvoker(messageProducer, msg, invokerName).map { _ =>
-        entry._2.promise.future
+        entry.promise.future
       }
     }
   }
@@ -155,10 +154,10 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
-          entry._1.cancel()
-          entry._2.promise.trySuccess(response)
+          entry.timeoutHandler.cancel()
+          entry.promise.trySuccess(response)
         } else {
-          entry._2.promise.tryFailure(new Throwable("no active ack received"))
+          entry.promise.tryFailure(new Throwable("no active ack received"))
         }
       case None if !forced =>
         // the entry has already been removed but we receive an active ack for this activation Id.
@@ -180,7 +179,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                               activationId: ActivationId,
                               namespaceId: UUID,
                               invokerName: InstanceId,
-                              transid: TransactionId): (Cancellable, ActivationEntry) = {
+                              transid: TransactionId): ActivationEntry = {
     val timeout = (action.limits.timeout.duration
       .max(TimeLimit.STD_DURATION) * config.controllerInstances.toInt) + activeAckTimeoutGrace
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
@@ -194,7 +193,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
       }
 
-      (timeoutHandler, ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]()))
+      // please note: the timeoutHandler *must* be .cancel()'d on any non-timeout paths, else memory drags
+      ActivationEntry(activationId, namespaceId, invokerName, timeoutHandler, Promise[Either[ActivationId, WhiskActivation]]())
     })
   }
 

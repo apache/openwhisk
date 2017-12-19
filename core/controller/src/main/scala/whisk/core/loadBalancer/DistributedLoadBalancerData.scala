@@ -18,7 +18,6 @@
 package whisk.core.loadBalancer
 
 import akka.actor.ActorSystem
-import akka.actor.Cancellable
 import akka.util.Timeout
 import akka.pattern.ask
 import whisk.common.Logging
@@ -38,7 +37,7 @@ class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Lo
 
   implicit val timeout = Timeout(5.seconds)
   implicit val executionContext = actorSystem.dispatcher
-  private val activationsById = TrieMap[ActivationId, (Cancellable, ActivationEntry)]()
+  private val activationsById = TrieMap[ActivationId, ActivationEntry]()
 
   private val sharedStateInvokers = actorSystem.actorOf(
     SharedDataService.props("Invokers"),
@@ -62,21 +61,21 @@ class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Lo
     (sharedStateInvokers ? GetMap).mapTo[Map[String, BigInt]].map(_.mapValues(_.toInt))
   }
 
-  def activationById(activationId: ActivationId): Option[(Cancellable, ActivationEntry)] = {
+  def activationById(activationId: ActivationId): Option[ActivationEntry] = {
     activationsById.get(activationId)
   }
 
-  def putActivation(id: ActivationId, update: => (Cancellable, ActivationEntry)): (Cancellable, ActivationEntry) = {
+  def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
     activationsById.getOrElseUpdate(id, {
       val entry = update
-      sharedStateNamespaces ! IncreaseCounter(entry._2.namespaceId.asString, 1)
-      sharedStateInvokers ! IncreaseCounter(entry._2.invokerName.toString, 1)
+      sharedStateNamespaces ! IncreaseCounter(entry.namespaceId.asString, 1)
+      sharedStateInvokers ! IncreaseCounter(entry.invokerName.toString, 1)
       logging.debug(this, "increased shared counters")
       entry
     })
   }
 
-  def removeActivation(entry: ActivationEntry): Option[(Cancellable, ActivationEntry)] = {
+  def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
     activationsById.remove(entry.id).map { activationEntry =>
       sharedStateInvokers ! DecreaseCounter(entry.invokerName.toString, 1)
       sharedStateNamespaces ! DecreaseCounter(entry.namespaceId.asString, 1)
@@ -85,7 +84,7 @@ class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Lo
     }
   }
 
-  def removeActivation(aid: ActivationId): Option[(Cancellable, ActivationEntry)] = {
-    activationsById.get(aid).flatMap(entry => removeActivation(entry._2))
+  def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
+    activationsById.get(aid).flatMap(entry => removeActivation(entry))
   }
 }
