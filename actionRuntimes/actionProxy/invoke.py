@@ -33,6 +33,7 @@ import os
 import re
 import sys
 import json
+import base64
 import requests
 import codecs
 import traceback
@@ -90,9 +91,10 @@ def init(args):
     main = args.main
     artifact = args.artifact
 
-    if artifact and (artifact.endswith('.zip') or artifact.endswith('tgz')):
+    if artifact and (artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
         with open(artifact, 'rb') as fp:
-            contents = fp.read().encode('base64')
+            contents = fp.read()
+        contents = base64.b64encode(contents)
         binary = True
     elif artifact is not '':
         with(codecs.open(artifact, 'r', 'utf-8')) as fp:
