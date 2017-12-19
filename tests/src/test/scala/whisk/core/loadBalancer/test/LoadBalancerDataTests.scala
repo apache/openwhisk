@@ -31,9 +31,17 @@ import scala.concurrent.duration._
 
 class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
+  // ActivationEntry requires a cancellable, which represents the timeoutHandler
+  class FakeCancellable(var cancelled: Boolean = false) extends akka.actor.Cancellable {
+    def cancel() = { cancelled = true }
+    def isCancelled() = cancelled
+  }
+
   val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
-  val firstEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(0), activationIdPromise)
-  val secondEntry: ActivationEntry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
+  val firstEntry: ActivationEntry =
+    ActivationEntry(ActivationId(), UUID(), InstanceId(0), new FakeCancellable(), activationIdPromise)
+  val secondEntry: ActivationEntry =
+    ActivationEntry(ActivationId(), UUID(), InstanceId(1), new FakeCancellable(), activationIdPromise)
 
   val port = 2552
   val host = "127.0.0.1"
@@ -149,7 +157,7 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "respond with different values accordingly" in {
 
-    val entry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), activationIdPromise)
+    val entry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), new FakeCancellable(), activationIdPromise)
     val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
     val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
 
