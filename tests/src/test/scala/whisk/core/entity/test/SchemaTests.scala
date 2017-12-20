@@ -26,17 +26,16 @@ import scala.language.postfixOps
 import scala.language.reflectiveCalls
 import scala.util.Failure
 import scala.util.Try
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.entitlement.Privilege
+import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
 import whisk.http.Messages
@@ -467,6 +466,26 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     ExecutableWhiskAction(EntityPath("a"), EntityName("b"), bb("container1", "", Some("naim"))).containerInitializer shouldBe {
       JsObject("name" -> "b".toJson, "binary" -> false.toJson, "main" -> "naim".toJson)
     }
+  }
+
+  it should "compare as equal two actions even if their revision does not match" in {
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val actionA = WhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val actionB = actionA.copy()
+    val actionC = actionA.copy()
+    actionC.revision(DocRevision("2"))
+    actionA shouldBe actionB
+    actionA shouldBe actionC
+  }
+
+  it should "compare as equal two executable actions even if their revision does not match" in {
+    val exec = CodeExecAsString(RuntimeManifest("actionKind", ImageName("testImage")), "testCode", None)
+    val actionA = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
+    val actionB = actionA.copy()
+    val actionC = actionA.copy()
+    actionC.revision(DocRevision("2"))
+    actionA shouldBe actionB
+    actionA shouldBe actionC
   }
 
   it should "reject malformed JSON" in {

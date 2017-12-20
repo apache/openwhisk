@@ -90,6 +90,7 @@ class ContainerPoolTests
 
   val runMessage = createRunMessage(action, invocationNamespace)
   val runMessageDifferentAction = createRunMessage(differentAction, invocationNamespace)
+  val runMessageDifferentVersion = createRunMessage(action.copy().revision(DocRevision("v2")), invocationNamespace)
   val runMessageDifferentNamespace = createRunMessage(action, differentInvocationNamespace)
   val runMessageDifferentEverything = createRunMessage(differentAction, differentInvocationNamespace)
 
@@ -130,6 +131,20 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
+    containers(1).expectNoMsg(100.milliseconds)
+  }
+
+  it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
+
+    pool ! runMessage
+    containers(0).expectMsg(runMessage)
+    containers(0).send(pool, NeedWork(warmedData()))
+
+    pool ! runMessageDifferentVersion
+    containers(0).expectMsg(runMessageDifferentVersion)
     containers(1).expectNoMsg(100.milliseconds)
   }
 

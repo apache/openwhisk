@@ -58,15 +58,6 @@ case class ActivationMessage(override val transid: TransactionId,
                              cause: Option[ActivationId] = None)
     extends Message {
 
-  def meta =
-    JsObject("meta" -> {
-      cause map { c =>
-        JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
-      } getOrElse {
-        activationId.toJsObject
-      }
-    })
-
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
   override def toString = {
