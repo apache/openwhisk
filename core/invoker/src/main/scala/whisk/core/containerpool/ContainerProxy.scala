@@ -455,7 +455,7 @@ object ContainerProxy {
 
     WhiskActivation(
       activationId = job.msg.activationId,
-      namespace = job.msg.activationNamespace,
+      namespace = job.msg.user.namespace.toPath,
       subject = job.msg.user.subject,
       cause = job.msg.cause,
       name = job.action.name,

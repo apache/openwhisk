@@ -328,7 +328,6 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
         user = InvokerPool.healthActionIdentity,
         // Create a new Activation ID for this activation
         activationId = new ActivationIdGenerator {}.make(),
-        activationNamespace = action.namespace,
         rootControllerIndex = controllerInstance,
         blocking = false,
         content = None)

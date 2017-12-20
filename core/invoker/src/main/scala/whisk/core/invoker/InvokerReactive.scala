@@ -210,7 +210,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
               } else None
               val activation = WhiskActivation(
                 activationId = msg.activationId,
-                namespace = msg.activationNamespace,
+                namespace = msg.user.namespace.toPath,
                 subject = msg.user.subject,
                 cause = msg.cause,
                 name = msg.action.name,
