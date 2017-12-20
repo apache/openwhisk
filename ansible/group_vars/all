@@ -18,6 +18,8 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
+hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}" 
+
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"

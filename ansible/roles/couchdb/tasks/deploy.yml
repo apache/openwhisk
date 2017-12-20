@@ -6,7 +6,7 @@
     coordinator: "{{ groups['db'][0] }}"
 
 - name: check if db credentials are valid for CouchDB
-  fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
+  fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
   when: db_provider != "CouchDB"
 
 - name: check for persistent disk
