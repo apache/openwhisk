@@ -154,6 +154,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
+          entry.timeoutHandler.cancel()
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
@@ -187,13 +188,20 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     // in this case, if the activation handler is still registered, remove it and update the books.
     // in case of missing synchronization between n controllers in HA configuration the invoker queue can be overloaded
     // n-1 times and the maximal time for answering with active ack can be n times the action time (plus some overhead)
-    loadBalancerData.putActivation(activationId, {
-      actorSystem.scheduler.scheduleOnce(timeout) {
-        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
-      }
+    loadBalancerData.putActivation(
+      activationId, {
+        val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
+          processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
+        }
 
-      ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
-    })
+        // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
+        ActivationEntry(
+          activationId,
+          namespaceId,
+          invokerName,
+          timeoutHandler,
+          Promise[Either[ActivationId, WhiskActivation]]())
+      })
   }
 
   /**
