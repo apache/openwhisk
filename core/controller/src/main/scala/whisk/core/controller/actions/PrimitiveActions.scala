@@ -105,7 +105,6 @@ protected[actions] trait PrimitiveActions {
       action.rev,
       user,
       activationIdFactory.make(), // activation id created here
-      activationNamespace = user.namespace.toPath,
       activeAckTopicIndex,
       waitForResponse.isDefined,
       args,

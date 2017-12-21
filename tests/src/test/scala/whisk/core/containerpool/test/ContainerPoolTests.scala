@@ -77,7 +77,6 @@ class ContainerPoolTests
       action.rev,
       Identity(Subject(), invocationNamespace, AuthKey(), Set()),
       ActivationId(),
-      invocationNamespace.toPath,
       InstanceId(0),
       blocking = false,
       content = None)
@@ -90,6 +89,7 @@ class ContainerPoolTests
   val differentAction = action.copy(name = EntityName("actionName2"))
 
   val runMessage = createRunMessage(action, invocationNamespace)
+  val runMessageDifferentAction = createRunMessage(differentAction, invocationNamespace)
   val runMessageDifferentNamespace = createRunMessage(action, differentInvocationNamespace)
   val runMessageDifferentEverything = createRunMessage(differentAction, differentInvocationNamespace)
 

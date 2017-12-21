@@ -97,7 +97,6 @@ class ContainerProxyTests
     action.rev,
     Identity(Subject(), invocationNamespace, AuthKey(), Set()),
     ActivationId(),
-    invocationNamespace.toPath,
     InstanceId(0),
     blocking = false,
     content = None)
