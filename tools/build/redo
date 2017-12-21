@@ -75,7 +75,12 @@ def getArgs():
         if osname == 'Linux':
             return 'local'
         elif osname == 'Darwin':
-            return 'docker-machine'
+            if os.getenv('DOCKER_HOST', None) is not None:
+                # docker-machine typically has docker host set in the environment
+                return 'docker-machine'
+            else:
+                # otherwise assume docker-for-mac
+                return 'local'
         else:
             return None
 
@@ -83,7 +88,7 @@ def getArgs():
     parser.add_argument('-b', '--build', help='build component', action='store_const', const=True, default=False)
     parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
-    parser.add_argument('-t', '--target', help='deploy target (one of [mac, docker-machine, local])', default=detectDeployTarget())
+    parser.add_argument('-t', '--target', help='deploy target (one of [docker-machine, local])', default=detectDeployTarget())
     parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
@@ -260,8 +265,7 @@ Components = [
                   gradle = ':core:invoker'),
 
     makeComponent('edge',
-                  'deploy edge',
-                  gradle = ':tools:cli'),
+                  'deploy edge'),
 
     makeComponent('catalog',
                   'install catalog',
@@ -272,52 +276,42 @@ Components = [
     makeComponent('nodejs6action',
                   'build node.js v6 action container',
                   yaml = False,
-                  gradle = 'core:nodejs6Action'),
+                  gradle = 'actionRuntimes:nodejs6Action'),
 
     makeComponent('actionproxy',
                   'build action proxy container',
                   yaml = False,
-                  gradle = 'core:actionProxy'),
+                  gradle = 'actionRuntimes:actionProxy'),
 
     makeComponent('python2action',
                   'build python v2.7 action container',
                   yaml = False,
-                  gradle = 'core:python2Action'),
+                  gradle = 'actionRuntimes:python2Action'),
 
     makeComponent('python3action',
                   'build python action container',
                   yaml = False,
-                  gradle = 'core:pythonAction'),
-
-    makeComponent('swift3action',
-                  'build swift v3 action container',
-                  yaml = False,
-                  gradle = 'core:swift3Action'),
+                  gradle = 'actionRuntimes:pythonAction'),
 
     makeComponent('action-swift-v3.1.1',
                   'build swift v3.1.1 action container',
                   yaml = False,
-                  gradle = 'core:swift3.1.1Action'),
+                  gradle = 'actionRuntimes:swift3.1.1Action'),
 
     makeComponent('java8action',
                   'build java action container',
                   yaml = False,
-                  gradle = 'core:javaAction'),
+                  gradle = 'actionRuntimes:javaAction'),
 
     makeComponent('action-php-v7.1',
                   'build PHP v7.1 action container',
                   yaml = False,
-                  gradle = 'core:php7.1Action'),
+                  gradle = 'actionRuntimes:php7.1Action'),
 
     makeComponent('dockersdk',
                   'build docker action SDK (to deploy, use edge component)',
                   yaml = False,
                   gradle = 'sdk:docker'),
-
-    makeComponent('cli',
-                  'build CLI (to deploy, use edge component)',
-                  yaml = False,
-                  gradle = ':tools:cli'),
 
     # required for tests
     makeComponent('props',

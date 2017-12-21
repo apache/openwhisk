@@ -31,6 +31,7 @@ import spray.json._
 
 import TestUtils.RunResult
 import TestUtils.CONFLICT
+import akka.http.scaladsl.model.StatusCodes
 
 /**
  * An arbitrary response of a whisk action. Includes the result as a JsObject as the
@@ -173,8 +174,9 @@ trait WskTestHelpers extends Matchers {
               case _: BasePackage if delete =>
                 val rr = cli.delete(n)(wskprops)
                 rr.exitCode match {
-                  case CONFLICT => whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
-                  case _        => rr
+                  case CONFLICT | StatusCodes.Conflict.intValue =>
+                    whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
+                  case _ => rr
                 }
               case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
             }

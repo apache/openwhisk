@@ -26,7 +26,6 @@ import scala.collection.JavaConversions._
 
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.record.Record
 import common.StreamLogging
 
 import whisk.common.Counter
@@ -74,12 +73,11 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
   }
 
   private val producer = new MessageProducer {
-    def send(topic: String, msg: Message): Future[RecordMetadata] = {
+    def send(topic: String, msg: Message, retry: Int = 0): Future[RecordMetadata] = {
       queue.synchronized {
         if (queue.offer(msg)) {
           logging.info(this, s"put: $msg")
-          Future.successful(
-            new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+          Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, -1, Long.box(-1L), -1, -1))
         } else {
           logging.error(this, s"put failed: $msg")
           Future.failed(new IllegalStateException("failed to write msg"))
@@ -91,8 +89,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
       queue.synchronized {
         if (queue.addAll(msgs)) {
           logging.info(this, s"put: ${msgs.length} messages")
-          Future.successful(
-            new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, Record.NO_TIMESTAMP, -1, -1, -1))
+          Future.successful(new RecordMetadata(new TopicPartition(topic, 0), 0, queue.size, -1, Long.box(-1L), -1, -1))
         } else {
           logging.error(this, s"put failed: ${msgs.length} messages")
           Future.failed(new IllegalStateException("failed to write msg"))

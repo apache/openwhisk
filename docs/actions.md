@@ -6,6 +6,10 @@ Actions are stateless code snippets that run on the OpenWhisk platform. An actio
 
 Actions can be explicitly invoked, or run in response to an event. In either case, each run of an action results in an activation record that is identified by a unique activation ID. The input to an action and the result of an action are a dictionary of key-value pairs, where the key is a string and the value a valid JSON value. Actions can also be composed of calls to other actions or a defined sequence of actions.
 
+## Prerequisites
+
+You will need to use OpenWhisk CLI. Read how to use it when running OpenWhisk from a VM [here](https://github.com/apache/incubator-openwhisk/blob/master/tools/vagrant/README.md#using-cli-from-outside-the-vm). Or download binaries for your platform [here](https://github.com/apache/incubator-openwhisk-cli/releases). You can also download the CLI directly from your local installation at the _https://<IP_ADDRESS>/cli/go/download/_ path.
+
 Learn how to create, invoke, and debug actions in your preferred development environment:
 
 * [JavaScript](#creating-and-invoking-javascript-actions)
@@ -50,6 +54,7 @@ Review the following steps and examples to create your first JavaScript action.
   ```
   ok: created action hello
   ```
+  The CLI automatically infers the type of the action by using the source file extension. For `.js` source files, the action runs by using a Node.js 6 runtime. You can also create an action that runs with Node.js 8 by explicitly specifying the parameter `--kind nodejs:8`. For more information, see the Node.js 6 vs 8 [reference](./openwhisk_reference.html#openwhisk_ref_javascript_environments).
 
 3. List the actions that you have created:
 
@@ -258,7 +263,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
   ```json
   {
     "name": "Bernie",
-    "place": "Vermont"
+    "place": "Washington, DC"
   }
   ```
 
@@ -474,7 +479,7 @@ To create an OpenWhisk action from this package:
   wsk action create packageAction --kind nodejs:6 action.zip
   ```
 
-  Note that when creating an action from a `.zip` archive using the CLI tool, you must explicitly provide a value for the `--kind` flag.
+  When creating an action from a `.zip` archive with the CLI tool, you must explicitly provide a value for the `--kind` flag by using `nodejs:6` or `nodejs:8`.
 
 4. You can invoke the action like any other:
 
@@ -492,6 +497,90 @@ To create an OpenWhisk action from this package:
   ```
 
 Finally, note that while most `npm` packages install JavaScript sources on `npm install`, some also install and compile binary artifacts. The archive file upload currently does not support binary dependencies but rather only JavaScript dependencies. Action invocations may fail if the archive includes binary dependencies.
+
+### Package an action as a single bundle
+
+It is convenient to only include the minimal code into a single `.js` file that includes dependencies. This approach allows for faster deployments, and in some circumstances where packaging the action as a zip might be too large because it includes unnecessary files.
+
+You can use a JavaScript module bundler such as [webpack](https://webpack.js.org/concepts/). When webpack processes your code, it recursively builds a dependency graph that includes every module that your action needs.
+
+Here is a quick example using webpack:
+
+Taking the previous example `package.json` add `webpack` as a development depency and add some npm script commands.
+```json
+{
+  "name": "my-action",
+  "main": "dist/bundle.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "deploy": "wsk action update my-action dist/bundle.js --kind nodejs:8"
+  },
+  "dependencies": {
+    "left-pad": "1.1.3"
+  },
+  "devDependencies": {
+    "webpack": "^3.8.1"
+  }
+}
+```
+
+Create the webpack configuration file `webpack.config.js`.
+```javascript
+var path = require('path');
+module.exports = {
+  entry: './index.js',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js'
+  },
+  target: 'node'
+};
+```
+
+Set the variable `global.main` to the main function of the action.
+From the previous example:
+```javascript
+function myAction(args) {
+    const leftPad = require("left-pad")
+    const lines = args.lines || [];
+    return { padded: lines.map(l => leftPad(l, 30, ".")) }
+}
+global.main = myAction;
+```
+
+If your function name is `main`, use this syntax instead:
+```javascript
+global.main = main;
+```
+
+To build and deploy an OpenWhisk Action using `npm` and `webpack`:
+
+1. First, install dependencies locally:
+
+  ```
+  npm install
+  ```
+
+2. Build the webpack bundle:
+
+  ```
+  npm run build
+  ```
+
+  The file `dist/bundle.js` is created, and is used to deploy as the Action source code.
+
+3. Create the Action using the `npm` script or the CLI.
+  Using `npm` script:
+  ```
+  npm run deploy
+  ```
+  {: pre}
+  Using the CLI:
+  ```
+  wsk action update my-action dist/bundle.js
+  ```
+
+Finally, the bundle file that is built by `webpack` doesn't support binary dependencies but rather JavaScript dependencies. So Action invocations will fail if the bundle depends on binary dependencies, because this is not included with the file `bundle.js`.
 
 ## Creating action sequences
 
@@ -725,9 +814,7 @@ follows:
 wsk action create helloSwift hello.swift
 ```
 
-The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. You can also create an action that runs with Swift 3.0 by explicitly specifying the parameter `--kind swift:3`. See the Swift [reference](./reference.md#swift-actions) for more information about Swift 3.0 vs. 3.1.
-
-**Note:** The actions you created using the kind `swift:3` will continue to work for a short period, however you should begin migrating your deployment scripts and recompiling your swift actions using the new kind `swift:3.1.1`. Support for Swift 3.0 is deprecated and will be removed soon.
+The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. See the Swift [reference](./reference.md#swift-actions) for more information about the Swift runtime.
 
 
 Action invocation is the same for Swift actions as it is for JavaScript actions:

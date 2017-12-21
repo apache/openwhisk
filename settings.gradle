@@ -2,16 +2,14 @@ include 'common:scala'
 
 include 'core:controller'
 include 'core:invoker'
-include 'core:nodejs6Action'
-include 'core:actionProxy'
-include 'core:pythonAction'
-include 'core:python2Action'
-include 'core:swift3Action'
-include 'core:swift3.1.1Action'
-include 'core:javaAction'
-include 'core:php7.1Action'
-
-include 'tools:cli'
+include 'actionRuntimes:nodejs6Action'
+include 'actionRuntimes:nodejs8Action'
+include 'actionRuntimes:actionProxy'
+include 'actionRuntimes:pythonAction'
+include 'actionRuntimes:python2Action'
+include 'actionRuntimes:swift3.1.1Action'
+include 'actionRuntimes:javaAction'
+include 'actionRuntimes:php7.1Action'
 
 include 'sdk:docker'
 
@@ -22,7 +20,7 @@ include 'tests:dat:blackbox:badproxy'
 rootProject.name = 'openwhisk'
 
 gradle.ext.scala = [
-    version: '2.11.8',
+    version: '2.11.11',
     compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
 ]
 

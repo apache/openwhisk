@@ -32,7 +32,6 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.stream.ActorMaterializer
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
@@ -63,6 +62,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val cfg = config
 
   private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
 
   /**
    * Factory used by the ContainerProxy to physically create a new container.
@@ -97,7 +97,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val msgProvider = SpiLoader.get[MessagingProvider]
   val consumer = msgProvider.getConsumer(
     config,
-    "invokers",
+    topic,
     topic,
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
@@ -202,13 +202,15 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
               // errors and should cause the invoker to be considered unhealthy.
               val response = t match {
                 case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                case _                      => ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
               }
               val now = Instant.now
-              val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+              val causedBy = if (msg.causedBySequence) {
+                Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
+              } else None
               val activation = WhiskActivation(
                 activationId = msg.activationId,
-                namespace = msg.activationNamespace,
+                namespace = msg.user.namespace.toPath,
                 subject = msg.user.subject,
                 cause = msg.cause,
                 name = msg.action.name,
@@ -218,7 +220,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                 duration = Some(0),
                 response = response,
                 annotations = {
-                  Parameters("path", msg.action.toString.toJson) ++ causedBy
+                  Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++ causedBy
                 })
 
               activationFeed ! MessageFeed.Processed

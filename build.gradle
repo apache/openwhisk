@@ -10,4 +10,30 @@ buildscript {
 subprojects {
     apply plugin: 'scalafmt'
     scalafmt.configFilePath = gradle.scalafmt.config
+
+    afterEvaluate {
+        if (project.plugins.hasPlugin('application')
+                && project.plugins.hasPlugin('scala')) {
+            startScripts {
+                doLast {
+                    unixScript.text = configureUnixClasspath(unixScript)
+                }
+            }
+        }
+    }
+}
+
+def configureUnixClasspath(File script) {
+    script
+        .readLines()
+        .collect { line ->
+            // Looking for the line that starts with CLASSPATH=
+            line = line.replaceAll(~/^CLASSPATH=.*$/) { original ->
+
+                // Get original line and append it
+                // with the configuration directory.
+                original += ':$APP_HOME/ext-lib/*:$APP_HOME/config'
+            }
+        }
+        .join('\n')
 }

@@ -27,6 +27,9 @@ import whisk.core.entity._
 import whisk.core.entity.ArgNormalizer.trim
 import whisk.core.entity.ExecManifest._
 
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+
 trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   self: Suite =>
 
@@ -36,10 +39,19 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
   protected val NODEJS = "nodejs"
   protected val NODEJS6 = "nodejs:6"
   protected val SWIFT = "swift"
-  protected val SWIFT3 = "swift:3"
+  protected val SWIFT3 = "swift:3.1.1"
+  protected val SWIFT3_IMAGE = "action-swift-v3.1.1"
+  protected val JAVA_DEFAULT = "java"
 
-  protected def imagename(name: String) =
-    ExecManifest.ImageName(s"${name}action".replace(":", ""), Some("openwhisk"), Some("latest"))
+  private def attFmt[T: JsonFormat] = Attachments.serdes[T]
+
+  protected def imagename(name: String) = {
+    var image = s"${name}action".replace(":", "")
+    if (name.equals(SWIFT3)) {
+      image = SWIFT3_IMAGE
+    }
+    ExecManifest.ImageName(image, Some("openwhisk"), Some("latest"))
+  }
 
   protected def js(code: String, main: Option[String] = None) = {
     CodeExecAsString(RuntimeManifest(NODEJS, imagename(NODEJS), deprecated = Some(true)), trim(code), main.map(_.trim))
@@ -54,6 +66,18 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
 
   protected def jsDefault(code: String, main: Option[String] = None) = {
     js6(code, main)
+  }
+
+  protected def js6MetaData(main: Option[String] = None) = {
+    CodeExecMetaDataAsString(
+      RuntimeManifest(NODEJS6, imagename(NODEJS6), default = Some(true), deprecated = Some(false)))
+  }
+
+  protected def javaDefault(code: String, main: Option[String] = None) = {
+    val attachment = attFmt[String].read(code.trim.toJson)
+    val manifest = ExecManifest.runtimesManifest.resolveDefaultRuntime(JAVA_DEFAULT).get
+
+    CodeExecAsAttachment(manifest, attachment, main.map(_.trim))
   }
 
   protected def swift(code: String, main: Option[String] = None) = {

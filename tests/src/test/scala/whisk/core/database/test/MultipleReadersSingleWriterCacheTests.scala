@@ -19,8 +19,9 @@ package whisk.core.database.test
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -59,17 +60,17 @@ class MultipleReadersSingleWriterCacheTests
     }
 
     // Create an cache entry
-    cacheUpdate("doc", key, Future.successful("db save successful"))
+    Await.ready(cacheUpdate("doc", key, Future.successful("db save successful")), 10.seconds)
     ctr.get shouldBe 1
 
     // Callback should be called if entry exists
-    cacheInvalidate(key, Future.successful(()))
+    Await.ready(cacheInvalidate(key, Future.successful(())), 10.seconds)
     ctr.get shouldBe 2
-    cacheUpdate("docdoc", key, Future.successful("update in db successful"))
+    Await.ready(cacheUpdate("docdoc", key, Future.successful("update in db successful")), 10.seconds)
     ctr.get shouldBe 3
 
     // Callback should be called if entry does not exist
-    cacheInvalidate(CacheKey("abc"), Future.successful(()))
+    Await.ready(cacheInvalidate(CacheKey("abc"), Future.successful(())), 10.seconds)
     ctr.get shouldBe 4
   }
 }

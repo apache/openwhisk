@@ -29,3 +29,6 @@ RUN update-alternatives --install "/usr/bin/java" "java" "${JRE_HOME}/bin/java" 
   update-alternatives --set java "${JRE_HOME}/bin/java" && \
   update-alternatives --set javac "${JAVA_HOME}/bin/javac" && \
   mkdir /logs
+
+COPY transformEnvironment.sh /
+RUN chmod +x transformEnvironment.sh

@@ -22,7 +22,6 @@ import java.time.Instant
 import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.JsObject
@@ -40,6 +39,8 @@ import whisk.core.WhiskConfig.dbProtocol
 import whisk.core.WhiskConfig.dbProvider
 import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
+import whisk.core.WhiskConfig.dbWhiskDesignDoc
+import whisk.core.WhiskConfig.{dbActivationsDesignDoc, dbActivationsFilterDesignDoc}
 import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
@@ -88,6 +89,8 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
 }
 
 object WhiskAuthStore {
+  implicit val docReader = WhiskDocumentReader
+
   def requiredProperties =
     Map(
       dbProvider -> null,
@@ -111,16 +114,22 @@ object WhiskEntityStore {
       dbPassword -> null,
       dbHost -> null,
       dbPort -> null,
-      dbWhisk -> null)
+      dbWhisk -> null,
+      dbWhiskDesignDoc -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](config, _.dbWhisk)(WhiskEntityJsonFormat, system, logging, materializer)
-
+      .makeStore[WhiskEntity](config, _.dbWhisk)(
+        WhiskEntityJsonFormat,
+        WhiskDocumentReader,
+        system,
+        logging,
+        materializer)
 }
 
 object WhiskActivationStore {
+  implicit val docReader = WhiskDocumentReader
   def requiredProperties =
     Map(
       dbProvider -> null,
@@ -129,10 +138,24 @@ object WhiskActivationStore {
       dbPassword -> null,
       dbHost -> null,
       dbPort -> null,
-      dbActivations -> null)
+      dbActivations -> null,
+      dbActivationsDesignDoc -> null,
+      dbActivationsFilterDesignDoc -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)
+}
+
+/**
+ * A class to type the design doc and view within a database.
+ *
+ * @param ddoc the design document
+ * @param view the view name within the design doc
+ */
+protected[core] class View(ddoc: String, view: String) {
+
+  /** The name of the table to query. */
+  val name = s"$ddoc/$view"
 }
 
 /**
@@ -169,14 +192,23 @@ object WhiskActivationStore {
  */
 object WhiskEntityQueries {
   val TOP = "\ufff0"
-  val WHISKVIEW = "whisks"
-  val ALL = "all"
+
+  /** The design document to use for queries. */
+  // FIXME: reading the design doc from sys.env instead of a canonical property reader
+  // because WhiskConfig requires a logger, which requires an actor system, neither of
+  // which are readily available here; rather than introduce significant refactoring,
+  // defer this fix until WhiskConfig is refactored itself, which is planned to introduce
+  // type safe properties
+  val designDoc = WhiskConfig.readFromEnv(dbWhiskDesignDoc).getOrElse("whisks.v2")
+
+  /** The view name for the collection, within the design document. */
+  def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)
 
   /**
-   * Determines the view name for the collection. There are two cases: a view
-   * that is namespace specific, or namespace agnostic..
+   * Name of view in design-doc that lists all entities in that views regardless of types.
+   * This is uses in the namespace API, and also in tests to check preconditions.
    */
-  def viewname(collection: String): String = s"$WHISKVIEW/$collection"
+  val viewAll: View = view(collection = "all")
 
   /**
    * Queries the datastore for all entities in a namespace, and converts the list of entities
@@ -191,7 +223,7 @@ object WhiskEntityQueries {
     implicit val ec = db.executionContext
     val startKey = List(namespace.asString)
     val endKey = List(namespace.asString, TOP)
-    db.query(viewname(ALL), startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
+    db.query(viewAll.name, startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
       _ map { row =>
         val value = row.fields("value").asJsObject
         val JsString(collection) = value.fields("collection")
@@ -205,6 +237,9 @@ trait WhiskEntityQueries[T] {
   val collectionName: String
   val serdes: RootJsonFormat[T]
   import WhiskEntityQueries._
+
+  /** The view name for the collection, within the design document. */
+  lazy val view: View = WhiskEntityQueries.view(collection = collectionName)
 
   /**
    * Queries the datastore for records from a specific collection (i.e., type) matching
@@ -225,12 +260,12 @@ trait WhiskEntityQueries[T] {
     val convert = if (includeDocs) Some((o: JsObject) => Try { serdes.read(o) }) else None
     val startKey = List(path.asString, since map { _.toEpochMilli } getOrElse 0)
     val endKey = List(path.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-    query(db, viewname(collectionName), startKey, endKey, skip, limit, reduce = false, stale, convert)
+    query(db, view, startKey, endKey, skip, limit, reduce = false, stale, convert)
   }
 
   protected[entity] def query[A <: WhiskEntity](
     db: ArtifactStore[A],
-    view: String,
+    view: View,
     startKey: List[Any],
     endKey: List[Any],
     skip: Int,
@@ -240,7 +275,7 @@ trait WhiskEntityQueries[T] {
     convert: Option[JsObject => Try[T]])(implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
     implicit val ec = db.executionContext
     val includeDocs = convert.isDefined
-    db.query(view, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map { rows =>
+    db.query(view.name, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map { rows =>
       convert map { fn =>
         Right(rows flatMap { row =>
           fn(row.fields("doc").asJsObject) toOption

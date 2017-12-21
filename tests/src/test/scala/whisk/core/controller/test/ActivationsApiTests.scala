@@ -80,7 +80,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       WhiskActivation(namespace, actionName, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
+    waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
     whisk.utils.retry {
       Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -152,7 +152,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         response = ActivationResponse.success(Some(JsNumber(5))))
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
+    waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
 
     whisk.utils.retry {
       Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
@@ -216,7 +216,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = now.plusSeconds(30),
         end = now.plusSeconds(20))) // should match
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, activations.length, WhiskActivation.collectionName)
+    waitOnView(activationStore, namespace.root, activations.length, WhiskActivation.view)
 
     // get between two time stamps
     whisk.utils.retry {
@@ -267,6 +267,20 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   //// GET /activations?name=xyz
+  it should "accept valid name parameters and reject invalid ones" in {
+    implicit val tid = transid()
+
+    Seq(("", OK), ("name=", OK), ("name=abc", OK), ("name=abc/xyz", OK), ("name=abc/xyz/123", BadRequest)).foreach {
+      case (p, s) =>
+        Get(s"$collectionPath?$p") ~> Route.seal(routes(creds)) ~> check {
+          status should be(s)
+          if (s == BadRequest) {
+            responseAs[String] should include(Messages.badNameFilter(p.drop(5)))
+          }
+        }
+    }
+  }
+
   it should "get summary activation by namespace and action name" in {
     implicit val tid = transid()
 
@@ -292,7 +306,20 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now)
     }.toList
     activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, 2, WhiskActivation.collectionName)
+
+    val activationsInPackage = (1 to 2).map { i =>
+      WhiskActivation(
+        namespace,
+        EntityName(s"xyz"),
+        creds.subject,
+        ActivationId(),
+        start = Instant.now,
+        end = Instant.now,
+        annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
+    }.toList
+    activationsInPackage foreach { put(activationStore, _) }
+
+    waitOnView(activationStore, namespace.root, 4, WhiskActivation.view)
 
     whisk.utils.retry {
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {
@@ -304,6 +331,18 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         } should be(true)
       }
     }
+
+    // this is not yet ready, the v2 views must be activated
+    whisk.utils.retry {
+      Get(s"$collectionPath?name=pkg/xyz") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[List[JsObject]]
+        activationsInPackage.length should be(response.length)
+        activationsInPackage forall { a =>
+          response contains a.summaryAsJson
+        } should be(true)
+      }
+    }
   }
 
   it should "reject activation list when limit is greater than maximum allowed value" in {
@@ -311,8 +350,9 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     val exceededMaxLimit = WhiskActivationsApi.maxActivationLimit + 1
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[String]
-      response should include(
-        Messages.maxActivationLimitExceeded(exceededMaxLimit, WhiskActivationsApi.maxActivationLimit))
+      response should include {
+        Messages.maxActivationLimitExceeded(exceededMaxLimit, WhiskActivationsApi.maxActivationLimit)
+      }
       status should be(BadRequest)
     }
   }
@@ -448,7 +488,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     implicit val materializer = ActorMaterializer()
     val activationStore = SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(WhiskEntityJsonFormat, system, logging, materializer)
+      .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(
+        WhiskEntityJsonFormat,
+        WhiskDocumentReader,
+        system,
+        logging,
+        materializer)
     implicit val tid = transid()
     val entity = BadEntity(namespace, EntityName(ActivationId().toString))
     put(activationStore, entity)

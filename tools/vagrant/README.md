@@ -174,7 +174,7 @@ You can check that containers are running by using the docker cli with the comma
 An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
 OpenWhisk is preconfigured with a guest key located in `ansible/files/auth.guest`.
 
-You may use this key if you like, or use `wskadmin` inside the VM to create a new key.
+You may use this key if you like, or use [`wskadmin`](../admin) inside the VM to create a new key.
 
 ```
 vagrant ssh

@@ -26,6 +26,8 @@ import scala.concurrent.Future
 
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.StatusCodes.Forbidden
+import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
@@ -37,6 +39,7 @@ import whisk.core.entitlement._
 import whisk.core.entitlement.Resource
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 
@@ -71,7 +74,21 @@ trait BasicAuthorizedRouteProvider extends Directives {
 
     onComplete(entitlementProvider.check(user, right, resource)) {
       case Success(_) => dispatchOp(user, right, resource)
-      case Failure(t) => handleEntitlementFailure(t)
+      case Failure(t) =>
+        t match {
+          case (r: RejectRequest) =>
+            r.code match {
+              case Forbidden =>
+                handleEntitlementFailure(
+                  RejectRequest(
+                    Forbidden,
+                    Some(ErrorResponse(Messages.notAuthorizedtoAccessResource(resource.fqname), transid))))
+              case NotFound =>
+                handleEntitlementFailure(
+                  RejectRequest(NotFound, Some(ErrorResponse(Messages.resourceDoesntExist(resource.fqname), transid))))
+              case _ => handleEntitlementFailure(t)
+            }
+        }
     }
   }
 

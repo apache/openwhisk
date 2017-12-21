@@ -1,6 +1,7 @@
 {# this template is used to generate a nginx.conf for booting a nginx server based on the given environment inventory #}
 
 worker_processes {{ nginx.wpn.router }};
+worker_rlimit_nofile 4096;
 
 events {
 {# default: 1024 #}
@@ -30,7 +31,7 @@ http {
         server {{ hostvars[groups['controllers'] | first].ansible_host }}:{{ controller.basePort }} fail_timeout=60s;
 {% for ip in groups['controllers'] %}
 {% if groups['controllers'].index(ip) > 0 %}
-        server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} backup;
+        server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} {% if controller.ha %}fail_timeout=60s{% else %}backup{% endif %};
 {% endif %}
 {% endfor %}
         keepalive 512;
@@ -56,7 +57,8 @@ http {
         ssl_protocols        TLSv1 TLSv1.1 TLSv1.2;
         ssl_ciphers RC4:HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers on;
-        proxy_ssl_session_reuse off;
+        proxy_ssl_verify off;
+        proxy_ssl_session_reuse on;
 
         # proxy to the web action path
         location / {
@@ -64,7 +66,7 @@ http {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
             proxy_pass http://controllers;
-            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
+            proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
         # proxy to 'public/html' web action by convention
@@ -73,7 +75,7 @@ http {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
             proxy_pass http://controllers;
-            proxy_read_timeout 70s; # 60+10 additional seconds to allow controller to terminate request
+            proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
 
         location /blackbox.tar.gz {

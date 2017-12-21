@@ -198,7 +198,6 @@ class InvokerSupervisionTests
         AuthKey(UUID(), Secret()),
         Set[Privilege]()),
       activationId = new ActivationIdGenerator {}.make(),
-      activationNamespace = EntityPath("guest"),
       rootControllerIndex = InstanceId(0),
       blocking = false,
       content = None)
@@ -206,7 +205,8 @@ class InvokerSupervisionTests
 
     sendActivationToInvoker
       .when(activationMessage, invokerInstance)
-      .returns(Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, 0L, 0, 0)))
+      .returns(
+        Future.successful(new RecordMetadata(new TopicPartition(invokerName, 0), 0L, 0L, 0L, Long.box(0L), 0, 0)))
 
     supervisor ! msg
 

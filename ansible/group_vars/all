@@ -29,10 +29,13 @@ whisk:
 #   defaultImageTag: the default image tag
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
+#                             to skip docker pull in invoker even if the image is not part of the blackboxe set
 #
 runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
 
 runtimesManifestDefault:
+  bypassPullForLocalImages: "{{ bypass_pull_for_local_images | default(false) }}"
   defaultImagePrefix: "openwhisk"
   defaultImageTag: "latest"
   runtimes:
@@ -45,6 +48,11 @@ runtimesManifestDefault:
       default: true
       image:
         name: "nodejs6action"
+      deprecated: false
+    - kind: "nodejs:8"
+      default: false
+      image:
+        name: "action-nodejs-v8"
       deprecated: false
     python:
     - kind: "python"
@@ -68,7 +76,7 @@ runtimesManifestDefault:
     - kind: "swift:3"
       image:
         name: "swift3action"
-      deprecated: false
+      deprecated: true
     - kind: "swift:3.1.1"
       default: true
       image:
@@ -108,7 +116,7 @@ controller:
   arguments: "{{ controller_arguments | default('') }}"
   blackboxFraction: "{{ controller_blackbox_fraction | default(0.10) }}"
   instances: "{{ groups['controllers'] | length }}"
-  localBookkeeping: "{{ controller_local_bookkeeping | default('true') }}"
+  localBookkeeping: "{{ controller_local_bookkeeping | default('false') }}"
   akka:
     provider: cluster
     cluster:
@@ -117,37 +125,36 @@ controller:
       bindPort: 2551
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
+  # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
+  ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
+  loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
-  version: 0.10.2.1
+  version: 0.11.0.1
   port: 9092
   ras:
-    port: 9093
+    port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
-  topics:
-    completed:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
-      retentionMS: 3600000
-    health:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
-      retentionMS: 3600000
-    invoker:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
-      retentionMS: 172800000
-    cacheInvalidation:
-      segmentBytes: 536870912
-      retentionBytes: 1073741824
-      retentionMS: 300000
+  replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
+
+kafka_connect_string: "{% set ret = [] %}\
+                       {% for host in groups['kafkas'] %}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                       {% endfor %}\
+                       {{ ret | join(',') }}"
 
 zookeeper:
   version: 3.4
   port: 2181
+
+zookeeper_connect_string: "{% set ret = [] %}\
+                           {% for host in groups['zookeepers'] %}\
+                             {{ ret.append( hostvars[host].ansible_host + ':' + ((zookeeper.port+loop.index-1)|string) ) }}\
+                           {% endfor %}\
+                           {{ ret | join(',') }}"
 
 invoker:
   port: 12001
@@ -163,7 +170,10 @@ invoker:
   useRunc: "{{ invoker_use_runc | default(true) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
+  loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
+userLogs:
+  spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
@@ -193,12 +203,16 @@ nginx:
 # The key db.whisk.auth is the name of the authentication database where all keys of all users are stored.
 # The db_prefix is defined for each environment on its own. The CouchDb credentials are also defined for each environment on its own.
 db:
+  instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
+    actions_ddoc: "whisks.v2"
     activations: "{{ db_prefix }}activations"
+    activations_ddoc: "whisks.v2"
+    activations_filter_ddoc: "whisks-filters.v2"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
@@ -216,7 +230,7 @@ linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 2.0
+  version: 2.1
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
@@ -299,15 +313,13 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 
 openwhisk_cli:
-  installation_mode: local
+  installation_mode: "{{ cli_installation_mode | default('remote') }}"
   local:
     location: "{{ openwhisk_cli_home }}/bin"
-
-# If you would like to use the remote mode, you can uncomment the following section.
-#  remote:
-#    name: OpenWhisk_CLI
-#    dest_name: OpenWhisk_CLI
-#    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+  remote:
+    name: OpenWhisk_CLI
+    dest_name: OpenWhisk_CLI
+    location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 # The list of operating systems for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
@@ -329,10 +341,9 @@ logs:
 
 # Metrics Configuration
 metrics:
-  log: 
-    enabled: "{{ metrics_log | default(true) }}"    
-  kamon: 
+  log:
+    enabled: "{{ metrics_log | default(true) }}"
+  kamon:
     enabled: "{{ metrics_kamon | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
-

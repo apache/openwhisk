@@ -23,6 +23,7 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.spi.Spi
+import whisk.core.entity.DocumentReader
 
 /**
  * An Spi for providing ArtifactStore implementations
@@ -32,6 +33,7 @@ trait ArtifactStoreProvider extends Spi {
                                          name: WhiskConfig => String,
                                          useBatching: Boolean = false)(
     implicit jsonFormat: RootJsonFormat[D],
+    docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D]

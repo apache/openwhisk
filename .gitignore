@@ -54,6 +54,7 @@ out/
 
 # Ansible
 ansible/environments/docker-machine/hosts
+ansible/environments/local/hosts
 ansible/db_local.ini*
 ansible/tmp/*
 ansible/roles/nginx/files/openwhisk-client*

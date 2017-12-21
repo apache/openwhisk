@@ -106,6 +106,20 @@ object WhiskEntity {
   }
 }
 
+object WhiskDocumentReader extends DocumentReader {
+  override def read[A](ma: Manifest[A], value: JsValue) = {
+    ma.runtimeClass match {
+      case x if x == classOf[WhiskAction]         => WhiskAction.serdes.read(value)
+      case x if x == classOf[WhiskActionMetaData] => WhiskActionMetaData.serdes.read(value)
+      case x if x == classOf[WhiskPackage]        => WhiskPackage.serdes.read(value)
+      case x if x == classOf[WhiskActivation]     => WhiskActivation.serdes.read(value)
+      case x if x == classOf[WhiskTrigger]        => WhiskTrigger.serdes.read(value)
+      case x if x == classOf[WhiskRule]           => WhiskRule.serdes.read(value)
+      case _                                      => throw DocumentUnreadable(Messages.corruptedEntity)
+    }
+  }
+}
+
 /**
  * Dispatches to appropriate serdes. This object is not itself implicit so as to
  * avoid multiple implicit alternatives when working with one of the subtypes.

@@ -41,7 +41,6 @@ import whisk.http.Messages
  * These tests exercise a fresh instance of the service object in memory -- these
  * tests do NOT communication with a whisk deployment.
  *
- *
  * @Idioglossia
  * "using Specification DSL to write unit tests, as in should, must, not, be"
  * "using Specs2RouteTest DSL to chain HTTP requests for unit testing, as in ~>"
@@ -367,6 +366,34 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       status should be(OK)
       val response = responseAs[WhiskPackage]
       response should be(provider)
+    }
+  }
+
+  it should "reject create package when package name is a reserved name" in {
+    implicit val tid = transid()
+    RESERVED_NAMES foreach { reservedName =>
+      val provider = WhiskPackage(namespace, EntityName(s"$reservedName"), None)
+      val content = WhiskPackagePut()
+      Put(s"$collectionPath/${provider.name}", content) ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+        val response = responseAs[String]
+        response should include {
+          Messages.packageNameIsReserved(reservedName)
+        }
+      }
+    }
+  }
+
+  it should "allow package update even when package name a reserved name" in {
+    implicit val tid = transid()
+    RESERVED_NAMES foreach { reservedName =>
+      val provider = WhiskPackage(namespace, EntityName(s"$reservedName"), None)
+      val content = WhiskPackagePut()
+      Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[WhiskPackage]
+        response should be(provider)
+      }
     }
   }
 

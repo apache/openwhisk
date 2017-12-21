@@ -24,7 +24,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -44,15 +44,19 @@ import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
+import whisk.core.entity._
 import whisk.core.entity.{ActivationId, WhiskActivation}
 import whisk.core.entity.EntityName
-import whisk.core.entity.ExecutableWhiskAction
+import whisk.core.entity.ExecutableWhiskActionMetaData
 import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
+import pureconfig._
+
+case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
 trait LoadBalancer {
 
@@ -76,7 +80,7 @@ trait LoadBalancer {
    *         The future is guaranteed to complete within the declared action time limit
    *         plus a grace period (see activeAckTimeoutGrace).
    */
-  def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+  def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
 
 }
@@ -86,11 +90,13 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   logging: Logging)
     extends LoadBalancer {
 
+  private val lbConfig = loadConfigOrThrow[LoadbalancerConfig]("whisk.loadbalancer")
+
   /** The execution context for futures */
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
-  private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, config.controllerBlackboxFraction))
+  private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
   logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
   /** Feature switch for shared load balancer data **/
@@ -110,7 +116,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
   override def totalActiveActivations = loadBalancerData.totalActivationCount
 
-  override def publish(action: ExecutableWhiskAction, msg: ActivationMessage)(
+  override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     chooseInvoker(msg.user, action).flatMap { invokerName =>
       val entry = setupActivation(action, msg.activationId, msg.user.uuid, invokerName, transid)
@@ -146,11 +152,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
-        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
-        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
-        // to that invoker topic.
-        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
+          entry.timeoutHandler.cancel()
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
@@ -159,8 +163,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
         // for activations that already timed out.
-        // For both cases, it looks like the invoker works again and we should send the status of
-        // the activation to the invokerPool.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
@@ -173,23 +175,33 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   /**
    * Creates an activation entry and insert into various maps.
    */
-  private def setupActivation(action: ExecutableWhiskAction,
+  private def setupActivation(action: ExecutableWhiskActionMetaData,
                               activationId: ActivationId,
                               namespaceId: UUID,
                               invokerName: InstanceId,
                               transid: TransactionId): ActivationEntry = {
-    val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+    val timeout = (action.limits.timeout.duration
+      .max(TimeLimit.STD_DURATION) * config.controllerInstances.toInt) + activeAckTimeoutGrace
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
-    loadBalancerData.putActivation(activationId, {
-      actorSystem.scheduler.scheduleOnce(timeout) {
-        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
-      }
+    // in case of missing synchronization between n controllers in HA configuration the invoker queue can be overloaded
+    // n-1 times and the maximal time for answering with active ack can be n times the action time (plus some overhead)
+    loadBalancerData.putActivation(
+      activationId, {
+        val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
+          processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
+        }
 
-      ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
-    })
+        // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
+        ActivationEntry(
+          activationId,
+          namespaceId,
+          invokerName,
+          timeoutHandler,
+          Promise[Either[ActivationId, WhiskActivation]]())
+      })
   }
 
   /**
@@ -312,7 +324,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 
   /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-  private def chooseInvoker(user: Identity, action: ExecutableWhiskAction): Future[InstanceId] = {
+  private def chooseInvoker(user: Identity, action: ExecutableWhiskActionMetaData): Future[InstanceId] = {
     val hash = generateHash(user.namespace, action)
 
     allInvokers.flatMap { invokers =>
@@ -323,7 +335,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         case (instance, state) => (instance, state, invokerUsage.getOrElse(instance.toString, 0))
       }
 
-      LoadBalancerService.schedule(invokersWithUsage, config.loadbalancerInvokerBusyThreshold, hash) match {
+      LoadBalancerService.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
         case Some(invoker) => Future.successful(invoker)
         case None =>
           logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
@@ -333,18 +345,15 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 
   /** Generates a hash based on the string representation of namespace and action */
-  private def generateHash(namespace: EntityName, action: ExecutableWhiskAction): Int = {
+  private def generateHash(namespace: EntityName, action: ExecutableWhiskActionMetaData): Int = {
     (namespace.asString.hashCode() ^ action.fullyQualifiedName(false).asString.hashCode()).abs
   }
 }
 
 object LoadBalancerService {
   def requiredProperties =
-    kafkaHost ++ Map(
-      loadbalancerInvokerBusyThreshold -> null,
-      controllerBlackboxFraction -> null,
-      controllerLocalBookkeeping -> null,
-      controllerSeedNodes -> null)
+    kafkaHosts ++
+      Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

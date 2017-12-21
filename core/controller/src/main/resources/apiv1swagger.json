@@ -203,6 +203,13 @@
                         "description": "Name of action to fetch",
                         "required": true,
                         "type": "string"
+                    },
+                    {
+                        "name": "code",
+                        "in": "query",
+                        "description": "Include action code in the result",
+                        "required": false,
+                        "type": "boolean"
                     }
                 ],
                 "produces": [
@@ -928,7 +935,7 @@
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "202": {
                         "description": "Activation id",
                         "schema": {
                             "$ref": "#/definitions/ItemId"
@@ -1554,13 +1561,11 @@
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "nodejs",
                         "nodejs:6",
-                        "nodejs:default",
-                        "python",
-                        "swift",
-                        "swift:3",
-                        "swift:default",
+                        "nodejs:8",
+                        "python:2",
+                        "python:3",
+                        "swift:3.1.1",
                         "java",
                         "blackbox"
                     ],

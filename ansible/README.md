@@ -73,20 +73,32 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 #### Setup
 
-This step needs to be done only once per development environment. It will generate configuration files based on your local settings. Notice that for the following playbook you don't need to specify a target environment as it will run only local actions.
-After the playbook is done you should see a file called `db_local.ini` in your `ansible` directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini`.
-
-#####  Ephemeral CouchDB
-
-If you want to use the ephemeral CouchDB, run this command
+The following step must be executed once per development environment.
+It will generate the `hosts` configuration file based on your environment settings.
 
 ```
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-#####  Persistent CouchDB
+The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
+You may elect to enable high-availability (HA) mode by passing tne ansible option `-e mode=HA` when executing this playbook.
+This will configure your deployment with multiple instances (e.g., two kafka instancess, and two invokers).
 
-If you want to use the persistent CouchDB instead, you can use env variables that are read by the playbook:
+In addition to the host file generation, you need to configure the database for your deployment. This is done
+by creating a file `ansible/db_local.ini` to provide the following properties.
+
+```bash
+[db_creds]
+db_provider=
+db_username=
+db_password=
+db_protocol=
+db_host=
+db_port=
+```
+
+This file is generated automatically if you are using an ephermeral CouchDB instance. Otherwise, you must create it explicitly.
+For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```
 export OW_DB=CouchDB
@@ -96,14 +108,10 @@ export OW_DB_PROTOCOL=<your couchdb protocol>
 export OW_DB_HOST=<your couchdb host>
 export OW_DB_PORT=<your couchdb port>
 
-ansible-playbook -i environments/<environment> setup.yml
+ansible-playbook -i environments/<environment> couchdb.yml --tags ini
 ```
 
-If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`. This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
-
-##### Cloudant
-
-If you want to use Cloudant instead, you can use env variables that are read by the playbook:
+Alternatively, if you want to use Cloudant as your datastore:
 
 ```
 export OW_DB=Cloudant
@@ -113,7 +121,7 @@ export OW_DB_PROTOCOL=https
 export OW_DB_HOST=<your cloudant user>.cloudant.com
 export OW_DB_PORT=443
 
-ansible-playbook -i environments/<environment> setup.yml
+ansible-playbook -i environments/<environment> couchdb.yml --tags ini
 ```
 
 #### Install Prerequisites
@@ -129,6 +137,8 @@ ansible-playbook -i environments/<environment> prereq.yml
 
 ### Deploying Using CouchDB
 - Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
+- If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`.
+This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
 - Then execute
 
 ```
@@ -143,9 +153,18 @@ ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy CouchDB to initialize the subjects database.
+You need to run `initdb.yml` **every time** you do a fresh deploy CouchDB to initialize the subjects database.
 The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
 data that include actions and activations are lost.
+
+#### Limitation
+
+You can not run multiple CouchDB nodes on a single machine.
+This limitation comes from Erlang EPMD.
+When CouchDB forms a cluster, it counts on EPMD to find other nodes.
+If we want to run multiple nodes on a single machine, we must differentiate EPMD port(`4369`) for each nodes. But if this port is different on each nodes, they cannot find each other.
+So if you want to deploy multiple CouchDB nodes, all nodes should be placed on different machines respectively.
+
 
 ### Deploying Using Cloudant
 - Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
@@ -170,10 +189,27 @@ data that include actions and activations are lost.
 
 Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wiping the data store. This is useful to start OpenWhisk after restarting your Operating System.
 
-### Verification after Deployment
-After a successful deployment you can use the `wsk` CLI (located in the `bin` folder of the repository) to verify that OpenWhisk is operable.
-See main [README](https://github.com/apache/incubator-openwhisk/blob/master/README.md) for instructions on how to setup and use `wsk`.
+### Configuring the installation of `wsk` CLI
+There are two installation modes to install `wsk` CLI: remote and local.
 
+The mode "remote" means to download the `wsk` binaries from available web links. By default, OpenWhisk sets
+the installation mode to remote and downloads the binaries from the CLI [release page](https://github.com/apache/incubator-openwhisk-cli/releases), where OpenWhisk publishes the official `wsk` binaries.
+
+The mode "local" means to build and install the `wsk` binaries from local CLI project. You can download the source code
+of OpenWhisk CLI via [this link](https://github.com/apache/incubator-openwhisk-cli). Let's assume your OpenWhisk CLI home directory is <openwhisk_cli_home>. After you download the source code, use the gradle command to build the binaries:
+
+```
+cd <openwhisk_cli_home>
+./gradlew buildBinaries
+```
+
+All the binaries are generated and put under the folder of <openwhisk_cli_home>/bin. Then, use the following ansible command to configure the CLI installation mode:
+
+```
+ansible-playbook -i environments/<environment> openwhisk.yml -e cli_installation_mode=local -e openwhisk_cli_home=<openwhisk_cli_home>
+```
+
+The parameter cli_installation_mode specifies the CLI installation mode and the parameter openwhisk_cli_home specifies the home directory of your local OpenWhisk CLI.
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:

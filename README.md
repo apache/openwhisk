@@ -66,6 +66,12 @@ interested in:
 - [OpenWhisk system details](docs/reference.md)
 - [Implementing feeds](docs/feeds.md)
 
+### Repository Structure
+
+The OpenWhisk system is built from a number of components.  The picture below groups the components by their GitHub repos. Please open issues for a component against the appropriate repo (if in doubt just open against the main openwhisk repo).
+
+![component/repo mapping](docs/images/components_to_repos.png)
+
 ### Issues
 
 Report bugs, ask questions and request features [here on GitHub](../../issues).

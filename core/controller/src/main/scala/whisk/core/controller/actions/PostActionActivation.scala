@@ -46,14 +46,14 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
    */
   protected[controller] def invokeAction(
     user: Identity,
-    action: WhiskAction,
+    action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
     action.toExecutableWhiskAction match {
       // this is a topmost sequence
       case None =>
-        val SequenceExec(components) = action.exec
+        val SequenceExecMetaData(components) = action.exec
         invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
       // a non-deprecated ExecutableWhiskAction
       case Some(executable) if !executable.exec.deprecated =>

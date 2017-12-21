@@ -147,7 +147,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
       withActivationsFromEntity(
         wsk.activation,
-        actionName,
+        pkgActionName,
         since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
         _.head.response.result shouldBe Some(testResult)
       }
@@ -187,7 +187,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
       withActivationsFromEntity(
         wsk.activation,
-        actionName,
+        pkgActionName,
         since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
         _.head.response.result shouldBe Some(testResult)
       }
