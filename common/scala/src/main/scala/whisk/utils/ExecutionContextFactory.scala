@@ -41,7 +41,8 @@ object ExecutionContextFactory {
    * timeout duration
    *
    */
-  def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(implicit ec: ExecutionContext): CancellableFuture[T] = {
+  def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(
+    implicit ec: ExecutionContext): CancellableFuture[T] = {
     val p = Promise[T]()
     val cancellable = using.scheduleOnce(duration) {
       p completeWith {
@@ -57,7 +58,8 @@ object ExecutionContextFactory {
    * finishes first, we will cancel f2
    *
    */
-  def firstCompletedOf2[T](f1: Future[T], f2: CancellableFuture[T])(implicit executor: ExecutionContext, logging: Logging): Future[T] = {
+  def firstCompletedOf2[T](f1: Future[T], f2: CancellableFuture[T])(implicit executor: ExecutionContext,
+                                                                    logging: Logging): Future[T] = {
     val p = Promise[T]()
 
     f1 onComplete { result =>
@@ -70,13 +72,14 @@ object ExecutionContextFactory {
   }
 
   implicit class FutureExtensions[T](f: Future[T]) {
-    def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem, logging: Logging): Future[T] = {
+    def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem,
+                                                                logging: Logging): Future[T] = {
       implicit val ec = system.dispatcher
       firstCompletedOf2(f, expire(timeout, system.scheduler)(Future.failed(msg)))
     }
 
-    def withAlternativeAfterTimeout(timeout: FiniteDuration, alt: => Future[T])(
-      implicit system: ActorSystem, logging: Logging): Future[T] = {
+    def withAlternativeAfterTimeout(timeout: FiniteDuration, alt: => Future[T])(implicit system: ActorSystem,
+                                                                                logging: Logging): Future[T] = {
       implicit val ec = system.dispatcher
       firstCompletedOf2(f, expire(timeout, system.scheduler)(alt))
     }
