@@ -23,88 +23,62 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
 import scala.util.control.NonFatal
 
 import akka.actor.ActorSystem
 import akka.actor.Cancellable
 import akka.actor.Scheduler
 
+import whisk.common.Logging
+
 object ExecutionContextFactory {
 
   private type CancellableFuture[T] = (Cancellable, Future[T])
-  private type MCF[T] = Either[Future[T], CancellableFuture[T]] // maybe cancellable future
 
-  // akka.pattern.after has a memory drag issue: it opaquely
-  // schedules an actor which consequently results in drag for the
-  // timeout duration
-  def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(implicit ec: ExecutionContext): MCF[T] =
-    if (duration.isFinite() && duration.length < 1) {
-      try Left(value)
-      catch { case NonFatal(t) ⇒ Left(Future.failed(t)) }
-    } else {
-      val p = Promise[T]()
-      val cancellable = using.scheduleOnce(duration) {
-        p completeWith {
-          try value
-          catch { case NonFatal(t) ⇒ Future.failed(t) }
-        }
-      }
-      Right((cancellable, p.future))
-    }
-
-  // Future.firstCompletedOf has a memory drag bug
-  // https://stackoverflow.com/questions/36420697/about-future-firstcompletedof-and-garbage-collect-mechanism
-  def firstCompletedOf[T](futures: TraversableOnce[Future[T]])(implicit executor: ExecutionContext): Future[T] = {
+  /**
+   * akka.pattern.after has a memory drag issue: it opaquely
+   * schedules an actor which consequently results in drag for the
+   * timeout duration
+   *
+   */
+  def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(implicit ec: ExecutionContext): CancellableFuture[T] = {
     val p = Promise[T]()
-    val pref = new java.util.concurrent.atomic.AtomicReference(p)
-    val completeFirst: Try[T] => Unit = { result: Try[T] =>
-      val promise = pref.getAndSet(null)
-      if (promise != null) {
-        promise.tryComplete(result)
+    val cancellable = using.scheduleOnce(duration) {
+      p completeWith {
+        try value
+        catch { case NonFatal(t) ⇒ Future.failed(t) }
       }
     }
-    futures foreach { _ onComplete completeFirst }
-    p.future
+    (cancellable, p.future)
   }
 
-  def cancelAll[T](futures: TraversableOnce[MCF[T]]) = {
-    futures foreach {
-      _ match {
-        case Right((cancellable, _)) => cancellable.cancel()
-        case _                       => ()
-      }
-    }
-  }
-
-  def firstCompletedOf2[T](futures: TraversableOnce[MCF[T]])(implicit executor: ExecutionContext): Future[T] = {
+  /**
+   * Return the first of the two given futures to complete; if f1
+   * finishes first, we will cancel f2
+   *
+   */
+  def firstCompletedOf2[T](f1: Future[T], f2: CancellableFuture[T])(implicit executor: ExecutionContext, logging: Logging): Future[T] = {
     val p = Promise[T]()
-    val pref = new java.util.concurrent.atomic.AtomicReference(p)
-    val completeFirst: Try[T] => Unit = { result: Try[T] =>
-      val promise = pref.getAndSet(null)
-      if (promise != null) {
-        promise.tryComplete(result)
-      }
+
+    f1 onComplete { result =>
+      p.tryComplete(result)
+      f2._1.cancel()
     }
-    futures foreach {
-      _ match {
-        case Left(future)       => future onComplete completeFirst; cancelAll(futures)
-        case Right((_, future)) => future onComplete completeFirst; cancelAll(futures)
-      }
-    }
+    f2._2 onComplete p.tryComplete
+
     p.future
   }
 
   implicit class FutureExtensions[T](f: Future[T]) {
-    def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem): Future[T] = {
+    def withTimeout(timeout: FiniteDuration, msg: => Throwable)(implicit system: ActorSystem, logging: Logging): Future[T] = {
       implicit val ec = system.dispatcher
-      firstCompletedOf2(Seq(Left(f), expire(timeout, system.scheduler)(Future.failed(msg))))
+      firstCompletedOf2(f, expire(timeout, system.scheduler)(Future.failed(msg)))
     }
 
     def withAlternativeAfterTimeout(timeout: FiniteDuration, alt: => Future[T])(
-      implicit system: ActorSystem): Future[T] = {
+      implicit system: ActorSystem, logging: Logging): Future[T] = {
       implicit val ec = system.dispatcher
-      firstCompletedOf2(Seq(Left(f), expire(timeout, system.scheduler)(alt)))
+      firstCompletedOf2(f, expire(timeout, system.scheduler)(alt))
     }
   }
 
