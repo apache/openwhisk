@@ -75,7 +75,12 @@ def getArgs():
         if osname == 'Linux':
             return 'local'
         elif osname == 'Darwin':
-            return 'docker-machine'
+            if os.getenv('DOCKER_HOST', None) is not None:
+                # docker-machine typically has docker host set in the environment
+                return 'docker-machine'
+            else:
+                # otherwise assume docker-for-mac
+                return 'local'
         else:
             return None
 
@@ -83,7 +88,7 @@ def getArgs():
     parser.add_argument('-b', '--build', help='build component', action='store_const', const=True, default=False)
     parser.add_argument('-x', '--teardown', help='teardown component', action='store_const', const=True, default=False)
     parser.add_argument('-d', '--deploy', help='deploy component', action='store_const', const=True, default=False)
-    parser.add_argument('-t', '--target', help='deploy target (one of [mac, docker-machine, local])', default=detectDeployTarget())
+    parser.add_argument('-t', '--target', help='deploy target (one of [docker-machine, local])', default=detectDeployTarget())
     parser.add_argument('-y', '--yaml', help='deploy target using inferred YAML file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')

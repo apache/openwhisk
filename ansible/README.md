@@ -73,20 +73,32 @@ In all instructions, replace `<openwhisk_home>` with the base directory of your 
 
 #### Setup
 
-This step needs to be done only once per development environment. It will generate configuration files based on your local settings. Notice that for the following playbook you don't need to specify a target environment as it will run only local actions.
-After the playbook is done you should see a file called `db_local.ini` in your `ansible` directory. It will by default contain settings for a local ephemeral CouchDB setup. Afterwards, you can change the values directly in `db_local.ini`.
-
-#####  Ephemeral CouchDB
-
-If you want to use the ephemeral CouchDB, run this command
+The following step must be executed once per development environment.
+It will generate the `hosts` configuration file based on your environment settings.
 
 ```
 ansible-playbook -i environments/<environment> setup.yml
 ```
 
-#####  Persistent CouchDB
+The default configuration does not run multiple instances of core components (e.g., controller, invoker, kafka).
+You may elect to enable high-availability (HA) mode by passing tne ansible option `-e mode=HA` when executing this playbook.
+This will configure your deployment with multiple instances (e.g., two kafka instancess, and two invokers).
 
-If you want to use the persistent CouchDB instead, you can use env variables that are read by the playbook:
+In addition to the host file generation, you need to configure the database for your deployment. This is done
+by creating a file `ansible/db_local.ini` to provide the following properties.
+
+```bash
+[db_creds]
+db_provider=
+db_username=
+db_password=
+db_protocol=
+db_host=
+db_port=
+```
+
+This file is generated automatically if you are using an ephermeral CouchDB instance. Otherwise, you must create it explicitly.
+For convenience, you can use shell environment variables that are read by the playbook to generate the required `db_local.ini` file as shown below.
 
 ```
 export OW_DB=CouchDB
@@ -96,14 +108,10 @@ export OW_DB_PROTOCOL=<your couchdb protocol>
 export OW_DB_HOST=<your couchdb host>
 export OW_DB_PORT=<your couchdb port>
 
-ansible-playbook -i environments/<environment> setup.yml
+ansible-playbook -i environments/<environment> couchdb.yml --tags ini
 ```
 
-If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`. This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
-
-##### Cloudant
-
-If you want to use Cloudant instead, you can use env variables that are read by the playbook:
+Alternatively, if you want to use Cloudant as your datastore:
 
 ```
 export OW_DB=Cloudant
@@ -113,7 +121,7 @@ export OW_DB_PROTOCOL=https
 export OW_DB_HOST=<your cloudant user>.cloudant.com
 export OW_DB_PORT=443
 
-ansible-playbook -i environments/<environment> setup.yml
+ansible-playbook -i environments/<environment> couchdb.yml --tags ini
 ```
 
 #### Install Prerequisites
@@ -129,6 +137,8 @@ ansible-playbook -i environments/<environment> prereq.yml
 
 ### Deploying Using CouchDB
 - Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
+- If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`.
+This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
 - Then execute
 
 ```
@@ -143,7 +153,7 @@ ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
 
-You need to run `initdb.yml` on couchdb **every time** you do a fresh deploy CouchDB to initialize the subjects database.
+You need to run `initdb.yml` **every time** you do a fresh deploy CouchDB to initialize the subjects database.
 The playbooks `wipe.yml` and `postdeploy.yml` should be run on a fresh deployment only, otherwise all transient
 data that include actions and activations are lost.
 
