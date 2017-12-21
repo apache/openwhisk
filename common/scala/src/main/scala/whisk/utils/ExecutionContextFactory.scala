@@ -40,10 +40,16 @@ object ExecutionContextFactory {
   // timeout duration
   def expire[T](duration: FiniteDuration, using: Scheduler)(value: ⇒ Future[T])(implicit ec: ExecutionContext): MCF[T] =
     if (duration.isFinite() && duration.length < 1) {
-      try Left(value) catch { case NonFatal(t) ⇒ Left(Future.failed(t)) }
+      try Left(value)
+      catch { case NonFatal(t) ⇒ Left(Future.failed(t)) }
     } else {
       val p = Promise[T]()
-      val cancellable = using.scheduleOnce(duration) { p completeWith { try value catch { case NonFatal(t) ⇒ Future.failed(t) } } }
+      val cancellable = using.scheduleOnce(duration) {
+        p completeWith {
+          try value
+          catch { case NonFatal(t) ⇒ Future.failed(t) }
+        }
+      }
       Right((cancellable, p.future))
     }
 
@@ -63,10 +69,12 @@ object ExecutionContextFactory {
   }
 
   def cancelAll[T](futures: TraversableOnce[MCF[T]]) = {
-    futures foreach { _ match {
-      case Right((cancellable, _)) => cancellable.cancel()
-      case _ => ()
-    } }
+    futures foreach {
+      _ match {
+        case Right((cancellable, _)) => cancellable.cancel()
+        case _                       => ()
+      }
+    }
   }
 
   def firstCompletedOf2[T](futures: TraversableOnce[MCF[T]])(implicit executor: ExecutionContext): Future[T] = {
@@ -78,10 +86,12 @@ object ExecutionContextFactory {
         promise.tryComplete(result)
       }
     }
-    futures foreach { _ match {
-      case Left(future) => future onComplete completeFirst; cancelAll(futures)
-      case Right((_, future)) => future onComplete completeFirst; cancelAll(futures)
-    } }
+    futures foreach {
+      _ match {
+        case Left(future)       => future onComplete completeFirst; cancelAll(futures)
+        case Right((_, future)) => future onComplete completeFirst; cancelAll(futures)
+      }
+    }
     p.future
   }
 
