@@ -67,7 +67,8 @@ case object Remove
 // Events sent by the actor
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
-case object ContainerRemoved
+case object ContainerRemoved // when container is destroyed
+case object RescheduleJob // job is sent back to parent and could not be processed because container is being destroyed
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -101,6 +102,7 @@ class ContainerProxy(
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
+  var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
 
   startWith(Uninitialized, NoData())
 
@@ -248,7 +250,9 @@ class ContainerProxy(
           // Sending the message to self on a failure will cause the message
           // to ultimately be sent back to the parent (which will retry it)
           // when container removal is done.
-          case Failure(_) => self ! job
+          case Failure(_) =>
+            rescheduleJob = true
+            self ! job
         }
         .flatMap(_ => initializeAndRun(data.container, job))
         .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
@@ -256,8 +260,10 @@ class ContainerProxy(
 
       goto(Running)
 
-    // timeout or removing
-    case Event(StateTimeout | Remove, data: WarmedData) => destroyContainer(data.container)
+    // container is reclaimed by the pool or it has become too old
+    case Event(StateTimeout | Remove, data: WarmedData) =>
+      rescheduleJob = true // to supress sending message to the pool and not double count
+      destroyContainer(data.container)
   }
 
   when(Removing) {
@@ -292,7 +298,11 @@ class ContainerProxy(
    * @param container the container to destroy
    */
   def destroyContainer(container: Container) = {
-    context.parent ! ContainerRemoved
+    if (!rescheduleJob) {
+      context.parent ! ContainerRemoved
+    } else {
+      context.parent ! RescheduleJob
+    }
 
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
