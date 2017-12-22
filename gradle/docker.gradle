@@ -19,7 +19,22 @@ import groovy.time.*
  * - dockerBuildArgs (options, default ''): Project specific custom docker build arguments
  * - dockerHost (optional): The docker host to run commands on, default behaviour is
  *       docker's own DOCKER_HOST environment variable
+ * - dockerArch (optional): An alternate architecture to generate in Docker.  The script
+ *       will expect to see a Dockerfile.dockerArch (e.g. Dockerfile.s390x) or a patch
+ *       file to be applied to the Dockerfile to create the new architecture.
  */
+
+def detectDockerArch() {
+  def stdout = new ByteArrayOutputStream()
+  exec {
+    executable '/bin/bash'
+    args '-c', "docker info 2>/dev/null | sed -n 's/Architecture: \\(.*\\)/\\1/p'"
+    standardOutput = stdout;
+  }
+  def arch = stdout.toString().trim()
+  // println "Docker architecture ${arch} detected"
+  return arch
+}
 
 ext {
     dockerRegistry = project.hasProperty('dockerRegistry') ? dockerRegistry + '/' : ''
@@ -29,6 +44,7 @@ ext {
     dockerRetries = project.hasProperty('dockerRetries') ? dockerRetries.toInteger() : 3
     dockerBinary = project.hasProperty('dockerBinary') ? [dockerBinary] : ['docker']
     dockerBuildArg = ['build']
+    dockerArch = project.hasProperty('dockerArch') ? dockerArch : detectDockerArch()
 }
 ext.dockerTaggedImageName = dockerRegistry + dockerImagePrefix + '/' + dockerImageName + ':' + dockerImageTag
 
@@ -42,14 +58,42 @@ if(project.hasProperty('dockerBuildArgs')) {
     }
 }
 
+task templateDockerfile (type: Copy) {
+  def directory = project.buildscript.sourceFile.getParentFile()
+  from directory
+  into directory
+  include 'Dockerfile.in'
+  rename { file -> 'Dockerfile' }
+  expand(project.getProperties())
+}
+
+task rmDockerfile(type: Delete) {
+    delete 'Dockerfile'
+}
+
 task distDocker {
     doLast {
         def start = new Date()
-        def cmd = dockerBinary + dockerBuildArg + ['-t', dockerImageName, project.buildscript.sourceFile.getParentFile().getAbsolutePath()]
+        def directory = project.buildscript.sourceFile.getParentFile()
+        def cmd = dockerBinary + dockerBuildArg
+        if (dockerArch) {
+          //  See whether there's an architecture-specific Dockerfile in place
+          def f = new File(directory.getAbsolutePath(), "Dockerfile."+dockerArch);
+          if (f.exists()) {
+            cmd += ['-f', f.getAbsolutePath()]
+          }
+        }
+        cmd += ['-t', dockerImageName, directory.getAbsolutePath()]
         retry(cmd, dockerRetries, dockerTimeout)
         println("Building '${dockerImageName}' took ${TimeCategory.minus(new Date(), start)}")
     }
 }
+
+if (file("Dockerfile.in").exists()) {
+  distDocker.dependsOn 'templateDockerfile'
+  distDocker.finalizedBy 'rmDockerfile'
+}
+
 task tagImage {
     doLast {
         def versionString = (dockerBinary + ['-v']).execute().text

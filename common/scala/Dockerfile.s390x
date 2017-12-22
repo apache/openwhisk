@@ -1,0 +1,9 @@
+FROM buildpack-deps:xenial-curl
+
+RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y \
+     openjdk-8-jre-headless \
+     wget \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY transformEnvironment.sh /
+RUN chmod +x transformEnvironment.sh

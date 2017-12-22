@@ -1,17 +1,20 @@
 ---
 # This role will install apigateway
 
-- name: "pull the openwhisk/apigateway:{{ apigateway.version }} image"
-  shell: "docker pull openwhisk/apigateway:{{ apigateway.version }}"
+- name: "determine the docker_image to use for apigatewy"
+  set_fact:
+    apigateway_image: "{{ apigateway.docker_image | default('openwhisk/apigateway:' ~ apigateway.version) }}"
+
+- name: "pull the {{ apigateway_image }} docker image"
+  shell: "docker pull {{ apigateway_image }}"
   when: apigateway_local_build is undefined
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-#temporary pinned to image 0.7.0 until apigateway fixes regressions
 - name: (re)start apigateway
   docker_container:
     name: apigateway
-    image: openwhisk/apigateway:{{ apigateway.version }}
+    image: "{{ apigateway_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

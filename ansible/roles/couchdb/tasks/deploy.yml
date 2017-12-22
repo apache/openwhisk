@@ -21,12 +21,16 @@
     volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
   when: (block_device is defined) and (block_device in disk_status.stdout)
 
-- name: "pull the apache/couchdb:{{ couchdb.version }} image"
-  shell: "docker pull apache/couchdb:{{ couchdb.version }}"
+- name: "determine the docker_image to use"
+  set_fact:
+    couch_image: "{{ couchdb.docker_image | default('klaemo/couchdb:' ~ couchdb.version ) }}"
+
+- name: "pull the {{ couch_image }} image"
+  shell: "docker pull {{ couch_image }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
-- name: (re)start CouchDB
+- name: "(re)start CouchDB"
   docker_container:
     name: couchdb
     image: apache/couchdb:{{ couchdb.version }}
