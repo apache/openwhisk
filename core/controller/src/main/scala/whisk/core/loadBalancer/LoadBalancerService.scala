@@ -108,7 +108,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
       /** Specify how seed nodes are generated */
       val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
       Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
-      new DistributedLoadBalancerData(instance)
+      new DistributedLoadBalancerData()
     }
   }
 

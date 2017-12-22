@@ -22,11 +22,10 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.util.Timeout
-import scala.collection.mutable
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import whisk.common.Logging
 import whisk.core.entity.ActivationId
-import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 
 /**
@@ -35,29 +34,25 @@ import whisk.core.entity.UUID
  * Note: The state keeping is backed by distributed akka actors. All CRUDs operations are done on local values, thus
  * a stale value might be read.
  */
-class DistributedLoadBalancerData(instance: InstanceId, monitor: Option[ActorRef] = None)(
-  implicit actorSystem: ActorSystem,
-  logging: Logging)
-    extends LoadBalancerData {
+class DistributedLoadBalancerData(monitor: Option[ActorRef] = None)(implicit actorSystem: ActorSystem, logging: Logging)
+    extends LocalLoadBalancerData {
 
   implicit val timeout = Timeout(5.seconds)
   implicit val executionContext = actorSystem.dispatcher
-  private val overflowKey = "overflow"
-  private val activationsById = mutable.Map[ActivationId, ActivationEntry]()
-
-  private val localData = new LocalLoadBalancerData()
-  private var sharedDataInvokers = Map[String, Map[Int, Int]]()
-  private var sharedDataNamespaces = Map[String, Map[Int, Int]]()
-  private var sharedDataOverflow = Map[String, Map[Int, Int]]()
 
   private val updateMonitor = actorSystem.actorOf(Props(new Actor {
     override def receive = {
       case Updated(storageName, entries) =>
         monitor.foreach(_ ! Updated(storageName, entries))
         storageName match {
-          case "Invokers"   => sharedDataInvokers = entries
-          case "Namespaces" => sharedDataNamespaces = entries
-          case "Overflow"   => sharedDataOverflow = entries
+          case "Invokers" => //sharedDataInvokers = entries
+            //reset the state with updates:
+            activationByInvoker.clear()
+            entries.foreach(i => activationByInvoker.put(i._1, new AtomicInteger(i._2)))
+          case "Namespaces" => //sharedDataNamespaces = entries
+            //reset the state with updates:
+            activationByNamespaceId.clear()
+            entries.foreach(i => activationByNamespaceId.put(UUID(i._1), new AtomicInteger(i._2)))
         }
     }
   }))
@@ -70,54 +65,24 @@ class DistributedLoadBalancerData(instance: InstanceId, monitor: Option[ActorRef
     SharedDataService.props("Namespaces", updateMonitor),
     name =
       "SharedDataServiceNamespaces" + UUID())
-  private val sharedStateOverflow = actorSystem.actorOf(
-    SharedDataService.props("Overflow", updateMonitor),
-    name =
-      "SharedDataServiceOverflow" + UUID())
-  def totalActivationCount = {
-    val shared = sharedDataInvokers.values.flatten.filter(_._1 != instance.toInt).map(_._2).sum
-    shared + localData.totalActivationCount
-  }
-  def activationCountOn(namespace: UUID): Int = {
-    val shared = sharedDataNamespaces.getOrElse(namespace.toString, Map()).filter(_._1 != instance.toInt).values.sum
-    shared + localData.activationCountOn(namespace)
-  }
 
-  def activationCountPerInvoker: Map[String, Int] = {
-    val shared = sharedDataInvokers.mapValues(_.filter(_._1 != instance.toInt).values.sum)
-    val local = localData.activationCountPerInvoker
-    local ++ shared.map { case (k, v) => k -> (v + local.getOrElse(k, 0)) }
-  }
-
-  def activationById(activationId: ActivationId): Option[ActivationEntry] = {
-    localData.activationById(activationId)
-    //NOTE: activations are NOT replicated, only the counters
-  }
-
-  def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
+  override def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
     activationsById.getOrElseUpdate(id, {
-      val entry = update
-      sharedStateNamespaces ! IncreaseCounter(entry.namespaceId.asString, instance, 1)
-      sharedStateInvokers ! IncreaseCounter(entry.invokerName.toString, instance, 1)
+      val entry = super.putActivation(id, update)
+      sharedStateNamespaces ! IncreaseCounter(entry.namespaceId.asString, 1)
+      sharedStateInvokers ! IncreaseCounter(entry.invokerName.toString, 1)
       logging.debug(this, "increased shared counters")
-      //store the activation
-      localData.putActivation(id, entry)
       entry
     })
   }
 
-  def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
-    activationsById.remove(entry.id).map { activationEntry =>
-      sharedStateNamespaces ! DecreaseCounter(entry.namespaceId.asString, instance, 1)
-      sharedStateInvokers ! DecreaseCounter(entry.invokerName.toString, instance, 1)
+  override def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
+    super.removeActivation(entry).map { activationEntry =>
+      sharedStateNamespaces ! DecreaseCounter(entry.namespaceId.asString, 1)
+      sharedStateInvokers ! DecreaseCounter(entry.invokerName.toString, 1)
       logging.debug(this, s"decreased shared counters ")
-      //remove the activation
-      localData.removeActivation(entry)
       activationEntry
     }
   }
 
-  def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
-    activationsById.get(aid).flatMap(removeActivation)
-  }
 }

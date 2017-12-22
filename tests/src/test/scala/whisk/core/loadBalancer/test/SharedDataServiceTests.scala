@@ -71,20 +71,20 @@ class SharedDataServiceTests()
     expectMsg(msg)
   }
   it should "increase the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", controllerInstance, 1))
+    sharedDataService ! (IncreaseCounter("Donald", 1))
     sharedDataService ! GetMap
     val msg = Map("Donald" -> 1)
     expectMsg(msg)
   }
   it should "decrease the counter" in {
-    sharedDataService ! (IncreaseCounter("Donald", controllerInstance, 2))
-    sharedDataService ! (DecreaseCounter("Donald", controllerInstance, 2))
+    sharedDataService ! (IncreaseCounter("Donald", 2))
+    sharedDataService ! (DecreaseCounter("Donald", 2))
     sharedDataService ! GetMap
     val msg = Map("Donald" -> 1)
     expectMsg(msg)
   }
   it should "receive the map with all counters" in {
-    sharedDataService ! (IncreaseCounter("Hilary", controllerInstance, 1))
+    sharedDataService ! (IncreaseCounter("Hilary", 1))
     sharedDataService ! GetMap
     val msg = Map("Hilary" -> 1, "Donald" -> 1)
     expectMsg(msg)

@@ -31,9 +31,9 @@ import whisk.core.entity.{ActivationId, UUID}
  */
 class LocalLoadBalancerData() extends LoadBalancerData {
 
-  private val activationByInvoker = TrieMap[String, AtomicInteger]()
-  private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
-  private val activationsById = TrieMap[ActivationId, ActivationEntry]()
+  protected val activationByInvoker = TrieMap[String, AtomicInteger]()
+  protected val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
+  protected val activationsById = TrieMap[ActivationId, ActivationEntry]()
   private val totalActivations = new AtomicInteger(0)
 
   override def totalActivationCount: Int = totalActivations.get
