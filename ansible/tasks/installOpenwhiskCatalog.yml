@@ -33,7 +33,7 @@
     version: "{{ version }}"
 
 - name: install the catalog from the catalog location
-  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages" "openwhisk/wskdeploy:0.8.10" {{ optional_package_skip }}
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages" "{{ optional_package_skip }}" "openwhisk/wskdeploy:0.8.10"
   environment:
     OPENWHISK_HOME: "{{ openwhisk_home }}"
   when: skip_catalog_install == false
