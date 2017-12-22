@@ -1,8 +1,12 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: "pull the wurstmeister/kafka:{{ kafka.version }} image"
-  shell: "docker pull wurstmeister/kafka:{{ kafka.version }}"
+- name: Set the kafka docker image names
+  set_fact:
+    kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
+
+- name: "pull the {{ kafka_image }} image"
+  shell: "docker pull {{ kafka_image }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -11,7 +15,7 @@
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
   docker_container:
     name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
-    image: wurstmeister/kafka:{{ kafka.version }}
+    image: "{{ kafka_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

@@ -26,3 +26,4 @@
   when: cli_installation_mode == "local"
 
 - include: download_cli.yml
+  when: cli_installation_mode == "remote"
