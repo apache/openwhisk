@@ -23,7 +23,7 @@
 
 - name: "determine the docker_image to use"
   set_fact:
-    couch_image: "{{ couchdb.docker_image | default('klaemo/couchdb:' ~ couchdb.version ) }}"
+    couch_image: "{{ couchdb.docker_image | default('apache/couchdb:' ~ couchdb.version ) }}"
 
 - name: "pull the {{ couch_image }} image"
   shell: "docker pull {{ couch_image }}"
