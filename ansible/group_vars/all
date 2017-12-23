@@ -302,4 +302,3 @@ metrics:
     tags: "{{ metrics_kamon_tags | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
-
