@@ -3,6 +3,7 @@ openwhisk.home={{ openwhisk_home }}
 python.27=python
 use.cli.download=false
 nginx.conf.dir={{ nginx.confdir }}
+nginx.cli.redirect={{ openwhisk_cli.installation_mode == "remote_redirect" }}
 testing.auth={{ openwhisk_home }}/ansible/files/auth.guest
 vcap.services.file=
 

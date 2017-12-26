@@ -90,9 +90,25 @@ http {
             return 301 https://github.com/apache/incubator-openwhisk-client-swift/releases/download/0.2.3/starterapp-0.2.3.zip;
         }
 
+{% if openwhisk_cli.installation_mode == "remote_redirect" %}
+        # redirect requests for specific binaries to the matching one from the {{ openwhisk_cli_tag }} openwhisk-cli release.
+  {% for os in cli_os %}
+     {% for arch in cli_arch %}
+        location /cli/go/download/{{ os }}/{{ arch }} {
+            return 301 {{ openwhisk_cli.remote_redirect.location_download }}/{{ openwhisk_cli.remote_redirect.package_name }}-{{ openwhisk_cli_tag }}-{{ os }}-{{ arch }}{% if os == 'linux' %}.tgz{% else %}.zip{% endif %};
+        }
+    {% endfor %}
+  {% endfor %}
+
+        # redirect top-level cli downloads to the {{ openwhisk_cli_tag }} openwhisk-cli release.
+        location /cli/go/download {
+            return 301 {{ openwhisk_cli.remote_redirect.location_browse }};
+         }
+{% else %}
         location /cli/go/download {
             autoindex on;
             root /etc/nginx;
         }
+{% endif %}
     }
 }

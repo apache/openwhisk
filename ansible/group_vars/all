@@ -298,11 +298,14 @@ catalog_repos:
 openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
 
 # The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
-# installation_mode can be specified into two modes: remote and local.
+# installation_mode can be specified into three modes: remote_redirect, remote and local.
+# The mode remote_redirect means to not install the available binaries
+# into the nginx container but to rely on a redirect to an external location.
 # The mode remote means to download the available binaries from the releases page
 # of the official openwhisk cli repository. The mode local means to build the binaries
 # locally in a directory and get them from the local directory. The default value
-# for openwhisk is local.
+# for openwhisk is remote_redirect.
+# NOTE: the remote and local modes are likely to be removed at some future time.
 #
 # The name specifies the package name of the binaries in remote mode.
 #
@@ -313,13 +316,17 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('remote') }}"
+  installation_mode: "{{ cli_installation_mode | default('remote_redirect') }}"
   local:
     location: "{{ openwhisk_cli_home }}/bin"
   remote:
     name: OpenWhisk_CLI
     dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
+  remote_redirect:
+    package_name: OpenWhisk_CLI
+    location_browse: "https://github.com/apache/incubator-openwhisk-cli/releases/{{ openwhisk_cli_tag }}"
+    location_download: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
 # The list of operating systems for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
