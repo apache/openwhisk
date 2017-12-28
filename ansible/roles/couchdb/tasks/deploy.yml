@@ -11,24 +11,21 @@
 
 - name: "set the volume_dir"
   set_fact:
-    volume_dir: "{% if db_datadir is defined  %}[ '{{ db.confdir  }}:/opt/couchdb/etc', '{{ db_datadir  }}:/opt/couchdb/data' ]{% else %}{{ db.confdir  }}:/opt/couchdb/etc{% endif %}"
+    volume_dir: "{% if db_datadir is defined and db_confdir is defined  %}[ '{{ db_confdir }}:/opt/couchdb/etc', '{{ db_datadir }}:/opt/couchdb/data' ]{% elif db_datadir is undefined  %}{{ db_confdir }}:/opt/couchdb/etca{% else %}{{ db_datadir }}:/opt/couchdb/data{%- endif %}"
+  when: db_datadir is defined or db_confdir is defined
 
 - name: ensure CouchDB config directory exists
   file:
-    path: "{{ db.confdir }}"
+    path: "{{ db_confdir }}"
     state: directory
   become: "{{ db.dir.become }}"
+  when: db_confdir is defined
 
 - name: copy default configuration files from local to remote in CouchDB config directory
   copy:
-    src: "files/{{ item }}"
-    dest: "{{ db.confdir }}"
-  with_items:
-        - "default.d"
-        - "default.ini"
-        - "local.d"
-        - "local.ini"
-        - "vm.args"
+    src: "files/"
+    dest: "{{ db_confdir }}"
+  when: db_confdir is defined
 
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
   shell: "docker pull apache/couchdb:{{ couchdb.version }}"
