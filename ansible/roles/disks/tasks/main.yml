@@ -1,0 +1,4 @@
+---
+
+- include: mount.yml
+  when: whisk_volume is defined

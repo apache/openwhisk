@@ -1,0 +1,13 @@
+# Group vars file generated automatically by provisioning AWS EC2 instances
+
+whisk_name: {{ item.name }}
+whisk_num_instances: {{ item.num_instances }}
+whisk_flavor: {{ item.flavor }}
+
+{% if item.volume is defined and item.volume.fsmount != '/' %}
+whisk_volume:
+  name: {{ item.volume.name }}
+  size: {{ item.volume.size }}
+  fstype: {{ item.volume.fstype }}
+  fsmount: {{ item.volume.fsmount }}
+{% endif %}

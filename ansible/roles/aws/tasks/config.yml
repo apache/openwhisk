@@ -1,0 +1,12 @@
+---
+
+- name: "Template the new hosts file"
+  template:
+    src: hosts.j2
+    dest: "environments/distributed/hosts"
+
+- name: "Template group vars"
+  template:
+    src: group_vars.j2
+    dest: "environments/distributed/group_vars/{{ item.name }}"
+  with_items: "{{ instances }}"

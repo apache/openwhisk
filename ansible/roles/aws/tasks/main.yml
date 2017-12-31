@@ -1,0 +1,12 @@
+---
+
+- include: security_group.yml
+
+- include: private_key.yml
+
+- include: provision.yml
+
+- include: config.yml
+
+- name: "Refresh the inventory to pick up new config"
+  meta: refresh_inventory

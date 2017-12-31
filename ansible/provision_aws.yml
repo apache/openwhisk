@@ -1,0 +1,15 @@
+---
+
+- name: "Provisioning and config set-up"
+  hosts: localhost
+  gather_facts: no
+  vars:
+    ansible_host: localhost
+  roles:
+    - aws
+
+- name: "Further instance-specific set-up"
+  hosts: all
+  gather_facts: no
+  roles:
+    - disks

@@ -65,6 +65,7 @@ cd ansible
 ansible-playbook -i environments/<environment> couchdb.yml
 ansible-playbook -i environments/<environment> initdb.yml
 ansible-playbook -i environments/<environment> wipe.yml
+ansible-playbook -i environments/<environment> apigateway.yml
 ansible-playbook -i environments/<environment> openwhisk.yml
 ansible-playbook -i environments/<environment> postdeploy.yml
 ```
@@ -75,3 +76,100 @@ Setup your CLI and verify that OpenWhisk is working.
 ../bin/wsk property set --auth $(cat files/auth.whisk.system) --apihost <edge_url>
 ../bin/wsk -i -v action invoke /whisk.system/samples/helloWorld --blocking --result
 ```
+
+## AWS
+
+### Authentication
+
+To run the provisioning you will need to set up your AWS credentials locally, either with the 
+[`awscli`](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html) or by setting environment variables:
+
+``` 
+export AWS_ACCESS_KEY_ID='<your access key>'
+export AWS_SECRET_ACCESS_KEY='<your secret access key>'
+```
+
+Note, if you want to create a new IAM user for Openwhisk work, the only permissions they need are `AmazonEC2FullAccess`.
+
+### Configuration
+
+There are some default configuration options set in `roles/aws/defaults/main.yml` but you can customise these to suit
+your needs.
+
+The main configuration is held in `ansible/environments/distributed/group_vars/all`. This file contains a list of 
+instance specs in the `instances` variable. The provisioning playbook will use this list to create the EC2 instances.
+
+Each configuration has a `name` and `num_instances` property. For example, if we wanted to have 3 invokers on 
+`t2.medium` EC2 instances, we would set: 
+
+```
+instances:
+  ...
+  
+  - name: invokers
+    num_instances: 3
+    flavor: t2.medium 
+```
+
+You can also add a `volume` dictionary to specify the volume that will be attached to the instance, for example:
+
+```
+instances:
+
+  ...
+  
+  - name: db
+    num_instances: 1
+    flavor: t2.medium
+    volume:
+      name: /dev/xvdb
+      size: 10
+      fstype: ext4
+      fsmount: /mnt/db
+```
+
+When setting up volumes, note the [available device names](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/device_naming.html) 
+on EC2 instances. There is also some more general information on using EBS volumes 
+[here](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html).
+
+Before starting you will also need to update your `ansible/ansible.cfg` file with your `remote_user` and 
+`private_key_file`. Note that the `private_key_file` should match that set in `ansible/roles/aws/defaults/main.yml`.
+With the defaults this will be:
+
+```
+[defaults]
+remote_user = ubuntu
+private_key_file = <your home dir>/.ssh/openwhisk_key.pem" 
+
+...
+```
+
+### Registry volume size
+
+The `registry` instance requires quite a lot of disk space so it's advisable to add a large volume, e.g.
+
+```
+- name: registry
+  num_instances: 1
+  flavor: t2.medium
+  volume:
+    name: /dev/sda1
+    size: 100
+    fsmount: /
+```
+
+Note that here `/dev/xvda` is the default root device for this instance type. This may vary depending on 
+the EC2 instance type you're using (e.g. `/dev/xvda`)
+
+### Provisioning
+
+To run the provisioning you need to execute the following (from the `ansible` directory as mentioned above):
+
+```
+ansible-playbook -i environments/distributed provision_aws.yml
+```
+
+This will set up the relevant VMs along with a security group. It will also template the inventory file and group
+vars files found at `environments/distributed/hosts` and `environments/distributed/group_vars` respectively.
+
+

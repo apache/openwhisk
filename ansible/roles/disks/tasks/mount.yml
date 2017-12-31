@@ -1,0 +1,29 @@
+
+- name: "Ensure host is up and running"
+  wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 22
+
+- name: "Get list of configured disks"
+  shell: df -h
+  register: disks
+
+- name: "Create mount point directory"
+  become: yes
+  file:
+    path: "{{ whisk_volume.fsmount }}"
+    state: directory
+
+- name: "Create filesystem on volume"
+  become: yes
+  shell: "mkfs -t {{ whisk_volume.fstype }} {{ whisk_volume.name }}"
+  when: "whisk_volume.name not in disks.stdout"
+
+- name: "Mount the volume"
+  become: yes
+  mount:
+    src: "{{ whisk_volume.name }}"
+    path: "{{ whisk_volume.fsmount }}"
+    fstype: "{{ whisk_volume.fstype }}"
+    state: mounted
+  when: "whisk_volume.name not in disks.stdout"
