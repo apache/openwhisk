@@ -56,7 +56,8 @@ object ExecutionContextFactory {
    * finishes first, we will cancel f2
    *
    */
-  def firstCompletedOf2[T](f1: Future[T], f2Cancellable: CancellableFuture[T])(implicit executor: ExecutionContext): Future[T] = {
+  def firstCompletedOf2[T](f1: Future[T], f2Cancellable: CancellableFuture[T])(
+    implicit executor: ExecutionContext): Future[T] = {
     val p = Promise[T]()
     val (f2Killswitch, f2) = f2Cancellable
 
