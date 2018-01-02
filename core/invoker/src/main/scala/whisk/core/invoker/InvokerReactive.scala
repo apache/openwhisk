@@ -47,7 +47,7 @@ import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
 import whisk.core.containerpool.logging.LogStoreProvider
-import whisk.core.database.NoDocumentException
+import whisk.core.database._
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
@@ -201,8 +201,12 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
               // making this an application error. All other errors are considered system
               // errors and should cause the invoker to be considered unhealthy.
               val response = t match {
-                case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                case _                      => ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
+                case _: NoDocumentException =>
+                  ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+                case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
+                  ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
+                case _ =>
+                  ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
               }
               val now = Instant.now
               val causedBy = if (msg.causedBySequence) {
