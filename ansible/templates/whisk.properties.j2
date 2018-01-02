@@ -89,9 +89,6 @@ db.prefix={{ db_prefix }}
 db.whisk.auths={{ db.whisk.auth }}
 db.whisk.actions={{ db.whisk.actions }}
 db.whisk.activations={{ db.whisk.activations }}
-db.whisk.actions.ddoc={{ db.whisk.actions_ddoc }}
-db.whisk.activations.ddoc={{ db.whisk.activations_ddoc }}
-db.whisk.activations.filter.ddoc={{ db.whisk.activations_filter_ddoc }}
 db.hostsList={{ groups["db"] | map('extract', hostvars, 'ansible_host') | list | join(",") }}
 db.instances={{ db.instances }}
 
