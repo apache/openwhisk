@@ -308,6 +308,11 @@ Components = [
                   yaml = False,
                   gradle = 'actionRuntimes:php7.1Action'),
 
+    makeComponent('action-bash',
+                  'build bash action container',
+                  yaml = False,
+                  gradle = 'actionRuntimes:bashAction'),
+
     makeComponent('dockersdk',
                   'build docker action SDK (to deploy, use edge component)',
                   yaml = False,

@@ -99,6 +99,13 @@ runtimesManifestDefault:
       deprecated: false
       image:
         name: "action-php-v7.1"
+    bash:
+    - kind: "bash"
+      default: true
+      deprecated: false
+      image:
+        name: "action-bash"
+
   blackboxes:
     - name: "dockerskeleton"
 

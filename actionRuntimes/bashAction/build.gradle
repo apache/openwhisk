@@ -1,0 +1,2 @@
+ext.dockerImageName = 'action-bash'
+apply from: '../../gradle/docker.gradle'
