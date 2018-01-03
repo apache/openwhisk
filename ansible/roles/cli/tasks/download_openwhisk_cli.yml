@@ -17,12 +17,16 @@
   set_fact:
     source_name="{{ openwhisk_cli.remote.name }}-{{ openwhisk_cli_tag }}-{{ os }}-{{ arc }}.{{ suffix }}"
 
+- name: "set the destination file name locally (default)"
+  set_fact:
+    dest_name="{{ openwhisk_cli.remote.dest_name }}-{{ os }}-{{arc}}.{{ suffix }}"
+
 - name: "set the destination file name locally after download for 32 bit"
   set_fact:
     dest_name="{{ openwhisk_cli.remote.dest_name }}-{{ os }}-32bit.{{ suffix }}"
   when: arc == "386"
 
-- name: "set the destination file name locally after download for 64 bit"
+- name: "set the destination file name locally after download for amd64"
   set_fact:
     dest_name="{{ openwhisk_cli.remote.dest_name }}-{{ os }}.{{ suffix }}"
   when: arc == "amd64"
@@ -70,4 +74,3 @@
   args:
     chdir: "{{ cli.nginxdir }}/{{ os }}/{{ arc }}/"
   when: os == "linux"
-
