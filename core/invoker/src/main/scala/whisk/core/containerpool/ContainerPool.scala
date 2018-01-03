@@ -81,6 +81,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
   def receive: Receive = {
     // A job to run on a container
+    //
+    // Run messages are received either via the feed or from child containers which cannot process
+    // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
+    // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
       val container = if (busyPool.size < maxActiveContainers) {
         // Schedule a job to a warm container
@@ -110,6 +114,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           freePool = freePool - actor
           actor ! r // forwards the run request to the container
         case None =>
+          // this can also happen if createContainer fails to start a new container, or
+          // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
+          // (and a new container would over commit the pool)
           logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
           self ! r
       }
@@ -131,8 +138,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool = freePool - sender()
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
+        // container was busy, so there is capacity to accept another job request
         feed ! MessageFeed.Processed
       }
+
+    // This message is received for one of these reasons:
+    // 1. Container errored while resuming a warm container, could not process the job, and sent the job back
+    // 2. The container aged, is destroying itself, and was assigned a job which it had to send back
+    // 3. The container aged and is destroying itself
+    // Update the free/busy lists but no message is sent to the feed since there is no change in capacity yet
+    case RescheduleJob =>
+      freePool = freePool - sender()
+      busyPool = busyPool - sender()
   }
 
   /** Creates a new container and updates state accordingly. */

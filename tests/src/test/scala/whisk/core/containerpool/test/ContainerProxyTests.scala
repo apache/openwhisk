@@ -220,7 +220,7 @@ class ContainerProxyTests
 
     // Another pause causes the container to be removed
     timeout(machine)
-    expectMsg(ContainerRemoved)
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Paused, Removing))
 
     awaitAssert {
@@ -528,7 +528,7 @@ class ContainerProxyTests
     val runMessage = Run(action, message)
     machine ! runMessage
     expectMsg(Transition(machine, Paused, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Running, Removing))
     expectMsg(runMessage)
 
@@ -649,7 +649,7 @@ class ContainerProxyTests
     machine ! Run(action, message)
 
     // State-machine shuts down nonetheless.
-    expectMsg(ContainerRemoved)
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Paused, Removing))
 
     // Pool gets the message again.
