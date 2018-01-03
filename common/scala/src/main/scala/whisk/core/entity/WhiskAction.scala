@@ -216,6 +216,11 @@ case class WhiskActionMetaData(namespace: EntityPath,
  *
  * exec is typed to CodeExec to guarantee executability by an Invoker.
  *
+ * Note: Two actions are equal regardless of their DocRevision if there is one.
+ * The invoker uses action equality when matching actions to warm containers.
+ * That means creating an action, invoking it, then deleting/recreating/reinvoking
+ * it will reuse the previous container. The delete/recreate restores the SemVer to 0.0.1.
+ *
  * @param namespace the namespace for the action
  * @param name the name of the action
  * @param exec the action executable details
