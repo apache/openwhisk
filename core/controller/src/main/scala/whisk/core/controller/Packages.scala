@@ -43,8 +43,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   protected override val collection = Collection(Collection.PACKAGES)
 
-  protected[core] val RESERVED_NAMES = Array("default")
-
   /** Database service to CRUD packages. */
   protected val entityStore: EntityStore
 
@@ -59,6 +57,9 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** JSON response formatter. */
   import RestApiCommons.jsonDefaultResponsePrinter
+
+  /** Reserved package names. */
+  protected[core] val RESERVED_NAMES = Set("default")
 
   /**
    * Creates or updates package/binding if it already exists. The PUT content is deserialized into a
@@ -78,9 +79,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def create(user: Identity, entityName: FullyQualifiedEntityName)(implicit transid: TransactionId) = {
     parameter('overwrite ? false) { overwrite =>
-      if (!overwrite && (RESERVED_NAMES contains entityName.name.asString)) {
-        terminate(BadRequest, Messages.packageNameIsReserved(entityName.name.asString))
-      } else {
+      if (!RESERVED_NAMES.contains(entityName.name.asString)) {
         entity(as[WhiskPackagePut]) { content =>
           val request = content.resolve(entityName.namespace)
 
@@ -102,6 +101,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
               rewriteEntitlementFailure(f)
           }
         }
+      } else {
+        terminate(BadRequest, Messages.packageNameIsReserved(entityName.name.asString))
       }
     }
   }
