@@ -442,7 +442,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     Caffeine
       .newBuilder()
       .asInstanceOf[Caffeine[Any, Future[Entry]]]
-      .expireAfterWrite(5, TimeUnit.MINUTES)
+      .expireAfterAccess(5, TimeUnit.MINUTES)
       .softValues()
       .build()
       .asMap())
