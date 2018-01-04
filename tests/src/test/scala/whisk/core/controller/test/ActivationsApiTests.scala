@@ -186,7 +186,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     val since = now.plusSeconds(10)
     val upto = now.plusSeconds(30)
     implicit val activations = Seq(
-      WhiskActivation(namespace, actionName, creds.subject, ActivationId(), start = now.plusSeconds(9), end = now),
+      WhiskActivation(
+        namespace,
+        actionName,
+        creds.subject,
+        ActivationId(),
+        start = now.plusSeconds(9),
+        end = now.plusSeconds(9)),
       WhiskActivation(
         namespace,
         actionName,
@@ -207,61 +213,64 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         creds.subject,
         ActivationId(),
         start = now.plusSeconds(31),
-        end = now.plusSeconds(20)),
+        end = now.plusSeconds(31)),
       WhiskActivation(
         namespace,
         actionName,
         creds.subject,
         ActivationId(),
         start = now.plusSeconds(30),
-        end = now.plusSeconds(20))) // should match
+        end = now.plusSeconds(30))) // should match
     activations foreach { put(activationStore, _) }
     waitOnView(activationStore, namespace.root, activations.length, WhiskActivation.view)
 
-    // get between two time stamps
-    whisk.utils.retry {
-      Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}&upto=${upto.toEpochMilli}") ~> Route.seal(
-        routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[List[JsObject]]
-        val expected = activations filter {
-          case e =>
-            (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
+    { // get between two time stamps
+      val filter = s"since=${since.toEpochMilli}&upto=${upto.toEpochMilli}"
+      val expected = activations.filter { e =>
+        (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
+      }
+
+      whisk.utils.retry {
+        Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[List[JsObject]]
+          expected.length should be(response.length)
+          expected forall { a =>
+            response contains a.toExtendedJson
+          } should be(true)
         }
-        expected.length should be(response.length)
-        expected forall { a =>
-          response contains a.toExtendedJson
-        } should be(true)
       }
     }
 
-    // get 'upto' with no defined since value should return all activation 'upto'
-    whisk.utils.retry {
-      Get(s"$collectionPath?docs=true&upto=${upto.toEpochMilli}") ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[List[JsObject]]
-        val expected = activations filter {
-          case e => e.start.equals(upto) || e.start.isBefore(upto)
+    { // get 'upto' with no defined since value should return all activation 'upto'
+      val expected = activations.filter(e => e.start.equals(upto) || e.start.isBefore(upto))
+      val filter = s"upto=${upto.toEpochMilli}"
+
+      whisk.utils.retry {
+        Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[List[JsObject]]
+          expected.length should be(response.length)
+          expected forall { a =>
+            response contains a.toExtendedJson
+          } should be(true)
         }
-        expected.length should be(response.length)
-        expected forall { a =>
-          response contains a.toExtendedJson
-        } should be(true)
       }
     }
 
-    // get 'since' with no defined upto value should return all activation 'since'
-    whisk.utils.retry {
-      Get(s"$collectionPath?docs=true&since=${since.toEpochMilli}") ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[List[JsObject]]
-        val expected = activations filter {
-          case e => e.start.equals(since) || e.start.isAfter(since)
+    { // get 'since' with no defined upto value should return all activation 'since'
+      whisk.utils.retry {
+        val expected = activations.filter(e => e.start.equals(since) || e.start.isAfter(since))
+        val filter = s"since=${since.toEpochMilli}"
+
+        Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[List[JsObject]]
+          expected.length should be(response.length)
+          expected forall { a =>
+            response contains a.toExtendedJson
+          } should be(true)
         }
-        expected.length should be(response.length)
-        expected forall { a =>
-          response contains a.toExtendedJson
-        } should be(true)
       }
     }
   }
@@ -349,11 +358,10 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     implicit val tid = transid()
     val exceededMaxLimit = WhiskActivationsApi.maxActivationLimit + 1
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
-      val response = responseAs[String]
-      response should include {
+      status should be(BadRequest)
+      responseAs[ErrorResponse].error shouldBe {
         Messages.maxActivationLimitExceeded(exceededMaxLimit, WhiskActivationsApi.maxActivationLimit)
       }
-      status should be(BadRequest)
     }
   }
 

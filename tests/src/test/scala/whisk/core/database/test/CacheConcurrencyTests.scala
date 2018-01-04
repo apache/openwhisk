@@ -22,7 +22,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.forkjoin.ForkJoinPool
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 
@@ -38,7 +38,7 @@ import whisk.common.TransactionId
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndAfter {
+class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndAfterEach {
 
   println(s"Running tests on # proc: ${Runtime.getRuntime.availableProcessors()}")
 
@@ -58,13 +58,13 @@ class CacheConcurrencyTests extends FlatSpec with WskTestHelpers with BeforeAndA
     withClue(s"$phase: failed for $name") { (name, block(name)) }
   }
 
-  before {
+  override def beforeEach() = {
     run("pre-test sanitize") { name =>
       wsk.action.sanitize(name)
     }
   }
 
-  after {
+  override def afterEach() = {
     run("post-test sanitize") { name =>
       wsk.action.sanitize(name)
     }

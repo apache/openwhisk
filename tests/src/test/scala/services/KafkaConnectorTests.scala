@@ -59,7 +59,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     sessionTimeout = sessionTimeout,
     maxPollInterval = maxPollInterval)
 
-  override def afterAll() {
+  override def afterAll() = {
     producer.close()
     consumer.close()
     super.afterAll()

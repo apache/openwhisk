@@ -44,16 +44,6 @@ import whisk.common.MetricEmitter
  */
 trait BasicHttpService extends Directives with TransactionCounter {
 
-  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
-  implicit def customRejectionHandler(implicit transid: TransactionId) = {
-    RejectionHandler.default.mapRejectionResponse {
-      case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
-        val error = ErrorResponse(ent.data.utf8String, transid).toJson
-        res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
-      case x => x
-    }
-  }
-
   /**
    * Gets the routes implemented by the HTTP service.
    *
@@ -87,7 +77,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
     assignId { implicit transid =>
       DebuggingDirectives.logRequest(logRequestInfo _) {
         DebuggingDirectives.logRequestResult(logResponseInfo _) {
-          handleRejections(customRejectionHandler) {
+          handleRejections(BasicHttpService.customRejectionHandler) {
             prioritizeRejections {
               toStrictEntity(30.seconds) {
                 routes
@@ -151,4 +141,15 @@ object BasicHttpService {
       Await.result(actorSystem.whenTerminated, 30.seconds)
     }
   }
+
+  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
+  def customRejectionHandler(implicit transid: TransactionId) = {
+    RejectionHandler.default.mapRejectionResponse {
+      case res @ HttpResponse(_, _, ent: HttpEntity.Strict, _) =>
+        val error = ErrorResponse(ent.data.utf8String, transid).toJson
+        res.copy(entity = HttpEntity(ContentTypes.`application/json`, error.compactPrint))
+      case x => x
+    }
+  }
+
 }
