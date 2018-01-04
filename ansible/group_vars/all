@@ -111,7 +111,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: 1.11
+  version: "{{ nginx_version | default(1.11) }}"
   port:
     http: 80
     api: 443
@@ -250,18 +250,16 @@ openwhisk_cli:
     dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
-# The list of operating systems for which openwhisk cli binaries are downloaded,
+# The list of operating systems and architectures for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
-cli_os:
-  - linux
-  - mac
-  - windows
-
-# The list of architectures for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
-cli_arch:
-  - amd64
-  - 386
+cli_os_arch:
+  - [ "linux", "amd64" ]
+  - [ "linux", "386" ]
+  - [ "linux", "s390x" ]
+  - [ "mac", "amd64" ]
+  - [ "mac", "386" ]
+  - [ "windows", "amd64" ]
+  - [ "windows", "386" ]
 
 # Controls access to log directories
 logs:

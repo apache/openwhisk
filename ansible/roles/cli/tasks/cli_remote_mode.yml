@@ -4,12 +4,11 @@
 
 - name: "download the binaries from the release page of OpenWhisk CLI"
   include: download_openwhisk_cli.yml
-  with_nested:
-    - "{{ cli_os }}"
-    - "{{ cli_arch }}"
+  with_items:
+    - "{{ cli_os_arch }}"
 
 - name: "generate content.json locally for Nginx CLI directory"
-  local_action: shell "./createContentJson.sh" "{{ config_root_dir }}" "{{ openwhisk_cli_tag }}" "{{ cli_os | join(" ") }}" "{{ openwhisk_cli.remote.dest_name }}" chdir="{{ openwhisk_home }}/ansible/roles/cli/files"
+  local_action: shell "./createContentJson.sh" "{{ config_root_dir }}" "{{ openwhisk_cli_tag }}" "{{ cli_os_arch | sort | map('join', ',') | join(' ') }}" "{{ openwhisk_cli.remote.dest_name }}" chdir="{{ openwhisk_home }}/ansible/roles/cli/files"
 
 - name: "ensure Nginx cli directory is writable"
   file:
@@ -17,7 +16,7 @@
     state: directory
     mode: 0777
   become: "{{ cli.dir.become }}"
-  
+
 - name: "copy the local content.json to the remote node"
   copy: src={{ config_root_dir }}/content.json dest={{ cli.nginxdir }}/
 

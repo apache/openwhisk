@@ -19,10 +19,11 @@
 - name: "copy the binaries from a local directory to Nginx directory"
   include: copy_local_openwhisk_cli.yml
   when: cli_installation_mode == "local"
-  with_items: "{{ cli_os }}"
+  with_items: "{{ cli_os_arch | first | unique }}"
 
 - name: "copy the local content.json from a local directory to Nginx directory"
   copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
   when: cli_installation_mode == "local"
 
 - include: download_cli.yml
+  when: cli_installation_mode == "remote"

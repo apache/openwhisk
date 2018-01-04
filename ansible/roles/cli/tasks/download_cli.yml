@@ -2,10 +2,19 @@
 
 # Download the cli to openwhisk_home
 
+- name: "Use ansible fact to determine wsk architecture"
+  set_fact:
+      cli_arch: "{{ ansible_machine }}"
+
+- name: "If architecture is x86_64, change it to amd64"
+  set_fact:
+      cli_arch: "amd64"
+  when: ansible_machine == "x86_64"
+
 - name: "download cli (linux) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
-    url="https://{{ groups['edge'] | first }}/cli/go/download/linux/amd64/wsk"
+    url="https://{{ groups['edge'] | first }}/cli/go/download/linux/{{ cli_arch }}/wsk"
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
@@ -15,7 +24,7 @@
 - name: "download cli for mac (docker-machine or Docker for Mac) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
     get_url
-    url="https://{{ groups['edge'] | first }}/cli/go/download/mac/amd64/wsk"
+    url="https://{{ groups['edge'] | first }}/cli/go/download/mac/{{ cli_arch }}/wsk"
     dest="{{ openwhisk_home }}/bin/wsk"
     mode=0755
     validate_certs=False
