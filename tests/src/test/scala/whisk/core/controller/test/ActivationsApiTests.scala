@@ -126,6 +126,16 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   //// GET /activations?docs=true
+  it should "return empty list when no activations exist" in {
+    implicit val tid = transid()
+    whisk.utils.retry { // retry because view will be stale from previous test and result in null doc fields
+      Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        responseAs[List[JsObject]] shouldBe 'empty
+      }
+    }
+  }
+
   it should "get full activation by namespace" in {
     implicit val tid = transid()
     // create two sets of activation records, and check that only one set is served back
