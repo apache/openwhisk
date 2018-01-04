@@ -30,77 +30,9 @@ whisk:
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
 #   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
-#                             to skip docker pull in invoker even if the image is not part of the blackboxe set
+#                             to skip docker pull in invoker even if the image is not part of the blackbox set
 #
-runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
-
-runtimesManifestDefault:
-  bypassPullForLocalImages: "{{ bypass_pull_for_local_images | default(false) }}"
-  defaultImagePrefix: "openwhisk"
-  defaultImageTag: "latest"
-  runtimes:
-    nodejs:
-    - kind: "nodejs"
-      image:
-        name: "nodejsaction"
-      deprecated: true
-    - kind: "nodejs:6"
-      default: true
-      image:
-        name: "nodejs6action"
-      deprecated: false
-    - kind: "nodejs:8"
-      default: false
-      image:
-        name: "action-nodejs-v8"
-      deprecated: false
-    python:
-    - kind: "python"
-      image:
-        name: "python2action"
-      deprecated: false
-    - kind: "python:2"
-      default: true
-      image:
-        name: "python2action"
-      deprecated: false
-    - kind: "python:3"
-      image:
-        name: "python3action"
-      deprecated: false
-    swift:
-    - kind: "swift"
-      image:
-        name: "swiftaction"
-      deprecated: true
-    - kind: "swift:3"
-      image:
-        name: "swift3action"
-      deprecated: true
-    - kind: "swift:3.1.1"
-      default: true
-      image:
-        name: "action-swift-v3.1.1"
-      deprecated: false
-    java:
-    - kind: "java"
-      default: true
-      image:
-        name: "java8action"
-      deprecated: false
-      attached:
-        attachmentName: "jarfile"
-        attachmentType: "application/java-archive"
-      sentinelledLogs: false
-      requireMain: true
-    php:
-    - kind: "php:7.1"
-      default: true
-      deprecated: false
-      image:
-        name: "action-php-v7.1"
-  blackboxes:
-    - name: "dockerskeleton"
+runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
