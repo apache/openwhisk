@@ -364,6 +364,16 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
+  it should "reject invalid query parameter combinations" in {
+    implicit val tid = transid()
+    whisk.utils.retry { // retry because view will be stale from previous test and result in null doc fields
+      Get(s"$collectionPath?docs=true&count=true") ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+        responseAs[ErrorResponse].error shouldBe Messages.docsNotAllowedWithCount
+      }
+    }
+  }
+
   it should "reject activation list when limit is greater than maximum allowed value" in {
     implicit val tid = transid()
     val exceededMaxLimit = WhiskActivationsApi.maxActivationLimit + 1

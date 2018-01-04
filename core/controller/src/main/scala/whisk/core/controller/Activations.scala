@@ -148,10 +148,11 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       'name.as[Option[EntityPath]] ?,
       'since.as[Instant] ?,
       'upto.as[Instant] ?) { (skip, limit, count, docs, name, since, upto) =>
+      val invalidDocs = count && docs
       val cappedLimit = if (limit == 0) WhiskActivationsApi.maxActivationLimit else limit
 
       // regardless of limit, cap at maxActivationLimit (200) records, client must paginate
-      if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
+      if (!invalidDocs && cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
         val activations = name.flatten match {
           case Some(action) =>
             WhiskActivation.listActivationsMatchingName(
@@ -179,6 +180,8 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
         listEntities {
           activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
         }
+      } else if (invalidDocs) {
+        terminate(BadRequest, Messages.docsNotAllowedWithCount)
       } else {
         terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))
       }
