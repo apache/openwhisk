@@ -209,10 +209,7 @@ db:
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
-    actions_ddoc: "whisks.v2"
     activations: "{{ db_prefix }}activations"
-    activations_ddoc: "whisks.v2"
-    activations_filter_ddoc: "whisks-filters.v2"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
