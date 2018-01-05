@@ -25,8 +25,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 
-import spray.json._
-
 import whisk.common.TransactionId
 import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}
@@ -49,9 +47,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Route directives for API. The methods that are supported on packages. */
   protected override lazy val entityOps = put | get | delete
-
-  /** Must exclude any private packages when listing those in a namespace unless owned by subject. */
-  protected override val listRequiresPrivateEntityFilter = true
 
   /** JSON response formatter. */
   import RestApiCommons.jsonDefaultResponsePrinter
@@ -173,24 +168,25 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 200 [] or [WhiskPackage as JSON]
    * - 500 Internal Server Error
    */
-  override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+  override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
-        listEntities {
-          WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-            list =>
-              // any subject is entitled to list packages in any namespace
-              // however, they shall only observe public packages if the packages
-              // are not in one of the namespaces the subject is entitled to
-              val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
-
-              FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
-                // additionally exclude bindings
-                _.fields.get(WhiskPackage.bindingFieldName) match {
-                  case Some(JsBoolean(isbinding)) => !isbinding
-                  case _                          => false // exclude anything that does not conform
-                }
-              })
+        val viewName = if (user.namespace.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
+        if (!count) {
+          listEntities {
+            WhiskPackage
+              .listCollectionInNamespace(
+                entityStore,
+                namespace,
+                skip,
+                limit.n,
+                includeDocs = false,
+                viewName = viewName)
+              .map(_.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_))))
+          }
+        } else {
+          countEntities {
+            WhiskPackage.countCollectionInNamespace(entityStore, namespace, skip, viewName = viewName)
           }
         }
     }

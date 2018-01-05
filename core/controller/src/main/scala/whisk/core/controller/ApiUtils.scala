@@ -31,7 +31,6 @@ import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.server.RequestContext
 import akka.http.scaladsl.server.RouteResult
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsBoolean
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.RootJsonFormat
@@ -41,7 +40,6 @@ import whisk.core.controller.PostProcess.PostProcessEntity
 import whisk.core.database._
 import whisk.core.entity.DocId
 import whisk.core.entity.WhiskDocument
-import whisk.core.entity.WhiskEntity
 import whisk.http.ErrorResponse
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
@@ -70,30 +68,6 @@ protected[core] object RejectRequest {
   }
 }
 
-protected[controller] object FilterEntityList {
-  import WhiskEntity.sharedFieldName
-
-  /**
-   * Filters from a list of entities serialized to JsObjects only those
-   * that have the shared field ("publish") equal to true and excludes
-   * all others.
-   */
-  protected[controller] def filter(resources: List[JsValue],
-                                   excludePrivate: Boolean,
-                                   additionalFilter: JsObject => Boolean = (_ => true)) = {
-    if (excludePrivate) {
-      resources filter {
-        case obj: JsObject =>
-          obj.fields.get(sharedFieldName) match {
-            case Some(JsBoolean(true)) => additionalFilter(obj) // a shared entity
-            case _                     => false
-          }
-        case _ => false // only expecting JsObject instances
-      }
-    } else resources
-  }
-}
-
 /**
  * A convenient typedef for functions that post process an entity
  * on an operation and terminate the HTTP request.
@@ -114,13 +88,7 @@ trait ReadOps extends Directives {
   import RestApiCommons.jsonDefaultResponsePrinter
 
   /**
-   * Get all entities of type A from datastore that match key. Terminates HTTP request.
-   *
-   * @param factory the factory that can fetch entities of type A from datastore
-   * @param datastore the client to the database
-   * @param key the key to use to match records in the view, optional, if not defined, use namespace
-   * @param view the view to query
-   * @param filter a function List[A] => List[A] that filters the results
+   * Terminates HTTP request for list requests.
    *
    * Responses are one of (Code, Message)
    * - 200 entity A [] as JSON []
@@ -133,6 +101,24 @@ trait ReadOps extends Directives {
         complete(OK, entities)
       case Failure(t: Throwable) =>
         logging.error(this, s"[LIST] entity failed: ${t.getMessage}")
+        terminate(InternalServerError)
+    }
+  }
+
+  /**
+   * Terminates HTTP request for list count requests.
+   *
+   * Responses are one of (Code, Message)
+   * - 200 JSON object
+   * - 500 Internal Server Error
+   */
+  protected def countEntities(count: Future[JsValue])(implicit transid: TransactionId) = {
+    onComplete(count) {
+      case Success(c) =>
+        logging.info(this, s"[COUNT] count success")
+        complete(OK, c)
+      case Failure(t: Throwable) =>
+        logging.error(this, s"[COUNT] count failed: ${t.getMessage}")
         terminate(InternalServerError)
     }
   }

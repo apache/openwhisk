@@ -235,14 +235,19 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 200 [] or [WhiskTrigger as JSON]
    * - 500 Internal Server Error
    */
-  override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+  override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
-        listEntities {
-          WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-            list =>
-              val triggers = list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
-              FilterEntityList.filter(triggers, excludePrivate)
+        if (!count) {
+          listEntities {
+            WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+              list =>
+                list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
+            }
+          }
+        } else {
+          countEntities {
+            WhiskTrigger.countCollectionInNamespace(entityStore, namespace, skip)
           }
         }
     }

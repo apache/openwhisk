@@ -58,6 +58,18 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
   def aname() = MakeName.next("activations_tests")
 
+  def checkCount(filter: String, expected: Int, user: Identity = creds) = {
+    implicit val tid = transid()
+    withClue(s"count did not match for filter: $filter") {
+      whisk.utils.retry {
+        Get(s"$collectionPath?count=true&$filter") ~> Route.seal(routes(user)) ~> check {
+          status should be(OK)
+          responseAs[JsObject] shouldBe JsObject(collection.path -> JsNumber(expected))
+        }
+      }
+    }
+  }
+
   //// GET /activations
   it should "get summary activation by namespace" in {
     implicit val tid = transid()
@@ -82,13 +94,10 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     whisk.utils.retry {
       Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val rawResponse = responseAs[List[JsObject]]
         val response = responseAs[List[JsObject]]
         activations.length should be(response.length)
-        activations forall { a =>
-          response contains a.summaryAsJson
-        } should be(true)
-        rawResponse forall { a =>
+        response should contain theSameElementsAs activations.map(_.summaryAsJson)
+        response forall { a =>
           a.getFields("for") match {
             case Seq(JsString(n)) => n == actionName.asString
             case _                => false
@@ -101,13 +110,10 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     whisk.utils.retry {
       Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val rawResponse = responseAs[List[JsObject]]
         val response = responseAs[List[JsObject]]
         activations.length should be(response.length)
-        activations forall { a =>
-          response contains a.summaryAsJson
-        } should be(true)
-        rawResponse forall { a =>
+        response should contain theSameElementsAs activations.map(_.summaryAsJson)
+        response forall { a =>
           a.getFields("for") match {
             case Seq(JsString(n)) => n == actionName.asString
             case _                => false
@@ -162,14 +168,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     activations foreach { put(activationStore, _) }
     waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
 
+    checkCount("", 2)
+
     whisk.utils.retry {
       Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[List[JsObject]]
         activations.length should be(response.length)
-        activations forall { a =>
-          response contains a.toExtendedJson
-        } should be(true)
+        response should contain theSameElementsAs activations.map(_.toExtendedJson)
       }
     }
   }
@@ -238,14 +244,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         (e.start.equals(since) || e.start.equals(upto) || (e.start.isAfter(since) && e.start.isBefore(upto)))
       }
 
+      checkCount(filter, expected.length)
+
       whisk.utils.retry {
         Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[List[JsObject]]
           expected.length should be(response.length)
-          expected forall { a =>
-            response contains a.toExtendedJson
-          } should be(true)
+          response should contain theSameElementsAs expected.map(_.toExtendedJson)
         }
       }
     }
@@ -254,14 +260,14 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       val expected = activations.filter(e => e.start.equals(upto) || e.start.isBefore(upto))
       val filter = s"upto=${upto.toEpochMilli}"
 
+      checkCount(filter, expected.length)
+
       whisk.utils.retry {
         Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[List[JsObject]]
           expected.length should be(response.length)
-          expected forall { a =>
-            response contains a.toExtendedJson
-          } should be(true)
+          response should contain theSameElementsAs expected.map(_.toExtendedJson)
         }
       }
     }
@@ -271,13 +277,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         val expected = activations.filter(e => e.start.equals(since) || e.start.isAfter(since))
         val filter = s"since=${since.toEpochMilli}"
 
+        checkCount(filter, expected.length)
+
         Get(s"$collectionPath?docs=true&$filter") ~> Route.seal(routes(creds)) ~> check {
           status should be(OK)
           val response = responseAs[List[JsObject]]
           expected.length should be(response.length)
-          expected forall { a =>
-            response contains a.toExtendedJson
-          } should be(true)
+          response should contain theSameElementsAs expected.map(_.toExtendedJson)
         }
       }
     }
@@ -343,26 +349,25 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
       activationsInPackage.length,
       WhiskActivation.filtersView)
 
+    checkCount("name=xyz", activations.length)
+
     whisk.utils.retry {
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[List[JsObject]]
         activations.length should be(response.length)
-        activations forall { a =>
-          response contains a.summaryAsJson
-        } should be(true)
+        response should contain theSameElementsAs activations.map(_.summaryAsJson)
       }
     }
 
-    // this is not yet ready, the v2 views must be activated
+    checkCount("name=pkg/xyz", activations.length)
+
     whisk.utils.retry {
       Get(s"$collectionPath?name=pkg/xyz") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
         val response = responseAs[List[JsObject]]
         activationsInPackage.length should be(response.length)
-        activationsInPackage forall { a =>
-          response contains a.summaryAsJson
-        } should be(true)
+        response should contain theSameElementsAs activationsInPackage.map(_.summaryAsJson)
       }
     }
   }

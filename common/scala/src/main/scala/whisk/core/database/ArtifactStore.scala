@@ -88,6 +88,7 @@ trait ArtifactStore[DocumentAbstraction] {
    * @param includeDocs include full documents matching query iff true (shall not be used with reduce)
    * @param descending reverse results iff true
    * @param reduce apply reduction associated with query to the result iff true
+   * @param stale a flag to permit a stale view result to be returned
    * @param transid the transaction id for logging
    * @return a future that completes with List[JsObject] of all documents from view between start and end key (list may be empty)
    */
@@ -100,6 +101,21 @@ trait ArtifactStore[DocumentAbstraction] {
                             descending: Boolean,
                             reduce: Boolean,
                             stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]]
+
+  /**
+   * Counts all documents from database view that match a start key, up to an end key, using a future.
+   * If the operation is successful, the promise completes with Long.
+   *
+   * @param table the name of the table to query
+   * @param startKey to starting key to query the view for
+   * @param endKey to starting key to query the view for
+   * @param skip the number of record to skip (for pagination)
+   * @param stale a flag to permit a stale view result to be returned
+   * @param transid the transaction id for logging
+   * @return a future that completes with Long that is the number of documents from view between start and end key (count may be zero)
+   */
+  protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
+    implicit transid: TransactionId): Future[Long]
 
   /**
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
