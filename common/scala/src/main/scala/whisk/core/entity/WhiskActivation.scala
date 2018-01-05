@@ -25,6 +25,7 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
+import whisk.core.PureConfigKeys
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.database.StaleParameter
@@ -147,7 +148,7 @@ object WhiskActivation
 
   override val collectionName = "activations"
 
-  private val dbConfig = loadConfigOrThrow[DBConfig]("whisk.db")
+  private val dbConfig = loadConfigOrThrow[DBConfig](PureConfigKeys.whiskDB)
   private val mainDdoc = dbConfig.activationsDdoc
   private val filtersDdoc = dbConfig.activationsFilterDdoc
 

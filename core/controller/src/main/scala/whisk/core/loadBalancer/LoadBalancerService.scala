@@ -37,6 +37,7 @@ import akka.pattern.ask
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import whisk.core.PureConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.{ActivationMessage, CompletionMessage}
@@ -90,7 +91,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   logging: Logging)
     extends LoadBalancer {
 
-  private val lbConfig = loadConfigOrThrow[LoadbalancerConfig]("whisk.loadbalancer")
+  private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](PureConfigKeys.whiskLoadbalancer)
 
   /** The execution context for futures */
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
