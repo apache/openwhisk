@@ -77,7 +77,10 @@ case class WhiskActivation(namespace: EntityPath,
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
-  /** This the activation summary as computed by the database view. Strictly used for testing. */
+  /**
+   * This the activation summary as computed by the database view.
+   * Strictly used in view testing to enforce alignment.
+   */
   override def summaryAsJson = {
     import WhiskActivation.instantSerdes
 
@@ -91,7 +94,7 @@ case class WhiskActivation(namespace: EntityPath,
     }
 
     JsObject(
-      super.summaryAsJson.fields +
+      super.summaryAsJson.fields - "updated" +
         ("activationId" -> activationId.toJson) +
         ("start" -> start.toJson) ++
         cause.map(("cause" -> _.toJson)) ++
@@ -133,7 +136,7 @@ object WhiskActivation
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
 
-  private implicit val instantSerdes = new RootJsonFormat[Instant] {
+  protected[entity] implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
     def read(value: JsValue) =

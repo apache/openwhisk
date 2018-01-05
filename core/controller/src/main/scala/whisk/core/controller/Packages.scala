@@ -174,28 +174,23 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet; see comment in
-    // Actions API for more.
-    val docs = false
-
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
         listEntities {
-          WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
-            // any subject is entitled to list packages in any namespace
-            // however, they shall only observe public packages if the packages
-            // are not in one of the namespaces the subject is entitled to
-            val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
+          WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+            list =>
+              // any subject is entitled to list packages in any namespace
+              // however, they shall only observe public packages if the packages
+              // are not in one of the namespaces the subject is entitled to
+              val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
 
-            FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
-              // additionally exclude bindings
-              _.fields.get(WhiskPackage.bindingFieldName) match {
-                case Some(JsBoolean(isbinding)) => !isbinding
-                case _                          => false // exclude anything that does not conform
-              }
-            })
+              FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
+                // additionally exclude bindings
+                _.fields.get(WhiskPackage.bindingFieldName) match {
+                  case Some(JsBoolean(isbinding)) => !isbinding
+                  case _                          => false // exclude anything that does not conform
+                }
+              })
           }
         }
     }

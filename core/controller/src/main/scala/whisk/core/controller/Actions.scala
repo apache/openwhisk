@@ -319,21 +319,13 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet.
-    //
-    // the complication with actions is that providing docs on actions in
-    // package bindings is cannot be do readily done with a couchdb view
-    // and would require finding all bindings in namespace and
-    // joining the actions explicitly here.
-    val docs = false
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
         listEntities {
-          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
-            val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
-            FilterEntityList.filter(actions, excludePrivate)
+          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+            list =>
+              val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+              FilterEntityList.filter(actions, excludePrivate)
           }
         }
     }

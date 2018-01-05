@@ -24,7 +24,6 @@ import java.util.Base64
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -160,8 +159,27 @@ case class WhiskAction(namespace: EntityPath,
       Some(
         ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
           .revision[ExecutableWhiskAction](rev))
-    case _ =>
-      None
+    case _ => None
+  }
+
+  /**
+   * This the action summary as computed by the database view.
+   * Strictly used in view testing to enforce alignment.
+   */
+  override def summaryAsJson = {
+    if (WhiskEntityQueries.designDoc.endsWith("v2")) {
+      super.summaryAsJson
+    } else {
+      val binary = exec match {
+        case c: CodeExec[_] => c.binary
+        case _              => false
+      }
+
+      JsObject(
+        super.summaryAsJson.fields +
+          ("limits" -> limits.toJson) +
+          ("exec" -> JsObject("binary" -> JsBoolean(binary))))
+    }
   }
 }
 

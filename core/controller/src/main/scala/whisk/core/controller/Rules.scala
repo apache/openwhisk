@@ -235,15 +235,11 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet; see comment in
-    // Actions API for more.
-    val docs = false
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
+        val includeDocs = WhiskEntityQueries.designDoc.endsWith("v2.1.0")
         listEntities {
-          WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
+          WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs) map { list =>
             val rules = list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
             FilterEntityList.filter(rules, excludePrivate)
           }

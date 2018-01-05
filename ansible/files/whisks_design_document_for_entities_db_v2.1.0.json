@@ -1,0 +1,26 @@
+{
+  "_id": "_design/whisks.v2.1.0",
+  "language": "javascript",
+  "views": {
+    "rules": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isRule = function (doc) {  return (doc.trigger !== undefined) };\n  if (isRule(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    emit([doc.namespace, doc.updated], 1);\n    if (root !== doc.namespace) {\n      emit([root, doc.updated], 1);\n    }\n  } catch (e) {}\n}",
+      "reduce": "_count"
+    },
+    "packages-public": {
+      "map": "function (doc) {\n  var isPublicPackage = function(doc) { \n    return Object.keys(doc.binding).length == 0 && doc.publish;\n  }\n  if (isPublicPackage(doc)) try {\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated,\n      binding: false\n    };\n    emit([doc.namespace, doc.updated], value);\n  } catch (e) {}\n}",
+      "reduce": "_count"
+    },
+    "packages": {
+      "map": "function (doc) {\n  var isPackage = function (doc) {  return (doc.binding !== undefined) };\n  if (isPackage(doc)) try {\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated\n    };\n    if (Object.keys(doc.binding).length > 0) {\n      value.binding = doc.binding;\n    } else {\n      value.binding = false;\n    }\n    emit([doc.namespace, doc.updated], value);\n  } catch (e) {}\n}",
+      "reduce": "_count"
+    },
+    "actions": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isAction = function (doc) { return (doc.exec !== undefined) };\n  if (isAction(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      limits: doc.limits,\n      exec: { binary: doc.exec.binary || false},\n      updated: doc.updated\n    };\n    emit([doc.namespace, doc.updated], value);\n    if (root !== doc.namespace) {\n      emit([root, doc.updated], value);\n    }\n  } catch (e) {}\n}",
+      "reduce": "_count"
+    },
+    "triggers": {
+      "map": "function (doc) {\n  var PATHSEP = \"/\";\n  var isTrigger = function (doc) { return (doc.exec === undefined && doc.binding === undefined && doc.parameters !== undefined) };\n  if (isTrigger(doc)) try {\n    var ns = doc.namespace.split(PATHSEP);\n    var root = ns[0];\n    var value = {\n      namespace: doc.namespace,\n      name: doc.name,\n      version: doc.version,\n      publish: doc.publish,\n      annotations: doc.annotations,\n      updated: doc.updated\n    };\n    emit([doc.namespace, doc.updated], value);\n    if (root !== doc.namespace) {\n      emit([root, doc.updated], value);\n    }\n  } catch (e) {}\n}",
+      "reduce": "_count"
+    }
+  }
+}
