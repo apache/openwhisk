@@ -236,3 +236,12 @@ object WhiskConfig {
   val controllerLocalBookkeeping = "controller.localBookkeeping"
   val controllerHighAvailability = "controller.ha"
 }
+
+object PureConfigKeys {
+  val whiskLoadbalancer = "whisk.loadbalancer"
+
+  val whiskKafka = "whisk.kafka"
+  val whiskKafkaTopics = "whisk.kafka.topics"
+
+  val whiskDB = "whisk.db"
+}
