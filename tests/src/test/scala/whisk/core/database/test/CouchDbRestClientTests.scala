@@ -72,14 +72,14 @@ class CouchDbRestClientTests
     config.dbPassword,
     dbName)
 
-  override def beforeAll() {
+  override def beforeAll() = {
     super.beforeAll()
     whenReady(client.createDb()) { r =>
       assert(r.isRight)
     }
   }
 
-  override def afterAll() {
+  override def afterAll() = {
     whenReady(client.deleteDb()) { r =>
       assert(r.isRight)
     }

@@ -124,6 +124,7 @@ object Messages {
   val abnormalInitialization = "The action did not initialize and exited unexpectedly."
   val abnormalRun = "The action did not produce a valid response and exited unexpectedly."
   val memoryExhausted = "The action exhausted its memory and was aborted."
+  val docsNotAllowedWithCount = "The parameter 'docs' is not permitted with 'count'."
   def badNameFilter(value: String) = s"Parameter may be a 'simple' name or 'package-name/simple' name: $value"
   def badEpoch(value: String) = s"Parameter is not a valid value for epoch seconds: $value"
 

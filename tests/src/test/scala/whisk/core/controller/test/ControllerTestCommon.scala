@@ -21,7 +21,7 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
@@ -48,7 +48,7 @@ import whisk.spi.SpiLoader
 
 protected trait ControllerTestCommon
     extends FlatSpec
-    with BeforeAndAfter
+    with BeforeAndAfterEach
     with BeforeAndAfterAll
     with ScalatestRouteTest
     with Matchers
@@ -149,11 +149,11 @@ protected trait ControllerTestCommon
   val NAMESPACES = Collection(Collection.NAMESPACES)
   val PACKAGES = Collection(Collection.PACKAGES)
 
-  after {
+  override def afterEach() = {
     cleanup()
   }
 
-  override def afterAll() {
+  override def afterAll() = {
     println("Shutting down db connections");
     entityStore.shutdown()
     activationStore.shutdown()
