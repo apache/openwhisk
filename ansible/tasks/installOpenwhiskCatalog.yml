@@ -20,6 +20,17 @@
     skip_catalog_install="{{ item.value.skip | default(false) }}"
     optional_package_skip="{{ item.value.optional_package_skip | default(true) }}"
 
+- set_fact:
+    environment_catalog:
+      OPENWHISK_HOME: "{{ openwhisk_home }}"
+
+- set_fact:
+    environment_catalog: "{{ environment_catalog | combine( { the_item.key: the_item.value } ) }}"
+  when: item.value.environment is defined
+  with_dict: "{{ item.value.environment }}"
+  loop_control:
+    loop_var: the_item
+
 - name: "ensure catalog_location directory exists"
   file:
     path: "{{ catalog_location }}"
@@ -33,7 +44,6 @@
     version: "{{ version }}"
 
 - name: install the catalog from the catalog location
-  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages" "{{ optional_package_skip }}"
-  environment:
-    OPENWHISK_HOME: "{{ openwhisk_home }}"
+  shell: ./installCatalog.sh {{ catalog_auth_key }} {{ api_host }} {{ cli.path }} chdir="{{ catalog_location }}/packages"
+  environment: "{{ environment_catalog }}"
   when: skip_catalog_install == false
