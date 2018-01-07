@@ -15,7 +15,11 @@ dependencies {
     compile project(':common:scala')
 
     compile 'org.apache.curator:curator-recipes:4.0.0', { exclude group: 'org.apache.zookeeper', module:'zookeeper' }
-    compile 'org.apache.zookeeper:zookeeper:3.4.11'
+    compile ('org.apache.zookeeper:zookeeper:3.4.11') {
+        exclude group: 'org.slf4j'
+        exclude group: 'log4j'
+        exclude group: 'jline'
+    }
 }
 
 tasks.withType(ScalaCompile) {
