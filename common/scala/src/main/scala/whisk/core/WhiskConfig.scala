@@ -237,14 +237,16 @@ object WhiskConfig {
   val controllerHighAvailability = "controller.ha"
 }
 
-object PureConfigKeys {
-  val whiskLoadbalancer = "whisk.loadbalancer"
+object ConfigKeys {
+  val loadbalancer = "whisk.loadbalancer"
 
-  val whiskKafka = "whisk.kafka"
-  val whiskKafkaTopics = "whisk.kafka.topics"
+  val kafka = "whisk.kafka"
+  val kafkaTopics = s"$kafka.topics"
 
-  val whiskDB = "whisk.db"
+  val db = "whisk.db"
 
-  val whiskDockerTimeouts = "whisk.docker.timeouts"
-  val whiskRuncTimeouts = "whisk.runc.timeouts"
+  val docker = "whisk.docker"
+  val dockerTimeouts = s"$docker.timeouts"
+  val runc = "whisk.runc"
+  val runcTimeouts = s"$runc.timeouts"
 }
