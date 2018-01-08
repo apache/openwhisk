@@ -17,6 +17,9 @@ dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.major}.${gradle.scala.minor}.${gradle.scala.patch}"
     compile project(':common:scala')
 
+    // Configuration
+    compile "com.github.pureconfig:pureconfig_${gradle.scala.major}.${gradle.scala.minor}:0.7.2"
+
     // Akka
     compile "com.typesafe.akka:akka-actor_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-stream_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
@@ -28,6 +31,10 @@ dependencies {
     compile "com.typesafe.akka:akka-http-core_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
     compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
+    compile "com.chuusai:shapeless_${gradle.scala.major}.${gradle.scala.minor}:${gradle.shapeless.version}"
+
+    // Kamon
+    compile "io.kamon:kamon-core_${gradle.scala.major}.${gradle.scala.minor}:${gradle.kamon.version}"
 
     /**
      * Java Dependencies
