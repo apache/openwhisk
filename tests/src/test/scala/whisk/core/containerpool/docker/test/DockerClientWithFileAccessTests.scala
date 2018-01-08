@@ -19,21 +19,20 @@ package whisk.core.containerpool.docker.test
 
 import java.io.File
 
+import akka.actor.ActorSystem
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.language.reflectiveCalls // Needed to invoke publicIpAddressFromFile() method of structural dockerClientForIp extension
-
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.language.reflectiveCalls
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
-
-import common.StreamLogging
+import common.{StreamLogging, WskActorSystem}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -42,7 +41,12 @@ import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.docker.DockerClientWithFileAccess
 
 @RunWith(classOf[JUnitRunner])
-class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+class DockerClientWithFileAccessTestsIp
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with BeforeAndAfterEach
+    with WskActorSystem {
 
   override def beforeEach = stream.reset()
 
@@ -69,7 +73,8 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
                    readResult: Future[JsObject] = Future.successful(dockerConfig)) =
     new DockerClientWithFileAccess()(global) {
       override val dockerCmd = Seq(dockerCommand)
-      override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
+      override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
+                                                                        as: ActorSystem) = execResult
       override def configFileContents(configFile: File) = readResult
       // Make protected ipAddressFromFile available for testing - requires reflectiveCalls
       def publicIpAddressFromFile(id: ContainerId, network: String): Future[ContainerAddress] =
@@ -108,7 +113,12 @@ class DockerClientWithFileAccessTestsIp extends FlatSpec with Matchers with Stre
 }
 
 @RunWith(classOf[JUnitRunner])
-class DockerClientWithFileAccessTestsOom extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+class DockerClientWithFileAccessTestsOom
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with BeforeAndAfterEach
+    with WskActorSystem {
   override def beforeEach = stream.reset()
 
   implicit val transid = TransactionId.testing

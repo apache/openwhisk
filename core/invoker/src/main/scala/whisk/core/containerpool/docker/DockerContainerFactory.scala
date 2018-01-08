@@ -41,7 +41,7 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
 
   /** Initialize container clients */
   implicit val docker = new DockerClientWithFileAccess()(ec)
-  implicit val runc = new RuncClient(ec)
+  implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
   override def createContainer(tid: TransactionId,

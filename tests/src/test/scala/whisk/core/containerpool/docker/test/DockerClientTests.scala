@@ -17,14 +17,15 @@
 
 package whisk.core.containerpool.docker.test
 
+import akka.actor.ActorSystem
+
 import java.util.concurrent.Semaphore
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.concurrent.Promise
 import scala.util.Success
 import org.junit.runner.RunWith
@@ -34,8 +35,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
 import org.scalatest.time.{Seconds, Span}
-import common.StreamLogging
-
+import common.{StreamLogging, WskActorSystem}
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_DOCKER_CMD
 import whisk.common.TransactionId
@@ -48,7 +48,13 @@ import whisk.core.containerpool.docker.ProcessRunningException
 import whisk.utils.retry
 
 @RunWith(classOf[JUnitRunner])
-class DockerClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach with Eventually {
+class DockerClientTests
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with BeforeAndAfterEach
+    with Eventually
+    with WskActorSystem {
 
   override def beforeEach = stream.reset()
 
@@ -65,7 +71,8 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
   /** Returns a DockerClient with a mocked result for 'executeProcess' */
   def dockerClient(execResult: => Future[String]) = new DockerClient()(global) {
     override val dockerCmd = Seq(dockerCommand)
-    override def executeProcess(args: String*)(implicit ec: ExecutionContext) = execResult
+    override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext, as: ActorSystem) =
+      execResult
   }
 
   behavior of "DockerContainerId"
@@ -186,7 +193,8 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     var runCmdCount = 0
     val dc = new DockerClient()(global) {
       override val dockerCmd = Seq(dockerCommand)
-      override def executeProcess(args: String*)(implicit ec: ExecutionContext) = {
+      override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
+                                                                        as: ActorSystem) = {
         runCmdCount += 1
         runCmdCount match {
           case 1 => firstRunPromise.future
@@ -233,7 +241,8 @@ class DockerClientTests extends FlatSpec with Matchers with StreamLogging with B
     var runCmdCount = 0
     val dc = new DockerClient()(global) {
       override val dockerCmd = Seq(dockerCommand)
-      override def executeProcess(args: String*)(implicit ec: ExecutionContext) = {
+      override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
+                                                                        as: ActorSystem) = {
         runCmdCount += 1
         println(s"runCmdCount=${runCmdCount}, args.last=${args.last}")
         runCmdCount match {
