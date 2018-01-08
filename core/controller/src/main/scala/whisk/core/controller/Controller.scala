@@ -51,6 +51,9 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
+import whisk.core.ConfigKeys
+
+import pureconfig._
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -82,8 +85,13 @@ class Controller(val instance: InstanceId,
                  implicit val materializer: ActorMaterializer,
                  implicit val logging: Logging)
     extends BasicRasService {
+
+  case class ControllerConfig(tidStrides: Option[Int])
+
   val numberOfInstances = whiskConfig.controllerInstances.toInt
-  override val tidStrides = whiskConfig.controllerTidStrides.toInt
+  val controllerConfig = loadConfigOrThrow[ControllerConfig](ConfigKeys.controller)
+
+  override val tidStrides = controllerConfig.tidStrides.getOrElse(numberOfInstances)
   override val instanceOrdinal = instance.toInt
 
   TransactionId.controller.mark(
@@ -167,9 +175,6 @@ object Controller {
       LoadBalancerService.requiredProperties ++
       EntitlementProvider.requiredProperties
 
-  def optionalProperties =
-    Set(WhiskConfig.controllerTidStrides)
-
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
     JsObject(
       "description" -> "OpenWhisk".toJson,
@@ -196,7 +201,7 @@ object Controller {
     }
 
     // extract configuration data from the environment
-    val config = new WhiskConfig(requiredProperties, optionalProperties)
+    val config = new WhiskConfig(requiredProperties)
     val port = config.servicePort.toInt
 
     // if deploying multiple instances (scale out), must pass the instance number as the

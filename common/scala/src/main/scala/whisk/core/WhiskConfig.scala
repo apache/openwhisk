@@ -73,8 +73,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val controllerBlackboxFraction = this.getAsDouble(WhiskConfig.controllerBlackboxFraction, 0.10)
   val loadbalancerInvokerBusyThreshold = this.getAsInt(WhiskConfig.loadbalancerInvokerBusyThreshold, 16)
   val controllerInstances = this(WhiskConfig.controllerInstances)
-  val controllerTidStrides =
-    if (this(WhiskConfig.controllerTidStrides) == "") controllerInstances else this(WhiskConfig.controllerTidStrides)
 
   val edgeHost = this(WhiskConfig.edgeHostName) + ":" + this(WhiskConfig.edgeHostApiPort)
   val kafkaHosts = this(WhiskConfig.kafkaHostList)
@@ -210,7 +208,6 @@ object WhiskConfig {
 
   val controllerBlackboxFraction = "controller.blackboxFraction"
   val controllerInstances = "controller.instances"
-  val controllerTidStrides = "controller.tidStrides"
   val dbInstances = "db.instances"
 
   val loadbalancerInvokerBusyThreshold = "loadbalancer.invokerBusyThreshold"
@@ -252,4 +249,7 @@ object ConfigKeys {
   val dockerTimeouts = s"$docker.timeouts"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
+
+  val controller = "whisk.controller"
+  val tidStrides = s"$controller.tidStrides"
 }
