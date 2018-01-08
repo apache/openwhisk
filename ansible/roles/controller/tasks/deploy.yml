@@ -40,7 +40,7 @@
     restart_policy: "{{ docker.restart.policy }}"
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
-      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
+      "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error_{{ ansible_date_time.iso8601_basic_short }}.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs/java_heap_{{ ansible_date_time.iso8601_basic_short }}.hprof"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
 
