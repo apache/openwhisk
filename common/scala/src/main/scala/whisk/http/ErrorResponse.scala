@@ -187,6 +187,9 @@ object Messages {
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
   val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."
   val actionFetchErrorWhileInvoking = "Action could not be fetched."
+
+  /** Indicates that the container for the action could not be started. */
+  val resourceProvisionError = "Failed to provision resources to run the action."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
