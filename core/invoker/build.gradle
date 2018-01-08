@@ -11,19 +11,26 @@ repositories {
 }
 
 dependencies {
+    /**
+     * Scala Dependencies
+     */
     compile "org.scala-lang:scala-library:${gradle.scala.major}.${gradle.scala.minor}.${gradle.scala.patch}"
     compile project(':common:scala')
 
-    compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
-
+    // Akka
     compile "com.typesafe.akka:akka-actor_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-stream_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
-    
+
+    compile "com.lightbend.akka:akka-stream-alpakka-file_${gradle.scala.major}.${gradle.scala.minor}:0.14"
+
+    // Akka HTTP
     compile "com.typesafe.akka:akka-http_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
     compile "com.typesafe.akka:akka-http-core_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
+    compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
 
-    compile 'com.lightbend.akka:akka-stream-alpakka-file_2.11:0.14'
-
+    /**
+     * Java Dependencies
+     */
     compile 'org.apache.curator:curator-recipes:4.0.0', { exclude group: 'org.apache.zookeeper', module:'zookeeper' }
     compile 'org.apache.zookeeper:zookeeper:3.4.11'
 }

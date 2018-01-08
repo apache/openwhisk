@@ -11,20 +11,27 @@ repositories {
 }
 
 dependencies {
+    /**
+     * Scala Dependencies
+     */
     compile "org.scala-lang:scala-library:${gradle.scala.major}.${gradle.scala.minor}.${gradle.scala.patch}"
     compile project(':common:scala')
 
-    compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
-
+    // Akka
     compile "com.typesafe.akka:akka-actor_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-stream_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
-    compile "com.typesafe.akka:akka-http_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
-    compile "com.typesafe.akka:akka-http-core_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
-    compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
-
     compile "com.typesafe.akka:akka-cluster_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
     compile "com.typesafe.akka:akka-distributed-data_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka.version}"
 
+    // Akka HTTP
+    compile "com.typesafe.akka:akka-http_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
+    compile "com.typesafe.akka:akka-http-core_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
+    compile "com.typesafe.akka:akka-http-spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.akka_http.version}"
+    compile "io.spray:spray-json_${gradle.scala.major}.${gradle.scala.minor}:${gradle.spray_json.version}"
+
+    /**
+     * Java Dependencies
+     */
     compile "org.apache.kafka:kafka-clients:${gradle.kafka.version}"
 }
 
