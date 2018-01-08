@@ -19,12 +19,21 @@ include 'tests:dat:blackbox:badproxy'
 
 rootProject.name = 'openwhisk'
 
-gradle.ext.scala = [
-    version: '2.11.11',
-    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
-]
-
 gradle.ext.scalafmt = [
     version: '1.5.0',
     config: new File(rootProject.projectDir, '.scalafmt.conf')
 ]
+
+gradle.ext.scala = [
+    major: 2,
+    minor: 11,
+    patch: 12,
+    compileFlags: ['-feature', '-unchecked', '-deprecation', '-Xfatal-warnings', '-Ywarn-unused-import']
+]
+gradle.ext.akka = [version: '2.5.8']
+gradle.ext.akka_http = [version: '10.0.10']
+gradle.ext.kafka = [version: '0.11.0.1']
+gradle.ext.spray_json = [version: '1.3.3']
+
+gradle.ext.kamon = [version: '0.6.7']
+gradle.ext.shapeless = [version: '2.3.2']

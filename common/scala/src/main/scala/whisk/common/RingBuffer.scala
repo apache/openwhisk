@@ -17,16 +17,16 @@
 
 package whisk.common
 
-import org.apache.commons.collections.buffer.CircularFifoBuffer
+import org.apache.commons.collections4.queue.CircularFifoQueue
 
 object RingBuffer {
   def apply[T](size: Int) = new RingBuffer[T](size)
 }
 
 class RingBuffer[T](size: Int) {
-  private val inner = new CircularFifoBuffer(size)
+  private val inner = new CircularFifoQueue[T](size)
 
-  def add(el: T) = inner.add(el)
+  def add(el: T) = inner.offer(el)
 
   def toList() = inner.toArray().asInstanceOf[Array[T]].toList
 }
