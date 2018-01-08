@@ -244,4 +244,7 @@ object PureConfigKeys {
   val whiskKafkaTopics = "whisk.kafka.topics"
 
   val whiskDB = "whisk.db"
+
+  val whiskDockerTimeouts = "whisk.docker.timeouts"
+  val whiskRuncTimeouts = "whisk.runc.timeouts"
 }
