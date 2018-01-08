@@ -29,7 +29,7 @@ import spray.json.JsString
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.PureConfigKeys
+import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
@@ -193,7 +193,7 @@ object WhiskEntityQueries {
   val TOP = "\ufff0"
 
   /** The design document to use for queries. */
-  val designDoc = loadConfigOrThrow[DBConfig](PureConfigKeys.whiskDB).actionsDdoc
+  val designDoc = loadConfigOrThrow[DBConfig](ConfigKeys.db).actionsDdoc
 
   /** The view name for the collection, within the design document. */
   def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)

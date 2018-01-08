@@ -36,7 +36,7 @@ import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.core.PureConfigKeys
+import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerId
 import whisk.core.containerpool.ContainerAddress
 
@@ -75,7 +75,7 @@ case class DockerClientTimeoutConfig(run: Duration,
  */
 class DockerClient(dockerHost: Option[String] = None,
                    timeouts: DockerClientTimeoutConfig =
-                     loadConfigOrThrow[DockerClientTimeoutConfig](PureConfigKeys.whiskDockerTimeouts))(
+                     loadConfigOrThrow[DockerClientTimeoutConfig](ConfigKeys.dockerTimeouts))(
   executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
     extends DockerApi
     with ProcessRunner {
