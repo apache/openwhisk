@@ -104,7 +104,7 @@ object DockerContainer {
       params
     val pulled = if (userProvidedImage) {
       docker.pull(image).recoverWith {
-        case _ => Future.failed(BlackboxStartupError(s"Failed to pull container image '${image}'."))
+        case _ => Future.failed(BlackboxStartupError(Messages.imagePullError(image)))
       }
     } else Future.successful(())
 
@@ -115,17 +115,16 @@ object DockerContainer {
           // Remove the broken container - but don't wait or check for the result.
           // If the removal fails, there is nothing we could do to recover from the recovery.
           docker.rm(brokenId)
-          Future.failed(
-            WhiskContainerStartupError(s"Failed to run container with image '${image}'. Removing broken container."))
+          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
         case _ =>
-          Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
+          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
       }
       ip <- docker.inspectIPAddress(id, network).recoverWith {
         // remove the container immediately if inspect failed as
         // we cannot recover that case automatically
         case _ =>
           docker.rm(id)
-          Future.failed(WhiskContainerStartupError(s"Failed to obtain IP address of container '${id.asString}'."))
+          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
       }
     } yield new DockerContainer(id, ip, useRunc)
   }

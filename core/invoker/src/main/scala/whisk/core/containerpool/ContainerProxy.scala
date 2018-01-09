@@ -146,9 +146,9 @@ class ContainerProxy(
             // the container did not come up cleanly, so disambiguate the failure mode and then cleanup
             // the failure is either the system fault, or for docker actions, the application/developer fault
             val response = t match {
-              case WhiskContainerStartupError(_) => ActivationResponse.whiskError(Messages.resourceProvisionError)
-              case BlackboxStartupError(msg)     => ActivationResponse.applicationError(msg)
-              case _                             => ActivationResponse.whiskError(Messages.resourceProvisionError)
+              case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
+              case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
+              case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
             // construct an appropriate activation and record it in the datastore,
             // also update the feed and active ack; the container cleanup is queued
