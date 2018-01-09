@@ -21,6 +21,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import spray.json.JsString
 import whisk.core.entity.EntityPath
 import whisk.core.entity.EntityName
 import whisk.core.entity.WhiskAction
@@ -68,6 +69,13 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     val resolved = action.resolve(EntityName(user))
     resolved.exec.asInstanceOf[SequenceExec].components.head shouldBe sequenceAction.copy(path = EntityPath(user))
     action.rev shouldBe resolved.rev
+  }
+
+  it should "define type property" in {
+    val exec = jsDefault("code")
+    val action = WhiskAction(namespace, name, exec, Parameters())
+    val js = action.toDocumentRecord
+    js.fields("type") shouldBe JsString("action")
   }
 
   behavior of "WhiskPackage"
