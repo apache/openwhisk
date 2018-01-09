@@ -70,6 +70,14 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
   protected[core] final def docinfo: DocInfo = DocInfo(docid, rev)
 
   /**
+   * Determines entity type based on entity class name
+   */
+  protected[core] def documentType: String = {
+    val typeName = this.getClass.getSimpleName.toLowerCase
+    if (typeName.startsWith("whisk")) typeName.substring(5) else typeName
+  }
+
+  /**
    * The representation as JSON, e.g. for REST calls. Does not include id/rev.
    */
   def toJson: JsObject
@@ -85,7 +93,8 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
     // Building up the fields.
     val base = this.toJson.fields
     val withId = base + ("_id" -> JsString(id))
-    val withRev = if (revOrNull == null) withId else { withId + ("_rev" -> JsString(revOrNull)) }
+    val withType = withId + ("type" -> JsString(documentType))
+    val withRev = if (revOrNull == null) withType else { withType + ("_rev" -> JsString(revOrNull))}
     JsObject(withRev)
   }
 }
