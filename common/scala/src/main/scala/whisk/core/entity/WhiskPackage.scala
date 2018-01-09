@@ -75,6 +75,8 @@ case class WhiskPackage(namespace: EntityPath,
 
   require(binding != null || (binding map { _ != null } getOrElse true), "binding undefined")
 
+  def entityType = "package"
+
   /**
    * Merges parameters into existing set of parameters for package.
    * Existing parameters supersede those in p.

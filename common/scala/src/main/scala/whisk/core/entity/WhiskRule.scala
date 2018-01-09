@@ -78,6 +78,8 @@ case class WhiskRule(namespace: EntityPath,
                      annotations: Parameters = Parameters())
     extends WhiskEntity(name) {
 
+  def entityType = "rule"
+
   def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
 
   def toJson = WhiskRule.serdes.write(this).asJsObject

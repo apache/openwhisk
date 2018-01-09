@@ -60,11 +60,17 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
   /** The primary key for the entity in the datastore */
   override final def docid = fullyQualifiedName(false).toDocId
 
+  /** Type of entity */
+  def entityType: String
+
   /**
    * Returns a JSON object with the fields specific to this abstract class.
    */
   protected def entityDocumentRecord: JsObject =
-    JsObject("name" -> JsString(name.toString), "updated" -> JsNumber(updated.toEpochMilli()))
+    JsObject(
+      "name" -> JsString(name.toString),
+      "updated" -> JsNumber(updated.toEpochMilli()),
+      "type" -> JsString(entityType))
 
   override def toDocumentRecord: JsObject = {
     val extraFields = entityDocumentRecord.fields

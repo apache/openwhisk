@@ -71,6 +71,8 @@ case class WhiskTrigger(namespace: EntityPath,
 
   require(limits != null, "limits undefined")
 
+  def entityType = "trigger"
+
   def toJson = WhiskTrigger.serdes.write(this).asJsObject
 
   def withoutRules = copy(rules = None).revision[WhiskTrigger](rev)

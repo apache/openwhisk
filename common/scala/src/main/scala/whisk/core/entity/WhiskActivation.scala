@@ -75,6 +75,8 @@ case class WhiskActivation(namespace: EntityPath,
   require(end != null, "end undefined")
   require(response != null, "response undefined")
 
+  def entityType = "activation"
+
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
   /** This the activation summary as computed by the database view. Strictly used for testing. */

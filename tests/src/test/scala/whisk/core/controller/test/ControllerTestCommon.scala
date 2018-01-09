@@ -166,6 +166,9 @@ protected trait ControllerTestCommon
                                  publish: Boolean = false,
                                  annotations: Parameters = Parameters())
       extends WhiskEntity(name) {
+
+    override def entityType = "badEntity"
+
     override def toJson = BadEntity.serdes.write(this).asJsObject
   }
 

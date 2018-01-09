@@ -88,6 +88,8 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
       parameters.definedParameters
     } else Set.empty[String]
 
+  def entityType = "action"
+
   def toJson =
     JsObject(
       "namespace" -> namespace.toJson,
