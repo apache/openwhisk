@@ -147,7 +147,7 @@ class ContainerProxy(
             // the failure is either the system fault, or for docker actions, the application/developer fault
             val response = t match {
               case WhiskContainerStartupError(_) => ActivationResponse.whiskError(Messages.resourceProvisionError)
-              case BlackboxStartupError(_)       => ActivationResponse.applicationError(Messages.resourceProvisionError)
+              case BlackboxStartupError(msg)     => ActivationResponse.applicationError(msg)
               case _                             => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
             // construct an appropriate activation and record it in the datastore,
