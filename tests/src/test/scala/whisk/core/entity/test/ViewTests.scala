@@ -416,6 +416,7 @@ class ViewTests
       Seq(WhiskAction(namespace1, aname(), jsDefault("??")), WhiskAction(namespace1, aname(), jsDefault("??")))
 
     entities foreach { put(entityStore, _) }
+    waitOnView(entityStore, namespace1.root, 2, WhiskAction.view)
 
     getKindInNamespaceWithDoc[WhiskAction](namespace1, "actions", {
       case (e: WhiskAction) => true
