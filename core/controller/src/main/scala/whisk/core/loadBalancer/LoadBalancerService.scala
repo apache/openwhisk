@@ -20,18 +20,12 @@ package whisk.core.loadBalancer
 import akka.actor.{ActorRefFactory, ActorSystem}
 import akka.cluster.Cluster
 import akka.pattern.ask
-<<<<<<< HEAD
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
 import whisk.core.ConfigKeys
-=======
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
->>>>>>> Progress
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.{ActivationMessage, CompletionMessage, MessageProducer, MessagingProvider}
