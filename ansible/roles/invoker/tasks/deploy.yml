@@ -53,6 +53,13 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: ensure invoker config directory is created with permissions
+  file:
+    path: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    state: directory
+    mode: 0777
+  become: "{{ invoker.dir.become }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -107,14 +114,14 @@
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.password"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.access"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.access"
     mode: 0777
 
 - name: add additional jvm params if jmxremote is enabled
@@ -178,6 +185,7 @@
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
+        -v {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf
         -v {{ dockerInfo["DockerRootDir"] }}/containers/:/containers
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
         -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080

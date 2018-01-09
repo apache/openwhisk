@@ -13,3 +13,9 @@
     path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
     state: absent
   become: "{{ logs.dir.become }}"
+
+- name: remove controller conf directory
+  file:
+    path: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+    state: absent
+  become: "{{ controller.dir.become }}"

@@ -28,8 +28,6 @@ apigw_auth_user: ""
 apigw_auth_pwd: ""
 apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/v2"
 
-jmxremote_enabled: true
-
 invoker_allow_multiple_instances: true
 
 # Set kafka configuration

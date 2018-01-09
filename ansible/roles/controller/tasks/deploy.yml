@@ -16,18 +16,25 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: ensure controller config directory is created with permissions
+  file:
+    path: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+    state: directory
+    mode: 0777
+  become: "{{ controller.dir.become }}"
+
 - name: copy jmxremote password file
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.password"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.access"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.access"
     mode: 0777
 
 - name: check, that required databases exist
@@ -47,7 +54,6 @@
   when: jmx.enabled
   set_fact:
     ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}\" ]"
-
 
 - name: add additional jvm params if jmxremote is enabled
   when: jmx.enabled
@@ -136,6 +142,7 @@
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
+      - "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/conf"
     ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
