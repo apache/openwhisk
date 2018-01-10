@@ -24,7 +24,6 @@ import whisk.http.BasicRasService
  * Currently provides a health ping route, only.
  */
 class InvokerServer() extends BasicRasService {
-  val numberOfInstances = 1
   override val instanceOrdinal = 1
   override val tidStrides = 1
 }
