@@ -43,7 +43,7 @@
       "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
-      "CONFIG_whisk_controller_tidStrides": "{{ controller.tidStrides }}"
+      "CONFIG_whisk_controller_tidStrides": "{{ controller.tidStrides | default( controller.instances ) }}"
 
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "PORT": 8080
