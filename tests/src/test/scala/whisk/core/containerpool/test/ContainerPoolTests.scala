@@ -136,7 +136,7 @@ class ContainerPoolTests
   it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {
     val (containers, factory) = testContainers(2)
     val feed = TestProbe()
-    val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, 2, 2))
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
@@ -221,7 +221,7 @@ class ContainerPoolTests
     val feed = TestProbe()
 
     // a pool with only 1 slot
-    val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
+    val pool = system.actorOf(ContainerPool.props(factory, 1, 1))
     pool ! runMessage
     containers(0).expectMsg(runMessage)
     containers(0).send(pool, RescheduleJob) // emulate container failure ...
