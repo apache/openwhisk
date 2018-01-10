@@ -17,33 +17,18 @@
 
 package whisk.core.loadBalancer
 
-import java.nio.charset.StandardCharsets
-
-import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import org.apache.kafka.clients.producer.RecordMetadata
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorRefFactory, ActorSystem}
 import akka.cluster.Cluster
-import akka.util.Timeout
 import akka.pattern.ask
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
 import whisk.core.ConfigKeys
+import akka.stream.ActorMaterializer
+import akka.util.Timeout
+import org.apache.kafka.clients.producer.RecordMetadata
+import pureconfig._
+import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
-import whisk.core.connector.MessageFeed
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessagingProvider
+import whisk.core.connector.{ActivationMessage, CompletionMessage, MessageProducer, MessagingProvider}
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 import whisk.core.entity.{ActivationId, WhiskActivation}
@@ -55,7 +40,11 @@ import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
-import pureconfig._
+
+import scala.annotation.tailrec
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
@@ -90,6 +79,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   implicit val actorSystem: ActorSystem,
   logging: Logging)
     extends LoadBalancer {
+  implicit val materializer = ActorMaterializer()
 
   private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](ConfigKeys.loadbalancer)
 
@@ -229,7 +219,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
   /** Gets a producer which can publish messages to the kafka bus. */
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+  private val messageProducer = messagingProvider.getProducer()
 
   private def sendActivationToInvoker(producer: MessageProducer,
                                       msg: ActivationMessage,
@@ -265,7 +255,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
     val maxPingsPerPoll = 128
     val pingConsumer =
-      messagingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+      messagingProvider.getConsumer(s"health${instance.toInt}", "health", maxPingsPerPoll)
     val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) =>
       f.actorOf(InvokerActor.props(invokerInstance, instance))
 
@@ -280,26 +270,16 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   val maxActiveAcksPerPoll = 128
   val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
-  val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed(
-      "activeack",
-      logging,
-      activeAckConsumer,
-      maxActiveAcksPerPoll,
-      activeAckPollDuration,
-      processActiveAck)
-  })
+    messagingProvider.getConsumer("completions", s"completed${instance.toInt}", maxActiveAcksPerPoll)
 
-  def processActiveAck(bytes: Array[Byte]): Future[Unit] = Future {
-    val raw = new String(bytes, StandardCharsets.UTF_8)
+  activeAckConsumer.runForeach(processActiveAck)
+
+  def processActiveAck(raw: String): Future[Unit] = Future {
     CompletionMessage.parse(raw) match {
       case Success(m: CompletionMessage) =>
         processCompletion(m.response, m.transid, forced = false, invoker = m.invoker)
-        activationFeed ! MessageFeed.Processed
 
       case Failure(t) =>
-        activationFeed ! MessageFeed.Processed
         logging.error(this, s"failed processing message: $raw with $t")
     }
   }
@@ -354,8 +334,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 
 object LoadBalancerService {
   def requiredProperties =
-    kafkaHosts ++
-      Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
+    Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */
   def memoize[I, O](f: I => O): I => O = new scala.collection.mutable.HashMap[I, O]() {

@@ -37,6 +37,7 @@ import akka.actor.FSM.CurrentState
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.FSM.Transition
 import akka.pattern.ask
+import akka.stream.scaladsl.Source
 import akka.testkit.ImplicitSender
 import akka.testkit.TestFSMRef
 import akka.testkit.TestKit
@@ -69,7 +70,6 @@ import whisk.core.loadBalancer.InvokerState
 import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
 import whisk.utils.retry
-import whisk.core.connector.test.TestConnector
 import whisk.core.entitlement.Privilege
 
 @RunWith(classOf[JUnitRunner])
@@ -104,7 +104,7 @@ class InvokerSupervisionTests
     case (state, index) => (InstanceId(index), state)
   }
 
-  val pC = new TestConnector("pingFeedTtest", 4, false) {}
+  val pC = Source.empty[String]
 
   behavior of "InvokerPool"
 

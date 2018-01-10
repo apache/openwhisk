@@ -31,11 +31,16 @@ import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
-import whisk.core.connector.MessageFeed
 
 sealed trait WorkerState
 case object Busy extends WorkerState
 case object Free extends WorkerState
+
+object FlowControl {
+  case object Initialize
+  case object Ignore
+  case object Processed
+}
 
 case class WorkerData(data: ContainerData, state: WorkerState)
 
@@ -57,13 +62,11 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * @param childFactory method to create new container proxy actor
  * @param maxActiveContainers maximum amount of containers doing work
  * @param maxPoolSize maximum size of containers allowed in the pool
- * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
  */
 class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                     maxActiveContainers: Int,
                     maxPoolSize: Int,
-                    feed: ActorRef,
                     prewarmConfig: Option[PrewarmingConfig] = None)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
@@ -71,6 +74,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+
+  var feed = ActorRef.noSender
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
@@ -80,6 +85,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   def receive: Receive = {
+    case FlowControl.Initialize =>
+      feed = sender()
+      (0 to maxActiveContainers).foreach(_ => feed ! FlowControl.Processed)
+
     // A job to run on a container
     //
     // Run messages are received either via the feed or from child containers which cannot process
@@ -126,7 +135,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool = freePool + (sender() -> data)
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
-        feed ! MessageFeed.Processed
+        feed ! FlowControl.Processed
       }
 
     // Container is prewarmed and ready to take work
@@ -138,8 +147,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       freePool = freePool - sender()
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
-        // container was busy, so there is capacity to accept another job request
-        feed ! MessageFeed.Processed
+        feed ! FlowControl.Processed
       }
 
     // This message is received for one of these reasons:
@@ -249,9 +257,8 @@ object ContainerPool {
   def props(factory: ActorRefFactory => ActorRef,
             maxActive: Int,
             size: Int,
-            feed: ActorRef,
             prewarmConfig: Option[PrewarmingConfig] = None) =
-    Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig))
+    Props(new ContainerPool(factory, maxActive, size, prewarmConfig))
 }
 
 /** Contains settings needed to perform container prewarming */

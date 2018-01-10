@@ -117,7 +117,7 @@
         -e INVOKER_OPTS='{{ invoker.arguments }}'
         -e COMPONENT_NAME='invoker{{ groups['invokers'].index(inventory_hostname) }}'
         -e PORT='8080'
-        -e KAFKA_HOSTS='{{ kafka_connect_string }}'
+        -e CONFIG_whisk_kafka_hosts='{{ kafka_connect_string }}'
         -e CONFIG_whisk_kafka_replicationFactor='{{ kafka.replicationFactor | default() }}'
         -e CONFIG_whisk_kafka_topics_invoker_retentionBytes='{{ kafka_topics_invoker_retentionBytes | default() }}'
         -e CONFIG_whisk_kafka_topics_invoker_retentionMs='{{ kafka_topics_invoker_retentionMS | default() }}'

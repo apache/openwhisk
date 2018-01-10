@@ -20,25 +20,19 @@ package whisk.connector.kafka
 import java.util.Properties
 import java.util.concurrent.ExecutionException
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-import scala.collection.JavaConverters._
-
-import org.apache.kafka.clients.admin.AdminClientConfig
-import org.apache.kafka.clients.admin.AdminClient
-import org.apache.kafka.clients.admin.NewTopic
+import akka.actor.ActorSystem
+import akka.stream.UniqueKillSwitch
+import akka.stream.scaladsl.Source
+import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, NewTopic}
 import org.apache.kafka.common.errors.TopicExistsException
-
+import pureconfig._
 import whisk.common.Logging
 import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
-import whisk.core.connector.MessageConsumer
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessagingProvider
+import whisk.core.connector.{MessageProducer, MessagingProvider}
 
-import pureconfig._
+import scala.collection.JavaConverters._
 
-case class KafkaConfig(replicationFactor: Short)
+case class KafkaConfig(hosts: String, replicationFactor: Short)
 
 case class TopicConfig(segmentBytes: Long, retentionBytes: Long, retentionMs: Long) {
   def toMap: Map[String, String] = {
@@ -53,18 +47,19 @@ case class TopicConfig(segmentBytes: Long, retentionBytes: Long, retentionMs: Lo
  * A Kafka based implementation of MessagingProvider
  */
 object KafkaMessagingProvider extends MessagingProvider {
-  def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
-    implicit logging: Logging): MessageConsumer =
-    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek, maxPollInterval = maxPollInterval)
+  def getConsumer(group: String, topic: String, maxBatchSize: Int)(
+    implicit actorSystem: ActorSystem): Source[String, UniqueKillSwitch] = {
+    OwKafkaConsumer.bufferedSource(group, topic, maxBatchSize)
+  }
 
-  def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHosts, ec)
+  def getProducer()(implicit actorSystem: ActorSystem, logging: Logging): MessageProducer =
+    new KafkaProducerConnector()
 
-  def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
+  def ensureTopic(topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
     val tc = loadConfigOrThrow[TopicConfig](ConfigKeys.kafkaTopics + s".$topicConfig")
     val props = new Properties
-    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
+    props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kc.hosts)
     val client = AdminClient.create(props)
     val numPartitions = 1
     val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.toMap.asJava)

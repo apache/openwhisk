@@ -212,13 +212,13 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
+    if (!msgProvider.ensureTopic(topic = "completed" + instance, topicConfig = "completed")) {
       abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
     }
-    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
+    if (!msgProvider.ensureTopic(topic = "health", topicConfig = "health")) {
       abort(s"failure during msgProvider.ensureTopic for topic health")
     }
-    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
+    if (!msgProvider.ensureTopic(topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
       abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
 

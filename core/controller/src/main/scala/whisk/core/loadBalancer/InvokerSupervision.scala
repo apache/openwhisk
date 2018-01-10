@@ -17,32 +17,23 @@
 
 package whisk.core.loadBalancer
 
-import java.nio.charset.StandardCharsets
-
-import scala.collection.immutable
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import org.apache.kafka.clients.producer.RecordMetadata
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.FSM
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
-import akka.actor.Props
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, FSM, Props}
 import akka.pattern.pipe
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import whisk.common.AkkaLogging
-import whisk.common.LoggingMarkers
-import whisk.common.RingBuffer
-import whisk.common.TransactionId
+import org.apache.kafka.clients.producer.RecordMetadata
+import whisk.common.{AkkaLogging, LoggingMarkers, RingBuffer, TransactionId}
 import whisk.core.connector._
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._
+
+import scala.collection.immutable
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 // Received events
 case object GetStatus
@@ -74,8 +65,10 @@ final case class InvokerInfo(buffer: RingBuffer[Boolean])
  */
 class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
                   sendActivationToInvoker: (ActivationMessage, InstanceId) => Future[RecordMetadata],
-                  pingConsumer: MessageConsumer)
+                  pingConsumer: Source[String, _])
     extends Actor {
+
+  implicit val materializer = ActorMaterializer()
 
   implicit val transid = TransactionId.invokerHealth
   implicit val logging = new AkkaLogging(context.system.log)
@@ -124,26 +117,14 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
   /** Receive Ping messages from invokers. */
   val pingPollDuration = 1.second
-  val invokerPingFeed = context.system.actorOf(Props {
-    new MessageFeed(
-      "ping",
-      logging,
-      pingConsumer,
-      pingConsumer.maxPeek,
-      pingPollDuration,
-      processInvokerPing,
-      logHandoff = false)
-  })
 
-  def processInvokerPing(bytes: Array[Byte]): Future[Unit] = Future {
-    val raw = new String(bytes, StandardCharsets.UTF_8)
+  pingConsumer.runForeach(processInvokerPing)
+
+  def processInvokerPing(raw: String): Unit = {
     PingMessage.parse(raw) match {
       case Success(p: PingMessage) =>
         self ! p
-        invokerPingFeed ! MessageFeed.Processed
-
       case Failure(t) =>
-        invokerPingFeed ! MessageFeed.Processed
         logging.error(this, s"failed processing message: $raw with $t")
     }
   }
@@ -171,7 +152,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 object InvokerPool {
   def props(f: (ActorRefFactory, InstanceId) => ActorRef,
             p: (ActivationMessage, InstanceId) => Future[RecordMetadata],
-            pc: MessageConsumer) = {
+            pc: Source[String, _]) = {
     Props(new InvokerPool(f, p, pc))
   }
 

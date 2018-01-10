@@ -51,7 +51,7 @@
       "WHISK_VERSION_DATE": "{{ whisk.version.date }}"
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
 
-      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_hosts": "{{ kafka_connect_string }}"
       "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
       "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes": "{{ kafka_topics_cacheInvalidation_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionMs": "{{ kafka_topics_cacheInvalidation_retentionMS | default() }}"
@@ -102,7 +102,7 @@
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
 
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
-      
+
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"

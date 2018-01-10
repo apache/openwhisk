@@ -6,3 +6,8 @@
   template:
     src: whisk.properties.j2
     dest: "{{ openwhisk_home }}/whisk.properties"
+
+- name: write test's application conf overrides
+  template:
+    src: "{{ openwhisk_home }}/tests/src/test/resources/application.conf.j2"
+    dest: "{{ openwhisk_home }}/tests/src/test/resources/application.conf"
