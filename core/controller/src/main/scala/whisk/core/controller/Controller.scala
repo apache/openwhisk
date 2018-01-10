@@ -212,16 +212,14 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(
-          config,
-          "completed" + instance,
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> config.kafkaReplicationFactor,
-            "retention.bytes" -> config.kafkaTopicsCompletedRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsCompletedRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsCompletedSegmentBytes))) {
+    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
       abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
+    }
+    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
+      abort(s"failure during msgProvider.ensureTopic for topic health")
+    }
+    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
+      abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
 
     ExecManifest.initialize(config) match {

@@ -29,75 +29,10 @@ whisk:
 #   defaultImageTag: the default image tag
 #   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
 #   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
+#                             to skip docker pull in invoker even if the image is not part of the blackbox set
 #
-runtimesManifest: "{{ runtimes_manifest | default(runtimesManifestDefault) }}"
-
-runtimesManifestDefault:
-  defaultImagePrefix: "openwhisk"
-  defaultImageTag: "latest"
-  runtimes:
-    nodejs:
-    - kind: "nodejs"
-      image:
-        name: "nodejsaction"
-      deprecated: true
-    - kind: "nodejs:6"
-      default: true
-      image:
-        name: "nodejs6action"
-      deprecated: false
-    - kind: "nodejs:8"
-      default: false
-      image:
-        name: "action-nodejs-v8"
-      deprecated: false
-    python:
-    - kind: "python"
-      image:
-        name: "python2action"
-      deprecated: false
-    - kind: "python:2"
-      default: true
-      image:
-        name: "python2action"
-      deprecated: false
-    - kind: "python:3"
-      image:
-        name: "python3action"
-      deprecated: false
-    swift:
-    - kind: "swift"
-      image:
-        name: "swiftaction"
-      deprecated: true
-    - kind: "swift:3"
-      image:
-        name: "swift3action"
-      deprecated: false
-    - kind: "swift:3.1.1"
-      default: true
-      image:
-        name: "action-swift-v3.1.1"
-      deprecated: false
-    java:
-    - kind: "java"
-      default: true
-      image:
-        name: "java8action"
-      deprecated: false
-      attached:
-        attachmentName: "jarfile"
-        attachmentType: "application/java-archive"
-      sentinelledLogs: false
-      requireMain: true
-    php:
-    - kind: "php:7.1"
-      default: true
-      deprecated: false
-      image:
-        name: "action-php-v7.1"
-  blackboxes:
-    - name: "dockerskeleton"
+runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
@@ -123,7 +58,8 @@ controller:
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(true) }}"
+  ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
+  loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -135,23 +71,6 @@ kafka:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
-  topics:
-    completed:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_completed_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_completed_retentionMS | default(3600000) }}"
-    health:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_health_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_health_retentionMS | default(3600000) }}"
-    invoker:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_invoker_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_invoker_retentionMS | default(172800000) }}"
-    cacheInvalidation:
-      segmentBytes: 536870912
-      retentionBytes: "{{ kafka_topics_cacheInvalidation_retentionBytes | default(1073741824) }}"
-      retentionMS: "{{ kafka_topics_cacheInvalidation_retentionMS | default(300000) }}" 
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
@@ -183,13 +102,16 @@ invoker:
   useRunc: "{{ invoker_use_runc | default(true) }}"
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
+  loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
+userLogs:
+  spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"
 
 nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: 1.11
+  version: "{{ nginx_version | default(1.11) }}"
   port:
     http: 80
     api: 443
@@ -213,15 +135,13 @@ nginx:
 # The key db.whisk.auth is the name of the authentication database where all keys of all users are stored.
 # The db_prefix is defined for each environment on its own. The CouchDb credentials are also defined for each environment on its own.
 db:
+  instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
   - whisk.system
   whisk:
     actions: "{{ db_prefix }}whisks"
-    actions_ddoc: "whisks.v2"
     activations: "{{ db_prefix }}activations"
-    activations_ddoc: "whisks.v2"
-    activations_filter_ddoc: "whisks-filters.v2"
     auth: "{{ db_prefix }}subjects"
 
 apigateway:
@@ -239,7 +159,7 @@ linux:
   version: 4.4.0-31
 
 couchdb:
-  version: 2.0
+  version: 2.1
 
 docker:
   # The user to install docker for. Defaults to the ansible user if not set. This will be the user who is able to run
@@ -330,18 +250,16 @@ openwhisk_cli:
     dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
 
-# The list of operating systems for which openwhisk cli binaries are downloaded,
+# The list of operating systems and architectures for which openwhisk cli binaries are downloaded,
 # if the installation_mode is remote.
-cli_os:
-  - linux
-  - mac
-  - windows
-
-# The list of architectures for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
-cli_arch:
-  - amd64
-  - 386
+cli_os_arch:
+  - [ "linux", "amd64" ]
+  - [ "linux", "386" ]
+  - [ "linux", "s390x" ]
+  - [ "mac", "amd64" ]
+  - [ "mac", "386" ]
+  - [ "windows", "amd64" ]
+  - [ "windows", "386" ]
 
 # Controls access to log directories
 logs:
@@ -350,10 +268,9 @@ logs:
 
 # Metrics Configuration
 metrics:
-  log: 
-    enabled: "{{ metrics_log | default(true) }}"    
-  kamon: 
+  log:
+    enabled: "{{ metrics_log | default(true) }}"
+  kamon:
     enabled: "{{ metrics_kamon | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
-

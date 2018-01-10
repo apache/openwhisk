@@ -22,7 +22,6 @@ import spray.json._
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
 import whisk.core.entity.DocRevision
-import whisk.core.entity.EntityPath
 import whisk.core.entity.FullyQualifiedEntityName
 import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
@@ -52,21 +51,12 @@ case class ActivationMessage(override val transid: TransactionId,
                              revision: DocRevision,
                              user: Identity,
                              activationId: ActivationId,
-                             activationNamespace: EntityPath,
                              rootControllerIndex: InstanceId,
                              blocking: Boolean,
                              content: Option[JsObject],
-                             cause: Option[ActivationId] = None)
+                             cause: Option[ActivationId] = None,
+                             traceContext: Option[Map[String, String]] = None)
     extends Message {
-
-  def meta =
-    JsObject("meta" -> {
-      cause map { c =>
-        JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
-      } getOrElse {
-        activationId.toJsObject
-      }
-    })
 
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 

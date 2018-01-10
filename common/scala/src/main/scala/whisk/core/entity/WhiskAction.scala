@@ -216,6 +216,11 @@ case class WhiskActionMetaData(namespace: EntityPath,
  *
  * exec is typed to CodeExec to guarantee executability by an Invoker.
  *
+ * Note: Two actions are equal regardless of their DocRevision if there is one.
+ * The invoker uses action equality when matching actions to warm containers.
+ * That means creating an action, invoking it, then deleting/recreating/reinvoking
+ * it will reuse the previous container. The delete/recreate restores the SemVer to 0.0.1.
+ *
  * @param namespace the namespace for the action
  * @param name the name of the action
  * @param exec the action executable details
@@ -315,7 +320,8 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           val manifest = exec.manifest.attached.get
 
           for (i1 <- super.put(db, newDoc);
-               i2 <- attach[A](db, i1, manifest.attachmentName, manifest.attachmentType, stream)) yield i2
+               i2 <- attach[A](db, newDoc.revision(i1.rev), manifest.attachmentName, manifest.attachmentType, stream))
+            yield i2
 
         case _ =>
           super.put(db, doc)

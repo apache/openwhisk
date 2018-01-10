@@ -39,13 +39,14 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
    *
    * @return Size of instance as ByteSize
    */
-  def size =
+  def size = {
     params
       .map {
         case (name, value) =>
           name.size + value.size
       }
       .foldLeft(0 B)(_ + _)
+  }
 
   protected[entity] def +(p: (ParameterName, ParameterValue)) = {
     Option(p) map { p =>
@@ -59,6 +60,11 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
 
   /** Add parameters from p to existing map, overwriting existing values in case of overlap in keys. */
   protected[core] def ++(p: Parameters) = new Parameters(params ++ p.params)
+
+  /** Add optional parameters from p to existing map, overwriting existing values in case of overlap in keys. */
+  protected[core] def ++(p: Option[Parameters]): Parameters = {
+    p.map(x => new Parameters(params ++ x.params)).getOrElse(this)
+  }
 
   /** Remove parameter by name. */
   protected[core] def -(p: String) = {

@@ -77,7 +77,6 @@ class ContainerPoolTests
       action.rev,
       Identity(Subject(), invocationNamespace, AuthKey(), Set()),
       ActivationId(),
-      invocationNamespace.toPath,
       InstanceId(0),
       blocking = false,
       content = None)
@@ -90,6 +89,8 @@ class ContainerPoolTests
   val differentAction = action.copy(name = EntityName("actionName2"))
 
   val runMessage = createRunMessage(action, invocationNamespace)
+  val runMessageDifferentAction = createRunMessage(differentAction, invocationNamespace)
+  val runMessageDifferentVersion = createRunMessage(action.copy().revision(DocRevision("v2")), invocationNamespace)
   val runMessageDifferentNamespace = createRunMessage(action, differentInvocationNamespace)
   val runMessageDifferentEverything = createRunMessage(differentAction, differentInvocationNamespace)
 
@@ -130,6 +131,20 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
+    containers(1).expectNoMsg(100.milliseconds)
+  }
+
+  it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+    val pool = system.actorOf(ContainerPool.props(factory, 2, 2, feed.ref))
+
+    pool ! runMessage
+    containers(0).expectMsg(runMessage)
+    containers(0).send(pool, NeedWork(warmedData()))
+
+    pool ! runMessageDifferentVersion
+    containers(0).expectMsg(runMessageDifferentVersion)
     containers(1).expectNoMsg(100.milliseconds)
   }
 
@@ -200,6 +215,20 @@ class ContainerPoolTests
     pool ! runMessageDifferentNamespace
     containers(0).expectMsg(Remove)
     containers(1).expectMsg(runMessageDifferentNamespace)
+  }
+
+  it should "reschedule job when container is removed prematurely without sending message to feed" in within(timeout) {
+    val (containers, factory) = testContainers(2)
+    val feed = TestProbe()
+
+    // a pool with only 1 slot
+    val pool = system.actorOf(ContainerPool.props(factory, 1, 1, feed.ref))
+    pool ! runMessage
+    containers(0).expectMsg(runMessage)
+    containers(0).send(pool, RescheduleJob) // emulate container failure ...
+    containers(0).send(pool, runMessage) // ... causing job to be rescheduled
+    feed.expectNoMsg(100.millis)
+    containers(1).expectMsg(runMessage) // job resent to new actor
   }
 
   /*
@@ -380,30 +409,18 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   behavior of "ContainerPool remove()"
 
   it should "not provide a container if pool is empty" in {
-    ContainerPool.remove(createAction(), standardNamespace, Map()) shouldBe None
+    ContainerPool.remove(Map()) shouldBe None
   }
 
   it should "not provide a container from busy pool with non-warm containers" in {
     val pool = Map('none -> noData(), 'pre -> preWarmedData())
-    ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe None
+    ContainerPool.remove(pool) shouldBe None
   }
 
-  it should "not provide a container from pool with one single free container with the same action and namespace" in {
+  it should "provide a container from pool with one single free container" in {
     val data = warmedData()
     val pool = Map('warm -> data)
-
-    // same data --> no removal
-    ContainerPool.remove(data.action, data.invocationNamespace, pool) shouldBe None
-
-    // different action, same namespace --> remove
-    ContainerPool.remove(createAction(data.action.name + "butDifferent"), data.invocationNamespace, pool) shouldBe Some(
-      'warm)
-
-    // different namespace, same action --> remove
-    ContainerPool.remove(data.action, differentNamespace, pool) shouldBe Some('warm)
-
-    // different everything --> remove
-    ContainerPool.remove(createAction(data.action.name + "butDifferent"), differentNamespace, pool) shouldBe Some('warm)
+    ContainerPool.remove(pool) shouldBe Some('warm)
   }
 
   it should "provide oldest container from busy pool with multiple containers" in {
@@ -414,6 +431,6 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
 
     val pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
 
-    ContainerPool.remove(createAction(), standardNamespace, pool) shouldBe Some('oldest)
+    ContainerPool.remove(pool) shouldBe Some('oldest)
   }
 }

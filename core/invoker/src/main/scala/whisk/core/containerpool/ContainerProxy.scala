@@ -67,7 +67,8 @@ case object Remove
 // Events sent by the actor
 case class NeedWork(data: ContainerData)
 case object ContainerPaused
-case object ContainerRemoved
+case object ContainerRemoved // when container is destroyed
+case object RescheduleJob // job is sent back to parent and could not be processed because container is being destroyed
 
 /**
  * A proxy that wraps a Container. It is used to keep track of the lifecycle
@@ -89,17 +90,19 @@ case object ContainerRemoved
  * @param unusedTimeout time after which the container is automatically thrown away
  * @param pauseGrace time to wait for new work before pausing the container
  */
-class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-                     sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
-                     storeActivation: (TransactionId, WhiskActivation) => Future[Any],
-                     collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-                     instance: InstanceId,
-                     unusedTimeout: FiniteDuration,
-                     pauseGrace: FiniteDuration)
+class ContainerProxy(
+  factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+  sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+  storeActivation: (TransactionId, WhiskActivation) => Future[Any],
+  collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
+  instance: InstanceId,
+  unusedTimeout: FiniteDuration,
+  pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
+  var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
 
   startWith(Uninitialized, NoData())
 
@@ -151,7 +154,7 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
             // also update the feed and active ack; the container cleanup is queued
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
-            val activation = ContainerProxy.constructWhiskActivation(job, Interval.zero, response)
+            val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, response)
             sendActiveAck(transid, activation, job.msg.blocking, job.msg.rootControllerIndex)
             storeActivation(transid, activation)
         }
@@ -247,7 +250,9 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
           // Sending the message to self on a failure will cause the message
           // to ultimately be sent back to the parent (which will retry it)
           // when container removal is done.
-          case Failure(_) => self ! job
+          case Failure(_) =>
+            rescheduleJob = true
+            self ! job
         }
         .flatMap(_ => initializeAndRun(data.container, job))
         .map(_ => WarmedData(data.container, job.msg.user.namespace, job.action, Instant.now))
@@ -255,8 +260,10 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
 
       goto(Running)
 
-    // timeout or removing
-    case Event(StateTimeout | Remove, data: WarmedData) => destroyContainer(data.container)
+    // container is reclaimed by the pool or it has become too old
+    case Event(StateTimeout | Remove, data: WarmedData) =>
+      rescheduleJob = true // to supress sending message to the pool and not double count
+      destroyContainer(data.container)
   }
 
   when(Removing) {
@@ -291,7 +298,11 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
    * @param container the container to destroy
    */
   def destroyContainer(container: Container) = {
-    context.parent ! ContainerRemoved
+    if (!rescheduleJob) {
+      context.parent ! ContainerRemoved
+    } else {
+      context.parent ! RescheduleJob
+    }
 
     val unpause = stateName match {
       case Paused => container.resume()(TransactionId.invokerNanny)
@@ -324,8 +335,8 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
 
     // Only initialize iff we haven't yet warmed the container
     val initialize = stateData match {
-      case data: WarmedData => Future.successful(Interval.zero)
-      case _                => container.initialize(job.action.containerInitializer, actionTimeout)
+      case data: WarmedData => Future.successful(None)
+      case _                => container.initialize(job.action.containerInitializer, actionTimeout).map(Some(_))
     }
 
     val activation: Future[WhiskActivation] = initialize
@@ -343,19 +354,21 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
 
         container.run(parameters, environment, actionTimeout)(job.msg.transid).map {
           case (runInterval, response) =>
-            val initRunInterval =
-              Interval(runInterval.start.minusMillis(initInterval.duration.toMillis), runInterval.end)
-            ContainerProxy.constructWhiskActivation(job, initRunInterval, response)
+            val initRunInterval = initInterval
+              .map(i => Interval(runInterval.start.minusMillis(i.duration.toMillis), runInterval.end))
+              .getOrElse(runInterval)
+            ContainerProxy.constructWhiskActivation(job, initInterval, initRunInterval, response)
         }
       }
       .recover {
         case InitializationError(interval, response) =>
-          ContainerProxy.constructWhiskActivation(job, interval, response)
+          ContainerProxy.constructWhiskActivation(job, Some(interval), interval, response)
         case t =>
           // Actually, this should never happen - but we want to make sure to not miss a problem
           logging.error(this, s"caught unexpected error while running activation: ${t}")
           ContainerProxy.constructWhiskActivation(
             job,
+            None,
             Interval.zero,
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
@@ -367,7 +380,7 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
         val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
-        collectLogs(tid, container, job.action)
+        collectLogs(tid, job.msg.user, activation, container, job.action)
           .andThen {
             case Success(_) => tid.finished(this, start)
             case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
@@ -394,13 +407,14 @@ class ContainerProxy(factory: (TransactionId, String, ImageName, Boolean, ByteSi
 }
 
 object ContainerProxy {
-  def props(factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
-            ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
-            store: (TransactionId, WhiskActivation) => Future[Any],
-            collectLogs: (TransactionId, Container, ExecutableWhiskAction) => Future[ActivationLogs],
-            instance: InstanceId,
-            unusedTimeout: FiniteDuration = 10.minutes,
-            pauseGrace: FiniteDuration = 50.milliseconds) =
+  def props(
+    factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+    ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+    store: (TransactionId, WhiskActivation) => Future[Any],
+    collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
+    instance: InstanceId,
+    unusedTimeout: FiniteDuration = 10.minutes,
+    pauseGrace: FiniteDuration = 50.milliseconds) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
@@ -424,24 +438,47 @@ object ContainerProxy {
    * @param response the response to return to the user
    * @return a WhiskActivation to be sent to the user
    */
-  def constructWhiskActivation(job: Run, interval: Interval, response: ActivationResponse) = {
-    val causedBy = if (job.msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+  def constructWhiskActivation(job: Run,
+                               initInterval: Option[Interval],
+                               totalInterval: Interval,
+                               response: ActivationResponse) = {
+    val causedBy = Some {
+      if (job.msg.causedBySequence) {
+        Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE))
+      } else {
+        // emit the internal system hold time as the 'wait' time, but only for non-sequence
+        // actions, since the transid start time for a sequence does not correspond
+        // with a specific component of the activation but the entire sequence;
+        // it will require some work to generate a new transaction id for a sequence
+        // component - however, because the trace of activations is recorded in the parent
+        // sequence, a client can determine the queue time for sequences that way
+        val end = initInterval.map(_.start).getOrElse(totalInterval.start)
+        Parameters(
+          WhiskActivation.waitTimeAnnotation,
+          Interval(job.msg.transid.meta.start, end).duration.toMillis.toJson)
+      }
+    }
+
+    val initTime = {
+      initInterval.map(initTime => Parameters(WhiskActivation.initTimeAnnotation, initTime.duration.toMillis.toJson))
+    }
+
     WhiskActivation(
       activationId = job.msg.activationId,
-      namespace = job.msg.activationNamespace,
+      namespace = job.msg.user.namespace.toPath,
       subject = job.msg.user.subject,
       cause = job.msg.cause,
       name = job.action.name,
       version = job.action.version,
-      start = interval.start,
-      end = interval.end,
-      duration = Some(interval.duration.toMillis),
+      start = totalInterval.start,
+      end = totalInterval.end,
+      duration = Some(totalInterval.duration.toMillis),
       response = response,
       annotations = {
-        Parameters("limits", job.action.limits.toJson) ++
-          Parameters("path", job.action.fullyQualifiedName(false).toString.toJson) ++
-          Parameters("kind", job.action.exec.kind.toJson) ++
-          causedBy
+        Parameters(WhiskActivation.limitsAnnotation, job.action.limits.toJson) ++
+          Parameters(WhiskActivation.pathAnnotation, JsString(job.action.fullyQualifiedName(false).asString)) ++
+          Parameters(WhiskActivation.kindAnnotation, JsString(job.action.exec.kind)) ++
+          causedBy ++ initTime
       })
   }
 }

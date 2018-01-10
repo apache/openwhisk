@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigFactory
 import io.opentracing.{ActiveSpan, SpanContext}
 import io.opentracing.util.GlobalTracer
 import whisk.common.TransactionId
+import io.opentracing.propagation.{Format, TextMapExtractAdapter, TextMapInjectAdapter}
 import brave.Tracing
 import zipkin.reporter.Sender
 import zipkin.reporter.okhttp3.OkHttpSender
@@ -36,7 +37,8 @@ import scala.collection.mutable
   */
 object OpenTracingProvider{
 
-  private val traceMap : mutable.Map[Long, ActiveSpan] =  TrieMap[Long, ActiveSpan]()
+  private val spanMap : mutable.Map[Long, ActiveSpan] =  TrieMap[Long, ActiveSpan]()
+  private val contextMap : mutable.Map[Long, SpanContext] =  TrieMap[Long, SpanContext]()
 
   var enabled = false;
 
@@ -47,26 +49,31 @@ object OpenTracingProvider{
   /**
     * Start a Trace for given service.
     *
-    * @param serviceName   Name of Service to be traced
     * @param transactionId transactionId to which this Trace belongs.
     * @return TracedRequest which provides details about current service being traced.
     */
-  def startTrace(serviceName: String, spanName: String, transactionId: TransactionId): Unit = {
+  def startTrace(spanName: String, transactionId: TransactionId): Unit = {
     if(enabled) {
       var activeSpan: Option[ActiveSpan] = None
-
-      traceMap.get(transactionId.meta.id) match {
+      spanMap.get(transactionId.meta.id) match {
         case Some(parentSpan) => {
           //create a child trace
           activeSpan = Some(GlobalTracer.get().buildSpan(spanName).asChildOf(parentSpan).startActive())
         }
         case None => {
-          activeSpan = Some(GlobalTracer.get().buildSpan(spanName).startActive())
+          contextMap.get(transactionId.meta.id) match {
+            case Some(context) => {
+              activeSpan = Some(GlobalTracer.get().buildSpan(spanName).asChildOf(context).startActive())
+            }
+            case None => {
+              activeSpan = Some(GlobalTracer.get().buildSpan(spanName).startActive())
+            }
+          }
         }
       }
 
       if (activeSpan.isDefined)
-        traceMap.put(transactionId.meta.id, activeSpan.get)
+        spanMap.put(transactionId.meta.id, activeSpan.get)
     }
   }
 
@@ -77,12 +84,13 @@ object OpenTracingProvider{
     */
   def finish(transactionId: TransactionId): Unit = {
     if(enabled) {
-      traceMap.get(transactionId.meta.id) match {
+      spanMap.get(transactionId.meta.id) match {
         case Some(currentSpan) => {
           currentSpan.deactivate()
         }
         case None =>
       }
+      clear(transactionId)
     }
   }
 
@@ -93,13 +101,14 @@ object OpenTracingProvider{
     */
   def error(transactionId: TransactionId): Unit = {
     if(enabled) {
-      traceMap.get(transactionId.meta.id) match {
+      spanMap.get(transactionId.meta.id) match {
         case Some(currentSpan) => {
           currentSpan.deactivate()
         }
         case None =>
       }
     }
+    clear(transactionId)
   }
 
   /**
@@ -108,13 +117,43 @@ object OpenTracingProvider{
     * @param transactionId
     * @return
     */
-  def getTraceContext(transactionId: TransactionId): Option[SpanContext] = {
-    traceMap.get(transactionId.meta.id) match {
-      case Some(currentSpan) => {
-        Some(currentSpan.context())
+  def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
+    if(enabled){
+      spanMap.get(transactionId.meta.id) match {
+        case Some(currentSpan) => {
+          var map: java.util.Map[String, String] = new java.util.HashMap()
+          GlobalTracer.get().inject(currentSpan.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map))
+          val convertedMap: Map[String, String] = scala.collection.JavaConverters.mapAsScalaMapConverter(map).asScala.toMap
+          Some(convertedMap)
+        }
+        case None => None
       }
-      case None => None
     }
+    None
+  }
+
+  /**
+    * Get the current TraceContext which can be used for downstream services
+    *
+    * @param transactionId
+    * @return
+    */
+  def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]) = {
+    if(enabled){
+      context match {
+        case Some(scalaMap) => {
+          var javaMap: java.util.Map[String, String] = scala.collection.JavaConverters.mapAsJavaMapConverter(scalaMap).asJava
+          var ctx: SpanContext =  GlobalTracer.get().extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(javaMap))
+          contextMap.put(transactionId.meta.id, ctx)
+        }
+        case None =>
+      }
+    }
+  }
+
+  def clear(transactionId: TransactionId): Unit = {
+    spanMap.remove(transactionId.meta.id)
+    contextMap.remove(transactionId.meta.id)
   }
 
   def configureTracer(componentName: String): Unit = {

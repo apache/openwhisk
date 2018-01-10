@@ -44,6 +44,7 @@ import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
 import whisk.core.database.NoDocumentException
+import whisk.core.entity._
 import whisk.core.entity.{ActivationId, WhiskActivation}
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskActionMetaData
@@ -51,10 +52,8 @@ import whisk.core.entity.Identity
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 import whisk.core.entity.WhiskAction
-import whisk.core.entity.size._
 import whisk.core.entity.types.EntityStore
 import whisk.spi.SpiLoader
-
 import pureconfig._
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
@@ -153,11 +152,9 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
-        // If the active ack was forced, because the waiting period expired, treat it as a failed activation.
-        // A cluster of such failures will eventually turn the invoker unhealthy and suspend queuing activations
-        // to that invoker topic.
-        invokerPool ! InvocationFinishedMessage(invoker, isSuccess && !forced)
+        invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         if (!forced) {
+          entry.timeoutHandler.cancel()
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
@@ -166,8 +163,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
         // for activations that already timed out.
-        // For both cases, it looks like the invoker works again and we should send the status of
-        // the activation to the invokerPool.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
         logging.debug(this, s"received active ack for '$aid' which has no entry")(tid)
       case None =>
@@ -185,18 +180,28 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
                               namespaceId: UUID,
                               invokerName: InstanceId,
                               transid: TransactionId): ActivationEntry = {
-    val timeout = action.limits.timeout.duration + activeAckTimeoutGrace
+    val timeout = (action.limits.timeout.duration
+      .max(TimeLimit.STD_DURATION) * config.controllerInstances.toInt) + activeAckTimeoutGrace
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
     // in this case, if the activation handler is still registered, remove it and update the books.
-    loadBalancerData.putActivation(activationId, {
-      actorSystem.scheduler.scheduleOnce(timeout) {
-        processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
-      }
+    // in case of missing synchronization between n controllers in HA configuration the invoker queue can be overloaded
+    // n-1 times and the maximal time for answering with active ack can be n times the action time (plus some overhead)
+    loadBalancerData.putActivation(
+      activationId, {
+        val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
+          processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
+        }
 
-      ActivationEntry(activationId, namespaceId, invokerName, Promise[Either[ActivationId, WhiskActivation]]())
-    })
+        // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
+        ActivationEntry(
+          activationId,
+          namespaceId,
+          invokerName,
+          timeoutHandler,
+          Promise[Either[ActivationId, WhiskActivation]]())
+      })
   }
 
   /**
@@ -349,11 +354,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
 object LoadBalancerService {
   def requiredProperties =
     kafkaHosts ++
-      Map(
-        kafkaTopicsCompletedRetentionBytes -> 1024.MB.toBytes.toString,
-        kafkaTopicsCompletedRetentionMS -> 1.hour.toMillis.toString,
-        kafkaTopicsCompletedSegmentBytes -> 512.MB.toBytes.toString,
-        kafkaReplicationFactor -> "1") ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
   /** Memoizes the result of `f` for later use. */

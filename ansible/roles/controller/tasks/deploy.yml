@@ -52,10 +52,16 @@
       "WHISK_VERSION_BUILDNO": "{{ docker.image.tag }}"
 
       "KAFKA_HOSTS": "{{ kafka_connect_string }}"
-      "KAFKA_TOPICS_COMPLETED_RETENTION_BYTES": "{{ kafka.topics.completed.retentionBytes }}"
-      "KAFKA_TOPICS_COMPLETED_RETENTION_MS": "{{ kafka.topics.completed.retentionMS }}"
-      "KAFKA_TOPICS_COMPLETED_SEGMENT_BYTES": "{{ kafka.topics.completed.segmentBytes }}"
-      "KAFKA_REPLICATIONFACTOR": "{{ kafka.replicationFactor }}"
+      "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionBytes": "{{ kafka_topics_cacheInvalidation_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_retentionMs": "{{ kafka_topics_cacheInvalidation_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_cacheInvalidation_segmentBytes": "{{ kafka_topics_cacheInvalidation_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_retentionBytes": "{{ kafka_topics_completed_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_retentionMs": "{{ kafka_topics_completed_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_completed_segmentBytes": "{{ kafka_topics_completed_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_health_retentionBytes": "{{ kafka_topics_health_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_health_retentionMs": "{{ kafka_topics_health_retentionMS | default() }}"
+      "CONFIG_whisk_kafka_topics_health_segmentBytes": "{{ kafka_topics_health_segmentBytes | default() }}"
 
       "DB_PROTOCOL": "{{ db_protocol }}"
       "DB_PROVIDER": "{{ db_provider }}"
@@ -66,9 +72,9 @@
       "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
       "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
       "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
-      "DB_WHISK_ACTIONS_DDOC": "{{ db.whisk.actions_ddoc }}"
-      "DB_WHISK_ACTIVATIONS_DDOC": "{{ db.whisk.activations_ddoc }}"
-      "DB_WHISK_ACTIVATIONS_FILTER_DDOC": "{{ db.whisk.activations_filter_ddoc }}"
+      "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
 
       "LIMITS_ACTIONS_INVOKES_PERMINUTE": "{{ limits.invocationsPerMinute }}"
       "LIMITS_ACTIONS_INVOKES_CONCURRENT": "{{ limits.concurrentInvocations }}"
@@ -79,8 +85,6 @@
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
-      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
-      "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONTROLLER_HA": "{{ controller.ha }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
@@ -96,6 +100,10 @@
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
+
+      "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      
+      "CONFIG_logback_log_level": "{{ controller.loglevel }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

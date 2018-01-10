@@ -24,18 +24,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.common.errors.RecordTooLargeException
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.stream.ActorMaterializer
 import spray.json._
-import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
+import whisk.common.tracing.OpenTracingProvider
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
@@ -48,7 +46,7 @@ import whisk.core.containerpool.ContainerProxy
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
 import whisk.core.containerpool.logging.LogStoreProvider
-import whisk.core.database.NoDocumentException
+import whisk.core.database._
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
@@ -63,6 +61,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   implicit val cfg = config
 
   private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
 
   /**
    * Factory used by the ContainerProxy to physically create a new container.
@@ -97,7 +96,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val msgProvider = SpiLoader.get[MessagingProvider]
   val consumer = msgProvider.getConsumer(
     config,
-    "invokers",
+    topic,
     topic,
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
@@ -176,6 +175,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
         logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
 
+        OpenTracingProvider.setTraceContext(transid, msg.traceContext)
+
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;
         // if the doc revision is missing, then bypass cache
@@ -201,14 +202,20 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
               // making this an application error. All other errors are considered system
               // errors and should cause the invoker to be considered unhealthy.
               val response = t match {
-                case _: NoDocumentException => ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
-                case _                      => ActivationResponse.whiskError(Messages.actionRemovedWhileInvoking)
+                case _: NoDocumentException =>
+                  ActivationResponse.applicationError(Messages.actionRemovedWhileInvoking)
+                case _: DocumentTypeMismatchException | _: DocumentUnreadable =>
+                  ActivationResponse.whiskError(Messages.actionMismatchWhileInvoking)
+                case _ =>
+                  ActivationResponse.whiskError(Messages.actionFetchErrorWhileInvoking)
               }
               val now = Instant.now
-              val causedBy = if (msg.causedBySequence) Parameters("causedBy", "sequence".toJson) else Parameters()
+              val causedBy = if (msg.causedBySequence) {
+                Some(Parameters(WhiskActivation.causedByAnnotation, JsString(Exec.SEQUENCE)))
+              } else None
               val activation = WhiskActivation(
                 activationId = msg.activationId,
-                namespace = msg.activationNamespace,
+                namespace = msg.user.namespace.toPath,
                 subject = msg.user.subject,
                 cause = msg.cause,
                 name = msg.action.name,
@@ -218,7 +225,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
                 duration = Some(0),
                 response = response,
                 annotations = {
-                  Parameters("path", msg.action.toString.toJson) ++ causedBy
+                  Parameters(WhiskActivation.pathAnnotation, JsString(msg.action.asString)) ++ causedBy
                 })
 
               activationFeed ! MessageFeed.Processed

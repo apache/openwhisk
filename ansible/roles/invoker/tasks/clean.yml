@@ -38,3 +38,15 @@
     path: "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
     state: absent
   become: "{{ logs.dir.become }}"
+
+# Workaround for orphaned ifstate.veth* files on Ubuntu 14.04
+# See https://github.com/moby/moby/issues/22513
+# Remove inactive files older than 60 minutes
+- name: "Clean orphaned ifstate.veth* files on Ubuntu 14.04"
+  shell: |
+    ACTIVE_VETH_IFACES=$(ip -oneline link show | grep --only-matching --extended-regexp 'veth[0-9a-f]+' | tr '\n' '|' | sed -e 's/.$//')
+    EXCLUDE_REGEX=$(if [ -z ${ACTIVE_VETH_IFACES} ]; then echo 'No active veth interfaces found' >&2; else printf '( -not -regex  /run/network/ifstate\.(%s) ) -and ' ${ACTIVE_VETH_IFACES}; fi)
+    find /run/network -regextype posix-egrep ${EXCLUDE_REGEX} -name 'ifstate.veth*' -and -mmin +60 -delete
+  become: True
+  ignore_errors: True
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '14.04'

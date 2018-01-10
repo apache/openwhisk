@@ -154,7 +154,7 @@ class ZipkinLogging (logger: Logging) extends Logging {
         logMarker.token.state match {
 
             case LoggingMarkers.start => {
-                  OpenTracingProvider.startTrace(logMarker.token.component, logMarker.token.action, id)
+                  OpenTracingProvider.startTrace(logMarker.token.action, id)
             }
 
             case LoggingMarkers.finish => {

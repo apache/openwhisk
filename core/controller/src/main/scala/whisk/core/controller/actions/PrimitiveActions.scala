@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Failure
-
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -33,6 +32,7 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
+import whisk.common.tracing.OpenTracingProvider
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
@@ -105,11 +105,11 @@ protected[actions] trait PrimitiveActions {
       action.rev,
       user,
       activationIdFactory.make(), // activation id created here
-      activationNamespace = user.namespace.toPath,
       activeAckTopicIndex,
       waitForResponse.isDefined,
       args,
-      cause = cause)
+      cause = cause,
+      OpenTracingProvider.getTraceContext(transid))
 
     val startActivation = transid.started(
       this,

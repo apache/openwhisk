@@ -3,6 +3,7 @@ config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 docker_registry: ""
 docker_dns: ""
+bypass_pull_for_local_images: true
 
 db_prefix: whisk_local_
 
@@ -24,7 +25,7 @@ invoker_arguments: "{{ controller_arguments }}"
 
 invoker_allow_multiple_instances: true
 
-# Set kafka topic retention
+# Set kafka configuration
 kafka_heap: '512m'
 kafka_topics_completed_retentionBytes: 104857600
 kafka_topics_completed_retentionMS: 300000

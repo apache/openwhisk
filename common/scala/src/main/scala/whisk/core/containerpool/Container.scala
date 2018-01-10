@@ -191,6 +191,7 @@ case class RunResult(interval: Interval, response: Either[ContainerConnectionErr
   def ok = response.right.exists(_.ok)
   def toBriefString = response.fold(_.toString, _.toString)
 }
+
 object Interval {
 
   /** An interval starting now with zero duration. */

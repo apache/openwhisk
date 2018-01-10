@@ -198,7 +198,6 @@ class InvokerSupervisionTests
         AuthKey(UUID(), Secret()),
         Set[Privilege]()),
       activationId = new ActivationIdGenerator {}.make(),
-      activationNamespace = EntityPath("guest"),
       rootControllerIndex = InstanceId(0),
       blocking = false,
       content = None)

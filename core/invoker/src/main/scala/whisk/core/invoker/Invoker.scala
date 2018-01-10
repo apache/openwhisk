@@ -43,7 +43,6 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.WhiskActivationStore
 import whisk.core.entity.WhiskEntityStore
-import whisk.core.entity.size._
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -64,11 +63,6 @@ object Invoker {
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
       kafkaHosts ++
-      Map(
-        kafkaTopicsInvokerRetentionBytes -> 1024.MB.toBytes.toString,
-        kafkaTopicsInvokerRetentionMS -> 48.hour.toMillis.toString,
-        kafkaTopicsInvokerSegmentBytes -> 512.MB.toBytes.toString,
-        kafkaReplicationFactor -> "1") ++
       zookeeperHosts ++
       wskApiHost ++ Map(
       dockerImageTag -> "latest",
@@ -110,7 +104,7 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val execManifest = ExecManifest.initialize(config)
+    val execManifest = ExecManifest.initialize(config, localDockerImagePrefix = Some(config.dockerImagePrefix))
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
       abort("Bad configuration, cannot start.")
@@ -191,15 +185,7 @@ object Invoker {
 
     val invokerInstance = InstanceId(assignedInvokerId)
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(
-          config,
-          "invoker" + assignedInvokerId,
-          Map(
-            "numPartitions" -> "1",
-            "replicationFactor" -> config.kafkaReplicationFactor,
-            "retention.bytes" -> config.kafkaTopicsInvokerRetentionBytes,
-            "retention.ms" -> config.kafkaTopicsInvokerRetentionMS,
-            "segment.bytes" -> config.kafkaTopicsInvokerSegmentBytes))) {
+    if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
     val producer = msgProvider.getProducer(config, ec)

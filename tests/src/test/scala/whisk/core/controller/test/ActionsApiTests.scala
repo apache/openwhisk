@@ -159,6 +159,29 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "get action using code query parameter" in {
+    implicit val tid = transid()
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
+
+    put(entityStore, action)
+
+    Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      val response = responseAs[JsObject]
+      response.fields("exec").asJsObject.fields should not(contain key "code")
+      responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
+    }
+
+    Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
+      Get(path) ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        val response = responseAs[JsObject]
+        response.fields("exec").asJsObject.fields("code") should be("??".toJson)
+        responseAs[WhiskAction] shouldBe a[WhiskAction]
+      }
+    }
+  }
+
   it should "report NotFound for get non existent action" in {
     implicit val tid = transid()
     Get(s"$collectionPath/xyz") ~> Route.seal(routes(creds)) ~> check {
@@ -503,68 +526,95 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
-  it should "put and then get action from cache" in {
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
-    val content = WhiskActionPut(
-      Some(action.exec),
-      Some(action.parameters),
-      Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
-    val name = action.name
+  it should "put and then get an action from cache" in {
+    val javaAction =
+      WhiskAction(namespace, aname(), javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
+    val nodeAction = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
+    val actions = Seq((javaAction, JAVA_DEFAULT), (nodeAction, NODEJS6))
 
-    // first request invalidates any previous entries and caches new result
-    Put(s"$collectionPath/$name", content) ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
+    actions.foreach {
+      case (action, kind) =>
+        val content = WhiskActionPut(
+          Some(action.exec),
+          Some(action.parameters),
+          Some(ActionLimitsOption(Some(action.limits.timeout), Some(action.limits.memory), Some(action.limits.logs))))
+
+        // first request invalidates any previous entries and caches new result
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+        stream.toString should include(s"caching ${CacheKey(action)}")
+        stream.toString should not include (s"invalidating ${CacheKey(action)} on delete")
+        stream.reset()
+
+        // second request should fetch from cache
+        Get(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+        stream.toString should include(s"serving from cache: ${CacheKey(action)}")
+        stream.reset()
+
+        // update should invalidate cache
+        Put(s"$collectionPath/${action.name}?overwrite=true", content) ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be {
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version.upPatch,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind))
+          }
+        }
+        stream.toString should include(s"entity exists, will try to update '$action'")
+        stream.toString should include(s"invalidating ${CacheKey(action)}")
+        stream.toString should include(s"caching ${CacheKey(action)}")
+        stream.reset()
+
+        // delete should invalidate cache
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)(transid())) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(
+            WhiskAction(
+              action.namespace,
+              action.name,
+              action.exec,
+              action.parameters,
+              action.limits,
+              action.version.upPatch,
+              action.publish,
+              action.annotations ++ Parameters(WhiskAction.execFieldName, kind)))
+        }
+        stream.toString should include(s"invalidating ${CacheKey(action)}")
+        stream.reset()
     }
-    stream.toString should include(s"caching ${CacheKey(action)}")
-    stream.reset()
-
-    // second request should fetch from cache
-    Get(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
-    }
-
-    stream.toString should include(s"serving from cache: ${CacheKey(action)}")
-    stream.reset()
-
-    // delete should invalidate cache
-    Delete(s"$collectionPath/$name") ~> Route.seal(routes(creds)(transid())) ~> check {
-      status should be(OK)
-      val response = responseAs[WhiskAction]
-      response should be(
-        WhiskAction(
-          action.namespace,
-          action.name,
-          action.exec,
-          action.parameters,
-          action.limits,
-          action.version,
-          action.publish,
-          action.annotations ++ Parameters(WhiskAction.execFieldName, NODEJS6)))
-    }
-    stream.toString should include(s"invalidating ${CacheKey(action)}")
-    stream.reset()
   }
 
   it should "reject put with conflict for pre-existing action" in {

@@ -33,7 +33,7 @@ import org.junit.runner.RunWith
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
-import whisk.core.containerpool.logging.{DockerLogStore, LogLine}
+import whisk.core.containerpool.logging.{DockerToActivationLogStore, LogLine}
 
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
@@ -76,7 +76,7 @@ class DockerContainerTests
 
   /** Reads logs into memory and awaits them */
   def awaitLogs(source: Source[ByteString, Any], timeout: FiniteDuration = 500.milliseconds): Vector[String] =
-    Await.result(source.via(DockerLogStore.toFormattedString).runWith(Sink.seq[String]), timeout).toVector
+    Await.result(source.via(DockerToActivationLogStore.toFormattedString).runWith(Sink.seq[String]), timeout).toVector
 
   val containerId = ContainerId("id")
 

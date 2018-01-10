@@ -17,7 +17,7 @@
 
 package whisk.core.entity
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
@@ -41,15 +41,13 @@ protected[core] object ExecManifest {
    * singleton Runtime instance.
    *
    * @param config a valid configuration
-   * @param reinit re-initialize singleton iff true
-   * @return the manifest if initialized successfully, or if previously initialized
+   * @param localDockerImagePrefix optional local docker prefix, permitting images matching prefix to bypass docker pull
+   * @return the manifest if initialized successfully, or an failure
    */
-  protected[core] def initialize(config: WhiskConfig, reinit: Boolean = false): Try[Runtimes] = {
-    if (manifest.isEmpty || reinit) {
-      val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_))
-      mf.foreach(m => manifest = Some(m))
-      mf
-    } else Success(manifest.get)
+  protected[core] def initialize(config: WhiskConfig, localDockerImagePrefix: Option[String] = None): Try[Runtimes] = {
+    val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_, localDockerImagePrefix))
+    mf.foreach(m => manifest = Some(m))
+    mf
   }
 
   /**
@@ -71,26 +69,34 @@ protected[core] object ExecManifest {
    * @param config a configuration object as JSON
    * @return Runtimes instance
    */
-  protected[entity] def runtimes(config: JsObject): Try[Runtimes] = Try {
+  protected[entity] def runtimes(config: JsObject, localDockerImagePrefix: Option[String] = None): Try[Runtimes] = Try {
     val prefix = config.fields.get("defaultImagePrefix").map(_.convertTo[String])
     val tag = config.fields.get("defaultImageTag").map(_.convertTo[String])
-    val runtimes = config
-      .fields("runtimes")
-      .convertTo[Map[String, Set[RuntimeManifest]]]
-      .map {
+
+    val runtimes = config.fields
+      .get("runtimes")
+      .map(_.convertTo[Map[String, Set[RuntimeManifest]]].map {
         case (name, versions) =>
           RuntimeFamily(name, versions.map { mf =>
             val img = ImageName(mf.image.name, mf.image.prefix.orElse(prefix), mf.image.tag.orElse(tag))
             mf.copy(image = img)
           })
-      }
-      .toSet
+      }.toSet)
+
     val blackbox = config.fields
       .get("blackboxes")
       .map(_.convertTo[Set[ImageName]].map { image =>
         ImageName(image.name, image.prefix.orElse(prefix), image.tag.orElse(tag))
       })
-    Runtimes(runtimes, blackbox.getOrElse(Set.empty))
+
+    val bypassPullForLocalImages = config.fields
+      .get("bypassPullForLocalImages")
+      .map(_.convertTo[Boolean])
+      .filter(identity)
+      .flatMap(_ => localDockerImagePrefix)
+      .map(_.trim)
+
+    Runtimes(runtimes.getOrElse(Set.empty), blackbox.getOrElse(Set.empty), bypassPullForLocalImages)
   }
 
   /**
@@ -215,9 +221,16 @@ protected[core] object ExecManifest {
    *
    * @param set of supported runtime families
    */
-  protected[core] case class Runtimes(runtimes: Set[RuntimeFamily], blackboxImages: Set[ImageName]) {
+  protected[core] case class Runtimes(runtimes: Set[RuntimeFamily],
+                                      blackboxImages: Set[ImageName],
+                                      bypassPullForLocalImages: Option[String]) {
 
     val knownContainerRuntimes: Set[String] = runtimes.flatMap(_.versions.map(_.kind))
+
+    def skipDockerPull(image: ImageName): Boolean = {
+      blackboxImages.contains(image) ||
+      image.prefix.flatMap(p => bypassPullForLocalImages.map(_ == p)).getOrElse(false)
+    }
 
     def toJson: JsObject = {
       runtimes

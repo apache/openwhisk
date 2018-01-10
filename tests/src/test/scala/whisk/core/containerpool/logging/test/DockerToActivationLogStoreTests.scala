@@ -19,7 +19,7 @@ package whisk.core.containerpool.logging.test
 
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.{FlatSpec, Matchers}
-import whisk.core.containerpool.logging.{DockerLogStoreProvider, LogCollectingException, LogLine}
+import whisk.core.containerpool.logging.{DockerToActivationLogStoreProvider, LogCollectingException, LogLine}
 import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
 import java.time.Instant
@@ -34,7 +34,7 @@ import whisk.http.Messages
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class DockerLogStoreTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
+class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
   def await[T](future: Future[T]) = Await.result(future, 1.minute)
 
   val user = Identity(Subject(), EntityName("testSpace"), AuthKey(), Set())
@@ -47,40 +47,43 @@ class DockerLogStoreTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val tid = TransactionId.testing
 
+  def createStore() = DockerToActivationLogStoreProvider.logStore(actorSystem)
+
   behavior of "DockerLogStore"
 
   it should "read logs into a sequence and parse them into the specified format" in {
-    val store = DockerLogStoreProvider.logStore(actorSystem)
+    val store = createStore()
 
     val logs = List(
       LogLine(Instant.now.toString, "stdout", "this is a log"),
       LogLine(Instant.now.toString, "stdout", "this is a log too"))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    await(store.collectLogs(tid, container, action)) shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
+    await(store.collectLogs(tid, user, activation, container, action)) shouldBe ActivationLogs(
+      logs.map(_.toFormattedString).toVector)
   }
 
   it should "report an error if the logs contain an 'official' notice of such" in {
-    val store = DockerLogStoreProvider.logStore(actorSystem)
+    val store = createStore()
 
     val logs = List(
       LogLine(Instant.now.toString, "stdout", "this is a log"),
       LogLine(Instant.now.toString, "stderr", Messages.logFailure))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, container, action))
+    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, user, activation, container, action))
     ex.partialLogs shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
   }
 
   it should "report an error if logs have been truncated" in {
-    val store = DockerLogStoreProvider.logStore(actorSystem)
+    val store = createStore()
 
     val logs = List(
       LogLine(Instant.now.toString, "stdout", "this is a log"),
       LogLine(Instant.now.toString, "stderr", Messages.truncateLogs(action.limits.logs.asMegaBytes)))
     val container = new TestContainer(Source(toByteString(logs)))
 
-    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, container, action))
+    val ex = the[LogCollectingException] thrownBy await(store.collectLogs(tid, user, activation, container, action))
     ex.partialLogs shouldBe ActivationLogs(logs.map(_.toFormattedString).toVector)
   }
 

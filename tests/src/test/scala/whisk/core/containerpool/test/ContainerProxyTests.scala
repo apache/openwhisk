@@ -78,13 +78,25 @@ class ContainerProxyTests
   val invocationNamespace = EntityName("invocationSpace")
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
 
+  // create a transaction id to set the start time and control queue time
+  val messageTransId = TransactionId(BigDecimal(TransactionId.testing.meta.id))
+
+  val initInterval = {
+    val now = messageTransId.meta.start.plusMillis(50) // this is the queue time for cold start
+    Interval(now, now.plusMillis(100))
+  }
+
+  val runInterval = {
+    val now = initInterval.end.plusMillis(75) // delay between init and run
+    Interval(now, now.plusMillis(200))
+  }
+
   val message = ActivationMessage(
-    TransactionId.testing,
+    messageTransId,
     action.fullyQualifiedName(true),
     action.rev,
     Identity(Subject(), invocationNamespace, AuthKey(), Set()),
     ActivationId(),
-    invocationNamespace.toPath,
     InstanceId(0),
     blocking = false,
     content = None)
@@ -151,8 +163,13 @@ class ContainerProxyTests
   }
 
   def createCollector(response: Future[ActivationLogs] = Future.successful(ActivationLogs(Vector.empty))) =
-    LoggedFunction { (transid: TransactionId, container: Container, action: ExecutableWhiskAction) =>
-      response
+    LoggedFunction {
+      (transid: TransactionId,
+       user: Identity,
+       activation: WhiskActivation,
+       container: Container,
+       action: ExecutableWhiskAction) =>
+        response
     }
 
   def createStore = LoggedFunction { (transid: TransactionId, activation: WhiskActivation) =>
@@ -203,7 +220,7 @@ class ContainerProxyTests
 
     // Another pause causes the container to be removed
     timeout(machine)
-    expectMsg(ContainerRemoved)
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Paused, Removing))
 
     awaitAssert {
@@ -242,6 +259,25 @@ class ContainerProxyTests
       container.suspendCount shouldBe 0
       acker.calls should have size 2
       store.calls should have size 2
+
+      val initRunActivation = acker.calls(0)._2
+      initRunActivation.duration shouldBe Some((initInterval.duration + runInterval.duration).toMillis)
+      initRunActivation.annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
+      initRunActivation.annotations
+        .get(WhiskActivation.waitTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe
+        Interval(message.transid.meta.start, initInterval.start).duration.toMillis
+
+      val runOnlyActivation = acker.calls(1)._2
+      runOnlyActivation.duration shouldBe Some(runInterval.duration.toMillis)
+      runOnlyActivation.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
+      runOnlyActivation.annotations.get(WhiskActivation.waitTimeAnnotation).get.convertTo[Int] shouldBe {
+        Interval(message.transid.meta.start, runInterval.start).duration.toMillis
+      }
     }
   }
 
@@ -271,6 +307,14 @@ class ContainerProxyTests
       container.resumeCount shouldBe 1
       acker.calls should have size 2
       store.calls should have size 2
+      acker
+        .calls(0)
+        ._2
+        .annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
+      acker.calls(1)._2.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
     }
   }
 
@@ -293,6 +337,13 @@ class ContainerProxyTests
       collector.calls should have size 1
       acker.calls should have size 1
       store.calls should have size 1
+      acker
+        .calls(0)
+        ._2
+        .annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
     }
   }
 
@@ -320,7 +371,9 @@ class ContainerProxyTests
       collector.calls should have size 0 // gather no logs
       container.destroyCount shouldBe 0 // no destroying possible as no container could be obtained
       acker.calls should have size 1
-      acker.calls(0)._2.response should be a 'whiskError
+      val activation = acker.calls(0)._2
+      activation.response should be a 'whiskError
+      activation.annotations.get(WhiskActivation.initTimeAnnotation) shouldBe empty
       store.calls should have size 1
     }
   }
@@ -330,7 +383,7 @@ class ContainerProxyTests
       override def initialize(initializer: JsObject,
                               timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
         initializeCount += 1
-        Future.failed(InitializationError(Interval.zero, ActivationResponse.applicationError("boom")))
+        Future.failed(InitializationError(initInterval, ActivationResponse.applicationError("boom")))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -352,7 +405,13 @@ class ContainerProxyTests
       container.runCount shouldBe 0 // should not run the action
       collector.calls should have size 1
       container.destroyCount shouldBe 1
-      acker.calls(0)._2.response shouldBe ActivationResponse.applicationError("boom")
+      val activation = acker.calls(0)._2
+      activation.response shouldBe ActivationResponse.applicationError("boom")
+      activation.annotations
+        .get(WhiskActivation.initTimeAnnotation)
+        .get
+        .convertTo[Int] shouldBe initInterval.duration.toMillis
+
       store.calls should have size 1
     }
   }
@@ -362,7 +421,7 @@ class ContainerProxyTests
       override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
         implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
         runCount += 1
-        Future.successful((Interval.zero, ActivationResponse.applicationError("boom")))
+        Future.successful((initInterval, ActivationResponse.applicationError("boom")))
       }
     }
     val factory = createFactory(Future.successful(container))
@@ -469,7 +528,7 @@ class ContainerProxyTests
     val runMessage = Run(action, message)
     machine ! runMessage
     expectMsg(Transition(machine, Paused, Running))
-    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Running, Removing))
     expectMsg(runMessage)
 
@@ -590,7 +649,7 @@ class ContainerProxyTests
     machine ! Run(action, message)
 
     // State-machine shuts down nonetheless.
-    expectMsg(ContainerRemoved)
+    expectMsg(RescheduleJob)
     expectMsg(Transition(machine, Paused, Removing))
 
     // Pool gets the message again.
@@ -641,7 +700,7 @@ class ContainerProxyTests
       initializeCount += 1
       initializer shouldBe action.containerInitializer
       timeout shouldBe action.limits.timeout.duration
-      Future.successful(Interval.zero)
+      Future.successful(initInterval)
     }
     override def run(parameters: JsObject, environment: JsObject, timeout: FiniteDuration)(
       implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
@@ -657,7 +716,7 @@ class ContainerProxyTests
       // a freshly computed deadline, as they get computed slightly after each other
       deadline should (be <= maxDeadline and be >= Instant.now)
 
-      Future.successful((Interval.zero, ActivationResponse.success()))
+      Future.successful((runInterval, ActivationResponse.success()))
     }
     def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = ???
   }

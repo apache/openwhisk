@@ -266,7 +266,7 @@ protected[core] object Exec extends ArgNormalizer[Exec] with DefaultJsonProtocol
                 s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
             case None => None
           }
-          val native = execManifests.blackboxImages.contains(image)
+          val native = execManifests.skipDockerPull(image)
           BlackBoxExec(image, code, optMainField, native)
 
         case _ =>
@@ -384,14 +384,7 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
               throw new DeserializationException(
                 s"'image' must be a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
           }
-          val code: Option[String] = obj.fields.get("code") match {
-            case Some(JsString(i)) => if (i.trim.nonEmpty) Some(i) else None
-            case Some(_) =>
-              throw new DeserializationException(
-                s"if defined, 'code' must a string defined in 'exec' for '${Exec.BLACKBOX}' actions")
-            case None => None
-          }
-          val native = execManifests.blackboxImages.contains(image)
+          val native = execManifests.skipDockerPull(image)
           BlackBoxExecMetaData(native)
 
         case _ =>
@@ -403,28 +396,9 @@ protected[core] object ExecMetaDataBase extends ArgNormalizer[ExecMetaDataBase] 
 
           manifest.attached
             .map { a =>
-              val jar: Attachment[String] = {
-                // java actions once stored the attachment in "jar" instead of "code"
-                obj.fields.get("code").orElse(obj.fields.get("jar"))
-              } map {
-                attFmt[String].read(_)
-              } getOrElse {
-                throw new DeserializationException(
-                  s"'code' must be a valid base64 string in 'exec' for '$kind' actions")
-              }
-              val main = optMainField.orElse {
-                if (manifest.requireMain.exists(identity)) {
-                  throw new DeserializationException(s"'main' must be a string defined in 'exec' for '$kind' actions")
-                } else None
-              }
               CodeExecMetaDataAsAttachment(manifest)
             }
             .getOrElse {
-              val code: String = obj.fields.get("code") match {
-                case Some(JsString(c)) => c
-                case _ =>
-                  throw new DeserializationException(s"'code' must be a string defined in 'exec' for '$kind' actions")
-              }
               CodeExecMetaDataAsString(manifest)
             }
       }
