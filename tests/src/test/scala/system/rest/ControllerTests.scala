@@ -39,8 +39,8 @@ import whisk.core.WhiskConfig
 class ControllerTests extends FlatSpec with RestUtil with Matchers with ExecHelpers with StreamLogging {
 
   it should "ensure controller returns info" in {
-    val response = RestAssured.given().config(sslconfig).get(getServiceURL)
-    val runtimes = getRuntimesManifest
+    val response = RestAssured.given.config(sslconfig).get(getServiceURL)
+    val runtimes = runtimesManifest
     val config = new WhiskConfig(
       Map(
         WhiskConfig.actionInvokePerMinuteLimit -> null,
@@ -57,7 +57,7 @@ class ControllerTests extends FlatSpec with RestUtil with Matchers with ExecHelp
         "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
         "concurrent_actions" -> config.actionInvokeConcurrentLimit.toInt.toJson))
-    response.statusCode() should be(200)
+    response.statusCode should be(200)
     response.body.asString.parseJson shouldBe (expectedJson)
   }
 }

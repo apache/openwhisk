@@ -100,5 +100,5 @@ trait ExecHelpers extends Matchers with WskActorSystem with StreamLogging {
     BlackBoxExec(ExecManifest.ImageName(trim(image)), Some(trim(code)).filter(_.nonEmpty), main, false)
   }
 
-  protected def getRuntimesManifest() = ExecManifest.runtimesManifest
+  protected def runtimesManifest = ExecManifest.runtimesManifest
 }
