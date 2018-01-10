@@ -68,14 +68,12 @@ case class WhiskActivation(namespace: EntityPath,
                            publish: Boolean = false,
                            annotations: Parameters = Parameters(),
                            duration: Option[Long] = None)
-    extends WhiskEntity(EntityName(activationId.asString)) {
+    extends WhiskEntity(EntityName(activationId.asString), "activation") {
 
   require(cause != null, "cause undefined")
   require(start != null, "start undefined")
   require(end != null, "end undefined")
   require(response != null, "response undefined")
-
-  def entityType = "activation"
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 

@@ -143,7 +143,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
 
   it should "define type property" in {
     def assertType(d: WhiskEntity, entityType: String) = {
-      d.toDocumentRecord.fields("type") shouldBe JsString(entityType)
+      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
     }
 
     val action = WhiskAction(namespace, name, jsDefault("code"), Parameters())

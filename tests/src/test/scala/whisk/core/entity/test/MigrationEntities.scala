@@ -37,9 +37,7 @@ case class OldWhiskRule(namespace: EntityPath,
                         version: SemVer = SemVer(),
                         publish: Boolean = false,
                         annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
-
-  def entityType = "rule"
+    extends WhiskEntity(name, "rule") {
 
   def toJson = OldWhiskRule.serdes.write(this).asJsObject
 
@@ -74,9 +72,7 @@ case class OldWhiskTrigger(namespace: EntityPath,
                            version: SemVer = SemVer(),
                            publish: Boolean = false,
                            annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
-
-  def entityType = "trigger"
+    extends WhiskEntity(name, "trigger") {
 
   def toJson = OldWhiskTrigger.serdes.write(this).asJsObject
 

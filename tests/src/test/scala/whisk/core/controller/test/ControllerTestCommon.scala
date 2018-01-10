@@ -165,9 +165,7 @@ protected trait ControllerTestCommon
                                  version: SemVer = SemVer(),
                                  publish: Boolean = false,
                                  annotations: Parameters = Parameters())
-      extends WhiskEntity(name) {
-
-    override def entityType = "badEntity"
+      extends WhiskEntity(name, "badEntity") {
 
     override def toJson = BadEntity.serdes.write(this).asJsObject
   }

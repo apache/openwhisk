@@ -67,11 +67,9 @@ case class WhiskTrigger(namespace: EntityPath,
                         publish: Boolean = false,
                         annotations: Parameters = Parameters(),
                         rules: Option[Map[FullyQualifiedEntityName, ReducedRule]] = None)
-    extends WhiskEntity(name) {
+    extends WhiskEntity(name, "trigger") {
 
   require(limits != null, "limits undefined")
-
-  def entityType = "trigger"
 
   def toJson = WhiskTrigger.serdes.write(this).asJsObject
 

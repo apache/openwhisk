@@ -71,11 +71,9 @@ case class WhiskPackage(namespace: EntityPath,
                         version: SemVer = SemVer(),
                         publish: Boolean = false,
                         annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
+    extends WhiskEntity(name, "package") {
 
   require(binding != null || (binding map { _ != null } getOrElse true), "binding undefined")
-
-  def entityType = "package"
 
   /**
    * Merges parameters into existing set of parameters for package.
