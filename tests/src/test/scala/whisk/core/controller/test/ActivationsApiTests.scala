@@ -338,7 +338,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
     activationsInPackage foreach { put(activationStore, _) }
 
-    waitOnView(activationStore, namespace.root, 4, WhiskActivation.view)
+    waitOnView(activationStore, namespace.addPath(EntityName("xyz")), activations.length, WhiskActivation.filtersView)
+    waitOnView(
+      activationStore,
+      namespace.addPath(EntityName("pkg")).addPath(EntityName("xyz")),
+      activationsInPackage.length,
+      WhiskActivation.filtersView)
 
     whisk.utils.retry {
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {
