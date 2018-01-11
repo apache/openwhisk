@@ -265,53 +265,43 @@ class WskRestAction
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actName) = getNamespaceEntityName(name)
-    var exec = Map[String, JsValue]()
-    var code = ""
-    var kindType = ""
-    var artifactName = ""
-    artifact match {
+    val (kindTypeByAction, code, artifactName) = artifact match {
       case Some(artifactFile) => {
         val ext = getExt(artifactFile)
-        artifactName = artifactFile
         ext match {
           case ".jar" => {
-            kindType = "java:default"
             val jar = FileUtils.readFileToByteArray(new File(artifactFile))
-            code = Base64.getEncoder.encodeToString(jar)
+            ("java:default", Base64.getEncoder.encodeToString(jar), artifactFile)
           }
           case ".zip" => {
             val zip = FileUtils.readFileToByteArray(new File(artifactFile))
-            code = Base64.getEncoder.encodeToString(zip)
+            ("", Base64.getEncoder.encodeToString(zip), artifactFile)
           }
           case ".js" => {
-            kindType = "nodejs:default"
-            code = FileUtils.readFileToString(new File(artifactFile))
+            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
           }
           case ".py" => {
-            kindType = "python:default"
-            code = FileUtils.readFileToString(new File(artifactFile))
+            ("python:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
           }
           case ".swift" => {
-            kindType = "swift:default"
-            code = FileUtils.readFileToString(new File(artifactFile))
+            ("swift:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
           }
           case ".php" => {
-            kindType = "php:default"
-            code = FileUtils.readFileToString(new File(artifactFile))
+            ("php:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
           }
-          case _ =>
+          case _ => ("", "", artifactFile)
         }
       }
-      case None =>
+      case None => ("", "", "")
     }
 
-    kindType = docker map { d =>
+    val kindType = docker map { d =>
       "blackbox"
-    } getOrElse kindType
+    } getOrElse kindTypeByAction
 
-    var (params, annos) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, web = web)
+    val (paramsInput, annosInput) = getParamsAnnos(parameters, annotations, parameterFile, annotationFile, web = web)
 
-    kind match {
+    val (params, annos, execByKind) = kind match {
       case Some(k) => {
         k match {
           case "copy" => {
@@ -322,27 +312,35 @@ class WskRestAction
               return new RestResult(NotFound)
             else {
               val result = new RestResult(resp.status, getRespData(resp))
-              params = JsArray(result.getFieldListJsObject("parameters"))
-              annos = JsArray(result.getFieldListJsObject("annotations"))
-              exec = result.getFieldJsObject("exec").fields
+              val params = result.getFieldListJsObject("parameters").toArray[JsValue]
+              val annos = result.getFieldListJsObject("annotations").toArray[JsValue]
+              val exec = result.getFieldJsObject("exec").fields
+              (params, annos, exec)
             }
           }
           case "sequence" => {
             val comps = convertIntoComponents(artifactName)
-            exec = Map("components" -> comps.toJson, "kind" -> k.toJson)
+            val exec =
+              if (comps.size > 0) Map("components" -> comps.toJson, "kind" -> k.toJson)
+              else
+                Map("kind" -> k.toJson)
+            (paramsInput, annosInput, exec)
           }
           case "native" => {
-            exec = Map("code" -> code.toJson, "kind" -> "blackbox".toJson, "image" -> "openwhisk/dockerskeleton".toJson)
+            val exec =
+              Map("code" -> code.toJson, "kind" -> "blackbox".toJson, "image" -> "openwhisk/dockerskeleton".toJson)
+            (paramsInput, annosInput, exec)
           }
           case _ => {
-            exec = Map("code" -> code.toJson, "kind" -> k.toJson)
+            val exec = Map("code" -> code.toJson, "kind" -> k.toJson)
+            (paramsInput, annosInput, exec)
           }
         }
       }
-      case None => exec = Map("code" -> code.toJson, "kind" -> kindType.toJson)
+      case None => (paramsInput, annosInput, Map("code" -> code.toJson, "kind" -> kindType.toJson))
     }
 
-    exec = exec ++ {
+    val exec = execByKind ++ {
       main map { m =>
         Map("main" -> m.toJson)
       } getOrElse Map[String, JsValue]()
@@ -352,32 +350,46 @@ class WskRestAction
       } getOrElse Map[String, JsValue]()
     }
 
-    var bodyContent = Map("name" -> name.toJson, "namespace" -> namespace.toJson)
+    val bodyHead = Map("name" -> name.toJson, "namespace" -> namespace.toJson)
 
-    if (update) {
-      kind match {
-        case Some(k) if (k == "sequence" || k == "native") => {
-          bodyContent = bodyContent ++ Map("exec" -> exec.toJson)
-        }
-        case _ =>
+    val (updateExistence, resultExistence) = update match {
+      case true => {
+        val (ns, entity) = getNamespaceEntityName(name)
+        val entPath = Path(s"$basePath/namespaces/$ns/$noun/$entity")
+        val resp = requestEntity(GET, entPath)(wp)
+        val result = if (resp == None) new RestResult(NotFound) else new RestResult(resp.status, getRespData(resp))
+        if (result.statusCode == NotFound) (false, result) else (true, result)
       }
+      case _ => (false, new RestResult(NotFound))
+    }
 
-      bodyContent = bodyContent ++ {
+    val bodyWithParamsAnnos = if (updateExistence) {
+      val oldAnnos = resultExistence.getFieldListJsObject("annotations")
+      val inputParams = convertMapIntoKeyValue(parameters)
+      val inputAnnos = convertMapIntoKeyValue(annotations, web = web, oldParams = oldAnnos.toList)
+
+      bodyHead ++ {
+        kind match {
+          case Some(k) if (k == "sequence" || k == "native") => {
+            Map("exec" -> exec.toJson)
+          }
+          case _ => Map[String, JsValue]()
+        }
+      } ++ {
         shared map { s =>
           Map("publish" -> s.toJson)
         } getOrElse Map[String, JsValue]()
-      }
-
-      val inputParams = convertMapIntoKeyValue(parameters)
-      if (inputParams.elements.size > 0) {
-        bodyContent = bodyContent ++ Map("parameters" -> params)
-      }
-      val inputAnnos = convertMapIntoKeyValue(annotations)
-      if (inputAnnos.elements.size > 0) {
-        bodyContent = bodyContent ++ Map("annotations" -> annos)
+      } ++ {
+        if (inputParams.size > 0) {
+          Map("parameters" -> params.toJson)
+        } else Map[String, JsValue]()
+      } ++ {
+        if (inputAnnos.size > 0) {
+          Map("annotations" -> inputAnnos.toJson)
+        } else Map[String, JsValue]()
       }
     } else {
-      bodyContent = bodyContent ++ Map("exec" -> exec.toJson, "parameters" -> params, "annotations" -> annos)
+      bodyHead ++ Map("exec" -> exec.toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
     }
 
     val limits = Map[String, JsValue]() ++ {
@@ -394,8 +406,11 @@ class WskRestAction
       } getOrElse Map[String, JsValue]()
     }
 
-    if (!limits.isEmpty)
-      bodyContent = bodyContent ++ Map("limits" -> limits.toJson)
+    val bodyContent =
+      if (!limits.isEmpty)
+        bodyWithParamsAnnos ++ Map("limits" -> limits.toJson)
+      else bodyWithParamsAnnos
+
     val path = Path(s"$basePath/namespaces/$namespace/$noun/$actName")
     val resp =
       if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(JsObject(bodyContent).toString))
@@ -450,19 +465,19 @@ class WskRestTrigger
       val published = shared.getOrElse(false)
       bodyContent = JsObject(
         bodyContent.fields + ("publish" -> published.toJson,
-        "parameters" -> params, "annotations" -> annos))
+        "parameters" -> params.toJson, "annotations" -> annos.toJson))
     } else {
       bodyContent = shared map { s =>
         JsObject(bodyContent.fields + ("publish" -> s.toJson))
       } getOrElse bodyContent
 
       val inputParams = convertMapIntoKeyValue(parameters)
-      if (inputParams.elements.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params))
+      if (inputParams.size > 0) {
+        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params.toJson))
       }
       val inputAnnos = convertMapIntoKeyValue(annotations)
-      if (inputAnnos.elements.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos))
+      if (inputAnnos.size > 0) {
+        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos.toJson))
       }
     }
 
@@ -486,10 +501,12 @@ class WskRestTrigger
       body = body ++ parameters
       val resp = requestEntity(POST, path, paramMap, Some(body.toJson.toString()))
       val resultInvoke = new RestResult(resp.status, getRespData(resp))
-      expectedExitCode shouldBe resultInvoke.statusCode.intValue
+      if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
+        expectedExitCode shouldBe resultInvoke.statusCode.intValue
       if (resultInvoke.statusCode != OK) {
         // Remove the trigger, because the feed failed to invoke.
         this.delete(triggerName)
+        new RestResult(NotFound)
       } else {
         result
       }
@@ -557,7 +574,7 @@ class WskRestRule
       "publish" -> published.toJson,
       "name" -> name.toJson,
       "status" -> "".toJson,
-      "annotations" -> annos)
+      "annotations" -> annos.toJson)
 
     val resp =
       if (update) requestEntity(PUT, path, Map("overwrite" -> "true"), Some(bodyContent.toString))
@@ -902,7 +919,7 @@ class WskRestPackage
       val published = shared.getOrElse(false)
       bodyContent = JsObject(
         bodyContent.fields + ("publish" -> published.toJson,
-        "parameters" -> params, "annotations" -> annos))
+        "parameters" -> params.toJson, "annotations" -> annos.toJson))
     } else {
       if (shared != None)
         bodyContent = shared map { s =>
@@ -910,12 +927,12 @@ class WskRestPackage
         } getOrElse bodyContent
 
       val inputParams = convertMapIntoKeyValue(parameters)
-      if (inputParams.elements.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params))
+      if (inputParams.size > 0) {
+        bodyContent = JsObject(bodyContent.fields + ("parameters" -> params.toJson))
       }
       val inputAnnos = convertMapIntoKeyValue(annotations)
-      if (inputAnnos.elements.size > 0) {
-        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos))
+      if (inputAnnos.size > 0) {
+        bodyContent = JsObject(bodyContent.fields + ("annotations" -> annos.toJson))
       }
     }
 
@@ -945,7 +962,8 @@ class WskRestPackage
     val (ns, packageName) = this.getNamespaceEntityName(provider)
     val path = getNamePath(noun, name)
     val binding = JsObject("namespace" -> ns.toJson, "name" -> packageName.toJson)
-    val bodyContent = JsObject("binding" -> binding.toJson, "parameters" -> params, "annotations" -> annos)
+    val bodyContent =
+      JsObject("binding" -> binding.toJson, "parameters" -> params.toJson, "annotations" -> annos.toJson)
     val resp = requestEntity(PUT, path, Map("overwrite" -> "false"), Some(bodyContent.toString))
     val r = new RestResult(resp.status, getRespData(resp))
     validateStatusCode(expectedExitCode, r.statusCode.intValue)
@@ -1279,7 +1297,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
                      parameterFile: Option[String] = None,
                      annotationFile: Option[String] = None,
                      feed: Option[String] = None,
-                     web: Option[String] = None): (JsArray, JsArray) = {
+                     web: Option[String] = None): (Array[JsValue], Array[JsValue]) = {
     val params = parameterFile map { pf =>
       convertStringIntoKeyValue(pf)
     } getOrElse convertMapIntoKeyValue(parameters)
@@ -1289,7 +1307,9 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     (params, annos)
   }
 
-  def convertStringIntoKeyValue(file: String, feed: Option[String] = None, web: Option[String] = None): JsArray = {
+  def convertStringIntoKeyValue(file: String,
+                                feed: Option[String] = None,
+                                web: Option[String] = None): Array[JsValue] = {
     val input = FileUtils.readFileToString(new File(file))
     val in = input.parseJson.convertTo[Map[String, JsValue]]
     convertMapIntoKeyValue(in, feed, web)
@@ -1297,28 +1317,39 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   def convertMapIntoKeyValue(params: Map[String, JsValue],
                              feed: Option[String] = None,
-                             web: Option[String] = None): JsArray = {
-    var paramsList = Vector[JsObject]()
-    params foreach { case (key, value) => paramsList :+= JsObject("key" -> key.toJson, "value" -> value.toJson) }
-    paramsList = feed map { f =>
-      paramsList :+ JsObject("key" -> "feed".toJson, "value" -> f.toJson)
-    } getOrElse paramsList
-    paramsList = web match {
-      case Some("true") =>
-        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> true.toJson) :+ JsObject(
-          "key" -> "raw-http".toJson,
-          "value" -> false.toJson) :+ JsObject("key" -> "final".toJson, "value" -> true.toJson)
-      case Some("false") =>
-        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> false.toJson) :+ JsObject(
-          "key" -> "raw-http".toJson,
-          "value" -> false.toJson) :+ JsObject("key" -> "final".toJson, "value" -> false.toJson)
-      case Some("raw") =>
-        paramsList :+ JsObject("key" -> "web-export".toJson, "value" -> true.toJson) :+ JsObject(
-          "key" -> "raw-http".toJson,
-          "value" -> true.toJson) :+ JsObject("key" -> "final".toJson, "value" -> true.toJson)
-      case _ => paramsList
+                             web: Option[String] = None,
+                             oldParams: List[JsObject] = List[JsObject]()): Array[JsValue] = {
+    val newParams =
+      params
+        .map { case (key, value) => JsObject("key" -> key.toJson, "value" -> value) } ++ feed.map(f =>
+        JsObject("key" -> "feed".toJson, "value" -> f.toJson))
+
+    val paramsList =
+      if (newParams.nonEmpty) newParams
+      else
+        oldParams
+    val webOpt = web.map {
+      case "true" | "yes" =>
+        Seq(
+          JsObject("key" -> "web-export".toJson, "value" -> true.toJson),
+          JsObject("key" -> "raw-http".toJson, "value" -> false.toJson),
+          JsObject("key" -> "final".toJson, "value" -> true.toJson))
+      case "false" | "no" =>
+        Seq(
+          JsObject("key" -> "web-export".toJson, "value" -> false.toJson),
+          JsObject("key" -> "raw-http".toJson, "value" -> false.toJson),
+          JsObject("key" -> "final".toJson, "value" -> false.toJson))
+      case "raw" =>
+        Seq(
+          JsObject("key" -> "web-export".toJson, "value" -> true.toJson),
+          JsObject("key" -> "raw-http".toJson, "value" -> true.toJson),
+          JsObject("key" -> "final".toJson, "value" -> true.toJson))
+      case _ =>
+        Seq()
     }
-    JsArray(paramsList)
+    (webOpt map { web =>
+      paramsList ++ web
+    } getOrElse paramsList).toArray
   }
 
   def entityName(name: String)(implicit wp: WskProps) = {
@@ -1328,19 +1359,25 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   }
 
   def fullEntityName(name: String)(implicit wp: WskProps) = {
-    val sep = "/"
-    if (name.startsWith(sep)) name
-    else s"/${wp.namespace}/$name"
+    name.split("/") match {
+      // Example: /namespace/package_name/entity_name
+      case Array(empty, namespace, packageName, entityName) if empty.isEmpty => s"/$namespace/$packageName/$entityName"
+      // Example: /namespace/entity_name
+      case Array(empty, namespace, entityName) if empty.isEmpty => s"/$namespace/$entityName"
+      // Example: namespace/package_name/entity_name
+      case Array(namespace, packageName, entityName) => s"/$namespace/$packageName/$entityName"
+      // Example: /namespace
+      case Array(empty, namespace) if empty.isEmpty => namespace
+      // Example: package_name/entity_name
+      case Array(packageName, entityName) if !packageName.isEmpty => s"/${wp.namespace}/$packageName/$entityName"
+      // Example: entity_name
+      case Array(entityName) => s"/${wp.namespace}/$name"
+      case _                 => s"/${wp.namespace}/$name"
+    }
   }
 
-  def convertIntoComponents(comps: String)(implicit wp: WskProps): JsArray = {
-    var paramsList = Vector[JsString]()
-    comps.split(",") foreach {
-      case (value) =>
-        val fullName = fullEntityName(value)
-        paramsList :+= JsString(fullName)
-    }
-    JsArray(paramsList)
+  def convertIntoComponents(comps: String)(implicit wp: WskProps): Array[JsValue] = {
+    comps.split(",").filter(_.nonEmpty).map(comp => fullEntityName(comp).toJson)
   }
 
   def getRespData(resp: HttpResponse): String = {
