@@ -32,6 +32,10 @@ import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 
+import whisk.core.ConfigKeys
+
+import pureconfig._
+
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
  * An instance of TransactionId is implicitly received by all logging methods. The actual
@@ -241,12 +245,15 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-  val tidStrides: Int
+  case class TransactionIdConfig(strides: Int)
+
+  val transConfig = loadConfigOrThrow[TransactionIdConfig](ConfigKeys.transactions)
+  val strides = transConfig.strides
   val instanceOrdinal: Int
 
-  private lazy val cnt = new AtomicInteger(tidStrides + instanceOrdinal)
+  private lazy val cnt = new AtomicInteger(strides + instanceOrdinal)
 
   def transid(): TransactionId = {
-    TransactionId(cnt.addAndGet(tidStrides))
+    TransactionId(cnt.addAndGet(strides))
   }
 }

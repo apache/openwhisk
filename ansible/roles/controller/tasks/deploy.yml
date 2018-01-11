@@ -43,7 +43,6 @@
       "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
       "CONTROLLER_OPTS": "{{ controller.arguments }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
-      "CONFIG_whisk_controller_tidStrides": "{{ controller.tidStrides | default() }}"
 
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "PORT": 8080
@@ -105,6 +104,8 @@
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
+
+      "CONFIG_whisk_transactions_strides": "{{ transactions.strides | default() }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

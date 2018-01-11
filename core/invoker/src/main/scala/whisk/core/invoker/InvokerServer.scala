@@ -25,5 +25,4 @@ import whisk.http.BasicRasService
  */
 class InvokerServer() extends BasicRasService {
   override val instanceOrdinal = 1
-  override val tidStrides = 1
 }

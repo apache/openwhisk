@@ -51,9 +51,6 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
-import whisk.core.ConfigKeys
-
-import pureconfig._
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -86,12 +83,6 @@ class Controller(val instance: InstanceId,
                  implicit val logging: Logging)
     extends BasicRasService {
 
-  case class ControllerConfig(tidStrides: Option[Int])
-
-  val numberOfInstances = whiskConfig.controllerInstances.toInt
-  val controllerConfig = loadConfigOrThrow[ControllerConfig](ConfigKeys.controller)
-
-  override val tidStrides = controllerConfig.tidStrides.getOrElse(numberOfInstances)
   override val instanceOrdinal = instance.toInt
 
   TransactionId.controller.mark(
