@@ -18,21 +18,19 @@
 package whisk.core.controller.test
 
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
 import whisk.core.controller.WhiskRulesApi
+import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.test.OldWhiskTrigger
 import whisk.http.ErrorResponse
+
 import scala.language.postfixOps
 import whisk.core.entity.test.OldWhiskRule
 import whisk.http.Messages
@@ -96,6 +94,17 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val auser = WhiskAuthHelpers.newIdentity()
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(auser)) ~> check {
       status should be(Forbidden)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.RULES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 

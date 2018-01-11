@@ -17,28 +17,23 @@
 
 package whisk.core.controller
 
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.StandardRoute
-
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import spray.json.DeserializationException
-
 import whisk.common.TransactionId
-import whisk.core.database.DocumentConflictException
-import whisk.core.database.CacheChangeNotification
-import whisk.core.database.NoDocumentException
+import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.database.{CacheChangeNotification, DocumentConflictException, NoDocumentException}
+import whisk.core.entitlement.{Collection, Privilege, ReferencedEntities}
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages._
-import whisk.core.entitlement.Collection
-import whisk.core.entitlement.Privilege
-import whisk.core.entitlement.ReferencedEntities
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 /** A trait implementing the rules API */
 trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
@@ -240,18 +235,15 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet; see comment in
-    // Actions API for more.
-    val docs = false
-    parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) { (skip, limit, count) =>
-      listEntities {
-        WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
-          val rules = list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
-          FilterEntityList.filter(rules, excludePrivate)
+    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
+      (skip, limit, count) =>
+        val includeDocs = WhiskEntityQueries.designDoc.endsWith("v2.1.0")
+        listEntities {
+          WhiskRule.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs) map { list =>
+            val rules = list.fold((js) => js, (rls) => rls.map(WhiskRule.serdes.write(_)))
+            FilterEntityList.filter(rules, excludePrivate)
+          }
         }
-      }
     }
   }
 
@@ -410,6 +402,9 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     implicit val statusSerdes = Status.serdesRestricted
     entity(as[Status])
   }
+
+  /** Custom unmarshaller for query parameters "limit" for "list" operations. */
+  private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
 }
 
 private case class IgnoredRuleActivation(noop: Boolean) extends Throwable

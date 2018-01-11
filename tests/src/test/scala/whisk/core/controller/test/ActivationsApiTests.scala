@@ -17,24 +17,22 @@
 
 package whisk.core.controller.test
 
-import java.time.Clock
-import java.time.Instant
-
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import java.time.{Clock, Instant}
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import spray.json._
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.core.controller.WhiskActivationsApi
 import whisk.core.database.ArtifactStoreProvider
+import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.http.ErrorResponse
-import whisk.http.Messages
+import whisk.http.{ErrorResponse, Messages}
 import whisk.spi.SpiLoader
 
 /**
@@ -338,7 +336,12 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }.toList
     activationsInPackage foreach { put(activationStore, _) }
 
-    waitOnView(activationStore, namespace.root, 4, WhiskActivation.view)
+    waitOnView(activationStore, namespace.addPath(EntityName("xyz")), activations.length, WhiskActivation.filtersView)
+    waitOnView(
+      activationStore,
+      namespace.addPath(EntityName("pkg")).addPath(EntityName("xyz")),
+      activationsInPackage.length,
+      WhiskActivation.filtersView)
 
     whisk.utils.retry {
       Get(s"$collectionPath?name=xyz") ~> Route.seal(routes(creds)) ~> check {
@@ -376,11 +379,11 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "reject activation list when limit is greater than maximum allowed value" in {
     implicit val tid = transid()
-    val exceededMaxLimit = WhiskActivationsApi.maxActivationLimit + 1
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
-      responseAs[ErrorResponse].error shouldBe {
-        Messages.maxActivationLimitExceeded(exceededMaxLimit, WhiskActivationsApi.maxActivationLimit)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.ACTIVATIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }

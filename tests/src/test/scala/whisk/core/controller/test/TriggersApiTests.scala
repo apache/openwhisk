@@ -34,6 +34,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import whisk.core.controller.WhiskTriggersApi
+import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.size._
@@ -96,6 +97,17 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val auser = WhiskAuthHelpers.newIdentity()
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(auser)) ~> check {
       status should be(Forbidden)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.TRIGGERS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 

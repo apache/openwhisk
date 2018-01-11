@@ -18,20 +18,18 @@
 package whisk.core.controller
 
 import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
+import scala.util.{Failure, Success}
 
-import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.server.RequestContext
-import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.{RequestContext, RouteResult}
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 
 import spray.json._
 
 import whisk.common.TransactionId
-import whisk.core.database.DocumentTypeMismatchException
-import whisk.core.database.CacheChangeNotification
-import whisk.core.database.NoDocumentException
+import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}
 import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.types.EntityStore
@@ -176,29 +174,25 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet; see comment in
-    // Actions API for more.
-    val docs = false
+    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
+      (skip, limit, count) =>
+        listEntities {
+          WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+            list =>
+              // any subject is entitled to list packages in any namespace
+              // however, they shall only observe public packages if the packages
+              // are not in one of the namespaces the subject is entitled to
+              val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
 
-    parameter('skip ? 0, 'limit ? collection.listLimit, 'count ? false) { (skip, limit, count) =>
-      listEntities {
-        WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit, docs) map { list =>
-          // any subject is entitled to list packages in any namespace
-          // however, they shall only observe public packages if the packages
-          // are not in one of the namespaces the subject is entitled to
-          val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
-
-          FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
-            // additionally exclude bindings
-            _.fields.get(WhiskPackage.bindingFieldName) match {
-              case Some(JsBoolean(isbinding)) => !isbinding
-              case _                          => false // exclude anything that does not conform
-            }
-          })
+              FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
+                // additionally exclude bindings
+                _.fields.get(WhiskPackage.bindingFieldName) match {
+                  case Some(JsBoolean(isbinding)) => !isbinding
+                  case _                          => false // exclude anything that does not conform
+                }
+              })
+          }
         }
-      }
     }
   }
 
@@ -338,4 +332,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       }
     }
   }
+
+  /** Custom unmarshaller for query parameters "limit" for "list" operations. */
+  private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
 }

@@ -136,10 +136,7 @@ ansible-playbook -i environments/<environment> prereq.yml
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
 ### Deploying Using CouchDB
-- Make sure your `db_local.ini` file is set up for CouchDB. See [Setup](#setup)
-- If you deploy CouchDB manually (i.e., without using the deploy CouchDB playbook), you must set the `reduce_limit` property on views to `false`.
-This may be done via the REST API, as in: `curl -X PUT ${OW_DB_PROTOCOL}://${OW_DB_HOST}:${OW_DB_PORT}/_config/query_server_config/reduce_limit -d '"false"' -u ${OW_DB_USERNAME}:${OW_DB_PASSWORD}`.
-- Then execute
+- Make sure your `db_local.ini` file is [setup for](#setup) CouchDB then execute:
 
 ```
 cd <openwhisk_home>

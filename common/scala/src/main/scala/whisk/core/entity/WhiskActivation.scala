@@ -25,7 +25,7 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
-import whisk.core.PureConfigKeys
+import whisk.core.ConfigKeys
 import whisk.core.database.ArtifactStore
 import whisk.core.database.DocumentFactory
 import whisk.core.database.StaleParameter
@@ -77,7 +77,10 @@ case class WhiskActivation(namespace: EntityPath,
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
-  /** This the activation summary as computed by the database view. Strictly used for testing. */
+  /**
+   * This the activation summary as computed by the database view.
+   * Strictly used in view testing to enforce alignment.
+   */
   override def summaryAsJson = {
     import WhiskActivation.instantSerdes
 
@@ -91,7 +94,7 @@ case class WhiskActivation(namespace: EntityPath,
     }
 
     JsObject(
-      super.summaryAsJson.fields +
+      super.summaryAsJson.fields - "updated" +
         ("activationId" -> activationId.toJson) +
         ("start" -> start.toJson) ++
         cause.map(("cause" -> _.toJson)) ++
@@ -133,7 +136,7 @@ object WhiskActivation
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
 
-  private implicit val instantSerdes = new RootJsonFormat[Instant] {
+  protected[entity] implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
     def read(value: JsValue) =
@@ -148,7 +151,7 @@ object WhiskActivation
 
   override val collectionName = "activations"
 
-  private val dbConfig = loadConfigOrThrow[DBConfig](PureConfigKeys.whiskDB)
+  private val dbConfig = loadConfigOrThrow[DBConfig](ConfigKeys.db)
   private val mainDdoc = dbConfig.activationsDdoc
   private val filtersDdoc = dbConfig.activationsFilterDdoc
 
@@ -159,7 +162,7 @@ object WhiskActivation
    * A view for activations in a namespace additionally keyed by action name
    * (and package name if present) sorted by date.
    */
-  private val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
+  val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
 
   override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 

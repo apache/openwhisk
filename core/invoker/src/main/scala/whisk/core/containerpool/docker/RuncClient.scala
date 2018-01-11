@@ -27,6 +27,7 @@ import whisk.common.TransactionId
 import scala.util.Success
 import whisk.common.LoggingMarkers
 import whisk.common.Logging
+import whisk.core.ConfigKeys
 import akka.event.Logging.ErrorLevel
 import pureconfig.loadConfigOrThrow
 import whisk.core.containerpool.ContainerId
@@ -46,7 +47,7 @@ case class RuncClientTimeouts(pause: Duration, resume: Duration)
  *
  * You only need one instance (and you shouldn't get more).
  */
-class RuncClient(timeouts: RuncClientTimeouts = loadConfigOrThrow[RuncClientTimeouts]("whisk.runc.timeouts"))(
+class RuncClient(timeouts: RuncClientTimeouts = loadConfigOrThrow[RuncClientTimeouts](ConfigKeys.runcTimeouts))(
   executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
     extends RuncApi
     with ProcessRunner {
