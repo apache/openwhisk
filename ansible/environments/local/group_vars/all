@@ -33,3 +33,5 @@ kafka_topics_health_retentionBytes: 104857600
 kafka_topics_health_retentionMS: 300000
 kafka_topics_invoker_retentionBytes: 104857600
 kafka_topics_invoker_retentionMS: 300000
+
+env_hosts_dir: "{{ playbook_dir }}/environments/local"

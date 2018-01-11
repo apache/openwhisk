@@ -52,18 +52,18 @@
 # - local_action: add_host ansible_ssh_host={{ item.server.private_v4 }} groupname={{name}}
 #   with_items: instance_info.results
 
-- shell: "grep -e {{name}} {{inventory_dir}}/hosts"
+- shell: "grep -e {{name}} {{hosts_dir}}/hosts"
   ignore_errors: True
   register: hosts_file
 
 # TODO, should render the hosts file from a template by using the add_host module commented below with a template
-- shell: "echo [{{name}}] >> {{inventory_dir}}/hosts"
+- shell: "echo [{{name}}] >> {{hosts_dir}}/hosts"
   when: "{{hosts_file.rc}} != 0"
 
-- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}} block_device={{item.server.volumes[0].device }}" dest="{{inventory_dir}}/hosts"
+- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}} block_device={{item.server.volumes[0].device }}" dest="{{hosts_dir}}/hosts"
   with_items: instance_info.results
   when: (volume_env and volume_env != "") or (volume_dict and volume_dict.size)
 
-- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}}" dest="{{inventory_dir}}/hosts"
+- lineinfile: insertafter="^{{name}}" line="{{item.server.networks.itervalues().next()[0]}}" dest="{{hosts_dir}}/hosts"
   with_items: instance_info.results
   when: (not volume_env or volume_env == "" ) and (not volume_dict or not volume_dict.size)

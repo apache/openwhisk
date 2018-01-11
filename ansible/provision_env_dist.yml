@@ -6,7 +6,7 @@
     - name: add header to hosts file
       copy:
         content: "; the first parameter in a host is the inventory_hostname\n\nansible ansible_connection=local\n"
-        dest: "{{inventory_dir}}/hosts"
+        dest: "{{hosts_dir}}/hosts"
 
     - name: Create instances
       include: boot_instances_dist.yml instance={{item}}
