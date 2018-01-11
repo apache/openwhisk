@@ -245,10 +245,10 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-  case class TransactionIdConfig(strides: Int)
+  case class TransactionCounterConfig(strides: Int)
 
-  val transConfig = loadConfigOrThrow[TransactionIdConfig](ConfigKeys.transactions)
-  val strides = transConfig.strides
+  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
+  val strides = transCounterConfig.strides
   val instanceOrdinal: Int
 
   private lazy val cnt = new AtomicInteger(strides + instanceOrdinal)
