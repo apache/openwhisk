@@ -21,16 +21,16 @@ import akka.actor.ActorSystem
 import akka.actor.Cancellable
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import common.StreamLogging
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import whisk.core.loadBalancer.{ActivationEntry, DistributedLoadBalancerData, LocalLoadBalancerData}
-
 import scala.concurrent.{Await, Future, Promise}
 import whisk.core.entity.InstanceId
-
 import scala.concurrent.duration._
 
-class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
+class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging with Eventually {
   final val emptyCancellable: Cancellable = new Cancellable {
     def isCancelled = false
     def cancel() = true
@@ -53,10 +53,46 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
   val actorSystemName = "controller-actor-system"
 
   implicit val actorSystem = ActorSystem(actorSystemName, config)
+  implicit override val patienceConfig = PatienceConfig(timeout = 500.milliseconds)
 
   def await[A](f: Future[A], timeout: FiniteDuration = 1.second) = Await.result(f, timeout)
 
   behavior of "LoadBalancerData"
+
+  it should "quickly execute many activations" in {
+    implicit val executionContext = actorSystem.dispatcher
+    val distributedLoadBalancerData = new DistributedLoadBalancerData()
+    val localLoadBalancerData = new LocalLoadBalancerData()
+    val loadBalancerDataArray = Array(localLoadBalancerData, distributedLoadBalancerData)
+    val activationCount = 100000
+    loadBalancerDataArray.foreach { lbd =>
+      val start = System.currentTimeMillis()
+      (1 to activationCount).foreach(_ => {
+        Future {
+          //get the totalActivationCount
+          lbd.totalActivationCount
+          //get the activation count per invoker
+          val counts = lbd.activationCountPerInvoker
+          //get the activation count for this ns
+          val nscounts = lbd.activationCountOn(firstEntry.namespaceId)
+
+          //add the activation entry
+          val id = ActivationId()
+          lbd.putActivation(id, firstEntry)
+
+          //remove the activation entry
+          lbd.removeActivation(id)
+        }
+      })
+      eventually(Timeout(2.seconds)) {
+        lbd.totalActivationCount shouldBe activationCount
+        lbd.activationCountOn(firstEntry.namespaceId) shouldBe activationCount
+        lbd.activationCountPerInvoker shouldBe Map(firstEntry.invokerName.toString -> activationCount)
+      }
+      println(s"completed for ${lbd.getClass} in ${System.currentTimeMillis() - start} ms")
+
+    }
+  }
 
   it should "return the number of activations for a namespace" in {
     val distributedLoadBalancerData = new DistributedLoadBalancerData()

@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.util.Timeout
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import whisk.common.Logging
 import whisk.core.entity.ActivationId
@@ -45,14 +46,20 @@ class DistributedLoadBalancerData(monitor: Option[ActorRef] = None)(implicit act
       case Updated(storageName, entries) =>
         monitor.foreach(_ ! Updated(storageName, entries))
         storageName match {
-          case "Invokers" => //sharedDataInvokers = entries
+          case "Invokers" =>
             //reset the state with updates:
-            activationByInvoker.clear()
-            entries.foreach(i => activationByInvoker.put(i._1, new AtomicInteger(i._2)))
+            val builder = TrieMap.newBuilder[String, AtomicInteger]
+            entries.map(e => {
+              builder += ((e._1, new AtomicInteger(e._2)))
+            })
+            activationByInvoker = builder.result()
           case "Namespaces" => //sharedDataNamespaces = entries
             //reset the state with updates:
-            activationByNamespaceId.clear()
-            entries.foreach(i => activationByNamespaceId.put(UUID(i._1), new AtomicInteger(i._2)))
+            val builder = TrieMap.newBuilder[UUID, AtomicInteger]
+            entries.map(e => {
+              builder += ((UUID(e._1), new AtomicInteger(e._2)))
+            })
+            activationByNamespaceId = builder.result()
         }
     }
   }))
