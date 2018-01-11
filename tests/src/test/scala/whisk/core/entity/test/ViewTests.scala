@@ -83,12 +83,13 @@ class ViewTests
 
   behavior of "Datastore View"
 
-  def getAllInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath)(
+  def getEntitiesInNamespace[Au <: WhiskEntity](entityStore: ArtifactStore[Au], ns: EntityPath)(
     implicit entities: Seq[WhiskEntity]) = {
     implicit val tid = transid()
-    val result =
-      Await.result(listAllInNamespace(store, ns.root, false, StaleParameter.No), dbOpTimeout).values.toList.flatten
-    val expected = entities filter { _.namespace.root.toPath == ns }
+    val map = Await.result(listAllInNamespace(entityStore, ns.root, false, StaleParameter.No), dbOpTimeout)
+    val result = map.values.toList.flatten
+    val expected = entities filter (_.namespace.root.toPath == ns)
+    map.get(WhiskActivation.collectionName) should be(None)
     result should have length expected.length
     result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
@@ -103,18 +104,6 @@ class ViewTests
         .get
         .map(e => e)
     val expected = entities filter { _.namespace.root.toPath == ns }
-    result should have length expected.length
-    result should contain theSameElementsAs expected.map(_.summaryAsJson)
-  }
-
-  def getEntitiesInNamespace(ns: EntityPath)(implicit entities: Seq[WhiskEntity]) = {
-    implicit val tid = transid()
-    val map = Await.result(listAllInNamespace(entityStore, ns.root, false), dbOpTimeout)
-    val result = map.values.toList flatMap { t =>
-      t
-    }
-    val expected = entities filter { !_.isInstanceOf[WhiskActivation] } filter { _.namespace.root.toPath == ns }
-    map.get(WhiskActivation.collectionName) should be(None)
     result should have length expected.length
     result should contain theSameElementsAs expected.map(_.summaryAsJson)
   }
@@ -283,7 +272,7 @@ class ViewTests
     waitOnView(entityStore, namespace1.root, 15, WhiskEntityQueries.viewAll)
     waitOnView(entityStore, namespace2.root, 14, WhiskEntityQueries.viewAll)
 
-    getAllInNamespace(entityStore, namespace1)
+    getEntitiesInNamespace(entityStore, namespace1)
     getKindInNamespace(entityStore, namespace1, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false
@@ -292,7 +281,7 @@ class ViewTests
       case (e: WhiskTrigger) => true
       case (_)               => false
     })
-    getKindInNamespace(entityStore, namespace1, "rules", {
+    getKindInNamespaceWithDoc[WhiskRule](namespace1, "rules", {
       case (e: WhiskRule) => true
       case (_)            => false
     })
@@ -308,9 +297,8 @@ class ViewTests
       case (e: WhiskAction) => (e.name == actionName)
       case (_)              => false
     })
-    getEntitiesInNamespace(namespace1)
 
-    getAllInNamespace(entityStore, namespace2)
+    getEntitiesInNamespace(entityStore, namespace2)
     getKindInNamespace(entityStore, namespace2, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false
@@ -319,7 +307,7 @@ class ViewTests
       case (e: WhiskTrigger) => true
       case (_)               => false
     })
-    getKindInNamespace(entityStore, namespace2, "rules", {
+    getKindInNamespaceWithDoc[WhiskRule](namespace2, "rules", {
       case (e: WhiskRule) => true
       case (_)            => false
     })
@@ -331,7 +319,6 @@ class ViewTests
       case (e: WhiskAction) => true
       case (_)              => false
     })
-    getEntitiesInNamespace(namespace2)
   }
 
   it should "query whisk view by namespace, collection and entity name in whisk activations db" in {

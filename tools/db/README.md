@@ -8,7 +8,6 @@ If you are using your own installation of CouchDB, make a note of the host, port
 
    * the username must have administrative rights
    * the CouchDB instance must be accessible over `http` or `https` (the latter requires a valid certificate)
-   * the CouchDB instance must set `reduce_limit` on views to `false` (see [this](../../ansible/README.md#persistent-couchdb) for how to do this via REST)
 
 ### Using an ephemeral CouchDB container
 
