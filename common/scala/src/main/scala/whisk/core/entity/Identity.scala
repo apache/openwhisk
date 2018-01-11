@@ -27,6 +27,7 @@ import whisk.common.TransactionId
 import whisk.core.database.MultipleReadersSingleWriterCache
 import whisk.core.database.NoDocumentException
 import whisk.core.database.StaleParameter
+import whisk.core.database.WriteTime
 import whisk.core.entitlement.Privilege
 
 case class UserLimits(invocationsPerMinute: Option[Int] = None,
@@ -50,6 +51,8 @@ object Identity extends MultipleReadersSingleWriterCache[Identity, DocInfo] with
   private val viewName = "subjects/identities"
 
   override val cacheEnabled = true
+  override val evictionPolicy = WriteTime
+
   implicit val serdes = jsonFormat5(Identity.apply)
 
   /**

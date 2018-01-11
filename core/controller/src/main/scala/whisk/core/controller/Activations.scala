@@ -19,30 +19,27 @@ package whisk.core.controller
 
 import java.time.Instant
 
+import scala.concurrent.Future
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
-import scala.concurrent.Future
 import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
-import spray.json.DeserializationException
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.LogStore
+import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.database.StaleParameter
-import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entitlement.Privilege.READ
+import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
 
 object WhiskActivationsApi {
-  protected[core] val maxActivationLimit = 200
 
   /** Custom unmarshaller for query parameters "name" into valid package/action name path. */
   private implicit val stringToRestrictedEntityPath: Unmarshaller[String, Option[EntityPath]] =
@@ -62,6 +59,11 @@ object WhiskActivationsApi {
         case Failure(t) => throw new IllegalArgumentException(Messages.badEpoch(value))
       }
     }
+
+  /** Custom unmarshaller for query parameters "limit" for "list" operations. */
+  private implicit val stringToListLimit: Unmarshaller[String, ListLimit] =
+    RestApiCommons.stringToListLimit(Collection(Collection.ACTIVATIONS))
+
 }
 
 /** A trait implementing the activations API. */
@@ -139,19 +141,19 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
   private def list(namespace: EntityPath)(implicit transid: TransactionId) = {
     import WhiskActivationsApi.stringToRestrictedEntityPath
     import WhiskActivationsApi.stringToInstantDeserializer
+    import WhiskActivationsApi.stringToListLimit
 
     parameter(
       'skip ? 0,
-      'limit ? collection.listLimit,
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
       'count ? false,
       'docs ? false,
       'name.as[Option[EntityPath]] ?,
       'since.as[Instant] ?,
       'upto.as[Instant] ?) { (skip, limit, count, docs, name, since, upto) =>
-      val cappedLimit = if (limit == 0) WhiskActivationsApi.maxActivationLimit else limit
-
+      val invalidDocs = count && docs
       // regardless of limit, cap at maxActivationLimit (200) records, client must paginate
-      if (cappedLimit <= WhiskActivationsApi.maxActivationLimit) {
+      if (!invalidDocs) {
         val activations = name.flatten match {
           case Some(action) =>
             WhiskActivation.listActivationsMatchingName(
@@ -159,7 +161,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
               namespace,
               action,
               skip,
-              cappedLimit,
+              limit.n,
               docs,
               since,
               upto,
@@ -169,18 +171,15 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
               activationStore,
               namespace,
               skip,
-              cappedLimit,
+              limit.n,
               docs,
               since,
               upto,
               StaleParameter.UpdateAfter)
         }
-
-        listEntities {
-          activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
-        }
+        listEntities(activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson))))
       } else {
-        terminate(BadRequest, Messages.maxActivationLimitExceeded(limit, WhiskActivationsApi.maxActivationLimit))
+        terminate(BadRequest, Messages.docsNotAllowedWithCount)
       }
     }
   }

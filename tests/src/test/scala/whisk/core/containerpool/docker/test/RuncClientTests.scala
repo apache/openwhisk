@@ -17,8 +17,9 @@
 
 package whisk.core.containerpool.docker.test
 
-import scala.concurrent.Future
+import akka.actor.ActorSystem
 
+import scala.concurrent.Future
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
@@ -29,7 +30,7 @@ import scala.concurrent.duration._
 import scala.concurrent.Await
 import org.scalatest.Matchers
 import whisk.core.containerpool.docker.RuncClient
-import common.StreamLogging
+import common.{StreamLogging, WskActorSystem}
 import whisk.core.containerpool.ContainerId
 import whisk.common.TransactionId
 import org.scalatest.BeforeAndAfterEach
@@ -37,7 +38,7 @@ import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_RUNC_CMD
 
 @RunWith(classOf[JUnitRunner])
-class RuncClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach {
+class RuncClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach with WskActorSystem {
 
   override def beforeEach = stream.reset()
 
@@ -49,9 +50,10 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
   val runcCommand = "docker-runc"
 
   /** Returns a RuncClient with a mocked result for 'executeProcess' */
-  def runcClient(result: Future[String]) = new RuncClient(global) {
+  def runcClient(result: Future[String]) = new RuncClient()(global) {
     override val runcCmd = Seq(runcCommand)
-    override def executeProcess(args: String*)(implicit ec: ExecutionContext) = result
+    override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext, as: ActorSystem) =
+      result
   }
 
   /** Calls a runc method based on the name of the method. */

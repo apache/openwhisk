@@ -236,3 +236,18 @@ object WhiskConfig {
   val controllerLocalBookkeeping = "controller.localBookkeeping"
   val controllerHighAvailability = "controller.ha"
 }
+
+object ConfigKeys {
+  val loadbalancer = "whisk.loadbalancer"
+
+  val kafka = "whisk.kafka"
+  val kafkaTopics = s"$kafka.topics"
+
+  val db = "whisk.db"
+
+  val docker = "whisk.docker"
+  val dockerTimeouts = s"$docker.timeouts"
+  val runc = "whisk.runc"
+  val runcTimeouts = s"$runc.timeouts"
+  val tracing = "whisk.tracing"
+}

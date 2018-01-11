@@ -20,6 +20,7 @@ dependencies {
 
     compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
     compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
+    compile 'com.lightbend.akka:akka-stream-alpakka-file_2.11:0.15'
 
     compile group:'io.opentracing', name:'opentracing-api', version: '0.30.0'
     compile group:'io.opentracing', name:'opentracing-util', version: '0.30.0'

@@ -17,7 +17,6 @@
 
 package whisk.common.tracing
 
-import com.typesafe.config.ConfigFactory
 import io.opentracing.{ActiveSpan, SpanContext}
 import io.opentracing.util.GlobalTracer
 import whisk.common.TransactionId
@@ -31,6 +30,8 @@ import brave.opentracing.BraveTracer
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import pureconfig._
+import whisk.core.ConfigKeys
 
 /**
   * OpenTracing based implementation for tracing
@@ -157,15 +158,17 @@ object OpenTracingProvider{
   }
 
   def configureTracer(componentName: String): Unit = {
-    enabled = ConfigFactory.load().getBoolean("tracing_enabled")
-    if(enabled) {
-      val tracer = ConfigFactory.load().getString("tracer")
+    val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
 
-      //configure opentracing with zipkin
+    enabled = tracingConfig.enabled
+    if(enabled) {
+      val tracer = tracingConfig.tracer
+
       if (tracer.equalsIgnoreCase("zipkin")) {
+        //configure opentracing with zipkin
         val sender: Sender = OkHttpSender.create("http://" +
-          ConfigFactory.load().getString("zipkin.reporter_host") + ":" +
-          ConfigFactory.load().getString("zipkin.reporter_port") + "/api/v1/spans")
+          tracingConfig.zipkin.get("host").getOrElse("localhost") + ":" +
+          tracingConfig.zipkin.get("port").getOrElse(9411) + "/api/v1/spans")
 
         val reporter: Reporter[zipkin.Span] = AsyncReporter.builder(sender).build()
         GlobalTracer.register(BraveTracer.create(Tracing.newBuilder()
@@ -175,4 +178,6 @@ object OpenTracingProvider{
       }
     }
   }
+
+  case class TracingConfig(enabled: Boolean, tracer: String, zipkin: Map[String, String])
 }

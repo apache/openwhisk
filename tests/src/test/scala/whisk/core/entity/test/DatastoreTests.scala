@@ -23,7 +23,7 @@ import scala.Vector
 import scala.concurrent.Await
 
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
@@ -41,7 +41,7 @@ import whisk.core.entity._
 @RunWith(classOf[JUnitRunner])
 class DatastoreTests
     extends FlatSpec
-    with BeforeAndAfter
+    with BeforeAndAfterEach
     with BeforeAndAfterAll
     with WskActorSystem
     with DbUtils
@@ -56,7 +56,11 @@ class DatastoreTests
 
   implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
 
-  override def afterAll() {
+  override def afterEach() = {
+    cleanup()
+  }
+
+  override def afterAll() = {
     println("Shutting down store connections")
     datastore.shutdown()
     authstore.shutdown()
@@ -70,10 +74,6 @@ class DatastoreTests
   }
 
   def afullname(implicit namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
-
-  after {
-    cleanup()
-  }
 
   behavior of "Datastore"
 

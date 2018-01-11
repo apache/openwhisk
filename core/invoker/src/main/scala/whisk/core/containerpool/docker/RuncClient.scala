@@ -17,15 +17,27 @@
 
 package whisk.core.containerpool.docker
 
+import akka.actor.ActorSystem
+
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.util.Failure
 import whisk.common.TransactionId
+
 import scala.util.Success
 import whisk.common.LoggingMarkers
 import whisk.common.Logging
+import whisk.core.ConfigKeys
 import akka.event.Logging.ErrorLevel
+import pureconfig.loadConfigOrThrow
 import whisk.core.containerpool.ContainerId
+
+import scala.concurrent.duration.Duration
+
+/**
+ * Configuration for runc client command timeouts.
+ */
+case class RuncClientTimeouts(pause: Duration, resume: Duration)
 
 /**
  * Serves as interface to the docker CLI tool.
@@ -35,22 +47,29 @@ import whisk.core.containerpool.ContainerId
  *
  * You only need one instance (and you shouldn't get more).
  */
-class RuncClient(executionContext: ExecutionContext)(implicit log: Logging) extends RuncApi with ProcessRunner {
+class RuncClient(timeouts: RuncClientTimeouts = loadConfigOrThrow[RuncClientTimeouts](ConfigKeys.runcTimeouts))(
+  executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
+    extends RuncApi
+    with ProcessRunner {
   implicit private val ec = executionContext
 
   // Determines how to run docker. Failure to find a Docker binary implies
   // a failure to initialize this instance of DockerClient.
   protected val runcCmd: Seq[String] = Seq("/usr/bin/docker-runc")
 
-  def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] = runCmd("pause", id.asString).map(_ => ())
+  def pause(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
+    runCmd(Seq("pause", id.asString), timeouts.pause).map(_ => ())
 
   def resume(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd("resume", id.asString).map(_ => ())
+    runCmd(Seq("resume", id.asString), timeouts.resume).map(_ => ())
 
-  private def runCmd(args: String*)(implicit transid: TransactionId): Future[String] = {
+  private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
     val cmd = runcCmd ++ args
-    val start = transid.started(this, LoggingMarkers.INVOKER_RUNC_CMD(args.head), s"running ${cmd.mkString(" ")}")
-    executeProcess(cmd: _*).andThen {
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_RUNC_CMD(args.head),
+      s"running ${cmd.mkString(" ")} (timeout: $timeout)")
+    executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start)
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
     }

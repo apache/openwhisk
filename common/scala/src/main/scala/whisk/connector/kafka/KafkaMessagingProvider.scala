@@ -30,6 +30,7 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.common.errors.TopicExistsException
 
 import whisk.common.Logging
+import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
@@ -60,8 +61,8 @@ object KafkaMessagingProvider extends MessagingProvider {
     new KafkaProducerConnector(config.kafkaHosts, ec)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
-    val kc = loadConfigOrThrow[KafkaConfig]("whisk.kafka")
-    val tc = loadConfigOrThrow[TopicConfig](s"whisk.kafka.topics.$topicConfig")
+    val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
+    val tc = loadConfigOrThrow[TopicConfig](ConfigKeys.kafkaTopics + s".$topicConfig")
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)

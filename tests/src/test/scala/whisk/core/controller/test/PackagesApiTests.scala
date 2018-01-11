@@ -18,19 +18,16 @@
 package whisk.core.controller.test
 
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
 import whisk.core.entity._
 import whisk.core.controller.WhiskPackagesApi
+import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -133,6 +130,17 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       expected forall { p =>
         (response contains p.summaryAsJson)
       } should be(true)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.PACKAGES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 
@@ -369,30 +377,45 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
-  it should "reject create package when package name is a reserved name" in {
+  it should "reject create/update package when package name is reserved" in {
     implicit val tid = transid()
-    RESERVED_NAMES foreach { reservedName =>
-      val provider = WhiskPackage(namespace, EntityName(s"$reservedName"), None)
-      val content = WhiskPackagePut()
-      Put(s"$collectionPath/${provider.name}", content) ~> Route.seal(routes(creds)) ~> check {
-        status should be(BadRequest)
-        val response = responseAs[String]
-        response should include {
-          Messages.packageNameIsReserved(reservedName)
+    Set(true, false) foreach { overwrite =>
+      RESERVED_NAMES foreach { reservedName =>
+        val provider = WhiskPackage(namespace, EntityName(reservedName), None)
+        val content = WhiskPackagePut()
+        Put(s"$collectionPath/${provider.name}?overwrite=$overwrite", content) ~> Route.seal(routes(creds)) ~> check {
+          status should be(BadRequest)
+          responseAs[ErrorResponse].error shouldBe Messages.packageNameIsReserved(reservedName)
         }
       }
     }
   }
 
-  it should "allow package update even when package name a reserved name" in {
+  it should "not allow package update of pre-existing package with a reserved" in {
     implicit val tid = transid()
     RESERVED_NAMES foreach { reservedName =>
-      val provider = WhiskPackage(namespace, EntityName(s"$reservedName"), None)
+      val provider = WhiskPackage(namespace, EntityName(reservedName), None)
+      put(entityStore, provider)
       val content = WhiskPackagePut()
       Put(s"$collectionPath/${provider.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+        responseAs[ErrorResponse].error shouldBe Messages.packageNameIsReserved(reservedName)
+      }
+    }
+  }
+
+  it should "allow package get/delete for pre-existing package with a reserved name" in {
+    implicit val tid = transid()
+    RESERVED_NAMES foreach { reservedName =>
+      val provider = WhiskPackage(namespace, EntityName(reservedName), None)
+      put(entityStore, provider, garbageCollect = false)
+      val content = WhiskPackagePut()
+      Get(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
-        val response = responseAs[WhiskPackage]
-        response should be(provider)
+        responseAs[WhiskPackage] shouldBe provider
+      }
+      Delete(s"$collectionPath/${provider.name}") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
       }
     }
   }

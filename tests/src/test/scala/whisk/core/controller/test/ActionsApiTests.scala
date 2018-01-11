@@ -36,6 +36,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -65,6 +66,14 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   val parametersLimit = Parameters.sizeLimit
 
   //// GET /actions
+  it should "return empty list when no actions exist" in {
+    implicit val tid = transid()
+    Get(collectionPath) ~> Route.seal(routes(creds)) ~> check {
+      status should be(OK)
+      responseAs[List[JsObject]] shouldBe 'empty
+    }
+  }
+
   it should "list actions by default namespace" in {
     implicit val tid = transid()
     val actions = (1 to 2).map { i =>
@@ -72,13 +81,24 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }.toList
     actions foreach { put(entityStore, _) }
     waitOnView(entityStore, WhiskAction, namespace, 2)
-    Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
+    Get(collectionPath) ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       actions.length should be(response.length)
       actions forall { a =>
         response contains a.summaryAsJson
       } should be(true)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.ACTIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 
@@ -125,7 +145,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
 
   it should "list should reject request with post" in {
     implicit val tid = transid()
-    Post(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
+    Post(collectionPath) ~> Route.seal(routes(creds)) ~> check {
       status should be(MethodNotAllowed)
     }
   }

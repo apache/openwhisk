@@ -22,14 +22,9 @@ import java.time.Instant
 
 import scala.concurrent.Await
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest._
 import org.scalatest.junit.JUnitRunner
-
 import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
@@ -44,7 +39,7 @@ import whisk.core.entity.WhiskEntityQueries._
 @RunWith(classOf[JUnitRunner])
 class ViewTests
     extends FlatSpec
-    with BeforeAndAfter
+    with BeforeAndAfterEach
     with BeforeAndAfterAll
     with Matchers
     with DbUtils
@@ -75,11 +70,11 @@ class ViewTests
   val entityStore = WhiskEntityStore.datastore(config)
   val activationStore = WhiskActivationStore.datastore(config)
 
-  after {
+  override def afterEach = {
     cleanup()
   }
 
-  override def afterAll() {
+  override def afterAll() = {
     println("Shutting down store connections")
     entityStore.shutdown()
     activationStore.shutdown()

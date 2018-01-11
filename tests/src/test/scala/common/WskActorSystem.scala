@@ -40,7 +40,7 @@ trait WskActorSystem extends BeforeAndAfterAll {
 
   implicit def executionContext: ExecutionContext = actorSystem.dispatcher
 
-  override def afterAll() {
+  override def afterAll() = {
     try {
       Await.result(Http().shutdownAllConnectionPools(), 30.seconds)
     } finally {

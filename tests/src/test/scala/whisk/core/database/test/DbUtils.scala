@@ -86,11 +86,31 @@ trait DbUtils extends TransactionCounter {
   def waitOnView[Au](db: ArtifactStore[Au], namespace: EntityName, count: Int, view: View)(
     implicit context: ExecutionContext,
     transid: TransactionId,
-    timeout: Duration) = {
+    timeout: Duration): Unit = waitOnViewImpl(db, namespace.asString, count, view)
+
+  /**
+   * Wait on a view to update with documents added to namespace. This uses retry above,
+   * where the step performs a direct db query to retrieve the view and check the count
+   * matches the given value.
+   */
+  def waitOnView[Au](db: ArtifactStore[Au], path: EntityPath, count: Int, view: View)(
+    implicit context: ExecutionContext,
+    transid: TransactionId,
+    timeout: Duration): Unit = waitOnViewImpl(db, path.asString, count, view)
+
+  /**
+   * Wait on a view to update with documents added to namespace. This uses retry above,
+   * where the step performs a direct db query to retrieve the view and check the count
+   * matches the given value.
+   */
+  private def waitOnViewImpl[Au](db: ArtifactStore[Au], key: String, count: Int, view: View)(
+    implicit context: ExecutionContext,
+    transid: TransactionId,
+    timeout: Duration): Unit = {
     val success = retry(
       () => {
-        val startKey = List(namespace.asString)
-        val endKey = List(namespace.asString, WhiskEntityQueries.TOP)
+        val startKey = List(key)
+        val endKey = List(key, WhiskEntityQueries.TOP)
         db.query(view.name, startKey, endKey, 0, 0, false, true, false, StaleParameter.No) map { l =>
           if (l.length != count) {
             throw RetryOp()

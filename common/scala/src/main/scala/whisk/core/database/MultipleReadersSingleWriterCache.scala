@@ -91,12 +91,18 @@ private object MultipleReadersSingleWriterCache {
 
 trait CacheChangeNotification extends (CacheKey => Future[Unit])
 
+sealed trait EvictionPolicy
+
+case object AccessTime extends EvictionPolicy
+case object WriteTime extends EvictionPolicy
+
 trait MultipleReadersSingleWriterCache[W, Winfo] {
   import MultipleReadersSingleWriterCache._
   import MultipleReadersSingleWriterCache.State._
 
   /** Subclasses: Toggle this to enable/disable caching for your entity type. */
   protected val cacheEnabled = true
+  protected val evictionPolicy: EvictionPolicy = AccessTime
 
   private object Entry {
     def apply(transid: TransactionId, state: State, value: Option[Future[W]]): Entry = {
@@ -438,14 +444,27 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
   }
 
   /** This is the backing store. */
-  private val cache: ConcurrentMapBackedCache[Entry] = new ConcurrentMapBackedCache(
-    Caffeine
-      .newBuilder()
-      .asInstanceOf[Caffeine[Any, Future[Entry]]]
-      .expireAfterWrite(5, TimeUnit.MINUTES)
-      .softValues()
-      .build()
-      .asMap())
+  private lazy val cache: ConcurrentMapBackedCache[Entry] = evictionPolicy match {
+    case AccessTime =>
+      new ConcurrentMapBackedCache(
+        Caffeine
+          .newBuilder()
+          .asInstanceOf[Caffeine[Any, Future[Entry]]]
+          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .softValues()
+          .build()
+          .asMap())
+
+    case _ =>
+      new ConcurrentMapBackedCache(
+        Caffeine
+          .newBuilder()
+          .asInstanceOf[Caffeine[Any, Future[Entry]]]
+          .expireAfterWrite(5, TimeUnit.MINUTES)
+          .softValues()
+          .build()
+          .asMap())
+  }
 }
 
 /**
