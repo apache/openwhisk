@@ -132,7 +132,11 @@ object Messages {
   def entityTooBig(error: SizeError) = {
     s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
   }
-  def maxActivationLimitExceeded(value: Int, max: Int) = s"Activation limit of $value exceeds maximum limit of $max."
+
+  def maxListLimitExceeded(collection: String, value: Int, max: Int) = {
+    s"The value $value exceeds the allowed limit $max for $collection."
+  }
+  def listLimitIsNotAString = s"The API expects the 'limit' value to be an integer but the given value is not."
 
   def truncateLogs(limit: ByteSize) = {
     s"Logs were truncated because the total bytes size exceeds the limit of ${limit.toBytes} bytes."

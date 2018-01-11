@@ -1630,7 +1630,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       (Seq("activation", "result", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
       (Seq("activation", "poll", "activationID", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
       (Seq("namespace", "list", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${noArgsReqMsg}"),
-      (Seq("namespace", "get", "namespace", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${optNamespaceMsg}"),
+      (Seq("namespace", "get", invalidArg), s"${tooManyArgsMsg}${invalidArg}. ${noArgsReqMsg}"),
       (Seq("package", "create"), s"${tooFewArgsMsg} ${packageNameReqMsg}"),
       (Seq("package", "create", "packageName", invalidArg), s"${tooManyArgsMsg}${invalidArg}."),
       (Seq("package", "create", "packageName", "--shared", invalidArg), invalidShared),

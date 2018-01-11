@@ -36,6 +36,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.core.controller.WhiskActionsApi
 import whisk.core.entity._
 import whisk.core.entity.size._
+import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -87,6 +88,17 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       actions forall { a =>
         response contains a.summaryAsJson
       } should be(true)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.ACTIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 

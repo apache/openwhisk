@@ -18,19 +18,16 @@
 package whisk.core.controller.test
 
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Route
-
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-
 import whisk.core.entity._
 import whisk.core.controller.WhiskPackagesApi
+import whisk.core.entitlement.Collection
 import whisk.http.ErrorResponse
 import whisk.http.Messages
 
@@ -133,6 +130,17 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       expected forall { p =>
         (response contains p.summaryAsJson)
       } should be(true)
+    }
+  }
+
+  it should "reject list when limit is greater than maximum allowed value" in {
+    implicit val tid = transid()
+    val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
+    val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.maxListLimitExceeded(Collection.PACKAGES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
     }
   }
 
