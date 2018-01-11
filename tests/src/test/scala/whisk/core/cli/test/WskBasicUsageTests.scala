@@ -35,7 +35,6 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.WhiskProperties
-import common.rest.RestResult
 import common.WskProps
 import common.WskTestHelpers
 import common.rest.WskRest
@@ -46,7 +45,6 @@ import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
-import whisk.utils.retry
 import JsonArgsForTests._
 import whisk.http.Messages
 
@@ -129,7 +127,6 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     (wp, assetHelper) =>
       val name = "actionAnnotations"
       val file = Some(TestUtils.getTestActionFilename("hello.js"))
-
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
         action.create(name, file, annotations = getValidJSONTestArgInput, parameters = getValidJSONTestArgInput)
       }
@@ -705,98 +702,6 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     } finally {
       wsk.trigger.delete(triggerName).statusCode shouldBe OK
     }
-  }
-
-  behavior of "Wsk entity list formatting"
-
-  it should "create, and list a package with a long name" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "x" * 70
-    assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
-      pkg.create(name)
-    }
-    retry(
-      {
-        val packs = wsk.pkg.list()
-        val packages = packs.getBodyListJsObject()
-        packages.exists(
-          pack =>
-            RestResult.getField(pack, "name") == name && RestResult
-              .getFieldJsValue(pack, "publish")
-              .toString == "false") shouldBe true
-      },
-      5,
-      Some(1 second))
-  }
-
-  it should "create, and list an action with a long name" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "x" * 70
-    val file = Some(TestUtils.getTestActionFilename("hello.js"))
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, file)
-    }
-    retry(
-      {
-        val actionList = wsk.action.list()
-        val actions = actionList.getBodyListJsObject()
-        actions.exists(
-          action =>
-            RestResult
-              .getField(action, "name") == name && RestResult.getFieldJsValue(action, "publish").toString == "false"
-              && RestResult
-                .getFieldListJsObject(action, "annotations")
-                .exists(anno =>
-                  RestResult.getField(anno, "key") == "exec" && RestResult
-                    .getField(anno, "value") == "nodejs:6")) shouldBe true
-      },
-      5,
-      Some(1 second))
-  }
-
-  it should "create, and list a trigger with a long name" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "x" * 70
-    assetHelper.withCleaner(wsk.trigger, name) { (trigger, _) =>
-      trigger.create(name)
-    }
-    retry(
-      {
-        val triggerList = wsk.trigger.list()
-        val triggers = triggerList.getBodyListJsObject()
-        triggers.exists(
-          trigger =>
-            RestResult.getField(trigger, "name") == name && RestResult
-              .getFieldJsValue(trigger, "publish")
-              .toString == "false") shouldBe true
-      },
-      5,
-      Some(1 second))
-  }
-
-  it should "create, and list a rule with a long name" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val ruleName = "x" * 70
-    val triggerName = "listRulesTrigger"
-    val actionName = "listRulesAction";
-    assetHelper.withCleaner(wsk.trigger, triggerName) { (trigger, name) =>
-      trigger.create(name)
-    }
-    assetHelper.withCleaner(wsk.action, actionName) { (action, name) =>
-      action.create(name, defaultAction)
-    }
-    assetHelper.withCleaner(wsk.rule, ruleName) { (rule, name) =>
-      rule.create(name, trigger = triggerName, action = actionName)
-    }
-
-    retry(
-      {
-        val ruleList = wsk.rule.list()
-        val rules = ruleList.getBodyListJsObject()
-        rules.exists(
-          rule =>
-            RestResult.getField(rule, "name") == ruleName && RestResult
-              .getFieldJsValue(rule, "publish")
-              .toString == "false") shouldBe true
-      },
-      5,
-      Some(1 second))
   }
 
   behavior of "Wsk action parameters"
