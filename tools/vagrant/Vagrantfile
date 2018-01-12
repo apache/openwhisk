@@ -33,7 +33,7 @@ Vagrant.configure('2') do |config|
   end
 
   # Shared root of repository; do not use symlinks
-  config.vm.synced_folder '../../', '/home/vagrant/openwhisk'
+  config.vm.synced_folder File.expand_path('..', File.expand_path('..', Dir.pwd)), '/home/vagrant/openwhisk'
 
   # Prevents "stdin: is not a tty" on Ubuntu (https://github.com/mitchellh/vagrant/issues/1673)
   config.vm.provision "fix-no-tty", type: "shell" do |s|
