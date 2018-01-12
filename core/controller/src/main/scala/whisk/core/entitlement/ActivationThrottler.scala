@@ -17,8 +17,7 @@
 
 package whisk.core.entitlement
 
-import whisk.common.Logging
-import whisk.common.TransactionId
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages
@@ -60,6 +59,7 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
    */
   def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
     loadBalancer.totalActiveActivations.map { concurrentActivations =>
+      MetricEmitter.emitHistogramMetric(LoggingMarkers.LOADBALANCER_ACTIVATIONS_INFLIGHT, concurrentActivations)
       logging.info(
         this,
         s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")

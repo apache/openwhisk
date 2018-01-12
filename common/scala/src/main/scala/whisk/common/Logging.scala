@@ -165,10 +165,11 @@ private object Emitter {
 }
 
 case class LogMarkerToken(component: String, action: String, state: String) {
-  override def toString() = component + "_" + action + "_" + state
+  override def toString: String = asString
+  def asString: String = component + "_" + action + "_" + state
 
-  def asFinish = copy(state = LoggingMarkers.finish)
-  def asError = copy(state = LoggingMarkers.error)
+  def asFinish: LogMarkerToken = copy(state = LoggingMarkers.finish)
+  def asError: LogMarkerToken = copy(state = LoggingMarkers.error)
 }
 
 object LogMarkerToken {
@@ -184,17 +185,9 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken) = {
-    metrics
-      .counter(token.toString)
-      .increment(1)
-  }
-
-  def emitHistogramMetric(token: LogMarkerToken, value: Long) = {
-    metrics
-      .histogram(token.toString)
-      .record(value)
-  }
+  def emitCounterMetric(token: LogMarkerToken): Unit = metrics.counter(token.toString).increment(1)
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = metrics.histogram(token.toString).record(value)
+  def emitGaugeValue(token: LogMarkerToken, value: Long): Unit = metrics.gauge(token.toString)(value)
 }
 
 object LoggingMarkers {
@@ -234,6 +227,9 @@ object LoggingMarkers {
   // Check invoker healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
+  val LOADBALANCER_INVOKER_HEALTHY = LogMarkerToken(loadbalancer, "invokerHealthy", count)
+
+  val LOADBALANCER_ACTIVATIONS_INFLIGHT = LogMarkerToken(loadbalancer, "activationsInFlight", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)

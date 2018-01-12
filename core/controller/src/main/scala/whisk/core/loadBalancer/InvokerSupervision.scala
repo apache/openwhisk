@@ -35,10 +35,7 @@ import akka.actor.FSM.Transition
 import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
-import whisk.common.AkkaLogging
-import whisk.common.LoggingMarkers
-import whisk.common.RingBuffer
-import whisk.common.TransactionId
+import whisk.common._
 import whisk.core.connector._
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -117,7 +114,11 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
     case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
   }
 
-  def logStatus() = {
+  def logStatus(): Unit = {
+    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_HEALTHY, status.count(_._2 == Healthy))
+    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY, status.count(_._2 == UnHealthy))
+    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE, status.count(_._2 == Offline))
+
     val pretty = status.map { case (instance, state) => s"${instance.toInt} -> $state" }
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
   }
@@ -254,19 +255,9 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
 
   /** Logging on Transition change */
   onTransition {
-    case _ -> Offline =>
-      transid.mark(
-        this,
-        LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE,
-        s"$name is offline",
-        akka.event.Logging.WarningLevel)
-    case _ -> UnHealthy =>
-      transid.mark(
-        this,
-        LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY,
-        s"$name is unhealthy",
-        akka.event.Logging.WarningLevel)
-    case _ -> Healthy => logging.info(this, s"$name is healthy")
+    case _ -> Offline   => logging.warn(this, s"$name is offline")
+    case _ -> UnHealthy => logging.warn(this, s"$name is unhealthy")
+    case _ -> Healthy   => logging.info(this, s"$name is healthy")
   }
 
   /** Scheduler to send test activations when the invoker is unhealthy. */
