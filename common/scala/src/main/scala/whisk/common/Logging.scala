@@ -22,11 +22,14 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicLong
 
 import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
 import kamon.Kamon
+
+import scala.concurrent.duration._
 
 trait Logging {
 
@@ -187,7 +190,21 @@ object MetricEmitter {
 
   def incrementCounter(token: LogMarkerToken): Unit = metrics.counter(token.asString).increment(1)
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = metrics.histogram(token.asString).record(value)
-  def emitGaugeValue(token: LogMarkerToken, value: Long): Unit = metrics.gauge(token.asString)(value)
+
+  /**
+   * Creating a gauge to record values to.
+   *
+   * Uses a StableGauge which will always report the same value until that value is changed.
+   *
+   * @param token name of the gauge
+   * @return a stable gauge to record values to
+   */
+  def setupGauge(token: LogMarkerToken) = new StableGauge(token.asString)
+  class StableGauge(name: String, value: AtomicLong = new AtomicLong(0)) {
+    metrics.gauge(name, 1.second)(value.get)
+
+    def record(newValue: Long): Unit = value.set(newValue)
+  }
 }
 
 object LoggingMarkers {

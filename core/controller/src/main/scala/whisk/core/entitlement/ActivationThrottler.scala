@@ -54,12 +54,14 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
     }
   }
 
+  private val inflightActivationsReporter = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_ACTIVATIONS_INFLIGHT)
+
   /**
    * Checks whether the system is in a generally overloaded state.
    */
   def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
     loadBalancer.totalActiveActivations.map { concurrentActivations =>
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.LOADBALANCER_ACTIVATIONS_INFLIGHT, concurrentActivations)
+      inflightActivationsReporter.record(concurrentActivations)
       logging.info(
         this,
         s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")

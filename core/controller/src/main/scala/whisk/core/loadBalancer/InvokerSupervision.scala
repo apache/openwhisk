@@ -114,10 +114,14 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
     case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
   }
 
+  val healthyInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_HEALTHY)
+  val unhealthyInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY)
+  val offlineInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE)
+
   def logStatus(): Unit = {
-    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_HEALTHY, status.count(_._2 == Healthy))
-    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY, status.count(_._2 == UnHealthy))
-    MetricEmitter.emitGaugeValue(LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE, status.count(_._2 == Offline))
+    healthyInvokers.record(status.count(_._2 == Healthy).toLong)
+    unhealthyInvokers.record(status.count(_._2 == UnHealthy).toLong)
+    offlineInvokers.record(status.count(_._2 == Offline).toLong)
 
     val pretty = status.map { case (instance, state) => s"${instance.toInt} -> $state" }
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
