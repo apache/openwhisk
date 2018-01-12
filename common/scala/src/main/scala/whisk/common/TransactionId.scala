@@ -245,15 +245,16 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-  case class TransactionCounterConfig(strides: Int)
+  case class TransactionCounterConfig(stride: Int)
 
   val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
-  val strides = transCounterConfig.strides
+  val stride = transCounterConfig.stride
   val instanceOrdinal: Int
 
-  private lazy val cnt = new AtomicInteger(strides + instanceOrdinal)
+  // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
+  private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
 
   def transid(): TransactionId = {
-    TransactionId(cnt.addAndGet(strides))
+    TransactionId(cnt.addAndGet(stride))
   }
 }

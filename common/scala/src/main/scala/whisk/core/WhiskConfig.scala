@@ -251,5 +251,5 @@ object ConfigKeys {
   val runcTimeouts = s"$runc.timeouts"
 
   val transactions = "whisk.transactions"
-  val strides = s"$transactions.strides"
+  val stride = s"$transactions.stride"
 }

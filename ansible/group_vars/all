@@ -64,7 +64,7 @@ controller:
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
 
 transactions:
-  strides: "{{ groups['controllers'] | length }}"
+  stride: "{{ groups['controllers'] | length }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
