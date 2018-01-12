@@ -709,8 +709,8 @@ Below is an example scenario for installing dependencies, packaging them in a vi
 
 1. Given a `requirements.txt` file that contains the `pip` modules and versions to install, run the following to install the dependencies and create a virtualenv using a compatible Docker image:
  ```bash
- docker run --rm -v "$PWD:/tmp" openwhisk/python3action sh \
-   -c "cd tmp; virtualenv virtualenv; source virtualenv/bin/activate; pip install -r requirements.txt;"
+ docker run --rm -v "$PWD:/tmp" openwhisk/python3action bash \
+   -c "cd tmp && virtualenv virtualenv && source virtualenv/bin/activate && pip install -r requirements.txt"
  ```
 
 2. Archive the virtualenv directory and any additional Python files:
