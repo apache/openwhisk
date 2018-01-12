@@ -144,7 +144,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val childFactory = (f: ActorRefFactory) =>
     f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
 
-  val prewarmKind = "nodejs:6"
+  val prewarmKind = "nodejs:default"
   val prewarmExec = ExecManifest.runtimesManifest
     .resolveDefaultRuntime(prewarmKind)
     .map { manifest =>
