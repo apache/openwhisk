@@ -249,4 +249,7 @@ object ConfigKeys {
   val dockerTimeouts = s"$docker.timeouts"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
+
+  val transactions = "whisk.transactions"
+  val stride = s"$transactions.stride"
 }

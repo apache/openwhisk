@@ -104,6 +104,8 @@
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
       
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
+
+      "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
     ports:

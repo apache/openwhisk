@@ -83,7 +83,6 @@ class Controller(val instance: InstanceId,
                  implicit val logging: Logging)
     extends BasicRasService {
 
-  override val numberOfInstances = whiskConfig.controllerInstances.toInt
   override val instanceOrdinal = instance.toInt
 
   TransactionId.controller.mark(
