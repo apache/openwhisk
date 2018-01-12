@@ -114,7 +114,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
 
       if (TransactionId.metricsKamon) {
         MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)
-        MetricEmitter.emitCounterMetric(token)
+        MetricEmitter.incrementCounter(token)
       }
       if (TransactionId.metricsLog) {
         Some(LogEntry(s"[$tid] [$name] $marker", l))

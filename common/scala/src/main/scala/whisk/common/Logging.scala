@@ -185,9 +185,9 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken): Unit = metrics.counter(token.toString).increment(1)
-  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = metrics.histogram(token.toString).record(value)
-  def emitGaugeValue(token: LogMarkerToken, value: Long): Unit = metrics.gauge(token.toString)(value)
+  def incrementCounter(token: LogMarkerToken): Unit = metrics.counter(token.asString).increment(1)
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = metrics.histogram(token.asString).record(value)
+  def emitGaugeValue(token: LogMarkerToken, value: Long): Unit = metrics.gauge(token.asString)(value)
 }
 
 object LoggingMarkers {
