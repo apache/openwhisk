@@ -11,7 +11,7 @@
 
 - name: "set the volume_dir"
   set_fact:
-    volume_dir: "{% if db_datadir is defined and db_confdir is defined  %}[ '{{ db_confdir }}:/opt/couchdb/etc', '{{ db_datadir }}:/opt/couchdb/data' ]{% elif db_datadir is undefined  %}{{ db_confdir }}:/opt/couchdb/etca{% else %}{{ db_datadir }}:/opt/couchdb/data{%- endif %}"
+    volume_dir: "{% if db_datadir is defined and db_confdir is defined  %}[ '{{ db_confdir }}:/opt/couchdb/etc', '{{ db_datadir }}:/opt/couchdb/data' ]{% elif db_datadir is undefined  %}{{ db_confdir }}:/opt/couchdb/etc{% else %}{{ db_datadir }}:/opt/couchdb/data{%- endif %}"
   when: db_datadir is defined or db_confdir is defined
 
 - name: ensure CouchDB config directory exists
