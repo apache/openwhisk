@@ -41,7 +41,7 @@ import whisk.http.Messages
  * @throws IllegalArgumentException if any argument is undefined
  */
 @throws[IllegalArgumentException]
-abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocument {
+abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: String) extends WhiskDocument {
 
   val namespace: EntityPath
   val name = en
@@ -64,7 +64,10 @@ abstract class WhiskEntity protected[entity] (en: EntityName) extends WhiskDocum
    * Returns a JSON object with the fields specific to this abstract class.
    */
   protected def entityDocumentRecord: JsObject =
-    JsObject("name" -> JsString(name.toString), "updated" -> JsNumber(updated.toEpochMilli()))
+    JsObject(
+      "name" -> JsString(name.toString),
+      "updated" -> JsNumber(updated.toEpochMilli()),
+      "entityType" -> JsString(entityType))
 
   override def toDocumentRecord: JsObject = {
     val extraFields = entityDocumentRecord.fields

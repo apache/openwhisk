@@ -68,7 +68,7 @@ case class WhiskActivation(namespace: EntityPath,
                            publish: Boolean = false,
                            annotations: Parameters = Parameters(),
                            duration: Option[Long] = None)
-    extends WhiskEntity(EntityName(activationId.asString)) {
+    extends WhiskEntity(EntityName(activationId.asString), "activation") {
 
   require(cause != null, "cause undefined")
   require(start != null, "start undefined")

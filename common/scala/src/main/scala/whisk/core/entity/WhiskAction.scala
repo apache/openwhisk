@@ -71,7 +71,7 @@ case class WhiskActionPut(exec: Option[Exec] = None,
   }
 }
 
-abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name) {
+abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name, "action") {
   def exec: Exec
   def parameters: Parameters
   def limits: ActionLimits
