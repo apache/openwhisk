@@ -327,8 +327,12 @@ class NamespaceSpecificThrottleTests
   val oneProps = getAdditionalTestSubject("oneSubject")
   wskadmin.cli(Seq("limits", "set", oneProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
 
+  // Create a subject where the rate limits are set to 1 for testing sequences
+  val oneSequenceProps = getAdditionalTestSubject("oneSequenceSubject")
+  wskadmin.cli(Seq("limits", "set", oneSequenceProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
+
   override def afterAll() = {
-    Seq(zeroProps, zeroConcProps, oneProps).foreach { wp =>
+    Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps).foreach { wp =>
       val ns = wp.namespace
       disposeAdditionalTestSubject(ns)
       withClue(s"failed to delete temporary limits for $ns") {
@@ -398,6 +402,44 @@ class NamespaceSpecificThrottleTests
         include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
       }
     }, 2, Some(1.second))
+  }
+
+  // One sequence invocation should count as one invocation for rate throttling purposes.
+  // This is independent of the number of actions in the sequences.
+  it should "respect overridden rate-throttles of 1 for sequences" in withAssetCleaner(oneSequenceProps) {
+    (wp, assetHelper) =>
+      implicit val props = wp
+
+      val actionName = "oneAction"
+      val sequenceName = "oneSequence"
+
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(actionName, defaultAction)
+      }
+
+      assetHelper.withCleaner(wsk.action, sequenceName) { (action, _) =>
+        action.create(sequenceName, Some(s"$actionName,$actionName"), kind = Some("sequence"))
+      }
+
+      val deployedControllers = WhiskProperties.getControllerHosts.split(",").length
+
+      // One invoke should be allowed.
+      wsk.action
+        .invoke(sequenceName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+        .exitCode shouldBe TestUtils.SUCCESS_EXIT
+
+      // One invoke should be allowed, the second one throttled.
+      // Due to the current implementation of the rate throttling,
+      // it is possible that the counter gets deleted, because the minute switches.
+      retry({
+        val results = (1 to deployedControllers + 1).map { _ =>
+          wsk.action.invoke(sequenceName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+        }
+        results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+        results.map(_.stderr).mkString should {
+          include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
+        }
+      }, 2, Some(1.second))
   }
 
   it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) { (wp, assetHelper) =>

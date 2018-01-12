@@ -385,7 +385,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     exec match {
       case Some(seq: SequenceExec) =>
         logging.info(this, "checking if sequence components are accessible")
-        entitlementProvider.check(user, right, referencedEntities(seq))
+        entitlementProvider.check(user, right, referencedEntities(seq), noThrottle = true)
       case _ => Future.successful(true)
     }
   }
@@ -395,7 +395,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     exec match {
       case Some(seq: SequenceExecMetaData) =>
         logging.info(this, "checking if sequence components are accessible")
-        entitlementProvider.check(user, right, referencedEntities(seq))
+        entitlementProvider.check(user, right, referencedEntities(seq), noThrottle = true)
       case _ => Future.successful(true)
     }
   }

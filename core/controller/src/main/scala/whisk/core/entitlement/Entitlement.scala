@@ -209,18 +209,23 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @param user the subject identity to check rights for
    * @param right the privilege the subject is requesting (applies to the entire set of resources)
    * @param resources the set of resources the subject requests access to
+   * @param noThrottle ignore throttle limits
    * @return a promise that completes with success iff the subject is permitted to access all of the requested resources
    */
-  protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource])(
+  protected[core] def check(user: Identity, right: Privilege, resources: Set[Resource], noThrottle: Boolean = false)(
     implicit transid: TransactionId): Future[Unit] = {
     val subject = user.subject
 
     val entitlementCheck: Future[Unit] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
         logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
-        checkSystemOverload(right)
-          .flatMap(_ => checkUserThrottle(user, right, resources))
-          .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
+        val throttleCheck =
+          if (noThrottle) Future.successful(())
+          else
+            checkSystemOverload(right)
+              .flatMap(_ => checkUserThrottle(user, right, resources))
+              .flatMap(_ => checkConcurrentUserThrottle(user, right, resources))
+        throttleCheck
           .flatMap(_ => checkPrivilege(user, right, resources))
           .flatMap(checkedResources => {
             val failedResources = checkedResources.filterNot(_._2)
