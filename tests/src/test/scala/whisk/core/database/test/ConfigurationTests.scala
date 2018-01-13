@@ -36,20 +36,20 @@ class ConfigurationTests extends FlatSpec with DatabaseScriptTestUtils with Stre
   implicit val materializer = ActorMaterializer()
   val authHeader = Authorization(BasicHttpCredentials(dbUsername, dbPassword))
 
-
   behavior of "CouchDB Configuration"
 
   it should "include reduce_limit as false" in {
 
     val request = Http()
-      .singleRequest(HttpRequest(
-        method = HttpMethods.GET,
-        uri = Uri(s"${dbUrl}/_node/couchdb@${dbHost}/_config/couchdb/default_security"),
-        headers = List(authHeader)))
+      .singleRequest(
+        HttpRequest(
+          method = HttpMethods.GET,
+          uri = Uri(s"${dbUrl}/_node/couchdb@${dbHost}/_config/couchdb/default_security"),
+          headers = List(authHeader)))
       .flatMap { response =>
         Unmarshal(response).to[String].map { resBody =>
           withClue(s"Error in Body: $resBody")(response.status shouldBe StatusCodes.OK)
-          resBody.trim.replace("\"","") shouldBe "admin_only"
+          resBody.trim.replace("\"", "") shouldBe "admin_only"
           resBody
         }
       }
