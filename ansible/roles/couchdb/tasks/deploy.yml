@@ -21,10 +21,13 @@
   become: "{{ db.dir.become }}"
   when: db_confdir is defined
 
-- name: copy default configuration files from local to remote in CouchDB config directory
-  copy:
+- name: synchronize default configuration files from local to remote in CouchDB config directory
+  synchronize:
     src: "files/"
     dest: "{{ db_confdir }}"
+    delete: yes
+    recursive: yes
+  become: "{{ db.dir.become }}"
   when: db_confdir is defined
 
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"

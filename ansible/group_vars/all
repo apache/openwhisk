@@ -196,7 +196,7 @@ nginx:
 # The db_prefix is defined for each environment on its own. The CouchDb credentials are also defined for each environment on its own.
 db:
   dir:
-    become: "{{ db_dir_become | default(false) }}"
+    become: "{{ db_dir_become | default(true) }}"
   instances: "{{ groups['db'] | length }}"
   authkeys:
   - guest
