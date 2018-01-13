@@ -44,12 +44,12 @@ class ConfigurationTests extends FlatSpec with DatabaseScriptTestUtils with Stre
     val request = Http()
       .singleRequest(HttpRequest(
         method = HttpMethods.GET,
-        uri = Uri(s"${dbUrl}/_node/couchdb@${dbHost}/_config/query_server_config/reduce_limit"),
+        uri = Uri(s"${dbUrl}/_node/couchdb@${dbHost}/_config/couchdb/default_security"),
         headers = List(authHeader)))
       .flatMap { response =>
         Unmarshal(response).to[String].map { resBody =>
           withClue(s"Error in Body: $resBody")(response.status shouldBe StatusCodes.OK)
-          resBody.trim.replace("\"","") shouldBe "false"
+          resBody.trim.replace("\"","") shouldBe "admin_only"
           resBody
         }
       }
