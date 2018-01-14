@@ -82,6 +82,10 @@
       "LIMITS_TRIGGERS_FIRES_PERMINUTE": "{{ limits.firesPerMinute }}"
       "LIMITS_ACTIONS_SEQUENCE_MAXLENGTH": "{{ limits.sequenceMaxLength }}"
 
+      "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
+      "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
+      "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
+
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"

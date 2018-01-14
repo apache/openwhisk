@@ -155,6 +155,9 @@
         -e CONFIG_kamon_statsd_port='{{ metrics.kamon.port }}'
         -e CONFIG_whisk_spi_LogStoreProvider='{{ userLogs.spi }}'
         -e CONFIG_logback_log_level='{{ invoker.loglevel }}'
+        -e CONFIG_whisk_memory_min='{{ limit_action_memory_min | default() }}'
+        -e CONFIG_whisk_memory_max='{{ limit_action_memory_max | default() }}'
+        -e CONFIG_whisk_memory_std='{{ limit_action_memory_std | default() }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

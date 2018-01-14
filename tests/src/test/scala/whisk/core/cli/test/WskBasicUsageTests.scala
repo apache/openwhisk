@@ -717,7 +717,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
         // Limits to assert, standard values if CLI omits certain values
         val limits = JsObject(
           "timeout" -> timeout.getOrElse(STD_DURATION).toMillis.toJson,
-          "memory" -> memory.getOrElse(STD_MEMORY).toMB.toInt.toJson,
+          "memory" -> memory.getOrElse(stdMemory).toMB.toInt.toJson,
           "logs" -> logs.getOrElse(STD_LOGSIZE).toMB.toInt.toJson)
 
         val name = "ActionLimitTests" + Instant.now.toEpochMilli
@@ -747,7 +747,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
       // Assert for valid permutations that the values are set correctly
       for {
         time <- Seq(None, Some(MIN_DURATION), Some(MAX_DURATION))
-        mem <- Seq(None, Some(MIN_MEMORY), Some(MAX_MEMORY))
+        mem <- Seq(None, Some(minMemory), Some(maxMemory))
         log <- Seq(None, Some(MIN_LOGSIZE), Some(MAX_LOGSIZE))
       } testLimit(time, mem, log)
 
