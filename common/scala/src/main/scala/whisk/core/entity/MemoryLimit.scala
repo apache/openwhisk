@@ -22,15 +22,12 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import spray.json.JsNumber
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
-import whisk.core.entity.size.SizeInt
+import spray.json._
+import whisk.core.entity.size._
 import whisk.core.ConfigKeys
 import pureconfig._
 
-case class MemoryLimitConfig(min: String, max: String, std: String)
+case class MemoryLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 
 /**
  * MemoryLimit encapsulates allowed memory for an action. The limit must be within a
@@ -42,14 +39,14 @@ case class MemoryLimitConfig(min: String, max: String, std: String)
  *
  * @param megabytes the memory limit in megabytes for the action
  */
-protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal {}
+protected[entity] class MemoryLimit private (val megabytes: Int) extends AnyVal
 
 protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   private val memoryConfig = loadConfigOrThrow[MemoryLimitConfig](ConfigKeys.memory)
 
-  protected[core] val minMemory = ByteSize.fromString(memoryConfig.min)
-  protected[core] val maxMemory = ByteSize.fromString(memoryConfig.max)
-  protected[core] val stdMemory = ByteSize.fromString(memoryConfig.std)
+  protected[core] val minMemory: ByteSize = memoryConfig.min
+  protected[core] val maxMemory: ByteSize = memoryConfig.max
+  protected[core] val stdMemory: ByteSize = memoryConfig.std
 
   /** Gets MemoryLimit with default value */
   protected[core] def apply(): MemoryLimit = MemoryLimit(stdMemory)
@@ -65,7 +62,7 @@ protected[core] object MemoryLimit extends ArgNormalizer[MemoryLimit] {
   protected[core] def apply(megabytes: ByteSize): MemoryLimit = {
     require(megabytes >= minMemory, s"memory $megabytes below allowed threshold of $minMemory")
     require(megabytes <= maxMemory, s"memory $megabytes exceeds allowed threshold of $maxMemory")
-    new MemoryLimit(megabytes.toMB.toInt);
+    new MemoryLimit(megabytes.toMB.toInt)
   }
 
   override protected[core] implicit val serdes = new RootJsonFormat[MemoryLimit] {
