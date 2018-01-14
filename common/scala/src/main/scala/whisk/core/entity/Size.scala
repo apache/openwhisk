@@ -19,6 +19,9 @@ package whisk.core.entity
 
 import java.nio.charset.StandardCharsets
 
+import com.typesafe.config.ConfigValue
+import pureconfig._
+
 object SizeUnits extends Enumeration {
 
   sealed abstract class Unit() {
@@ -77,8 +80,8 @@ case class ByteSize(size: Long, unit: SizeUnits.Unit) extends Ordered[ByteSize] 
 
 object ByteSize {
   def fromString(sizeString: String): ByteSize = {
-    val unitprefix = sizeString.takeRight(1)
-    val size = sizeString.dropRight(1).toLong
+    val unitprefix = sizeString.takeRight(1).toUpperCase
+    val size = sizeString.dropRight(1).trim.toLong
 
     val unit = unitprefix match {
       case "B" => SizeUnits.BYTE
@@ -112,6 +115,10 @@ object size {
         ByteSize(0, unit)
       }
   }
+
+  // Creation of an intermediary Config object is necessary here, since "getBytes" is only part of that interface.
+  implicit val pureconfigReader =
+    ConfigReader[ConfigValue].map(v => ByteSize(v.atKey("key").getBytes("key"), SizeUnits.BYTE))
 }
 
 trait SizeConversion {
