@@ -93,6 +93,9 @@ trait BasicHttpService extends Directives with TransactionCounter {
   /** Assigns transaction id to every request. */
   protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
     val extraLogging = headerValue match {
+      // extract headers from HTTP request that indicates if additional logging should be enabled for this transaction.
+      // Passing "on" as header content will enable additional logging for this transaction,
+      // passing any other value will leave it as configured in the logging configuration
       case Some(value) => value.toLowerCase == "on"
       case None        => false
     }

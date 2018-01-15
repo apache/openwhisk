@@ -19,8 +19,6 @@ package whisk.core.entity.test
 
 import java.util.Base64
 
-import scala.BigInt
-import scala.Vector
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.language.reflectiveCalls
@@ -33,6 +31,7 @@ import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.common.TransactionId
 import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
@@ -68,6 +67,46 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     Privilege.serdes.read("READ".toJson) shouldBe Privilege.READ
     Privilege.serdes.read("read".toJson) shouldBe Privilege.READ
     a[DeserializationException] should be thrownBy Privilege.serdes.read("???".toJson)
+  }
+
+  behavior of "TransactionId"
+
+  it should "serdes a transaction id without extraLogging parameter" in {
+    val txId = 4711
+    val txWithoutExtraLogging = TransactionId(txId)
+
+    // test serialization
+    val serializedTxIdWithoutParameter = TransactionId.serdes.write(txWithoutExtraLogging)
+    serializedTxIdWithoutParameter match {
+      case JsArray(Vector(JsNumber(id), JsNumber(_))) =>
+        assert(id == txId)
+      case JsArray(Vector(JsNumber(_), JsNumber(_), JsBoolean(_))) =>
+        assert(false)
+    }
+
+    // test deserialization
+    val deserializedTxIdWithoutParameter = TransactionId.serdes.read(serializedTxIdWithoutParameter)
+    deserializedTxIdWithoutParameter.meta.id should equal(txId)
+    deserializedTxIdWithoutParameter.meta.extraLogging should equal(false)
+  }
+
+  it should "serdes a transaction id with extraLogging parameter" in {
+    val txId = 4711
+    val txIdWithExtraLogging = TransactionId(txId, true)
+    // test serialization
+    val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithExtraLogging)
+    serializedTxIdWithParameter match {
+      case JsArray(Vector(JsNumber(_), JsNumber(_))) =>
+        assert(false)
+      case JsArray(Vector(JsNumber(id), JsNumber(_), JsBoolean(extraLogging))) =>
+        assert(id == txId)
+        assert(extraLogging)
+    }
+
+    // test deserialization
+    val deserializedTxIdWithParameter = TransactionId.serdes.read(serializedTxIdWithParameter)
+    deserializedTxIdWithParameter.meta.id should equal(txId)
+    assert(deserializedTxIdWithParameter.meta.extraLogging)
   }
 
   behavior of "Identity"

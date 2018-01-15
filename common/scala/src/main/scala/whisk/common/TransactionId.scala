@@ -226,11 +226,10 @@ object TransactionId {
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
     def write(t: TransactionId) = {
-      val baseJsArray = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
       if (t.meta.extraLogging)
-        JsArray(baseJsArray, JsBoolean(t.meta.extraLogging))
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
       else
-        baseJsArray
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
     }
 
     def read(value: JsValue) =
