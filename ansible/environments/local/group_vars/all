@@ -1,6 +1,6 @@
 whisk_version_name: local
-config_root_dir: /tmp/wskconf
-whisk_logs_dir: /tmp/wsklogs
+config_root_dir: "{{ '/var/tmp' if ansible_distribution == 'Ubuntu' else '/tmp' }}/wskconf"
+whisk_logs_dir: "{{ '/var/tmp' if ansible_distribution == 'Ubuntu' else '/tmp' }}/wsklogs"
 docker_registry: ""
 docker_dns: ""
 bypass_pull_for_local_images: true
