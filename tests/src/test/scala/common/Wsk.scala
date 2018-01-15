@@ -684,9 +684,8 @@ class WskActivation() extends RunWskCmd with HasActivation with WaitFor with Bas
       () => {
         val result =
           cli(wp.overrides ++ Seq(noun, "get", activationId, "--auth", wp.authKey), expectedExitCode = DONTCARE_EXIT)
-        if (result.exitCode == NOT_FOUND) {
-          null
-        } else if (result.exitCode == SUCCESS_EXIT) {
+        result.exitCode shouldNot be(NOT_FOUND)
+        if (result.exitCode == SUCCESS_EXIT) {
           Right(result.stdout)
         } else Left(s"$result")
       },

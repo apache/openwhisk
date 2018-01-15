@@ -17,22 +17,18 @@
 
 package common
 
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
+import java.io._
 import java.time.Instant
 
-import scala.concurrent.duration.DurationInt
-import scala.collection.mutable.Buffer
-import scala.concurrent.duration.Duration
-import scala.language.postfixOps
+import common.TestUtils._
 import org.scalatest.Matchers
-
-import TestUtils._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
+import spray.json._
 import whisk.core.entity.ByteSize
+import whisk.utils.retry
+
+import scala.collection.mutable.Buffer
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 case class WskProps(
   authKey: String = WhiskProperties.readAuthKey(WhiskProperties.getAuthFileForTesting),
@@ -72,21 +68,7 @@ trait WaitFor {
                  pollPeriod: Duration = 1 second,
                  totalWait: Duration = 30 seconds): T = {
     Thread.sleep(initialWait.toMillis)
-    val endTime = System.currentTimeMillis() + totalWait.toMillis
-    while (System.currentTimeMillis() < endTime) {
-      val predicate = step()
-      predicate match {
-        case (t: Boolean) if t =>
-          return predicate
-        case (t: Any) if t != null && !t.isInstanceOf[Boolean] =>
-          return predicate
-        case _ if System.currentTimeMillis() >= endTime =>
-          return predicate
-        case _ =>
-          Thread.sleep(pollPeriod.toMillis)
-      }
-    }
-    null.asInstanceOf[T]
+    retry[T](step(), (totalWait / pollPeriod).toInt, Some(pollPeriod))
   }
 }
 
