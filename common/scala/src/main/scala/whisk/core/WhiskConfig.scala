@@ -236,6 +236,8 @@ object ConfigKeys {
   val kafkaTopics = s"$kafka.topics"
 
   val memory = "whisk.memory"
+  val activation = "whisk.activation"
+  val activationPayload = s"$activation.payload"
 
   val db = "whisk.db"
 

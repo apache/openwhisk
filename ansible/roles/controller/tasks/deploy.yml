@@ -122,6 +122,8 @@
       "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
       "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
 
+      "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
+
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"

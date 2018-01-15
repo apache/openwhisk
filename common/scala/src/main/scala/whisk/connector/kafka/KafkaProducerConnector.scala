@@ -87,6 +87,9 @@ class KafkaProducerConnector(kafkahosts: String,
     val props = new Properties
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahosts)
     props.put(ProducerConfig.ACKS_CONFIG, 1.toString)
+    // Allow messages with up to 5 MiB size
+    // The target topic must support this message size as well because it's larger as the default
+    props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 5242880.toString)
     props
   }
 

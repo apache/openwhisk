@@ -17,7 +17,11 @@
 
 package whisk.core.entity
 
-import whisk.core.entity.size.SizeInt
+import pureconfig._
+import whisk.core.ConfigKeys
+import whisk.core.entity.size.SizeLong
+
+case class ActivationEntityLimitConf(max: ByteSize)
 
 /**
  * ActivationEntityLimit defines the limits on the input/output payloads for actions
@@ -25,5 +29,8 @@ import whisk.core.entity.size.SizeInt
  * parameters for triggers.
  */
 protected[core] object ActivationEntityLimit {
-  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT = 1.MB
+  private implicit val pureconfigLongReader: ConfigReader[ByteSize] = ConfigReader[Long].map(_.bytes)
+  private val config = loadConfigOrThrow[ActivationEntityLimitConf](ConfigKeys.activationPayload)
+
+  protected[core] val MAX_ACTIVATION_ENTITY_LIMIT: ByteSize = config.max
 }
