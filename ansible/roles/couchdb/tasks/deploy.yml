@@ -64,6 +64,9 @@
   shell: "docker exec -i couchdb whoami"
 
 - name: "check configuration files"
+  shell: "docker exec -i couchdb id"
+  `
+- name: "check configuration files"
   shell: "whoami"
 
 - name: "check configuration files"
