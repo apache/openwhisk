@@ -19,6 +19,7 @@
     path: "{{ db_confdir }}"
     state: directory
   become: "{{ db.dir.become }}"
+  become_user: root
   when: db_confdir is defined
 
 - name: synchronize default configuration files from local to remote in CouchDB config directory
@@ -28,6 +29,7 @@
     delete: yes
     recursive: yes
   become: "{{ db.dir.become }}"
+  become_user: root
   when: db_confdir is defined
 
 - name: "change ownership"
@@ -61,6 +63,18 @@
       COUCHDB_USER: "{{ db_username }}"
       COUCHDB_PASSWORD: "{{ db_password }}"
       NODENAME: "{{ ansible_host }}"
+
+- name: "check configuration files"
+  shell: "docker exec -i couchdb whoami"
+
+- name: "check configuration files"
+  shell: "whoami"
+
+- name: "check configuration files"
+  shell: "id root"
+
+- name: "check configuration files"
+  shell: "id travis"
 
 - name: "check logs"
   shell: "docker logs -f couchdb"
