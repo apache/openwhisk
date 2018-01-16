@@ -46,6 +46,7 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
+    user: 2000:2000
     ports:
       - "{{ db_port }}:5984"
       - "4369:4369"
