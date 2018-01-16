@@ -1,3 +1,4 @@
 *
 !transformEnvironment.sh
+!copyJMXFiles.sh
 !build/distributions

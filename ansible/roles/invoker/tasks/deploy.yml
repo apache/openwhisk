@@ -53,6 +53,13 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: ensure invoker config directory is created with permissions
+  file:
+    path: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    state: directory
+    mode: 0777
+  become: "{{ invoker.dir.become }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -103,6 +110,25 @@
   with_items: "{{ invokerInfo }}"
   when: not invoker.allowMultipleInstances and item.Names[0] != "/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
+- name: copy jmxremote password file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.password.j2"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.password"
+    mode: 0777
+
+- name: copy jmxremote access file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.access.j2"
+    dest: "{{ invoker.confdir  }}/invoker{{ groups['invokers'].index(inventory_hostname) }}/jmxremote.access"
+    mode: 0777
+
+- name: add additional jvm params if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
@@ -114,7 +140,8 @@
         --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
         --restart {{ docker.restart.policy }}
         -e JAVA_OPTS='-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log'
-        -e INVOKER_OPTS='{{ invoker.arguments }}'
+        -e INVOKER_OPTS='{{ invoker_args | default(invoker.arguments) }}'
+        -e JMX_REMOTE='{{ jmx.enabled }}'
         -e COMPONENT_NAME='invoker{{ groups['invokers'].index(inventory_hostname) }}'
         -e PORT='8080'
         -e KAFKA_HOSTS='{{ kafka_connect_string }}'
@@ -161,9 +188,12 @@
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
+        -v {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf
         -v {{ dockerInfo["DockerRootDir"] }}/containers/:/containers
         -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
         -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
+        {% if jmx.enabled %} -p {{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }} {% endif %}
+        {% if jmx.enabled %} -p {{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} {% endif %}
         {{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}
         /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
 

@@ -43,8 +43,14 @@ limits:
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
+controllerHostnameFromMap: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
+controllerHostname: "{{ controllerHostnameFromMap | default(inventory_hostname) }}"
+
 # port means outer port
 controller:
+  dir:
+    become: "{{ controller_dir_become | default(false) }}"
+  confdir: "{{ config_root_dir }}/controller"
   basePort: 10001
   heap: "{{ controller_heap | default('2g') }}"
   arguments: "{{ controller_arguments | default('') }}"
@@ -62,6 +68,20 @@ controller:
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
   ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  jmxremote:
+    jvmArgs:  "{% if inventory_hostname in groups['controllers'] %}
+    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ controllerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}
+    {% endif %}"
+
+jmx:
+  basePortController: 15000
+  rmiBasePortController: 16000
+  basePortInvoker: 17000
+  rmiBasePortInvoker: 18000
+  user: "{{ jmxuser | default('jmxuser') }}"
+  pass: "{{ jmxuser | default('jmxpass') }}"
+  jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
+  enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:
   stride: "{{ groups['controllers'] | length }}"
@@ -93,7 +113,13 @@ zookeeper_connect_string: "{% set ret = [] %}\
                            {% endfor %}\
                            {{ ret | join(',') }}"
 
+invokerHostnameFromMap: "{{ groups['invokers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
+invokerHostname: "{{ invokerHostnameFromMap | default(inventory_hostname) }}"
+
 invoker:
+  dir:
+    become: "{{ invoker_dir_become | default(false) }}"
+  confdir: "{{ config_root_dir }}/invoker"
   port: 12001
   heap: "{{ invoker_heap | default('2g') }}"
   arguments: "{{ invoker_arguments | default('') }}"
@@ -108,6 +134,10 @@ invoker:
   docker:
     become: "{{ invoker_docker_become | default(false) }}"
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  jmxremote:
+    jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
+    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
+    {% endif %}"
 
 userLogs:
   spi: "{{ userLogs_spi | default('whisk.core.containerpool.logging.DockerToActivationLogStoreProvider') }}"

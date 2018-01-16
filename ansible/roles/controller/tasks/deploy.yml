@@ -16,6 +16,27 @@
     mode: 0777
   become: "{{ logs.dir.become }}"
 
+- name: ensure controller config directory is created with permissions
+  file:
+    path: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+    state: directory
+    mode: 0777
+  become: "{{ controller.dir.become }}"
+
+- name: copy jmxremote password file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.password.j2"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.password"
+    mode: 0777
+
+- name: copy jmxremote access file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.access.j2"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.access"
+    mode: 0777
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -24,6 +45,20 @@
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.auth }}"
   - "{{ db.whisk.activations }}"
+
+- name: prepare controller ports
+  set_fact:
+    ports_to_expose: ["{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080", "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}:{{ controller.akka.cluster.bindPort }}"]
+
+- name: expose additional ports if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}\" ]"
+
+- name: add additional jvm params if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    controller_args: "{{ controller.arguments }} {{ controller.jmxremote.jvmArgs }}"
 
 - name: create seed nodes list
   set_fact:
@@ -41,8 +76,9 @@
     hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
     env:
       "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
-      "CONTROLLER_OPTS": "{{ controller.arguments }}"
+      "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
+      "JMX_REMOTE": "{{ jmx.enabled }}"
 
       "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
       "PORT": 8080
@@ -112,9 +148,8 @@
       "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
     volumes:
       - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
-    ports:
-      - "{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080"
-      - "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}:{{ controller.akka.cluster.bindPort }}"
+      - "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/conf"
+    ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
