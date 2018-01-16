@@ -68,6 +68,8 @@
 - name: wait until CouchDB in this host is up and running
   uri:
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
   register: result
   until: result.status == 200
   retries: 12
