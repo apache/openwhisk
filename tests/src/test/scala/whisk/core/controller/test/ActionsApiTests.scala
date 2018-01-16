@@ -85,9 +85,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       actions.length should be(response.length)
-      actions forall { a =>
-        response contains a.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs actions.map(_.summaryAsJson)
     }
   }
 
@@ -114,9 +112,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[List[WhiskAction]]
       actions.length should be(response.length)
-      actions forall { a =>
-        response contains a
-      } should be(true)
+      response should contain theSameElementsAs actions.map(_.summaryAsJson)
     }
   }
 
@@ -131,9 +127,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       actions.length should be(response.length)
-      actions forall { a =>
-        response contains a.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs actions.map(_.summaryAsJson)
     }
 
     // it should "reject list action with explicit namespace not owned by subject" in {

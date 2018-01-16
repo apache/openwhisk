@@ -87,18 +87,15 @@ abstract class WhiskEntity protected[entity] (en: EntityName, val entityType: St
    * This should be synchronized with the views computed in the databse.
    * Strictly used in view testing to enforce alignment.
    */
-  def summaryAsJson = {
+  def summaryAsJson: JsObject = {
     import WhiskActivation.instantSerdes
-    val base = Map(
+    JsObject(
       "namespace" -> namespace.toJson,
       "name" -> name.toJson,
       "version" -> version.toJson,
       WhiskEntity.sharedFieldName -> JsBoolean(publish),
       "annotations" -> annotations.toJsArray,
       "updated" -> updated.toJson)
-    if (WhiskEntityQueries.designDoc.endsWith("v2")) {
-      JsObject(base - "updated")
-    } else JsObject(base)
   }
 }
 

@@ -162,7 +162,7 @@ object WhiskActivation
    * A view for activations in a namespace additionally keyed by action name
    * (and package name if present) sorted by date.
    */
-  val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
+  lazy val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
 
   override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 

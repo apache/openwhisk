@@ -94,11 +94,8 @@ trait WhiskCollectionAPI
     implicit transid: TransactionId): RequestContext => Future[RouteResult]
 
   /** Gets all entities from namespace. If necessary filter only entities that are shared. Terminates HTTP request. */
-  protected def list(user: Identity, path: EntityPath, excludePrivate: Boolean)(
+  protected def list(user: Identity, path: EntityPath)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult]
-
-  /** Indicates if listing entities in collection requires filtering out private entities. */
-  protected val listRequiresPrivateEntityFilter = false // currently supported on PACKAGES only
 
   /** Dispatches resource to the proper handler depending on context. */
   protected override def dispatchOp(user: Identity, op: Privilege, resource: Resource)(
@@ -131,9 +128,8 @@ trait WhiskCollectionAPI
             // produce all entities in the requested namespace UNLESS the subject is
             // entitled to them which for now means they own the namespace. If the
             // subject does not own the namespace, then exclude packages that are private
-            val excludePrivate = listRequiresPrivateEntityFilter && resource.namespace.root != user.namespace
-            logging.info(this, s"[LIST] exclude private entities: required == $excludePrivate")
-            list(user, resource.namespace, excludePrivate)
+            // in the API handler
+            list(user, resource.namespace)
 
           case _ => reject
         }

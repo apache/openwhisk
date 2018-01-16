@@ -318,14 +318,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 200 [] or [WhiskAction as JSON]
    * - 500 Internal Server Error
    */
-  override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
+  override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
-        listEntities {
-          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-            list =>
-              val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
-              FilterEntityList.filter(actions, excludePrivate)
+        if (!count) {
+          listEntities {
+            WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+              list =>
+                list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+            }
+          }
+        } else {
+          countEntities {
+            WhiskAction.countCollectionInNamespace(entityStore, namespace, skip)
           }
         }
     }
@@ -518,10 +523,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
         pkgName.path.addPath(wp.name)
       }
       // list actions in resolved namespace
-      // NOTE: excludePrivate is false since the subject is authorize to access
-      // the package; in the future, may wish to exclude private actions in a
-      // public package instead
-      list(user, pkgns, excludePrivate = false)
+      list(user, pkgns)
     })
   }
 

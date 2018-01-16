@@ -78,9 +78,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       triggers.length should be(response.length)
-      triggers forall { a =>
-        response contains a.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs triggers.map(_.summaryAsJson)
     }
 
     // it should "list triggers with explicit namespace owned by subject" in {
@@ -88,9 +86,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       triggers.length should be(response.length)
-      triggers forall { a =>
-        response contains a.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs triggers.map(_.summaryAsJson)
     }
 
     // it should "reject list triggers with explicit namespace not owned by subject" in {
@@ -123,9 +119,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       status should be(OK)
       val response = responseAs[List[WhiskTrigger]]
       triggers.length should be(response.length)
-      triggers forall { a =>
-        response contains a
-      } should be(true)
+      response should contain theSameElementsAs triggers.map(_.summaryAsJson)
     }
   }
 

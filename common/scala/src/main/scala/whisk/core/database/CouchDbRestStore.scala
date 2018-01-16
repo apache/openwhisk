@@ -288,45 +288,82 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       (startKey, endKey)
     }
 
-    val parts = table.split("/")
+    val Array(firstPart, secondPart) = table.split("/")
 
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table")
 
-    val f = for (eitherResponse <- client.executeView(parts(0), parts(1))(
-                   startKey = realStartKey,
-                   endKey = realEndKey,
-                   skip = Some(skip),
-                   limit = Some(limit),
-                   stale = stale,
-                   includeDocs = includeDocs,
-                   descending = descending,
-                   reduce = reduce))
-      yield
-        eitherResponse match {
-          case Right(response) =>
-            val rows = response.fields("rows").convertTo[List[JsObject]]
+    val f = client
+      .executeView(firstPart, secondPart)(
+        startKey = realStartKey,
+        endKey = realEndKey,
+        skip = Some(skip),
+        limit = Some(limit),
+        stale = stale,
+        includeDocs = includeDocs,
+        descending = descending,
+        reduce = reduce)
+      .map {
+        case Right(response) =>
+          val rows = response.fields("rows").convertTo[List[JsObject]]
 
-            val out = if (reduce && !rows.isEmpty) {
-              assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-              rows.head.fields("value").convertTo[List[JsObject]]
-            } else if (reduce) {
-              List(JsObject())
-            } else {
-              rows
-            }
+          val out = if (reduce && !rows.isEmpty) {
+            assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
+            rows.head.fields("value").convertTo[List[JsObject]]
+          } else if (reduce) {
+            List(JsObject())
+          } else {
+            rows
+          }
 
-            transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
-            out
+          transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
+          out
 
-          case Left(code) =>
-            transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
-            throw new Exception("Unexpected http response code: " + code)
-        }
+        case Left(code) =>
+          transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+          throw new Exception("Unexpected http response code: " + code)
+      }
 
     reportFailure(
       f,
       failure =>
         transid.failed(this, start, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+  }
+
+  protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
+    implicit transid: TransactionId): Future[Long] = {
+
+    val Array(firstPart, secondPart) = table.split("/")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$dbName' searching '$table")
+
+    val f = client
+      .executeView(firstPart, secondPart)(
+        startKey = startKey,
+        endKey = endKey,
+        skip = Some(skip),
+        stale = stale,
+        reduce = true)
+      .map {
+        case Right(response) =>
+          val rows = response.fields("rows").convertTo[List[JsObject]]
+
+          val out = if (!rows.isEmpty) {
+            assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
+            rows.head.fields("value").convertTo[Long]
+          } else 0L
+
+          transid.finished(this, start, s"[COUNT] '$dbName' completed: count $out")
+          out
+
+        case Left(code) =>
+          transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+          throw new Exception("Unexpected http response code: " + code)
+      }
+
+    reportFailure(
+      f,
+      failure =>
+        transid.failed(this, start, s"[COUNT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
   override protected[core] def attach(

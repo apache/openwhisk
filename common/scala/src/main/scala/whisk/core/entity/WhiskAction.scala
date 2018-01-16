@@ -167,19 +167,15 @@ case class WhiskAction(namespace: EntityPath,
    * Strictly used in view testing to enforce alignment.
    */
   override def summaryAsJson = {
-    if (WhiskEntityQueries.designDoc.endsWith("v2")) {
-      super.summaryAsJson
-    } else {
-      val binary = exec match {
-        case c: CodeExec[_] => c.binary
-        case _              => false
-      }
-
-      JsObject(
-        super.summaryAsJson.fields +
-          ("limits" -> limits.toJson) +
-          ("exec" -> JsObject("binary" -> JsBoolean(binary))))
+    val binary = exec match {
+      case c: CodeExec[_] => c.binary
+      case _              => false
     }
+
+    JsObject(
+      super.summaryAsJson.fields +
+        ("limits" -> limits.toJson) +
+        ("exec" -> JsObject("binary" -> JsBoolean(binary))))
   }
 }
 
