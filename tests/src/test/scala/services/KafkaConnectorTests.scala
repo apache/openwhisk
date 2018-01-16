@@ -34,6 +34,7 @@ import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.connector.kafka.KafkaProducerConnector
+import whisk.connector.kafka.KafkaMessagingProvider
 import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.ExecutionContextFactory
@@ -48,7 +49,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   assert(config.isValid)
 
   val groupid = "kafkatest"
-  val topic = "Dinosaurs"
+  val topic = "KafkaConnectorTestTopic"
+  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic))
   val sessionTimeout = 10 seconds
   val maxPollInterval = 10 seconds
   val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
