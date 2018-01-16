@@ -56,11 +56,27 @@
       NODENAME: "{{ ansible_host }}"
 
 - name: "check logs"
+  shell: "docker ps"
+
+- name: "check logs"
   shell: "docker logs couchdb"
+
+- name: "check logs"
+  shell: "netstat -ltn"
+
+- name: wait until CouchDB in this host is up and running
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
 
 - name: wait until CouchDB in this host is up and running
   uri:
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_utils/"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
   register: result
   until: result.status == 200
   retries: 12
