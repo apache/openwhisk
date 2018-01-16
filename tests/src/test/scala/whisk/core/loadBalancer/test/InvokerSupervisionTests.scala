@@ -68,6 +68,7 @@ import whisk.core.loadBalancer.InvokerPool
 import whisk.core.loadBalancer.InvokerState
 import whisk.core.loadBalancer.Offline
 import whisk.core.loadBalancer.UnHealthy
+import whisk.core.loadBalancer.InvokerHealth
 import whisk.utils.retry
 import whisk.core.connector.test.TestConnector
 import whisk.core.entitlement.Privilege
@@ -101,7 +102,7 @@ class InvokerSupervisionTests
 
   /** Helper to generate a list of (InstanceId, InvokerState) */
   def zipWithInstance(list: IndexedSeq[InvokerState]) = list.zipWithIndex.map {
-    case (state, index) => (InstanceId(index), state)
+    case (state, index) => new InvokerHealth(InstanceId(index), state)
   }
 
   val pC = new TestConnector("pingFeedTtest", 4, false) {}

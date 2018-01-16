@@ -138,10 +138,13 @@ class Controller(val instance: InstanceId,
    */
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
-
     (path("invokers") & get) {
       complete {
-        loadBalancer.healthStatus
+        loadBalancer
+          .invokerHealth()
+          .map(_.map {
+            case i => s"invoker${i.id.toInt}" -> i.status.asString
+          }.toMap.toJson.asJsObject)
       }
     }
   }

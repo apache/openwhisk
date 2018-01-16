@@ -45,7 +45,6 @@ import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.spi.SpiLoader
-import spray.json.JsObject
 
 protected trait ControllerTestCommon
     extends FlatSpec
@@ -201,6 +200,5 @@ class DegenerateLoadBalancerService(config: WhiskConfig)(implicit ec: ExecutionC
       } getOrElse Future.failed(new IllegalArgumentException("Unit test does not need fast path"))
     }
 
-  override def healthStatus: Future[JsObject] = Future.successful(JsObject())
-
+  override def invokerHealth() = Future.successful(IndexedSeq.empty)
 }
