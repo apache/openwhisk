@@ -30,6 +30,10 @@
   become: "{{ db.dir.become }}"
   when: db_confdir is defined
 
+- name: "change ownership"
+  shell: "chown -R 1000.1000 {{ db_confdir }}"
+  become: "{{ db.dir.become }}"
+
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
   shell: "docker pull apache/couchdb:{{ couchdb.version }}"
   retries: "{{ docker.pull.retries }}"
@@ -46,7 +50,6 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
-    user: 2000:2000
     ports:
       - "{{ db_port }}:5984"
       - "4369:4369"
@@ -57,7 +60,7 @@
       NODENAME: "{{ ansible_host }}"
 
 - name: "check logs"
-  shell: "docker ps"
+  shell: "docker exec -i couchdb id root"
 
 - name: "check logs"
   shell: "docker logs couchdb"
