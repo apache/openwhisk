@@ -31,7 +31,7 @@
   when: db_confdir is defined
 
 - name: "change ownership"
-  shell: "chown -R 1000.1000 {{ db_confdir }}"
+  shell: "chown -R 0.0 {{ db_confdir }}"
   become: "{{ db.dir.become }}"
 
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
