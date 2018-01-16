@@ -31,7 +31,7 @@
   when: db_confdir is defined
 
 - name: "change ownership"
-  shell: "chown -R 1000.1000 {{ db_confdir }}"
+  shell: "chown -R 116.122 {{ db_confdir }}"
   become: "{{ db.dir.become }}"
 
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
@@ -63,13 +63,7 @@
       NODENAME: "{{ ansible_host }}"
 
 - name: "check logs"
-  shell: "docker exec -i couchdb id root"
-
-- name: "check logs"
   shell: "docker logs couchdb"
-
-- name: "check logs"
-  shell: "netstat -ltn"
 
 - name: wait until CouchDB in this host is up and running
   uri:
