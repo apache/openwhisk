@@ -63,7 +63,7 @@
       NODENAME: "{{ ansible_host }}"
 
 - name: "check logs"
-  shell: "docker logs couchdb"
+  shell: "docker logs -f couchdb"
 
 - name: wait until CouchDB in this host is up and running
   uri:
