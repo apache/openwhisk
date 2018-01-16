@@ -27,7 +27,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.server.directives.{DebuggingDirectives, HeaderDirectives, LogEntry}
+import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common.LogMarker
@@ -78,10 +78,12 @@ trait BasicHttpService extends Directives with TransactionCounter {
     assignId { implicit transid =>
       DebuggingDirectives.logRequest(logRequestInfo _) {
         DebuggingDirectives.logRequestResult(logResponseInfo _) {
-          handleRejections(BasicHttpService.customRejectionHandler) {
-            prioritizeRejections {
-              toStrictEntity(30.seconds) {
-                routes
+          BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
+            handleRejections(BasicHttpService.customRejectionHandler) {
+              prioritizeRejections {
+                toStrictEntity(30.seconds) {
+                  routes
+                }
               }
             }
           }

@@ -72,40 +72,41 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   behavior of "TransactionId"
 
   it should "serdes a transaction id without extraLogging parameter" in {
-    val txId = 4711
-    val txWithoutExtraLogging = TransactionId(txId)
+    val txIdWithoutParameter = TransactionId(4711)
 
     // test serialization
-    val serializedTxIdWithoutParameter = TransactionId.serdes.write(txWithoutExtraLogging)
+    val serializedTxIdWithoutParameter = TransactionId.serdes.write(txIdWithoutParameter)
     serializedTxIdWithoutParameter match {
       case JsArray(Vector(JsNumber(id), JsNumber(_))) =>
-        assert(id == txId)
+        assert(id == txIdWithoutParameter.meta.id)
       case JsArray(Vector(JsNumber(_), JsNumber(_), JsBoolean(_))) =>
         assert(false)
+      case _ => withClue(serializedTxIdWithoutParameter) { assert(false) }
     }
 
     // test deserialization
     val deserializedTxIdWithoutParameter = TransactionId.serdes.read(serializedTxIdWithoutParameter)
-    deserializedTxIdWithoutParameter.meta.id should equal(txId)
+    deserializedTxIdWithoutParameter.meta.id should equal(txIdWithoutParameter.meta.id)
     deserializedTxIdWithoutParameter.meta.extraLogging should equal(false)
   }
 
   it should "serdes a transaction id with extraLogging parameter" in {
-    val txId = 4711
-    val txIdWithExtraLogging = TransactionId(txId, true)
+    val txIdWithParameter = TransactionId(4711, true)
+
     // test serialization
-    val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithExtraLogging)
+    val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithParameter)
     serializedTxIdWithParameter match {
       case JsArray(Vector(JsNumber(_), JsNumber(_))) =>
         assert(false)
       case JsArray(Vector(JsNumber(id), JsNumber(_), JsBoolean(extraLogging))) =>
-        assert(id == txId)
+        assert(id == txIdWithParameter.meta.id)
         assert(extraLogging)
+      case _ => withClue(serializedTxIdWithParameter) { assert(false) }
     }
 
     // test deserialization
     val deserializedTxIdWithParameter = TransactionId.serdes.read(serializedTxIdWithParameter)
-    deserializedTxIdWithParameter.meta.id should equal(txId)
+    deserializedTxIdWithParameter.meta.id should equal(txIdWithParameter.meta.id)
     assert(deserializedTxIdWithParameter.meta.extraLogging)
   }
 
