@@ -35,6 +35,9 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
+- name: "check configuration files"
+  shell: "ls -l {{ db_confdir }}"
+
 - name: (re)start CouchDB
   docker_container:
     name: couchdb
@@ -51,6 +54,9 @@
       COUCHDB_USER: "{{ db_username }}"
       COUCHDB_PASSWORD: "{{ db_password }}"
       NODENAME: "{{ ansible_host }}"
+
+- name: "check logs"
+  shell: "docker logs couchdb"
 
 - name: wait until CouchDB in this host is up and running
   uri:
