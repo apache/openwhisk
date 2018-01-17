@@ -254,7 +254,7 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
       Try {
         v.asJsObject.getFields("error", "code") match {
           case Seq(JsString(error), JsNumber(code)) =>
-            ErrorResponse(error, TransactionId(code))
+            ErrorResponse(error, TransactionId(code.toBigInt))
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)
         }

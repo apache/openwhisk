@@ -17,21 +17,21 @@
 
 package whisk.http
 
-import scala.collection.immutable.Seq
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.DurationInt
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.server._
+import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.http.scaladsl.server.RouteResult.Rejected
+import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common._
 import whisk.core.WhiskConfig
+
+import scala.collection.immutable.Seq
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.DurationInt
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
@@ -97,7 +97,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
       case Some(value) => value.toLowerCase == "on"
       case None        => false
     }
-    extract(_ => transid(extraLogging))
+    extract(req => transid(req.request.headers.find(_.name == "OW-TID").map(_.value), extraLogging))
   }
 
   /** Generates log entry for every request. */

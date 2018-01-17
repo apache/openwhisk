@@ -19,40 +19,28 @@ package whisk.core.containerpool.test
 
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
-import org.scalatest.junit.JUnitRunner
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.FSM
-import akka.actor.FSM.CurrentState
-import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.FSM.Transition
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
+import akka.actor.{ActorRef, ActorSystem, FSM}
 import akka.stream.scaladsl.Source
-import akka.testkit.ImplicitSender
-import akka.testkit.TestKit
+import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.ByteString
-import common.LoggedFunction
-import common.StreamLogging
-
-import scala.concurrent.ExecutionContext
-import spray.json._
+import common.{LoggedFunction, StreamLogging}
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import spray.json.DefaultJsonProtocol._
-import whisk.common.Logging
-import whisk.common.TransactionId
+import spray.json._
+import whisk.common.{Logging, TransactionId}
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogCollectingException
+import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
-import whisk.core.entity.ExecManifest.RuntimeManifest
-import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
 import whisk.http.Messages
+
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 @RunWith(classOf[JUnitRunner])
 class ContainerProxyTests
@@ -79,7 +67,7 @@ class ContainerProxyTests
   val action = ExecutableWhiskAction(EntityPath("actionSpace"), EntityName("actionName"), exec)
 
   // create a transaction id to set the start time and control queue time
-  val messageTransId = TransactionId(BigDecimal(TransactionId.testing.meta.id))
+  val messageTransId = TransactionId(TransactionId.testing.meta.id)
 
   val initInterval = {
     val now = messageTransId.meta.start.plusMillis(50) // this is the queue time for cold start

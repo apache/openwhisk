@@ -17,20 +17,16 @@
 
 package whisk.common
 
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
+import java.math.BigInteger
+import java.time.{Clock, Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.math.BigDecimal.int2bigDecimal
-import scala.util.Try
-import akka.event.Logging.{DebugLevel, InfoLevel, WarningLevel}
-import akka.event.Logging.LogLevel
-import spray.json._
-
+import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
+import pureconfig._
+import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, _}
 import whisk.core.ConfigKeys
 
-import pureconfig._
+import scala.util.Try
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -40,7 +36,7 @@ import pureconfig._
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
   override def toString = {
-    if (meta.id > 0) s"#tid_${meta.id}"
+    if (meta.id > 0) s"#tid_${meta.id.toString(16)}"
     else if (meta.id < 0) s"#sid_${-meta.id}"
     else "??"
   }
@@ -190,8 +186,9 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param id the transaction identifier; it is positive for client requests,
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
+ * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant, val extraLogging: Boolean = false)
+protected case class TransactionMetadata(val id: BigInt, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
 
@@ -211,7 +208,7 @@ object TransactionId {
   val controller = TransactionId(-130) // Controller startup
   val dbBatcher = TransactionId(-140) // Database batcher
 
-  def apply(tid: BigDecimal, extraLogging: Boolean = false): TransactionId = {
+  def apply(tid: BigInt, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
       TransactionId(TransactionMetadata(tid.toLong, now, extraLogging))
@@ -230,7 +227,7 @@ object TransactionId {
       Try {
         value match {
           case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), false))
+            TransactionId(TransactionMetadata(id.toBigInt, Instant.ofEpochMilli(start.longValue), false))
           case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
             TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
@@ -251,7 +248,9 @@ trait TransactionCounter {
   // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
   private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
 
-  def transid(extraLogging: Boolean = false): TransactionId = {
-    TransactionId(cnt.addAndGet(stride), extraLogging)
+  def transid(nginxRequestId: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
+    nginxRequestId
+      .map(id => TransactionId(new BigInteger(id, 16), extraLogging))
+      .getOrElse(TransactionId(cnt.addAndGet(stride), extraLogging))
   }
 }
