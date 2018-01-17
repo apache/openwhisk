@@ -22,6 +22,7 @@ import java.time.{Clock, Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
+import akka.http.scaladsl.model.headers.RawHeader
 import pureconfig._
 import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, _}
 import whisk.core.ConfigKeys
@@ -39,6 +40,10 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     if (meta.id > 0) s"#tid_${meta.id.toString(16)}"
     else if (meta.id < 0) s"#sid_${-meta.id}"
     else "??"
+  }
+
+  def toHeader = {
+    RawHeader("OW-TID", meta.id.toString(16))
   }
 
   /**
