@@ -692,7 +692,7 @@ function generateCliApiFromGwApi(gwApi) {
  *           result[4] : action name, including the package if used (i.e. myaction, mypkg/myaction)
  */
 function parseActionUrl(actionUrl) {
-  var actionUrlPattern = /(\w+):\/\/([:/\w.\-]+)\/api\/v\d\/namespaces\/([@\w .\-]+)\/actions\/([@\w .\-\/]+)/;
+  var actionUrlPattern = /(\w+):\/\/([:\/\w.\-]+)\/api\/v\d\/namespaces\/([@\w .\-]+)\/actions\/([@\w .\-\/]+)/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {

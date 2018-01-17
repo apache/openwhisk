@@ -585,7 +585,7 @@ function generateCliApiFromGwApi(gwApi) {
  */
 function parseActionUrl(actionUrl) {
   console.log('parseActionUrl: parsing action url: '+actionUrl);
-  var actionUrlPattern = /(\w+):\/\/([:/\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.(\w+)/;
+  var actionUrlPattern = /(\w+):\/\/([:\/\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.(\w+)/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {
