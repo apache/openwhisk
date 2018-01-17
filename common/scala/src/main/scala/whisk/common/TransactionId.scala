@@ -67,7 +67,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     }
 
     if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
+      MetricEmitter.incrementCounter(marker)
     }
 
   }
@@ -93,7 +93,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     }
 
     if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
+      MetricEmitter.incrementCounter(marker)
     }
 
     StartMarker(Instant.now, marker)
@@ -160,7 +160,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
 
     if (TransactionId.metricsKamon) {
       MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
-      MetricEmitter.emitCounterMetric(endMarker)
+      MetricEmitter.incrementCounter(endMarker)
     }
   }
 

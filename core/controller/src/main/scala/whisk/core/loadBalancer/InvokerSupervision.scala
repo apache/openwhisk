@@ -35,10 +35,7 @@ import akka.actor.FSM.Transition
 import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
-import whisk.common.AkkaLogging
-import whisk.common.LoggingMarkers
-import whisk.common.RingBuffer
-import whisk.common.TransactionId
+import whisk.common._
 import whisk.core.connector._
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
@@ -117,7 +114,15 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
     case msg: ActivationRequest => sendActivationToInvoker(msg.msg, msg.invoker).pipeTo(sender)
   }
 
-  def logStatus() = {
+  val healthyInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_HEALTHY)
+  val unhealthyInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY)
+  val offlineInvokers = MetricEmitter.setupGauge(LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE)
+
+  def logStatus(): Unit = {
+    healthyInvokers.record(status.count(_._2 == Healthy).toLong)
+    unhealthyInvokers.record(status.count(_._2 == UnHealthy).toLong)
+    offlineInvokers.record(status.count(_._2 == Offline).toLong)
+
     val pretty = status.map { case (instance, state) => s"${instance.toInt} -> $state" }
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
   }
@@ -254,19 +259,9 @@ class InvokerActor(invokerInstance: InstanceId, controllerInstance: InstanceId) 
 
   /** Logging on Transition change */
   onTransition {
-    case _ -> Offline =>
-      transid.mark(
-        this,
-        LoggingMarkers.LOADBALANCER_INVOKER_OFFLINE,
-        s"$name is offline",
-        akka.event.Logging.WarningLevel)
-    case _ -> UnHealthy =>
-      transid.mark(
-        this,
-        LoggingMarkers.LOADBALANCER_INVOKER_UNHEALTHY,
-        s"$name is unhealthy",
-        akka.event.Logging.WarningLevel)
-    case _ -> Healthy => logging.info(this, s"$name is healthy")
+    case _ -> Offline   => logging.warn(this, s"$name is offline")
+    case _ -> UnHealthy => logging.warn(this, s"$name is unhealthy")
+    case _ -> Healthy   => logging.info(this, s"$name is healthy")
   }
 
   /** Scheduler to send test activations when the invoker is unhealthy. */

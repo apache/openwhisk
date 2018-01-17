@@ -22,11 +22,14 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicLong
 
 import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
 import kamon.Kamon
+
+import scala.concurrent.duration._
 
 trait Logging {
 
@@ -165,10 +168,11 @@ private object Emitter {
 }
 
 case class LogMarkerToken(component: String, action: String, state: String) {
-  override def toString() = component + "_" + action + "_" + state
+  override def toString: String = asString
+  def asString: String = component + "_" + action + "_" + state
 
-  def asFinish = copy(state = LoggingMarkers.finish)
-  def asError = copy(state = LoggingMarkers.error)
+  def asFinish: LogMarkerToken = copy(state = LoggingMarkers.finish)
+  def asError: LogMarkerToken = copy(state = LoggingMarkers.error)
 }
 
 object LogMarkerToken {
@@ -184,16 +188,22 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken) = {
-    metrics
-      .counter(token.toString)
-      .increment(1)
-  }
+  def incrementCounter(token: LogMarkerToken): Unit = metrics.counter(token.asString).increment(1)
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = metrics.histogram(token.asString).record(value)
 
-  def emitHistogramMetric(token: LogMarkerToken, value: Long) = {
-    metrics
-      .histogram(token.toString)
-      .record(value)
+  /**
+   * Creating a gauge to record values to.
+   *
+   * Uses a StableGauge which will always report the same value until that value is changed.
+   *
+   * @param token name of the gauge
+   * @return a stable gauge to record values to
+   */
+  def setupGauge(token: LogMarkerToken) = new StableGauge(token.asString)
+  class StableGauge(name: String, value: AtomicLong = new AtomicLong(0)) {
+    metrics.gauge(name, 1.second)(value.get)
+
+    def record(newValue: Long): Unit = value.set(newValue)
   }
 }
 
@@ -234,6 +244,9 @@ object LoggingMarkers {
   // Check invoker healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
+  val LOADBALANCER_INVOKER_HEALTHY = LogMarkerToken(loadbalancer, "invokerHealthy", count)
+
+  val LOADBALANCER_ACTIVATIONS_INFLIGHT = LogMarkerToken(loadbalancer, "activationsInFlight", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
