@@ -96,7 +96,6 @@ kafka:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
-  autoCreateTopics: "{{ kafka_autoCreateTopics | default('false') }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
