@@ -72,9 +72,6 @@
 - name: "check configuration files"
   shell: "ps -ef | grep couchdb"
 
-- name: "check configuration files"
-  shell: "id travis"
-
 - name: "check logs"
   shell: "docker logs -f couchdb"
 
