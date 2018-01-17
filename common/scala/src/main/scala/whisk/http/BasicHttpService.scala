@@ -60,7 +60,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
    */
   def loglevelForRoute(route: String): Logging.LogLevel = Logging.InfoLevel
 
-  /** Rejection handler to terminate connection on a bad request. Delegates to Akka handler. */
+  /** Prioritized rejections based on relevance. */
   val prioritizeRejections = recoverRejections { rejections =>
     val priorityRejection = rejections.find {
       case rejection: UnacceptedResponseContentTypeRejection => true
