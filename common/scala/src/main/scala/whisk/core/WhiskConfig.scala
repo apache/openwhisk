@@ -254,4 +254,8 @@ object ConfigKeys {
 
   val transactions = "whisk.transactions"
   val stride = s"$transactions.stride"
+  val invokerDocker = "whisk.docker"
+
+  val invokerDockerRootPath = s"$invokerDocker.rootpath"
+
 }

@@ -17,30 +17,35 @@
 
 package whisk.core.containerpool.docker
 
+import java.nio.file.Paths
+import java.util.concurrent.TimeoutException
+
 import akka.actor.ActorSystem
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
+import whisk.core.ConfigKeys
+import whisk.core.WhiskConfig
+
 import scala.concurrent.duration._
-import java.util.concurrent.TimeoutException
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, parameters: Map[String, Set[String]])(
   implicit actorSystem: ActorSystem,
   ec: ExecutionContext,
   logging: Logging)
     extends ContainerFactory {
+  private val dockerConfig = pureconfig.loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.invokerDocker)
 
   /** Initialize container clients */
-  implicit val docker = new DockerClientWithFileAccess()(ec)
+  implicit val docker = new DockerClientWithFileAccess(containersDirectory = Paths.get(dockerConfig.rootpath.getOrElse("containers")).toFile)(ec)
   implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
@@ -129,3 +134,5 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
                                    parameters: Map[String, Set[String]]): ContainerFactory =
     new DockerContainerFactory(config, instanceId, parameters)(actorSystem, actorSystem.dispatcher, logging)
 }
+
+case class DockerContainerFactoryConfig(rootpath: Option[String])
