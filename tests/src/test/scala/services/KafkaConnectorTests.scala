@@ -50,7 +50,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic))
+  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic ${topic} failed")
   val sessionTimeout = 10 seconds
   val maxPollInterval = 10 seconds
   val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
