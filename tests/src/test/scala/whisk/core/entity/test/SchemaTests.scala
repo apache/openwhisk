@@ -79,8 +79,6 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     serializedTxIdWithoutParameter match {
       case JsArray(Vector(JsNumber(id), JsNumber(_))) =>
         assert(id == txIdWithoutParameter.meta.id)
-      case JsArray(Vector(JsNumber(_), JsNumber(_), JsBoolean(_))) =>
-        assert(false)
       case _ => withClue(serializedTxIdWithoutParameter) { assert(false) }
     }
 
@@ -96,8 +94,6 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     // test serialization
     val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithParameter)
     serializedTxIdWithParameter match {
-      case JsArray(Vector(JsNumber(_), JsNumber(_))) =>
-        assert(false)
       case JsArray(Vector(JsNumber(id), JsNumber(_), JsBoolean(extraLogging))) =>
         assert(id == txIdWithParameter.meta.id)
         assert(extraLogging)
