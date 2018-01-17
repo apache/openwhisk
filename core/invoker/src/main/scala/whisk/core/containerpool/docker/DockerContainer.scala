@@ -100,6 +100,7 @@ object DockerContainer {
       "--network",
       network) ++
       environmentArgs ++
+      dnsServers.flatMap(d => Seq("--dns", d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
       params
     val pulled = if (userProvidedImage) {

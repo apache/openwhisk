@@ -32,8 +32,15 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+import pureconfig._
+import whisk.core.ConfigKeys
+import whisk.core.containerpool.ContainerArgsConfig
 
-class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, parameters: Map[String, Set[String]])(
+class DockerContainerFactory(config: WhiskConfig,
+                             instance: InstanceId,
+                             parameters: Map[String, Set[String]],
+                             containerArgs: ContainerArgsConfig =
+                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs))(
   implicit actorSystem: ActorSystem,
   ec: ExecutionContext,
   logging: Logging)
@@ -62,11 +69,11 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
       memory = memory,
       cpuShares = config.invokerCoreShare.toInt,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
-      network = config.invokerContainerNetwork,
-      dnsServers = config.invokerContainerDns,
+      network = containerArgs.network,
+      dnsServers = containerArgs.dnsServers,
       name = Some(name),
       useRunc = config.invokerUseRunc,
-      parameters)
+      parameters ++ containerArgs.extraArgs)
   }
 
   /** Perform cleanup on init */
