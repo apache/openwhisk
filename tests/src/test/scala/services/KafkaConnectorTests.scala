@@ -140,7 +140,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         val prevCount = startLog.r.findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout).length
 
         commandComponent(kafkaHost, "stop", s"kafka$i")
-        var received = sendAndReceiveMessage(message, 30 seconds, 30 seconds)
+        var received = sendAndReceiveMessage(message, 60 seconds, 60 seconds)
         received.size should be(1)
         consumer.commit()
 
@@ -151,7 +151,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
             .length shouldBe prevCount + 1
         }, 20, Some(1.second)) // wait until kafka is up
 
-        received = sendAndReceiveMessage(message, 30 seconds, 30 seconds)
+        received = sendAndReceiveMessage(message, 60 seconds, 60 seconds)
         received.size should be(1)
         consumer.commit()
       }
