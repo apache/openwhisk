@@ -25,6 +25,148 @@ const ApimgmtUserAgent = "OpenWhisk-apimgmt/1.0.0";
 var UserAgent = ApimgmtUserAgent;
 
 /**
+ * Helper method for the validateFinalSwagger function. Generates a map of operationId to target-url strings so we
+ * can validate that each operationId we find that has a parameter in the path also has its target-url appended with
+ * $(request.path)
+ *
+ * @param ibmConfig   Required. The 'x-ibm-configuration' portion of the swaggerApi.
+ * @return A map of operationId->target-url pairs for checking.
+ */
+function generateTargetUrlMap(ibmConfig) {
+  var targetUrls = {};
+  ibmConfig['assembly']['execute'].forEach(function(exec) {
+    if (exec['operation-switch'] && exec['operation-switch']['case']) {
+      exec['operation-switch']['case'].forEach(function(element) {
+        var operations = element['operations'];
+        var execs = element['execute'];
+        //each nth element of execs and operations go together, so lets add those to the map.
+        for (var i = 0; i < operations.length ; ++i) {
+          if(i < execs.length && execs[i] && execs[i]['invoke']['target-url']) {
+            targetUrls[operations[i]] = execs[i]['invoke']['target-url'];
+          }
+        }
+      });
+    }
+  });
+  return targetUrls;
+}
+
+/**
+ * Helper function that just validates whether a relative path meets the following conditions:
+ * 1. It has not path parameters
+ * 2. If it has path parameters, that the parameters are well formed (i.e. each param is surrounded by {}).
+ *
+ * @param relativePath   Required. The relative path we are checking.
+ * @return True if the path is valid, false otherwise.
+ */
+function isValidRelativePath(relativePath) {
+  var validParamRegex = /\/\{([^\/]+)\}\/|\/\{([^\/]+)\}$/g;
+  if (relativePath.match(validParamRegex)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Simple function to get the name of each path parameter defined in the path.
+ *
+ * @param path   Required. The path we are checking.
+ * @return An array that contains each named path parameter, or an empty list if none are found.
+ */
+function getPathParameters(relativePath) {
+  var params = [];
+  var validNameRegex = /\{([^\/]+)\}/g
+  //Match returns all the matches found, including the {} chars. so we have to remove them.
+  var namesFound = relativePath.match(validNameRegex);
+  if (namesFound) {
+    params = namesFound.map(function (pathName){
+      return pathName.substring(1,pathName.length-1);
+    });
+  }
+  return params;
+}
+
+/**
+ * Currently this only checks the final swagger that will be passed into API GW whether the path parameter definition
+ * is correct.
+ *
+ * @param swaggerApi   Required. The API swagger object to send to the API gateway
+ * @return A promise with the fully validated swaggerApi, or an error response if rejected.
+ */
+function validateFinalSwagger(swaggerApi) {
+  return new Promise(function(resolve, reject) {
+    // This returns a map of urls to check for path parameters.
+    console.log("validateFinalSwagger: Validating swapper before posting to API GW.")
+    var errorMsg;
+    var paths = swaggerApi['paths'];
+
+    if (swaggerApi.basePath && isValidRelativePath(swaggerApi.basePath)) {
+      errorMsg = "The base path (" + swaggerApi.basePath + ") cannot have parameters. Only the relative path supports path parameters.";
+    }
+    /*
+     * This code will look at each path defined, and look at all the parameters in each path, and validate that each
+     * verb (GET,POST, etc) for each path defines parameter objects for each parameter defined in the path. For each of
+     * these that contain parameters, it will also check that its target-url ends in $(request.path).
+     * #beginPathValidation
+     */
+    var targetUrlMap = generateTargetUrlMap(swaggerApi['x-ibm-configuration']);
+    for (var key in paths) {
+      if (errorMsg) { break; }
+      var idx = 0;
+      if (isValidRelativePath(key)) {
+        //Path is valid, lets check that we have parameters defined for each path parameter and that the target-url
+        //has $(request.path) at the end.
+        var namedParamsInPath = getPathParameters(key);
+        //Loop over each verb (GET,POST,etc), each should contain path parameters.
+        var parameters = paths[key]['parameters'] ? paths[key]['parameters'] : [];
+        for (var httpType in paths[key]) {
+          if (httpType == "parameters") {
+            continue;
+          }
+          var xOpenWhisk = paths[key][httpType]['x-openwhisk']
+          if (xOpenWhisk && xOpenWhisk['url'] && !xOpenWhisk['url'].endsWith('.http')) {
+            errorMsg = "The action must use a response type of '.http' in order to receive the path parameters.";
+            break;
+          }
+          var opId = paths[key][httpType].operationId;
+          if (targetUrlMap[opId] && !targetUrlMap[opId].endsWith('.http$(request.path)')) {
+            errorMsg = "The target-url for operationId '" + opId;
+            errorMsg += "' must end in '$(request.path)' in order for actions to receive the path parameters.";
+            break;
+          }
+          var allParams = parameters.concat(paths[key][httpType].parameters);
+          for (var i = 0 ; i < namedParamsInPath.length ; ++i) {
+            var found = false;
+            for (var j in allParams) {
+              if (allParams[j].name == namedParamsInPath[i]) {
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              errorMsg = "The parameter '" + namedParamsInPath[i] + "' defined in path '" + key + "' does not match any";
+              errorMsg += " of the parameters defined for the path in the swagger file.";
+              break;
+            }
+          }
+          if(errorMsg) { break; }
+        }
+        if(errorMsg) { break; }
+      }
+    }
+    //#endPathValidation
+    if (errorMsg) {
+      console.error("validateFinalSwagger:" + errorMsg)
+      reject(errorMsg);
+    } else {
+      console.log("validateFinalSwagger: Validation of swagger before posting to API GW was successful.")
+      resolve(swaggerApi);
+    }
+  });
+}
+
+
+/**
  * Configures an API route on the API Gateway.  This API will map to an OpenWhisk action that
  * will be invoked by the API Gateway when the API route is accessed.
  *
@@ -41,25 +183,25 @@ function addApiToGateway(gwInfo, spaceGuid, swaggerApi, apiId) {
 
   console.log('addApiToGateway: ');
   try {
-  var options = {
-    followAllRedirects: true,
-    url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
-    json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
-    headers: {
-      'User-Agent': UserAgent
+    var options = {
+      followAllRedirects: true,
+      url: gwInfo.gwUrl+'/'+encodeURIComponent(spaceGuid) + '/apis',
+      json: swaggerApi,  // Use of json automatically sets header: 'Content-Type': 'application/json'
+      headers: {
+        'User-Agent': UserAgent
+      }
+    };
+    if (gwInfo.gwAuth) {
+      _.set(options, "headers.Authorization", 'Bearer ' + gwInfo.gwAuth);
     }
-  };
-  if (gwInfo.gwAuth) {
-    _.set(options, "headers.Authorization", 'Bearer ' + gwInfo.gwAuth);
-  }
 
-  if (apiId) {
-    console.log("addApiToGateway: Updating existing API");
-    options.url = gwInfo.gwUrl + '/' + encodeURIComponent(spaceGuid) + '/apis/' + encodeURIComponent(apiId);
-    requestFcn = request.put;
-  }
+    if (apiId) {
+      console.log("addApiToGateway: Updating existing API");
+      options.url = gwInfo.gwUrl + '/' + encodeURIComponent(spaceGuid) + '/apis/' + encodeURIComponent(apiId);
+      requestFcn = request.put;
+    }
 
-  console.log('addApiToGateway: request: '+JSON.stringify(options, " ", 2));
+    console.log('addApiToGateway: request: '+JSON.stringify(options, " ", 2));
   }
   catch (e) {
     console.error('addApiToGateway exception: '+e);
@@ -392,9 +534,9 @@ function addEndpointToSwaggerApi(swaggerApi, endpoint, responsetype) {
     if (!swaggerApi.paths[endpoint.gatewayPath]) {
       swaggerApi.paths[endpoint.gatewayPath] = {};
     }
-
     swaggerApi.paths[endpoint.gatewayPath][operation] = {
       'operationId': operationId,
+      'parameters': endpoint.pathParameters,
       'x-openwhisk': {
         'url': makeWebActionBackendUrl(endpoint.action, responsetype),
         'namespace': endpoint.action.namespace,
@@ -425,7 +567,7 @@ function setActionOperationInvocationDetails(swagger, endpoint, operationId, res
   var caseIdx = getCaseOperationIdx(caseArr, operationId);
   var operations = [operationId];
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
-  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype));
+  _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype, getPathParameters(endpoint.gatewayPath)));
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
 }
 
@@ -451,14 +593,16 @@ function getCaseOperationIdx(caseArr, operationId) {
 // Parameters
 //   endpointAction       - fully qualified action name (i.e. /ns/pkg/action or /ns/action)
 //   endpointResponseType - determines the action invocation extension without the '.' (i.e. http, json, etc)
+//   parameters           - the parameters defined in the path, if any.
 // Returns:
 //   string               - web-action URL
-function makeWebActionBackendUrl(endpointAction, endpointResponseType) {
+function makeWebActionBackendUrl(endpointAction, endpointResponseType, parameters) {
   host = getHostFromActionUrl(endpointAction.backendUrl);
   ns = endpointAction.namespace;
   pkg = getPackageNameFromFqActionName(endpointAction.name) || 'default';
   name = getActionNameFromFqActionName(endpointAction.name);
-  return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType;
+  reqPath = parameters != null && parameters.length > 0 ? "$(request.path)" : "";
+  return 'https://' + host + '/api/v1/web/' + ns + '/' + pkg + '/' + name + '.' + endpointResponseType + reqPath;
 }
 
 /*
@@ -829,7 +973,11 @@ function makeResponseObject(resp, isWebAction) {
  */
 function makeJsonString(x) {
   // If the value is not already a string, rely on JSON.stringify to convert it correctly
-  if (typeof x != 'string') {
+  if (x instanceof Error) {
+    //Print the whole error here as we are only returning the error message and nothing else.
+    console.error(x);
+    return JSON.stringify(x.message);
+  } else if (typeof x != 'string') {
     try {
       return JSON.stringify(x);
     } catch (e) {
@@ -894,3 +1042,4 @@ module.exports.makeErrorResponseObject = makeErrorResponseObject;
 module.exports.makeResponseObject = makeResponseObject;
 module.exports.makeJsonString = makeJsonString;
 module.exports.setSubUserAgent = setSubUserAgent;
+module.exports.validateFinalSwagger = validateFinalSwagger;

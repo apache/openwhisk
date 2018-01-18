@@ -1,0 +1,62 @@
+{
+  "swagger": "2.0",
+  "basePath": "/guest/v1",
+  "info": {
+    "title": "/guest/v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api2/greeting2/{name}": {
+      "get": {
+        "operationId": "getApi2Greeting2Name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Default response"
+          }
+        },
+        "x-openwhisk": {
+          "action": "cli_apigwtest_path_param_swagger_action",
+          "namespace": "%NAMESPACE%",
+          "package": "",
+          "url": "%HOST%/api/v1/web/%NAMESPACE%/default/cli_apigwtest_path_param_swagger_action.http"
+        }
+      }
+    }
+  },
+  "x-ibm-configuration": {
+    "assembly": {
+      "execute": [
+        {
+          "operation-switch": {
+            "case": [
+              {
+                "execute": [
+                  {
+                    "invoke": {
+                      "target-url": "%HOST%/api/v1/web/%NAMESPACE%/default/cli_apigwtest_path_param_swagger_action.http$(request.path)",
+                      "verb": "keep"
+                    }
+                  }
+                ],
+                "operations": [
+                  "getApi2Greeting2Name"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "cors": {
+      "enabled": true
+    }
+  }
+}
