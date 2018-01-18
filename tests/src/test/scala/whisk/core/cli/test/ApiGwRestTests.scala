@@ -18,20 +18,22 @@
 package whisk.core.cli.test
 
 import akka.http.scaladsl.model.StatusCodes.OK
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.json.JsObject
-
+import spray.json._
 import common.rest.WskRest
 import common.rest.RestResult
-import common.TestUtils.RunResult
+import common.TestUtils.{RunResult, _}
+import common.TestUtils
+import system.rest.RestUtil
+import java.io.File
 
 /**
  * Tests for testing the CLI "api" subcommand.  Most of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwRestTests extends ApiGwTests {
+class ApiGwRestTests extends ApiGwTests with RestUtil {
   override lazy val wsk = new WskRest
   override lazy val createCode = OK.intValue
 
@@ -245,4 +247,59 @@ class ApiGwRestTests extends ApiGwTests {
     rr.stderr should include("A valid auth key is required")
   }
 
+  def getSwaggerApiUrl(rr: RunResult): String = {
+    val apiResultRest = rr.asInstanceOf[RestResult]
+    return apiResultRest.getField("gwApiUrl") + "/path"
+  }
+
+  def getParametersFromJson(rr: RunResult, pathName: String): Vector[JsObject] = {
+    val apiResult = rr.asInstanceOf[RestResult]
+    val apidoc = apiResult.getFieldJsObject("apidoc")
+    val paths = RestResult.getFieldJsObject(apidoc, "paths")
+    val path = RestResult.getFieldJsObject(paths, pathName)
+    val get = RestResult.getFieldJsObject(path, "get")
+    RestResult.getFieldListJsObject(get, "parameters")
+  }
+
+  behavior of "Wsk rest api creation with path parameters with swagger"
+
+  it should "create the API when swagger file contains path parameters" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      println(wskprops.apihost)
+      val actionName = "cli_apigwtest_path_param_swagger_action"
+      var exception: Throwable = null
+      val apiName = "/guest/v1"
+      val reqPath = "\\$\\(request.path\\)"
+      val testRelPath = "/api2/greeting2/{name}"
+      val testRelPathGet = "/api2/greeting2/name"
+      val hostRegex = "%HOST%".r
+      val namespaceRegex = "%NAMESPACE%".r
+      var file = TestUtils.getTestActionFilename(s"echo-web-http.js")
+      assetHelper.withCleaner(wsk.action, actionName, confirmDelete = true) { (action, _) =>
+        action.create(actionName, Some(file), web = Some("true"))
+      }
+      try {
+        val apiGwURL = "https://" + wskprops.apihost
+        file = TestUtils.getTestApiGwFilename("apigw_path_param_support_test_withPathParameters1.json")
+        var replacements = Map(hostRegex -> apiGwURL, namespaceRegex -> "guest")
+        file = replaceStringInFile(file, replacements)
+        var rr = apiCreate(swagger = Some(file), expectedExitCode = SUCCESS_EXIT)
+        val apiResult = rr.asInstanceOf[RestResult]
+        val url = apiResult.getField("gwApiUrl")
+        val params = getParametersFromJson(rr, testRelPath)
+        println("url: " + url)
+        params.size should be(1)
+        RestResult.getField(params(0), "name") should be("name")
+        RestResult.getField(params(0), "in") should be("path")
+        RestResult.getFieldJsValue(params(0), "required").toString() should be("true")
+        RestResult.getField(params(0), "type") should be("string")
+      } catch {
+        case unknown: Throwable => exception = unknown;
+      } finally {
+        apiDelete(basepathOrApiName = apiName)
+        val f = new File(file)
+        if (f.exists()) { f.delete() }
+      }
+      assert(exception == null)
+  }
 }

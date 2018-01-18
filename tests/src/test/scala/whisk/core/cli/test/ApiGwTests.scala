@@ -22,11 +22,12 @@ import java.io.BufferedWriter
 import java.io.FileWriter
 
 import org.junit.runner.RunWith
-
 import org.scalatest.junit.JUnitRunner
-
+import org.apache.commons.io.FileUtils
 import common.TestUtils._
 import common.TestUtils
+
+import scala.util.matching.Regex
 import common.WskProps
 
 /**
@@ -163,6 +164,67 @@ abstract class ApiGwTests extends BaseApiGwTests {
     rr.stderr should include("The supplied authentication is invalid")
   }
 
+  def replaceStringInFile(fileName: String, replacements: Map[Regex, String]): String = {
+    val encoding = "UTF-8"
+
+    val contents = FileUtils.readFileToString(new File(fileName), encoding)
+    var newContents = contents
+    replacements foreach ((regex) => newContents = regex._1.replaceAllIn(newContents, regex._2))
+    val tmpFileName = fileName + "-" + System.currentTimeMillis() + ".tmp"
+    val tmpFile = new File(tmpFileName)
+    if (tmpFile.exists()) {
+      FileUtils.forceDelete(tmpFile)
+    }
+    FileUtils.writeStringToFile(new File(tmpFileName), newContents, encoding)
+    tmpFileName
+  }
+
+  behavior of "Wsk api creation with path parameters no swagger"
+
+  it should "fail to create an Api if the base path contains path parameters" in {
+    val badBasePath = "/bad/{path}/value"
+    var rr = apiCreate(
+      basepath = Some(badBasePath),
+      relpath = Some("/good/path"),
+      operation = Some("GET"),
+      action = Some("action"),
+      expectedExitCode = ANY_ERROR_EXIT)
+    rr.stderr should include(
+      s"The base path (${badBasePath}) cannot have parameters. Only the relative path supports path parameters.")
+  }
+
+  behavior of "Wsk api creation with path parameters using swagger"
+
+  it should "fail to create API when swagger file contains invalid action response type" in {
+    val file = TestUtils.getTestApiGwFilename("apigw_path_param_support_test_invalidActionType.json")
+    val rr = apiCreate(swagger = Some(file), expectedExitCode = ANY_ERROR_EXIT)
+    var errMsg =
+      "API creation failure: The action must use a response type of '.http' in order to receive the path parameters."
+    rr.stderr should include(errMsg)
+  }
+
+  it should "fail to create API when swagger file contains invalid parameter names" in {
+    var file = TestUtils.getTestApiGwFilename("apigw_path_param_support_test_invalidParamName1.json")
+    var rr = apiCreate(swagger = Some(file), expectedExitCode = ANY_ERROR_EXIT)
+    var errMsg =
+      "API creation failure: The parameter 'name' defined in path '%s' does not match any of the parameters defined for the path in the swagger file."
+    rr.stderr should include(errMsg.format("/api2/greeting2/{name}"))
+
+    file = TestUtils.getTestApiGwFilename("apigw_path_param_support_test_invalidParamName2.json")
+    rr = apiCreate(swagger = Some(file), expectedExitCode = ANY_ERROR_EXIT)
+    errMsg =
+      "API creation failure: The parameter 'id' defined in path '%s' does not match any of the parameters defined for the path in the swagger file."
+    rr.stderr should include(errMsg.format("/api2/greeting2/{name}/{id}"))
+  }
+
+  it should "fail to create API when swagger file contains an invalid target-url" in {
+    val file = TestUtils.getTestApiGwFilename("apigw_path_param_support_test_invalidTargetUrl.json")
+    val rr = apiCreate(swagger = Some(file), expectedExitCode = ANY_ERROR_EXIT)
+    var errMsg = "API creation failure: The target-url for operationId 'getApi2Greeting2Name' must "
+    errMsg += "end in '$(request.path)' in order for actions to receive the path parameters."
+    rr.stderr should include(errMsg)
+  }
+
   behavior of "Wsk api"
 
   it should "reject an api commands with an invalid path parameter" in {
@@ -271,7 +333,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
     val testapiname = testName + " API Name"
     val actionName = testName + "_action"
     try {
-      println("cli namespace: " + clinamespace)
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo.js")
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = createCode, web = Some("true"))
@@ -282,14 +343,12 @@ abstract class ApiGwTests extends BaseApiGwTests {
         operation = Some(testurlop),
         action = Some(actionName),
         apiname = Some(testapiname))
-      println("api create: " + rr.stdout)
       verifyApiCreated(rr)
       rr = apiList(
         basepathOrApiName = Some(testbasepath),
         relpath = Some(testrelpath),
         operation = Some(testurlop),
         full = Some(true))
-      println("api list: " + rr.stdout)
       verifyApiList(rr, clinamespace, actionName, testurlop, testbasepath, testrelpath, testapiname)
     } finally {
       wsk.action.delete(name = actionName, expectedExitCode = DONTCARE_EXIT)
@@ -306,8 +365,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
     val testapiname = testName + " API Name"
     val actionName = testName + "_action"
     try {
-      println("cli namespace: " + clinamespace)
-
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo.js")
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = createCode, web = Some("true"))
@@ -472,8 +529,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
       var rr = apiCreate(swagger = Some(swaggerPath))
       verifyApiCreated(rr)
       rr = apiList(basepathOrApiName = Some(testbasepath), relpath = Some(testrelpath), operation = Some(testurlop))
-      println("list stdout: " + rr.stdout)
-      println("list stderr: " + rr.stderr)
       verifyApiFullList(rr, "", actionName, testurlop, testbasepath, testrelpath, testapiname)
 
     } finally {
@@ -566,8 +621,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
     val testapiname = testName + " API Name"
     val actionName = testName + "a-c@t ion"
     try {
-      println("cli namespace: " + clinamespace)
-
       // Create the action for the API.  It must be a "web-action" action.
       val file = TestUtils.getTestActionFilename(s"echo.js")
       wsk.action.create(name = actionName, artifact = Some(file), expectedExitCode = createCode, web = Some("true"))
@@ -600,8 +653,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
     val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdocinvalid")
     try {
       val rr = apiCreate(swagger = Some(swaggerPath), expectedExitCode = ANY_ERROR_EXIT)
-      println("api create stdout: " + rr.stdout)
-      println("api create stderr: " + rr.stderr)
       verifyInvalidSwagger(rr)
     } finally {
       apiDelete(basepathOrApiName = testbasepath, expectedExitCode = DONTCARE_EXIT)
@@ -699,8 +750,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
     val swaggerPath = TestUtils.getTestApiGwFilename(s"testswaggerdoc2")
     try {
       var rr = apiCreate(swagger = Some(swaggerPath))
-      println("api create stdout: " + rr.stdout)
-      println("api create stderror: " + rr.stderr)
       verifyApiCreated(rr)
       rr = apiList(basepathOrApiName = Some(testbasepath))
       verifyApiFullList(rr, "", actionName, testurlop, testbasepath, testrelpath, testapiname)
@@ -804,19 +853,15 @@ abstract class ApiGwTests extends BaseApiGwTests {
 
     try {
       var rr = apiCreate(swagger = Some(swaggerPath))
-      println("api create stdout: " + rr.stdout)
-      println("api create stderror: " + rr.stderr)
       this.verifyApiCreated(rr)
 
       rr = apiList(basepathOrApiName = Some(testbasepath))
-      println("api list:\n" + rr.stdout)
       testops foreach { testurlop =>
         verifyApiOp(rr, testurlop, testapiname)
       }
       verifyApiBaseRelPath(rr, testbasepath, testrelpath)
 
       rr = apiList(basepathOrApiName = Some(testbasepath), full = Some(true))
-      println("api full list:\n" + rr.stdout)
       testops foreach { testurlop =>
         verifyApiOpVerb(rr, testurlop)
       }
