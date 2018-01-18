@@ -45,7 +45,8 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
   private val dockerConfig = pureconfig.loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.invokerDocker)
 
   /** Initialize container clients */
-  implicit val docker = new DockerClientWithFileAccess(containersDirectory = Paths.get(dockerConfig.rootpath.getOrElse("containers")).toFile)(ec)
+  implicit val docker = new DockerClientWithFileAccess(
+    containersDirectory = Paths.get(dockerConfig.rootpath.getOrElse("containers")).toFile)(ec)
   implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
