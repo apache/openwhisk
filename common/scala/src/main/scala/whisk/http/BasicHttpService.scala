@@ -27,8 +27,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.RouteResult.Rejected
-import akka.http.scaladsl.server.directives.DebuggingDirectives
-import akka.http.scaladsl.server.directives.LogEntry
+import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import spray.json._
 import whisk.common.LogMarker
@@ -43,6 +42,8 @@ import whisk.common.MetricEmitter
  * facilities common to all OpenWhisk REST services.
  */
 trait BasicHttpService extends Directives with TransactionCounter {
+
+  val OW_EXTRA_LOGGING_HEADER = "X-OW-EXTRA-LOGGING"
 
   /**
    * Gets the routes implemented by the HTTP service.
@@ -77,10 +78,12 @@ trait BasicHttpService extends Directives with TransactionCounter {
     assignId { implicit transid =>
       DebuggingDirectives.logRequest(logRequestInfo _) {
         DebuggingDirectives.logRequestResult(logResponseInfo _) {
-          handleRejections(BasicHttpService.customRejectionHandler) {
-            prioritizeRejections {
-              toStrictEntity(30.seconds) {
-                routes
+          BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
+            handleRejections(BasicHttpService.customRejectionHandler) {
+              prioritizeRejections {
+                toStrictEntity(30.seconds) {
+                  routes
+                }
               }
             }
           }
@@ -90,7 +93,16 @@ trait BasicHttpService extends Directives with TransactionCounter {
   }
 
   /** Assigns transaction id to every request. */
-  protected val assignId = extract(_ => transid())
+  protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
+    val extraLogging = headerValue match {
+      // extract headers from HTTP request that indicates if additional logging should be enabled for this transaction.
+      // Passing "on" as header content will enable additional logging for this transaction,
+      // passing any other value will leave it as configured in the logging configuration
+      case Some(value) => value.toLowerCase == "on"
+      case None        => false
+    }
+    extract(_ => transid(extraLogging))
+  }
 
   /** Generates log entry for every request. */
   protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {

@@ -161,6 +161,7 @@ nginx:
     verify_client: "{{ nginx_ssl_verify_client | default('off') }}"
   wpn:
     router: "{{ nginx_wpn_router | default('1') }}"
+  special_users: "{{ nginx_special_users | default('[]') }}"
 
 # These are the variables to define all database relevant settings.
 # The authKeys are the users, that are initially created to use OpenWhisk.

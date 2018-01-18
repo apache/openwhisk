@@ -37,6 +37,20 @@ http {
         keepalive 512;
     }
 
+    map "$remote_user" $special_user {
+      default not_special;
+{% for user in nginx.special_users %}
+      "{{ user }}" special;
+{% endfor %}
+    }
+
+    map "$special_user:$http_x_ow_extra_logging" $extra_logging {
+      default "off";
+      "special:off" off;
+      "special:on" on;
+      "special:" on;
+    }
+
     server {
         listen 443 default ssl;
 
@@ -65,6 +79,7 @@ http {
             if ($namespace) {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
+            proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
             proxy_pass http://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
@@ -74,6 +89,7 @@ http {
             if ($namespace) {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
+            proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
             proxy_pass http://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }

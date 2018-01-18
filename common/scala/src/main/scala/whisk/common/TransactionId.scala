@@ -24,13 +24,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.math.BigDecimal.int2bigDecimal
 import scala.util.Try
-
 import akka.event.Logging.{InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
-import spray.json.JsArray
-import spray.json.JsNumber
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+import spray.json._
 
 import whisk.core.ConfigKeys
 
@@ -202,7 +198,7 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant)
+protected case class TransactionMetadata(val id: Long, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
 
@@ -221,21 +217,28 @@ object TransactionId {
   val controller = TransactionId(-130) // Controller startup
   val dbBatcher = TransactionId(-140) // Database batcher
 
-  def apply(tid: BigDecimal): TransactionId = {
+  def apply(tid: BigDecimal, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid.toLong, now))
+      TransactionId(TransactionMetadata(tid.toLong, now, extraLogging))
     } getOrElse unknown
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+    def write(t: TransactionId) = {
+      if (t.meta.extraLogging)
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
+      else
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+    }
 
     def read(value: JsValue) =
       Try {
         value match {
           case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue)))
+            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
   }
@@ -254,7 +257,7 @@ trait TransactionCounter {
   // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
   private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
 
-  def transid(): TransactionId = {
-    TransactionId(cnt.addAndGet(stride))
+  def transid(extraLogging: Boolean = false): TransactionId = {
+    TransactionId(cnt.addAndGet(stride), extraLogging)
   }
 }
