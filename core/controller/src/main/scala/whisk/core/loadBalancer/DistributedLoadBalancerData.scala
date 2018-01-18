@@ -17,15 +17,17 @@
 
 package whisk.core.loadBalancer
 
+import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.util.Timeout
-import akka.pattern.ask
-import whisk.common.Logging
-import whisk.core.entity.{ActivationId, UUID}
-
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
 import scala.concurrent.duration._
+import whisk.common.Logging
+import whisk.core.entity.ActivationId
+import whisk.core.entity.UUID
 
 /**
  * Encapsulates data used for loadbalancer and active-ack bookkeeping.
@@ -33,41 +35,47 @@ import scala.concurrent.duration._
  * Note: The state keeping is backed by distributed akka actors. All CRUDs operations are done on local values, thus
  * a stale value might be read.
  */
-class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Logging) extends LoadBalancerData {
+class DistributedLoadBalancerData(monitor: Option[ActorRef] = None)(implicit actorSystem: ActorSystem, logging: Logging)
+    extends LocalLoadBalancerData {
 
   implicit val timeout = Timeout(5.seconds)
   implicit val executionContext = actorSystem.dispatcher
-  private val activationsById = TrieMap[ActivationId, ActivationEntry]()
+
+  private val updateMonitor = actorSystem.actorOf(Props(new Actor {
+    override def receive = {
+      case Updated(storageName, entries) =>
+        monitor.foreach(_ ! Updated(storageName, entries))
+        storageName match {
+          case "Invokers" =>
+            //reset the state with updates:
+            val builder = TrieMap.newBuilder[String, AtomicInteger]
+            entries.map(e => {
+              builder += ((e._1, new AtomicInteger(e._2)))
+            })
+            activationByInvoker = builder.result()
+          case "Namespaces" => //sharedDataNamespaces = entries
+            //reset the state with updates:
+            val builder = TrieMap.newBuilder[UUID, AtomicInteger]
+            entries.map(e => {
+              builder += ((UUID(e._1), new AtomicInteger(e._2)))
+            })
+            activationByNamespaceId = builder.result()
+        }
+    }
+  }))
 
   private val sharedStateInvokers = actorSystem.actorOf(
-    SharedDataService.props("Invokers"),
+    SharedDataService.props("Invokers", updateMonitor),
     name =
       "SharedDataServiceInvokers" + UUID())
   private val sharedStateNamespaces = actorSystem.actorOf(
-    SharedDataService.props("Namespaces"),
+    SharedDataService.props("Namespaces", updateMonitor),
     name =
       "SharedDataServiceNamespaces" + UUID())
 
-  def totalActivationCount =
-    (sharedStateInvokers ? GetMap).mapTo[Map[String, BigInt]].map(_.values.sum.toInt)
-
-  def activationCountOn(namespace: UUID): Future[Int] = {
-    (sharedStateNamespaces ? GetMap)
-      .mapTo[Map[String, BigInt]]
-      .map(_.mapValues(_.toInt).getOrElse(namespace.toString, 0))
-  }
-
-  def activationCountPerInvoker: Future[Map[String, Int]] = {
-    (sharedStateInvokers ? GetMap).mapTo[Map[String, BigInt]].map(_.mapValues(_.toInt))
-  }
-
-  def activationById(activationId: ActivationId): Option[ActivationEntry] = {
-    activationsById.get(activationId)
-  }
-
-  def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
+  override def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
     activationsById.getOrElseUpdate(id, {
-      val entry = update
+      val entry = super.putActivation(id, update)
       sharedStateNamespaces ! IncreaseCounter(entry.namespaceId.asString, 1)
       sharedStateInvokers ! IncreaseCounter(entry.invokerName.toString, 1)
       logging.debug(this, "increased shared counters")
@@ -75,16 +83,13 @@ class DistributedLoadBalancerData(implicit actorSystem: ActorSystem, logging: Lo
     })
   }
 
-  def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
-    activationsById.remove(entry.id).map { activationEntry =>
-      sharedStateInvokers ! DecreaseCounter(entry.invokerName.toString, 1)
+  override def removeActivation(entry: ActivationEntry): Option[ActivationEntry] = {
+    super.removeActivation(entry).map { activationEntry =>
       sharedStateNamespaces ! DecreaseCounter(entry.namespaceId.asString, 1)
-      logging.debug(this, "decreased shared counters")
+      sharedStateInvokers ! DecreaseCounter(entry.invokerName.toString, 1)
+      logging.debug(this, s"decreased shared counters ")
       activationEntry
     }
   }
 
-  def removeActivation(aid: ActivationId): Option[ActivationEntry] = {
-    activationsById.get(aid).flatMap(removeActivation)
-  }
 }

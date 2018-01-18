@@ -23,7 +23,7 @@ import whisk.core.entity.Identity
 import whisk.core.loadBalancer.LoadBalancer
 import whisk.http.Messages
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 /**
  * Determines user limits and activation counts as seen by the invoker and the loadbalancer
@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
  * to calculate and determine whether the namespace currently invoking a new action should
  * be allowed to do so.
  *
- * @param loadbalancer contains active quotas
+ * @param loadBalancer contains active quotas
  * @param defaultConcurrencyLimit the default max allowed concurrent operations
  * @param systemOverloadLimit the limit when the system is considered overloaded
  */
@@ -45,27 +45,25 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
   /**
    * Checks whether the operation should be allowed to proceed.
    */
-  def check(user: Identity)(implicit tid: TransactionId): Future[RateLimit] = {
-    loadBalancer.activeActivationsFor(user.uuid).map { concurrentActivations =>
-      val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
-      logging.info(
-        this,
-        s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
-      ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
-    }
+  def check(user: Identity)(implicit tid: TransactionId): RateLimit = {
+    val concurrentActivations = loadBalancer.activeActivationsFor(user.uuid)
+    val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
+    logging.info(
+      this,
+      s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
+    ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
+
   }
 
   /**
    * Checks whether the system is in a generally overloaded state.
    */
-  def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
-    loadBalancer.totalActiveActivations.map { concurrentActivations =>
-      logging.info(
-        this,
-        s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
-      concurrentActivations > systemOverloadLimit
-    }
+  def isOverloaded()(implicit tid: TransactionId): Boolean = {
+    val concurrentActivations = loadBalancer.totalActiveActivations
+    logging.info(this, s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+    concurrentActivations > systemOverloadLimit
   }
+
 }
 
 sealed trait RateLimit {

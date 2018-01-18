@@ -28,17 +28,19 @@ case class IncreaseCounter(key: String, value: Long)
 case class DecreaseCounter(key: String, value: Long)
 case class ReadCounter(key: String)
 case class RemoveCounter(key: String)
+case class Updated(storageName: String, entries: Map[String, Int])
+
 case object GetMap
 
 /**
  * Companion object to specify actor properties from the outside, e.g. name of the shared map and cluster seed nodes
  */
 object SharedDataService {
-  def props(storageName: String): Props =
-    Props(new SharedDataService(storageName))
+  def props(storageName: String, monitor: ActorRef): Props =
+    Props(new SharedDataService(storageName, monitor))
 }
 
-class SharedDataService(storageName: String) extends Actor with ActorLogging {
+class SharedDataService(storageName: String, monitor: ActorRef) extends Actor with ActorLogging {
 
   val replicator = DistributedData(context.system).replicator
 
@@ -81,7 +83,13 @@ class SharedDataService(storageName: String) extends Actor with ActorLogging {
 
     case c @ Changed(_) =>
       logging.debug(this, "Current elements: " + c.get(storage))
-
+      val res = c.get(storage).entries.mapValues(_.toInt)
+      if (res.nonEmpty) {
+        res.values.foreach(i => {
+          require(i >= 0, s"values cannot be less than 0 ${res}")
+        })
+        monitor ! Updated(storageName, res)
+      }
     case g @ GetSuccess(_, Some((replyTo: ActorRef))) =>
       val map = g.get(storage).entries
       replyTo ! map

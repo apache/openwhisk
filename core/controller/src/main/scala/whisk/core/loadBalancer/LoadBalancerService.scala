@@ -64,10 +64,10 @@ trait LoadBalancer {
   val activeAckTimeoutGrace = 1.minute
 
   /** Gets the number of in-flight activations for a specific user. */
-  def activeActivationsFor(namespace: UUID): Future[Int]
+  def activeActivationsFor(namespace: UUID): Int
 
   /** Gets the number of in-flight activations in the system. */
-  def totalActiveActivations: Future[Int]
+  def totalActiveActivations: Int
 
   /**
    * Publishes activation message on internal bus for an invoker to pick up.
@@ -328,20 +328,19 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   private def chooseInvoker(user: Identity, action: ExecutableWhiskActionMetaData): Future[InstanceId] = {
     val hash = generateHash(user.namespace, action)
 
-    loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
-      allInvokers.flatMap { invokers =>
-        val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
-        val invokersWithUsage = invokersToUse.view.map {
-          // Using a view defers the comparably expensive lookup to actual access of the element
-          case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
-        }
+    allInvokers.flatMap { invokers =>
+      val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
+      val invokerUsage = loadBalancerData.activationCountPerInvoker
+      val invokersWithUsage = invokersToUse.view.map {
+        // Using a view defers the comparably expensive lookup to actual access of the element
+        case (instance, state) => (instance, state, invokerUsage.getOrElse(instance.toString, 0))
+      }
 
-        LoadBalancerService.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
-          case Some(invoker) => Future.successful(invoker)
-          case None =>
-            logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
-            Future.failed(new LoadBalancerException("no invokers available"))
-        }
+      LoadBalancerService.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
+        case Some(invoker) => Future.successful(invoker)
+        case None =>
+          logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
+          Future.failed(new LoadBalancerException("no invokers available"))
       }
     }
   }

@@ -20,7 +20,7 @@ package whisk.core.loadBalancer
 import whisk.core.entity.{ActivationId, InstanceId, UUID, WhiskActivation}
 
 import akka.actor.Cancellable
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Promise
 
 // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
 case class ActivationEntry(id: ActivationId,
@@ -31,7 +31,7 @@ case class ActivationEntry(id: ActivationId,
 trait LoadBalancerData {
 
   /** Get the number of activations across all namespaces. */
-  def totalActivationCount: Future[Int]
+  def totalActivationCount: Int
 
   /**
    * Get the number of activations for a specific namespace.
@@ -39,14 +39,14 @@ trait LoadBalancerData {
    * @param namespace The namespace to get the activation count for
    * @return a map (namespace -> number of activations in the system)
    */
-  def activationCountOn(namespace: UUID): Future[Int]
+  def activationCountOn(namespace: UUID): Int
 
   /**
    * Get the number of activations for each invoker.
    *
    * @return a map (invoker -> number of activations queued for the invoker)
    */
-  def activationCountPerInvoker: Future[Map[String, Int]]
+  def activationCountPerInvoker: Map[String, Int]
 
   /**
    * Get an activation entry for a given activation id.
