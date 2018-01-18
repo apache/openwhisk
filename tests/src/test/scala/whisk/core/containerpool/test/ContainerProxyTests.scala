@@ -507,6 +507,41 @@ class ContainerProxyTests
     }
   }
 
+  it should "complete the transaction and destroy the container if log reading failed terminally - v2" in {
+    val container = new TestContainer
+    val factory = createFactory(Future.successful(container))
+    val acker = createAcker
+    val store = createStore
+    val collector = LoggedFunction {
+      (transid: TransactionId,
+       user: Identity,
+       activation: WhiskActivation,
+       container: Container,
+       action: ExecutableWhiskAction) =>
+        throw new Exception
+    }
+
+    val machine =
+      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+    registerCallback(machine)
+    machine ! Run(action, message)
+    expectMsg(Transition(machine, Uninitialized, Running))
+    expectMsg(ContainerRemoved) // The message is sent as soon as the container decides to destroy itself
+    expectMsg(Transition(machine, Running, Removing))
+
+    awaitAssert {
+      factory.calls should have size 1
+      container.initializeCount shouldBe 1
+      container.runCount shouldBe 1
+      collector.calls should have size 1
+      container.destroyCount shouldBe 1
+      acker.calls should have size 1
+      acker.calls(0)._2.response shouldBe ActivationResponse.success()
+      store.calls should have size 1
+      store.calls(0)._2.logs shouldBe ActivationLogs(Vector(Messages.logFailure))
+    }
+  }
+
   it should "resend the job to the parent if resuming a container fails" in within(timeout) {
     val container = new TestContainer {
       override def resume()(implicit transid: TransactionId) = {
