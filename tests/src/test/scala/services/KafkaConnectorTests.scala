@@ -50,7 +50,16 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
+
+  // Need to overwrite replication factor for tests that shut down and start
+  // Kafka instances intentionally. These tests will fail if there is more than
+  // one Kafka host but a replication factor of 1.
+  val kafkaHosts = config.kafkaHosts.split(",")
+  val replicationFactor = kafkaHosts.length / 2 + 1
+  System.setProperty("whisk.kafka.replication-factor", replicationFactor.toString)
+  println(s"Create test topic '${topic}' with replicationFactor=${replicationFactor}")
   assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic ${topic} failed")
+
   val sessionTimeout = 10 seconds
   val maxPollInterval = 10 seconds
   val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
@@ -130,9 +139,8 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
     }
   }
 
-  it should "send and receive a kafka message even after shutdown one of instances" in {
-    val kafkaHosts = config.kafkaHosts.split(",")
-    if (kafkaHosts.length > 1) {
+  if (kafkaHosts.length > 1) {
+    it should "send and receive a kafka message even after shutdown one of instances" in {
       for (i <- 0 until kafkaHosts.length) {
         val message = new Message { override val serialize = Calendar.getInstance().getTime().toString }
         val kafkaHost = kafkaHosts(i).split(":")(0)
