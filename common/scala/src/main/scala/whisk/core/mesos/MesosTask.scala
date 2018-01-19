@@ -29,6 +29,8 @@ import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.TaskDef
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import org.apache.mesos.v1.Protos.TaskStatus
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -62,7 +64,7 @@ object MesosTask {
   val startTime = Instant.now.getEpochSecond
 
   def create(mesosClientActor: ActorRef,
-             mesosPublicUri: String,
+             mesosConfig: MesosConfig,
              transid: TransactionId,
              image: String,
              userProvidedImage: Boolean = false,
@@ -108,7 +110,7 @@ object MesosTask {
       log.info(this, s"launched task with state ${taskDetails.taskStatus.getState} at ${taskHost}:${taskPort}")
       val containerIp = new ContainerAddress(taskHost, taskPort)
       val containerId = new ContainerId(taskId);
-      new MesosTask(containerId, containerIp, ec, log, taskId, mesosClientActor, mesosPublicUri)
+      new MesosTask(containerId, containerIp, ec, log, taskId, mesosClientActor, mesosConfig)
     })
 
   }
@@ -124,7 +126,7 @@ class MesosTask(override protected val id: ContainerId,
                 override protected val logging: Logging,
                 taskId: String,
                 mesosClientActor: ActorRef,
-                mesosPublicUri: String)
+                mesosConfig: MesosConfig)
     extends Container {
 
   implicit val e = ec
@@ -152,12 +154,24 @@ class MesosTask(override protected val id: ContainerId,
   }
 
   /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
+  /** For Mesos, this log message is static per container, just indicating that mesos logs can be found via the mesos UI. */
+  /** To disable this message, and just store an empty log message per activation, set whisk.mesos.mesosLinkLogMessage=false */
+  val logMsg =
+    s"Logs are not collected from Mesos containers currently. " +
+      s"You can browse the logs for Mesos Task ID ${taskId} using the mesos UI at ${mesosConfig.masterPublicUrl
+        .getOrElse(mesosConfig.masterUrl)}"
+  val tsFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'")
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
-    Source
-      .fromFuture[ByteString](
-        Future.successful(ByteString.fromString(s"""Logs are not collected from Mesos containers currently.
-            |You can browse the logs for Mesos Task ID ${taskId} using the mesos UI at ${mesosPublicUri}
-          """.stripMargin)))
+    if (mesosConfig.mesosLinkLogMessage) {
+      Source
+        .fromFuture[ByteString](
+          Future.successful(
+            ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
+              .now()
+              .format(tsFormat)}\"}""")))
+    } else {
+      Source.empty
+    }
 
 }

@@ -28,6 +28,8 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Failure
+import scala.util.Success
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
@@ -43,7 +45,8 @@ import whisk.core.entity.UUID
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String] = None,
                        role: String = "*",
-                       failoverTimeoutSeconds: FiniteDuration = 0.seconds)
+                       failoverTimeoutSeconds: FiniteDuration = 0.seconds,
+                       mesosLinkLogMessage: Boolean = true)
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -63,7 +66,7 @@ class MesosContainerFactory(config: WhiskConfig,
   //public mesos url where developers can browse logs (till there is way to delegate log retrieval to an external system)
   val mesosMasterPublic = mesosConfig.masterPublicUrl
 
-  logging.info(this, s"subscribing to mesos master at ${mesosMaster}")
+  var isSubscribed = false;
 
   val mesosClientActor = actorSystem.actorOf(
     MesosClient
@@ -74,14 +77,27 @@ class MesosContainerFactory(config: WhiskConfig,
         mesosConfig.role,
         mesosConfig.failoverTimeoutSeconds))
 
-  //subscribe mesos actor to mesos event stream
-  //TODO: handle subscribe failure
-  mesosClientActor
-    .ask(Subscribe)(subscribeTimeout)
-    .mapTo[SubscribeComplete]
-    .onComplete(complete => {
-      logging.info(this, "subscribe completed successfully...")
-    })
+  //periodically retry if subscribing did not suceed
+  as.scheduler.schedule(0.seconds, (subscribeTimeout.toSeconds + 10).seconds) {
+    if (!isSubscribed) {
+      subscribe()
+    }
+  }
+
+  private def subscribe(): Unit = {
+    logging.info(this, s"subscribing to mesos master at ${mesosMaster}")
+    //subscribe mesos actor to mesos event stream
+    //TODO: subscribe failure should make invoker "unhealthy"
+    mesosClientActor
+      .ask(Subscribe)(subscribeTimeout)
+      .mapTo[SubscribeComplete]
+      .onComplete({
+        case Success(complete) =>
+          isSubscribed = true
+          logging.info(this, s"subscribe completed successfully...${complete}")
+        case Failure(e) => logging.error(this, s"subscribe failed...${e}")
+      })
+  }
 
   override def createContainer(tid: TransactionId,
                                name: String,
@@ -98,7 +114,7 @@ class MesosContainerFactory(config: WhiskConfig,
     logging.info(this, s"using Mesos to create a container with image ${image}...")
     MesosTask.create(
       mesosClientActor,
-      mesosMasterPublic.getOrElse(mesosMaster),
+      mesosConfig,
       tid,
       image = image,
       userProvidedImage = userProvidedImage,
