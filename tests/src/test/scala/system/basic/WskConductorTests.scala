@@ -56,9 +56,9 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
   assert(whiskConfig.isValid)
   val limit = whiskConfig.actionSequenceLimit.toInt
 
-  behavior of "Whisk conductor controller"
+  behavior of "Whisk conductor actions"
 
-  it should "invoke a conductor action with no dynamic steps" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "invoke a conductor action with no continuation" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val echo = "echo" // echo conductor action
     assetHelper.withCleaner(wsk.action, echo) { (action, _) =>
       action.create(
@@ -67,15 +67,16 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
         annotations = Map("conductor" -> true.toJson))
     }
 
-    // a normal result
-    val run = wsk.action.invoke(echo, Map("payload" -> testString.toJson))
+    // the conductor annotation should not affect the behavior of an action
+    // that returns a dictionary without a params or action field
+    val run = wsk.action.invoke(echo, Map("payload" -> testString.toJson, "state" -> testString.toJson))
     withActivation(wsk.activation, run) { activation =>
       activation.response.status shouldBe "success"
-      activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson))
+      activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson, "state" -> testString.toJson))
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }
 
-    // an error result
+    // the conductor annotation should not affect the behavior of an action that returns an error
     val secondrun = wsk.action.invoke(echo, Map("error" -> testString.toJson))
     withActivation(wsk.activation, secondrun) { activation =>
       activation.response.status shouldBe "application error"
@@ -83,34 +84,52 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }
 
-    // a wrapped result { params: result } is unwrapped by the controller
-    val thirdrun = wsk.action.invoke(echo, Map("params" -> JsObject("payload" -> testString.toJson)))
+    // the controller should unwrap a wrapped result { params: result, ... } for an action with a conductor annotation
+    // discarding other fields if there is no action field
+    val thirdrun = wsk.action.invoke(
+      echo,
+      Map(
+        "params" -> JsObject("payload" -> testString.toJson),
+        "result" -> testString.toJson,
+        "state" -> testString.toJson))
     withActivation(wsk.activation, thirdrun) { activation =>
       activation.response.status shouldBe "success"
       activation.response.result shouldBe Some(JsObject("payload" -> testString.toJson))
       checkConductorLogsAndAnnotations(activation, 1) // echo
     }
-
-    // an invalid action name
-    val invalidrun =
-      wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> invalid.toJson))
-    withActivation(wsk.activation, invalidrun) { activation =>
-      activation.response.status shouldBe "application error"
-      activation.response.result.get.fields.get("error") shouldBe Some(
-        JsString(compositionComponentInvalid(JsString(invalid))))
-      checkConductorLogsAndAnnotations(activation, 1) // echo
-    }
-
-    // an undefined action
-    val undefinedrun = wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> missing.toJson))
-    withActivation(wsk.activation, undefinedrun) { activation =>
-      activation.response.status shouldBe "application error"
-      activation.response.result.get.fields.get("error") shouldBe Some(JsString(compositionComponentNotFound(missing)))
-      checkConductorLogsAndAnnotations(activation, 1) // echo
-    }
   }
 
-  it should "invoke a conductor action with dynamic steps" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "invoke a conductor action with an invalid continuation" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val echo = "echo" // echo conductor action
+      assetHelper.withCleaner(wsk.action, echo) { (action, _) =>
+        action.create(
+          echo,
+          Some(TestUtils.getTestActionFilename("echo.js")),
+          annotations = Map("conductor" -> true.toJson))
+      }
+
+      // an invalid action name
+      val invalidrun =
+        wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> invalid.toJson))
+      withActivation(wsk.activation, invalidrun) { activation =>
+        activation.response.status shouldBe "application error"
+        activation.response.result.get.fields.get("error") shouldBe Some(
+          JsString(compositionComponentInvalid(JsString(invalid))))
+        checkConductorLogsAndAnnotations(activation, 1) // echo
+      }
+
+      // an undefined action
+      val undefinedrun = wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> missing.toJson))
+      withActivation(wsk.activation, undefinedrun) { activation =>
+        activation.response.status shouldBe "application error"
+        activation.response.result.get.fields.get("error") shouldBe Some(
+          JsString(compositionComponentNotFound(missing)))
+        checkConductorLogsAndAnnotations(activation, 1) // echo
+      }
+  }
+
+  it should "invoke a conductor action with a continuation" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val conductor = "conductor" // conductor action
     assetHelper.withCleaner(wsk.action, conductor) { (action, _) =>
       action.create(
@@ -119,9 +138,9 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
         annotations = Map("conductor" -> true.toJson))
     }
 
-    val step = "step" // step action
+    val step = "step" // step action with higher memory limit than conductor to test max memory computation
     assetHelper.withCleaner(wsk.action, step) { (action, _) =>
-      action.create(step, Some(TestUtils.getTestActionFilename("step.js")), memory = Some(128 MB))
+      action.create(step, Some(TestUtils.getTestActionFilename("step.js")), memory = Some(257 MB))
     }
 
     // dynamically invoke step action
@@ -186,9 +205,9 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
         annotations = Map("conductor" -> true.toJson))
     }
 
-    val step = "step" // step action
+    val step = "step" // step action with lower memory limit than conductor to test max memory computation
     assetHelper.withCleaner(wsk.action, step) { (action, _) =>
-      action.create(step, Some(TestUtils.getTestActionFilename("step.js")))
+      action.create(step, Some(TestUtils.getTestActionFilename("step.js")), memory = Some(255 MB))
     }
 
     // invoke nested conductor with single step
@@ -273,10 +292,10 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
     activation.logs shouldBe defined
     // check that the logs are what they are supposed to be (activation ids)
     // check that the cause field is properly set for these activations
-    activation.logs.get.size shouldBe (size) // the number of activations in this sequence
+    activation.logs.get should have length size // the number of activations in this sequence
     var totalTime: Long = 0
     var maxMemory: Long = 0
-    for (id <- activation.logs.get) {
+    activation.logs.get.foreach { id =>
       withActivation(
         wsk.activation,
         id,
