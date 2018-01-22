@@ -17,6 +17,7 @@
 
 package whisk.core.containerpool.docker
 
+import java.io.File
 import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
 
@@ -42,11 +43,10 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
   ec: ExecutionContext,
   logging: Logging)
     extends ContainerFactory {
-  private val dockerConfig = pureconfig.loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.invokerDocker)
+  private val dockerConfig = pureconfig.loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.docker)
 
   /** Initialize container clients */
-  implicit val docker = new DockerClientWithFileAccess(
-    containersDirectory = Paths.get(dockerConfig.rootpath.getOrElse("containers")).toFile)(ec)
+  implicit val docker = new DockerClientWithFileAccess(containersDirectory = dockerConfig.containerPath)(ec)
   implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
@@ -136,4 +136,11 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
     new DockerContainerFactory(config, instanceId, parameters)(actorSystem, actorSystem.dispatcher, logging)
 }
 
-case class DockerContainerFactoryConfig(rootpath: Option[String])
+case class DockerContainerFactoryConfig(dataroot: Option[String]) {
+  def containerPath : File = Paths.get({
+      if (dataroot.isEmpty)
+        "/containers"
+      else
+        dataroot.get + "/containers"
+    }).toFile
+}
