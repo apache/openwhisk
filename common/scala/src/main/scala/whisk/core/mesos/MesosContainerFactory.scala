@@ -17,12 +17,14 @@
 
 package whisk.core.mesos
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import com.adobe.api.platform.runtime.mesos.MesosClient
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
 import com.adobe.api.platform.runtime.mesos.Teardown
+import java.time.Instant
 import pureconfig.loadConfigOrThrow
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -30,6 +32,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
+import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
@@ -52,7 +55,9 @@ class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
                             logging: Logging,
                             parameters: Map[String, Set[String]],
-                            mesosConfig: MesosConfig = loadConfigOrThrow[MesosConfig](ConfigKeys.mesos))
+                            mesosConfig: MesosConfig = loadConfigOrThrow[MesosConfig](ConfigKeys.mesos),
+                            clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
+                            taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator)
     extends ContainerFactory {
 
   val subscribeTimeout = 30.seconds
@@ -68,14 +73,7 @@ class MesosContainerFactory(config: WhiskConfig,
 
   var isSubscribed = false;
 
-  val mesosClientActor = actorSystem.actorOf(
-    MesosClient
-      .props(
-        "whisk-containerfactory-" + UUID(),
-        "whisk-containerfactory-framework",
-        mesosMaster.toString(),
-        mesosConfig.role,
-        mesosConfig.failoverTimeoutSeconds))
+  val mesosClientActor = clientFactory(as, mesosConfig)
 
   //periodically retry if subscribing did not suceed
   as.scheduler.schedule(0.seconds, (subscribeTimeout.toSeconds + 10).seconds) {
@@ -115,6 +113,7 @@ class MesosContainerFactory(config: WhiskConfig,
     MesosTask.create(
       mesosClientActor,
       mesosConfig,
+      taskIdGenerator,
       tid,
       image = image,
       userProvidedImage = userProvidedImage,
@@ -136,7 +135,23 @@ class MesosContainerFactory(config: WhiskConfig,
     logging.info(this, "cleanup completed!")
   }
 }
+object MesosContainerFactory {
+  private def createClient(actorSystem: ActorSystem, mesosConfig: MesosConfig): ActorRef =
+    actorSystem.actorOf(
+      MesosClient
+        .props(
+          "whisk-containerfactory-" + UUID(),
+          "whisk-containerfactory-framework",
+          mesosConfig.masterUrl,
+          mesosConfig.role,
+          mesosConfig.failoverTimeoutSeconds))
 
+  val counter = new Counter()
+  val startTime = Instant.now.getEpochSecond
+  private def taskIdGenerator(): String = {
+    s"whisk-${counter.next()}-${startTime}"
+  }
+}
 object MesosContainerFactoryProvider extends ContainerFactoryProvider {
   override def getContainerFactory(actorSystem: ActorSystem,
                                    logging: Logging,
@@ -144,4 +159,5 @@ object MesosContainerFactoryProvider extends ContainerFactoryProvider {
                                    instance: InstanceId,
                                    parameters: Map[String, Set[String]]): ContainerFactory =
     new MesosContainerFactory(config, actorSystem, logging, parameters)
+
 }

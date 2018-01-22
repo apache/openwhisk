@@ -28,16 +28,15 @@ import com.adobe.api.platform.runtime.mesos.DeleteTask
 import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.TaskDef
-import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import spray.json._
-import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
@@ -60,11 +59,10 @@ case class CreateContainer(image: String, memory: String, cpuShare: String)
 object MesosTask {
   val taskLaunchTimeout = Timeout(45 seconds)
   val taskDeleteTimeout = Timeout(30 seconds)
-  val counter = new Counter()
-  val startTime = Instant.now.getEpochSecond
 
   def create(mesosClientActor: ActorRef,
              mesosConfig: MesosConfig,
+             taskIdGenerator: () => String,
              transid: TransactionId,
              image: String,
              userProvidedImage: Boolean = false,
@@ -74,20 +72,19 @@ object MesosTask {
              network: String = "bridge",
              dnsServers: Seq[String] = Seq(),
              name: Option[String] = None,
-             parameters: Map[String, Set[String]])(implicit ec: ExecutionContext,
-                                                   log: Logging,
-                                                   as: ActorSystem): Future[Container] = {
+             parameters: Map[String, Set[String]] = Map())(implicit ec: ExecutionContext,
+                                                           log: Logging,
+                                                           as: ActorSystem): Future[Container] = {
     implicit val tid = transid
 
     log.info(this, s"creating task for image ${image}...")
-
-    val taskId = s"whisk-${counter.next()}-${startTime}"
 
     val mesosCpuShares = cpuShares / 1024.0 //convert openwhisk (docker based) shares to mesos (cpu percentage)
     val mesosRam = memory.toMB.toInt
 
     //TODO: update mesos-actor to support multiple param values for the same key via Map[String, Set[String]]
     val flatParams = parameters.filter(_._2.nonEmpty).map(e => (e._1 -> e._2.head))
+    val taskId = taskIdGenerator()
     val task = new TaskDef(
       taskId,
       name.getOrElse(image), //task name either the indicated name, or else the image name
@@ -149,6 +146,10 @@ class MesosTask(override protected val id: ContainerId,
       .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
       .mapTo[TaskStatus]
       .map(taskStatus => {
+        //verify that task ended in TASK_KILLED state
+        require(
+          taskStatus.getState == TaskState.TASK_KILLED,
+          s"task kill resulted in unexpected state ${taskStatus.getState}")
         logging.info(this, s"task killed ended with state ${taskStatus.getState}")
       })
   }
@@ -165,11 +166,10 @@ class MesosTask(override protected val id: ContainerId,
     implicit transid: TransactionId): Source[ByteString, Any] =
     if (mesosConfig.mesosLinkLogMessage) {
       Source
-        .fromFuture[ByteString](
-          Future.successful(
-            ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
-              .now()
-              .format(tsFormat)}\"}""")))
+        .fromIterator(() =>
+          Iterator(ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
+            .now()
+            .format(tsFormat)}\"}""")))
     } else {
       Source.empty
     }
