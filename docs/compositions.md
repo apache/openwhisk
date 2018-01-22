@@ -4,20 +4,21 @@ Action compositions make it possible to dynamically build and invoke a series of
 
 ## Example
 
-Suppose we define an _increment_ action:
+Suppose we define an _increment_ action in a source file `increment.js`:
 
-```
-$ cat > increment.js
+```javascript
 function main({ value }) { return { value: value + 1 } }
-^D
-
-$ wsk action create increment increment.js
 ```
 
-We can use this _increment_ action in a composition as follows:
+We create the action _increment_:
 
 ```
-$ cat > composition.js
+wsk action create increment increment.js
+```
+
+We can use this _increment_ action in a composition. We create a source file `composition.js`:
+
+```javascript
 function main(params) {
     switch (params.$step || 0) {
         case 0: delete params.$step; return { params, action: 'increment', state: { $step: 1 } }
@@ -25,9 +26,12 @@ function main(params) {
         case 2: delete params.$step; return { params }
     }
 }
-^D
+```
 
-$ wsk action create composition composition.js -a conductor true
+We create the composition action:
+
+```
+wsk action create composition composition.js -a conductor true
 ```
 
 The key to making this action a composition is the _conductor_ annotation, which we discuss in the next section.
@@ -35,7 +39,9 @@ The key to making this action a composition is the _conductor_ annotation, which
 This example composition executes two _increment_ actions in a sequence:
 
 ```
-$ wsk action invoke composition -br -p value 3
+wsk action invoke composition -br -p value 3
+```
+```json
 {
     "value": 5
 }
@@ -73,11 +79,18 @@ For each conductor invocation (except for the first one) the _state_ produced by
 As with sequences, there is one activation record for each action invoked as part of a composition plus one activation record for composition itself.
 
 ```
-$ wsk action invoke composition -p value 3
+wsk action invoke composition -p value 3
+```
+```
 ok: invoked /_/composition with id 4f91f9ed0d874aaa91f9ed0d87baaa07
-
-$ wsk activation get 4f91f9ed0d874aaa91f9ed0d87baaa07
+```
+```
+wsk activation get 4f91f9ed0d874aaa91f9ed0d87baaa07
+```
+```
 ok: got activation 4f91f9ed0d874aaa91f9ed0d87baaa07
+```
+```json
 {
     "namespace": "guest",
     "name": "composition",
@@ -112,7 +125,9 @@ The activation record for the composition contains the final result of the compo
 The duration for the composition is the sum of the durations of the invoked actions.
 
 ```
-$ wsk activation list
+wsk activation list
+```
+```
 activations
 fd89b99a90a1462a89b99a90a1d62a8e composition         
 eaec119273d94087ac119273d90087d0 increment           
@@ -125,7 +140,9 @@ a1f58ade9b1e4c26b58ade9b1e4c2614 increment
 For instance, the activation record for the first log entry corresponds to the initial _composition_ action invocation in the series:
 
 ```
-$ wsk activation result 3624ad829d4044afa4ad829d40e4af60
+wsk activation result 3624ad829d4044afa4ad829d40e4af60
+```
+```json
 {
     "action": "increment",
     "params": {
