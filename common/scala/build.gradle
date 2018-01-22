@@ -27,7 +27,7 @@ dependencies {
     compile 'org.slf4j:jcl-over-slf4j:1.7.25'
     compile 'org.slf4j:log4j-over-slf4j:1.7.25'
     compile 'commons-codec:commons-codec:1.9'
-    compile 'commons-io:commons-io:2.4'
+    compile 'commons-io:commons-io:2.6'
     compile 'commons-collections:commons-collections:3.2.2'
     compile 'org.apache.kafka:kafka-clients:0.11.0.1'
     compile ('org.apache.httpcomponents:httpclient:4.4.1') {
