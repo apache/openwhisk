@@ -28,7 +28,7 @@ import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.pimpAny
+import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {

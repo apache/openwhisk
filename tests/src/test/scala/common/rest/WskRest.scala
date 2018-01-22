@@ -72,7 +72,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.JsValue
-import spray.json.pimpString
 
 import common._
 import common.BaseDeleteFromCollection

@@ -34,7 +34,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json.JsArray
 import spray.json.JsObject
-import spray.json.pimpString
+import spray.json._
 
 /**
  * Basic tests of API calls for actions
