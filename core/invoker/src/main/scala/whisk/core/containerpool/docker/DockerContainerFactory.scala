@@ -98,8 +98,8 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
    * There is no checking whether container removal was successful
    * or not.
    *
-   * @throws InterruptedException     if the current thread is interrupted while waiting
-   * @throws TimeoutException         if after waiting for the specified time this `Awaitable` is still not ready
+   * @throws InterruptedException if the current thread is interrupted while waiting
+   * @throws TimeoutException     if after waiting for the specified time this `Awaitable` is still not ready
    */
   @throws(classOf[TimeoutException])
   @throws(classOf[InterruptedException])
@@ -137,10 +137,13 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
 }
 
 case class DockerContainerFactoryConfig(dataroot: Option[String]) {
-  def containerPath : File = Paths.get({
-      if (dataroot.isEmpty)
-        "/containers"
-      else
-        dataroot.get + "/containers"
-    }).toFile
+  def containerPath: File =
+    Paths
+      .get({
+        if (dataroot.isEmpty)
+          "/containers"
+        else
+          dataroot.get + "/containers"
+      })
+      .toFile
 }
