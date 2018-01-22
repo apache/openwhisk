@@ -254,7 +254,8 @@ protected[actions] trait PrimitiveActions {
    * A method that knows how to invoke a composition.
    *
    * The method instantiates the session object for the composition, invokes the conductor action for the composition,
-   * and waits for the composition result (resulting activation) if the invocation is blocking (up to timeout).
+   * and waits for the composition result (resulting activation) if the invocation is blocking (up to timeout) or if
+   * the invocation is nested inside an enclosing sequence.
    *
    * @param user the identity invoking the action
    * @param action the conductor action to invoke for the composition
@@ -276,6 +277,12 @@ protected[actions] trait PrimitiveActions {
     cause: Option[ActivationId],
     caller: Option[Session] = None)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
+    // should wait for result if topmost blocking invoke or invoked from a sequence
+    val shouldWait = waitForResponse.isDefined || cause.isDefined && !caller.isDefined
+
+    // result promise if waiting
+    val result = if (shouldWait) Some(Promise[Either[ActivationId, WhiskActivation]]()) else None
+
     val session = Session(
       activationId = activationIdFactory.make(),
       start = Instant.now(Clock.systemUTC()),
@@ -287,23 +294,23 @@ protected[actions] trait PrimitiveActions {
       accounting = caller.map { _.accounting }.getOrElse(CompositionAccounting()), // share accounting with caller
       logs = Buffer.empty,
       caller,
-      result = waitForResponse.map { _ =>
-        Promise[Either[ActivationId, WhiskActivation]]() // placeholder for result if blocking invoke
-      })
+      result)
 
     invokeConductor(user, payload, session)
 
     // is caller waiting for the result of the activation?
-    waitForResponse
-      .map { timeout =>
+    result map { result =>
+      if (cause.isDefined && !caller.isDefined) {
+        // ignore timeout when a sequence invokes a composition
+        result.future
+      } else {
         // handle timeout
-        session.result.head.future
-          .withAlternativeAfterTimeout(timeout, Future.successful(Left(session.activationId)))
+        result.future.withAlternativeAfterTimeout(waitForResponse.head, Future.successful(Left(session.activationId)))
       }
-      .getOrElse {
-        // no, return the session id
-        Future.successful(Left(session.activationId))
-      }
+    } getOrElse {
+      // no, return the session id
+      Future.successful(Left(session.activationId))
+    }
   }
 
   /**
