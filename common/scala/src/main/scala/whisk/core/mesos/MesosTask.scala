@@ -146,11 +146,12 @@ class MesosTask(override protected val id: ContainerId,
       .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
       .mapTo[TaskStatus]
       .map(taskStatus => {
-        //verify that task ended in TASK_KILLED state
-        require(
-          taskStatus.getState == TaskState.TASK_KILLED,
-          s"task kill resulted in unexpected state ${taskStatus.getState}")
-        logging.info(this, s"task killed ended with state ${taskStatus.getState}")
+        //verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
+        if (taskStatus.getState != TaskState.TASK_KILLED) {
+          logging.warn(this, s"task kill resulted in unexpected state ${taskStatus.getState}")
+        } else {
+          logging.info(this, s"task killed ended with state ${taskStatus.getState}")
+        }
       })
   }
 
