@@ -1,6 +1,6 @@
 # Action compositions
 
-Action compositions make it possible to dynamically build and invoke a series of actions. Action compositions are similar to sequences. However, whereas the components of a sequence must be specified before invoking the sequence, components of a composition can be decided as the composition is running.
+Action compositions make it possible to dynamically build and invoke a series of actions, similar to sequences. However, whereas the components of a sequence must be specified before invoking the sequence, components of a composition can be decided as the composition is running.
 
 ## Example
 
@@ -16,7 +16,7 @@ We create the action _increment_:
 wsk action create increment increment.js
 ```
 
-We can use this _increment_ action in a composition. We create a source file `composition.js`:
+We can now use the _increment_ action in a composition. We create a source file `composition.js`:
 
 ```javascript
 function main(params) {
@@ -28,7 +28,7 @@ function main(params) {
 }
 ```
 
-We create the composition action:
+We create the action composition:
 
 ```
 wsk action create composition composition.js -a conductor true
@@ -36,7 +36,7 @@ wsk action create composition composition.js -a conductor true
 
 The key to making this action a composition is the _conductor_ annotation, which we discuss in the next section.
 
-This example composition executes two _increment_ actions in a sequence:
+This composition executes two _increment_ actions in a sequence. It is invoked like a regular action, for instance:
 
 ```
 wsk action invoke composition -br -p value 3
@@ -57,7 +57,7 @@ In essence, this composition defines a program with three steps:
 
 An action composition is driven by a _conductor action_. A _conductor action_, or in short a _conductor_,  is an action with a _conductor_ annotation. The value of the annotation is irrelevant.
 
-Because a conductor action is an action, it has all the attributes of an action (e.g., name, namespace, default parameters, limits...) and it can be managed as such, for instance using the `wsk action` CLI commands. It can be part of a package. It can be a web action. And so on.
+Because a conductor action is an action, it has all the attributes of an action (e.g., name, namespace, default parameters, limits...) and it can be managed as such, for instance using the `wsk action` CLI commands. It can be part of a package or be a web action and so on.
 
 A conductor should always output a JSON dictionary with up to three fields `{ params, action, state }`. The value of the field _params_ should be a JSON dictionary. The _action_ field of type string is optional. The _state_ field is optional and its value if present should be a JSON dictionary.
 
