@@ -135,18 +135,23 @@ object WhiskConfig {
     implicit logging: Logging) = {
     if (file != null && file.exists) {
       logging.info(this, s"reading properties from file $file")
-      for (line <- Source.fromFile(file).getLines if line.trim != "") {
-        val parts = line.split('=')
-        if (parts.length >= 1) {
-          val p = parts(0).trim
-          val v = if (parts.length == 2) parts(1).trim else ""
-          if (properties.contains(p)) {
-            properties += p -> v
-            logging.debug(this, s"properties file set value for $p")
+      val source = Source.fromFile(file)
+      try {
+        for (line <- source.getLines if line.trim != "") {
+          val parts = line.split('=')
+          if (parts.length >= 1) {
+            val p = parts(0).trim
+            val v = if (parts.length == 2) parts(1).trim else ""
+            if (properties.contains(p)) {
+              properties += p -> v
+              logging.debug(this, s"properties file set value for $p")
+            }
+          } else {
+            logging.warn(this, s"ignoring properties $line")
           }
-        } else {
-          logging.warn(this, s"ignoring properties $line")
         }
+      } finally {
+        source.close()
       }
     }
   }
