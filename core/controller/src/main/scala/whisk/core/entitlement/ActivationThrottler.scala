@@ -60,10 +60,12 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
    */
   def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
     loadBalancer.totalActiveActivations.map { concurrentActivations =>
-      logging.debug(
-        this,
-        s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
-      concurrentActivations > systemOverloadLimit
+      val overloaded = concurrentActivations > systemOverloadLimit
+      if (overloaded)
+        logging.info(
+          this,
+          s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+      overloaded
     }
   }
 }

@@ -107,7 +107,7 @@ class DockerContainerFactory(config: WhiskConfig,
   private def removeAllActionContainers(): Unit = {
     implicit val transid = TransactionId.invoker
     val cleaning = docker.ps(filters = Seq("name" -> s"wsk${instance.toInt}_"), all = true).flatMap { containers =>
-      logging.debug(this, s"removing ${containers.size} action containers.")
+      logging.info(this, s"removing ${containers.size} action containers.")
       val removals = containers.map { id =>
         (if (config.invokerUseRunc) {
            runc.resume(id)

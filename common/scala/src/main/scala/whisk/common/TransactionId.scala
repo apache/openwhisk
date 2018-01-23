@@ -57,6 +57,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     implicit logging: Logging) = {
 
     if (TransactionId.metricsLog) {
+      // marker received with a debug level will be emitted on info level
       logging.emit(InfoLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
     } else if (message.nonEmpty) {
       logging.emit(logLevel, this, from, message)
@@ -83,6 +84,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     implicit logging: Logging): StartMarker = {
 
     if (TransactionId.metricsLog) {
+      // marker received with a debug level will be emitted on info level
       logging.emit(InfoLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
     } else if (message.nonEmpty) {
       logging.emit(logLevel, this, from, message)
