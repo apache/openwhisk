@@ -19,82 +19,43 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 
-import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import org.apache.kafka.clients.producer.RecordMetadata
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorRefFactory, ActorSystem, Props}
 import akka.cluster.Cluster
-import akka.util.Timeout
 import akka.pattern.ask
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
-import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
+import akka.stream.ActorMaterializer
+import akka.util.Timeout
+import org.apache.kafka.clients.producer.RecordMetadata
+import pureconfig._
+import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.WhiskConfig._
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
-import whisk.core.connector.MessageFeed
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessagingProvider
+import whisk.core.connector._
 import whisk.core.database.NoDocumentException
 import whisk.core.entity._
-import whisk.core.entity.{ActivationId, WhiskActivation}
-import whisk.core.entity.EntityName
-import whisk.core.entity.ExecutableWhiskActionMetaData
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAction
 import whisk.core.entity.types.EntityStore
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
-import pureconfig._
+
+import scala.annotation.tailrec
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success}
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
-trait LoadBalancer {
-
-  val activeAckTimeoutGrace = 1.minute
-
-  /** Gets the number of in-flight activations for a specific user. */
-  def activeActivationsFor(namespace: UUID): Future[Int]
-
-  /** Gets the number of in-flight activations in the system. */
-  def totalActiveActivations: Future[Int]
-
-  /**
-   * Publishes activation message on internal bus for an invoker to pick up.
-   *
-   * @param action the action to invoke
-   * @param msg the activation message to publish on an invoker topic
-   * @param transid the transaction id for the request
-   * @return result a nested Future the outer indicating completion of publishing and
-   *         the inner the completion of the action (i.e., the result)
-   *         if it is ready before timeout (Right) otherwise the activation id (Left).
-   *         The future is guaranteed to complete within the declared action time limit
-   *         plus a grace period (see activeAckTimeoutGrace).
-   */
-  def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
-
-}
-
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging)
+class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                       logging: Logging,
+                                                                       materializer: ActorMaterializer)
     extends LoadBalancer {
 
   private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](ConfigKeys.loadbalancer)
 
+  /** Used to manage an action for testing invoker health */ /** Used to manage an action for testing invoker health */
+  private val entityStore = WhiskEntityStore.datastore(config)
+
   /** The execution context for futures */
-  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+
+  private val activeAckTimeoutGrace = 1.minute
 
   /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
   private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
@@ -113,10 +74,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
   }
 
-  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
-
-  override def totalActiveActivations = loadBalancerData.totalActivationCount
-
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     chooseInvoker(msg.user, action).flatMap { invokerName =>
@@ -127,11 +84,16 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
   }
 
-  /** An indexed sequence of all invokers in the current system */
-  def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] =
+  /** An indexed sequence of all invokers in the current system. */
+  override def invokerHealth(): Future[IndexedSeq[InvokerHealth]] = {
     invokerPool
       .ask(GetStatus)(Timeout(5.seconds))
-      .mapTo[IndexedSeq[(InstanceId, InvokerState)]]
+      .mapTo[IndexedSeq[InvokerHealth]]
+  }
+
+  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
+
+  override def totalActiveActivations = loadBalancerData.totalActivationCount
 
   /**
    * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -307,9 +269,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
   private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
 
-  /** Return invokers (almost) dedicated to running blackbox actions. */
-  private def blackboxInvokers(
-    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+  /** Return invokers dedicated to running blackbox actions. */
+  private def blackboxInvokers(invokers: IndexedSeq[InvokerHealth]): IndexedSeq[InvokerHealth] = {
     val blackboxes = numBlackbox(invokers.size)
     invokers.takeRight(blackboxes)
   }
@@ -318,8 +279,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
    * Return (at least one) invokers for running non black-box actions.
    * This set can overlap with the blackbox set if there is only one invoker.
    */
-  private def managedInvokers(
-    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+  private def managedInvokers(invokers: IndexedSeq[InvokerHealth]): IndexedSeq[InvokerHealth] = {
     val managed = Math.max(1, invokers.length - numBlackbox(invokers.length))
     invokers.take(managed)
   }
@@ -329,14 +289,14 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     val hash = generateHash(user.namespace, action)
 
     loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
-      allInvokers.flatMap { invokers =>
+      invokerHealth().flatMap { invokers =>
         val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
         val invokersWithUsage = invokersToUse.view.map {
           // Using a view defers the comparably expensive lookup to actual access of the element
-          case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
+          case invoker => (invoker.id, invoker.status, currentActivations.getOrElse(instance.toString, 0))
         }
 
-        LoadBalancerService.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
+        ContainerPoolBalancer.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
           case Some(invoker) => Future.successful(invoker)
           case None =>
             logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
@@ -352,7 +312,13 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 }
 
-object LoadBalancerService {
+object ContainerPoolBalancer extends LoadBalancerProvider {
+
+  override def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer = new ContainerPoolBalancer(whiskConfig, instance)
+
   def requiredProperties =
     kafkaHosts ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
@@ -367,7 +333,7 @@ object LoadBalancerService {
   def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
 
   /** Returns pairwise coprime numbers until x. Result is memoized. */
-  val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = LoadBalancerService.memoize {
+  val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = ContainerPoolBalancer.memoize {
     case x =>
       (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
         if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
@@ -394,7 +360,7 @@ object LoadBalancerService {
     val numInvokers = invokers.size
     if (numInvokers > 0) {
       val homeInvoker = hash % numInvokers
-      val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
+      val stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(numInvokers)
       val step = stepSizes(hash % stepSizes.size)
 
       val invokerProgression = Stream

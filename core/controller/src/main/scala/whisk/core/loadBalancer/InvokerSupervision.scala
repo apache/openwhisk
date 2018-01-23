@@ -86,7 +86,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   // from leaking the state for external mutation
   var instanceToRef = immutable.Map.empty[InstanceId, ActorRef]
   var refToInstance = immutable.Map.empty[ActorRef, InstanceId]
-  var status = IndexedSeq[(InstanceId, InvokerState)]()
+  var status = IndexedSeq[InvokerHealth]()
 
   def receive = {
     case p: PingMessage =>
@@ -103,13 +103,13 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 
     case CurrentState(invoker, currentState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
-        status = status.updated(instance.toInt, (instance, currentState))
+        status = status.updated(instance.toInt, new InvokerHealth(instance, currentState))
       }
       logStatus()
 
     case Transition(invoker, oldState: InvokerState, newState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
-        status = status.updated(instance.toInt, (instance, newState))
+        status = status.updated(instance.toInt, new InvokerHealth(instance, newState))
       }
       logStatus()
 
@@ -118,7 +118,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   }
 
   def logStatus() = {
-    val pretty = status.map { case (instance, state) => s"${instance.toInt} -> $state" }
+    val pretty = status.map(i => s"${i.id.toInt} -> ${i.status}")
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
   }
 
@@ -155,7 +155,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   def registerInvoker(instanceId: InstanceId): ActorRef = {
     logging.info(this, s"registered a new invoker: invoker${instanceId.toInt}")(TransactionId.invokerHealth)
 
-    status = padToIndexed(status, instanceId.toInt + 1, i => (InstanceId(i), Offline))
+    status = padToIndexed(status, instanceId.toInt + 1, i => new InvokerHealth(InstanceId(i), Offline))
 
     val ref = childFactory(context, instanceId)
 
