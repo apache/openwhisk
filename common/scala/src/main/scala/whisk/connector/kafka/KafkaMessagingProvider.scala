@@ -53,10 +53,8 @@ object KafkaMessagingProvider extends MessagingProvider {
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
-    val tc = loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig").map {
-      // Per convention, kebab-cased keys are transformed to dot.seperated keys as used by Kafka
-      case (key, value) => key.replace("-", ".") -> value
-    }
+    val tc = KafkaConfiguration.configMapToKafkaConfig(
+      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)
@@ -77,5 +75,13 @@ object KafkaMessagingProvider extends MessagingProvider {
     } finally {
       client.close()
     }
+  }
+}
+
+object KafkaConfiguration {
+  def configToKafkaKey(configKey: String) = configKey.replace("-", ".")
+
+  def configMapToKafkaConfig(configMap: Map[String, String]) = configMap.map {
+    case (key, value) => configToKafkaKey(key) -> value
   }
 }
