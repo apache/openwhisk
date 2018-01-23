@@ -187,6 +187,7 @@
         -e CONFIG_whisk_memory_min='{{ limit_action_memory_min | default() }}'
         -e CONFIG_whisk_memory_max='{{ limit_action_memory_max | default() }}'
         -e CONFIG_whisk_memory_std='{{ limit_action_memory_std | default() }}'
+        -e CONFIG_whisk_activation_payload_max='{{ limit_activation_payload | default() }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
