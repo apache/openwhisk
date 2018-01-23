@@ -49,6 +49,7 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
+import akka.event.Logging.InfoLevel
 
 class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
   implicit actorSystem: ActorSystem,
@@ -164,7 +165,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       .flatMap { msg =>
         implicit val transid = msg.transid
 
-        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
+        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
         val namespace = msg.action.path
         val name = msg.action.name
         val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)

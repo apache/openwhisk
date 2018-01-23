@@ -80,7 +80,11 @@ trait Container {
 
   /** Initializes code in the container. */
   def initialize(initializer: JsObject, timeout: FiniteDuration)(implicit transid: TransactionId): Future[Interval] = {
-    val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_INIT, s"sending initialization to $id $addr")
+    val start = transid.started(
+      this,
+      LoggingMarkers.INVOKER_ACTIVATION_INIT,
+      s"sending initialization to $id $addr",
+      logLevel = InfoLevel)
 
     val body = JsObject("value" -> initializer)
     callContainer("/init", body, timeout, retry = true)
@@ -90,7 +94,8 @@ trait Container {
             this,
             start.copy(start = r.interval.start),
             s"initialization result: ${r.toBriefString}",
-            endTime = r.interval.end)
+            endTime = r.interval.end,
+            logLevel = InfoLevel)
         case Failure(t) =>
           transid.failed(this, start, s"initializiation failed with $t")
       }
@@ -116,7 +121,11 @@ trait Container {
     implicit transid: TransactionId): Future[(Interval, ActivationResponse)] = {
     val actionName = environment.fields.get("action_name").map(_.convertTo[String]).getOrElse("")
     val start =
-      transid.started(this, LoggingMarkers.INVOKER_ACTIVATION_RUN, s"sending arguments to $actionName at $id $addr")
+      transid.started(
+        this,
+        LoggingMarkers.INVOKER_ACTIVATION_RUN,
+        s"sending arguments to $actionName at $id $addr",
+        logLevel = InfoLevel)
 
     val parameterWrapper = JsObject("value" -> parameters)
     val body = JsObject(parameterWrapper.fields ++ environment.fields)

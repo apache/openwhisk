@@ -338,7 +338,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       if (limit.ok) {
         Future.successful(())
       } else {
-        logging.debug(this, s"user '${user.subject}' has exceeded its throttle limit")
+        logging.info(this, s"user '${user.namespace}' has exceeded its throttle limit")
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

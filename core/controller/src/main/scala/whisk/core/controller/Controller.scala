@@ -29,11 +29,8 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
-
 import spray.json.DefaultJsonProtocol._
-
 import kamon.Kamon
-
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -51,6 +48,7 @@ import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
+import akka.event.Logging.InfoLevel
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -88,7 +86,8 @@ class Controller(val instance: InstanceId,
   TransactionId.controller.mark(
     this,
     LoggingMarkers.CONTROLLER_STARTUP(instance.toInt),
-    s"starting controller instance ${instance.toInt}")
+    s"starting controller instance ${instance.toInt}",
+    logLevel = InfoLevel)
 
   /**
    * A Route in Akka is technically a function taking a RequestContext as a parameter.

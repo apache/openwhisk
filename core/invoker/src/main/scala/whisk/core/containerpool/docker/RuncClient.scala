@@ -68,7 +68,8 @@ class RuncClient(timeouts: RuncClientTimeouts = loadConfigOrThrow[RuncClientTime
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_RUNC_CMD(args.head),
-      s"running ${cmd.mkString(" ")} (timeout: $timeout)")
+      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
+      logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start, logLevel = InfoLevel)
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)
