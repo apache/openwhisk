@@ -118,26 +118,26 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       }
   }
 
-  it should s"successfully invoke an action with a payload close to the limit" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val name = "TestActionCausingJustInBoundaryResult"
-      assetHelper.withCleaner(wsk.action, name) {
-        val actionName = TestUtils.getTestActionFilename("echo.js")
-        (action, _) =>
-          action.create(name, Some(actionName), timeout = Some(15.seconds))
-      }
+  it should s"successfully invoke an action with a payload close to the limit (${ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toMB} MB)" in withAssetCleaner(
+    wskprops) { (wp, assetHelper) =>
+    val name = "TestActionCausingJustInBoundaryResult"
+    assetHelper.withCleaner(wsk.action, name) {
+      val actionName = TestUtils.getTestActionFilename("echo.js")
+      (action, _) =>
+        action.create(name, Some(actionName), timeout = Some(15.seconds))
+    }
 
-      val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
+    val allowedSize = ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT.toBytes
 
-      // Needs some bytes grace since activation message is not only the payload.
-      val args = Map("p" -> ("a" * (allowedSize - 700).toInt).toJson)
-      val rr = wsk.action.invoke(name, args, blocking = true, expectedExitCode = 0)
-      val activation = wsk.parseJsonString(rr.respData).convertTo[ActivationResult]
+    // Needs some bytes grace since activation message is not only the payload.
+    val args = Map("p" -> ("a" * (allowedSize - 700).toInt).toJson)
+    val rr = wsk.action.invoke(name, args, blocking = true, expectedExitCode = TestUtils.SUCCESS_EXIT)
+    val activation = wsk.parseJsonString(rr.respData).convertTo[ActivationResult]
 
-      activation.response.success shouldBe true
+    activation.response.success shouldBe true
 
-      // The payload is echoed and thus the backchannel supports the limit as well.
-      activation.response.result shouldBe Some(args.toJson)
+    // The payload is echoed and thus the backchannel supports the limit as well.
+    activation.response.result shouldBe Some(args.toJson)
   }
 
   Seq(true, false).foreach { blocking =>
