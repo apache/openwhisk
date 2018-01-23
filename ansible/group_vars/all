@@ -1,6 +1,6 @@
 mode: deploy
 prompt_user: true
-openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir + '/..', true) }}"
+openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
 openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
 exclude_logs_from: []
 
@@ -213,7 +213,6 @@ sdk:
 
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
-  nginxdir: "{{ nginx.confdir }}/cli/go/download"
   dir:
     become: "{{ cli_dir_become | default(false) }}"
 
@@ -254,8 +253,6 @@ catalog_repos:
     version: "HEAD"
     repo_update: "no"
 
-openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
-
 # The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
 # installation_mode can be specified into two modes: remote and local.
 # The mode remote means to download the available binaries from the releases page
@@ -271,24 +268,18 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
 
 openwhisk_cli:
+<<<<<<< HEAD
   installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
+=======
+  installation_mode: "{{ cli_installation_mode | default('remote') }}"
+  archive_name: OpenWhisk_CLI
+  tag: "{{ cli_tag | default( lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') ) }}"
+  nginxdir: "{{ nginx.confdir }}/cli/go/download"
+>>>>>>> Initial commit for Nginx tarball download.
   local:
     location: "{{ openwhisk_cli_home }}/build"
   remote:
-    name: OpenWhisk_CLI
-    dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
-
-# The list of operating systems and architectures for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
-cli_os_arch:
-  - [ "linux", "amd64" ]
-  - [ "linux", "386" ]
-  - [ "linux", "s390x" ]
-  - [ "mac", "amd64" ]
-  - [ "mac", "386" ]
-  - [ "windows", "amd64" ]
-  - [ "windows", "386" ]
 
 # Controls access to log directories
 logs:

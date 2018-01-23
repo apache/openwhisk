@@ -1,30 +1,48 @@
 ---
 # Tasks for handling CLI customization and publishing
 
-- name: "ensure nginx directory for cli exists"
-  file:
-    path: "{{ cli.nginxdir  }}"
-    state: directory
-  become: "{{ cli.dir.become }}"
+# - name: "ensure nginx directory for cli exists"
+#   file:
+#     path: "{{ cli.nginxdir }}"
+#     state: directory
+#   become: "{{ cli.dir.become }}"
 
-- set_fact:
-    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+#- include: docker_login.yml
 
-- include: docker_login.yml
+#
+#  If you're copying from local, the 'src' item will likely default to
+#  '$OPENWHISK_HOME/../incubator-openwhisk-cli/release/OpenWhisk_CLI-latest-all.tgz'
+#
+- name: "Configure for remote retreival"
+  set_fact:
+    cli_archive_src: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.remote.name}}-{{ openwhisk_cli.tag }}-all.tgx"
+  when: openwhisk_cli.installation_mode == "remote"
 
-- name: "download the binaries from the release page of OpenWhisk CLI"
-  include: cli_remote_mode.yml
-  when: cli_installation_mode == "remote"
+- name: "Configure for local retreival"
+  set_fact:
+    cli_archive_src: "{{ openwhisk_cli_home }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli.tag }}-all.tgx"
+  when: openwhisk_cli.installation_mode == "local"
 
-- name: "copy the binaries from a local directory to Nginx directory"
-  include: copy_local_openwhisk_cli.yml
-  when: cli_installation_mode == "local"
-  with_items:
-    - "{{ cli_os_arch }}"
+- name: "expand the binaries archive into the Nginx directory"
+  unarchive:
+      src: "{{ cli_archive_src }}"
+      dest: "{{ openwhisk_cli.nginxdir }}"
+      mode: '0644'
+      validate_certs: yes
+  when: openwhisk_cli.installation_mode == "remote"
 
-- name: "copy the local content.json from a local directory to Nginx directory"
-  copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
-  when: cli_installation_mode == "local"
+- name: "get a list of archives to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir }}"
+      patterns:
+          - '*.tgz'
+          - '*.zip'
+      recurse: true
+  register: archives
+
+- name: "print find results"
+  debug:
+      var: archives
 
 - include: download_cli.yml
-  when: cli_installation_mode == "remote"
+  when: openwhisk_cli.installation_mode == "remote"
