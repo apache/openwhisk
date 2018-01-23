@@ -19,14 +19,11 @@ package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-
 import org.apache.kafka.common.errors.RecordTooLargeException
-
 import akka.actor.ActorRefFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
@@ -82,8 +79,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
         Map(
           "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
           "--ulimit" -> Set("nofile=1024:1024"),
-          "--pids-limit" -> Set("1024"),
-          "--dns" -> config.invokerContainerDns.toSet) ++ logsProvider.containerParameters)
+          "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
   sys.addShutdownHook(containerFactory.cleanup())
 

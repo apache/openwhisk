@@ -66,9 +66,6 @@ object Invoker {
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
       invokerCoreShare -> "2",
-      invokerContainerPolicy -> "",
-      invokerContainerDns -> "",
-      invokerContainerNetwork -> null,
       invokerUseRunc -> "true") ++
       Map(invokerName -> "")
 
