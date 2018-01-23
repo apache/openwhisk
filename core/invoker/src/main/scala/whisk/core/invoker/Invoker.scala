@@ -47,7 +47,6 @@ import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
-import whisk.common.ZipkinLogging
 import whisk.common.tracing.OpenTracingProvider
 
 case class CmdLineArgs(name: Option[String] = None, id: Option[Int] = None)
@@ -80,7 +79,7 @@ object Invoker {
     implicit val ec = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
     implicit val actorSystem: ActorSystem =
       ActorSystem(name = "invoker-actor-system", defaultExecutionContext = Some(ec))
-    implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>

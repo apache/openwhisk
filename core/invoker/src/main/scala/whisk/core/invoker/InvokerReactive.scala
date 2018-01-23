@@ -167,6 +167,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       .flatMap { msg =>
         implicit val transid = msg.transid
 
+        //set trace context to continue tracing
+        OpenTracingProvider.setTraceContext(transid, msg.traceContext)
+
         val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
         val namespace = msg.action.path
         val name = msg.action.name
@@ -174,8 +177,6 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
         val subject = msg.user.subject
 
         logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
-
-        OpenTracingProvider.setTraceContext(transid, msg.traceContext)
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;

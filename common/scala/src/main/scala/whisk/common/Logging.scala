@@ -27,7 +27,6 @@ import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import akka.event.LoggingAdapter
 import kamon.Kamon
-import whisk.common.tracing.OpenTracingProvider
 
 trait Logging {
 
@@ -133,41 +132,6 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
     val parts = Seq(s"[$time]", s"[$level]", s"[$id]") ++ Seq(s"[$name]") ++ logMessage
     outputStream.println(parts.mkString(" "))
   }
-}
-
-/**
-  * Implementation of logging which also supports tracing using Zipkin.
-  * @param logger <code>Logging<code> instance which can do basic logging
-  */
-class ZipkinLogging (logger: Logging) extends Logging {
-
-    def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
-        logger.emit(loglevel, id, from, message)
-    }
-
-    override def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, logMarker: LogMarker) = {
-
-        //log message as usual
-        emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
-
-        //tracing support
-        logMarker.token.state match {
-
-            case LoggingMarkers.start => {
-                  OpenTracingProvider.startTrace(logMarker.token.action, id)
-            }
-
-            case LoggingMarkers.finish => {
-              OpenTracingProvider.finish(id)
-            }
-
-            case LoggingMarkers.error => {
-              OpenTracingProvider.error(id)
-            }
-
-            case _ =>
-        }
-    }
 }
 
 /**

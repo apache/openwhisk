@@ -31,6 +31,7 @@ import spray.json.JsArray
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
+import whisk.common.tracing.OpenTracingProvider
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -81,7 +82,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    */
   def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(
     implicit logging: Logging): StartMarker = {
-
+    
     val logMarker = LogMarker(marker, deltaToStart)
     if (TransactionId.metricsLog) {
       logging.emit(logLevel, this, from, createMessageWithMarker(message, logMarker), logMarker)
@@ -92,6 +93,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     if (TransactionId.metricsKamon) {
       MetricEmitter.emitCounterMetric(marker)
     }
+
+    //tracing support
+    OpenTracingProvider.startTrace(marker, this)
 
     StartMarker(Instant.now, marker)
   }
@@ -128,6 +132,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
     if (TransactionId.metricsKamon) {
       MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
     }
+
+    //tracing support
+    OpenTracingProvider.finish(endMarker, this)
   }
 
   /**
@@ -159,6 +166,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
       MetricEmitter.emitCounterMetric(endMarker)
     }
+
+    //tracing support
+    OpenTracingProvider.error(this)
   }
 
   /**

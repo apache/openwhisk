@@ -34,7 +34,6 @@ import kamon.Kamon
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
-import whisk.common.ZipkinLogging
 import whisk.common.TransactionId
 import whisk.common.tracing.OpenTracingProvider
 import whisk.core.WhiskConfig
@@ -182,7 +181,7 @@ object Controller {
   def main(args: Array[String]): Unit = {
     Kamon.start()
     implicit val actorSystem = ActorSystem("controller-actor-system")
-    implicit val logger = new ZipkinLogging(new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this)))
+    implicit val logger = new AkkaLogging(akka.event.Logging.getLogger(actorSystem, this))
 
     // Prepare Kamon shutdown
     CoordinatedShutdown(actorSystem).addTask(CoordinatedShutdown.PhaseActorSystemTerminate, "shutdownKamon") { () =>
