@@ -129,6 +129,12 @@
   set_fact:
     invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
 
+- name: stop and remove the invoke container if it's currently running
+  docker_container:
+      name: invoker{{ groups['invokers'].index(inventory_hostname) }}
+      state: absent
+      force_kill: yes
+
 - name: start invoker using docker cli
   shell: >
         docker run -d
@@ -207,5 +213,5 @@
     url: "http://{{ ansible_host }}:{{ invoker.port + groups['invokers'].index(inventory_hostname) }}/ping"
   register: result
   until: result.status == 200
-  retries: 12
+  retries: 15
   delay: 5
