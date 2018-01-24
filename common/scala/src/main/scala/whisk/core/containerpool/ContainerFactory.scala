@@ -29,8 +29,7 @@ import whisk.spi.Spi
 
 case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq(),
-                               extraArgs: Map[String, Set[String]] = Map(),
-                               namePrefix: String)
+                               extraArgs: Map[String, Set[String]] = Map())
 
 /**
  * An abstraction for Container creation
@@ -49,6 +48,15 @@ trait ContainerFactory {
 
   /** cleanup any remaining Containers; should block until complete; should ONLY be run at startup/shutdown */
   def cleanup(): Unit
+}
+
+object ContainerFactory {
+
+  /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
+  def containerNamePrefix(instanceId: InstanceId): String =
+    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}"
+      .replaceAll("[^a-zA-Z0-9_\\.\\-]", "") // based on https://github.com/moby/moby/issues/3138 and https://github.com/moby/moby/blob/master/daemon/names/names.go
+
 }
 
 /**

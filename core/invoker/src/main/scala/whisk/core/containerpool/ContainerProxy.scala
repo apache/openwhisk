@@ -27,11 +27,9 @@ import akka.actor.Props
 import akka.actor.Stash
 import akka.actor.Status.{Failure => FailureMessage}
 import akka.pattern.pipe
-import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
-import whisk.core.ConfigKeys
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogCollectingException
 import whisk.core.entity._
@@ -98,8 +96,7 @@ class ContainerProxy(
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InstanceId,
   unusedTimeout: FiniteDuration,
-  pauseGrace: FiniteDuration,
-  containerArgsConfig: ContainerArgsConfig)
+  pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
@@ -113,7 +110,7 @@ class ContainerProxy(
     case Event(job: Start, _) =>
       factory(
         TransactionId.invokerWarmup,
-        ContainerProxy.containerName(instance, "prewarm", job.exec.kind, containerArgsConfig),
+        ContainerProxy.containerName(instance, "prewarm", job.exec.kind),
         job.exec.image,
         job.exec.pull,
         job.memoryLimit)
@@ -129,7 +126,7 @@ class ContainerProxy(
       // create a new container
       val container = factory(
         job.msg.transid,
-        ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name, containerArgsConfig),
+        ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name),
         job.action.exec.image,
         job.action.exec.pull,
         job.action.limits.memory.megabytes.MB)
@@ -416,10 +413,8 @@ object ContainerProxy {
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
     unusedTimeout: FiniteDuration = 10.minutes,
-    pauseGrace: FiniteDuration = 50.milliseconds,
-    containerArgsConfig: ContainerArgsConfig = loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs)) =
-    Props(
-      new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace, containerArgsConfig))
+    pauseGrace: FiniteDuration = 50.milliseconds) =
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
@@ -431,8 +426,8 @@ object ContainerProxy {
    * @param suffix the container name's suffix
    * @return a unique container name
    */
-  def containerName(instance: InstanceId, prefix: String, suffix: String, containerArgsConfig: ContainerArgsConfig) =
-    s"${containerArgsConfig.namePrefix}${instance.toInt}_${containerCount.next()}_${prefix}_${suffix}"
+  def containerName(instance: InstanceId, prefix: String, suffix: String) =
+    s"${ContainerFactory.containerNamePrefix(instance)}_${containerCount.next()}_${prefix}_${suffix}"
       .replaceAll("[^a-zA-Z0-9_]", "")
 
   /**
