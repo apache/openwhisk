@@ -26,14 +26,17 @@
     couch_image: "{{ couchdb.docker_image | default('apache/couchdb:' ~ couchdb.version ) }}"
 
 - name: "pull the {{ couch_image }} image"
+  vars:
+    pull_image: "{{ couchdb.pull_couchdb | default(true) }}"
   shell: "docker pull {{ couch_image }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+  when: pull_image == true
 
 - name: "(re)start CouchDB"
   docker_container:
     name: couchdb
-    image: apache/couchdb:{{ couchdb.version }}
+    image: "{{ couch_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"

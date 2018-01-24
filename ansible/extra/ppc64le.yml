@@ -1,0 +1,18 @@
+# The images below are hand built right now as we work on a broader multi-arch support for Power
+# pull false would ensure that the images are not pulled by docker. This will be removed shortly.
+
+nginx_version: 1.12
+
+couchdb:
+    docker_image: "apache/couchdb-ppc64le:latest"
+    pull_couchdb: false
+
+kafka:
+    docker_image: "kafka-ppc64le:0.10.0"
+    pull_kafka: false
+
+apigateway:
+    docker_image: "openwhisk/apigateway-ppc64le:0.8.2"
+
+#  Because we don't (yet) support s390x/ppc64le compiles of the CLI; a different challenge...
+#  cli_installation_mode: local
