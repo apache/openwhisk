@@ -2,6 +2,7 @@ mode: deploy
 prompt_user: true
 openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
 openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
+openwhisk_build_dir: "{{ openwhisk_home }}/build"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -24,9 +25,17 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
-
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema)
-runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
+##
+# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
+# briefly:
+#   defaultImagePrefix: the default image prefix when not given explicitly
+#   defaultImageTag: the default image tag
+#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
+#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
+#                             to skip docker pull in invoker even if the image is not part of the blackbox set
+#
+runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '/ansible/files/runtimes.json') | from_json) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
@@ -267,15 +276,13 @@ catalog_repos:
 # The location specifies the official website where Openwhisk CLI is hosted in
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
 
+openwhisk_cli_tag: "{{ cli_tag | default(lookup('ini', 'git_tag section=openwhisk-cli file=' ~ openwhisk_home ~ '/ansible/files/package-versions.ini')) }}"
 openwhisk_cli:
-<<<<<<< HEAD
-  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
-=======
   installation_mode: "{{ cli_installation_mode | default('remote') }}"
   archive_name: OpenWhisk_CLI
-  tag: "{{ cli_tag | default( lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') ) }}"
-  nginxdir: "{{ nginx.confdir }}/cli/go/download"
->>>>>>> Initial commit for Nginx tarball download.
+  nginxdir:
+    name: "{{ nginx.confdir }}/cli/go/download"
+    become: "{{ cli_dir_become | default(false) }}"
   local:
     location: "{{ openwhisk_cli_home }}/build"
   remote:

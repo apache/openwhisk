@@ -1,48 +1,81 @@
 ---
 # Tasks for handling CLI customization and publishing
+#
+# Note:  The configuration directory is actually located on the local machine;
+#        this script is run under the local host, usually 172.17.0.1 (docker local)
 
-# - name: "ensure nginx directory for cli exists"
-#   file:
-#     path: "{{ cli.nginxdir }}"
-#     state: directory
-#   become: "{{ cli.dir.become }}"
+- name: "Ensure nginx directory for cli exists"
+  file:
+    path: "{{ openwhisk_cli.nginxdir.name }}"
+    state: directory
+  become: "{{ openwhisk_cli.nginxdir.become }}"
 
-#- include: docker_login.yml
+- name: "Ensure OpenWhisk build directory exists (for temp archive work)"
+  file:
+    path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
+    state: directory
 
 #
-#  If you're copying from local, the 'src' item will likely default to
-#  '$OPENWHISK_HOME/../incubator-openwhisk-cli/release/OpenWhisk_CLI-latest-all.tgz'
+#  Why are we unarchiving into the build directory instead of directly into
+#  the Nginx config directory?  Because the Nginx config directory is (by
+#  default) located in the /tmp/... directory tree, which has a sticky bit
+#  set.  Said sticky bit creates no end of troubles for tar, so we're going
+#  to just avoid it entirely, rather than muck about with who's got which tar
+#  with which right tar options installed where.  It makes for many more
+#  items in this ansible playbook than we'd hoped, but at least it's (fairly)
+#  straightforward.
 #
-- name: "Configure for remote retreival"
-  set_fact:
-    cli_archive_src: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.remote.name}}-{{ openwhisk_cli.tag }}-all.tgx"
+- name: "Download release archive to build directory ..."
+  get_url:
+    url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "remote"
 
-- name: "Configure for local retreival"
-  set_fact:
-    cli_archive_src: "{{ openwhisk_cli_home }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli.tag }}-all.tgx"
+- name: "... or Copy release archive to build directory"
+  copy:
+    src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "local"
 
-- name: "expand the binaries archive into the Nginx directory"
-  unarchive:
-      src: "{{ cli_archive_src }}"
-      dest: "{{ openwhisk_cli.nginxdir }}"
-      mode: '0644'
-      validate_certs: yes
-  when: openwhisk_cli.installation_mode == "remote"
+#
+#   I really wanted to use 'unarchive' here, but it was quite buggy and didn't
+#   want to cooperate, so we do a good old-fashioned tar x instead
+#
+- name: "Expand the archive into the build directory"
+  shell: >
+    tar zxf /{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz
+    -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
 
-- name: "get a list of archives to expand"
+- name: "Copy expanded archive to final configuration directory"
+  copy:
+    #  WARNING:  The trailing slash is significant, signalling to copy contents
+    src: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
+    dest: "{{ openwhisk_cli.nginxdir.name }}"
+
+- name: "Delete archive from build directory"
+  file:
+    path: "{{ item }}"
+    state: absent
+    force: yes
+  with_items:
+      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
+
+- name: "Generate a list of individual archives to expand"
   find:
-      paths: "{{ openwhisk_cli.nginxdir }}"
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
       patterns:
           - '*.tgz'
           - '*.zip'
       recurse: true
-  register: archives
+  register: individual_archives
 
-- name: "print find results"
-  debug:
-      var: archives
+- name: "Unarchive the individual archives into binaries"
+  unarchive:
+    remote_src: yes
+    src: "{{ item.path }}"
+    dest: "{{ item.path | dirname }}"
+  with_items: "{{ individual_archives.files }}"
 
 - include: download_cli.yml
   when: openwhisk_cli.installation_mode == "remote"
