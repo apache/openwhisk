@@ -5,6 +5,8 @@ apply plugin: 'maven'
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
 
+project.archivesBaseName = "openwhisk-common"
+
 repositories {
     mavenCentral()
 }

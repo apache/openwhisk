@@ -7,6 +7,8 @@ ext.dockerImageName = 'controller'
 apply from: '../../gradle/docker.gradle'
 distDocker.dependsOn ':common:scala:distDocker', 'distTar'
 
+project.archivesBaseName = "openwhisk-controller"
+
 repositories {
     mavenCentral()
 }

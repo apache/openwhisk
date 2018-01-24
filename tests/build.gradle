@@ -7,6 +7,8 @@ repositories {
     mavenCentral()
 }
 
+project.archivesBaseName = "openwhisk-tests"
+
 tasks.withType(Test) {
     systemProperties(System.getProperties())
 
