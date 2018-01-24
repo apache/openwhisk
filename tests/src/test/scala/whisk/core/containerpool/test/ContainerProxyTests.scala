@@ -185,17 +185,24 @@ class ContainerProxyTests
     val container = new TestContainer
     val factory = createFactory(Future.successful(container))
     val store = createStore
-
+    val containerArgsConfig = ContainerArgsConfig("net1", Seq("dns1"), Map("env" -> Set("e1", "e2")), "testprefix")
     val machine =
       childActorOf(
-        ContainerProxy.props(factory, createAcker, store, createCollector(), InstanceId(0), pauseGrace = timeout))
+        ContainerProxy.props(
+          factory,
+          createAcker,
+          store,
+          createCollector(),
+          InstanceId(0),
+          pauseGrace = timeout,
+          containerArgsConfig = containerArgsConfig))
     registerCallback(machine)
     preWarm(machine)
 
     factory.calls should have size 1
     val (tid, name, _, _, memory) = factory.calls(0)
     tid shouldBe TransactionId.invokerWarmup
-    name should fullyMatch regex """wsk\d+_\d+_prewarm_actionKind"""
+    name should fullyMatch regex """testprefix\d+_\d+_prewarm_actionKind"""
     memory shouldBe memoryLimit
   }
 

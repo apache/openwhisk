@@ -29,7 +29,8 @@ import whisk.spi.Spi
 
 case class ContainerArgsConfig(network: String,
                                dnsServers: Seq[String] = Seq(),
-                               extraArgs: Map[String, Set[String]] = Map())
+                               extraArgs: Map[String, Set[String]] = Map(),
+                               namePrefix: String)
 
 /**
  * An abstraction for Container creation
