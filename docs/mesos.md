@@ -4,17 +4,21 @@ The MesosContainerFactory enables launching action containers within a Mesos clu
 
 ## Enable
 
-To enable MesosContainerFactory, the following TypeSafe Config propertiesy must be set
+To enable MesosContainerFactory, use the following TypeSafe Config properties
 
-| property | details | example |
+| property | required | details | example |
 | ------------------------------- |
-| whisk.spi.ContainerFactoryProvider | enable the MesosContainerFactory | whisk.core.mesos.MesosContainerFactoryProvider |
-| whisk.mesos.master-url | mesos master http endpoint to be accessed from the invoker for framework subscription | http://192.168.99.100:5050 |
-| whisk.mesos.master-url-public | public facing mesos master http endpoint for exposing logs to cli users | http://192.168.99.100:5050 |
+| whisk.spi.ContainerFactoryProvider | required | enable the MesosContainerFactory | whisk.core.mesos.MesosContainerFactoryProvider |
+| whisk.mesos.master-url | required | mesos master http endpoint to be accessed from the invoker for framework subscription | http://192.168.99.100:5050 |
+| whisk.mesos.master-url-public | optional (default to whisk.mesos.master-url) | public facing mesos master http endpoint for exposing logs to cli users | http://192.168.99.100:5050 |
+| whisk.mesos.role | optional (default *) | mesos framework role| any string e.g. `openwhisk` |
+| whisk.mesos.failover-timeout-seconds | optional (default 0) | how long to wait for the framework to reconnect with the same id before tasks are terminated  | see http://mesos.apache.org/documentation/latest/high-availability-framework-guide/ |
+| whisk.mesos.mesos-link-log-message | optional (default true) | display a log message with a link to mesos when using the default LogStore (or no log message) | Since logs are not available for invoker to collect from mesos in general, you can either use an alternate LogStore or direct users to the mesos ui |   |
 
-To set these properties for your invoker, set the `INVOKER_OPTS` environment variable e.g.
+To set these properties for your invoker, set the corresponding environment variables e.g.
 ```properties
-INVOKER_OPTS="-Dwhisk.spi.ContainerFactoryProvider=whisk.core.mesos.MesosContainerFactoryProvider -Dwhisk.mesos.master-url=http://192.168.99.100:5050 -Dwhisk.mesos.master-url-public=http://192.168.99.100:5050"
+CONFIG_whisk_spi_ContainerFactoryProvider=whisk.core.mesos.MesosContainerFactoryProvider
+CONFIG_Dwhisk_mesos_masterUrl=http://192.168.99.100:5050
 ```
 
 ## Known Issues

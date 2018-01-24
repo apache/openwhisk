@@ -148,7 +148,7 @@ class MesosTask(override protected val id: ContainerId,
       .map(taskStatus => {
         //verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
         if (taskStatus.getState != TaskState.TASK_KILLED) {
-          logging.warn(this, s"task kill resulted in unexpected state ${taskStatus.getState}")
+          logging.error(this, s"task kill resulted in unexpected state ${taskStatus.getState}")
         } else {
           logging.info(this, s"task killed ended with state ${taskStatus.getState}")
         }
