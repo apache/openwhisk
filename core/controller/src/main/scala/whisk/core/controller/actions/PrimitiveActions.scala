@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Failure
-
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -40,6 +39,7 @@ import whisk.core.entity._
 import whisk.core.entity.types.ActivationStore
 import whisk.core.entity.types.EntityStore
 import whisk.utils.ExecutionContextFactory.FutureExtensions
+import akka.event.Logging.InfoLevel
 
 protected[actions] trait PrimitiveActions {
   /** The core collections require backend services to be injected in this trait. */
@@ -114,7 +114,8 @@ protected[actions] trait PrimitiveActions {
       this,
       waitForResponse
         .map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING)
-        .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION))
+        .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
+      logLevel = InfoLevel)
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
     val postedFuture = loadBalancer.publish(action, message)
@@ -163,7 +164,7 @@ protected[actions] trait PrimitiveActions {
       WhiskActivation.get(activationStore, docid)
     })
 
-    logging.info(this, s"action activation will block for result upto $totalWaitTime")
+    logging.debug(this, s"action activation will block for result upto $totalWaitTime")
 
     activeAckResponse map {
       case result @ Right(_) =>
@@ -277,7 +278,7 @@ protected[actions] object ActivationFinisher {
     }
 
     override def postStop() = {
-      logging.info(this, "finisher shutdown")
+      logging.debug(this, "finisher shutdown")
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
       context.stop(poller)

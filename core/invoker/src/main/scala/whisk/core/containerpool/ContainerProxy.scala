@@ -37,6 +37,7 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
+import akka.event.Logging.InfoLevel
 
 // States
 sealed trait ContainerState
@@ -379,7 +380,7 @@ class ContainerProxy(
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
+        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
         collectLogs(tid, job.msg.user, activation, container, job.action)
           .andThen {
             case Success(_) => tid.finished(this, start)

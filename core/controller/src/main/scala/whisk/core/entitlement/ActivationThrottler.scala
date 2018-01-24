@@ -48,7 +48,7 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
   def check(user: Identity)(implicit tid: TransactionId): Future[RateLimit] = {
     loadBalancer.activeActivationsFor(user.uuid).map { concurrentActivations =>
       val concurrencyLimit = user.limits.concurrentInvocations.getOrElse(defaultConcurrencyLimit)
-      logging.info(
+      logging.debug(
         this,
         s"namespace = ${user.uuid.asString}, concurrent activations = $concurrentActivations, below limit = $concurrencyLimit")
       ConcurrentRateLimit(concurrentActivations, concurrencyLimit)
@@ -60,10 +60,12 @@ class ActivationThrottler(loadBalancer: LoadBalancer, defaultConcurrencyLimit: I
    */
   def isOverloaded()(implicit tid: TransactionId): Future[Boolean] = {
     loadBalancer.totalActiveActivations.map { concurrentActivations =>
-      logging.info(
-        this,
-        s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
-      concurrentActivations > systemOverloadLimit
+      val overloaded = concurrentActivations > systemOverloadLimit
+      if (overloaded)
+        logging.info(
+          this,
+          s"concurrent activations in system = $concurrentActivations, below limit = $systemOverloadLimit")
+      overloaded
     }
   }
 }

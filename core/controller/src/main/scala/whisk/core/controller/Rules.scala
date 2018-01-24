@@ -123,17 +123,17 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
           } flatMap {
             oldStatus =>
               if (requestedState != oldStatus) {
-                logging.info(this, s"[POST] rule state change initiated: ${oldStatus} -> $requestedState")
+                logging.debug(this, s"[POST] rule state change initiated: ${oldStatus} -> $requestedState")
                 Future successful requestedState
               } else {
-                logging.info(
+                logging.debug(
                   this,
                   s"[POST] rule state will not be changed, the requested state is the same as the old state: ${oldStatus} -> $requestedState")
                 Future failed { IgnoredRuleActivation(requestedState == oldStatus) }
               }
           } flatMap {
             case (newStatus) =>
-              logging.info(this, s"[POST] attempting to set rule state to: ${newStatus}")
+              logging.debug(this, s"[POST] attempting to set rule state to: ${newStatus}")
               WhiskTrigger.get(entityStore, rule.trigger.toDocId) flatMap { trigger =>
                 val newTrigger = trigger.removeRule(ruleName)
                 val triggerLink = ReducedRule(rule.action, newStatus)
@@ -147,13 +147,13 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             case Failure(t) =>
               t match {
                 case _: DocumentConflictException =>
-                  logging.info(this, s"[POST] rule update conflict")
+                  logging.debug(this, s"[POST] rule update conflict")
                   terminate(Conflict, conflictMessage)
                 case IgnoredRuleActivation(ok) =>
-                  logging.info(this, s"[POST] rule update ignored")
+                  logging.debug(this, s"[POST] rule update ignored")
                   if (ok) complete(OK) else terminate(Conflict)
                 case _: NoDocumentException =>
-                  logging.info(this, s"[POST] the trigger attached to the rule doesn't exist")
+                  logging.debug(this, s"[POST] the trigger attached to the rule doesn't exist")
                   terminate(NotFound, "Only rules with existing triggers can be activated")
                 case _: DeserializationException =>
                   logging.error(this, s"[POST] rule update failed: ${t.getMessage}")
@@ -272,7 +272,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             content.annotations getOrElse Parameters())
 
           val triggerLink = ReducedRule(actionName, Status.ACTIVE)
-          logging.info(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
+          logging.debug(this, s"about to put ${trigger.addRule(ruleName, triggerLink)}")
           WhiskTrigger.put(entityStore, trigger.addRule(ruleName, triggerLink)) map { _ =>
             rule
           }
