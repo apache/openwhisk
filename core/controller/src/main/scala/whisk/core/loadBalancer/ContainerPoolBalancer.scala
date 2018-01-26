@@ -43,9 +43,9 @@ import scala.util.{Failure, Success}
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
-class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit val actorSystem: ActorSystem,
-                                                                       logging: Logging,
-                                                                       materializer: ActorMaterializer)
+class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                                 logging: Logging,
+                                                                                 materializer: ActorMaterializer)
     extends LoadBalancer {
 
   private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](ConfigKeys.loadbalancer)
@@ -219,7 +219,7 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
   private val invokerPool = {
     // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
     InvokerPool
-      .healthAction(instance)
+      .healthAction(controllerInstance)
       .map {
         // Await the creation of the test action; on failure, this will abort the constructor which should
         // in turn abort the startup of the controller.
@@ -233,9 +233,9 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
 
     val maxPingsPerPoll = 128
     val pingConsumer =
-      messagingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+      messagingProvider.getConsumer(config, s"health${controllerInstance.toInt}", "health", maxPeek = maxPingsPerPoll)
     val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) =>
-      f.actorOf(InvokerActor.props(invokerInstance, instance))
+      f.actorOf(InvokerActor.props(invokerInstance, controllerInstance))
 
     actorSystem.actorOf(
       InvokerPool.props(invokerFactory, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
@@ -248,7 +248,11 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
   val maxActiveAcksPerPoll = 128
   val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    messagingProvider.getConsumer(
+      config,
+      "completions",
+      s"completed${controllerInstance.toInt}",
+      maxPeek = maxActiveAcksPerPoll)
   val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed(
       "activeack",
@@ -299,7 +303,7 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
         val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
         val invokersWithUsage = invokersToUse.view.map {
           // Using a view defers the comparably expensive lookup to actual access of the element
-          case invoker => (invoker.id, invoker.status, currentActivations.getOrElse(instance.toString, 0))
+          case invoker => (invoker.id, invoker.status, currentActivations.getOrElse(invoker.id.toString, 0))
         }
 
         ContainerPoolBalancer.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
