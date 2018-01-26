@@ -34,9 +34,9 @@ trait Logging {
    * Prints a message on DEBUG level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def debug(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     if (id.meta.extraLogging) {
       emit(InfoLevel, id, from, message)
     } else {
@@ -48,9 +48,9 @@ trait Logging {
    * Prints a message on INFO level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def info(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(InfoLevel, id, from, message)
   }
 
@@ -58,9 +58,9 @@ trait Logging {
    * Prints a message on WARN level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def warn(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(WarningLevel, id, from, message)
   }
 
@@ -68,9 +68,9 @@ trait Logging {
    * Prints a message on ERROR level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def error(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(ErrorLevel, id, from, message)
   }
 
@@ -80,19 +80,22 @@ trait Logging {
    * @param loglevel The level to log on
    * @param id <code>TransactionId</code> to include in the log
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String)
+  protected[common] def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String)
 }
 
 /**
  * Implementation of Logging, that uses Akka logging.
  */
 class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
     if (loggingAdapter.isEnabled(loglevel)) {
-      val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-      loggingAdapter.log(loglevel, s"[$id] [$name] $message")
+      val logmsg: String = message // generates the message
+      if (logmsg.nonEmpty) { // log it only if its not empty
+        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+        loggingAdapter.log(loglevel, s"[$id] [$name] $logmsg")
+      }
     }
   }
 }
@@ -101,7 +104,7 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
  * Implementaion of Logging, that uses the output stream.
  */
 class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Logging {
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+  override def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
     val now = Instant.now(Clock.systemUTC)
     val time = Emitter.timeFormat.format(now)
     val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
