@@ -98,25 +98,22 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val container = if (busyPool.size < maxActiveContainers) {
+      val createdContainer = if (busyPool.size < maxActiveContainers) {
 
         // Schedule a job to a warm container
         ContainerPool
           .schedule(r.action, r.msg.user.namespace, freePool)
           .map(container => {
-            logContainerStart(r, "warm")
-            container
+            (container, "warm")
           })
           .orElse {
             if (busyPool.size + freePool.size < maxPoolSize) {
               takePrewarmContainer(r.action)
                 .map(container => {
-                  logContainerStart(r, "prewarmed")
-                  container
+                  (container, "prewarmed")
                 })
                 .orElse {
-                  logContainerStart(r, "cold")
-                  Some(createContainer())
+                  Some(createContainer(), "cold")
                 }
             } else None
           }
@@ -126,22 +123,21 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
               removeContainer(toDelete)
               takePrewarmContainer(r.action)
                 .map(container => {
-                  logContainerStart(r, "recreate")
-                  container
+                  (container, "recreated")
                 })
                 .getOrElse {
-                  logContainerStart(r, "recreate")
-                  createContainer()
+                  (createContainer(), "recreated")
                 }
             }
           }
       } else None
 
-      container match {
-        case Some((actor, data)) =>
+      createdContainer match {
+        case Some(((actor, data), containerState)) =>
           busyPool = busyPool + (actor -> data)
           freePool = freePool - actor
           actor ! r // forwards the run request to the container
+          logContainerStart(r, containerState)
         case None =>
           // this can also happen if createContainer fails to start a new container, or
           // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
