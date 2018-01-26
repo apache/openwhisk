@@ -50,8 +50,6 @@ class KafkaProducerConnector(kafkahosts: String,
   override def send(topic: String, msg: Message, retry: Int = 2): Future[RecordMetadata] = {
     implicit val transid = msg.transid
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
-
-    logging.debug(this, s"sending to topic '$topic' msg '$msg'")
     val produced = Promise[RecordMetadata]()
 
     producer.send(record, new Callback {
