@@ -1,10 +1,13 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
+apply plugin: 'maven'
 compileTestScala.options.encoding = 'UTF-8'
 
 repositories {
     mavenCentral()
 }
+
+project.archivesBaseName = "openwhisk-tests"
 
 tasks.withType(Test) {
     systemProperties(System.getProperties())

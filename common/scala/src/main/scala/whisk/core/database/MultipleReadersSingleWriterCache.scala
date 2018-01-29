@@ -315,7 +315,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
    *
    */
   private def makeNoteOfCacheHit(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
-    transid.mark(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
+    transid.started(this, LoggingMarkers.DATABASE_CACHE_HIT, s"[GET] serving from cache: $key")(logger)
   }
 
   /**
@@ -323,7 +323,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
    *
    */
   private def makeNoteOfCacheMiss(key: CacheKey)(implicit transid: TransactionId, logger: Logging) = {
-    transid.mark(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
+    transid.started(this, LoggingMarkers.DATABASE_CACHE_MISS, s"[GET] serving from datastore: $key")(logger)
   }
 
   /**

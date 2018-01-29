@@ -31,7 +31,7 @@ import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.containerpool._
 import whisk.core.entity.ActivationResponse.{ConnectionError, MemoryExhausted}
-import whisk.core.entity.ByteSize
+import whisk.core.entity.{ActivationEntityLimit, ByteSize}
 import whisk.core.entity.size._
 import akka.stream.scaladsl.{Framing, Source}
 import akka.stream.stage._
@@ -100,6 +100,7 @@ object DockerContainer {
       "--network",
       network) ++
       environmentArgs ++
+      dnsServers.flatMap(d => Seq("--dns", d)) ++
       name.map(n => Seq("--name", n)).getOrElse(Seq.empty) ++
       params
     val pulled = if (userProvidedImage) {
@@ -188,7 +189,7 @@ class DockerContainer(protected val id: ContainerId,
     implicit transid: TransactionId): Future[RunResult] = {
     val started = Instant.now()
     val http = httpConnection.getOrElse {
-      val conn = new HttpUtils(s"${addr.host}:${addr.port}", timeout, 1.MB)
+      val conn = new HttpUtils(s"${addr.host}:${addr.port}", timeout, ActivationEntityLimit.MAX_ACTIVATION_ENTITY_LIMIT)
       httpConnection = Some(conn)
       conn
     }

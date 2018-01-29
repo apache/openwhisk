@@ -40,15 +40,6 @@ import pureconfig._
 
 case class KafkaConfig(replicationFactor: Short)
 
-case class TopicConfig(segmentBytes: Long, retentionBytes: Long, retentionMs: Long) {
-  def toMap: Map[String, String] = {
-    Map(
-      "retention.bytes" -> retentionBytes.toString,
-      "retention.ms" -> retentionMs.toString,
-      "segment.bytes" -> segmentBytes.toString)
-  }
-}
-
 /**
  * A Kafka based implementation of MessagingProvider
  */
@@ -62,12 +53,13 @@ object KafkaMessagingProvider extends MessagingProvider {
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
-    val tc = loadConfigOrThrow[TopicConfig](ConfigKeys.kafkaTopics + s".$topicConfig")
+    val tc = KafkaConfiguration.configMapToKafkaConfig(
+      loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
     val client = AdminClient.create(props)
     val numPartitions = 1
-    val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.toMap.asJava)
+    val nt = new NewTopic(topic, numPartitions, kc.replicationFactor).configs(tc.asJava)
     val results = client.createTopics(List(nt).asJava)
     try {
       results.values().get(topic).get()
@@ -83,5 +75,13 @@ object KafkaMessagingProvider extends MessagingProvider {
     } finally {
       client.close()
     }
+  }
+}
+
+object KafkaConfiguration {
+  def configToKafkaKey(configKey: String) = configKey.replace("-", ".")
+
+  def configMapToKafkaConfig(configMap: Map[String, String]) = configMap.map {
+    case (key, value) => configToKafkaKey(key) -> value
   }
 }

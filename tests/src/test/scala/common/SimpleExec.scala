@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package whisk.common
+package common
 
-import scala.sys.process.ProcessLogger
-import scala.sys.process.stringSeqToProcess
+import whisk.common.{Logging, TransactionId}
+
+import scala.sys.process.{stringSeqToProcess, ProcessLogger}
 
 /**
  * Utility to exec processes
@@ -46,7 +47,7 @@ object SimpleExec {
       errs.append("\n")
     })
 
-    logging.info(this, s"Done running command: ${cmd.mkString(" ")}")
+    logging.debug(this, s"Done running command: ${cmd.mkString(" ")}")
 
     def noLastNewLine(sb: StringBuilder) = {
       if (sb.isEmpty) "" else sb.substring(0, sb.size - 1)

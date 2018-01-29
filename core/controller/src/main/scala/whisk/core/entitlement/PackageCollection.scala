@@ -90,22 +90,22 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
     WhiskPackage.get(entityStore, doc) flatMap {
       case wp if wp.binding.isEmpty =>
         val allowed = wp.publish || isOwner
-        logging.info(this, s"entitlement check on package, '$right' allowed?: $allowed")
+        logging.debug(this, s"entitlement check on package, '$right' allowed?: $allowed")
         Future.successful(allowed)
       case wp =>
         if (isOwner) {
           val binding = wp.binding.get
           val pkgOwner = namespaces.contains(binding.namespace.asString)
           val pkgDocid = binding.docid
-          logging.info(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
+          logging.debug(this, s"checking subject has privilege '$right' for bound package '$pkgDocid'")
           checkPackageReadPermission(namespaces, pkgOwner, pkgDocid)
         } else {
-          logging.info(this, s"entitlement check on package binding, '$right' allowed?: false")
+          logging.debug(this, s"entitlement check on package binding, '$right' allowed?: false")
           Future.successful(false)
         }
     } recoverWith {
       case t: NoDocumentException =>
-        logging.info(this, s"the package does not exist (owner? $isOwner)")
+        logging.debug(this, s"the package does not exist (owner? $isOwner)")
         // if owner, reject with not found, otherwise fail the future to reject with
         // unauthorized (this prevents information leaks about packages in other namespaces)
         if (isOwner) {
@@ -114,7 +114,7 @@ class PackageCollection(entityStore: EntityStore)(implicit logging: Logging) ext
           Future.successful(false)
         }
       case t: DocumentTypeMismatchException =>
-        logging.info(this, s"the requested binding is not a package (owner? $isOwner)")
+        logging.debug(this, s"the requested binding is not a package (owner? $isOwner)")
         // if owner, reject with not found, otherwise fail the future to reject with
         // unauthorized (this prevents information leaks about packages in other namespaces)
         if (isOwner) {

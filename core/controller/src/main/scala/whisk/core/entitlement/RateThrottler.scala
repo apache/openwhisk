@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(
   implicit logging: Logging) {
 
-  logging.info(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
+  logging.debug(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
 
   /**
    * Maintains map of subject namespace to operations rates.

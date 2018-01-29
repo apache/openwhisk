@@ -21,13 +21,11 @@ import java.io.File
 import java.time.Instant
 import java.util.Base64
 import java.security.cert.X509Certificate
-
 import org.apache.commons.io.FileUtils
 import org.scalatest.Matchers
 import org.scalatest.FlatSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
-
 import scala.Left
 import scala.Right
 import scala.collection.JavaConversions.mapAsJavaMap
@@ -41,7 +39,6 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.util.{Failure, Success}
-
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Accepted
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -63,17 +60,14 @@ import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
 import akka.http.scaladsl.HttpsConnectionContext
 import akka.http.scaladsl.settings.ConnectionPoolSettings
-
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{OverflowStrategy, QueueOfferResult}
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.pimpString
-
 import common._
 import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
@@ -89,13 +83,11 @@ import common.WaitFor
 import common.WhiskProperties
 import common.WskActorSystem
 import common.WskProps
-
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-
 import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
-
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import java.nio.charset.StandardCharsets
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
@@ -278,16 +270,16 @@ class WskRestAction
             ("", Base64.getEncoder.encodeToString(zip), artifactFile)
           }
           case ".js" => {
-            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".py" => {
-            ("python:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("python:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".swift" => {
-            ("swift:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("swift:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".php" => {
-            ("php:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("php:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case _ => ("", "", artifactFile)
         }
@@ -530,7 +522,7 @@ class WskRestTrigger
                     expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val path = getNamePath(noun, name)
     val params = parameterFile map { l =>
-      val input = FileUtils.readFileToString(new File(l))
+      val input = FileUtils.readFileToString(new File(l), StandardCharsets.UTF_8)
       input.parseJson.convertTo[Map[String, JsValue]]
     } getOrElse parameters
     val resp =
@@ -1019,7 +1011,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
           } getOrElse Map[String, JsValue]()
         } ++ {
           swagger map { s =>
-            val swaggerFile = FileUtils.readFileToString(new File(s))
+            val swaggerFile = FileUtils.readFileToString(new File(s), StandardCharsets.UTF_8)
             Map("swagger" -> swaggerFile.toJson)
           } getOrElse Map[String, JsValue]()
         }
@@ -1050,7 +1042,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
             var file = ""
             val fileName = swaggerFile.toString()
             try {
-              file = FileUtils.readFileToString(new File(fileName))
+              file = FileUtils.readFileToString(new File(fileName), StandardCharsets.UTF_8)
             } catch {
               case e: Throwable =>
                 return new RestResult(
@@ -1310,7 +1302,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   def convertStringIntoKeyValue(file: String,
                                 feed: Option[String] = None,
                                 web: Option[String] = None): Array[JsValue] = {
-    val input = FileUtils.readFileToString(new File(file))
+    val input = FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8)
     val in = input.parseJson.convertTo[Map[String, JsValue]]
     convertMapIntoKeyValue(in, feed, web)
   }
@@ -1420,7 +1412,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
     var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
-      Some(FileUtils.readFileToString(new File(pf)))
+      Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))
     } getOrElse Some(parameters.toJson.toString())
     val resp = requestEntity(POST, path, paramMap, input)
     val r = new RestResult(resp.status.intValue, getRespData(resp), blocking)

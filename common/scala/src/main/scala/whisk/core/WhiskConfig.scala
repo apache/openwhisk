@@ -58,11 +58,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
   val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
-  val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
-  val invokerContainerPolicy =
-    if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
-  val invokerContainerDns =
-    if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
   val invokerNumCore = this(WhiskConfig.invokerNumCore)
   val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
   val invokerUseRunc = this.getAsBoolean(WhiskConfig.invokerUseRunc, true)
@@ -191,9 +186,6 @@ object WhiskConfig {
   val dockerImagePrefix = "docker.image.prefix"
   val dockerImageTag = "docker.image.tag"
 
-  val invokerContainerNetwork = "invoker.container.network"
-  val invokerContainerPolicy = "invoker.container.policy"
-  val invokerContainerDns = "invoker.container.dns"
   val invokerNumCore = "invoker.numcore"
   val invokerCoreShare = "invoker.coreshare"
   val invokerUseRunc = "invoker.use.runc"
@@ -241,9 +233,12 @@ object ConfigKeys {
   val loadbalancer = "whisk.loadbalancer"
 
   val kafka = "whisk.kafka"
+  val kafkaProducer = s"$kafka.producer"
   val kafkaTopics = s"$kafka.topics"
 
   val memory = "whisk.memory"
+  val activation = "whisk.activation"
+  val activationPayload = s"$activation.payload"
 
   val db = "whisk.db"
 
@@ -251,6 +246,8 @@ object ConfigKeys {
   val dockerTimeouts = s"$docker.timeouts"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
+  val containerFactory = "whisk.container-factory"
+  val containerArgs = s"$containerFactory.container-args"
 
   val transactions = "whisk.transactions"
   val stride = s"$transactions.stride"

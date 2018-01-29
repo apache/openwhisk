@@ -160,10 +160,10 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    */
   protected[core] def checkThrottles(user: Identity)(implicit transid: TransactionId): Future[Unit] = {
 
-    logging.info(this, s"checking user '${user.subject}' has not exceeded activation quota")
+    logging.debug(this, s"checking user '${user.subject}' has not exceeded activation quota")
     checkSystemOverload(ACTIVATE)
-      .flatMap(_ => checkThrottleOverload(Future.successful(invokeRateThrottler.check(user))))
-      .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user)))
+      .flatMap(_ => checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user))
+      .flatMap(_ => checkThrottleOverload(concurrentInvokeThrottler.check(user), user))
   }
 
   /**
@@ -218,7 +218,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     val entitlementCheck: Future[Unit] = if (user.rights.contains(right)) {
       if (resources.nonEmpty) {
-        logging.info(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
+        logging.debug(this, s"checking user '$subject' has privilege '$right' for '${resources.mkString(", ")}'")
         val throttleCheck =
           if (noThrottle) Future.successful(())
           else
@@ -234,7 +234,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
           })
       } else Future.successful(())
     } else if (right != REJECT) {
-      logging.info(
+      logging.debug(
         this,
         s"supplied authkey for user '$subject' does not have privilege '$right' for '${resources.mkString(", ")}'")
       Future.failed(unauthorizedOn(resources))
@@ -244,9 +244,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
 
     entitlementCheck andThen {
       case Success(rs) =>
-        logging.info(this, "authorized")
+        logging.debug(this, "authorized")
       case Failure(r: RejectRequest) =>
-        logging.info(this, s"not authorized: $r")
+        logging.debug(this, s"not authorized: $r")
       case Failure(t) =>
         logging.error(this, s"failed while checking entitlement: ${t.getMessage}")
     }
@@ -269,7 +269,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
         resource.collection.implicitRights(user, defaultNamespaces, right, resource) flatMap {
           case true => Future.successful(resource -> true)
           case false =>
-            logging.info(this, "checking explicit grants")
+            logging.debug(this, "checking explicit grants")
             entitled(user.subject, right, resource).flatMap(b => Future.successful(resource -> b))
         }
       }
@@ -307,9 +307,9 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE) {
       if (resources.exists(_.collection.path == Collection.ACTIONS)) {
-        checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)))
+        checkThrottleOverload(Future.successful(invokeRateThrottler.check(user)), user)
       } else if (resources.exists(_.collection.path == Collection.TRIGGERS)) {
-        checkThrottleOverload(Future.successful(triggerRateThrottler.check(user)))
+        checkThrottleOverload(Future.successful(triggerRateThrottler.check(user)), user)
       } else Future.successful(())
     } else Future.successful(())
   }
@@ -328,15 +328,17 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   private def checkConcurrentUserThrottle(user: Identity, right: Privilege, resources: Set[Resource])(
     implicit transid: TransactionId): Future[Unit] = {
     if (right == ACTIVATE && resources.exists(_.collection.path == Collection.ACTIONS)) {
-      checkThrottleOverload(concurrentInvokeThrottler.check(user))
+      checkThrottleOverload(concurrentInvokeThrottler.check(user), user)
     } else Future.successful(())
   }
 
-  private def checkThrottleOverload(throttle: Future[RateLimit])(implicit transid: TransactionId): Future[Unit] = {
+  private def checkThrottleOverload(throttle: Future[RateLimit], user: Identity)(
+    implicit transid: TransactionId): Future[Unit] = {
     throttle.flatMap { limit =>
       if (limit.ok) {
         Future.successful(())
       } else {
+        logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

@@ -168,9 +168,11 @@
         -e DOCKER_REGISTRY='{{ docker_registry }}'
         -e DOCKER_IMAGE_PREFIX='{{ docker.image.prefix }}'
         -e DOCKER_IMAGE_TAG='{{ docker.image.tag }}'
-        -e INVOKER_CONTAINER_NETWORK='{{ invoker_container_network_name | default("bridge") }}'
+        -e CONFIG_whisk_containerFactory_containerArgs_network='{{ invoker_container_network_name | default("bridge") }}'
         -e INVOKER_CONTAINER_POLICY='{{ invoker_container_policy_name | default()}}'
-        -e INVOKER_CONTAINER_DNS='{{ invoker_container_network_dns_servers | default()}}'
+        {% for item in (invoker_container_network_dns_servers | default()).split(' ')  %}
+        -e CONFIG_whisk_containerFactory_containerArgs_dnsServers_{{loop.index0}}={{ item }}
+        {% endfor %}
         -e INVOKER_NUMCORE='{{ invoker.numcore }}'
         -e INVOKER_CORESHARE='{{ invoker.coreshare }}'
         -e INVOKER_USE_RUNC='{{ invoker.useRunc }}'
@@ -185,6 +187,7 @@
         -e CONFIG_whisk_memory_min='{{ limit_action_memory_min | default() }}'
         -e CONFIG_whisk_memory_max='{{ limit_action_memory_max | default() }}'
         -e CONFIG_whisk_memory_std='{{ limit_action_memory_std | default() }}'
+        -e CONFIG_whisk_activation_payload_max='{{ limit_activation_payload | default() }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
