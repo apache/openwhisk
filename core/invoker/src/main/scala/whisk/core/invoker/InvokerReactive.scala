@@ -141,7 +141,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val childFactory = (f: ActorRefFactory) =>
     f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
 
-  val prewarmKind = "nodejs:6"
+  val prewarmKind = config.prewarmKind
+  val prewarmCount = config.prewarmCount.toInt
   val prewarmExec = ExecManifest.runtimesManifest
     .resolveDefaultRuntime(prewarmKind)
     .map { manifest =>
@@ -155,7 +156,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       maximumContainers,
       maximumContainers,
       activationFeed,
-      Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
+      Some(PrewarmingConfig(prewarmCount, prewarmExec, 256.MB))))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {

@@ -35,6 +35,9 @@ whisk.api.vanity.subdomain.parts=1
 
 runtimes.manifest={{ runtimesManifest | to_json }}
 
+prewarm.kind={{ prewarmKind | default('nodejs:6') }}
+prewarm.count={{ prewarmCount | default('2') }}
+
 limits.actions.invokes.perMinute={{ limits.invocationsPerMinute }}
 limits.actions.invokes.concurrent={{ limits.concurrentInvocations }}
 limits.actions.invokes.concurrentInSystem={{ limits.concurrentInvocationsSystem }}

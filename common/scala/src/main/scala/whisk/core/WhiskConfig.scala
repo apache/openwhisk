@@ -90,6 +90,9 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
+  val prewarmKind = this(WhiskConfig.prewarmKind)
+  val prewarmCount = this(WhiskConfig.prewarmCount)
+
   val actionInvokePerMinuteLimit = this(WhiskConfig.actionInvokePerMinuteLimit)
   val actionInvokeConcurrentLimit = this(WhiskConfig.actionInvokeConcurrentLimit)
   val triggerFirePerMinuteLimit = this(WhiskConfig.triggerFirePerMinuteLimit)
@@ -218,6 +221,8 @@ object WhiskConfig {
   val zookeeperHosts = Map(zookeeperHostList -> null)
 
   val runtimesManifest = "runtimes.manifest"
+  val prewarmKind = "prewarm.kind"
+  val prewarmCount = "prewarm.count"
 
   val actionSequenceMaxLimit = "limits.actions.sequence.maxLength"
   val actionInvokePerMinuteLimit = "limits.actions.invokes.perMinute"

@@ -36,6 +36,11 @@ whisk:
 #
 runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
 
+##
+# Prewarm configuration
+prewarmKind: "{{prewarm_kind | default('nodejs:6')}}"
+prewarmCount: "{{prewarm_count | default('2')}}"
+
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
   concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
