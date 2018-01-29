@@ -484,14 +484,14 @@ The following table lists the default limits for actions.
 * The limit cannot be changed by the user.
 * An entity with too big parameters will be rejected on trying to create or update it.
 
-### Per Docker action open files ulimit (Fixed: 64:64)
-* The maximum number of open file is 64 (for both hard and soft limits).
-* The docker run command use the argument `--ulimit nofile=64:64`.
+### Per Docker action open files ulimit (Fixed: 1024:1024)
+* The maximum number of open files is 1024 (for both hard and soft limits).
+* The docker run command use the argument `--ulimit nofile=1024:1024`.
 * For more information about the ulimit for open files see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
 
-### Per Docker action processes ulimit (Fixed: 512:512)
-* The maximum number of processes available to a user is 512 (for both hard and soft limits).
-* The docker run command use the argument `--ulimit nproc=512:512`.
+### Per Docker action processes ulimit (Fixed: 1024)
+* The maximum number of processes available to the action container is 1024.
+* The docker run command use the argument `--pids-limit 1024`.
 * For more information about the ulimit for maximum number of processes see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
 
 ### Triggers
