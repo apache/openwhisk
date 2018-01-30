@@ -159,7 +159,7 @@ protected[actions] trait PrimitiveActions {
     // 2. failing active ack (due to active ack timeout), fall over to db polling
     // 3. timeout on db polling => converts activation to non-blocking (returns activation id only)
     // 4. internal error message
-    val docid = DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
+    val docid = new DocId(WhiskEntity.qualifiedName(user.namespace.toPath, activationId))
     val (promise, finisher) = ActivationFinisher.props({ () =>
       WhiskActivation.get(activationStore, docid)
     })
