@@ -50,7 +50,7 @@ object KubernetesContainer {
    *     or is an OpenWhisk provided image
    * @param labels labels to set on the container
    * @param name optional name for the container
-   * @return a Future which either completes with a KubernetesContainer or one of two specific failures
+   * @return a Future which either completes with a KubernetesContainer or a failure to create a container
    */
   def create(transid: TransactionId,
              name: String,
@@ -65,29 +65,9 @@ object KubernetesContainer {
 
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
 
-    val environmentArgs = environment.flatMap {
-      case (key, value) => Seq("--env", s"$key=$value")
-    }.toSeq
-
-    val labelArgs = labels.map {
-      case (key, value) => s"$key=$value"
-    } match {
-      case Seq() => Seq()
-      case pairs => Seq("-l") ++ pairs
-    }
-
-    val args = Seq("--generator", "run-pod/v1", "--restart", "Always", "--limits", s"memory=${memory.toMB}Mi") ++ environmentArgs ++ labelArgs
-
     for {
-      id <- kubernetes.run(podName, image, args).recoverWith {
-        case _ => Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
-      }
-      ip <- kubernetes.inspectIPAddress(id).recoverWith {
-        // remove the container immediately if inspect failed as
-        // we cannot recover that case automatically
-        case _ =>
-          kubernetes.rm(id)
-          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+      (id, ip) <- kubernetes.run(podName, image, environment, labels).recoverWith {
+        case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
     } yield new KubernetesContainer(id, ip)
   }

@@ -33,6 +33,7 @@ import akka.stream.{Attributes, Outlet, SourceShape}
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
 import akka.util.ByteString
+import io.fabric8.kubernetes.api.model._
 import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -50,8 +51,11 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
+import collection.JavaConversions._
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import okhttp3.{Call, Callback, Request, Response}
@@ -99,23 +103,46 @@ class KubernetesClient(
   }
   protected val kubectlCmd = Seq(findKubectlCmd)
 
-  def run(name: String, image: String, args: Seq[String] = Seq.empty[String])(
-    implicit transid: TransactionId): Future[ContainerId] = {
-    runCmd(Seq("run", name, s"--image=$image") ++ args, timeouts.run)
-      .map(_ => ContainerId(name))
-  }
+  def run(name: String, image: String, environment: Map[String, String] = Map(), labels: Map[String, String] = Map())(
+    implicit transid: TransactionId): Future[(ContainerId, ContainerAddress)] = {
 
-  def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] = {
+    val envVars = environment.map {
+      case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
+    }.toSeq
+
+    val pod = new PodBuilder()
+      .withNewMetadata()
+      .withName(name)
+      .addToLabels("name", name)
+      .addToLabels(mapAsJavaMap(labels))
+      .endMetadata()
+      .withNewSpec()
+      .withRestartPolicy("Always")
+      .addNewContainer()
+      .withNewResources()
+      .withLimits(mapAsJavaMap(Map ("memory" -> new Quantity("256Mi"))))
+      .endResources()
+      .withName("user-action")
+      .withImage(image)
+      .withEnv(envVars)
+      .addNewPort()
+      .withContainerPort(8080).withName("action")
+      .endPort()
+      .endContainer()
+      .endSpec()
+      .build()
+
+    kubeRestClient.pods.inNamespace("openwhisk").create(pod)
+
     Future {
       blocking {
-        val pod =
-          kubeRestClient.pods().withName(id.asString).waitUntilReady(timeouts.inspect.length, timeouts.inspect.unit)
-        ContainerAddress(pod.getStatus().getPodIP())
+        val createdPod = kubeRestClient.pods.inNamespace("openwhisk").withName(name).waitUntilReady(timeouts.run.length, timeouts.run.unit)
+        (ContainerId(createdPod.getMetadata.getName), ContainerAddress(createdPod.getStatus.getPodIP))
       }
     }.recoverWith {
       case e =>
-        log.error(this, s"Failed to get IP of Pod '${id.asString}' within timeout: ${e.getClass} - ${e.getMessage}")
-        Future.failed(new Exception(s"Failed to get IP of Pod '${id.asString}'"))
+        log.error(this, s"Failed create pod for '$name': ${e.getClass} - ${e.getMessage}")
+        Future.failed(new Exception(s"Failed to create pod '$name'"))
     }
   }
 
@@ -171,10 +198,8 @@ object KubernetesClient {
 }
 
 trait KubernetesApi {
-  def run(name: String, image: String, args: Seq[String] = Seq.empty[String])(
-    implicit transid: TransactionId): Future[ContainerId]
-
-  def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress]
+  def run(name: String, image: String, environment: Map[String, String] = Map(), labels: Map[String, String] = Map())(
+    implicit transid: TransactionId): Future[(ContainerId,ContainerAddress)]
 
   def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
 
