@@ -33,12 +33,7 @@ import whisk.spi.Spi
  * @param id a unique instance identifier for the invoker
  * @param status it status (healthy, unhealthy, offline)
  */
-class InvokerHealth(val id: InstanceId, val status: InvokerState) {
-  override def equals(obj: scala.Any): Boolean = obj match {
-    case that: InvokerHealth => that.id == this.id && that.status == this.status
-    case _                   => false
-  }
-}
+case class InvokerHealth(id: InstanceId, status: InvokerState)
 
 trait LoadBalancer {
 
