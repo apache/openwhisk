@@ -20,29 +20,24 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 
 import scala.collection.immutable
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import org.apache.kafka.clients.producer.RecordMetadata
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.FSM
+import akka.actor.{Actor, ActorRef, ActorRefFactory, FSM, Props}
 import akka.actor.FSM.CurrentState
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.FSM.Transition
-import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.Timeout
-import whisk.common.AkkaLogging
-import whisk.common.LoggingMarkers
-import whisk.common.RingBuffer
-import whisk.common.TransactionId
+import whisk.common._
 import whisk.core.connector._
+import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.Privilege
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity._
+import whisk.core.entity.types.EntityStore
 
 // Received events
 case object GetStatus
@@ -169,6 +164,48 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
 }
 
 object InvokerPool {
+  private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
+    implicit val tid = TransactionId.loadbalancer
+    implicit val ec = db.executionContext
+    implicit val logging = db.logging
+
+    WhiskAction
+      .get(db, action.docid)
+      .flatMap { oldAction =>
+        WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
+      }
+      .recover {
+        case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
+      }
+      .map(_ => {})
+      .andThen {
+        case Success(_) => logging.info(this, "test action for invoker health now exists")
+        case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
+      }
+  }
+
+  /**
+   * Prepares everything for the health protocol to work (i.e. creates a testaction)
+   *
+   * @param controllerInstance instance of the controller we run in
+   * @param entityStore store to write the action to
+   * @return throws an exception on failure to prepare
+   */
+  def prepare(controllerInstance: InstanceId, entityStore: EntityStore): Unit = {
+    InvokerPool
+      .healthAction(controllerInstance)
+      .map {
+        // Await the creation of the test action; on failure, this will abort the constructor which should
+        // in turn abort the startup of the controller.
+        a =>
+          Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
+      }
+      .orElse {
+        throw new IllegalStateException(
+          "cannot create test action for invoker health because runtime manifest is not valid")
+      }
+  }
+
   def props(f: (ActorRefFactory, InstanceId) => ActorRef,
             p: (ActivationMessage, InstanceId) => Future[RecordMetadata],
             pc: MessageConsumer) = {
