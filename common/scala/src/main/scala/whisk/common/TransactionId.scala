@@ -253,9 +253,13 @@ trait TransactionCounter {
   // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
   private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
 
-  def transid(nginxRequestId: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
-    nginxRequestId
-      .map(id => TransactionId(new BigInteger(id, 16), extraLogging))
+  def transid(tidValue: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
+    tidValue
+      .flatMap { id =>
+        Try {
+          TransactionId(new BigInteger(id, 16), extraLogging)
+        }.toOption
+      }
       .getOrElse(TransactionId(cnt.addAndGet(stride), extraLogging))
   }
 }
