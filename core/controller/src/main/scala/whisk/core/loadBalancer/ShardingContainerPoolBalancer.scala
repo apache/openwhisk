@@ -19,7 +19,7 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.LongAdder
-import java.util.concurrent.{Semaphore, ThreadLocalRandom}
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.cluster.ClusterEvent._
@@ -28,7 +28,7 @@ import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
-import whisk.common.{Logging, LoggingMarkers, TransactionId}
+import whisk.common.{ForcableSemaphore, Logging, LoggingMarkers, TransactionId}
 import whisk.core.WhiskConfig._
 import whisk.core.connector._
 import whisk.core.entity._
@@ -102,11 +102,10 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
-    val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
-
     val invokersToUse = if (action.exec.pull) schedulingState.blackboxInvokers else schedulingState.managedInvokers
     val chosen = if (invokersToUse.nonEmpty) {
-      val homeInvoker = invokersToUse.size % hash
+      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
+      val homeInvoker = hash % invokersToUse.size
       val stepSize = schedulingState.stepSizes(hash % schedulingState.stepSizes.size)
       ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
     } else {
@@ -293,8 +292,8 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
    * @return an invoker to schedule to or None of no invoker is available
    */
   @tailrec
-  def schedule(invokers: Seq[InvokerHealth],
-               dispatched: Seq[Semaphore],
+  def schedule(invokers: IndexedSeq[InvokerHealth],
+               dispatched: IndexedSeq[ForcableSemaphore],
                index: Int,
                step: Int,
                stepsDone: Int = 0): Option[InstanceId] = {
@@ -303,7 +302,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     if (numInvokers > 0) {
       val invoker = invokers(index)
       // If the current invoker is healthy and we can get a slot
-      if (invoker.status == Healthy && dispatched(index).tryAcquire()) {
+      if (invoker.status == Healthy && dispatched(invoker.id.toInt).tryAcquire()) {
         Some(invoker.id)
       } else {
         // If we've gone through all invokers
@@ -311,7 +310,9 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           val healthyInvokers = invokers.filter(_.status == Healthy)
           if (healthyInvokers.nonEmpty) {
             // Choose a healthy invoker randomly
-            Some(healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id)
+            val random = ThreadLocalRandom.current().nextInt(healthyInvokers.size)
+            dispatched(random).forceAcquire()
+            Some(healthyInvokers(random).id)
           } else {
             None
           }
@@ -340,7 +341,7 @@ case class ShardingContainerPoolBalancerState(
   var managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   var blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   var stepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  var invokerSlots: IndexedSeq[Semaphore] = IndexedSeq.empty[Semaphore])(
+  var invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore])(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
@@ -369,7 +370,7 @@ case class ShardingContainerPoolBalancerState(
       stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(newSize)
       if (oldSize < newSize) {
         // Keeps the existing state..
-        invokerSlots = invokerSlots.padTo(newSize, new Semaphore(currentInvokerThreshold))
+        invokerSlots = invokerSlots.padTo(newSize, new ForcableSemaphore(currentInvokerThreshold))
       }
     }
 
@@ -399,7 +400,7 @@ case class ShardingContainerPoolBalancerState(
     val newTreshold = totalInvokerThreshold / actualSize
     if (currentInvokerThreshold != newTreshold) {
       currentInvokerThreshold = newTreshold
-      invokerSlots = invokerSlots.map(_ => new Semaphore(currentInvokerThreshold))
+      invokerSlots = invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))
 
       logging.info(
         this,

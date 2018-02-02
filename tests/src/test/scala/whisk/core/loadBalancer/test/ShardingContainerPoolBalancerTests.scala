@@ -17,12 +17,11 @@
 
 package whisk.core.loadBalancer.test
 
-import java.util.concurrent.Semaphore
-
 import common.StreamLogging
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
+import whisk.common.ForcableSemaphore
 import whisk.core.entity.InstanceId
 import whisk.core.loadBalancer._
 
@@ -40,7 +39,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
   def unhealthy(i: Int) = new InvokerHealth(InstanceId(i), UnHealthy)
   def offline(i: Int) = new InvokerHealth(InstanceId(i), Offline)
 
-  def semaphores(count: Int, max: Int): IndexedSeq[Semaphore] = IndexedSeq.fill(count)(new Semaphore(max))
+  def semaphores(count: Int, max: Int): IndexedSeq[ForcableSemaphore] =
+    IndexedSeq.fill(count)(new ForcableSemaphore(max))
 
   it should "update invoker's state, growing the slots data and keeping valid old data" in {
     // start empty
@@ -63,7 +63,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.stepSizes shouldBe Seq(1)
 
     // aquire a slot to alter invoker state
-    state.invokerSlots.head.acquire()
+    state.invokerSlots.head.tryAcquire()
     state.invokerSlots.head.availablePermits shouldBe slots - 1
 
     // apply second update, growing the state
@@ -83,7 +83,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
     state.updateInvokers(IndexedSeq(healthy(0)))
 
-    state.invokerSlots.head.acquire()
+    state.invokerSlots.head.tryAcquire()
     state.invokerSlots.head.availablePermits shouldBe slots - 1
 
     state.updateCluster(2)
@@ -123,7 +123,7 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
   it should "choose the first available invoker, jumping in stepSize steps, falling back to randomized scheduling once all invokers are full" in {
     val invokerCount = 3
-    val invokerSlots = semaphores(invokerCount, 3)
+    val invokerSlots = semaphores(invokerCount + 3, 3) // needs to be offset by 3 as well
     val invokers = (0 until invokerCount).map(i => healthy(i + 3)) // offset by 3 to asset InstanceId is returned
 
     val expectedResult = Seq(3, 3, 3, 5, 5, 5, 4, 4, 4)
