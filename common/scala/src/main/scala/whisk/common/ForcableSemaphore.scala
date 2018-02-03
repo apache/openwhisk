@@ -40,6 +40,7 @@ class ForcableSemaphore(maxAllowed: Int) {
 
     def permits: Int = getState
 
+    /** Merely copied from `java.util.concurrent.Semaphore` and translated into a tail-recursive method */
     @tailrec
     override final def tryReleaseShared(releases: Int): Boolean = {
       val current = getState
@@ -54,6 +55,7 @@ class ForcableSemaphore(maxAllowed: Int) {
       }
     }
 
+    /** Merely copied from `java.util.concurrent.Semaphore` and translated into a tail-recursive method */
     @tailrec
     final def nonFairTryAcquireShared(acquires: Int): Int = {
       val available = getState
@@ -65,6 +67,10 @@ class ForcableSemaphore(maxAllowed: Int) {
       }
     }
 
+    /**
+     * Basically the same as `nonFairTryAcquireShared`, but does bound to a minimal value of 0 so permits can get
+     * negative.
+     */
     @tailrec
     final def forceAquireShared(acquires: Int): Unit = {
       val available = getState
