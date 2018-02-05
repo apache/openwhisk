@@ -413,12 +413,19 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                          actionActivationId: Option[JsValue] = None,
                          errorMsg: Option[String] = None): JsObject = {
     JsObject(
-      "rule" -> JsString(ruleName.asString),
-      "action" -> JsString(actionName.asString),
-      "statusCode" -> JsNumber(statusCode),
-      "success" -> JsBoolean(statusCode == ActivationResponse.Success),
-      "activationId" -> actionActivationId.toJson,
-      "error" -> errorMsg.toJson)
+      Map(
+        "rule" -> JsString(ruleName.asString),
+        "action" -> JsString(actionName.asString),
+        "statusCode" -> JsNumber(statusCode),
+        "success" -> JsBoolean(statusCode == ActivationResponse.Success)) ++ {
+        actionActivationId map { id =>
+          Seq("activationId" -> id.toJson)
+        } getOrElse Seq()
+      } ++ {
+        errorMsg map { err =>
+          Seq("error" -> JsString(err))
+        } getOrElse Seq()
+      })
   }
 
   /** Common base bath for the controller, used by internal action activation mechanism. */
