@@ -1,6 +1,7 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
+apply plugin: 'org.scoverage'
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
@@ -46,6 +47,7 @@ dependencies {
     compile 'io.kamon:kamon-statsd_2.11:0.6.7'
     //for mesos
     compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.7'
+    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {
