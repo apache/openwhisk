@@ -54,7 +54,7 @@ case class ActivationRequest(msg: ActivationMessage, invoker: InstanceId)
 case class InvocationFinishedMessage(invokerInstance: InstanceId, successful: Boolean)
 
 // Sent to a monitor if the state changed
-case class InvokerStateChanged(newState: IndexedSeq[InvokerHealth])
+case class CurrentInvokerPoolState(newState: IndexedSeq[InvokerHealth])
 
 // Data stored in the Invoker
 final case class InvokerInfo(buffer: RingBuffer[Boolean])
@@ -117,7 +117,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   }
 
   def logStatus() = {
-    monitor.foreach(_ ! InvokerStateChanged(status))
+    monitor.foreach(_ ! CurrentInvokerPoolState(status))
     val pretty = status.map(i => s"${i.id.toInt} -> ${i.status}")
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
   }

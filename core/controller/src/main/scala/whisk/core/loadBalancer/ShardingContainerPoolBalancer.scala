@@ -23,7 +23,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.cluster.ClusterEvent._
-import akka.cluster.{Cluster, MemberStatus}
+import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -79,16 +79,36 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    */
   private val monitor = actorSystem.actorOf(Props(new Actor {
     override def preStart(): Unit = {
-      cluster.subscribe(self, classOf[MemberEvent], classOf[UnreachableMember])
+      cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
     }
 
+    // all members of the cluster that are available
+    var availableMembers = Set.empty[Member]
+
     override def receive: Receive = {
-      case InvokerStateChanged(newState) =>
+      case CurrentInvokerPoolState(newState) =>
         schedulingState.updateInvokers(newState)
+
+      // State of the cluster as it is right now
       case CurrentClusterState(members, _, _, _, _) =>
-        schedulingState.updateCluster(members.count(_.status == MemberStatus.Up))
-      case _: MemberEvent | _: UnreachableMember =>
-        schedulingState.updateCluster(cluster.state.members.count(_.status == MemberStatus.Up))
+        availableMembers = members.filter(_.status == MemberStatus.Up)
+        schedulingState.updateCluster(availableMembers.size)
+
+      // General lifecycle events and events concerning the reachability of members. Split-brain is not a huge concern
+      // in this case as only the invoker-threshold is adjusted according to the perceived cluster-size.
+      // Taking the unreachable member out of the cluster from that point-of-view results in a better experience
+      // even under split-brain-conditions, as that (in the worst-case) results in premature overloading of invokers vs.
+      // going into overflow mode prematurely.
+      case event: ClusterDomainEvent =>
+        availableMembers = event match {
+          case MemberUp(member)          => availableMembers + member
+          case ReachableMember(member)   => availableMembers + member
+          case MemberRemoved(member, _)  => availableMembers - member
+          case UnreachableMember(member) => availableMembers - member
+          case _                         => availableMembers
+        }
+
+        schedulingState.updateCluster(availableMembers.size)
     }
   }))
 
