@@ -163,7 +163,8 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
         transid.mark(
           this,
           LoggingMarkers.LOADBALANCER_ACTIVATION_START(namespaceId.asString),
-          s"loadbalancer: activation started for namespace $namespaceId")
+          s"loadbalancer: activation started for namespace $namespaceId and activation $activationId",
+          logLevel = InfoLevel)
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
@@ -210,8 +211,7 @@ class ContainerPoolBalancer(config: WhiskConfig, instance: InstanceId)(implicit 
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+      s"posting topic '$topic' with activation id '${msg.activationId}'")
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
