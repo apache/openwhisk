@@ -72,9 +72,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
   /** Wait for database to appear */
   def waitForDatabase(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
     val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
-    waitfor(() => {
-      client.getAllDocs(includeDocs = Some(true)).futureValue.isRight
-    })
+    waitfor(() => client.getAllDocs(includeDocs = Some(true)).futureValue shouldBe 'right)
     client
   }
 
@@ -91,14 +89,16 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
 
   /** Wait for a document to appear */
   def waitForDocument(client: ExtendedCouchDbRestClient, id: String) =
-    waitfor(() => client.getDoc(id).futureValue.isRight)
+    waitfor(() => client.getDoc(id).futureValue shouldBe 'right)
 
   /** Get all docs within one database */
-  def getAllDocs(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
+  def getAllDocs(dbName: String)(implicit as: ActorSystem, logging: Logging): JsObject = {
     val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
-    val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
-    documents shouldBe 'right
-    documents.right.get
+    retry({
+      val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
+      documents shouldBe 'right
+      documents.right.get
+    })
   }
 
   /** wait until all documents are processed by the view */
@@ -106,7 +106,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
     waitfor(() => {
       val view = db.executeView(designDoc, viewName)().futureValue
       view shouldBe 'right
-      view.right.get.fields("rows").convertTo[List[JsObject]].length == numDocuments
+      view.right.get.fields("rows").convertTo[List[JsObject]].length shouldBe numDocuments
     }, totalWait = 2.minutes)
   }
 }

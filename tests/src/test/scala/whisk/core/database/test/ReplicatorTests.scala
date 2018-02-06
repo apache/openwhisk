@@ -32,7 +32,6 @@ import org.scalatest.junit.JUnitRunner
 import akka.http.scaladsl.model.StatusCodes
 import common.StreamLogging
 import common.TestUtils
-import common.WaitFor
 import common.WhiskProperties
 import common.WskActorSystem
 import spray.json._
@@ -44,7 +43,6 @@ class ReplicatorTests
     with Matchers
     with ScalaFutures
     with WskActorSystem
-    with WaitFor
     with StreamLogging
     with DatabaseScriptTestUtils {
 
@@ -140,18 +138,15 @@ class ReplicatorTests
 
   /** Wait for a replication to finish */
   def waitForReplication(dbName: String) = {
-    val timeout = 5.minutes
-    val replicationResult = waitfor(() => {
+    retry(() => {
       val replicatorDoc = replicatorClient.getDoc(dbName).futureValue
       replicatorDoc shouldBe 'right
 
       val state = replicatorDoc.right.get.fields.get("_replication_state")
       println(s"Waiting for replication, state: $state")
 
-      state.contains("completed".toJson)
-    }, totalWait = timeout)
-
-    assert(replicationResult, s"replication did not finish in $timeout")
+      state should contain("completed".toJson)
+    }, 300, Some(1.second))
   }
 
   /** Compares to databases to full equality */

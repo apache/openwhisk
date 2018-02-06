@@ -18,76 +18,40 @@
 package common.rest
 
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.security.cert.X509Certificate
 import java.time.Instant
 import java.util.Base64
-import java.security.cert.X509Certificate
+import javax.net.ssl._
+
+import akka.http.scaladsl.model.HttpMethods._
+import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, NotFound, OK}
+import akka.http.scaladsl.model.Uri.Path
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.{Http, HttpsConnectionContext}
+import akka.stream._
+import akka.stream.scaladsl._
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import common.TestUtils._
+import common._
 import org.apache.commons.io.FileUtils
-import org.scalatest.Matchers
-import org.scalatest.FlatSpec
+import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
-import scala.Left
-import scala.Right
-import scala.collection.JavaConversions.mapAsJavaMap
-import scala.collection.mutable.Buffer
-import scala.collection.immutable.Seq
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Future, Promise}
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import scala.util.{Failure, Success}
-import akka.http.scaladsl.model.StatusCode
-import akka.http.scaladsl.model.StatusCodes.Accepted
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.headers.BasicHttpCredentials
-import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.Path
-import akka.http.scaladsl.model.HttpMethods.DELETE
-import akka.http.scaladsl.model.HttpMethods.GET
-import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model.HttpMethods.PUT
-import akka.http.scaladsl.HttpsConnectionContext
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.{OverflowStrategy, QueueOfferResult}
-import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
-import common._
-import common.BaseDeleteFromCollection
-import common.BaseListOrGetFromCollection
-import common.HasActivation
-import common.RunWskCmd
-import common.TestUtils
-import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.DONTCARE_EXIT
-import common.TestUtils.ANY_ERROR_EXIT
-import common.TestUtils.DONTCARE_EXIT
-import common.TestUtils.RunResult
-import common.WaitFor
-import common.WhiskProperties
-import common.WskActorSystem
-import common.WskProps
+import spray.json._
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
-import java.nio.charset.StandardCharsets
+
+import scala.collection.JavaConversions.mapAsJavaMap
+import scala.collection.immutable.Seq
+import scala.collection.mutable.Buffer
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.util._
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
@@ -780,19 +744,18 @@ class WskRestActivation extends RunWskRestCmd with HasActivationRest with WaitFo
                                  pollPeriod: Duration = 1 second,
                                  totalWait: Duration = 30 seconds)(implicit wp: WskProps): Either[String, JsObject] = {
     val activation = waitfor(() => {
-      val result = get(Some(activationId), expectedExitCode = DONTCARE_EXIT)(wp)
-      if (result.statusCode == NotFound) {
-        null
-      } else result
+      val result = get(Some(activationId), expectedExitCode = DONTCARE_EXIT)
+      result.statusCode shouldNot be(NotFound)
+      result
     }, initialWait, pollPeriod, totalWait)
+
     Try {
-      assert(activation.statusCode == OK)
-      assert(activation.getField("activationId") != "")
+      activation.statusCode shouldBe (OK)
+      activation.getField("activationId") shouldNot be("")
       activation.respBody
     } map {
       Right(_)
     } getOrElse Left(s"Cannot find activation id from '$activation'")
-
   }
 
   override def logs(activationId: Option[String] = None,
@@ -1525,7 +1488,7 @@ object RestResult {
   }
 }
 
-class RestResult(var statusCode: StatusCode, var respData: String = "", blocking: Boolean = false)
+class RestResult(val statusCode: StatusCode, val respData: String = "", blocking: Boolean = false)
     extends RunResult(
       RestResult.convertStausCodeToExitCode(statusCode, blocking),
       respData,

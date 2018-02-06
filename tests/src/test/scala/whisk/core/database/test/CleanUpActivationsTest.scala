@@ -20,25 +20,17 @@ package whisk.core.database.test
 import java.io.File
 import java.time.Instant
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.language.implicitConversions
-
+import akka.http.scaladsl.model.StatusCodes
+import common._
 import org.junit.runner.RunWith
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
+import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
-import akka.http.scaladsl.model.StatusCodes
-import common.StreamLogging
-import common.TestUtils
-import common.WaitFor
-import common.WhiskProperties
-import common.WskActorSystem
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
+import spray.json._
+
+import scala.concurrent.duration._
+import scala.language.implicitConversions
 
 @RunWith(classOf[JUnitRunner])
 class CleanUpActivationsTest
@@ -46,7 +38,6 @@ class CleanUpActivationsTest
     with Matchers
     with ScalaFutures
     with WskActorSystem
-    with WaitFor
     with StreamLogging
     with DatabaseScriptTestUtils {
 
