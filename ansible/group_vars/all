@@ -18,7 +18,7 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}" 
+hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
 
 whisk:
   version:
@@ -54,8 +54,6 @@ controller:
       bindPort: 2551
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
-  # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
   loadbalancer:
     spi: "{{ controller_loadbalancer_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"

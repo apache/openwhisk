@@ -67,8 +67,7 @@ protected[core] object EntitlementProvider {
     WhiskConfig.actionInvokeConcurrentLimit -> null,
     WhiskConfig.triggerFirePerMinuteLimit -> null,
     WhiskConfig.actionInvokeSystemOverloadLimit -> null,
-    WhiskConfig.controllerInstances -> null,
-    WhiskConfig.controllerHighAvailability -> null)
+    WhiskConfig.controllerInstances -> null)
 }
 
 /**
@@ -85,7 +84,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
    * controllers
    */
-  private val overcommit = if (config.controllerHighAvailability) 1.2 else 1
+  private val overcommit = if (config.controllerInstances.toInt > 1) 1.2 else 1
   private def dilateLimit(limit: Int): Int = Math.ceil(limit.toDouble * overcommit).toInt
 
   /**
