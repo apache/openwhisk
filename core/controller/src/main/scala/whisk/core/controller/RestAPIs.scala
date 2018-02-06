@@ -130,7 +130,7 @@ protected[controller] object RestApiCommons {
         case Success(n) if (n > 0 && n <= Collection.MAX_LIST_LIMIT) => ListLimit(n)
         case Success(n) =>
           throw new IllegalArgumentException(
-            Messages.maxListLimitExceeded(collection.path, n, Collection.MAX_LIST_LIMIT))
+            Messages.listLimitOutOfRange(collection.path, n, Collection.MAX_LIST_LIMIT))
         case Failure(t) => throw new IllegalArgumentException(Messages.listLimitIsNotAString)
       }
     }
