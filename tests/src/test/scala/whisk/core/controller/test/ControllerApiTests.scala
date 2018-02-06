@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package system.rest
+package whisk.core.controller.test
 
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
@@ -29,30 +29,33 @@ import common.StreamLogging
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-import whisk.core.entity.test.ExecHelpers
 import whisk.core.WhiskConfig
+import whisk.core.entity.ExecManifest
+
+import system.rest.RestUtil
 
 /**
  * Integration tests for Controller routes
  */
 @RunWith(classOf[JUnitRunner])
-class ControllerTests extends FlatSpec with RestUtil with Matchers with ExecHelpers with StreamLogging {
+class ControllerApiTests extends FlatSpec with RestUtil with Matchers /*with ExecHelpers*/ with StreamLogging {
 
   it should "ensure controller returns info" in {
     val response = RestAssured.given.config(sslconfig).get(getServiceURL)
-    val runtimes = runtimesManifest
     val config = new WhiskConfig(
       Map(
         WhiskConfig.actionInvokePerMinuteLimit -> null,
         WhiskConfig.triggerFirePerMinuteLimit -> null,
-        WhiskConfig.actionInvokeConcurrentLimit -> null))
+        WhiskConfig.actionInvokeConcurrentLimit -> null,
+        WhiskConfig.runtimesManifest -> null))
+    ExecManifest.initialize(config) should be a 'success
     val expectedJson = JsObject(
       "support" -> JsObject(
         "github" -> "https://github.com/apache/incubator-openwhisk/issues".toJson,
         "slack" -> "http://slack.openwhisk.org".toJson),
       "description" -> "OpenWhisk".toJson,
       "api_paths" -> JsArray("/api/v1".toJson),
-      "runtimes" -> runtimes.toJson,
+      "runtimes" -> ExecManifest.runtimesManifest.toJson,
       "limits" -> JsObject(
         "actions_per_minute" -> config.actionInvokePerMinuteLimit.toInt.toJson,
         "triggers_per_minute" -> config.triggerFirePerMinuteLimit.toInt.toJson,
@@ -60,4 +63,5 @@ class ControllerTests extends FlatSpec with RestUtil with Matchers with ExecHelp
     response.statusCode should be(200)
     response.body.asString.parseJson shouldBe (expectedJson)
   }
+
 }
