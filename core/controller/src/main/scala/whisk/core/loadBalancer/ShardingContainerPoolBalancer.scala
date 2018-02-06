@@ -417,7 +417,7 @@ case class ShardingContainerPoolBalancerState(
    */
   def updateCluster(newSize: Int): Unit = {
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
-    val newTreshold = totalInvokerThreshold / actualSize
+    val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
     if (currentInvokerThreshold != newTreshold) {
       currentInvokerThreshold = newTreshold
       invokerSlots = invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))

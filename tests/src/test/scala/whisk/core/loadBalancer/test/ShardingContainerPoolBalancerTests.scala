@@ -107,6 +107,18 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.invokerSlots.head.availablePermits shouldBe slots
   }
 
+  it should "set the threshold to 1 if the cluster is bigger than there are slots on 1 invoker" in {
+    val slots = 10
+    val state = ShardingContainerPoolBalancerState()(ShardingContainerPoolBalancerConfig(0.5, slots))
+    state.updateInvokers(IndexedSeq(healthy(0)))
+
+    state.invokerSlots.head.availablePermits shouldBe slots
+
+    state.updateCluster(20)
+
+    state.invokerSlots.head.availablePermits shouldBe 1
+  }
+
   behavior of "schedule"
 
   it should "return None on an empty invoker list" in {

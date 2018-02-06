@@ -17,6 +17,12 @@ How to down the members.
 Link to akka clustering documentation:
 https://doc.akka.io/docs/akka/2.5.4/scala/cluster-usage.html
 
+## Shared state vs. Sharding
+
+OpenWhisk supports both a shared state and a sharding model. By default the shared-state loadbalancer is used. The sharding loadbalancer is the newer implementation and scheduled to eventually supersede the shared-state implementation and become the default. To configure your system to use the sharding implementation, set `controller_loadbalancer_spi` to `whisk.core.loadBalancer.ShardingContainerPoolBalancer`.
+
+The sharding loadbalancer has the caveat of being limited in its scalability in its current implementation. It uses "horizontal" sharding, which means that the slots on each invoker are evenly divided to the loadbalancers. For example: In a system with 2 loadbalancers and invokers which have 16 slots each, each loadbalancer would get 8 slots on each invoker. In this specific case, a cluster of loadbalancers > 16 instances does not make sense, since each loadbalancer would only have a fraction of a slot above that. The code guards against that but it is strongly recommended not to deploy more sharding loadbalancers than there are slots on each invoker.
+
 # Invoker use of docker-runc
 
 To improve performance, Invokers attempt to maintain warm containers for frequently executed actions. To optimize resource usage, the action containers are paused/unpaused between invocations.  The system can be configured to use either docker-runc or docker to perform the pause/unpause operations by setting the value of the environment variable INVOKER_USE_RUNC to true or false respectively. If not set, it will default to true (use docker-runc).
