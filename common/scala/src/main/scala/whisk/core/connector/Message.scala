@@ -103,6 +103,7 @@ object CompletionMessage extends DefaultJsonProtocol {
       }
 
       def read(value: JsValue) = value match {
+        // per the ActivationId's serializer, it is guaranteed to be a String even if it only consists of digits
         case _: JsString => Left(value.convertTo[ActivationId])
         case _: JsObject => Right(value.convertTo[WhiskActivation])
         case _           => deserializationError("could not read CompletionMessage")
