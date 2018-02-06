@@ -1,5 +1,7 @@
 # Working with parameters
 
+It's possible to supply data to actions and these can be provided in a few different ways.  This page outlines how to configure parameters when deploying packages and actions, and how to supply parameters to actions when invoking the action.
+
 ### Passing parameters to an action at invoke time
 
 Parameters can be passed to the action when it is invoked.  These examples use JavaScript but all the other languages work the same way.
@@ -30,7 +32,7 @@ Parameters can be passed to the action when it is invoked.  These examples use J
   In order to use a file containing parameter content, create a file containing the parameters in JSON format. The
   filename must then be passed to the `param-file` flag:
 
-  Example parameter file called parameters.json:
+  Example parameter file called `parameters.json:`
   ```json
   {
       "name": "Dorothy",
@@ -48,8 +50,7 @@ Parameters can be passed to the action when it is invoked.  These examples use J
   }
   ```
 
-  Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then
-  displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
+  Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
 
   Additionally, if parameter values specified on the command-line are valid JSON, then they will be parsed and sent to your action as a structured object. For example, if we update our hello action to:
 
@@ -78,7 +79,7 @@ Actions can be invoked with multiple named parameters. Recall that the `hello` a
 
 Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Kansas":
 
-1. Update the action by using the `--param` option to bind parameter values, or by passing a file that contains the parameters to `--param-file`
+1. Update the action by using the `--param` option to bind parameter values, or by passing a file that contains the parameters to `--param-file`.
 
   To specify default parameters explicitly on the command-line, provide a key/value pair to the `param` flag:
 
@@ -123,7 +124,7 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
   Using the `--param-file` flag:
 
-  File parameters.json:
+  File `parameters.json`:
   ```json
   {
     "name": "Dorothy",
@@ -145,18 +146,18 @@ Rather than pass all the parameters to an action every time, you can bind certai
 
 Parameters can be set at the package level, and these will serve as default parameters for actions unless:
 
-- the action itself has a default parameter
-- the action has a parameter supplied at invoke time, which will always be the "winner" where more than one parameter is available
+- The action itself has a default parameter.
+- The action has a parameter supplied at invoke time, which will always be the "winner" where more than one parameter is available.
 
 The following example sets a default parameter of `name` on the `MyApp` package and shows an action making use of it.
 
-1. Create a package with a parameter set
+1. Create a package with a parameter set:
 
  ```
  wsk package update MyApp --param name World
  ```
 
-2. Create an action in this package
+2. Create an action in this package:
 
  ```
     function main(params) {
@@ -168,7 +169,7 @@ The following example sets a default parameter of `name` on the `MyApp` package 
  wsk action update MyApp/hello hello.js
  ```
 
-3. Invoke the action, and observe the default package parameter in use
+3. Invoke the action, and observe the default package parameter in use:
  ```
  wsk action invoke --result MyApp/hello
  ```
