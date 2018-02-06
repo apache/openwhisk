@@ -76,14 +76,12 @@ trait BasicHttpService extends Directives with TransactionCounter {
    */
   def route: Route = {
     assignId { implicit transid =>
-      DebuggingDirectives.logRequest(logRequestInfo _) {
-        DebuggingDirectives.logRequestResult(logResponseInfo _) {
-          BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
-            handleRejections(BasicHttpService.customRejectionHandler) {
-              prioritizeRejections {
-                toStrictEntity(30.seconds) {
-                  routes
-                }
+      DebuggingDirectives.logRequestResult(logResponseInfo _) {
+        BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
+          handleRejections(BasicHttpService.customRejectionHandler) {
+            prioritizeRejections {
+              toStrictEntity(30.seconds) {
+                routes
               }
             }
           }
@@ -105,33 +103,25 @@ trait BasicHttpService extends Directives with TransactionCounter {
   }
 
   /** Generates log entry for every request. */
-  protected def logRequestInfo(req: HttpRequest)(implicit tid: TransactionId): LogEntry = {
-    val m = req.method.name
-    val p = req.uri.path.toString
-    val q = req.uri.query().toString
-    val l = loglevelForRoute(p)
-    LogEntry(s"[$tid] $m $p $q", l)
-  }
-
   protected def logResponseInfo(req: HttpRequest)(implicit tid: TransactionId): RouteResult => Option[LogEntry] = {
     case RouteResult.Complete(res: HttpResponse) =>
       val m = req.method.name
       val p = req.uri.path.toString
+      val q = req.uri.query().toString
       val l = loglevelForRoute(p)
+      val responseCode = res.status.intValue
 
-      val name = "BasicHttpService"
-
-      val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
-      val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
+      val token = LogMarkerToken("http", s"${m.toLowerCase}.${responseCode}", LoggingMarkers.count)
 
       if (TransactionId.metricsKamon) {
         MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)
         MetricEmitter.emitCounterMetric(token)
       }
       if (TransactionId.metricsLog) {
-        Some(LogEntry(s"[$tid] [$name] $marker", l))
+        val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
+        Some(LogEntry(s"[$tid] $m $p $q $responseCode $marker", l))
       } else {
-        None
+        Some(LogEntry(s"[$tid] $m $p $q $responseCode", l))
       }
 
     case _ => None // other kind of responses
