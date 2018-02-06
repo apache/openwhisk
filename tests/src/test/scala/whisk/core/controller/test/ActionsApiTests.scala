@@ -95,7 +95,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.ACTIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.ACTIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }

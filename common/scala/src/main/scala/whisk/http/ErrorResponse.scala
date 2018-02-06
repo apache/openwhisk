@@ -133,8 +133,8 @@ object Messages {
     s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
   }
 
-  def maxListLimitExceeded(collection: String, value: Int, max: Int) = {
-    s"The value $value exceeds the allowed limit $max for $collection."
+  def listLimitOutOfRange(collection: String, value: Int, max: Int) = {
+    s"The value $value is not in the range of 0 to $max for $collection."
   }
   def listLimitIsNotAString = s"The API expects the 'limit' value to be an integer but the given value is not."
 
