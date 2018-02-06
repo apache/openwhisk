@@ -124,6 +124,19 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
       case _           => None
     }
   }
+
+  /**
+   * Retrieves parameter by name if it exist. Returns true if parameter exists and has truthy value.
+   */
+  protected[core] def isTruthy(p: String): Boolean = {
+    get(p) map {
+      case JsBoolean(b) => b
+      case JsNumber(n)  => n != 0
+      case JsString(s)  => s.nonEmpty
+      case JsNull       => false
+      case _            => true
+    } getOrElse false
+  }
 }
 
 /**
