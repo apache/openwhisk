@@ -6,12 +6,9 @@
     kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
 
 - name: "pull the {{ kafka_image }} image"
-  vars:
-    pull_image: "{{ kafka.pull_kafka | default(true) }}"
   shell: "docker pull {{ kafka_image }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
-  when: pull_image == true
 
 - name: "create kafka certificate directory"
   file:
