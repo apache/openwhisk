@@ -216,7 +216,7 @@ object TransactionId {
   def apply(tid: BigInt, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid.toLong, now, extraLogging))
+      TransactionId(TransactionMetadata(tid, now, extraLogging))
     } getOrElse unknown
   }
 
