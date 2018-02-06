@@ -39,7 +39,7 @@ The key to making this action a composition is the _conductor_ annotation, which
 This composition executes two _increment_ actions in a sequence. It is invoked like a regular action, for instance:
 
 ```
-wsk action invoke composition -br -p value 3
+wsk action invoke composition -r -p value 3
 ```
 ```json
 {
@@ -55,7 +55,7 @@ In essence, this composition defines a program with three steps:
 
 ## Conductor Actions
 
-An action composition is driven by a _conductor action_. A _conductor action_, or in short a _conductor_,  is an action with a _conductor_ annotation. The value of the annotation is irrelevant.
+An action composition is driven by a _conductor action_. A _conductor action_, or in short a _conductor_,  is an action with a _conductor_ annotation. The annotation value should not be falsy, i.e., should not be zero, null, false, or the empty string.
 
 Because a conductor action is an action, it has all the attributes of an action (e.g., name, namespace, default parameters, limits...) and it can be managed as such, for instance using the `wsk action` CLI commands. It can be part of a package or be a web action and so on.
 
@@ -85,7 +85,7 @@ wsk action invoke composition -p value 3
 ok: invoked /_/composition with id 4f91f9ed0d874aaa91f9ed0d87baaa07
 ```
 ```
-wsk activation get 4f91f9ed0d874aaa91f9ed0d87baaa07
+wsk activation get --last
 ```
 ```
 ok: got activation 4f91f9ed0d874aaa91f9ed0d87baaa07
