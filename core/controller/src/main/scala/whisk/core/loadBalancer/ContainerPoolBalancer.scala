@@ -34,6 +34,8 @@ import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
 import akka.event.Logging.InfoLevel
 
+import pureconfig._
+
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -153,6 +155,12 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
           processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
         }
 
+        transid.mark(
+          this,
+          LoggingMarkers.LOADBALANCER_ACTIVATION_START(namespaceId.asString),
+          s"loadbalancer: activation started for namespace $namespaceId and activation $activationId",
+          logLevel = InfoLevel)
+
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           activationId,
@@ -176,8 +184,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+      s"posting topic '$topic' with activation id '${msg.activationId}'")
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
