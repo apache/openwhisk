@@ -30,6 +30,9 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
 import akka.stream.{Attributes, Outlet, SourceShape}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
 import akka.util.ByteString
@@ -47,14 +50,11 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
-import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import collection.JavaConversions._
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
@@ -71,6 +71,11 @@ import scala.util.control.NonFatal
 case class KubernetesClientTimeoutConfig(run: Duration, rm: Duration, inspect: Duration, logs: Duration)
 
 /**
+ * General configuration for kubernetes client
+ */
+case class KubernetesClientConfig(invokerAgent: Boolean, invokerAgentPort: Int, timeouts: KubernetesClientTimeoutConfig)
+
+/**
  * Serves as interface to the kubectl CLI tool.
  *
  * Be cautious with the ExecutionContext passed to this, as the
@@ -79,15 +84,16 @@ case class KubernetesClientTimeoutConfig(run: Duration, rm: Duration, inspect: D
  * You only need one instance (and you shouldn't get more).
  */
 class KubernetesClient(
-  timeouts: KubernetesClientTimeoutConfig = loadConfigOrThrow[KubernetesClientTimeoutConfig](
-    ConfigKeys.kubernetesTimeouts))(executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
+  config: KubernetesClientConfig = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes))(
+  executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
     extends KubernetesApi
     with ProcessRunner {
   implicit private val ec = executionContext
+  implicit private val am = ActorMaterializer()
   implicit private val kubeRestClient = new DefaultKubernetesClient(
     new ConfigBuilder()
-      .withConnectionTimeout(timeouts.logs.toMillis.toInt)
-      .withRequestTimeout(timeouts.logs.toMillis.toInt)
+      .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
+      .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
       .build())
 
   // Determines how to run kubectl. Failure to find a kubectl binary implies
@@ -104,7 +110,7 @@ class KubernetesClient(
   protected val kubectlCmd = Seq(findKubectlCmd)
 
   def run(name: String, image: String, environment: Map[String, String] = Map(), labels: Map[String, String] = Map())(
-    implicit transid: TransactionId): Future[(ContainerId, ContainerAddress)] = {
+    implicit transid: TransactionId): Future[KubernetesContainer] = {
 
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
@@ -120,13 +126,14 @@ class KubernetesClient(
       .withRestartPolicy("Always")
       .addNewContainer()
       .withNewResources()
-      .withLimits(mapAsJavaMap(Map ("memory" -> new Quantity("256Mi"))))
+      .withLimits(mapAsJavaMap(Map("memory" -> new Quantity("256Mi"))))
       .endResources()
       .withName("user-action")
       .withImage(image)
       .withEnv(envVars)
       .addNewPort()
-      .withContainerPort(8080).withName("action")
+      .withContainerPort(8080)
+      .withName("action")
       .endPort()
       .endContainer()
       .endSpec()
@@ -136,8 +143,11 @@ class KubernetesClient(
 
     Future {
       blocking {
-        val createdPod = kubeRestClient.pods.inNamespace("openwhisk").withName(name).waitUntilReady(timeouts.run.length, timeouts.run.unit)
-        (ContainerId(createdPod.getMetadata.getName), ContainerAddress(createdPod.getStatus.getPodIP))
+        val createdPod = kubeRestClient.pods
+          .inNamespace("openwhisk")
+          .withName(name)
+          .waitUntilReady(config.timeouts.run.length, config.timeouts.run.unit)
+        toContainer(createdPod)
       }
     }.recoverWith {
       case e =>
@@ -146,21 +156,83 @@ class KubernetesClient(
     }
   }
 
-  def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("delete", "--now", "pod", id.asString), timeouts.rm).map(_ => ())
+  def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
+    // Pod deletion will never complete if the pod contains a paused container.
+    // Therefore issue a resume before the delete (resuming a non-suspended container is harmless).
+    resume(container).map { _ =>
+      runCmd(Seq("delete", "--now", "pod", container.id.asString), config.timeouts.rm).map(_ => ())
+    }
+  }
 
-  def rm(key: String, value: String)(implicit transid: TransactionId): Future[Unit] =
-    runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), timeouts.rm).map(_ => ())
+  def rm(key: String, value: String)(implicit transid: TransactionId): Future[Unit] = {
+    if (config.invokerAgent) {
+      Future {
+        blocking {
+          kubeRestClient
+            .inNamespace("openwhisk")
+            .pods()
+            .withLabel(key, value)
+            .list()
+            .getItems
+            .map { pod =>
+              rm(toContainer(pod))
+            }
+            .reduce((a, b) => a.flatMap(_ => b))
+        }
+      }
+    } else {
+      runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), config.timeouts.rm).map(_ => ())
+    }
+  }
 
-  def logs(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
+  def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
+    if (config.invokerAgent) {
+      // Forward command to invoker-agent daemonset instance on container's worker node
+      Http()
+        .singleRequest(
+          HttpRequest(
+            uri = "http://" + container.workerIP + ":" + config.invokerAgentPort + "/suspend/" + container.nativeContainerId))
+        .map { response =>
+          response.discardEntityBytes()
+        }
+    } else {
+      Future.successful({})
+    }
+  }
+
+  def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
+    if (config.invokerAgent) {
+      // Forward command to invoker-agent daemonset instance on container's worker node
+      Http()
+        .singleRequest(
+          HttpRequest(
+            uri = "http://" + container.workerIP + ":" + config.invokerAgentPort + "/resume/" + container.nativeContainerId))
+        .map { response =>
+          response.discardEntityBytes()
+        }
+    } else {
+      Future.successful({})
+    }
+  }
+
+  def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any] = {
 
     log.debug(this, "Parsing logs from Kubernetes Graph Stage…")
 
     Source
-      .fromGraph(new KubernetesRestLogSourceStage(id, sinceTime, waitForSentinel))
+      .fromGraph(new KubernetesRestLogSourceStage(container.id, sinceTime, waitForSentinel))
       .log("foobar")
 
+  }
+
+  private def toContainer(pod: Pod): KubernetesContainer = {
+    val id = ContainerId(pod.getMetadata.getName)
+    val addr = ContainerAddress(pod.getStatus.getPodIP)
+    val workerIP = pod.getStatus.getHostIP
+    val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
+    implicit val kubernetes = this
+    new KubernetesContainer(id, addr, workerIP, nativeContainerId)
   }
 
   private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
@@ -199,13 +271,17 @@ object KubernetesClient {
 
 trait KubernetesApi {
   def run(name: String, image: String, environment: Map[String, String] = Map(), labels: Map[String, String] = Map())(
-    implicit transid: TransactionId): Future[(ContainerId,ContainerAddress)]
+    implicit transid: TransactionId): Future[KubernetesContainer]
 
-  def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit]
+  def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 
   def rm(key: String, value: String)(implicit transid: TransactionId): Future[Unit]
 
-  def logs(containerId: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
+  def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
+
+  def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
+
+  def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any]
 }
 

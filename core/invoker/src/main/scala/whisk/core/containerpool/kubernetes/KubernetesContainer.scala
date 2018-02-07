@@ -66,10 +66,10 @@ object KubernetesContainer {
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
 
     for {
-      (id, ip) <- kubernetes.run(podName, image, environment, labels).recoverWith {
+      container <- kubernetes.run(podName, image, environment, labels).recoverWith {
         case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
-    } yield new KubernetesContainer(id, ip)
+    } yield container
   }
 
 }
@@ -83,11 +83,14 @@ object KubernetesContainer {
  * @constructor
  * @param id the id of the container
  * @param addr the ip & port of the container
+ * @param workerIP the ip of the workernode on which the container is executing
  */
-class KubernetesContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
-  implicit kubernetes: KubernetesApi,
-  protected val ec: ExecutionContext,
-  protected val logging: Logging)
+class KubernetesContainer(protected[core] val id: ContainerId,
+                          protected[core] val addr: ContainerAddress,
+                          protected[core] val workerIP: String,
+                          protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
+                                                                         protected val ec: ExecutionContext,
+                                                                         protected val logging: Logging)
     extends Container {
 
   /** The last read timestamp in the log file */
@@ -95,15 +98,13 @@ class KubernetesContainer(protected val id: ContainerId, protected val addr: Con
 
   protected val waitForLogs: FiniteDuration = 2.seconds
 
-  // no-op under Kubernetes
-  def suspend()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
 
-  // no-op under Kubernetes
-  def resume()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def resume()(implicit transid: TransactionId): Future[Unit] = kubernetes.resume(this)
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    kubernetes.rm(id)
+    kubernetes.rm(this)
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
@@ -111,7 +112,7 @@ class KubernetesContainer(protected val id: ContainerId, protected val addr: Con
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 
     kubernetes
-      .logs(id, lastTimestamp.get, waitForSentinel)
+      .logs(this, lastTimestamp.get, waitForSentinel)
       .limitWeighted(limit.toBytes) { obj =>
         // Adding + 1 since we know there's a newline byte being read
         obj.jsonSize.toLong + 1
