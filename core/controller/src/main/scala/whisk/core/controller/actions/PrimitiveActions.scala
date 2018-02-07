@@ -92,7 +92,7 @@ protected[actions] trait PrimitiveActions {
    *
    * A composition is a kind of sequence of actions that is dynamically computed.
    * The execution of a composition is triggered by the invocation of a conductor action.
-   * A conductor action is an executable action with a defined "conductor" annotation (the value does not matter).
+   * A conductor action is an executable action with a truthy "conductor" annotation.
    * Sequences cannot be compositions: the "conductor" annotation on a sequence has no effect.
    *
    * A conductor action may either return a final result or a triplet { action, params, state }.
@@ -237,7 +237,6 @@ protected[actions] trait PrimitiveActions {
    * @param logs a mutable buffer that is appended with new activation ids as the composition unfolds
    *             (in contrast with sequences, the logs of a hierarchy of compositions is not flattened)
    * @param caller the session object for the parent composition (caller) if any
-   * @param result a placeholder for returning the result of the composition invocation (blocking invocation only)
    */
   private case class Session(activationId: ActivationId,
                              start: Instant,
@@ -248,8 +247,7 @@ protected[actions] trait PrimitiveActions {
                              var state: Option[JsObject],
                              accounting: CompositionAccounting,
                              logs: Buffer[ActivationId],
-                             caller: Option[Session],
-                             result: Option[Promise[Either[ActivationId, WhiskActivation]]])
+                             caller: Option[Session])
 
   /**
    * A method that knows how to invoke a composition.
@@ -268,7 +266,6 @@ protected[actions] trait PrimitiveActions {
    * @return a promise that completes with one of the following successful cases:
    *            Right(WhiskActivation) if waiting for a response and response is ready within allowed duration,
    *            Left(ActivationId) if not waiting for a response, or allowed duration has elapsed without a result ready
-   *         or an error
    */
   private def invokeComposition(
     user: Identity,
@@ -277,12 +274,6 @@ protected[actions] trait PrimitiveActions {
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
     caller: Option[Session] = None)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-
-    // should wait for result if topmost blocking invoke or invoked from a sequence
-    val shouldWait = waitForResponse.isDefined || cause.isDefined && caller.isEmpty
-
-    // result promise if waiting
-    val result = if (shouldWait) Some(Promise[Either[ActivationId, WhiskActivation]]()) else None
 
     val session = Session(
       activationId = activationIdFactory.make(),
@@ -294,23 +285,22 @@ protected[actions] trait PrimitiveActions {
       state = None,
       accounting = caller.map { _.accounting }.getOrElse(CompositionAccounting()), // share accounting with caller
       logs = Buffer.empty,
-      caller,
-      result)
+      caller)
 
-    invokeConductor(user, payload, session)
+    val response: Future[Either[ActivationId, WhiskActivation]] = invokeConductor(user, payload, session)
 
     // is caller waiting for the result of the activation?
-    result map { result =>
-      if (cause.isDefined && caller.isEmpty) {
-        // ignore timeout when a sequence invokes a composition
-        result.future
-      } else {
-        // handle timeout, branch precondition implies that waitForResponse is defined
-        result.future.withAlternativeAfterTimeout(waitForResponse.get, Future.successful(Left(session.activationId)))
+    if (cause.isDefined) {
+      // ignore waitForResponse when not topmost
+      response
+    } else {
+      waitForResponse map { timeout =>
+        // blocking invoke, wait until timeout
+        response.withAlternativeAfterTimeout(waitForResponse.get, Future.successful(Left(session.activationId)))
+      } getOrElse {
+        // no, return the session id
+        Future.successful(Left(session.activationId))
       }
-    } getOrElse {
-      // no, return the session id
-      Future.successful(Left(session.activationId))
     }
   }
 
@@ -328,7 +318,7 @@ protected[actions] trait PrimitiveActions {
    * @param transid a transaction id for logging
    */
   private def invokeConductor(user: Identity, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId) = {
+    implicit transid: TransactionId): Future[Right[ActivationId, WhiskActivation]] = {
 
     if (session.accounting.conductors > 2 * actionSequenceLimit) {
       // composition is too long
@@ -352,9 +342,10 @@ protected[actions] trait PrimitiveActions {
           waitForResponse = Some(session.action.limits.timeout.duration + 1.minute), // wait for result
           cause = Some(session.activationId)) // cause is session id
 
-      waitForActivation(user, session, activationResponse).foreach {
-        case None => // do nothing, error has been taken care of already
-        case Some(activation) => // successful invocation
+      waitForActivation(user, session, activationResponse).flatMap {
+        case Left(response) => // terminate execution
+          completeAppActivation(user, session, response)
+        case Right(activation) => // successful invocation
           val result = activation.resultAsJson
 
           // extract params from result, auto boxing result if not a dictionary
@@ -392,30 +383,37 @@ protected[actions] trait PrimitiveActions {
                       .resolveNamespace(user.namespace)
                       .toFullyQualifiedEntityName
                     val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
-                    entitlementProvider.check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true).onComplete {
-                      case Failure(t) =>
-                        // failed entitlement check
-                        val response =
-                          ActivationResponse.applicationError(compositionComponentNotAccessible(next.asString))
-                        completeAppActivation(user, session, response)
-                      case Success(_) =>
+                    entitlementProvider
+                      .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
+                      .flatMap { _ =>
                         // successful entitlement check
-                        WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, fqn).onComplete {
-                          case Failure(t) =>
-                            // resolution failure
-                            val response =
-                              ActivationResponse.applicationError(compositionComponentNotFound(next.asString))
-                            completeAppActivation(user, session, response)
-                          case Success(next) =>
-                            // successful resolution
-                            invokeComponent(user, action = next, payload = params, session)
-                        }
-                    }
+                        WhiskActionMetaData
+                          .resolveActionAndMergeParameters(entityStore, fqn)
+                          .flatMap {
+                            case next => // successful resolution
+                              invokeComponent(user, action = next, payload = params, session)
+                          }
+                          .recoverWith {
+                            case _ =>
+                              // resolution failure
+                              val response =
+                                ActivationResponse.applicationError(compositionComponentNotFound(next.asString))
+                              completeAppActivation(user, session, response)
+                          }
+                      }
+                      .recoverWith {
+                        case _ =>
+                          // failed entitlement check
+                          val response =
+                            ActivationResponse.applicationError(compositionComponentNotAccessible(next.asString))
+                          completeAppActivation(user, session, response)
+                      }
                   }
               }
           }
       }
     }
+
   }
 
   /**
@@ -434,12 +432,12 @@ protected[actions] trait PrimitiveActions {
    * @param transid a transaction id for logging
    */
   private def invokeComponent(user: Identity, action: WhiskActionMetaData, payload: Option[JsObject], session: Session)(
-    implicit transid: TransactionId) {
+    implicit transid: TransactionId): Future[Right[ActivationId, WhiskActivation]] = {
 
     val exec = action.toExecutableWhiskAction
-    exec match {
+    val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
       case Some(conductor) if action.annotations.isTruthy(WhiskActivation.conductorAnnotation) => // composition
-        // invokeComposition will take care of accounting and continuations
+        // invokeComposition will take care of accounting
         invokeComposition(
           user,
           action = conductor,
@@ -449,7 +447,7 @@ protected[actions] trait PrimitiveActions {
           caller = Some(session))
       case _ => // handle accounting and continuations
         session.accounting.components += 1
-        val activationResponse = exec match {
+        exec match {
           case Some(action) => // not a sequence, not a composition
             invokeSimpleAction(
               user,
@@ -469,12 +467,13 @@ protected[actions] trait PrimitiveActions {
               topmost = false,
               atomicActionsCount = 0).map(r => r._1)
         }
+    }
 
-        waitForActivation(user, session, activationResponse).foreach {
-          case None => // do nothing, error has been taken care of already
-          case Some(activation) => // invoke continuation
-            invokeConductor(user, payload = Some(activation.resultAsJson), session = session)
-        }
+    waitForActivation(user, session, activationResponse).flatMap {
+      case Left(response) => // terminate execution
+        completeAppActivation(user, session, response)
+      case Right(activation) => // invoke continuation
+        invokeConductor(user, payload = Some(activation.resultAsJson), session = session)
     }
   }
 
@@ -482,7 +481,7 @@ protected[actions] trait PrimitiveActions {
    * Waits for a response from a conductor of component action invocation.
    * Handles internal errors (activation failure or timeout).
    * Logs the activation id and updates the duration and max memory for the session.
-   * Returns the activation record if successful.
+   * Returns the activation record if successful, the error response if not.
    *
    * @param user the identity invoking the action
    * @param session the session object for this composition
@@ -492,15 +491,13 @@ protected[actions] trait PrimitiveActions {
   private def waitForActivation(user: Identity,
                                 session: Session,
                                 activationResponse: Future[Either[ActivationId, WhiskActivation]])(
-    implicit transid: TransactionId): Future[Option[WhiskActivation]] = {
+    implicit transid: TransactionId): Future[Either[ActivationResponse, WhiskActivation]] = {
 
-    activationResponse.transform(
-      {
+    activationResponse
+      .map {
         case Left(activationId) =>
           session.logs += activationId
-          val response = ActivationResponse.whiskError(compositionActivationTimeout(activationId))
-          completeAppActivation(user, session, response)
-          None
+          Left(ActivationResponse.whiskError(compositionActivationTimeout(activationId)))
         case Right(activation) =>
           session.logs += activation.activationId
           // activation.duration should be defined but since this is not reflected by the type498 so be defensive
@@ -511,12 +508,11 @@ protected[actions] trait PrimitiveActions {
                 session.maxMemory = Math.max(session.maxMemory, memory.toInt)
             }
           }
-          Some(activation)
-      }, { t =>
-        val response = ActivationResponse.whiskError(compositionActivationFailure)
-        completeAppActivation(user, session, response)
-        t
-      })
+          Right(activation)
+      }
+      .recover {
+        case _ => Left(ActivationResponse.whiskError(compositionActivationFailure))
+      }
   }
 
   /**
@@ -525,7 +521,7 @@ protected[actions] trait PrimitiveActions {
    * Resumes caller if any.
    */
   private def completeAppActivation(user: Identity, session: Session, response: ActivationResponse)(
-    implicit transid: TransactionId): Unit = {
+    implicit transid: TransactionId): Future[Right[ActivationId, WhiskActivation]] = {
 
     // compute max memory
     val sequenceLimits = Parameters(
@@ -560,9 +556,6 @@ protected[actions] trait PrimitiveActions {
         sequenceLimits,
       duration = Some(session.duration))
 
-    // complete the promise if any
-    session.result.map { _.success(Right(activation)) }
-
     logging.debug(this, s"recording activation '${activation.activationId}'")
     WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
       case Success(id) => logging.info(this, s"recorded activation")
@@ -572,13 +565,7 @@ protected[actions] trait PrimitiveActions {
           s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
     }
 
-    // resume caller if any
-    session.caller.foreach { caller =>
-      caller.logs += session.activationId
-      caller.duration += session.duration
-      caller.maxMemory = Math.max(caller.maxMemory, session.maxMemory)
-      invokeConductor(user, payload = Some(activation.resultAsJson), session = caller)
-    }
+    Future.successful(Right(activation))
   }
 
   /**
