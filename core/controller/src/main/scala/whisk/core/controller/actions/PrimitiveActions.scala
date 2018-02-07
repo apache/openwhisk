@@ -222,8 +222,6 @@ protected[actions] trait PrimitiveActions {
    *
    * NOTE:
    * The session object is not shared between callers and callees.
-   * A callee has a reference to the session object for the caller.
-   * This permits the callee to return to the caller when done.
    *
    * @param activationId the activationId for the composition (ie the activation record for the composition)
    * @param start the start time for the composition
@@ -236,7 +234,6 @@ protected[actions] trait PrimitiveActions {
    * @param accounting the global accounting object used to abort compositions requiring too many action invocations
    * @param logs a mutable buffer that is appended with new activation ids as the composition unfolds
    *             (in contrast with sequences, the logs of a hierarchy of compositions is not flattened)
-   * @param caller the session object for the parent composition (caller) if any
    */
   private case class Session(activationId: ActivationId,
                              start: Instant,
@@ -246,8 +243,7 @@ protected[actions] trait PrimitiveActions {
                              var maxMemory: Int,
                              var state: Option[JsObject],
                              accounting: CompositionAccounting,
-                             logs: Buffer[ActivationId],
-                             caller: Option[Session])
+                             logs: Buffer[ActivationId])
 
   /**
    * A method that knows how to invoke a composition.
@@ -261,19 +257,19 @@ protected[actions] trait PrimitiveActions {
    * @param payload the dynamic arguments for the activation
    * @param waitForResponse if not empty, wait upto specified duration for a response (this is used for blocking activations)
    * @param cause the activation id that is responsible for this invoke/activation
-   * @param caller the session object for the caller if any
+   * @param accounting the accounting object for the caller if any
    * @param transid a transaction id for logging
    * @return a promise that completes with one of the following successful cases:
    *            Right(WhiskActivation) if waiting for a response and response is ready within allowed duration,
    *            Left(ActivationId) if not waiting for a response, or allowed duration has elapsed without a result ready
    */
-  private def invokeComposition(
-    user: Identity,
-    action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
-    waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId],
-    caller: Option[Session] = None)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+  private def invokeComposition(user: Identity,
+                                action: ExecutableWhiskActionMetaData,
+                                payload: Option[JsObject],
+                                waitForResponse: Option[FiniteDuration],
+                                cause: Option[ActivationId],
+                                accounting: Option[CompositionAccounting] = None)(
+    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     val session = Session(
       activationId = activationIdFactory.make(),
@@ -283,9 +279,8 @@ protected[actions] trait PrimitiveActions {
       duration = 0,
       maxMemory = action.limits.memory.megabytes,
       state = None,
-      accounting = caller.map { _.accounting }.getOrElse(CompositionAccounting()), // share accounting with caller
-      logs = Buffer.empty,
-      caller)
+      accounting = accounting.getOrElse(CompositionAccounting()), // share accounting with caller
+      logs = Buffer.empty)
 
     val response: Future[Either[ActivationId, WhiskActivation]] =
       invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
@@ -427,7 +422,7 @@ protected[actions] trait PrimitiveActions {
           payload,
           waitForResponse = None, // not topmost, hence blocking, no need for timeout
           cause = Some(session.activationId),
-          caller = Some(session))
+          accounting = Some(session.accounting))
       case Some(action) => // primitive action
         session.accounting.components += 1
         invokeSimpleAction(
