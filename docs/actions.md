@@ -299,7 +299,7 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
   }
   ```
 
-This example also passed a parameter to the action by using the `--param` flag and a value that can be changed each time the action is invoked. Find out more about parameters in the [Working with parameters](./parameters) section.
+This example also passed a parameter to the action by using the `--param` flag and a value that can be changed each time the action is invoked. Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging an action as a Node.js module
 
@@ -555,7 +555,7 @@ wsk action invoke --result helloPython --param name World
   }
 ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging Python actions in zip files
 
@@ -643,7 +643,7 @@ wsk action invoke --result helloPHP --param name World
   }
 ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging PHP actions in zip files
 
@@ -709,7 +709,7 @@ wsk action invoke --result helloSwift --param name World
   }
 ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging an action as a Swift executable
 
@@ -867,7 +867,7 @@ wsk action invoke --result helloJava --param name World
   }
 ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ## Creating Docker actions
 
@@ -1040,7 +1040,7 @@ wsk action invoke helloGo -r -p name gopher
 }
 ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 Logs are retrieved in a similar way as well.
 
