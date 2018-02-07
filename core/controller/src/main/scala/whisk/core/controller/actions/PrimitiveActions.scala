@@ -291,18 +291,14 @@ protected[actions] trait PrimitiveActions {
       invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
 
     // is caller waiting for the result of the activation?
-    if (cause.isDefined) {
-      // ignore waitForResponse when not topmost
-      response
-    } else {
-      waitForResponse map { timeout =>
+    cause
+      .map(_ => response) // ignore waitForResponse when not topmost
+      .orElse(
         // blocking invoke, wait until timeout
-        response.withAlternativeAfterTimeout(waitForResponse.get, Future.successful(Left(session.activationId)))
-      } getOrElse {
+        waitForResponse.map(response.withAlternativeAfterTimeout(_, Future.successful(Left(session.activationId)))))
+      .getOrElse(
         // no, return the session id
-        Future.successful(Left(session.activationId))
-      }
-    }
+        Future.successful(Left(session.activationId)))
   }
 
   /**
@@ -368,39 +364,37 @@ protected[actions] trait PrimitiveActions {
                 case Failure(t) =>
                   // parsing failure
                   Future.successful(ActivationResponse.applicationError(compositionComponentInvalid(next)))
+                case Success(_) if session.accounting.components >= actionSequenceLimit =>
+                  // composition is too long
+                  Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
                 case Success(next) =>
-                  if (session.accounting.components >= actionSequenceLimit) {
-                    // composition is too long
-                    Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
-                  } else {
-                    // resolve and invoke next action
-                    val fqn = (if (next.defaultPackage) EntityPath.DEFAULT.addPath(next) else next)
-                      .resolveNamespace(user.namespace)
-                      .toFullyQualifiedEntityName
-                    val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
-                    entitlementProvider
-                      .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
-                      .flatMap { _ =>
-                        // successful entitlement check
-                        WhiskActionMetaData
-                          .resolveActionAndMergeParameters(entityStore, fqn)
-                          .flatMap {
-                            case next =>
-                              // successful resolution
-                              invokeComponent(user, action = next, payload = params, session)
-                          }
-                          .recover {
-                            case _ =>
-                              // resolution failure
-                              ActivationResponse.applicationError(compositionComponentNotFound(next.asString))
-                          }
-                      }
-                      .recover {
-                        case _ =>
-                          // failed entitlement check
-                          ActivationResponse.applicationError(compositionComponentNotAccessible(next.asString))
-                      }
-                  }
+                  // resolve and invoke next action
+                  val fqn = (if (next.defaultPackage) EntityPath.DEFAULT.addPath(next) else next)
+                    .resolveNamespace(user.namespace)
+                    .toFullyQualifiedEntityName
+                  val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
+                  entitlementProvider
+                    .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
+                    .flatMap { _ =>
+                      // successful entitlement check
+                      WhiskActionMetaData
+                        .resolveActionAndMergeParameters(entityStore, fqn)
+                        .flatMap {
+                          case next =>
+                            // successful resolution
+                            invokeComponent(user, action = next, payload = params, session)
+                        }
+                        .recover {
+                          case _ =>
+                            // resolution failure
+                            ActivationResponse.applicationError(compositionComponentNotFound(next.asString))
+                        }
+                    }
+                    .recover {
+                      case _ =>
+                        // failed entitlement check
+                        ActivationResponse.applicationError(compositionComponentNotAccessible(next.asString))
+                    }
               }
           }
       }
@@ -425,37 +419,35 @@ protected[actions] trait PrimitiveActions {
 
     val exec = action.toExecutableWhiskAction
     val activationResponse: Future[Either[ActivationId, WhiskActivation]] = exec match {
-      case Some(conductor) if action.annotations.isTruthy(WhiskActivation.conductorAnnotation) => // composition
+      case Some(action) if action.annotations.isTruthy(WhiskActivation.conductorAnnotation) => // composition
         // invokeComposition will increase the invocation counts
         invokeComposition(
           user,
-          action = conductor,
+          action,
           payload,
-          waitForResponse = None, // non-blocking
+          waitForResponse = None, // not topmost, hence blocking, no need for timeout
           cause = Some(session.activationId),
           caller = Some(session))
-      case _ => // not a composition
+      case Some(action) => // primitive action
         session.accounting.components += 1
-        exec match {
-          case Some(action) => // primitive action
-            invokeSimpleAction(
-              user,
-              action,
-              payload,
-              waitForResponse = Some(action.limits.timeout.duration + 1.minute),
-              cause = Some(session.activationId))
-          case None => // sequence
-            val SequenceExecMetaData(components) = action.exec
-            invokeSequence(
-              user,
-              action,
-              components,
-              payload,
-              waitForOutermostResponse = None,
-              cause = Some(session.activationId),
-              topmost = false,
-              atomicActionsCount = 0).map(r => r._1)
-        }
+        invokeSimpleAction(
+          user,
+          action,
+          payload,
+          waitForResponse = Some(action.limits.timeout.duration + 1.minute),
+          cause = Some(session.activationId))
+      case None => // sequence
+        session.accounting.components += 1
+        val SequenceExecMetaData(components) = action.exec
+        invokeSequence(
+          user,
+          action,
+          components,
+          payload,
+          waitForOutermostResponse = None,
+          cause = Some(session.activationId),
+          topmost = false,
+          atomicActionsCount = 0).map(r => r._1)
     }
 
     waitForActivation(user, session, activationResponse).flatMap {
@@ -546,7 +538,7 @@ protected[actions] trait PrimitiveActions {
 
     logging.debug(this, s"recording activation '${activation.activationId}'")
     WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.info(this, s"recorded activation")
+      case Success(id) => logging.debug(this, s"recorded activation")
       case Failure(t) =>
         logging.error(
           this,
