@@ -100,7 +100,7 @@ Review the following steps and examples to create your first JavaScript action.
   * The activation ID (`44794bd6aab74415b4e42a308d880e5b`)
   * The invocation result if it is available within the expected wait period
 
-  The result in this case is the string `Hello world` returned by the JavaScript function. The activation ID can be used to retrieve the logs or result of the invocation at a future time.  
+  The result in this case is the string `Hello world` returned by the JavaScript function. The activation ID can be used to retrieve the logs or result of the invocation at a future time.
 
 5. If you don't need the action result right away, you can omit the `--blocking` flag to make a non-blocking invocation. You can get the result later by using the activation ID. See the following example:
 
@@ -280,21 +280,26 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
   This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
 
-2. Run the following commands to create the action and invoke it:
+2. Create an action from the `weather.js` file:
 
   ```
   wsk action create weather weather.js
   ```
+
+3. Use the following command to run the action, and observe the output:
   ```
   wsk action invoke --result weather --param location "Brooklyn, NY"
   ```
+
+  Using the `--result` flag means that the value returned from the action is shown as output on the commandline:
+
   ```json
   {
       "msg": "It is 28 degrees in Brooklyn, NY and Cloudy"
   }
   ```
 
-Find out more about parameters in the [Working with parameters](./parameters) section.
+This example also passed a parameter to the action by using the `--param` flag and a value that can be changed each time the action is invoked. Find out more about parameters in the [Working with parameters](./parameters) section.
 
 ### Packaging an action as a Node.js module
 
