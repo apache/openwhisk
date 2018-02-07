@@ -103,8 +103,12 @@ task createKeystore(dependsOn: deleteKeystore) {
 
 afterEvaluate {
     task testCoverageLean(type:Test) {
-        classpath = getScoverageClasspath(project) + sourceSets.test.runtimeClasspath
+        classpath = getScoverageClasspath(project)
         exclude leanExcludes
+    }
+
+    task testCoverage(type:Test){
+        classpath = getScoverageClasspath(project)
     }
     tasks.withType(Test) {
         dependsOn createKeystore
@@ -127,7 +131,7 @@ task reportCoverage(type: ScoverageReport){
  * Aggregates the scoverage xml reports from various modules into a
  * single report
  */
-task aggregateCoverage(type: JavaExec) {
+task aggregateCoverage(type: JavaExec, dependsOn: reportCoverage) {
     //Taken from ScoverageAggregate
     main = 'org.scoverage.AggregateReportApp'
     classpath = project.extensions.scoverage.pluginClasspath
@@ -152,7 +156,9 @@ def getScoverageClasspath(Project project){
             ':core:controller',
             ':core:invoker'
     ]
-    projectNames.inject(project.files([])){result, name ->
+    def combinedClasspath = projectNames.inject(project.files([])){result, name ->
         result + project.project(name).sourceSets.scoverage.runtimeClasspath
     }
+
+    combinedClasspath + sourceSets.test.runtimeClasspath
 }
