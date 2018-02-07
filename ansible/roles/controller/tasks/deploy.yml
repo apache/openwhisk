@@ -45,14 +45,10 @@
     dest: "{{ controller.confdir }}/{{ controller_name }}/jmxremote.access"
     mode: 0777
 
-- name: "copy truststore"
+- name: "copy kafka truststore/keystore"
+  when: kafka.ssl.enabled
   copy:
-    src: "files/server.truststore.jks"
-    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
-
-- name: "copy keystore"
-  copy:
-    src: "files/client.keystore.jks"
+    src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
 
 - name: check, that required databases exist
@@ -116,9 +112,12 @@
       "CONFIG_whisk_kafka_topics_health_retentionBytes": "{{ kafka_topics_health_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_health_retentionMs": "{{ kafka_topics_health_retentionMS | default() }}"
       "CONFIG_whisk_kafka_topics_health_segmentBytes": "{{ kafka_topics_health_segmentBytes | default() }}"
-      "KAFKA_SSL_ENABLED": "{{ kafka.ssl_enabled }}"
-      "KAFKA_SSL_CLIENT_AUTHENTICATION": "{{ kafka.client_authentication }}"
-
+      "CONFIG_whisk_kafka_ssl_enabled": "{{ kafka.ssl.enabled }}"
+      "CONFIG_whisk_kafka_ssl_authentication": "{{ kafka.ssl.client_authentication }}"
+      "CONFIG_whisk_kafka_ssl_keystorePath": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_ssl_keystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_ssl_truststorePath": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_ssl_truststorePassword": "{{ kafka.ssl.keystore.password }}"
       "DB_PROTOCOL": "{{ db_protocol }}"
       "DB_PROVIDER": "{{ db_provider }}"
       "DB_HOST": "{{ db_host }}"

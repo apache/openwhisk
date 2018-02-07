@@ -19,8 +19,6 @@ package whisk.connector.kafka
 
 import java.util.Properties
 
-import org.apache.kafka.clients.CommonClientConfigs
-
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
@@ -28,16 +26,15 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import whisk.common.Logging
+import whisk.connector.kafka.KafkaMessagingProvider.KafkaSslConfig
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(kafkahost: String,
                              groupid: String,
                              topic: String,
-                             sslEnabled: Boolean,
-                             sslClientAuthentication: Boolean,
+                             httpsConfig: KafkaSslConfig,
                              override val maxPeek: Int = Int.MaxValue,
                              readeos: Boolean = true,
                              sessionTimeout: FiniteDuration = 30.seconds,
@@ -79,15 +76,11 @@ class KafkaConsumerConnector(kafkahost: String,
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
     props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval.toMillis.toString)
 
-    if (sslEnabled) {
-      //configure the following three settings for SSL Encryption//configure the following three settings for SSL Encryption
-      props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-      props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "/conf/server.truststore.jks")
-      props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "openwhisk")
+    if (httpsConfig.enabled.toBoolean) {
+      KafkaConfiguration.useSSL(props, httpsConfig)
     }
-    if (sslClientAuthentication) {
-      props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "/conf/client.keystore.jks")
-      props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "openwhisk")
+    if (httpsConfig.authentication == "required") {
+      KafkaConfiguration.authenticateUser(props, httpsConfig)
     }
 
     // This value controls the server-side wait time which affects polling latency.

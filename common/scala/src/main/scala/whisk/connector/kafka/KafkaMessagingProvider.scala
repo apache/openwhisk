@@ -36,8 +36,8 @@ import whisk.core.WhiskConfig
 import whisk.core.connector.MessageConsumer
 import whisk.core.connector.MessageProducer
 import whisk.core.connector.MessagingProvider
-
 import pureconfig._
+import whisk.connector.kafka.KafkaMessagingProvider.KafkaSslConfig
 
 case class KafkaConfig(replicationFactor: Short)
 
@@ -45,19 +45,22 @@ case class KafkaConfig(replicationFactor: Short)
  * A Kafka based implementation of MessagingProvider
  */
 object KafkaMessagingProvider extends MessagingProvider {
+
+  case class KafkaSslConfig(enabled: String,
+                            authentication: String,
+                            keystorePath: String,
+                            keystorePassword: String,
+                            truststorePath: String,
+                            truststorePassword: String)
+
+  private val sslConfig = loadConfigOrThrow[KafkaSslConfig]("whisk.kafka.ssl")
+
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging): MessageConsumer =
-    new KafkaConsumerConnector(
-      config.kafkaHosts,
-      groupId,
-      topic,
-      config.kafkaSslEnabled,
-      config.kafkaSslClientAuthentication,
-      maxPeek,
-      maxPollInterval = maxPollInterval)
+    new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, sslConfig, maxPeek, maxPollInterval = maxPollInterval)
 
   def getProducer(config: WhiskConfig, ec: ExecutionContext)(implicit logging: Logging): MessageProducer =
-    new KafkaProducerConnector(config.kafkaHosts, config.kafkaSslEnabled, config.kafkaSslClientAuthentication, ec)
+    new KafkaProducerConnector(config.kafkaHosts, sslConfig, ec)
 
   def ensureTopic(config: WhiskConfig, topic: String, topicConfig: String)(implicit logging: Logging): Boolean = {
     val kc = loadConfigOrThrow[KafkaConfig](ConfigKeys.kafka)
@@ -65,14 +68,11 @@ object KafkaMessagingProvider extends MessagingProvider {
       loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaTopics + s".$topicConfig"))
     val props = new Properties
     props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, config.kafkaHosts)
-    if (config.kafkaSslEnabled) {
-      props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-      props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, "/conf/server.truststore.jks")
-      props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, "openwhisk")
+    if (sslConfig.enabled.toBoolean) {
+      KafkaConfiguration.useSSL(props, sslConfig)
     }
-    if (config.kafkaSslClientAuthentication) {
-      props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, "/conf/client.keystore.jks")
-      props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, "openwhisk")
+    if (sslConfig.authentication == "required") {
+      KafkaConfiguration.authenticateUser(props, sslConfig)
     }
 
     val client = AdminClient.create(props)
@@ -101,5 +101,15 @@ object KafkaConfiguration {
 
   def configMapToKafkaConfig(configMap: Map[String, String]) = configMap.map {
     case (key, value) => configToKafkaKey(key) -> value
+  }
+
+  def useSSL(props: Properties, httpsConfig: KafkaSslConfig) = {
+    props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+    props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, httpsConfig.truststorePath)
+    props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, httpsConfig.truststorePassword)
+  }
+  def authenticateUser(props: Properties, httpsConfig: KafkaSslConfig) = {
+    props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, httpsConfig.keystorePath)
+    props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, httpsConfig.keystorePassword)
   }
 }

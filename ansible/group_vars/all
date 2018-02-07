@@ -75,10 +75,14 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
-  client_authentication: false
-  ssl_enabled: "{{ kafka_ssl_enabled | default(true) }}"
+  ssl:
+    enabled: "{{ kafkaSslEnabledForSetup }}"
+    client_authentication: required
+    keystore:
+      name: kafka-keystore.jks
+      password: openwhisk
   version: 0.11.0.1
-  port: 9092
+  port: 9072
   advertisedPort: 9093
   ras:
     port: 8093
@@ -90,6 +94,8 @@ kafka_connect_string: "{% set ret = [] %}\
                          {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.advertisedPort+loop.index-1)|string) ) }}\
                        {% endfor %}\
                        {{ ret | join(',') }}"
+
+kafkaSslEnabledForSetup: "{{ kafka_ssl_enabled | default(false) }}"
 
 zookeeper:
   version: 3.4
