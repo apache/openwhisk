@@ -95,6 +95,21 @@ case class CompletionMessage(override val transid: TransactionId,
 }
 
 object CompletionMessage extends DefaultJsonProtocol {
+  implicit def eitherResponse =
+    new JsonFormat[Either[ActivationId, WhiskActivation]] {
+      def write(either: Either[ActivationId, WhiskActivation]) = either match {
+        case Right(a) => a.toJson
+        case Left(b)  => b.toJson
+      }
+
+      def read(value: JsValue) = value match {
+        // per the ActivationId's serializer, it is guaranteed to be a String even if it only consists of digits
+        case _: JsString => Left(value.convertTo[ActivationId])
+        case _: JsObject => Right(value.convertTo[WhiskActivation])
+        case _           => deserializationError("could not read CompletionMessage")
+      }
+    }
+
   def parse(msg: String): Try[CompletionMessage] = Try(serdes.read(msg.parseJson))
   private val serdes = jsonFormat3(CompletionMessage.apply)
 }
