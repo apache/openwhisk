@@ -245,6 +245,8 @@ object ConfigKeys {
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
 
+  val runtimes = "whisk.runtimes"
+
   val db = "whisk.db"
 
   val docker = "whisk.docker"

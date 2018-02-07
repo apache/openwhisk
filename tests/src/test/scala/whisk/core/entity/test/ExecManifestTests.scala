@@ -17,15 +17,12 @@
 
 package whisk.core.entity.test
 
-import java.io.{BufferedWriter, File, FileWriter}
-
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import whisk.core.WhiskConfig
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
 
@@ -67,7 +64,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
     val p1 = RuntimeManifest("p1", ImageName("???"))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson))
-    val runtimes = ExecManifest.runtimes(mf).get
+    val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
     Seq("k1", "k2", "p1").foreach {
       runtimes.knownContainerRuntimes.contains(_) shouldBe true
@@ -89,11 +86,10 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
     val k1 = RuntimeManifest("k1", ImageName("???", None, Some("ttt")))
 
-    val mf = JsObject(
-      "defaultImagePrefix" -> "pre".toJson,
-      "defaultImageTag" -> "test".toJson,
-      "runtimes" -> JsObject("is" -> Set(i1, i2).toJson, "js" -> Set(j1).toJson, "ks" -> Set(k1).toJson))
-    val runtimes = ExecManifest.runtimes(mf).get
+    val mf =
+      JsObject("runtimes" -> JsObject("is" -> Set(i1, i2).toJson, "js" -> Set(j1).toJson, "ks" -> Set(k1).toJson))
+    val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
+    val runtimes = ExecManifest.runtimes(mf, rmc).get
 
     runtimes.resolveDefaultRuntime("i1").get.image.publicImageName shouldBe "pre/???:test"
     runtimes.resolveDefaultRuntime("i2").get.image.publicImageName shouldBe "ppp/???:test"
@@ -109,7 +105,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       ImageName("???", None, Some("ttt")))
 
     val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
-    val runtimes = ExecManifest.runtimes(mf).get
+    val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
     runtimes.blackboxImages shouldBe imgs
     imgs.foreach(img => runtimes.skipDockerPull(img) shouldBe true)
@@ -123,12 +119,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
       ImageName("???", Some("ppp"), Some("ttt")),
       ImageName("???", None, Some("ttt")))
 
-    val mf = JsObject(
-      "defaultImagePrefix" -> "pre".toJson,
-      "defaultImageTag" -> "test".toJson,
-      "runtimes" -> JsObject(),
-      "blackboxes" -> imgs.toJson)
-    val runtimes = ExecManifest.runtimes(mf).get
+    val mf = JsObject("runtimes" -> JsObject(), "blackboxes" -> imgs.toJson)
+    val rmc = RuntimeManifestConfig(defaultImagePrefix = Some("pre"), defaultImageTag = Some("test"))
+    val runtimes = ExecManifest.runtimes(mf, rmc).get
 
     runtimes.blackboxImages shouldBe {
       Set(
@@ -147,7 +140,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
 
-    an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
+    an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
   }
 
   it should "reject finding a default when none is specified for multiple versions" in {
@@ -155,7 +148,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k2 = RuntimeManifest("k2", ImageName("???"))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
 
-    an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf).get
+    an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
   }
 
   it should "prefix image name with overrides" in {
@@ -179,18 +172,9 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
   }
 
   it should "indicate image is local if it matches deployment docker prefix" in {
-    val config_manifest = """{"bypassPullForLocalImages":true}"""
-    val file = File.createTempFile("cxt", ".txt")
-    file.deleteOnExit()
-
-    val bw = new BufferedWriter(new FileWriter(file))
-    bw.write(WhiskConfig.runtimesManifest + s"=$config_manifest\n")
-    bw.close()
-
-    val props = Map(WhiskConfig.runtimesManifest -> null)
-    val manifest =
-      ExecManifest.initialize(new WhiskConfig(props, Set(), file), localDockerImagePrefix = Some("localpre"))
-    manifest should be a 'success
+    val mf = JsObject()
+    val rmc = RuntimeManifestConfig(bypassPullForLocalImages = Some(true), localImagePrefix = Some("localpre"))
+    val manifest = ExecManifest.runtimes(mf, rmc)
 
     manifest.get.skipDockerPull(ImageName(prefix = Some("x"), name = "y")) shouldBe false
     manifest.get.skipDockerPull(ImageName(prefix = Some("localpre"), name = "y")) shouldBe true

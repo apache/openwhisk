@@ -98,7 +98,7 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val execManifest = ExecManifest.initialize(config, localDockerImagePrefix = Some(config.dockerImagePrefix))
+    val execManifest = ExecManifest.initialize(config)
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
       abort("Bad configuration, cannot start.")

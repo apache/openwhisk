@@ -133,6 +133,11 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
+      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
       "CONTROLLER_HA": "{{ controller.ha }}"
