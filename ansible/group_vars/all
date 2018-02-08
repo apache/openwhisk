@@ -43,9 +43,6 @@ limits:
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 
-controllerHostnameFromMap: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
-controllerHostname: "{{ controllerHostnameFromMap | default(inventory_hostname) }}"
-
 # port means outer port
 controller:
   dir:
@@ -68,10 +65,6 @@ controller:
   # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
   ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
-  jmxremote:
-    jvmArgs:  "{% if inventory_hostname in groups['controllers'] %}
-    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ controllerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}
-    {% endif %}"
 
 jmx:
   basePortController: 15000

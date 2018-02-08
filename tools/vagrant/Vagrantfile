@@ -159,6 +159,7 @@ $script_end = <<SCRIPT
   touch $HOME/.wskprops
   chown -R vagrant:vagrant $HOME
   # This allows user to see how to configure the wsk cli outside the VM
+  echo "Swagger UI URL: https://${WHISK_IP}/api/v1/docs/index.html?url=/api/v1/api-docs"
   wsk property set --apihost ${WHISK_IP} --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   wsk action invoke /whisk.system/utils/echo -p message hello --result
   echo "`date`: build-deploy-end" >> /tmp/vagrant-times.txt

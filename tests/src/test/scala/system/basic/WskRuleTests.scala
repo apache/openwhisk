@@ -100,13 +100,11 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-
-      withActivationsFromEntity(
-        wsk.activation,
-        ruleName,
-        since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
-        _.head.cause shouldBe Some(triggerActivation.activationId)
-      }
+      triggerActivation.logs.get.size shouldBe (1)
+      val logs = triggerActivation.logs.get.mkString(" ")
+      logs should include(""""statusCode":0""")
+      logs should include(""""activationId":""")
+      logs should include(""""success":true""")
 
       withActivationsFromEntity(
         wsk.activation,
@@ -137,13 +135,11 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-
-      withActivationsFromEntity(
-        wsk.activation,
-        ruleName,
-        since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
-        _.head.cause shouldBe Some(triggerActivation.activationId)
-      }
+      triggerActivation.logs.get.size shouldBe (1)
+      val logs = triggerActivation.logs.get.mkString(" ")
+      logs should include(""""statusCode":0""")
+      logs should include(""""activationId":""")
+      logs should include(""""success":true""")
 
       withActivationsFromEntity(
         wsk.activation,
@@ -177,13 +173,11 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-
-      withActivationsFromEntity(
-        wsk.activation,
-        ruleName,
-        since = Some(triggerActivation.start.minusMillis(activationTimeSkewFactorMs))) {
-        _.head.cause shouldBe Some(triggerActivation.activationId)
-      }
+      triggerActivation.logs.get.size shouldBe (1)
+      val logs = triggerActivation.logs.get.mkString(" ")
+      logs should include(""""statusCode":0""")
+      logs should include(""""activationId":""")
+      logs should include(""""success":true""")
 
       withActivationsFromEntity(
         wsk.activation,

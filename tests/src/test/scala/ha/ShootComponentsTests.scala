@@ -58,7 +58,7 @@ class ShootComponentsTests
 
   // Throttle requests to the remaining controllers to avoid getting 429s. (60 req/min)
   val amountOfControllers = WhiskProperties.getProperty(WhiskConfig.controllerInstances).toInt
-  val limit = WhiskProperties.getProperty(WhiskConfig.actionInvokeConcurrentLimit).toDouble
+  val limit = WhiskProperties.getProperty(WhiskConfig.actionInvokePerMinuteLimit).toDouble
   val limitPerController = limit / amountOfControllers
   val allowedRequestsPerMinute = (amountOfControllers - 1.0) * limitPerController
   val timeBeweenRequests = 60.seconds / allowedRequestsPerMinute
@@ -187,11 +187,11 @@ class ShootComponentsTests
       val requests = requestsBeforeRestart ++ requestsAfterRestart
 
       val unsuccessfulInvokes = requests.map(_._1).count(_ != TestUtils.SUCCESS_EXIT)
-      // Allow 3 failures for the 100 seconds
-      unsuccessfulInvokes should be <= 3
+      // Allow 5 failures for the 100 seconds
+      unsuccessfulInvokes should be <= 5
 
       val unsuccessfulGets = requests.map(_._2).count(_ != TestUtils.SUCCESS_EXIT)
-      // Only allow 1 failure in GET requests, because they are idempotent and they should be passed to the next controller if one crashes
+      // Allow no failures in GET requests, because they are idempotent and they should be passed to the next controller if one crashes
       unsuccessfulGets shouldBe 0
 
       // Check that both controllers are up

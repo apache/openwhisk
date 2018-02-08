@@ -71,8 +71,7 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print $ARGV[0];
             """.stripMargin.trim
 
-    // excluding perl as it not installed in alpine based image
-    Seq(("bash", bash), ("python", python))
+    Seq(("bash", bash), ("python", python), ("perl", perl))
   }
 
   val stdUnicodeSamples = {
@@ -123,8 +122,32 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
                 |print "{ \"api_host\": \"$a\", \"api_key\": \"$b\", \"namespace\": \"$c\", \"action_name\": \"$d\", \"activation_id\": \"$e\", \"deadline\": \"$f\" }";
             """.stripMargin.trim
 
-    // excluding perl as it not installed in alpine based image
-    Seq(("bash", bash), ("python", python))
+    Seq(("bash", bash), ("python", python), ("perl", perl))
+  }
+
+  /** Large param samples, echo the input args with input larger than 128K and using STDIN */
+  val stdLargeInputSamples = {
+    val bash = """
+                 |#!/bin/bash
+                 |  read inputstring
+                 |  echo $inputstring
+                 """.stripMargin.trim
+
+    val python = """
+                   |#!/usr/bin/env python
+                   |import sys, json
+                   |params = sys.stdin.readline()
+                   |j = json.loads(params)
+                   |print(json.dumps(j))
+                 """.stripMargin.trim
+
+    val perl = """
+                 |#!/usr/bin/env perl
+                 |$params=<STDIN>;
+                 |print $params;
+               """.stripMargin.trim
+
+    Seq(("bash", bash), ("python", python), ("perl", perl))
   }
 
   behavior of "openwhisk/dockerskeleton"
@@ -221,6 +244,7 @@ class ActionProxyContainerTests extends BasicActionRunnerTests with WskActorSyst
   testEcho(stdCodeSamples)
   testUnicode(stdUnicodeSamples)
   testEnv(stdEnvSamples)
+  testLargeInput(stdLargeInputSamples)
 }
 
 trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
@@ -345,4 +369,24 @@ trait BasicActionRunnerTests extends ActionProxyContainerTestUtils {
       }
     }
   }
+
+  /**
+   * Large param samples, echo the input args with input larger than 128K and using STDIN
+   */
+  def testLargeInput(stdLargeInputSamples: Seq[(String, String)]) = {
+    stdLargeInputSamples.foreach { s =>
+      it should s"run a ${s._1} script with large input" in {
+        val (out, err) = withActionContainer() { c =>
+          val (initCode, _) = c.init(initPayload(s._2))
+          initCode should be(200)
+
+          val arg = JsObject("arg" -> JsString(("a" * 1048561)))
+          val (_, runRes) = c.run(runPayload(arg))
+          runRes.get shouldBe arg
+        }
+
+      }
+    }
+  }
+
 }

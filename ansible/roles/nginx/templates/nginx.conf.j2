@@ -19,6 +19,7 @@ http {
         '$http_referer $http_user_agent $upstream_addr';
     access_log /logs/nginx_access.log combined-upstream;
 
+{# needed to enable keepalive to upstream controllers #}
     proxy_http_version 1.1;
     proxy_set_header Connection "";
 
@@ -37,6 +38,7 @@ http {
         keepalive 512;
     }
 
+{# determine "special users" to send the header accordingly #}
     map "$remote_user" $special_user {
       default not_special;
 {% for user in nginx.special_users %}
@@ -50,6 +52,8 @@ http {
       "special:on" on;
       "special:" on;
     }
+
+    proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
 
     server {
         listen 443 default ssl;
@@ -79,7 +83,6 @@ http {
             if ($namespace) {
               rewrite    /(.*) /api/v1/web/${namespace}/$1 break;
             }
-            proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
             proxy_pass http://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }
@@ -89,7 +92,6 @@ http {
             if ($namespace) {
               rewrite    ^ /api/v1/web/${namespace}/public/index.html break;
             }
-            proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
             proxy_pass http://controllers;
             proxy_read_timeout 75s; # 70+5 additional seconds to allow controller to terminate request
         }

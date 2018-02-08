@@ -37,7 +37,7 @@ import whisk.core.entity.ArgNormalizer.trim
  *
  * @param id the document id, required not null
  */
-protected[core] class DocId private (val id: String) extends AnyVal {
+protected[core] class DocId(val id: String) extends AnyVal {
   def asString = id // to make explicit that this is a string conversion
   protected[core] def asDocInfo = DocInfo(this)
   protected[core] def asDocInfo(rev: DocRevision) = DocInfo(this, rev)
