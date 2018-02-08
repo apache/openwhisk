@@ -122,7 +122,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
-    val invokersToUse = if (action.exec.pull) schedulingState.blackboxInvokers else schedulingState.managedInvokers
+    val invokersToUse = if (!action.exec.pull) schedulingState.managedInvokers else schedulingState.blackboxInvokers
     val chosen = if (invokersToUse.nonEmpty) {
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
@@ -161,6 +161,13 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = instance)
         }
 
+        val namespaceId = msg.user.uuid.asString
+        msg.transid.mark(
+          this,
+          LoggingMarkers.LOADBALANCER_ACTIVATION_START(namespaceId),
+          s"loadbalancer: activation started for namespace $namespaceId and activation ${msg.activationId}",
+          logLevel = InfoLevel)
+
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           msg.activationId,
@@ -184,8 +191,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'",
-      logLevel = InfoLevel)
+      s"posting topic '$topic' with activation id '${msg.activationId}'")
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
@@ -350,18 +356,18 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 /**
  * Holds the state necessary for scheduling of actions.
  *
- * @param invokers all of the known invokers in the system
- * @param managedInvokers all invokers for managed runtimes
- * @param blackboxInvokers all invokers for blackbox runtimes
- * @param stepSizes the step-sizes possible for the current invoker count
- * @param invokerSlots state of accessible slots of each invoker
+ * @param _invokers all of the known invokers in the system
+ * @param _managedInvokers all invokers for managed runtimes
+ * @param _blackboxInvokers all invokers for blackbox runtimes
+ * @param _stepSizes the step-sizes possible for the current invoker count
+ * @param _invokerSlots state of accessible slots of each invoker
  */
 case class ShardingContainerPoolBalancerState(
-  var invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  var managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  var blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  var stepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  var invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore])(
+  private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
+  private var _stepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore])(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
@@ -370,6 +376,13 @@ case class ShardingContainerPoolBalancerState(
 
   private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
   logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
+
+  /** Getters for the variables, setting from the outside is only allowed through the update methods below */
+  def invokers = _invokers
+  def managedInvokers = _managedInvokers
+  def blackboxInvokers = _blackboxInvokers
+  def stepSizes = _stepSizes
+  def invokerSlots = _invokerSlots
 
   /**
    * Updates the scheduling state with the new invokers.
@@ -383,23 +396,23 @@ case class ShardingContainerPoolBalancerState(
    * It is important that this method does not run concurrently to itself and/or to `updateCluster`
    */
   def updateInvokers(newInvokers: IndexedSeq[InvokerHealth]): Unit = {
-    val oldSize = invokers.size
+    val oldSize = _invokers.size
     val newSize = newInvokers.size
 
     if (oldSize != newSize) {
-      stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(newSize)
+      _stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(newSize)
       if (oldSize < newSize) {
         // Keeps the existing state..
-        invokerSlots = invokerSlots.padTo(newSize, new ForcableSemaphore(currentInvokerThreshold))
+        _invokerSlots = _invokerSlots.padTo(newSize, new ForcableSemaphore(currentInvokerThreshold))
       }
     }
 
     val blackboxes = Math.max(1, (newSize.toDouble * blackboxFraction).toInt)
     val managed = Math.max(1, newSize - blackboxes)
 
-    invokers = newInvokers
-    blackboxInvokers = invokers.takeRight(blackboxes)
-    managedInvokers = invokers.take(managed)
+    _invokers = newInvokers
+    _blackboxInvokers = _invokers.takeRight(blackboxes)
+    _managedInvokers = _invokers.take(managed)
 
     logging.info(
       this,
@@ -420,7 +433,7 @@ case class ShardingContainerPoolBalancerState(
     val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
     if (currentInvokerThreshold != newTreshold) {
       currentInvokerThreshold = newTreshold
-      invokerSlots = invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))
+      _invokerSlots = _invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))
 
       logging.info(
         this,
