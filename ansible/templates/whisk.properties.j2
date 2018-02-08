@@ -43,6 +43,10 @@ limits.actions.sequence.maxLength={{ limits.sequenceMaxLength }}
 
 edge.host={{ groups["edge"]|first }}
 kafka.hosts={{ kafka_connect_string }}
+kafka.protocol={{ kafka.protocol }}
+kafka.ssl.authentication={{ kafka.ssl.client_authentication }}
+kafka.ssl.keystore.password={{ kafka.ssl.keystore.password }}
+kafka.ssl.keystore.location={{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}
 redis.host={{ groups["redis"]|default([""])|first }}
 router.host={{ groups["edge"]|first }}
 zookeeper.hosts={{ zookeeper_connect_string }}

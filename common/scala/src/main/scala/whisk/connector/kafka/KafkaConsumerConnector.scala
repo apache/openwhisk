@@ -27,14 +27,14 @@ import scala.concurrent.duration.FiniteDuration
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
+import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
-import whisk.connector.kafka.KafkaMessagingProvider.KafkaSslConfig
+import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(kafkahost: String,
                              groupid: String,
                              topic: String,
-                             httpsConfig: KafkaSslConfig,
                              override val maxPeek: Int = Int.MaxValue,
                              readeos: Boolean = true,
                              sessionTimeout: FiniteDuration = 30.seconds,
@@ -76,11 +76,10 @@ class KafkaConsumerConnector(kafkahost: String,
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
     props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval.toMillis.toString)
 
-    if (httpsConfig.enabled.toBoolean) {
-      KafkaConfiguration.useSSL(props, httpsConfig)
-    }
-    if (httpsConfig.authentication == "required") {
-      KafkaConfiguration.authenticateUser(props, httpsConfig)
+    val commonConfig =
+      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
+    commonConfig.foreach {
+      case (key, value) => props.put(key, value)
     }
 
     // This value controls the server-side wait time which affects polling latency.

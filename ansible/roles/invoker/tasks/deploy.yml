@@ -61,7 +61,7 @@
   become: "{{ invoker.dir.become }}"
 
 - name: "copy kafka truststore/keystore"
-  when: kafka.ssl.enabled
+  when: kafka.protocol == 'SSL'
   copy:
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
@@ -155,12 +155,11 @@
         -e CONFIG_whisk_kafka_topics_invoker_retentionBytes='{{ kafka_topics_invoker_retentionBytes | default() }}'
         -e CONFIG_whisk_kafka_topics_invoker_retentionMs='{{ kafka_topics_invoker_retentionMS | default() }}'
         -e CONFIG_whisk_kakfa_topics_invoker_segmentBytes='{{ kafka_topics_invoker_segmentBytes | default() }}'
-        -e CONFIG_whisk_kafka_ssl_enabled='{{ kafka.ssl.enabled }}'
-        -e CONFIG_whisk_kafka_ssl_authentication='{{ kafka.ssl.client_authentication }}'
-        -e CONFIG_whisk_kafka_ssl_keystorePath='/conf/{{ kafka.ssl.keystore.name }}'
-        -e CONFIG_whisk_kafka_ssl_keystorePassword='{{ kafka.ssl.keystore.password }}'
-        -e CONFIG_whisk_kafka_ssl_truststorePath='/conf/{{ kafka.ssl.keystore.name }}'
-        -e CONFIG_whisk_kafka_ssl_truststorePassword='{{ kafka.ssl.keystore.password }}'
+        -e CONFIG_whisk_kafka_common_securityProtocol='{{ kafka.protocol }}'
+        -e CONFIG_whisk_kafka_common_sslTruststoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
+        -e CONFIG_whisk_kafka_common_sslTruststorePassword='{{ kafka.ssl.keystore.password }}'
+        -e CONFIG_whisk_kafka_common_sslKeystoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
+        -e CONFIG_whisk_kafka_common_sslKeystorePassword='{{ kafka.ssl.keystore.password }}'
         -e ZOOKEEPER_HOSTS='{{ zookeeper_connect_string }}'
         -e DB_PROTOCOL='{{ db_protocol }}'
         -e DB_PROVIDER='{{ db_provider }}'

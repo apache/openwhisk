@@ -13,7 +13,7 @@
     mode: 0777
 
 - name: "copy keystore"
-  when: kafka.ssl.enabled
+  when: kafka.protocol == 'SSL'
   copy:
     src: "files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ config_root_dir }}/kafka/certs"
@@ -29,14 +29,14 @@
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
 
 - name: add kafka non-ssl vars
-  when: not kafka.ssl.enabled
+  when: kafka.protocol != 'SSL'
   set_fact:
     kafka_non_ssl_vars:
       "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
 - name: add kafka ssl env vars
-  when: kafka.ssl.enabled
+  when: kafka.protocol == 'SSL'
   set_fact:
     kafka_ssl_env_vars:
       "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
@@ -58,12 +58,12 @@
       "CUSTOM_INIT_SCRIPT": "sed -i \'/^advertised\\.listeners/ s/\\/\\/\\:/\\/\\/{{ ansible_host }}\\:/\' /opt/kafka/config/server.properties"
 
 - name: "join kafka ssl env vars"
-  when: kafka.ssl.enabled
+  when: kafka.protocol == 'SSL'
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_ssl_env_vars) }}"
 
 - name: join kafka non-ssl env vars
-  when: not kafka.ssl.enabled
+  when: kafka.protocol != 'SSL'
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
 

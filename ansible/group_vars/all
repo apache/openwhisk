@@ -76,11 +76,11 @@ registry:
 
 kafka:
   ssl:
-    enabled: "{{ kafkaSslEnabledForSetup }}"
     client_authentication: required
     keystore:
       name: kafka-keystore.jks
       password: openwhisk
+  protocol: SSL
   version: 0.11.0.1
   port: 9072
   advertisedPort: 9093
@@ -95,7 +95,7 @@ kafka_connect_string: "{% set ret = [] %}\
                        {% endfor %}\
                        {{ ret | join(',') }}"
 
-kafkaSslEnabledForSetup: "{{ kafka_ssl_enabled | default(false) }}"
+kafka_protocol_for_setup: "{{ kafka_protocol | default('PLAINTEXT') }}"
 
 zookeeper:
   version: 3.4

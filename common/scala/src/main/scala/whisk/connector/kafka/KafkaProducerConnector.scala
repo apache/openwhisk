@@ -37,11 +37,9 @@ import whisk.core.connector.Message
 import whisk.core.connector.MessageProducer
 import whisk.core.entity.UUIDs
 import pureconfig._
-import whisk.connector.kafka.KafkaMessagingProvider.KafkaSslConfig
 import whisk.core.ConfigKeys
 
 class KafkaProducerConnector(kafkahosts: String,
-                             httpsConfig: KafkaSslConfig,
                              implicit val executionContext: ExecutionContext,
                              id: String = UUIDs.randomUUID().toString)(implicit logging: Logging)
     extends MessageProducer {
@@ -91,14 +89,10 @@ class KafkaProducerConnector(kafkahosts: String,
 
     // Load additional config from the config files and add them here.
     val config =
-      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
-    config.foreach { case (key, value) => props.put(key, value) }
-
-    if (httpsConfig.enabled.toBoolean) {
-      KafkaConfiguration.useSSL(props, httpsConfig)
-    }
-    if (httpsConfig.authentication == "required") {
-      KafkaConfiguration.authenticateUser(props, httpsConfig)
+      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer)) ++
+        KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon))
+    config.foreach {
+      case (key, value) => props.put(key, value)
     }
     props
   }
