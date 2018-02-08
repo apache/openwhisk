@@ -1531,6 +1531,12 @@ class RestResult(var statusCode: StatusCode, var respData: String = "", blocking
       respData,
       RestResult.convertHttpResponseToStderr(respData)) {
 
+  override def toString: String = {
+    super.toString + s"""statusCode: $statusCode
+       |respData: $respData
+       |blocking: $blocking""".stripMargin
+  }
+
   def respBody: JsObject = respData.parseJson.asJsObject
 
   def getField(key: String): String = {
