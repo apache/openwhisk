@@ -26,7 +26,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, OK, ServerError}
+import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, NoContent, OK, ServerError}
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model._
@@ -146,9 +146,14 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                 case Failure(t) =>
                   logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
               }
+            complete(Accepted, triggerActivationId.toJsObject)
+          } else {
+            logging
+              .info(
+                this,
+                s"[POST] trigger without an active rule was activated; no trigger activation record created for $triggerActivationId")
+            complete(NoContent)
           }
-
-          complete(Accepted, triggerActivationId.toJsObject)
       })
     }
   }
@@ -287,13 +292,21 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   }
 
   /**
-   * Iterates through each active rule and invoke each mapped action.
+   * Iterates through each rule and invoking each active rule's mapped action.
    */
   private def activateRules(user: Identity,
                             args: JsObject,
                             rulesToActivate: Map[FullyQualifiedEntityName, ReducedRule])(
     implicit transid: TransactionId): Future[Iterable[RuleActivationResult]] = {
     val ruleResults = rulesToActivate.map {
+      case (ruleName, rule) if (rule.status != Status.ACTIVE) =>
+        Future {
+          ruleResult(
+            ActivationResponse.ApplicationError,
+            ruleName,
+            rule.action,
+            errorMsg = Some(s"Rule ${ruleName.asString} is inactive; action ${rule.action.asString} was not activated"))
+        }
       case (ruleName, rule) =>
         // Invoke the action. Retain action results for inclusion in the trigger activation record
         postActivation(user, rule, args)
@@ -346,7 +359,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /**
    * Posts an action activation. Currently done by posting internally to the controller.
-   * TODO: use a poper path that does not route through HTTP.
+   * TODO: use a proper path that does not route through HTTP.
    *
    * @param rule the name of the rule that is activated
    * @param args the arguments to post to the action
