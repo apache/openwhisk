@@ -80,7 +80,7 @@ kafka:
     keystore:
       name: kafka-keystore.jks
       password: openwhisk
-  protocol: SSL
+  protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
   port: 9072
   advertisedPort: 9093

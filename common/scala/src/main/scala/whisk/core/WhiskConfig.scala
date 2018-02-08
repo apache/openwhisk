@@ -236,8 +236,9 @@ object ConfigKeys {
   val loadbalancer = "whisk.loadbalancer"
 
   val kafka = "whisk.kafka"
-  val kafkaProducer = s"$kafka.producer"
   val kafkaCommon = s"$kafka.common"
+  val kafkaProducer = s"$kafka.producer"
+  val kafkaConsumer = s"$kafka.consumer"
   val kafkaTopics = s"$kafka.topics"
 
   val memory = "whisk.memory"

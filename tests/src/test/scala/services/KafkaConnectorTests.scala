@@ -46,6 +46,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
+  val maxPollInterval = 10 seconds
 
   // Need to overwrite replication factor for tests that shut down and start
   // Kafka instances intentionally. These tests will fail if there is more than
@@ -68,16 +69,13 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   System.setProperty(
     "whisk.kafka.common.ssl-truststore-password",
     WhiskProperties.getProperty("kafka.ssl.keystore.password"))
+  System.setProperty("whisk.kafka.consumer.max-poll-interval-ms", maxPollInterval.toMillis.toString)
 
-  val sessionTimeout: FiniteDuration = 10 seconds
-  val maxPollInterval: FiniteDuration = 10 seconds
+  println(s"Create test topic '${topic}' with replicationFactor=${replicationFactor}")
+  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic ${topic} failed")
+
   val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
-  val consumer = new KafkaConsumerConnector(
-    config.kafkaHosts,
-    groupid,
-    topic,
-    sessionTimeout = sessionTimeout,
-    maxPollInterval = maxPollInterval)
+  val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
 
   override def afterAll(): Unit = {
     producer.close()
