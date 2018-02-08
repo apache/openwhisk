@@ -93,11 +93,14 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val triggerName = withTimestamp("t1to1")
     val actionName = withTimestamp("a1 to 1")
     val triggerName2 = withTimestamp("t2to1")
-    val actionName2 = withTimestamp("a2 to 1")
 
     ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
 
-    // Ensure status stays active when rule is updated with its current trigger and action
+    assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
+      trigger.create(name)
+    }
+
+    // Ensure status stays active when rule is updated with its current trigger
     wsk.rule
       .create(ruleName, triggerName, actionName, update = true)
       .stdout
@@ -108,7 +111,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     wsk.rule.disable(ruleName)
 
-    // Ensure status stays inactive when rule is updated with its current trigger and action
+    // Ensure status stays inactive when rule is updated with its current trigger
     wsk.rule
         .create(ruleName, triggerName, actionName, update = true)
         .stdout
@@ -117,19 +120,11 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
         .fields
         .get("status") shouldBe (Some("inactive".toJson))
 
-    assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
-      trigger.create(name)
-    }
-
-    assetHelper.withCleaner(wsk.action, actionName2) { (action, name) =>
-      action.create(name, Some(defaultAction))
-    }
-
     wsk.rule.enable(ruleName)
 
-    // Ensure status stays active when rule is updated with a new trigger and action
+    // Ensure status stays active when rule is updated with a new trigger
     wsk.rule
-      .create(ruleName, triggerName2, actionName2, update = true)
+      .create(ruleName, triggerName2, actionName, update = true)
       .stdout
       .parseJson
       .asJsObject
@@ -138,7 +133,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     wsk.rule.disable(ruleName)
 
-    // Ensure status stays inactive when rule is updated with a new trigger and action
+    // Ensure status stays inactive when rule is updated with a new trigger
     wsk.rule
         .create(ruleName, triggerName, actionName, update = true)
         .stdout
