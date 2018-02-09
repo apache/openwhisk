@@ -157,22 +157,20 @@ class MesosTask(override protected val id: ContainerId,
 
   /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
   /** For Mesos, this log message is static per container, just indicating that mesos logs can be found via the mesos UI. */
-  /** To disable this message, and just store an empty log message per activation, set whisk.mesos.mesosLinkLogMessage=false */
-  val logMsg =
+  /** To disable this message, and just store an static log message per activation, set whisk.mesos.mesosLinkLogMessage=false */
+  val linkedLogMsg =
     s"Logs are not collected from Mesos containers currently. " +
       s"You can browse the logs for Mesos Task ID ${taskId} using the mesos UI at ${mesosConfig.masterPublicUrl
         .getOrElse(mesosConfig.masterUrl)}"
+  val noLinkLogMsg = "Log collection is not configured correctly, check with your service administrator."
+  val logMsg = if (mesosConfig.mesosLinkLogMessage) linkedLogMsg else noLinkLogMsg
   val tsFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'")
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
-    if (mesosConfig.mesosLinkLogMessage) {
-      Source
-        .fromIterator(() =>
-          Iterator(ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
-            .now()
-            .format(tsFormat)}\"}""")))
-    } else {
-      Source.empty
-    }
+    Source
+      .fromIterator(() =>
+        Iterator(ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
+          .now()
+          .format(tsFormat)}\"}""")))
 
 }

@@ -29,9 +29,11 @@ import pureconfig.loadConfigOrThrow
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -61,6 +63,7 @@ class MesosContainerFactory(config: WhiskConfig,
     extends ContainerFactory {
 
   val subscribeTimeout = 30.seconds
+  val teardownTimeout = 30.seconds
 
   //init mesos framework:
   implicit val as: ActorSystem = actorSystem
@@ -130,9 +133,14 @@ class MesosContainerFactory(config: WhiskConfig,
 
   /** cleanup any remaining Containers; should block until complete; should ONLY be run at shutdown */
   override def cleanup(): Unit = {
-    val complete: Future[Any] = mesosClientActor.ask(Teardown)(20.seconds)
-    Await.result(complete, 25.seconds)
-    logging.info(this, "cleanup completed!")
+    val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
+    Try(Await.result(complete, teardownTimeout))
+      .map(_ => logging.info(this, "Mesos framework teardown completed."))
+      .recover {
+        case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
+        case t: Throwable =>
+          logging.error(this, s"Mesos framework teardown failed : ${t}")
+      }
   }
 }
 object MesosContainerFactory {

@@ -1,6 +1,6 @@
 # Mesos Support
 
-The MesosContainerFactory enables launching action containers within a Mesos cluster. It does not affect the deployment of OpenWhisk components (invoker, controller).
+The `MesosContainerFactory` enables launching action containers within a Mesos cluster. It does not affect the deployment of OpenWhisk components (invoker, controller).
 
 ## Enable
 
@@ -8,12 +8,12 @@ To enable MesosContainerFactory, use the following TypeSafe Config properties
 
 | property | required | details | example |
 | --- | --- | --- | --- |
-| whisk.spi.ContainerFactoryProvider | required | enable the MesosContainerFactory | whisk.core.mesos.MesosContainerFactoryProvider |
-| whisk.mesos.master-url | required | mesos master http endpoint to be accessed from the invoker for framework subscription | http://192.168.99.100:5050 |
-| whisk.mesos.master-url-public | optional (default to whisk.mesos.master-url) | public facing mesos master http endpoint for exposing logs to cli users | http://192.168.99.100:5050 |
-| whisk.mesos.role | optional (default *) | mesos framework role| any string e.g. `openwhisk` |
-| whisk.mesos.failover-timeout-seconds | optional (default 0) | how long to wait for the framework to reconnect with the same id before tasks are terminated  | see http://mesos.apache.org/documentation/latest/high-availability-framework-guide/ |
-| whisk.mesos.mesos-link-log-message | optional (default true) | display a log message with a link to mesos when using the default LogStore (or no log message) | Since logs are not available for invoker to collect from mesos in general, you can either use an alternate LogStore or direct users to the mesos ui |
+| `whisk.spi.ContainerFactoryProvider` | required | enable the MesosContainerFactory | whisk.core.mesos.MesosContainerFactoryProvider |
+| `whisk.mesos.master-url` | required | mesos master http endpoint to be accessed from the invoker for framework subscription | http://192.168.99.100:5050 |
+| `whisk.mesos.master-url-public` | optional (default to whisk.mesos.master-url) | public facing mesos master http endpoint for exposing logs to cli users | http://192.168.99.100:5050 |
+| `whisk.mesos.role` | optional (default *) | mesos framework role| any string e.g. `openwhisk` |
+| `whisk.mesos.failover-timeout-seconds` | optional (default 0) | how long to wait for the framework to reconnect with the same id before tasks are terminated  | see http://mesos.apache.org/documentation/latest/high-availability-framework-guide/ |
+| `whisk.mesos.mesos-link-log-message` | optional (default true) | display a log message with a link to mesos when using the default LogStore (or no log message) | Since logs are not available for invoker to collect from mesos in general, you can either use an alternate LogStore or direct users to the mesos ui |   |
 
 To set these properties for your invoker, set the corresponding environment variables e.g.
 ```properties
@@ -23,11 +23,11 @@ CONFIG_Dwhisk_mesos_masterUrl=http://192.168.99.100:5050
 
 ## Known Issues
 
-* logs are not collected from action containers
+* Logs are not collected from action containers.
 
   For now, the mesos public url will be included in the logs retrieved via the wsk CLI. Once log retrieval from external sources is enabled, logs from mesos containers would have to be routed to the external source, and then retrieved from that source. 
  
-* no HA or failover support (single invoker per cluster)
+* No HA or failover support (single invoker per cluster).
   
   Currently the version of mesos-actor in use does not support HA or failover. Failover support is planned to be provided by:
   
