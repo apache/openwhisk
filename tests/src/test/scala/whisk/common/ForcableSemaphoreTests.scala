@@ -25,6 +25,18 @@ import org.scalatest.junit.JUnitRunner
 class ForcableSemaphoreTests extends FlatSpec with Matchers {
   behavior of "ForcableSemaphore"
 
+  it should "not allow to acquire, force or release negative amounts of permits" in {
+    val s = new ForcableSemaphore(2)
+    an[IllegalArgumentException] should be thrownBy s.tryAcquire(0)
+    an[IllegalArgumentException] should be thrownBy s.tryAcquire(-1)
+
+    an[IllegalArgumentException] should be thrownBy s.forceAcquire(0)
+    an[IllegalArgumentException] should be thrownBy s.forceAcquire(-1)
+
+    an[IllegalArgumentException] should be thrownBy s.release(0)
+    an[IllegalArgumentException] should be thrownBy s.release(-1)
+  }
+
   it should "allow to acquire the defined amount of permits only" in {
     val s = new ForcableSemaphore(2)
     s.tryAcquire() shouldBe true // 1 permit left

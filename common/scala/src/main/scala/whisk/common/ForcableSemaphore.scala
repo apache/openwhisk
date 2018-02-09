@@ -40,12 +40,13 @@ class ForcableSemaphore(maxAllowed: Int) {
 
     def permits: Int = getState
 
+    /** Try to release a permit and return whether or not that operation was successful. */
     @tailrec
     override final def tryReleaseShared(releases: Int): Boolean = {
       val current = getState
       val next = current + releases
-      if (next < current) { // overflow
-        throw new Error("Maximum permit count exceeded")
+      if (next < current) { // integer overflow
+        throw new Error("Maximum permit count exceeded, permit variable overflowed")
       }
       if (compareAndSetState(current, next)) {
         true
@@ -54,6 +55,10 @@ class ForcableSemaphore(maxAllowed: Int) {
       }
     }
 
+    /**
+     * Try to acquire a permit and return whether or not that operation was successful. Requests may not finish in FIFO
+     * order, hence this method is not necessarily fair.
+     */
     @tailrec
     final def nonFairTryAcquireShared(acquires: Int): Int = {
       val available = getState
@@ -88,6 +93,7 @@ class ForcableSemaphore(maxAllowed: Int) {
    * @return `true`, iff the internal semaphore's number of permits is positive, `false` if negative
    */
   def tryAcquire(acquires: Int = 1): Boolean = {
+    require(acquires > 0, "cannot acquire negative or no permits")
     sync.nonFairTryAcquireShared(acquires) >= 0
   }
 
@@ -99,6 +105,7 @@ class ForcableSemaphore(maxAllowed: Int) {
    * @param acquires the number of permits to get
    */
   def forceAcquire(acquires: Int = 1): Unit = {
+    require(acquires > 0, "cannot force acquire negative or no permits")
     sync.forceAquireShared(acquires)
   }
 
@@ -108,6 +115,7 @@ class ForcableSemaphore(maxAllowed: Int) {
    * @param acquires the number of permits to release
    */
   def release(acquires: Int = 1): Unit = {
+    require(acquires > 0, "cannot release negative or no permits")
     sync.releaseShared(acquires)
   }
 
