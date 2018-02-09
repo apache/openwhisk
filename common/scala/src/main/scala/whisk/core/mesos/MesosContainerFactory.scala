@@ -47,6 +47,14 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
 
+/**
+ * Configuration for MesosClient
+ * @param masterUrl The mesos url e.g. http://leader.mesos:5050.
+ * @param masterPublicUrl A public facing mesos url (which may be different that the internal facing url) e.g. http://mymesos:5050.
+ * @param role The role used by this framework (see http://mesos.apache.org/documentation/latest/roles/#associating-frameworks-with-roles).
+ * @param failoverTimeoutSeconds Timeout allowed for framework to reconnect after disconnection.
+ * @param mesosLinkLogMessage If true, display a link to mesos in the static log message, otherwise do not include a link to mesos.
+ */
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String] = None,
                        role: String = "*",
