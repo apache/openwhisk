@@ -1,6 +1,7 @@
 whisk_version_name: local
-config_root_dir: /tmp/wskconf
-whisk_logs_dir: /tmp/wsklogs
+openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
+config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
+whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
 docker_registry: ""
 docker_dns: ""
 bypass_pull_for_local_images: true

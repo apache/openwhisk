@@ -62,6 +62,7 @@ $script_common = <<SCRIPT
 
   HOME=/home/vagrant
   OPENWHISK_HOME=${HOME}/openwhisk
+  OPENWHISK_TMP_DIR=${HOME}/.openwhisk/ansible/tmp
   ANSIBLE_HOME=${OPENWHISK_HOME}/ansible
   ANSIBLE_REMOTE_TEMP=${ANSIBLE_HOME}/tmp
   # Add Global environments variables
@@ -69,6 +70,7 @@ $script_common = <<SCRIPT
   echo ANSIBLE_HOME=${ANSIBLE_HOME} >> /etc/environment
   echo ANSIBLE_REMOTE_TEMP=${ANSIBLE_REMOTE_TEMP} >> /etc/environment
   echo OPENWHISK_HOME=${OPENWHISK_HOME} >> /etc/environment
+  echo OPENWHISK_TMP_DIR=${OPENWHISK_TMP_DIR} >> /etc/environment
   echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
 
   cd /home/vagrant/openwhisk
@@ -159,8 +161,8 @@ $script_end = <<SCRIPT
   touch $HOME/.wskprops
   chown -R vagrant:vagrant $HOME
   # This allows user to see how to configure the wsk cli outside the VM
+  wsk property set --apihost ${WHISK_IP} --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   echo "Swagger UI URL: https://${WHISK_IP}/api/v1/docs/index.html?url=/api/v1/api-docs"
-  wsk property set --apihost ${WHISK_IP} --namespace guest --auth `cat ${ANSIBLE_HOME}/files/auth.guest`
   wsk action invoke /whisk.system/utils/echo -p message hello --result
   echo "`date`: build-deploy-end" >> /tmp/vagrant-times.txt
 SCRIPT
