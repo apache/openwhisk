@@ -26,14 +26,13 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
-import whisk.common.{Logging, LoggingMarkers, TransactionId}
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.WhiskConfig._
 import whisk.core.connector._
 import whisk.core.entity._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
 import akka.event.Logging.InfoLevel
-
 import pureconfig._
 
 import scala.annotation.tailrec
@@ -155,12 +154,6 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
           processCompletion(Left(activationId), transid, forced = true, invoker = invokerName)
         }
 
-        transid.mark(
-          this,
-          LoggingMarkers.LOADBALANCER_ACTIVATION_START(namespaceId.asString),
-          s"loadbalancer: activation started for namespace $namespaceId and activation $activationId",
-          logLevel = InfoLevel)
-
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
         ActivationEntry(
           activationId,
@@ -180,11 +173,13 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
                                       invoker: InstanceId): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START(msg.user.uuid.asString))
     val topic = s"invoker${invoker.toInt}"
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'")
+      s"posting topic '$topic' with activation id '${msg.activationId}'",
+      logLevel = InfoLevel)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
