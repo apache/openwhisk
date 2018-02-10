@@ -253,6 +253,13 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
     activations.remove(aid) match {
       case Some(entry) =>
+        if (!forced) {
+          entry.timeoutHandler.cancel()
+          entry.promise.trySuccess(response)
+        } else {
+          entry.promise.tryFailure(new Throwable("no active ack received"))
+        }
+
         totalActivations.decrement()
         activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
         schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
@@ -261,12 +268,6 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         // Active acks that are received here are strictly from user actions - health actions are not part of
         // the load balancer's activation map. Inform the invoker pool supervisor of the user action completion.
         invokerPool ! InvocationFinishedMessage(invoker, isSuccess)
-        if (!forced) {
-          entry.timeoutHandler.cancel()
-          entry.promise.trySuccess(response)
-        } else {
-          entry.promise.tryFailure(new Throwable("no active ack received"))
-        }
       case None if !forced =>
         // the entry has already been removed but we receive an active ack for this activation Id.
         // This happens for health actions, because they don't have an entry in Loadbalancerdata or
@@ -378,11 +379,11 @@ case class ShardingContainerPoolBalancerState(
   logging.info(this, s"blackboxFraction = $blackboxFraction")(TransactionId.loadbalancer)
 
   /** Getters for the variables, setting from the outside is only allowed through the update methods below */
-  def invokers = _invokers
-  def managedInvokers = _managedInvokers
-  def blackboxInvokers = _blackboxInvokers
-  def stepSizes = _stepSizes
-  def invokerSlots = _invokerSlots
+  def invokers: IndexedSeq[InvokerHealth] = _invokers
+  def managedInvokers: IndexedSeq[InvokerHealth] = _managedInvokers
+  def blackboxInvokers: IndexedSeq[InvokerHealth] = _blackboxInvokers
+  def stepSizes: Seq[Int] = _stepSizes
+  def invokerSlots: IndexedSeq[ForcableSemaphore] = _invokerSlots
 
   /**
    * Updates the scheduling state with the new invokers.
