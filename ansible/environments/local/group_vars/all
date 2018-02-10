@@ -1,5 +1,5 @@
 whisk_version_name: local
-openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')| default('/tmp') }}"
+openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
 whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
 docker_registry: ""
