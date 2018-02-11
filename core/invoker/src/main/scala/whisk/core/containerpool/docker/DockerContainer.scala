@@ -18,6 +18,7 @@
 package whisk.core.containerpool.docker
 
 import java.time.Instant
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.ActorSystem
@@ -80,7 +81,7 @@ object DockerContainer {
                                                             as: ActorSystem,
                                                             ec: ExecutionContext,
                                                             log: Logging): Future[DockerContainer] = {
-    implicit val tid = transid
+    implicit val tid: TransactionId = transid
 
     val environmentArgs = environment.flatMap {
       case (key, value) => Seq("-e", s"$key=$value")
@@ -246,18 +247,21 @@ class DockerContainer(protected val id: ContainerId,
         size
       }
       .via(new CompleteAfterOccurrences(_.containsSlice(DockerContainer.ActivationSentinel), 2, waitForSentinel))
+      // As we're reading the logs after the activation has finished the invariant is that all loglines are already
+      // written and we mostly await them being flushed by the docker daemon. Therefore we can timeout based on the time
+      // between two loglines appear without relying on the log frequency in the action itself.
+      .idleTimeout(waitForLogs)
       .recover {
         case _: StreamLimitReachedException =>
           // While the stream has already ended by failing the limitWeighted stage above, we inject a truncation
           // notice downstream, which will be processed as usual. This will be the last element of the stream.
           ByteString(LogLine(Instant.now.toString, "stderr", Messages.truncateLogs(limit)).toJson.compactPrint)
-        case _: OccurrencesNotFoundException | _: FramingException =>
+        case _: OccurrencesNotFoundException | _: FramingException | _: TimeoutException =>
           // Stream has already ended and we insert a notice that data might be missing from the logs. While a
           // FramingException can also mean exceeding the limits, we cannot decide which case happened so we resort
           // to the general error message. This will be the last element of the stream.
           ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
       }
-      .takeWithin(waitForLogs)
   }
 
   /** Delimiter used to split log-lines as written by the json-log-driver. */
@@ -279,9 +283,9 @@ class DockerContainer(protected val id: ContainerId,
  */
 class CompleteAfterOccurrences[T](isInEvent: T => Boolean, neededOccurrences: Int, errorOnNotEnough: Boolean)
     extends GraphStage[FlowShape[T, T]] {
-  val in = Inlet[T]("WaitForOccurances.in")
-  val out = Outlet[T]("WaitForOccurances.out")
-  override val shape = FlowShape.of(in, out)
+  val in: Inlet[T] = Inlet[T]("WaitForOccurrences.in")
+  val out: Outlet[T] = Outlet[T]("WaitForOccurrences.out")
+  override val shape: FlowShape[T, T] = FlowShape.of(in, out)
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) with InHandler with OutHandler {
