@@ -143,11 +143,14 @@ class ContainerPoolBalancerObjectTests extends FlatSpec with Matchers {
     ContainerPoolBalancer.schedule(invs, 16, hash) shouldBe Some(InstanceId(0))
   }
 
-  it should "choose the home invoker if all invokers are overloaded even above the muliplied threshold" in {
-    val invs = IndexedSeq((InstanceId(0), Healthy, 51), (InstanceId(1), Healthy, 50), (InstanceId(2), Healthy, 49))
-    val hash = 0 // home is 0, stepsize is 1
-
-    ContainerPoolBalancer.schedule(invs, 16, hash) shouldBe Some(InstanceId(0))
+  it should "choose the random invoker if all invokers are overloaded even above the muliplied threshold" in {
+    val invs = IndexedSeq((InstanceId(0), Healthy, 33), (InstanceId(1), Healthy, 33), (InstanceId(2), Healthy, 33))
+    val invokerBusyThreshold = 11
+    val hash = 0
+    val bruteResult = (0 to 100) map { _ =>
+      ContainerPoolBalancer.schedule(invs, invokerBusyThreshold, hash).get.toInt
+    }
+    bruteResult should contain allOf (0, 1, 2)
   }
 
   it should "transparently work with partitioned sets of invokers" in {
