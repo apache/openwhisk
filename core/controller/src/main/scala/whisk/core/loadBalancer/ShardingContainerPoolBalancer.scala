@@ -117,6 +117,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   override def activeActivationsFor(namespace: UUID): Future[Int] =
     Future.successful(activationsPerNamespace.get(namespace).map(_.intValue()).getOrElse(0))
   override def totalActiveActivations: Future[Int] = Future.successful(totalActivations.intValue())
+  override def clusterSize: Int = schedulingState.clusterSize
 
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
@@ -364,7 +365,8 @@ case class ShardingContainerPoolBalancerState(
   private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _stepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore])(
+  private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore],
+  private var _clusterSize: Int = 1)(
   lbConfig: ShardingContainerPoolBalancerConfig =
     loadConfigOrThrow[ShardingContainerPoolBalancerConfig](ConfigKeys.loadbalancer))(implicit logging: Logging) {
 
@@ -380,6 +382,7 @@ case class ShardingContainerPoolBalancerState(
   def blackboxInvokers: IndexedSeq[InvokerHealth] = _blackboxInvokers
   def stepSizes: Seq[Int] = _stepSizes
   def invokerSlots: IndexedSeq[ForcableSemaphore] = _invokerSlots
+  def clusterSize: Int = _clusterSize
 
   /**
    * Updates the scheduling state with the new invokers.
@@ -427,8 +430,9 @@ case class ShardingContainerPoolBalancerState(
    */
   def updateCluster(newSize: Int): Unit = {
     val actualSize = newSize max 1 // if a cluster size < 1 is reported, falls back to a size of 1 (alone)
-    val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
-    if (currentInvokerThreshold != newTreshold) {
+    if (_clusterSize != actualSize) {
+      _clusterSize = actualSize
+      val newTreshold = (totalInvokerThreshold / actualSize) max 1 // letting this fall below 1 doesn't make sense
       currentInvokerThreshold = newTreshold
       _invokerSlots = _invokerSlots.map(_ => new ForcableSemaphore(currentInvokerThreshold))
 

@@ -30,10 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * For now, we throttle only at a 1-minute granularity.
  */
-class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPerMinute: Identity => Option[Int])(
-  implicit logging: Logging) {
-
-  logging.debug(this, s"$description: defaultMaxPerMinute = $defaultMaxPerMinute")(TransactionId.controller)
+class RateThrottler(description: String, maxPerMinute: Identity => Int)(implicit logging: Logging) {
 
   /**
    * Maintains map of subject namespace to operations rates.
@@ -50,7 +47,7 @@ class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPe
   def check(user: Identity)(implicit transid: TransactionId): RateLimit = {
     val uuid = user.uuid // this is namespace identifier
     val throttle = rateMap.getOrElseUpdate(uuid, new RateInfo)
-    val limit = overrideMaxPerMinute(user).getOrElse(defaultMaxPerMinute)
+    val limit = maxPerMinute(user)
     val rate = TimedRateLimit(throttle.update(limit), limit)
     logging.debug(this, s"namespace = ${uuid.asString} rate = ${rate.count}, limit = $limit")
     rate
@@ -61,7 +58,7 @@ class RateThrottler(description: String, defaultMaxPerMinute: Int, overrideMaxPe
  * Tracks the activation rate of one subject at minute-granularity.
  */
 private class RateInfo {
-  @volatile var lastMin = getCurrentMinute
+  @volatile var lastMin: Long = getCurrentMinute
   val lastMinCount = new AtomicInteger()
 
   /**
@@ -77,7 +74,7 @@ private class RateInfo {
     lastMinCount.incrementAndGet()
   }
 
-  def roll() = {
+  def roll(): Unit = {
     val curMin = getCurrentMinute
     if (curMin != lastMin) {
       lastMin = curMin
