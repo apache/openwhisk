@@ -96,8 +96,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @param user the user to apply that limit to
    * @return a calculated limit
    */
-  private def calculateLimit(defaultLimit: Int)(user: Identity): Int = {
-    val absoluteLimit = user.limits.concurrentInvocations.getOrElse(config.actionInvokeConcurrentLimit.toInt)
+  private def calculateLimit(defaultLimit: Int, overrideLimit: Identity => Option[Int])(user: Identity): Int = {
+    val absoluteLimit = overrideLimit(user).getOrElse(defaultLimit)
     dilateLimit(absoluteLimit)
   }
 
@@ -111,24 +111,32 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
    * @param user the user to apply that limit to
    * @return a calculated limit
    */
-  private def calculateIndividualLimit(defaultLimit: Int)(user: Identity): Int = {
-    val limit = calculateLimit(defaultLimit)(user)
+  private def calculateIndividualLimit(defaultLimit: Int, overrideLimit: Identity => Option[Int])(
+    user: Identity): Int = {
+    val limit = calculateLimit(defaultLimit, overrideLimit)(user)
     limit / loadBalancer.clusterSize
   }
 
   private val invokeRateThrottler =
-    new RateThrottler("actions per minute", calculateIndividualLimit(config.actionInvokePerMinuteLimit.toInt))
+    new RateThrottler(
+      "actions per minute",
+      calculateIndividualLimit(config.actionInvokePerMinuteLimit.toInt, _.limits.invocationsPerMinute))
   private val triggerRateThrottler =
-    new RateThrottler("triggers per minute", calculateIndividualLimit(config.triggerFirePerMinuteLimit.toInt))
+    new RateThrottler(
+      "triggers per minute",
+      calculateIndividualLimit(config.triggerFirePerMinuteLimit.toInt, _.limits.firesPerMinute))
 
   private val activationThrottleCalculator = loadBalancer match {
     // This loadbalancer applies sharding and does not share any state
-    case _: ShardingContainerPoolBalancer => calculateIndividualLimit(config.triggerFirePerMinuteLimit.toInt) _
+    case _: ShardingContainerPoolBalancer => calculateIndividualLimit _
     // Activation relevant data is shared by all other loadbalancers
-    case _ => calculateLimit(config.triggerFirePerMinuteLimit.toInt) _
+    case _ => calculateLimit _
   }
   private val concurrentInvokeThrottler =
-    new ActivationThrottler(loadBalancer, activationThrottleCalculator, config.actionInvokeSystemOverloadLimit.toInt)
+    new ActivationThrottler(
+      loadBalancer,
+      activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations),
+      config.actionInvokeSystemOverloadLimit.toInt)
 
   /**
    * Grants a subject the right to access a resources.
