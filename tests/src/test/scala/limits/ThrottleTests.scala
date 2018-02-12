@@ -188,15 +188,12 @@ class ThrottleTests
     val numGroups = (totalInvokes / maximumConcurrentInvokes) + 1
     val invokesPerGroup = (totalInvokes / numGroups) + 1
     val interGroupSleep = 5.seconds
-    val results = (1 to numGroups)
-      .map { i =>
-        if (i != 1) { Thread.sleep(interGroupSleep.toMillis) }
-        untilThrottled(invokesPerGroup) { () =>
-          wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
-        }
+    val results = (1 to numGroups).flatMap { i =>
+      if (i != 1) { Thread.sleep(interGroupSleep.toMillis) }
+      untilThrottled(invokesPerGroup) { () =>
+        wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
       }
-      .flatten
-      .toList
+    }.toList
     val afterInvokes = Instant.now
 
     try {
@@ -244,10 +241,12 @@ class ThrottleTests
         action.create(name, timeoutAction)
     }
 
-    // The sleep is necessary as the load balancer currently has a latency before recognizing concurency.
+    // The sleep is necessary as the load balancer currently has a latency before recognizing concurrency.
     val sleep = 15.seconds
-    val slowInvokes = maximumConcurrentInvokes
-    val fastInvokes = 2
+    // Adding a bit of overcommit since some loadbalancers rely on some overcommit. This won't hurt those who don't
+    // since all activations are taken into account to check for throttled invokes below.
+    val slowInvokes = (maximumConcurrentInvokes * 1.2).toInt
+    val fastInvokes = 4
     val fastInvokeDuration = 4.seconds
     val slowInvokeDuration = sleep + fastInvokeDuration
 
