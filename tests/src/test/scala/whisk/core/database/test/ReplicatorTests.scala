@@ -477,6 +477,7 @@ class ReplicatorTests
     compareDatabases(backupDbName, dbName, false)
 
     // Cleanup databases
+    removeReplicationDoc(replicationId)
     removeDatabase(backupDbName)
     removeDatabase(dbName)
   }
