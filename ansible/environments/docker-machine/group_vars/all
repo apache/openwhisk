@@ -3,7 +3,7 @@ config_root_dir: /Users/Shared/wskconf
 whisk_logs_dir: /Users/Shared/wsklogs
 docker_registry: ""
 docker_dns: ""
-bypass_pull_for_local_images: true
+runtimes_bypass_pull_for_local_images: true
 
 env_hosts_dir: "{{ playbook_dir }}/environments/docker-machine"
 
