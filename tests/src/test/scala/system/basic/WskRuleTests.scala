@@ -93,54 +93,56 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val triggerName = withTimestamp("t1to1")
     val actionName = withTimestamp("a1 to 1")
     val triggerName2 = withTimestamp("t2to1")
+    val active = Some("active".toJson)
+    val inactive = Some("inactive".toJson)
 
     ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
-
     assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
       trigger.create(name)
     }
 
     // Ensure status stays active when rule is updated with its current trigger
+    wsk.rule.create(ruleName, triggerName, actionName, update = true)
     wsk.rule
-      .create(ruleName, triggerName, actionName, update = true)
+      .get(ruleName)
       .stdout
       .parseJson
       .asJsObject
       .fields
-      .get("status") shouldBe (Some("active".toJson))
-
-    wsk.rule.disable(ruleName)
+      .get("status") shouldBe (active)
 
     // Ensure status stays inactive when rule is updated with its current trigger
+    wsk.rule.disable(ruleName)
+    wsk.rule.create(ruleName, triggerName, actionName, update = true)
     wsk.rule
-        .create(ruleName, triggerName, actionName, update = true)
-        .stdout
-        .parseJson
-        .asJsObject
-        .fields
-        .get("status") shouldBe (Some("inactive".toJson))
-
-    wsk.rule.enable(ruleName)
-
-    // Ensure status stays active when rule is updated with a new trigger
-    wsk.rule
-      .create(ruleName, triggerName2, actionName, update = true)
+      .get(ruleName)
       .stdout
       .parseJson
       .asJsObject
       .fields
-      .get("status") shouldBe (Some("active".toJson))
+      .get("status") shouldBe (inactive)
 
-    wsk.rule.disable(ruleName)
+    // Ensure status stays active when rule is updated with a new trigger
+    wsk.rule.enable(ruleName)
+    wsk.rule.create(ruleName, triggerName2, actionName, update = true)
+    wsk.rule
+      .get(ruleName)
+      .stdout
+      .parseJson
+      .asJsObject
+      .fields
+      .get("status") shouldBe (active)
 
     // Ensure status stays inactive when rule is updated with a new trigger
+    wsk.rule.disable(ruleName)
+    wsk.rule.create(ruleName, triggerName, actionName, update = true)
     wsk.rule
-        .create(ruleName, triggerName, actionName, update = true)
-        .stdout
-        .parseJson
-        .asJsObject
-        .fields
-        .get("status") shouldBe (Some("inactive".toJson))
+      .get(ruleName)
+      .stdout
+      .parseJson
+      .asJsObject
+      .fields
+      .get("status") shouldBe (inactive)
   }
 
   it should "invoke the action attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(
