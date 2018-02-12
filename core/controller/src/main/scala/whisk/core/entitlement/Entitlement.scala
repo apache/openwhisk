@@ -26,7 +26,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
 import whisk.core.entitlement.Privilege.ACTIVATE
-import whisk.core.entitlement.Privilege._
 import whisk.core.entitlement.Privilege.REJECT
 import whisk.common.Logging
 import whisk.common.TransactionId
@@ -114,7 +113,13 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   private def calculateIndividualLimit(defaultLimit: Int, overrideLimit: Identity => Option[Int])(
     user: Identity): Int = {
     val limit = calculateLimit(defaultLimit, overrideLimit)(user)
-    limit / loadBalancer.clusterSize
+    if (limit == 0) {
+      0
+    } else {
+      // Edge case: Iff the divided limit is < 1 no loadbalancer would allow an action to be executed, thus we range
+      // bound to at least 1
+      (limit / loadBalancer.clusterSize).max(1)
+    }
   }
 
   private val invokeRateThrottler =
@@ -281,7 +286,7 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
     implicit transid: TransactionId): Future[Set[(Resource, Boolean)]] = {
     // check the default namespace first, bypassing additional checks if permitted
     val defaultNamespaces = Set(user.namespace.asString)
-    implicit val es = this
+    implicit val es: EntitlementProvider = this
 
     Future.sequence {
       resources.map { resource =>
