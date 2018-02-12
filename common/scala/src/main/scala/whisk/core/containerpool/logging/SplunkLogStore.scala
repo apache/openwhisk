@@ -19,17 +19,16 @@ package whisk.core.containerpool.logging
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
 import akka.http.scaladsl.client.RequestBuilding.Post
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import akka.stream.OverflowStrategy
 import akka.stream.QueueOfferResult
@@ -38,17 +37,19 @@ import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import pureconfig._
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import spray.json.DefaultJsonProtocol._
-import spray.json.JsArray
 import spray.json._
+import whisk.common.AkkaLogging
+import whisk.core.ConfigKeys
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.WhiskActivation
-import pureconfig._
 
 case class SplunkLogStoreConfig(host: String,
                                 port: Int,
@@ -58,6 +59,10 @@ case class SplunkLogStoreConfig(host: String,
                                 logMessageField: String,
                                 activationIdField: String,
                                 disableSNI: Boolean)
+case class SplunkResponse(results: Vector[JsObject])
+object SplunkResponseJsonProtocol extends DefaultJsonProtocol {
+  implicit val orderFormat = jsonFormat1(SplunkResponse)
+}
 
 /**
  * A Splunk based impl of LogDriverLogStore. Logs are routed to splunk via docker log driver, and retrieved via Splunk REST API
@@ -68,15 +73,17 @@ case class SplunkLogStoreConfig(host: String,
 class SplunkLogStore(
   actorSystem: ActorSystem,
   httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None,
-  splunkConfig: SplunkLogStoreConfig = loadConfigOrThrow[SplunkLogStoreConfig]("whisk.logstore.splunk"))
+  splunkConfig: SplunkLogStoreConfig = loadConfigOrThrow[SplunkLogStoreConfig](ConfigKeys.splunk))
     extends LogDriverLogStore(actorSystem) {
   implicit val as = actorSystem
   implicit val ec = as.dispatcher
   implicit val materializer = ActorMaterializer()
+  private val logging = new AkkaLogging(actorSystem.log)
 
-  private val splunkApi = "/services/search/jobs" //see http://docs.splunk.com/Documentation/Splunk/6.6.3/RESTREF/RESTsearch#search.2Fjobs
+  private val splunkApi = Path / "services" / "search" / "jobs" //see http://docs.splunk.com/Documentation/Splunk/6.6.3/RESTREF/RESTsearch#search.2Fjobs
 
-  val log = actorSystem.log
+  import SplunkResponseJsonProtocol._
+
   val maxPendingRequests = 500
 
   val defaultHttpFlow = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
@@ -106,21 +113,19 @@ class SplunkLogStore(
         "latest_time" -> formatter
           .format(activation.end.plusSeconds(5)))).toEntity //add 5s to avoid a timerange of 0 on short-lived activations
 
-    log.debug("sending request")
+    logging.debug(this, "sending request")
     queueRequest(
-      Post(splunkApi)
+      Post(Uri(path = splunkApi))
         .withEntity(entity)
         .withHeaders(List(Authorization(BasicHttpCredentials(splunkConfig.username, splunkConfig.password)))))
       .flatMap(response => {
-        log.debug(s"splunk API response ${response}")
+        logging.debug(this, s"splunk API response ${response}")
         Unmarshal(response.entity)
-          .to[JsObject]
+          .to[SplunkResponse]
           .map(r => {
             ActivationLogs(
-              r.fields("results")
-                .convertTo[JsArray]
-                .elements
-                .map(_.asJsObject.fields(splunkConfig.logMessageField).convertTo[String]))
+              r.results
+                .map(_.fields(splunkConfig.logMessageField).convertTo[String]))
           })
       })
   }

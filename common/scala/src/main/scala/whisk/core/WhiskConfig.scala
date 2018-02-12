@@ -258,4 +258,7 @@ object ConfigKeys {
 
   val transactions = "whisk.transactions"
   val stride = s"$transactions.stride"
+
+  val logStore = "whisk.logstore"
+  val splunk = s"$logStore.splunk"
 }
