@@ -513,6 +513,12 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     trigger.getFieldJsValue("publish") shouldBe JsBoolean(false)
     trigger.getField("version") shouldBe "0.0.2"
 
+    val expectedRules = JsObject(
+      ns + "/" + ruleName -> JsObject(
+        "action" -> JsObject("name" -> JsString(actionName), "path" -> JsString(ns)),
+        "status" -> JsString("active")))
+    trigger.getFieldJsValue("rules") shouldBe expectedRules
+
     val dynamicParams = Map("t" -> "T".toJson)
     val run = wsk.trigger.fire(triggerName, dynamicParams)
     withActivation(wsk.activation, run) { activation =>
