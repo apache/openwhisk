@@ -55,7 +55,7 @@
     # by patching the server.configuration file right before kafka is started.
     # The script adds the missing advertized hostname to the advertised.listener property
     # Issue: https://github.com/wurstmeister/kafka-docker/issues/221
-      "CUSTOM_INIT_SCRIPT": "sed -i \'/^advertised\\.listeners/ s/\\/\\/\\:/\\/\\/{{ ansible_host }}\\:/\' /opt/kafka/config/server.properties"
+      "CUSTOM_INIT_SCRIPT": sed -i \'/^advertised\\.listeners/ s/\\/\\/\\:/\\/\\/{{ ansible_host }}\\:/\' /opt/kafka/config/server.properties
 
 - name: "join kafka ssl env vars"
   when: kafka.protocol == 'SSL'

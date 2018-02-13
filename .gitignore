@@ -2,6 +2,7 @@
 nginx.conf
 whisk.properties
 default.props
+/tests/src/test/resources/application.conf
 
 .ant-targets-build.xml
 /results/

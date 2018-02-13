@@ -56,20 +56,6 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   System.setProperty("whisk.kafka.replication-factor", replicationFactor.toString)
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
   assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
-  System.setProperty("whisk.kafka.common.security-protocol", WhiskProperties.getProperty("kafka.protocol"))
-  System.setProperty(
-    "whisk.kafka.common.ssl-keystore-location",
-    WhiskProperties.getProperty("kafka.ssl.keystore.location"))
-  System.setProperty(
-    "whisk.kafka.common.ssl-keystore-password",
-    WhiskProperties.getProperty("kafka.ssl.keystore.password"))
-  System.setProperty(
-    "whisk.kafka.common.ssl-truststore-location",
-    WhiskProperties.getProperty("kafka.ssl.keystore.location"))
-  System.setProperty(
-    "whisk.kafka.common.ssl-truststore-password",
-    WhiskProperties.getProperty("kafka.ssl.keystore.password"))
-  System.setProperty("whisk.kafka.consumer.max-poll-interval-ms", maxPollInterval.toMillis.toString)
 
   println(s"Create test topic '${topic}' with replicationFactor=${replicationFactor}")
   assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic ${topic} failed")

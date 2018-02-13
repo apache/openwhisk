@@ -42,13 +42,6 @@ case class KafkaConfig(replicationFactor: Short)
  */
 object KafkaMessagingProvider extends MessagingProvider {
 
-  case class KafkaSslConfig(enabled: String,
-                            authentication: String,
-                            keystorePath: String,
-                            keystorePassword: String,
-                            truststorePath: String,
-                            truststorePassword: String)
-
   def getConsumer(config: WhiskConfig, groupId: String, topic: String, maxPeek: Int, maxPollInterval: FiniteDuration)(
     implicit logging: Logging): MessageConsumer =
     new KafkaConsumerConnector(config.kafkaHosts, groupId, topic, maxPeek)
