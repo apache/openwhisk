@@ -25,20 +25,19 @@ import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.StreamTcpException
+import akka.stream.scaladsl.Flow
+import akka.testkit.TestKit
+import common.StreamLogging
+import java.time.ZonedDateTime
 import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import scala.util.Failure
 import whisk.core.entity.ActivationLogs
-import akka.http.scaladsl.model.StatusCodes
-import akka.stream.scaladsl.Flow
-import akka.testkit.TestKit
-import common.StreamLogging
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import org.scalatest.FlatSpecLike
 import pureconfig.error.ConfigReaderException
 import scala.concurrent.Await
@@ -80,17 +79,17 @@ class SplunkLogStoreTests
 
   behavior of "Splunk LogStore"
 
-  val startTime = "2007-12-03T10:15:30"
-  val endTime = "2007-12-03T10:15:45"
-  val endTimePlus5 = "2007-12-03T10:15:50" //queried end time range is endTime+5
+  val startTime = "2007-12-03T10:15:30Z"
+  val endTime = "2007-12-03T10:15:45Z"
+  val endTimePlus5 = "2007-12-03T10:15:50Z" //queried end time range is endTime+5
 
   val activation = WhiskActivation(
     namespace = EntityPath("ns"),
     name = EntityName("a"),
     Subject(),
     activationId = ActivationId(),
-    start = LocalDateTime.parse(startTime).toInstant(ZoneOffset.UTC),
-    end = LocalDateTime.parse(endTime).toInstant(ZoneOffset.UTC),
+    start = ZonedDateTime.parse(startTime).toInstant,
+    end = ZonedDateTime.parse(endTime).toInstant,
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
     annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson),
     duration = Some(123))
@@ -119,7 +118,7 @@ class SplunkLogStoreTests
               outputMode shouldBe Some("json")
               execMode shouldBe Some("oneshot")
               search shouldBe Some(
-                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logMessageField}""")
+                s"""search index="${testConfig.index}"| spath ${testConfig.activationIdField}| search ${testConfig.activationIdField}=${activation.activationId.toString}| table ${testConfig.logMessageField}| reverse""")
 
               (
                 Success(

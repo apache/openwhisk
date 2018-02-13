@@ -37,8 +37,6 @@ import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import pureconfig._
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -100,18 +98,19 @@ class SplunkLogStore(
     //    curl -u  username:password -k https://splunkhost:port/services/search/jobs -d exec_mode=oneshot -d output_mode=json -d "search=search index=\"someindex\" | spath=activation_id | search activation_id=a930e5ae4ad4455c8f2505d665aad282 |  table log_message" -d "earliest_time=2017-08-29T12:00:00" -d "latest_time=2017-10-29T12:00:00"
     //example response:
     //    {"preview":false,"init_offset":0,"messages":[],"fields":[{"name":"log_message"}],"results":[{"log_message":"some log message"}], "highlighted":{}}
+    //note: splunk returns results in reverse-chronological order, therefore we include "| reverse" to cause results to arrive in chronological order
     val search =
-      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logMessageField}"""
+      s"""search index="${splunkConfig.index}"| spath ${splunkConfig.activationIdField}| search ${splunkConfig.activationIdField}=${activation.activationId.toString}| table ${splunkConfig.logMessageField}| reverse"""
 
-    val formatter = DateTimeFormatter.ofPattern("YYYY-MM-dd'T'hh:mm:ss").withZone(ZoneId.of("UTC"))
     val entity = FormData(
       Map(
         "exec_mode" -> "oneshot",
         "search" -> search,
         "output_mode" -> "json",
-        "earliest_time" -> formatter.format(activation.start),
-        "latest_time" -> formatter
-          .format(activation.end.plusSeconds(5)))).toEntity //add 5s to avoid a timerange of 0 on short-lived activations
+        "earliest_time" -> activation.start.toString, //assume that activation start/end are UTC zone, and splunk events are the same
+        "latest_time" -> activation.end
+          .plusSeconds(5) //add 5s to avoid a timerange of 0 on short-lived activations
+          .toString)).toEntity
 
     logging.debug(this, "sending request")
     queueRequest(
