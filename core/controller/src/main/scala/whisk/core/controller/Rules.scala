@@ -88,7 +88,16 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             putEntity(WhiskRule, entityStore, entityName.toDocId, overwrite, update(request) _, () => {
               create(request, entityName)
             }, postProcess = Some { rule: WhiskRule =>
-              completeAsRuleResponse(rule, Status.ACTIVE)
+              val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
+                getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
+              } map { status =>
+                rule.withStatus(status)
+              }
+
+              onComplete(getRuleWithStatus) {
+                case Success(r) => completeAsRuleResponse(rule, r.status)
+                case Failure(t) => terminate(InternalServerError)
+              }
             })
           case Failure(f) =>
             handleEntitlementFailure(f)

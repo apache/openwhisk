@@ -106,7 +106,13 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     statusPermutations.foreach {
       case (trigger, status) =>
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-        wsk.rule.create(ruleName, trigger, actionName, update = true)
+        wsk.rule
+          .create(ruleName, trigger, actionName, update = true)
+          .stdout
+          .parseJson
+          .asJsObject
+          .fields
+          .get("status") shouldBe (status)
         wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe (status)
     }
   }
