@@ -17,36 +17,32 @@
 
 package whisk.core.cli.test
 
-import akka.http.scaladsl.model.StatusCodes.NotFound
-import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.model.StatusCodes.Conflict
+import java.time._
 
-import java.time.Instant
-import java.time.Clock
-
-import scala.language.postfixOps
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.util.Random
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+import akka.http.scaladsl.model.StatusCodes._
+import common.TestUtils._
 import common.TestHelpers
 import common.TestUtils
-import common.TestUtils._
 import common.WhiskProperties
 import common.WskProps
 import common.WskTestHelpers
 import common.rest.WskRest
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import whisk.core.entity._
+import whisk.core.cli.test.JsonArgsForTests._
 import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
+import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
-import JsonArgsForTests._
 import whisk.http.Messages
+import whisk.utils.retry
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.util.Random
 
 /**
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
@@ -428,7 +424,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "ensure --web flags set the proper annotations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "webaction"
+    val name = "webaction1"
     val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
@@ -441,18 +437,27 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
       wsk.action.create(name, file, web = Some(flag.toLowerCase), update = true)
 
-      val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations") shouldBe JsArray(
-        JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
-        JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
-        JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
-        JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
+      // If the get is faster then the cache invalidation, the controller could return an old version from the cache.
+      // To avoid this, we add a retry.
+      retry(
+        {
+          val action = wsk.action.get(name)
+          withClue(s"Flags for $flag are not set correctly:") {
+            action.getFieldJsValue("annotations") shouldBe JsArray(
+              JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
+              JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
+              JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),
+              JsObject("key" -> JsString("final"), "value" -> JsBoolean(webEnabled || rawEnabled)))
+          }
+        },
+        3,
+        Some(1.second))
     }
   }
 
   it should "ensure action update with --web flag only copies existing annotations when new annotations are not provided" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
-    val name = "webaction"
+    val name = "webaction2"
     val file = Some(TestUtils.getTestActionFilename("echo.js"))
     val createKey = "createKey"
     val createValue = JsString("createValue")
@@ -493,7 +498,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
   it should "ensure action update creates an action with --web flag" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "webaction"
+      val name = "webaction3"
       val file = Some(TestUtils.getTestActionFilename("echo.js"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
