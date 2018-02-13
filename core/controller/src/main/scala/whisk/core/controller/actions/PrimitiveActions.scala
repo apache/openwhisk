@@ -240,7 +240,7 @@ protected[actions] trait PrimitiveActions {
                              action: ExecutableWhiskActionMetaData,
                              cause: Option[ActivationId],
                              var duration: Long,
-                             var maxMemory: Int,
+                             var maxMemory: ByteSize,
                              var state: Option[JsObject],
                              accounting: CompositionAccounting,
                              logs: Buffer[ActivationId])
@@ -277,7 +277,7 @@ protected[actions] trait PrimitiveActions {
       action,
       cause,
       duration = 0,
-      maxMemory = action.limits.memory.megabytes,
+      maxMemory = action.limits.memory.megabytes MB,
       state = None,
       accounting = accounting.getOrElse(CompositionAccounting()), // share accounting with caller
       logs = Buffer.empty)
@@ -477,11 +477,12 @@ protected[actions] trait PrimitiveActions {
         case Right(activation) => // successful invocation
           session.logs += activation.activationId
           // activation.duration should be defined but this is not reflected by the type so be defensive
+          // end - start is a sensible default but not the correct value for sequences and compositions
           session.duration += activation.duration.getOrElse(activation.end.toEpochMilli - activation.start.toEpochMilli)
           activation.annotations.get("limits").foreach { limitsAnnotation =>
             limitsAnnotation.asJsObject.getFields("memory") match {
               case Seq(JsNumber(memory)) =>
-                session.maxMemory = Math.max(session.maxMemory, memory.toInt)
+                session.maxMemory = Math.max(session.maxMemory.toMB.toInt, memory.toInt) MB
             }
           }
           Right(activation)
@@ -501,7 +502,7 @@ protected[actions] trait PrimitiveActions {
     // compute max memory
     val sequenceLimits = Parameters(
       WhiskActivation.limitsAnnotation,
-      ActionLimits(session.action.limits.timeout, MemoryLimit(session.maxMemory MB), session.action.limits.logs).toJson)
+      ActionLimits(session.action.limits.timeout, MemoryLimit(session.maxMemory), session.action.limits.logs).toJson)
 
     // set causedBy if not topmost
     val causedBy = session.cause.map { _ =>
