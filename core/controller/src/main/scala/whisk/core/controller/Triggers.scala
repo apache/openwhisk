@@ -42,6 +42,7 @@ import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.types.{ActivationStore, EntityStore}
 import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -129,7 +130,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
           if (activeRules.nonEmpty) {
             val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject())
 
-            activateRules(user, args, activeRules)
+            activateRules(user, args, trigger.rules.getOrElse(Map.empty))
               .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
               .recover {
                 case e =>
@@ -300,12 +301,12 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     implicit transid: TransactionId): Future[Iterable[RuleActivationResult]] = {
     val ruleResults = rulesToActivate.map {
       case (ruleName, rule) if (rule.status != Status.ACTIVE) =>
-        Future {
-          ruleResult(
+        Future.successful {
+          RuleActivationResult(
             ActivationResponse.ApplicationError,
             ruleName,
             rule.action,
-            errorMsg = Some(s"Rule ${ruleName.asString} is inactive; action ${rule.action.asString} was not activated"))
+            Left(Messages.triggerWithInactiveRule(ruleName.asString, rule.action.asString)))
         }
       case (ruleName, rule) =>
         // Invoke the action. Retain action results for inclusion in the trigger activation record
