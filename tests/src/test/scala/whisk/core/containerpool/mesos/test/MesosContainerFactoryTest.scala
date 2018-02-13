@@ -49,6 +49,7 @@ import scala.concurrent.duration._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
+import whisk.core.containerpool.ContainerArgsConfig
 import whisk.core.containerpool.logging.DockerToActivationLogStore
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
@@ -72,6 +73,8 @@ class MesosContainerFactoryTest
   //TODO: adjust this once the invokerCoreShare issue is fixed see #3110
   def cpus() = wskConfig.invokerCoreShare.toInt / 1024.0 //
 
+  val containerArgsConfig = new ContainerArgsConfig("net1", Seq("dns1", "dns2"))
+
   override def beforeEach() = {
     stream.reset()
   }
@@ -88,6 +91,7 @@ class MesosContainerFactoryTest
       system,
       logging,
       Map("--arg1" -> Set("v1", "v2")),
+      containerArgsConfig,
       mesosConfig,
       (system, mesosConfig) => testActor)
 
@@ -99,12 +103,14 @@ class MesosContainerFactoryTest
     master-url: "http://master:5050"
     """
     val mesosConfig = loadConfigOrThrow[MesosConfig](ConfigFactory.parseString(config))
+
     val factory =
       new MesosContainerFactory(
         wskConfig,
         system,
         logging,
         Map("--arg1" -> Set("v1")),
+        containerArgsConfig,
         mesosConfig,
         (_, _) => testActor,
         testTaskId)
@@ -141,6 +147,7 @@ class MesosContainerFactoryTest
         system,
         logging,
         Map("--arg1" -> Set("v1")),
+        containerArgsConfig,
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
         testTaskId)
@@ -208,6 +215,7 @@ class MesosContainerFactoryTest
         system,
         logging,
         Map("--arg1" -> Set("v1")),
+        containerArgsConfig,
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
         testTaskId)

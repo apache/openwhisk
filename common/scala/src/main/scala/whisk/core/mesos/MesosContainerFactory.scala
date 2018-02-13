@@ -40,6 +40,7 @@ import whisk.common.TransactionId
 import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.containerpool.Container
+import whisk.core.containerpool.ContainerArgsConfig
 import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
@@ -65,6 +66,8 @@ class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
                             logging: Logging,
                             parameters: Map[String, Set[String]],
+                            containerArgs: ContainerArgsConfig =
+                              loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
                             mesosConfig: MesosConfig = loadConfigOrThrow[MesosConfig](ConfigKeys.mesos),
                             clientFactory: (ActorSystem, MesosConfig) => ActorRef = MesosContainerFactory.createClient,
                             taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator)
@@ -131,8 +134,8 @@ class MesosContainerFactory(config: WhiskConfig,
       memory = memory,
       cpuShares = config.invokerCoreShare.toInt,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
-      network = config.invokerContainerNetwork,
-      dnsServers = config.invokerContainerDns,
+      network = containerArgs.network,
+      dnsServers = containerArgs.dnsServers,
       name = Some(name),
       parameters)
   }
