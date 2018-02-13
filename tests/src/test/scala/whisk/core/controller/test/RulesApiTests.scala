@@ -563,7 +563,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -594,7 +594,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -625,7 +625,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -656,7 +656,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -684,7 +684,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
