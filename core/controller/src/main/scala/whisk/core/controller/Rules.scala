@@ -85,20 +85,31 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
         val request = content.resolve(entityName.namespace)
         onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
           case Success(_) =>
-            putEntity(WhiskRule, entityStore, entityName.toDocId, overwrite, update(request) _, () => {
-              create(request, entityName)
-            }, postProcess = Some { rule: WhiskRule =>
-              val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
-                getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
-              } map { status =>
-                rule.withStatus(status)
-              }
+            putEntity(
+              WhiskRule,
+              entityStore,
+              entityName.toDocId,
+              overwrite,
+              update(request) _,
+              () => {
+                create(request, entityName)
+              },
+              postProcess = Some { rule: WhiskRule =>
+                if (overwrite == true) {
+                  val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
+                    getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
+                  } map { status =>
+                    rule.withStatus(status)
+                  }
 
-              onComplete(getRuleWithStatus) {
-                case Success(r) => completeAsRuleResponse(rule, r.status)
-                case Failure(t) => terminate(InternalServerError)
-              }
-            })
+                  onComplete(getRuleWithStatus) {
+                    case Success(r) => completeAsRuleResponse(rule, r.status)
+                    case Failure(t) => terminate(InternalServerError)
+                  }
+                } else {
+                  completeAsRuleResponse(rule, Status.ACTIVE)
+                }
+              })
           case Failure(f) =>
             handleEntitlementFailure(f)
         }
