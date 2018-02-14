@@ -20,7 +20,7 @@ TERM=dumb ./gradlew checkScalafmtAll
 
 # lint tests to all be actually runnable
 MISSING_TESTS=$(grep -rL "RunWith" --include="*Tests.scala" tests)
-if [ -z "$MISSING_TESTS" ]
+if [ -n "$MISSING_TESTS" ]
 then
   echo "The following tests are missing the 'RunWith' annotation"
   echo $MISSING_TESTS
