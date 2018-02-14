@@ -276,7 +276,7 @@ protected[actions] object ActivationFinisher {
       logging.debug(this, "finisher shutdown")
       preemptiveMsgs.foreach(_.cancel())
       preemptiveMsgs = Vector.empty
-      Option(context).foreach(_.stop(poller))
+      context.stop(poller)
     }
   }
 
