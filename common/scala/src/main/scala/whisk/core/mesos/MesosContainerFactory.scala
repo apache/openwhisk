@@ -31,8 +31,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 import whisk.common.Counter
 import whisk.common.Logging
@@ -73,7 +71,7 @@ class MesosContainerFactory(config: WhiskConfig,
                             taskIdGenerator: () => String = MesosContainerFactory.taskIdGenerator)
     extends ContainerFactory {
 
-  val subscribeTimeout = 30.seconds
+  val subscribeTimeout = 10.seconds
   val teardownTimeout = 30.seconds
 
   //init mesos framework:
@@ -90,18 +88,17 @@ class MesosContainerFactory(config: WhiskConfig,
   subscribe()
 
   /** Subscribe mesos actor to mesos event stream; retry on timeout (which should be unusual) */
-  private def subscribe(): Unit = {
+  private def subscribe(): Future[Unit] = {
     logging.info(this, s"subscribing to mesos master at ${mesosMaster}")
     mesosClientActor
       .ask(Subscribe)(subscribeTimeout)
       .mapTo[SubscribeComplete]
-      .onComplete({
-        case Success(complete) =>
-          logging.info(this, s"subscribe completed successfully...${complete}")
-        case Failure(e) =>
+      .map(complete => logging.info(this, s"subscribe completed successfully...${complete}"))
+      .recoverWith {
+        case e =>
           logging.error(this, s"subscribe failed...${e}")
           subscribe()
-      })
+      }
   }
 
   override def createContainer(tid: TransactionId,
