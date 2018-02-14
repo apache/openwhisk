@@ -85,8 +85,14 @@ task createKeystore(dependsOn: deleteKeystore) {
     doLast {
         Properties props = new Properties()
         props.load(new FileInputStream(file('../whisk.properties')))
+        keystorePath.parentFile.mkdirs()
         def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
         cmd.execute().waitForProcessOutput(System.out, System.err)
     }
 }
-compileTestScala.finalizedBy createKeystore
+
+afterEvaluate {
+    tasks.withType(Test) {
+        dependsOn createKeystore
+    }
+}
