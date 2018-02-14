@@ -23,7 +23,9 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import common.{StreamLogging, WskActorSystem}
+import org.junit.runner.RunWith
 import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -34,6 +36,7 @@ import whisk.core.entity._
  * Includes the tests for the DockerToActivationLogStore since the behavior towards the activation storage should
  * remain exactly the same.
  */
+@RunWith(classOf[JUnitRunner])
 class DockerToActivationFileLogStoreTests
     extends DockerToActivationLogStoreTests
     with Matchers

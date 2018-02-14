@@ -33,9 +33,11 @@ import akka.stream.scaladsl.Flow
 import akka.testkit.TestKit
 import common.StreamLogging
 import java.time.ZonedDateTime
+import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.junit.JUnitRunner
 import scala.util.Failure
 import whisk.core.entity.ActivationLogs
 import org.scalatest.FlatSpecLike
@@ -61,6 +63,7 @@ import whisk.core.entity.TimeLimit
 import whisk.core.entity.WhiskActivation
 import whisk.core.entity.size._
 
+@RunWith(classOf[JUnitRunner])
 class SplunkLogStoreTests
     extends TestKit(ActorSystem("SplunkLogStore"))
     with FlatSpecLike
