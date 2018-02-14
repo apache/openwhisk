@@ -19,10 +19,13 @@ package whisk.core.containerpool.logging
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
+import org.junit.runner.RunWith
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
+import org.scalatest.junit.JUnitRunner
 import whisk.core.containerpool.ContainerArgsConfig
 
+@RunWith(classOf[JUnitRunner])
 class LogDriverLogStoreTests extends TestKit(ActorSystem("LogDriverLogStore")) with FlatSpecLike with Matchers {
 
   val testConfig = ContainerArgsConfig(
