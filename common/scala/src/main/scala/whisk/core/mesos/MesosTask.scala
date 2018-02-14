@@ -25,9 +25,11 @@ import akka.util.ByteString
 import akka.util.Timeout
 import com.adobe.api.platform.runtime.mesos.Bridge
 import com.adobe.api.platform.runtime.mesos.DeleteTask
+import com.adobe.api.platform.runtime.mesos.Host
 import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.TaskDef
+import com.adobe.api.platform.runtime.mesos.User
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.apache.mesos.v1.Protos.TaskState
@@ -82,9 +84,15 @@ object MesosTask {
     val mesosCpuShares = cpuShares / 1024.0 //convert openwhisk (docker based) shares to mesos (cpu percentage)
     val mesosRam = memory.toMB.toInt
 
-    //TODO: update mesos-actor to support multiple param values for the same key via Map[String, Set[String]]
-    val flatParams = parameters.filter(_._2.nonEmpty).map(e => (e._1 -> e._2.head))
     val taskId = taskIdGenerator()
+    val lowerNetwork = network.toLowerCase //match bridge+host without case, but retain case for user specified network
+    val taskNetwork = lowerNetwork match {
+      case "bridge" => Bridge
+      case "host"   => Host
+      case _        => User(network)
+    }
+    val dnsOrEmpty = if (dnsServers.nonEmpty) Map("dns" -> dnsServers.toSet) else Map()
+
     val task = new TaskDef(
       taskId,
       name.getOrElse(image), //task name either the indicated name, or else the image name
@@ -94,8 +102,8 @@ object MesosTask {
       List(8080), //all action containers listen on 8080
       Some(0), //port at index 0 used for health
       false,
-      Bridge,
-      flatParams,
+      taskNetwork,
+      dnsOrEmpty ++ parameters,
       environment)
 
     val launched: Future[Running] =

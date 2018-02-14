@@ -29,6 +29,7 @@ import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
 import com.adobe.api.platform.runtime.mesos.TaskDef
+import com.adobe.api.platform.runtime.mesos.User
 import com.typesafe.config.ConfigFactory
 import common.StreamLogging
 import org.apache.mesos.v1.Protos.AgentID
@@ -68,12 +69,19 @@ class MesosContainerFactoryTest
 
   implicit val wskConfig =
     new WhiskConfig(Map(invokerCoreShare -> "2", dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
-  def testTaskId() = "testTaskId"
+  var count = 0
+  var lastTaskId: String = null
+  def testTaskId() = {
+    count += 1
+    lastTaskId = "testTaskId" + count
+    lastTaskId
+  }
 
   //TODO: adjust this once the invokerCoreShare issue is fixed see #3110
   def cpus() = wskConfig.invokerCoreShare.toInt / 1024.0 //
 
-  val containerArgsConfig = new ContainerArgsConfig("net1", Seq("dns1", "dns2"))
+  val containerArgsConfig =
+    new ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
 
   override def beforeEach() = {
     stream.reset()
@@ -109,7 +117,7 @@ class MesosContainerFactoryTest
         wskConfig,
         system,
         logging,
-        Map("--arg1" -> Set("v1")),
+        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
         containerArgsConfig,
         mesosConfig,
         (_, _) => testActor,
@@ -119,19 +127,24 @@ class MesosContainerFactoryTest
     factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
 
     expectMsg(
-      SubmitTask(
-        TaskDef(
-          testTaskId,
-          "mesosContainer",
-          "fakeImage:latest",
-          cpus,
-          1,
-          List(8080),
-          Some(0),
-          false,
-          Bridge,
-          Map("--arg1" -> "v1"),
-          Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+      SubmitTask(TaskDef(
+        lastTaskId,
+        "mesosContainer",
+        "fakeImage:latest",
+        cpus,
+        1,
+        List(8080),
+        Some(0),
+        false,
+        User("net1"),
+        Map(
+          "arg1" -> Set("v1", "v2"),
+          "arg2" -> Set("v3", "v4"),
+          "other" -> Set("v5", "v6"),
+          "dns" -> Set("dns1", "dns2"),
+          "extra1" -> Set("e1", "e2"),
+          "extra2" -> Set("e3", "e4")),
+        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
   }
 
   it should "send DeleteTask on destroy" in {
@@ -146,7 +159,7 @@ class MesosContainerFactoryTest
         wskConfig,
         system,
         logging,
-        Map("--arg1" -> Set("v1")),
+        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
         containerArgsConfig,
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
@@ -158,24 +171,28 @@ class MesosContainerFactoryTest
 
     //create the container
     val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
-
     probe.expectMsg(
-      SubmitTask(
-        TaskDef(
-          testTaskId,
-          "mesosContainer",
-          "fakeImage:latest",
-          cpus,
-          1,
-          List(8080),
-          Some(0),
-          false,
-          Bridge,
-          Map("--arg1" -> "v1"),
-          Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+      SubmitTask(TaskDef(
+        lastTaskId,
+        "mesosContainer",
+        "fakeImage:latest",
+        cpus,
+        1,
+        List(8080),
+        Some(0),
+        false,
+        User("net1"),
+        Map(
+          "arg1" -> Set("v1", "v2"),
+          "arg2" -> Set("v3", "v4"),
+          "other" -> Set("v5", "v6"),
+          "dns" -> Set("dns1", "dns2"),
+          "extra1" -> Set("e1", "e2"),
+          "extra2" -> Set("e3", "e4")),
+        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
 
     //emulate successful task launch
-    val taskId = TaskID.newBuilder().setValue(testTaskId)
+    val taskId = TaskID.newBuilder().setValue(lastTaskId)
 
     probe.reply(
       Running(
@@ -194,7 +211,7 @@ class MesosContainerFactoryTest
     //destroy the container
     implicit val tid = TransactionId(0)
     val deleted = container.destroy()
-    probe.expectMsg(DeleteTask(testTaskId))
+    probe.expectMsg(DeleteTask(lastTaskId))
 
     probe.reply(TaskStatus.newBuilder().setTaskId(taskId).setState(TaskState.TASK_KILLED).build())
 
@@ -214,8 +231,8 @@ class MesosContainerFactoryTest
         wskConfig,
         system,
         logging,
-        Map("--arg1" -> Set("v1")),
-        containerArgsConfig,
+        Map("--arg1" -> Set("v1", "v2"), "--arg2" -> Set("v3", "v4"), "other" -> Set("v5", "v6")),
+        new ContainerArgsConfig("bridge", Seq(), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4"))),
         mesosConfig,
         (system, mesosConfig) => probe.testActor,
         testTaskId)
@@ -227,26 +244,27 @@ class MesosContainerFactoryTest
     //create the container
     val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
 
-    //capture the static id for matching
-    val id = testTaskId()
-
     probe.expectMsg(
-      SubmitTask(
-        TaskDef(
-          `id`,
-          "mesosContainer",
-          "fakeImage:latest",
-          cpus,
-          1,
-          List(8080),
-          Some(0),
-          false,
-          Bridge,
-          Map("--arg1" -> "v1"),
-          Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+      SubmitTask(TaskDef(
+        lastTaskId,
+        "mesosContainer",
+        "fakeImage:latest",
+        cpus,
+        1,
+        List(8080),
+        Some(0),
+        false,
+        Bridge,
+        Map(
+          "arg1" -> Set("v1", "v2"),
+          "arg2" -> Set("v3", "v4"),
+          "other" -> Set("v5", "v6"),
+          "extra1" -> Set("e1", "e2"),
+          "extra2" -> Set("e3", "e4")),
+        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
 
     //emulate successful task launch
-    val taskId = TaskID.newBuilder().setValue(id)
+    val taskId = TaskID.newBuilder().setValue(lastTaskId)
 
     probe.reply(
       Running(

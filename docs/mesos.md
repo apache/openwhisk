@@ -18,7 +18,7 @@ To enable MesosContainerFactory, use the following TypeSafe Config properties
 To set these properties for your invoker, set the corresponding environment variables e.g.
 ```properties
 CONFIG_whisk_spi_ContainerFactoryProvider=whisk.core.mesos.MesosContainerFactoryProvider
-CONFIG_Dwhisk_mesos_masterUrl=http://192.168.99.100:5050
+CONFIG_whisk_mesos_masterUrl=http://192.168.99.100:5050
 ```
 
 ## Known Issues

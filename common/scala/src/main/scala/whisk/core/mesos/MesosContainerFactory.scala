@@ -137,7 +137,10 @@ class MesosContainerFactory(config: WhiskConfig,
       network = containerArgs.network,
       dnsServers = containerArgs.dnsServers,
       name = Some(name),
-      parameters)
+      //strip any "--" prefixes on parameters (should make this consistent everywhere else)
+      parameters
+        .map({ case (k, v) => if (k.startsWith("--")) (k.replaceFirst("--", ""), v) else (k, v) })
+        ++ containerArgs.extraArgs)
   }
 
   override def init(): Unit = Unit
