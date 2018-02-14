@@ -53,6 +53,9 @@ case object UnHealthy extends InvokerState { val asString = "unhealthy" }
 case class ActivationRequest(msg: ActivationMessage, invoker: InstanceId)
 case class InvocationFinishedMessage(invokerInstance: InstanceId, successful: Boolean)
 
+// Sent to a monitor if the state changed
+case class CurrentInvokerPoolState(newState: IndexedSeq[InvokerHealth])
+
 // Data stored in the Invoker
 final case class InvokerInfo(buffer: RingBuffer[Boolean])
 
@@ -69,7 +72,8 @@ final case class InvokerInfo(buffer: RingBuffer[Boolean])
  */
 class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
                   sendActivationToInvoker: (ActivationMessage, InstanceId) => Future[RecordMetadata],
-                  pingConsumer: MessageConsumer)
+                  pingConsumer: MessageConsumer,
+                  monitor: Option[ActorRef])
     extends Actor {
 
   implicit val transid = TransactionId.invokerHealth
@@ -113,6 +117,7 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   }
 
   def logStatus() = {
+    monitor.foreach(_ ! CurrentInvokerPoolState(status))
     val pretty = status.map(i => s"${i.id.toInt} -> ${i.status}")
     logging.info(this, s"invoker status changed to ${pretty.mkString(", ")}")
   }
@@ -208,8 +213,9 @@ object InvokerPool {
 
   def props(f: (ActorRefFactory, InstanceId) => ActorRef,
             p: (ActivationMessage, InstanceId) => Future[RecordMetadata],
-            pc: MessageConsumer) = {
-    Props(new InvokerPool(f, p, pc))
+            pc: MessageConsumer,
+            m: Option[ActorRef] = None) = {
+    Props(new InvokerPool(f, p, pc, m))
   }
 
   /** A stub identity for invoking the test action. This does not need to be a valid identity. */
