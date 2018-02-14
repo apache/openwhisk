@@ -22,9 +22,11 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.config.ConfigFactory
+import org.junit.runner.RunWith
 import org.scalatest._
 import whisk.core.loadBalancer._
 import org.scalatest.FlatSpecLike
+import org.scalatest.junit.JUnitRunner
 
 import scala.concurrent.duration._
 
@@ -39,6 +41,7 @@ object TestKitConfig {
     """
 }
 
+@RunWith(classOf[JUnitRunner])
 class SharedDataServiceTests()
     extends TestKit(ActorSystem("ControllerCluster", ConfigFactory.parseString(TestKitConfig.config)))
     with ImplicitSender

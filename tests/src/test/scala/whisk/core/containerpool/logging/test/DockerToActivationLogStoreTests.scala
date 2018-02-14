@@ -28,6 +28,8 @@ import java.time.Instant
 
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import spray.json._
 import whisk.common.{Logging, TransactionId}
 import whisk.core.containerpool.{Container, ContainerAddress, ContainerId}
