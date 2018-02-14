@@ -132,14 +132,14 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
 
     // it should "get trigger by name in explicit namespace owned by subject" in
     Get(s"/$namespace/${collection.path}/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
 
     // it should "reject get trigger by name in explicit namespace not owned by subject" in
@@ -170,7 +170,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Delete(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
   }
 
