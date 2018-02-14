@@ -808,7 +808,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
           JsObject(
             "statusCode" -> JsNumber(1),
             "success" -> JsBoolean(false),
-            "error" -> JsString(s"Rule ${ns}/$ruleName2 is inactive; action ${ns}/$actionName2 was not activated"),
+            "error" -> JsString(s"Rule ${ns}/$ruleName2 is inactive; action ${ns}/$actionName2 was not activated."),
             "rule" -> JsString(ns + "/" + ruleName2),
             "action" -> JsString(ns + "/" + actionName2)))
         logs shouldBe expectedLogs
