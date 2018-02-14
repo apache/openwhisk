@@ -85,29 +85,22 @@ class MesosContainerFactory(config: WhiskConfig,
   //public mesos url where developers can browse logs (till there is way to delegate log retrieval to an external system)
   val mesosMasterPublic = mesosConfig.masterPublicUrl
 
-  var isSubscribed = false;
-
   val mesosClientActor = clientFactory(as, mesosConfig)
 
-  //periodically retry if subscribing did not suceed
-  as.scheduler.schedule(0.seconds, (subscribeTimeout.toSeconds + 10).seconds) {
-    if (!isSubscribed) {
-      subscribe()
-    }
-  }
+  subscribe()
 
+  /** Subscribe mesos actor to mesos event stream; retry on timeout (which should be unusual) */
   private def subscribe(): Unit = {
     logging.info(this, s"subscribing to mesos master at ${mesosMaster}")
-    //subscribe mesos actor to mesos event stream
-    //TODO: subscribe failure should make invoker "unhealthy"
     mesosClientActor
       .ask(Subscribe)(subscribeTimeout)
       .mapTo[SubscribeComplete]
       .onComplete({
         case Success(complete) =>
-          isSubscribed = true
           logging.info(this, s"subscribe completed successfully...${complete}")
-        case Failure(e) => logging.error(this, s"subscribe failed...${e}")
+        case Failure(e) =>
+          logging.error(this, s"subscribe failed...${e}")
+          subscribe()
       })
   }
 

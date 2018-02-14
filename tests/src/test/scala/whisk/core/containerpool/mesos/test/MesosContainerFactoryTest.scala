@@ -167,7 +167,7 @@ class MesosContainerFactoryTest
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
-    probe.reply(SubscribeComplete)
+    probe.reply(new SubscribeComplete)
 
     //create the container
     val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
@@ -239,7 +239,7 @@ class MesosContainerFactoryTest
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
-    probe.reply(SubscribeComplete)
+    probe.reply(new SubscribeComplete)
 
     //create the container
     val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)

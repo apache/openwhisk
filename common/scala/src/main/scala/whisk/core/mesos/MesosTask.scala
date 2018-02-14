@@ -30,8 +30,7 @@ import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.TaskDef
 import com.adobe.api.platform.runtime.mesos.User
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.time.Instant
 import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
 import scala.concurrent.ExecutionContext
@@ -44,6 +43,7 @@ import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.ContainerId
+import whisk.core.containerpool.logging.LogLine
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 
@@ -166,19 +166,14 @@ class MesosTask(override protected val id: ContainerId,
   /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
   /** For Mesos, this log message is static per container, just indicating that mesos logs can be found via the mesos UI. */
   /** To disable this message, and just store an static log message per activation, set whisk.mesos.mesosLinkLogMessage=false */
-  val linkedLogMsg =
+  private val linkedLogMsg =
     s"Logs are not collected from Mesos containers currently. " +
       s"You can browse the logs for Mesos Task ID ${taskId} using the mesos UI at ${mesosConfig.masterPublicUrl
         .getOrElse(mesosConfig.masterUrl)}"
-  val noLinkLogMsg = "Log collection is not configured correctly, check with your service administrator."
-  val logMsg = if (mesosConfig.mesosLinkLogMessage) linkedLogMsg else noLinkLogMsg
-  val tsFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS'Z'")
+  private val noLinkLogMsg = "Log collection is not configured correctly, check with your service administrator."
+  private val logMsg = if (mesosConfig.mesosLinkLogMessage) linkedLogMsg else noLinkLogMsg
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
-    Source
-      .fromIterator(() =>
-        Iterator(ByteString.fromString(s"""{\"log\":\"${logMsg}\",\"stream\":\"stdout\",\"time\":\"${LocalDateTime
-          .now()
-          .format(tsFormat)}\"}""")))
+    Source.single(ByteString(LogLine(logMsg, "stdout", Instant.now.toString).toJson.compactPrint))
 
 }
