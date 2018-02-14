@@ -78,7 +78,7 @@ abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntit
 
   /** @return true iff action has appropriate annotation. */
   def hasFinalParamsAnnotation = {
-    annotations.asBool(WhiskAction.finalParamsAnnotationName) getOrElse false
+    annotations.getAs[Boolean](WhiskAction.finalParamsAnnotationName) getOrElse false
   }
 
   /** @return a Set of immutable parameternames */

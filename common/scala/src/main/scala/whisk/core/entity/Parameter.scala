@@ -96,34 +96,11 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     Some { (toJsObject.fields ++ args.fields).toJson.asJsObject }
   }
 
-  /**
-   * Retrieves parameter by name if it exists.
-   */
-  protected[core] def get(p: String): Option[JsValue] = {
-    params.get(new ParameterName(p)).map(_.value)
-  }
+  /** Retrieves parameter by name if it exists. */
+  protected[core] def get(p: String): Option[JsValue] = params.get(new ParameterName(p)).map(_.value)
 
-  /**
-   * Retrieves parameter by name if it exist. If value of parameter
-   * is a boolean, return its value else false.
-   */
-  protected[core] def asBool(p: String): Option[Boolean] = {
-    get(p) flatMap {
-      case JsBoolean(b) => Some(b)
-      case _            => None
-    }
-  }
-
-  /**
-   * Retrieves parameter by name if it exist. If value of parameter
-   * is a string, return its value else none.
-   */
-  protected[core] def asString(p: String): Option[String] = {
-    get(p) flatMap {
-      case JsString(s) => Some(s)
-      case _           => None
-    }
-  }
+  /** Retrieves parameter by name if it exists. Returns that parameter if it is deserializable to {@code T} */
+  protected[core] def getAs[T: JsonReader](p: String): Option[T] = get(p).flatMap(js => Try(js.convertTo[T]).toOption)
 }
 
 /**
