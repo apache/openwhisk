@@ -38,7 +38,7 @@ import system.rest.RestUtil
  * Integration tests for Controller routes
  */
 @RunWith(classOf[JUnitRunner])
-class ControllerApiTests extends FlatSpec with RestUtil with Matchers /*with ExecHelpers*/ with StreamLogging {
+class ControllerApiTests extends FlatSpec with RestUtil with Matchers with StreamLogging {
 
   it should "ensure controller returns info" in {
     val response = RestAssured.given.config(sslconfig).get(getServiceURL)
