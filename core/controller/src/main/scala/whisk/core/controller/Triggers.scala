@@ -283,7 +283,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * @param status the status to include in the response
    */
   private def completeAsTriggerResponse(trigger: WhiskTrigger): RequestContext => Future[RouteResult] = {
-    complete(OK, trigger.withoutRules)
+    complete(OK, trigger)
   }
 
   /**

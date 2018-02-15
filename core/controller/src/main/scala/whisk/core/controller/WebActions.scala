@@ -483,7 +483,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                    if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -559,7 +559,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.asBool("raw-http").exists(identity)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean]("raw-http").exists(identity)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -720,8 +720,8 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser = action.annotations.asBool("require-whisk-auth").exists(identity)
-      val isExported = action.annotations.asBool("web-export").exists(identity)
+      val requiresAuthenticatedUser = action.annotations.getAs[Boolean]("require-whisk-auth").exists(identity)
+      val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {

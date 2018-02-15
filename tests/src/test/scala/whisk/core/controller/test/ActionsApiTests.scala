@@ -173,26 +173,136 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  def getExecPermutations() = {
+    implicit val tid = transid()
+
+    // BlackBox: binary: true, main: bbMain
+    val bbAction1 = WhiskAction(namespace, aname(), bb("bb", "RHViZWU=", Some("bbMain")))
+    val bbAction1Content = Map("exec" -> Map(
+      "kind" -> Exec.BLACKBOX,
+      "code" -> "RHViZWU=",
+      "image" -> "bb",
+      "main" -> "bbMain")).toJson.asJsObject
+    val bbAction1ExecMetaData = blackBoxMetaData("bb", Some("bbMain"), true)
+
+    // BlackBox: binary: false, main: bbMain
+    val bbAction2 = WhiskAction(namespace, aname(), bb("bb", "", Some("bbMain")))
+    val bbAction2Content =
+      Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "", "image" -> "bb", "main" -> "bbMain")).toJson.asJsObject
+    val bbAction2ExecMetaData = blackBoxMetaData("bb", Some("bbMain"), false)
+
+    // BlackBox: binary: true, no main
+    val bbAction3 = WhiskAction(namespace, aname(), bb("bb", "RHViZWU="))
+    val bbAction3Content =
+      Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "RHViZWU=", "image" -> "bb")).toJson.asJsObject
+    val bbAction3ExecMetaData = blackBoxMetaData("bb", None, true)
+
+    // BlackBox: binary: false, no main
+    val bbAction4 = WhiskAction(namespace, aname(), bb("bb", ""))
+    val bbAction4Content = Map("exec" -> Map("kind" -> Exec.BLACKBOX, "code" -> "", "image" -> "bb")).toJson.asJsObject
+    val bbAction4ExecMetaData = blackBoxMetaData("bb", None, false)
+
+    // Attachment: binary: true, main: javaMain
+    val javaAction1 = WhiskAction(namespace, aname(), javaDefault("RHViZWU=", Some("javaMain")))
+    val javaAction1Content =
+      Map("exec" -> Map("kind" -> JAVA_DEFAULT, "code" -> "RHViZWU=", "main" -> "javaMain")).toJson.asJsObject
+    val javaAction1ExecMetaData = javaMetaData(Some("javaMain"), true)
+
+    // String: binary: true, main: jsMain
+    val jsAction1 = WhiskAction(namespace, aname(), jsDefault("RHViZWU=", Some("jsMain")))
+    val jsAction1Content =
+      Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction1ExecMetaData = js6MetaData(Some("jsMain"), true)
+
+    // String: binary: false, main: jsMain
+    val jsAction2 = WhiskAction(namespace, aname(), jsDefault("", Some("jsMain")))
+    val jsAction2Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "", "main" -> "jsMain")).toJson.asJsObject
+    val jsAction2ExecMetaData = js6MetaData(Some("jsMain"), false)
+
+    // String: binary: true, no main
+    val jsAction3 = WhiskAction(namespace, aname(), jsDefault("RHViZWU="))
+    val jsAction3Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "RHViZWU=")).toJson.asJsObject
+    val jsAction3ExecMetaData = js6MetaData(None, true)
+
+    // String: binary: false, no main
+    val jsAction4 = WhiskAction(namespace, aname(), jsDefault(""))
+    val jsAction4Content = Map("exec" -> Map("kind" -> NODEJS6, "code" -> "")).toJson.asJsObject
+    val jsAction4ExecMetaData = js6MetaData(None, false)
+
+    // Sequence
+    val component = WhiskAction(namespace, aname(), jsDefault("??"))
+    put(entityStore, component)
+    val components = Vector(s"/$namespace/${component.name}").map(stringToFullyQualifiedName(_))
+    val seqAction = WhiskAction(namespace, aname(), sequence(components), seqParameters(components))
+    val seqActionContent = JsObject(
+      "exec" -> JsObject("kind" -> "sequence".toJson, "components" -> JsArray(s"/$namespace/${component.name}".toJson)))
+    val seqActionExecMetaData = sequenceMetaData(components)
+
+    Seq(
+      (bbAction1, bbAction1Content, bbAction1ExecMetaData),
+      (bbAction2, bbAction2Content, bbAction2ExecMetaData),
+      (bbAction3, bbAction3Content, bbAction3ExecMetaData),
+      (bbAction4, bbAction4Content, bbAction4ExecMetaData),
+      (javaAction1, javaAction1Content, javaAction1ExecMetaData),
+      (jsAction1, jsAction1Content, jsAction1ExecMetaData),
+      (jsAction2, jsAction2Content, jsAction2ExecMetaData),
+      (jsAction3, jsAction3Content, jsAction3ExecMetaData),
+      (jsAction4, jsAction4Content, jsAction4ExecMetaData),
+      (seqAction, seqActionContent, seqActionExecMetaData))
+  }
+
   it should "get action using code query parameter" in {
     implicit val tid = transid()
-    val action = WhiskAction(namespace, aname(), jsDefault("??"), Parameters("x", "b"))
 
-    put(entityStore, action)
+    getExecPermutations.foreach {
+      case (action, content, execMetaData) =>
+        val expectedWhiskAction = WhiskAction(
+          action.namespace,
+          action.name,
+          action.exec,
+          action.parameters,
+          action.limits,
+          action.version,
+          action.publish,
+          action.annotations ++ Parameters(WhiskAction.execFieldName, action.exec.kind))
 
-    Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
-      status should be(OK)
-      val response = responseAs[JsObject]
-      response.fields("exec").asJsObject.fields should not(contain key "code")
-      responseAs[WhiskActionMetaData] shouldBe a[WhiskActionMetaData]
-    }
+        val expectedWhiskActionMetaData = WhiskActionMetaData(
+          action.namespace,
+          action.name,
+          execMetaData,
+          action.parameters,
+          action.limits,
+          action.version,
+          action.publish,
+          action.annotations ++ Parameters(WhiskActionMetaData.execFieldName, action.exec.kind))
 
-    Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
-      Get(path) ~> Route.seal(routes(creds)) ~> check {
-        status should be(OK)
-        val response = responseAs[JsObject]
-        response.fields("exec").asJsObject.fields("code") should be("??".toJson)
-        responseAs[WhiskAction] shouldBe a[WhiskAction]
-      }
+        Put(s"$collectionPath/${action.name}", content) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(expectedWhiskAction)
+        }
+
+        Get(s"$collectionPath/${action.name}?code=false") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val responseJson = responseAs[JsObject]
+          responseJson.fields("exec").asJsObject.fields should not(contain key "code")
+          val response = responseAs[WhiskActionMetaData]
+          response should be(expectedWhiskActionMetaData)
+        }
+
+        Seq(s"$collectionPath/${action.name}", s"$collectionPath/${action.name}?code=true").foreach { path =>
+          Get(path) ~> Route.seal(routes(creds)) ~> check {
+            status should be(OK)
+            val response = responseAs[WhiskAction]
+            response should be(expectedWhiskAction)
+          }
+        }
+
+        Delete(s"$collectionPath/${action.name}") ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          val response = responseAs[WhiskAction]
+          response should be(expectedWhiskAction)
+        }
     }
   }
 
@@ -437,7 +547,8 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
   }
 
   private implicit val fqnSerdes = FullyQualifiedEntityName.serdes
-  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) = Parameters("_actions", seq.toJson)
+  private def seqParameters(seq: Vector[FullyQualifiedEntityName]) =
+    Parameters("_actions", seq.map("/" + _.asString).toJson)
 
   // this test is sneaky; the installation of the sequence is done directly in the db
   // and api checks are skipped

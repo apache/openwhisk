@@ -410,7 +410,6 @@
                         }
                     },
                     "202": {
-                        "description": "Activation request accepted",
                         "$ref": "#/responses/AcceptedActivation"
                     },
                     "401": {
@@ -1718,6 +1717,10 @@
                 },
                 "limits": {
                     "$ref": "#/definitions/TriggerLimits"
+                },
+                "rules": {
+                    "type": "object",
+                    "description": "rules associated with the trigger"
                 }
             }
         },

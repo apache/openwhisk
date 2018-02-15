@@ -118,6 +118,8 @@ class Controller(val instance: InstanceId,
   // initialize backend services
   private implicit val loadBalancer =
     SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
+  logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
+
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)

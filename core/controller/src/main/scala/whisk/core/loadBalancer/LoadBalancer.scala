@@ -38,6 +38,8 @@ class InvokerHealth(val id: InstanceId, val status: InvokerState) {
     case that: InvokerHealth => that.id == this.id && that.status == this.status
     case _                   => false
   }
+
+  override def toString = s"InvokerHealth($id, $status)"
 }
 
 trait LoadBalancer {
@@ -69,6 +71,9 @@ trait LoadBalancer {
 
   /** Gets the number of in-flight activations in the system. */
   def totalActiveActivations: Future[Int]
+
+  /** Gets the size of the cluster all loadbalancers are acting in */
+  def clusterSize: Int = 1
 }
 
 /**

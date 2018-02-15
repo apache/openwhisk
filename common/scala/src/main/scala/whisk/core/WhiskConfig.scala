@@ -245,6 +245,8 @@ object ConfigKeys {
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
 
+  val runtimes = "whisk.runtimes"
+
   val db = "whisk.db"
 
   val docker = "whisk.docker"
@@ -256,4 +258,7 @@ object ConfigKeys {
 
   val transactions = "whisk.transactions"
   val stride = s"$transactions.stride"
+
+  val logStore = "whisk.logstore"
+  val splunk = s"$logStore.splunk"
 }
