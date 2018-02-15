@@ -328,13 +328,15 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   }
 
   def confirmErrorWithTid(error: JsObject, message: Option[String] = None) = {
-    error.fields.size shouldBe 2
+    error.fields.size shouldBe 3
     error.fields.get("error") shouldBe defined
     message.foreach { m =>
       error.fields.get("error").get shouldBe JsString(m)
     }
     error.fields.get("code") shouldBe defined
     error.fields.get("code").get shouldBe an[JsNumber]
+    error.fields.get("transaction") shouldBe defined
+    error.fields.get("transaction").get shouldBe an[JsString]
   }
 
   Seq(None, Some(WhiskAuthHelpers.newIdentity())).foreach { creds =>
@@ -660,8 +662,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           m(s"$testRoutePath/$path") ~> Route.seal(routes(creds)) ~> check {
             status should be(NotFound)
             confirmErrorWithTid(responseAs[JsObject], Some(Messages.propertyNotFound))
-            // ensure that error message is pretty printed as { error, code }
-            responseAs[String].lines should have size 4
+            // ensure that error message is pretty printed as { error, code, transaction }
+            responseAs[String].lines should have size 5
           }
         }
       }
