@@ -88,6 +88,35 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
   behavior of "Whisk rules"
 
+  it should "preserve rule status when a rule is updated" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val ruleName = withTimestamp("r1to1")
+    val triggerName = withTimestamp("t1to1")
+    val actionName = withTimestamp("a1 to 1")
+    val triggerName2 = withTimestamp("t2to1")
+    val active = Some("active".toJson)
+    val inactive = Some("inactive".toJson)
+    val statusPermutations =
+      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName2, inactive))
+
+    ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
+    assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
+      trigger.create(name)
+    }
+
+    statusPermutations.foreach {
+      case (trigger, status) =>
+        if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
+        wsk.rule
+          .create(ruleName, trigger, actionName, update = true)
+          .stdout
+          .parseJson
+          .asJsObject
+          .fields
+          .get("status") shouldBe (status)
+        wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe (status)
+    }
+  }
+
   it should "invoke the action attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     val ruleName = withTimestamp("r1to1")

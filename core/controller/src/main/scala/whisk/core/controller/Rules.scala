@@ -85,11 +85,31 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
         val request = content.resolve(entityName.namespace)
         onComplete(entitlementProvider.check(user, Privilege.READ, referencedEntities(request))) {
           case Success(_) =>
-            putEntity(WhiskRule, entityStore, entityName.toDocId, overwrite, update(request) _, () => {
-              create(request, entityName)
-            }, postProcess = Some { rule: WhiskRule =>
-              completeAsRuleResponse(rule, Status.ACTIVE)
-            })
+            putEntity(
+              WhiskRule,
+              entityStore,
+              entityName.toDocId,
+              overwrite,
+              update(request) _,
+              () => {
+                create(request, entityName)
+              },
+              postProcess = Some { rule: WhiskRule =>
+                if (overwrite == true) {
+                  val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
+                    getStatus(trigger, FullyQualifiedEntityName(rule.namespace, rule.name))
+                  } map { status =>
+                    rule.withStatus(status)
+                  }
+
+                  onComplete(getRuleWithStatus) {
+                    case Success(r) => completeAsRuleResponse(rule, r.status)
+                    case Failure(t) => terminate(InternalServerError)
+                  }
+                } else {
+                  completeAsRuleResponse(rule, Status.ACTIVE)
+                }
+              })
           case Failure(f) =>
             handleEntitlementFailure(f)
         }
@@ -286,6 +306,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     val oldTriggerName = rule.trigger
 
     getTrigger(oldTriggerName) flatMap { oldTriggerOpt =>
+      val status = getStatus(oldTriggerOpt, ruleName)
       val newTriggerEntity = content.trigger getOrElse rule.trigger
       val newTriggerName = newTriggerEntity
 
@@ -313,7 +334,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
             WhiskTrigger.put(entityStore, oldTrigger.removeRule(ruleName))
           }
 
-          val triggerLink = ReducedRule(actionName, Status.INACTIVE)
+          val triggerLink = ReducedRule(actionName, status)
           val update = WhiskTrigger.put(entityStore, newTrigger.addRule(ruleName, triggerLink))
           Future.sequence(Seq(deleteOldLink.getOrElse(Future.successful(true)), update)).map(_ => r)
       }
