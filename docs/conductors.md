@@ -52,7 +52,7 @@ wsk action create tripleAndIncrement tripleAndIncrement.js -a conductor true
 
 A _conductor action_ is an action with a _conductor_ annotation with a value that is not _falsy_, i.e., a value that is different from zero, null, false, and the empty string.
 
-At this time, sequence actions cannot be conductor actions. The conductor annotation on sequence actions is ignored.
+At this time, the conductor annotation is ignored on sequence actions.
 
 Because a conductor action is an action, it has all the attributes of an action (name, namespace, default parameters, limits...) and it can be managed as such, for instance using the `wsk action` CLI commands. It can be part of a package or be a web action.
 
@@ -66,7 +66,7 @@ At each step, the conductor action specifies how to continue or terminate the ex
 
 ## Invocation
 
-A conductor action is invoked like a regular action, for instance:
+A conductor action is invoked like a regular [action](actions.md), for instance:
 
 ```
 wsk action invoke tripleAndIncrement -r -p value 3
@@ -102,7 +102,9 @@ a1f58ade9b1e4c26b58ade9b1e4c2614 triple
 4f91f9ed0d874aaa91f9ed0d87baaa07 tripleAndIncrement
 ```
 
-There are six activations in this example, one for the _tripleAndIncrement_ action we invoked plus five additional activations _caused_ by this invocation. These five activations are:
+There are six activation records in this example, one matching the activation id returned on invocation (`4f91f9ed0d874aaa91f9ed0d87baaa07`) plus five additional records for activations _caused_ by this invocation. The _primary_ activation record is the last one in the list because it has the earliest start time.
+
+The five additional activations are:
 
 - one activation of the _triple_ action with input `{ value: 3 }` and output `{ value: 9 }`,
 - one activation of the _increment_ action with input `{ value: 9 }` and output `{ value: 10 }`,
@@ -114,27 +116,9 @@ We say the invocation of the conductor action is the _cause_ of _component_ acti
 
 The cause field of the _derived_ activation records is set to the id for the _primary_ activation record.
 
-### Secondary activations
+### Primary activations
 
-The secondary activations of the conductor action are responsible for orchestrating the invocations of the component actions.
-
-An invocation of a conductor action starts with a secondary activation and alternates secondary activations of this conductor action with invocations of the component actions. It normally ends with a secondary activation of the conductor action. In our example, the five derived activations are interleaved as follows:
-
- 1. secondary _tripleAndIncrement_ activation,
- 2. _triple_ activation,
- 3. secondary _tripleAndIncrement_ activation,
- 4. _increment_ activation,
- 5. secondary _tripleAndIncrement_ activation.
-
-Intuitively, secondary activations of the conductor action decide which component actions to invoke by running before, in-between, and after the component actions.
-
-Only an internal error (invocation failure or timeout) may result in an even number of derived activations.
-
-### Primary activation
-
-While secondary activations of the conductor action reflect executions of the action code, the primary activation record for the invocation of a conductor action does not. It is a synthetic record similar to the activation record of a sequence action. Concretely in our example, the code in the main function of the _tripleAndIncrement_ conductor action runs exactly three times since there are three secondary activations.
-
-The primary activation record summarizes the series of derived activations:
+The primary activation record for the invocation of a conductor action is a synthetic record similar to the activation record of a sequence action. The primary activation record summarizes the series of derived activations:
 
 - its result is the result of the last action in the series (possibly unboxed, see below),
 - its logs are the ordered list of component and secondary activations,
@@ -200,13 +184,29 @@ ok: got activation 4f91f9ed0d874aaa91f9ed0d87baaa07
 }
 ```
 
-If a component action itself is a sequence or conductor action, the logs contain only the id for the component activation. It does not contains the ids for the activations caused by this component. This is different from nested sequence actions.
+If a component action itself is a sequence or conductor action, the logs contain only the id for the component activation. They do not contain the ids for the activations caused by this component. This is different from nested sequence actions.
+
+### Secondary activations
+
+The secondary activations of the conductor action are responsible for orchestrating the invocations of the component actions.
+
+An invocation of a conductor action starts with a secondary activation and alternates secondary activations of this conductor action with invocations of the component actions. It normally ends with a secondary activation of the conductor action. In our example, the five derived activations are interleaved as follows:
+
+ 1. secondary _tripleAndIncrement_ activation,
+ 2. _triple_ activation,
+ 3. secondary _tripleAndIncrement_ activation,
+ 4. _increment_ activation,
+ 5. secondary _tripleAndIncrement_ activation.
+
+Intuitively, secondary activations of the conductor action decide which component actions to invoke by running before, in-between, and after the component actions. In this example, the _tripleAndIncrement_ main function runs three times.
+
+Only an internal error (invocation failure or timeout) may result in an even number of derived activations.
 
 ### Annotations
 
-The primary activation record includes the following annotation `{ key: "conductor", value: true }`. Secondary activation records do not. Both primary and secondary activation records include the annotation `{ key: "kind", value: "sequence" }`.
+Primary activation records include the annotations `{ key: "conductor", value: true }` and `{ key: "kind", value: "sequence" }`. Secondary activation records and activation records for component actions include the annotation `{ key: "causedBy", value: "sequence" }`.
 
-The memory limit annotation on the primary activation reflects the maximum memory limit across the conductor action and the component actions.
+The memory limit annotation in the primary activation record reflects the maximum memory limit across the conductor action and the component actions.
 
 ## Continuations
 
@@ -223,7 +223,7 @@ The execution flow in our example is the following:
 
 ### Detailed specification
 
-If a secondary activation returns an error dictionary, the conductor action invocation ends and the result of this activation (ouput and status code) are those of this secondary activation.
+If a secondary activation returns an error dictionary, the conductor action invocation ends and the result of this activation (output and status code) are those of this secondary activation.
 
 In a continuation dictionary, the _params_ field is optional and its value if present should be a dictionary. The _action_ field is optional and its value if present should be a string. The _state_ field is optional and its value if present should be a dictionary. If the value _v_ of the _params_ field is not a dictionary it is automatically boxed into dictionary `{ value: v }`. If the value _v_ of the _state_ field is not a dictionary it is automatically boxed into dictionary `{ state: v }`.
 
