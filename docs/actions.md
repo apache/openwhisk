@@ -35,10 +35,9 @@ In addition, learn about:
 * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
 
-
 ## Creating and invoking JavaScript actions
 
-The following sections guide you through working with actions in JavaScript. You begin with the creation and invocation of a simple action. Then, you move on to adding parameters to an action and invoking that action with parameters. Next is setting default parameters and invoking them. Then, you create asynchronous actions and, finally, work with action sequences.
+The following sections guide you through working with actions in JavaScript. You begin with the creation and invocation of a simple action. Then, you move on to adding parameters to an action and invoking that action with parameters. Then, you create asynchronous actions and, finally, work with action sequences.
 
 
 ### Creating and invoking a simple JavaScript action
@@ -101,7 +100,7 @@ Review the following steps and examples to create your first JavaScript action.
   * The activation ID (`44794bd6aab74415b4e42a308d880e5b`)
   * The invocation result if it is available within the expected wait period
 
-  The result in this case is the string `Hello world` returned by the JavaScript function. The activation ID can be used to retrieve the logs or result of the invocation at a future time.  
+  The result in this case is the string `Hello world` returned by the JavaScript function. The activation ID can be used to retrieve the logs or result of the invocation at a future time.
 
 5. If you don't need the action result right away, you can omit the `--blocking` flag to make a non-blocking invocation. You can get the result later by using the activation ID. See the following example:
 
@@ -143,147 +142,6 @@ Review the following steps and examples to create your first JavaScript action.
   activations
   44794bd6aab74415b4e42a308d880e5b         hello
   6bf1f670ee614a7eb5af3c9fde813043         hello
-  ```
-
-### Passing parameters to an action
-
-Parameters can be passed to the action when it is invoked.
-
-1. Use parameters in the action. For example, update the 'hello.js' file with the following content:
-
-  ```javascript
-  function main(params) {
-      return {payload:  'Hello, ' + params.name + ' from ' + params.place};
-  }
-  ```
-
-  The input parameters are passed as a JSON object parameter to the `main` function. Notice how the `name` and `place` parameters are retrieved from the `params` object in this example.
-
-2. Update the `hello` action and invoke the action, while passing it `name` and `place` parameter values. See the following example:
-
-  ```
-  wsk action update hello hello.js
-  ```
-
-3.  Parameters can be provided explicitly on the command-line, or by supplying a file containing the desired parameters
-
-  To pass parameters directly through the command-line, supply a key/value pair to the `--param` flag:
-  ```
-  wsk action invoke --result hello --param name Bernie --param place Vermont
-  ```
-
-  In order to use a file containing parameter content, create a file containing the parameters in JSON format. The
-  filename must then be passed to the `param-file` flag:
-
-  Example parameter file called parameters.json:
-  ```json
-  {
-      "name": "Bernie",
-      "place": "Vermont"
-  }
-  ```
-
-  ```
-  wsk action invoke --result hello --param-file parameters.json
-  ```
-
-  ```json
-  {
-      "payload": "Hello, Bernie from Vermont"
-  }
-  ```
-
-  Notice the use of the `--result` option: it implies a blocking invocation where the CLI waits for the activation to complete and then
-  displays only the result. For convenience, this option may be used without `--blocking` which is automatically inferred.
-
-  Additionally, if parameter values specified on the command-line are valid JSON, then they will be parsed and sent to your action as a structured object. For example, if we update our hello action to:
-
-  ```javascript
-  function main(params) {
-      return {payload:  'Hello, ' + params.person.name + ' from ' + params.person.place};
-  }
-  ```
-
-  Now the action expects a single `person` parameter to have fields `name` and `place`. If we invoke the action with a single `person` parameter that is valid JSON:
-
-  ```
-  wsk action invoke --result hello -p person '{"name": "Bernie", "place": "Vermont"}'
-  ```
-
-  The result is the same because the CLI automatically parses the `person` parameter value into the structured object that the action now expects:
-  ```json
-  {
-      "payload": "Hello, Bernie from Vermont"
-  }
-  ```
-
-### Setting default parameters
-
-Actions can be invoked with multiple named parameters. Recall that the `hello` action from the previous example expects two parameters: the *name* of a person, and the *place* where they're from.
-
-Rather than pass all the parameters to an action every time, you can bind certain parameters. The following example binds the *place* parameter so that the action defaults to the place "Vermont":
-
-1. Update the action by using the `--param` option to bind parameter values, or by passing a file that contains the parameters to `--param-file`
-
-  To specify default parameters explicitly on the command-line, provide a key/value pair to the `param` flag:
-
-  ```
-  wsk action update hello --param place Vermont
-  ```
-
-  Passing parameters from a file requires the creation of a file containing the desired content in JSON format.
-  The filename must then be passed to the `-param-file` flag:
-
-  Example parameter file called parameters.json:
-  ```json
-  {
-      "place": "Vermont"
-  }
-  ```
-
-  ```
-  wsk action update hello --param-file parameters.json
-  ```
-
-2. Invoke the action, passing only the `name` parameter this time.
-
-  ```
-  wsk action invoke --result hello --param name Bernie
-  ```
-  ```json
-  {
-      "payload": "Hello, Bernie from Vermont"
-  }
-  ```
-
-  Notice that you did not need to specify the place parameter when you invoked the action. Bound parameters can still be overwritten by specifying the parameter value at invocation time.
-
-3. Invoke the action, passing both `name` and `place` values. The latter overwrites the value that is bound to the action.
-
-  Using the `--param` flag:
-
-  ```
-  wsk action invoke --result hello --param name Bernie --param place "Washington, DC"
-  ```
-
-  Using the `--param-file` flag:
-
-  File parameters.json:
-  ```json
-  {
-    "name": "Bernie",
-    "place": "Washington, DC"
-  }
-  ```
-
-  ```
-  wsk action invoke --result hello --param-file parameters.json
-  ```
-
-  ```json
-  {  
-      "payload": "Hello, Bernie from Washington, DC"
-  }
   ```
 
 ### Getting an action URL
@@ -422,19 +280,26 @@ This example invokes a Yahoo Weather service to get the current conditions at a 
 
   This example also shows the need for asynchronous actions. The action returns a Promise to indicate that the result of this action is not available yet when the function returns. Instead, the result is available in the `request` callback after the HTTP call completes, and is passed as an argument to the `resolve()` function.
 
-2. Run the following commands to create the action and invoke it:
+2. Create an action from the `weather.js` file:
 
   ```
   wsk action create weather weather.js
   ```
+
+3. Use the following command to run the action, and observe the output:
   ```
   wsk action invoke --result weather --param location "Brooklyn, NY"
   ```
+
+  Using the `--result` flag means that the value returned from the action is shown as output on the commandline:
+
   ```json
   {
       "msg": "It is 28 degrees in Brooklyn, NY and Cloudy"
   }
   ```
+
+This example also passed a parameter to the action by using the `--param` flag and a value that can be changed each time the action is invoked. Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging an action as a Node.js module
 
@@ -651,11 +516,11 @@ Therefore parameters that are passed to the action sequence are only available t
 The result of the first action in the sequence becomes the input JSON object to the second action in the sequence (and so on).
 This object does not include any of the parameters originally passed to the sequence unless the first action explicitly includes them in its result.
 Input parameters to an action are merged with the action's default parameters, with the former taking precedence and overriding any matching default parameters.
-For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./actions.md#setting-default-parameters).
+For more information about invoking action sequences with multiple named parameters, see [Setting default parameters](./parameters.md#setting-default-parameters).
 
 ## Creating Python actions
 
-The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and adding parameters to that action.
+The process of creating Python actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single Python action, and packaging your actions in zip files.
 
 ### Creating and invoking a Python action
 
@@ -689,6 +554,8 @@ wsk action invoke --result helloPython --param name World
       "greeting": "Hello World!"
   }
 ```
+
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging Python actions in zip files
 
@@ -737,7 +604,7 @@ While the steps above are shown for Python 3.6, you can do the same for Python 2
 
 ## Creating PHP actions
 
-The process of creating PHP actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single PHP action, and adding parameters to that action.
+The process of creating PHP actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single PHP action, and demonstrate how to zip your PHP actions.
 
 ### Creating and invoking a PHP action
 
@@ -776,6 +643,8 @@ wsk action invoke --result helloPHP --param name World
   }
 ```
 
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
+
 ### Packaging PHP actions in zip files
 
 You can package a PHP action along with other files and dependent packages in a zip file.
@@ -795,9 +664,12 @@ wsk action create helloPHP --kind php:7.1 helloPHP.zip
 
 ## Creating Swift actions
 
-The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and adding parameters to that action.
+The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and packaging an action in a zip file. 
 
 You can also use the online [Swift Sandbox](https://swiftlang.ng.bluemix.net) to test your Swift code without having to install Xcode on your machine.
+
+**Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
+development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of Xcode on MacOS.
 
 ### Creating and invoking an action
 
@@ -825,7 +697,6 @@ wsk action create helloSwift hello.swift
 
 The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. See the Swift [reference](./reference.md#swift-actions) for more information about the Swift runtime.
 
-
 Action invocation is the same for Swift actions as it is for JavaScript actions:
 
 ```
@@ -838,8 +709,7 @@ wsk action invoke --result helloSwift --param name World
   }
 ```
 
-**Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
-development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of Xcode on MacOS.
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ### Packaging an action as a Swift executable
 
@@ -996,6 +866,8 @@ wsk action invoke --result helloJava --param name World
       "greeting": "Hello World!"
   }
 ```
+
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
 
 ## Creating Docker actions
 
@@ -1168,7 +1040,10 @@ wsk action invoke helloGo -r -p name gopher
 }
 ```
 
+Find out more about parameters in the [Working with parameters](./parameters.md) section.
+
 Logs are retrieved in a similar way as well.
+
 ```bash
 wsk activation logs --last --strip
 my first Go action.
