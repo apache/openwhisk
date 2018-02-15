@@ -120,7 +120,7 @@ object Invoker {
     }
     val cmdLineArgs = parse(args.toList, CmdLineArgs())
     logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-    val invokerName = cmdLineArgs.name.orElse(Option(config.invokerName))
+    val invokerName = cmdLineArgs.name.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
     val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
