@@ -101,6 +101,17 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
 
   /** Retrieves parameter by name if it exists. Returns that parameter if it is deserializable to {@code T} */
   protected[core] def getAs[T: JsonReader](p: String): Option[T] = get(p).flatMap(js => Try(js.convertTo[T]).toOption)
+
+  /** Retrieves parameter by name if it exist. Returns true if parameter exists and has truthy value. */
+  protected[core] def isTruthy(p: String): Boolean = {
+    get(p) map {
+      case JsBoolean(b) => b
+      case JsNumber(n)  => n != 0
+      case JsString(s)  => s.nonEmpty
+      case JsNull       => false
+      case _            => true
+    } getOrElse false
+  }
 }
 
 /**
