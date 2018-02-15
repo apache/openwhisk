@@ -270,12 +270,7 @@ protected[actions] object ActivationFinisher {
         }
     }
 
-    def shutdown(): Unit = {
-      preemptiveMsgs.foreach(_.cancel())
-      preemptiveMsgs = Vector.empty
-      context.stop(poller)
-      context.stop(self)
-    }
+    def shutdown(): Unit = Option(context).foreach(_.stop(self))
 
     override def postStop() = {
       logging.debug(this, "finisher shutdown")
