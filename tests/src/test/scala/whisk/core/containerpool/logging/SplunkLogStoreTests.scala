@@ -33,7 +33,6 @@ import akka.stream.scaladsl.Flow
 import akka.testkit.TestKit
 import common.StreamLogging
 import java.time.ZonedDateTime
-
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -42,9 +41,7 @@ import org.scalatest.junit.JUnitRunner
 import scala.util.Failure
 import whisk.core.entity.ActivationLogs
 import org.scalatest.FlatSpecLike
-import org.scalatest.junit.JUnitRunner
 import pureconfig.error.ConfigReaderException
-
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration._
