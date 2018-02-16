@@ -92,7 +92,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
 
   override def totalActiveActivations = loadBalancerData.totalActivationCount
 
-  override def clusterSize = if (config.controllerHighAvailability) config.controllerInstances.toInt else 1
+  override def clusterSize = config.controllerInstances.toInt
 
   /**
    * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
