@@ -35,7 +35,7 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRest
-  val activationPollDuration = 60 seconds
+  val activationPollDuration = 2.minutes
   val defaultJsAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   lazy val runtimeContainer = "swift:3.1.1"
