@@ -23,7 +23,7 @@ import spray.json.JsString
 import spray.json.JsNumber
 import spray.json.JsBoolean
 
-object JsonArgsForTests {
+object TestJsonArgs {
 
   def getInvalidJSONInput =
     Seq(

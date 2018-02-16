@@ -18,10 +18,13 @@
 package whisk.core.loadBalancer.test
 
 import akka.actor.Address
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
-import whisk.core.loadBalancer.{StaticSeedNodesProvider}
+import whisk.core.loadBalancer.StaticSeedNodesProvider
 
-class SeedNodesProviderTest extends FlatSpec with Matchers {
+@RunWith(classOf[JUnitRunner])
+class SeedNodesProviderTests extends FlatSpec with Matchers {
 
   val actorSystemName = "controller-actor-system"
   val host = "192.168.99.100"

@@ -45,7 +45,7 @@ import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
-import JsonArgsForTests._
+import TestJsonArgs._
 import whisk.http.Messages
 
 /**
