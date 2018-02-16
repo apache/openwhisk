@@ -29,11 +29,8 @@ http {
         # Otherwise, nginx would dispatch requests when the container is up, but the backend in the container not.
         # From the docs:
         # "normally, requests with a non-idempotent method (POST, LOCK, PATCH) are not passed to the next server if a request has been sent to an upstream server"
-        server {{ hostvars[groups['controllers'] | first].ansible_host }}:{{ controller.basePort }} fail_timeout=60s;
-{% for ip in groups['controllers'] %}
-{% if groups['controllers'].index(ip) > 0 %}
-        server {{ hostvars[ip].ansible_host }}:{{ controller.basePort + groups['controllers'].index(ip) }} {% if controller.ha %}fail_timeout=60s{% else %}backup{% endif %};
-{% endif %}
+{% for c in groups['controllers'] %}
+        server {{ hostvars[c].ansible_host }}:{{ controller.basePort + groups['controllers'].index(c) }} fail_timeout=60s;
 {% endfor %}
         keepalive 512;
     }

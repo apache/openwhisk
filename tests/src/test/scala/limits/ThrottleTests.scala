@@ -44,7 +44,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import whisk.utils.retry
@@ -74,7 +73,7 @@ class ThrottleTests
   val throttleWindow = 1.minute
 
   // Due to the overhead of the per minute limit in the controller, we add this overhead here as well.
-  val overhead = if (WhiskProperties.getProperty(WhiskConfig.controllerHighAvailability).toBoolean) 1.2 else 1.0
+  val overhead = if (WhiskProperties.getControllerHosts.split(",").length > 1) 1.2 else 1.0
   val maximumInvokesPerMinute = math.ceil(getLimit("limits.actions.invokes.perMinute") * overhead).toInt
   val maximumFiringsPerMinute = math.ceil(getLimit("limits.triggers.fires.perMinute") * overhead).toInt
   val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
