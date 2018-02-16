@@ -1,0 +1,14 @@
+apply plugin: 'groovy'
+
+def owHome = new File("../../")
+
+dependencies {
+    compile localGroovy()
+}
+
+task couchdbViews(type: JavaExec) {
+    description 'Dumps CouchDB views as js files'
+    main = 'couchdbViews'
+    args owHome.absolutePath
+    classpath = sourceSets.main.runtimeClasspath
+}
