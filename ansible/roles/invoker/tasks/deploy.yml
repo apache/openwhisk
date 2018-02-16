@@ -129,17 +129,12 @@
   set_fact:
     invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
 
-- name: "determine 'docker' binary location"
-  shell: which docker
-  register: dockerBinary
-  when: ansible_distribution != 'MacOSX'
-
 - name: "determine 'runc' binary location"
   shell: which runc || which docker-runc
   register: runcBinaryNative
   when: ansible_distribution != 'MacOSX'
 
-# in local environments where docker host is a VM, we're interested to get the paths from the VM, not the local machine
+# in local environments where docker host is a VM, we need to get the path from the VM, not the local machine
 # and hence we use docker run to find out the paths on the VM
 - name: "determine 'runc' binary location (on docker host)"
   shell: docker run --privileged --pid=host --userns=host debian nsenter -t 1 -m -u -n -i sh -c "which runc || which docker-runc"
