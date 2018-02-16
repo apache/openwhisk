@@ -1,6 +1,6 @@
 apply plugin: 'groovy'
 
-def owHome = new File("../../")
+def owHome = project.projectDir.parentFile.parentFile
 
 dependencies {
     compile localGroovy()
