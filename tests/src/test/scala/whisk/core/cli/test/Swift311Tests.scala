@@ -35,7 +35,6 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRest
-  val expectedDuration = 45 seconds
   val activationPollDuration = 60 seconds
   val defaultJsAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
@@ -52,7 +51,6 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
       action.create(name, Some(TestUtils.getTestActionFilename("hello.swift")))
     }
 
-    val start = System.currentTimeMillis()
     withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
       _.response.result.get.toString should include("Hello stranger!")
     }
@@ -62,11 +60,6 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
       wsk.action.invoke(name, Map("name" -> "Sir".toJson)),
       totalWait = activationPollDuration) {
       _.response.result.get.toString should include("Hello Sir!")
-    }
-
-    withClue("Test duration exceeds expectation (ms)") {
-      val duration = System.currentTimeMillis() - start
-      duration should be <= expectedDuration.toMillis
     }
   }
 
