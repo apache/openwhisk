@@ -235,6 +235,7 @@ If the _action_ field is defined in the output of the conductor action, the runt
 - internal error (invocation failure or timeout).
 
 In any of the first three failure scenarios, the conductor action invocation ends with an _application error_ status code and an error message describing the reason for the failure. In the latter, the status code is _internal error_.
+The action name should be a fully qualified name, which is of the form `/namespace/package-name/action-name` or `/namespace/action-name`. Failure to specify a fully qualified name may result in ambiguity or even a parsing error that terminates the activation.
 
 If there is no error, _action_ is invoked on the _params_ dictionary if specified (auto boxed if necessary) or if not on the empty dictionary.
 

@@ -28,7 +28,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-import scala.util.Try
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -355,46 +354,56 @@ protected[actions] trait PrimitiveActions {
               // no next action, end composition execution, return to caller
               Future.successful(ActivationResponse(activation.response.statusCode, Some(params.getOrElse(result))))
             case Some(next) =>
-              Try(next.convertTo[EntityPath]) match {
-                case Failure(t) =>
-                  // parsing failure
-                  Future.successful(ActivationResponse.applicationError(compositionComponentInvalid(next)))
-                case Success(_) if session.accounting.components >= actionSequenceLimit =>
-                  // composition is too long
+              FullyQualifiedEntityName.resolveName(next, user.namespace) match {
+                case Some(fqn) if session.accounting.components < actionSequenceLimit =>
+                  tryInvokeNext(user, fqn, params, session)
+
+                case Some(_) => // composition is too long
                   Future.successful(ActivationResponse.applicationError(compositionIsTooLong))
-                case Success(next) =>
-                  // resolve and invoke next action
-                  val fqn = (if (next.defaultPackage) EntityPath.DEFAULT.addPath(next) else next)
-                    .resolveNamespace(user.namespace)
-                    .toFullyQualifiedEntityName
-                  val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
-                  entitlementProvider
-                    .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
-                    .flatMap { _ =>
-                      // successful entitlement check
-                      WhiskActionMetaData
-                        .resolveActionAndMergeParameters(entityStore, fqn)
-                        .flatMap {
-                          case next =>
-                            // successful resolution
-                            invokeComponent(user, action = next, payload = params, session)
-                        }
-                        .recover {
-                          case _ =>
-                            // resolution failure
-                            ActivationResponse.applicationError(compositionComponentNotFound(next.asString))
-                        }
-                    }
-                    .recover {
-                      case _ =>
-                        // failed entitlement check
-                        ActivationResponse.applicationError(compositionComponentNotAccessible(next.asString))
-                    }
+
+                case None => // parsing failure
+                  Future.successful(ActivationResponse.applicationError(compositionComponentInvalid(next)))
               }
           }
       }
     }
 
+  }
+
+  /**
+   * Checks if the user is entitled to invoke the next action and invokes it.
+   *
+   * @param user the subject
+   * @param fqn the name of the action
+   * @param params parameters for the action
+   * @param session the session for the current activation
+   * @return promise for the eventual activation
+   */
+  private def tryInvokeNext(user: Identity, fqn: FullyQualifiedEntityName, params: Option[JsObject], session: Session)(
+    implicit transid: TransactionId): Future[ActivationResponse] = {
+    val resource = Resource(fqn.path, Collection(Collection.ACTIONS), Some(fqn.name.asString))
+    entitlementProvider
+      .check(user, Privilege.ACTIVATE, Set(resource), noThrottle = true)
+      .flatMap { _ =>
+        // successful entitlement check
+        WhiskActionMetaData
+          .resolveActionAndMergeParameters(entityStore, fqn)
+          .flatMap {
+            case next =>
+              // successful resolution
+              invokeComponent(user, action = next, payload = params, session)
+          }
+          .recover {
+            case _ =>
+              // resolution failure
+              ActivationResponse.applicationError(compositionComponentNotFound(fqn.asString))
+          }
+      }
+      .recover {
+        case _ =>
+          // failed entitlement check
+          ActivationResponse.applicationError(compositionComponentNotAccessible(fqn.asString))
+      }
   }
 
   /**
