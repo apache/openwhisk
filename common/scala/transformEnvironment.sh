@@ -21,6 +21,18 @@ props=()
 for var in $configVariables
 do
     value=$(printenv "$var")
+    #allow us to dereference environment variables, e.g. CONFIG_some_key=$SOME_ENV_VAR
+    if [[ $value == \$* ]] # iff the value starts with $
+    then
+        varname=${value:1} # drop the starting '$'
+        value2=${!varname} # '!' dereferences the variable
+        if [ ! -z "$value2" ]
+        then
+            value=$value2 # replace $value with $value2 (the dereferenced value)
+        fi
+    fi
+
+
     if [ ! -z "$value" ]
     then
         sansConfig=${var#$prefix} # remove the CONFIG_ prefix

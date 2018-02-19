@@ -58,11 +58,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
   val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
-  val invokerContainerNetwork = this(WhiskConfig.invokerContainerNetwork)
-  val invokerContainerPolicy =
-    if (this(WhiskConfig.invokerContainerPolicy) == "") None else Some(this(WhiskConfig.invokerContainerPolicy))
-  val invokerContainerDns =
-    if (this(WhiskConfig.invokerContainerDns) == "") Seq() else this(WhiskConfig.invokerContainerDns).split(" ").toSeq
   val invokerNumCore = this(WhiskConfig.invokerNumCore)
   val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
   val invokerUseRunc = this.getAsBoolean(WhiskConfig.invokerUseRunc, true)
@@ -102,7 +97,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
   val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
   val controllerLocalBookkeeping = getAsBoolean(WhiskConfig.controllerLocalBookkeeping, false)
-  val controllerHighAvailability = getAsBoolean(WhiskConfig.controllerHighAvailability, false)
 }
 
 object WhiskConfig {
@@ -140,18 +134,23 @@ object WhiskConfig {
     implicit logging: Logging) = {
     if (file != null && file.exists) {
       logging.info(this, s"reading properties from file $file")
-      for (line <- Source.fromFile(file).getLines if line.trim != "") {
-        val parts = line.split('=')
-        if (parts.length >= 1) {
-          val p = parts(0).trim
-          val v = if (parts.length == 2) parts(1).trim else ""
-          if (properties.contains(p)) {
-            properties += p -> v
-            logging.debug(this, s"properties file set value for $p")
+      val source = Source.fromFile(file)
+      try {
+        for (line <- source.getLines if line.trim != "") {
+          val parts = line.split('=')
+          if (parts.length >= 1) {
+            val p = parts(0).trim
+            val v = if (parts.length == 2) parts(1).trim else ""
+            if (properties.contains(p)) {
+              properties += p -> v
+              logging.debug(this, s"properties file set value for $p")
+            }
+          } else {
+            logging.warn(this, s"ignoring properties $line")
           }
-        } else {
-          logging.warn(this, s"ignoring properties $line")
         }
+      } finally {
+        source.close()
       }
     }
   }
@@ -191,9 +190,6 @@ object WhiskConfig {
   val dockerImagePrefix = "docker.image.prefix"
   val dockerImageTag = "docker.image.tag"
 
-  val invokerContainerNetwork = "invoker.container.network"
-  val invokerContainerPolicy = "invoker.container.policy"
-  val invokerContainerDns = "invoker.container.dns"
   val invokerNumCore = "invoker.numcore"
   val invokerCoreShare = "invoker.coreshare"
   val invokerUseRunc = "invoker.use.runc"
@@ -234,14 +230,20 @@ object WhiskConfig {
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
   val controllerSeedNodes = "akka.cluster.seed.nodes"
   val controllerLocalBookkeeping = "controller.localBookkeeping"
-  val controllerHighAvailability = "controller.ha"
 }
 
 object ConfigKeys {
   val loadbalancer = "whisk.loadbalancer"
 
   val kafka = "whisk.kafka"
+  val kafkaProducer = s"$kafka.producer"
   val kafkaTopics = s"$kafka.topics"
+
+  val memory = "whisk.memory"
+  val activation = "whisk.activation"
+  val activationPayload = s"$activation.payload"
+
+  val runtimes = "whisk.runtimes"
 
   val db = "whisk.db"
 
@@ -249,5 +251,15 @@ object ConfigKeys {
   val dockerTimeouts = s"$docker.timeouts"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
+
   val tracing = "whisk.tracing"
+
+  val containerFactory = "whisk.container-factory"
+  val containerArgs = s"$containerFactory.container-args"
+
+  val transactions = "whisk.transactions"
+  val stride = s"$transactions.stride"
+
+  val logStore = "whisk.logstore"
+  val splunk = s"$logStore.splunk"
 }

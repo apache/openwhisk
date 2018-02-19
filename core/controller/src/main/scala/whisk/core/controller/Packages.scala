@@ -25,8 +25,6 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.Unmarshaller
 
-import spray.json._
-
 import whisk.common.TransactionId
 import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.database.{CacheChangeNotification, DocumentTypeMismatchException, NoDocumentException}
@@ -49,9 +47,6 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   /** Route directives for API. The methods that are supported on packages. */
   protected override lazy val entityOps = put | get | delete
-
-  /** Must exclude any private packages when listing those in a namespace unless owned by subject. */
-  protected override val listRequiresPrivateEntityFilter = true
 
   /** JSON response formatter. */
   import RestApiCommons.jsonDefaultResponsePrinter
@@ -80,9 +75,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       if (!RESERVED_NAMES.contains(entityName.name.asString)) {
         entity(as[WhiskPackagePut]) { content =>
           val request = content.resolve(entityName.namespace)
-
           request.binding.map { b =>
-            logging.info(this, "checking if package is accessible")
+            logging.debug(this, "checking if package is accessible")
           }
           val referencedentities = referencedEntities(request)
 
@@ -173,29 +167,25 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    * - 200 [] or [WhiskPackage as JSON]
    * - 500 Internal Server Error
    */
-  override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet; see comment in
-    // Actions API for more.
-    val docs = false
-
+  override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
-        listEntities {
-          WhiskPackage.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
-            // any subject is entitled to list packages in any namespace
-            // however, they shall only observe public packages if the packages
-            // are not in one of the namespaces the subject is entitled to
-            val packages = list.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_)))
-
-            FilterEntityList.filter(packages, excludePrivate, additionalFilter = {
-              // additionally exclude bindings
-              _.fields.get(WhiskPackage.bindingFieldName) match {
-                case Some(JsBoolean(isbinding)) => !isbinding
-                case _                          => false // exclude anything that does not conform
-              }
-            })
+        val viewName = if (user.namespace.toPath == namespace) WhiskPackage.view else WhiskPackage.publicPackagesView
+        if (!count) {
+          listEntities {
+            WhiskPackage
+              .listCollectionInNamespace(
+                entityStore,
+                namespace,
+                skip,
+                limit.n,
+                includeDocs = false,
+                viewName = viewName)
+              .map(_.fold((js) => js, (ps) => ps.map(WhiskPackage.serdes.write(_))))
+          }
+        } else {
+          countEntities {
+            WhiskPackage.countCollectionInNamespace(entityStore, namespace, skip, viewName = viewName)
           }
         }
     }
@@ -275,7 +265,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   private def rewriteEntitlementFailure(failure: Throwable)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-    logging.info(this, s"rewriting failure $failure")
+    logging.debug(this, s"rewriting failure $failure")
     failure match {
       case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
       case RejectRequest(Conflict, _) => terminate(Conflict, Messages.requestedBindingIsNotValid)
@@ -306,13 +296,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     wp.binding map {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
-        logging.info(this, s"fetching package '$docid' for reference")
+        logging.debug(this, s"fetching package '$docid' for reference")
         getEntity(WhiskPackage, entityStore, docid, Some {
           mergePackageWithBinding(Some { wp }) _
         })
     } getOrElse {
       val pkg = ref map { _ inherit wp.parameters } getOrElse wp
-      logging.info(this, s"fetching package actions in '${wp.fullPath}'")
+      logging.debug(this, s"fetching package actions in '${wp.fullPath}'")
       val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.fullPath, skip = 0, limit = 0) flatMap {
         case Left(list) =>
           Future.successful {
@@ -329,7 +319,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
       onComplete(actions) {
         case Success(p) =>
-          logging.info(this, s"[GET] entity success")
+          logging.debug(this, s"[GET] entity success")
           complete(OK, p)
         case Failure(t) =>
           logging.error(this, s"[GET] failed: ${t.getMessage}")

@@ -39,6 +39,12 @@
     state: absent
   become: "{{ logs.dir.become }}"
 
+- name: remove invoker conf directory
+  file:
+    path: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    state: absent
+  become: "{{ invoker.dir.become }}"
+
 # Workaround for orphaned ifstate.veth* files on Ubuntu 14.04
 # See https://github.com/moby/moby/issues/22513
 # Remove inactive files older than 60 minutes

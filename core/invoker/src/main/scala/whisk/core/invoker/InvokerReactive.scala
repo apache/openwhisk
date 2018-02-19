@@ -19,7 +19,6 @@ package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -51,6 +50,7 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
+import akka.event.Logging.InfoLevel
 
 class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
   implicit actorSystem: ActorSystem,
@@ -81,8 +81,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
         Map(
           "--cap-drop" -> Set("NET_RAW", "NET_ADMIN"),
           "--ulimit" -> Set("nofile=1024:1024"),
-          "--pids-limit" -> Set("1024"),
-          "--dns" -> config.invokerContainerDns.toSet) ++ logsProvider.containerParameters)
+          "--pids-limit" -> Set("1024")) ++ logsProvider.containerParameters)
   containerFactory.init()
   sys.addShutdownHook(containerFactory.cleanup())
 
@@ -132,9 +131,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   /** Stores an activation in the database. */
   val store = (tid: TransactionId, activation: WhiskActivation) => {
     implicit val transid = tid
-    logging.info(this, "recording the activation result to the data store")
+    logging.debug(this, "recording the activation result to the data store")
     WhiskActivation.put(activationStore, activation)(tid, notifier = None).andThen {
-      case Success(id) => logging.info(this, s"recorded activation")
+      case Success(id) => logging.debug(this, s"recorded activation")
       case Failure(t)  => logging.error(this, s"failed to record activation")
     }
   }
@@ -170,13 +169,14 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
         //set trace context to continue tracing
         OpenTracingProvider.setTraceContext(transid, msg.traceContext)
 
-        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION)
+        val start = transid.started(this, LoggingMarkers.INVOKER_ACTIVATION, logLevel = InfoLevel)
+
         val namespace = msg.action.path
         val name = msg.action.name
         val actionid = FullyQualifiedEntityName(namespace, name).toDocId.asDocInfo(msg.revision)
         val subject = msg.user.subject
 
-        logging.info(this, s"${actionid.id} $subject ${msg.activationId}")
+        logging.debug(this, s"${actionid.id} $subject ${msg.activationId}")
 
         // caching is enabled since actions have revision id and an updated
         // action will not hit in the cache due to change in the revision id;

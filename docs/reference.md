@@ -238,7 +238,7 @@ The following packages are available to be used in the Node.js 6.12.2 environmen
 - [node-uuid v1.4.7](https://www.npmjs.com/package/node-uuid) - Deprecated UUID packaged.
 - [nodemailer v2.6.4](https://www.npmjs.com/package/nodemailer) - Send e-mails from Node.js – easy as cake!
 - [oauth2-server v2.4.1](https://www.npmjs.com/package/oauth2-server) - Complete, compliant, and well tested module for implementing an OAuth2 Server/Provider with express in Node.js.
-- [openwhisk v3.11.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.12.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 - [pkgcloud v1.4.0](https://www.npmjs.com/package/pkgcloud) - pkgcloud is a standard library for Node.js that abstracts away differences among multiple cloud providers.
 - [process v0.11.9](https://www.npmjs.com/package/process) - Require('process'); just like any other module.
 - [pug v2.0.0-beta6](https://www.npmjs.com/package/pug) - Implements the Pug templating language.
@@ -271,7 +271,7 @@ The Node.js version 8.9.3 environment is used if the `--kind` flag is explicitly
 
 The following packages are pre-installed in the Node.js version 8.9.3 environment:
 
-- [openwhisk v3.11.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
+- [openwhisk v3.12.0](https://www.npmjs.com/package/openwhisk) - JavaScript client library for the OpenWhisk platform. Provides a wrapper around the OpenWhisk APIs.
 
 ### Packaging npm packages with your actions
 For any `npm` packages that are not pre-installed in the Node.js environment, you can bundle them as dependencies when you create or update your action.
@@ -484,14 +484,14 @@ The following table lists the default limits for actions.
 * The limit cannot be changed by the user.
 * An entity with too big parameters will be rejected on trying to create or update it.
 
-### Per Docker action open files ulimit (Fixed: 64:64)
-* The maximum number of open file is 64 (for both hard and soft limits).
-* The docker run command use the argument `--ulimit nofile=64:64`.
+### Per Docker action open files ulimit (Fixed: 1024:1024)
+* The maximum number of open files is 1024 (for both hard and soft limits).
+* The docker run command use the argument `--ulimit nofile=1024:1024`.
 * For more information about the ulimit for open files see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
 
-### Per Docker action processes ulimit (Fixed: 512:512)
-* The maximum number of processes available to a user is 512 (for both hard and soft limits).
-* The docker run command use the argument `--ulimit nproc=512:512`.
+### Per Docker action processes ulimit (Fixed: 1024)
+* The maximum number of processes available to the action container is 1024.
+* The docker run command use the argument `--pids-limit 1024`.
 * For more information about the ulimit for maximum number of processes see the [docker run](https://docs.docker.com/engine/reference/commandline/run) documentation.
 
 ### Triggers

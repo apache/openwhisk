@@ -68,7 +68,7 @@ case class WhiskActivation(namespace: EntityPath,
                            publish: Boolean = false,
                            annotations: Parameters = Parameters(),
                            duration: Option[Long] = None)
-    extends WhiskEntity(EntityName(activationId.asString)) {
+    extends WhiskEntity(EntityName(activationId.asString), "activation") {
 
   require(cause != null, "cause undefined")
   require(start != null, "start undefined")
@@ -77,7 +77,10 @@ case class WhiskActivation(namespace: EntityPath,
 
   def toJson = WhiskActivation.serdes.write(this).asJsObject
 
-  /** This the activation summary as computed by the database view. Strictly used for testing. */
+  /**
+   * This the activation summary as computed by the database view.
+   * Strictly used in view testing to enforce alignment.
+   */
   override def summaryAsJson = {
     import WhiskActivation.instantSerdes
 
@@ -91,7 +94,7 @@ case class WhiskActivation(namespace: EntityPath,
     }
 
     JsObject(
-      super.summaryAsJson.fields +
+      super.summaryAsJson.fields - "updated" +
         ("activationId" -> activationId.toJson) +
         ("start" -> start.toJson) ++
         cause.map(("cause" -> _.toJson)) ++
@@ -132,8 +135,15 @@ object WhiskActivation
   val causedByAnnotation = "causedBy"
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
+  val conductorAnnotation = "conductor"
 
-  private implicit val instantSerdes = new RootJsonFormat[Instant] {
+  /** Some field names for compositions */
+  val actionField = "action"
+  val paramsField = "params"
+  val stateField = "state"
+  val valueField = "value"
+
+  protected[entity] implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson
 
     def read(value: JsValue) =
@@ -159,7 +169,7 @@ object WhiskActivation
    * A view for activations in a namespace additionally keyed by action name
    * (and package name if present) sorted by date.
    */
-  val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
+  lazy val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
 
   override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 

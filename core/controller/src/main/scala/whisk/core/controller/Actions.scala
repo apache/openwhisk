@@ -250,10 +250,10 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                       complete(InternalServerError, response)
                     }
                   case Failure(t: RecordTooLargeException) =>
-                    logging.info(this, s"[POST] action payload was too large")
+                    logging.debug(this, s"[POST] action payload was too large")
                     terminate(RequestEntityTooLarge)
                   case Failure(RejectRequest(code, message)) =>
-                    logging.info(this, s"[POST] action rejected with code $code: $message")
+                    logging.debug(this, s"[POST] action rejected with code $code: $message")
                     terminate(code, message)
                   case Failure(t: Throwable) =>
                     logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
@@ -318,22 +318,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
    * - 200 [] or [WhiskAction as JSON]
    * - 500 Internal Server Error
    */
-  override def list(user: Identity, namespace: EntityPath, excludePrivate: Boolean)(implicit transid: TransactionId) = {
-    // for consistency, all the collections should support the same list API
-    // but because supporting docs on actions is difficult, the API does not
-    // offer an option to fetch entities with full docs yet.
-    //
-    // the complication with actions is that providing docs on actions in
-    // package bindings is cannot be do readily done with a couchdb view
-    // and would require finding all bindings in namespace and
-    // joining the actions explicitly here.
-    val docs = false
+  override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
     parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
       (skip, limit, count) =>
-        listEntities {
-          WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, docs) map { list =>
-            val actions = list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
-            FilterEntityList.filter(actions, excludePrivate)
+        if (!count) {
+          listEntities {
+            WhiskAction.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
+              list =>
+                list.fold((js) => js, (as) => as.map(WhiskAction.serdes.write(_)))
+            }
+          }
+        } else {
+          countEntities {
+            WhiskAction.countCollectionInNamespace(entityStore, namespace, skip)
           }
         }
     }
@@ -392,8 +389,8 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     implicit transid: TransactionId) = {
     exec match {
       case Some(seq: SequenceExec) =>
-        logging.info(this, "checking if sequence components are accessible")
-        entitlementProvider.check(user, right, referencedEntities(seq))
+        logging.debug(this, "checking if sequence components are accessible")
+        entitlementProvider.check(user, right, referencedEntities(seq), noThrottle = true)
       case _ => Future.successful(true)
     }
   }
@@ -403,7 +400,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     exec match {
       case Some(seq: SequenceExecMetaData) =>
         logging.info(this, "checking if sequence components are accessible")
-        entitlementProvider.check(user, right, referencedEntities(seq))
+        entitlementProvider.check(user, right, referencedEntities(seq), noThrottle = true)
       case _ => Future.successful(true)
     }
   }
@@ -519,17 +516,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     // resolved namespace
     getEntity(WhiskPackage, entityStore, pkgName.toDocId, Some { (wp: WhiskPackage) =>
       val pkgns = wp.binding map { b =>
-        logging.info(this, s"list actions in package binding '${wp.name}' -> '$b'")
+        logging.debug(this, s"list actions in package binding '${wp.name}' -> '$b'")
         b.namespace.addPath(b.name)
       } getOrElse {
-        logging.info(this, s"list actions in package '${wp.name}'")
+        logging.debug(this, s"list actions in package '${wp.name}'")
         pkgName.path.addPath(wp.name)
       }
       // list actions in resolved namespace
-      // NOTE: excludePrivate is false since the subject is authorize to access
-      // the package; in the future, may wish to exclude private actions in a
-      // public package instead
-      list(user, pkgns, excludePrivate = false)
+      list(user, pkgns)
     })
   }
 
@@ -547,7 +541,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     wp.binding map {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
-        logging.info(this, s"fetching package '$docid' for reference")
+        logging.debug(this, s"fetching package '$docid' for reference")
         // already checked that subject is authorized for package and binding;
         // this fetch is redundant but should hit the cache to ameliorate cost
         getEntity(WhiskPackage, entityStore, docid, Some {
@@ -560,7 +554,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       val ns = wp.namespace.addPath(wp.name) // the package namespace
       val resource = Resource(ns, collection, Some { action.asString }, Some { params })
       val right = collection.determineRight(method, resource.entity)
-      logging.info(this, s"merged package parameters and rebased action to '$ns")
+      logging.debug(this, s"merged package parameters and rebased action to '$ns")
       dispatchOp(user, right, resource)
     }
   }

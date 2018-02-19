@@ -116,6 +116,18 @@ object Messages {
     s"Timeout reached when retrieving activation $id for sequence component."
   val sequenceActivationFailure = "Sequence failed."
 
+  /** Error messages for compositions. */
+  val compositionIsTooLong = "Too many actions in the composition."
+  val compositionActivationFailure = "Activation failure during composition."
+  def compositionActivationTimeout(id: ActivationId) =
+    s"Timeout reached when retrieving activation $id during composition."
+  def compositionComponentInvalid(value: JsValue) =
+    s"Failed to parse action name from json value $value during composition."
+  def compositionComponentNotFound(name: String) =
+    s"""Failed to resolve action with name "$name" during composition."""
+  def compositionComponentNotAccessible(name: String) =
+    s"""Failed entitlement check for action with name "$name" during composition."""
+
   /** Error messages for bad requests where parameters do not conform. */
   val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."
   def invalidTimeout(max: FiniteDuration) = s"Timeout must be number of milliseconds up to ${max.toMillis}."
@@ -133,8 +145,8 @@ object Messages {
     s"${error.field} larger than allowed: ${error.is.toBytes} > ${error.allowed.toBytes} bytes."
   }
 
-  def maxListLimitExceeded(collection: String, value: Int, max: Int) = {
-    s"The value $value exceeds the allowed limit $max for $collection."
+  def listLimitOutOfRange(collection: String, value: Int, max: Int) = {
+    s"The value $value is not in the range of 0 to $max for $collection."
   }
   def listLimitIsNotAString = s"The API expects the 'limit' value to be an integer but the given value is not."
 
@@ -191,6 +203,12 @@ object Messages {
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
   val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."
   val actionFetchErrorWhileInvoking = "Action could not be fetched."
+
+  /** Indicates that the image could not be pulled. */
+  def imagePullError(image: String) = s"Failed to pull container image '$image'."
+
+  /** Indicates that the container for the action could not be started. */
+  val resourceProvisionError = "Failed to provision resources to run the action."
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */

@@ -1,0 +1,62 @@
+{
+  "swagger": "2.0",
+  "basePath": "/guest/v1",
+  "info": {
+    "title": "/guest/v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api2/greeting2/{name}": {
+      "get": {
+        "operationId": "getApi2Greeting2Name",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Default response"
+          }
+        },
+        "x-openwhisk": {
+          "action": "testapi",
+          "namespace": "guest",
+          "package": "",
+          "url": "https://127.0.0.1/api/v1/web/guest/default/testapi.json"
+        }
+      }
+    }
+  },
+  "x-ibm-configuration": {
+    "assembly": {
+      "execute": [
+        {
+          "operation-switch": {
+            "case": [
+              {
+                "execute": [
+                  {
+                    "invoke": {
+                      "target-url": "https://127.0.0.1/api/v1/web/guest/default/testapi.json$(request.path)",
+                      "verb": "keep"
+                    }
+                  }
+                ],
+                "operations": [
+                  "getApi2Greeting2Name"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "cors": {
+      "enabled": true
+    }
+  }
+}

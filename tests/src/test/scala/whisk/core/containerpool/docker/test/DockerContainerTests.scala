@@ -34,7 +34,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import whisk.core.containerpool.logging.{DockerToActivationLogStore, LogLine}
-
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
 import common.{StreamLogging, WskActorSystem}
@@ -49,7 +48,6 @@ import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.http.Messages
-
 import whisk.core.entity.size._
 
 /**
@@ -583,8 +581,9 @@ class DockerContainerTests
 
     docker.rawContainerLogsInvocations should have size 1
 
-    processedLog should have size expectedLog.length
-    processedLog shouldBe expectedLog.map(_.toFormattedString)
+    processedLog should have size expectedLog.length + 1 //error log should be appended
+    processedLog.head shouldBe expectedLog.head.toFormattedString
+    processedLog(1) should include(Messages.logFailure)
   }
 
   it should "truncate logs and advance reading position to end of current read" in {

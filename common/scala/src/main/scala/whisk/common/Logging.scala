@@ -34,19 +34,23 @@ trait Logging {
    * Prints a message on DEBUG level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def debug(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
-    emit(DebugLevel, id, from, message)
+  def debug(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
+    if (id.meta.extraLogging) {
+      emit(InfoLevel, id, from, message)
+    } else {
+      emit(DebugLevel, id, from, message)
+    }
   }
 
   /**
    * Prints a message on INFO level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def info(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def info(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(InfoLevel, id, from, message)
   }
 
@@ -54,9 +58,9 @@ trait Logging {
    * Prints a message on WARN level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def warn(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def warn(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(WarningLevel, id, from, message)
   }
 
@@ -64,9 +68,9 @@ trait Logging {
    * Prints a message on ERROR level
    *
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def error(from: AnyRef, message: String)(implicit id: TransactionId = TransactionId.unknown) = {
+  def error(from: AnyRef, message: => String)(implicit id: TransactionId = TransactionId.unknown) = {
     emit(ErrorLevel, id, from, message)
   }
 
@@ -76,34 +80,22 @@ trait Logging {
    * @param loglevel The level to log on
    * @param id <code>TransactionId</code> to include in the log
    * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
+   * @param message Message to write to the log if not empty
    */
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String)
-
-  /**
-   * Prints a message to the output using LogMarker.
-   * This method will log a formatted message using the LogMarker.
-   * LogMarker will also be used to support Tracing if Logging instance supports it.
-   *
-   * @param loglevel The level to log on
-   * @param id <code>TransactionId</code> to include in the log
-   * @param from Reference, where the method was called from.
-   * @param message Message to write to the log
-   * @param logMarker <code>LogMarker</code> to include in the log
-   */
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String, logMarker: LogMarker) : Unit = {
-      emit(loglevel, id, from, TransactionId.createMessageWithMarker(message, logMarker))
-  }
+  protected[common] def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String)
 }
 
 /**
  * Implementation of Logging, that uses Akka logging.
  */
 class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
     if (loggingAdapter.isEnabled(loglevel)) {
-      val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
-      loggingAdapter.log(loglevel, s"[$id] [$name] $message")
+      val logmsg: String = message // generates the message
+      if (logmsg.nonEmpty) { // log it only if its not empty
+        val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
+        loggingAdapter.log(loglevel, s"[$id] [$name] $logmsg")
+      }
     }
   }
 }
@@ -112,7 +104,7 @@ class AkkaLogging(loggingAdapter: LoggingAdapter) extends Logging {
  * Implementaion of Logging, that uses the output stream.
  */
 class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Logging {
-  def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: String) = {
+  override def emit(loglevel: LogLevel, id: TransactionId, from: AnyRef, message: => String) = {
     val now = Instant.now(Clock.systemUTC)
     val time = Emitter.timeFormat.format(now)
     val name = if (from.isInstanceOf[String]) from else Logging.getCleanSimpleClassName(from.getClass)
@@ -199,17 +191,18 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken) = {
+  def emitCounterMetric(token: LogMarkerToken): Unit = {
     metrics
       .counter(token.toString)
       .increment(1)
   }
 
-  def emitHistogramMetric(token: LogMarkerToken, value: Long) = {
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     metrics
       .histogram(token.toString)
       .record(value)
   }
+
 }
 
 object LoggingMarkers {
@@ -249,6 +242,8 @@ object LoggingMarkers {
   // Check invoker healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
+  def LOADBALANCER_ACTIVATION_START(namespaceId: String) =
+    LogMarkerToken(loadbalancer, s"activations_$namespaceId", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
@@ -263,6 +258,8 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
+  def INVOKER_CONTAINER_START(actionName: String, namespaceName: String, containerState: String) =
+    LogMarkerToken(invoker, s"container_start_${containerState}_${namespaceName}_$actionName", count)
 
   /*
    * General markers
@@ -276,4 +273,5 @@ object LoggingMarkers {
   val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)
   val DATABASE_ATT_GET = LogMarkerToken(database, "getDocumentAttachment", start)
   val DATABASE_ATT_SAVE = LogMarkerToken(database, "saveDocumentAttachment", start)
+  val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)
 }

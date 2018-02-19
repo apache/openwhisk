@@ -46,7 +46,6 @@ import whisk.core.entity.types.EntityStore
  */
 trait DbUtils extends TransactionCounter {
   implicit val dbOpTimeout = 15 seconds
-  override val numberOfInstances = 1
   override val instanceOrdinal = 0
   val instance = InstanceId(instanceOrdinal)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
@@ -126,13 +125,15 @@ trait DbUtils extends TransactionCounter {
    * This uses retry above, where the step performs a collection-specific view query using the collection
    * factory. The result count from the view is checked against the given value.
    */
-  def waitOnView(db: EntityStore, factory: WhiskEntityQueries[_], namespace: EntityPath, count: Int)(
-    implicit context: ExecutionContext,
-    transid: TransactionId,
-    timeout: Duration) = {
+  def waitOnView(
+    db: EntityStore,
+    factory: WhiskEntityQueries[_],
+    namespace: EntityPath,
+    count: Int,
+    includeDocs: Boolean = false)(implicit context: ExecutionContext, transid: TransactionId, timeout: Duration) = {
     val success = retry(() => {
-      factory.listCollectionInNamespace(db, namespace, 0, 0) map { l =>
-        if (l.left.get.length < count) {
+      factory.listCollectionInNamespace(db, namespace, 0, 0, includeDocs) map { l =>
+        if (l.fold(_.length, _.length) < count) {
           throw RetryOp()
         } else true
       }

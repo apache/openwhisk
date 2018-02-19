@@ -67,11 +67,8 @@ class SequenceActionApiMigrationTests
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[List[JsObject]]
-
       actions.length should be(response.length)
-      actions forall { a =>
-        response contains a.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs actions.map(_.summaryAsJson)
     }
   }
 

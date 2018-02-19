@@ -24,7 +24,6 @@ import java.util.Base64
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -72,14 +71,14 @@ case class WhiskActionPut(exec: Option[Exec] = None,
   }
 }
 
-abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name) {
+abstract class WhiskActionLike(override val name: EntityName) extends WhiskEntity(name, "action") {
   def exec: Exec
   def parameters: Parameters
   def limits: ActionLimits
 
   /** @return true iff action has appropriate annotation. */
   def hasFinalParamsAnnotation = {
-    annotations.asBool(WhiskAction.finalParamsAnnotationName) getOrElse false
+    annotations.getAs[Boolean](WhiskAction.finalParamsAnnotationName) getOrElse false
   }
 
   /** @return a Set of immutable parameternames */
@@ -160,8 +159,23 @@ case class WhiskAction(namespace: EntityPath,
       Some(
         ExecutableWhiskAction(namespace, name, codeExec, parameters, limits, version, publish, annotations)
           .revision[ExecutableWhiskAction](rev))
-    case _ =>
-      None
+    case _ => None
+  }
+
+  /**
+   * This the action summary as computed by the database view.
+   * Strictly used in view testing to enforce alignment.
+   */
+  override def summaryAsJson = {
+    val binary = exec match {
+      case c: CodeExec[_] => c.binary
+      case _              => false
+    }
+
+    JsObject(
+      super.summaryAsJson.fields +
+        ("limits" -> limits.toJson) +
+        ("exec" -> JsObject("binary" -> JsBoolean(binary))))
   }
 }
 

@@ -76,7 +76,7 @@ case class WhiskRule(namespace: EntityPath,
                      version: SemVer = SemVer(),
                      publish: Boolean = false,
                      annotations: Parameters = Parameters())
-    extends WhiskEntity(name) {
+    extends WhiskEntity(name, "rule") {
 
   def withStatus(s: Status) = WhiskRuleResponse(namespace, name, s, trigger, action, version, publish, annotations)
 

@@ -19,7 +19,7 @@
     mode=0755
     validate_certs=False
     force=True
-  when: ('environments/docker-machine' not in inventory_dir) and (ansible_os_family != "Darwin")
+  when: ('environments/docker-machine' not in hosts_dir) and (ansible_os_family != "Darwin")
 
 - name: "download cli for mac (docker-machine or Docker for Mac) to openwhisk home at {{ openwhisk_home }}"
   local_action: >
@@ -29,4 +29,4 @@
     mode=0755
     validate_certs=False
     force=True
-  when: ('environments/docker-machine' in inventory_dir ) or (ansible_os_family == "Darwin")
+  when: ('environments/docker-machine' in hosts_dir ) or (ansible_os_family == "Darwin")

@@ -599,7 +599,7 @@ def getDbCmd(args, props):
             print('view name "%s" is not formatted correctly, should be design/view' % args.view)
             return 2
 
-    url = '%(protocol)s://%(host)s:%(port)s/%(database)s%(design)s/%(index)s?include_docs=%(docs)s' % {
+    url = '%(protocol)s://%(host)s:%(port)s/%(database)s%(design)s/%(index)s?reduce=false&include_docs=%(docs)s' % {
         'protocol': protocol,
         'host'    : host,
         'port'    : port,

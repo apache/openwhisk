@@ -19,19 +19,18 @@ package whisk.core.containerpool
 
 import scala.collection.immutable
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.Props
-import whisk.common.AkkaLogging
+import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
 
-import whisk.common.TransactionId
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
 import whisk.core.connector.MessageFeed
+
+import scala.concurrent.duration._
 
 sealed trait WorkerState
 case object Busy extends WorkerState
@@ -71,12 +70,25 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var freePool = immutable.Map.empty[ActorRef, ContainerData]
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  val logMessageInterval = 10.seconds
 
   prewarmConfig.foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
     (1 to config.count).foreach { _ =>
       prewarmContainer(config.exec, config.memoryLimit)
     }
+  }
+
+  def logContainerStart(r: Run, containerState: String): Unit = {
+    val namespaceName = r.msg.user.namespace.name
+    val actionName = r.action.name.name
+    val activationId = r.msg.activationId.toString
+
+    r.msg.transid.mark(
+      this,
+      LoggingMarkers.INVOKER_CONTAINER_START(actionName, namespaceName, containerState),
+      s"containerStart containerState: $containerState action: $actionName namespace: $namespaceName activationId: $activationId",
+      akka.event.Logging.InfoLevel)
   }
 
   def receive: Receive = {
@@ -86,39 +98,62 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val container = if (busyPool.size < maxActiveContainers) {
+      val createdContainer = if (busyPool.size < maxActiveContainers) {
+
         // Schedule a job to a warm container
         ContainerPool
           .schedule(r.action, r.msg.user.namespace, freePool)
+          .map(container => {
+            (container, "warm")
+          })
           .orElse {
             if (busyPool.size + freePool.size < maxPoolSize) {
-              takePrewarmContainer(r.action).orElse {
-                Some(createContainer())
-              }
+              takePrewarmContainer(r.action)
+                .map(container => {
+                  (container, "prewarmed")
+                })
+                .orElse {
+                  Some(createContainer(), "cold")
+                }
             } else None
           }
           .orElse {
             // Remove a container and create a new one for the given job
             ContainerPool.remove(freePool).map { toDelete =>
               removeContainer(toDelete)
-              takePrewarmContainer(r.action).getOrElse {
-                createContainer()
-              }
+              takePrewarmContainer(r.action)
+                .map(container => {
+                  (container, "recreated")
+                })
+                .getOrElse {
+                  (createContainer(), "recreated")
+                }
             }
           }
       } else None
 
-      container match {
-        case Some((actor, data)) =>
+      createdContainer match {
+        case Some(((actor, data), containerState)) =>
           busyPool = busyPool + (actor -> data)
           freePool = freePool - actor
           actor ! r // forwards the run request to the container
+          logContainerStart(r, containerState)
         case None =>
           // this can also happen if createContainer fails to start a new container, or
           // if a job is rescheduled but the container it was allocated to has not yet destroyed itself
           // (and a new container would over commit the pool)
-          logging.error(this, "Rescheduling Run message, too many message in the pool")(r.msg.transid)
-          self ! r
+          val isErrorLogged = r.retryLogDeadline.map(_.isOverdue).getOrElse(true)
+          val retryLogDeadline = if (isErrorLogged) {
+            logging.error(
+              this,
+              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
+                s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, " +
+                s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
+            Some(logMessageInterval.fromNow)
+          } else {
+            r.retryLogDeadline
+          }
+          self ! Run(r.action, r.msg, retryLogDeadline)
       }
 
     // Container is free to take more work

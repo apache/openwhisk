@@ -32,10 +32,7 @@ import DefaultJsonProtocol._
  */
 @RunWith(classOf[JUnitRunner])
 class GoCLINginxTests extends FlatSpec with Matchers with RestUtil {
-  val ProductName = "OpenWhisk_CLI"
   val DownloadLinkGoCli = "cli/go/download"
-  val OperatingSystems = List("mac", "linux", "windows")
-  val Architectures = List("386", "amd64")
   val ServiceURL = getServiceURL()
 
   it should s"respond to all files in root directory" in {

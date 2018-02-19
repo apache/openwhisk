@@ -33,10 +33,14 @@ import whisk.core.entity.WhiskActivation
 import whisk.core.entity.Subject
 import whisk.core.entity.ActivationId
 import java.time.Instant
+
+import spray.json.JsString
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.ReducedRule
 import whisk.core.entity.Status
+import whisk.core.entity.WhiskEntity
+import whisk.core.entity.WhiskRule
 
 @RunWith(classOf[JUnitRunner])
 class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
@@ -133,5 +137,29 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     val rulesRemoved = ruleAdded.withoutRules
     rulesRemoved.rules shouldBe None
     rulesRemoved.rev shouldBe trigger.rev
+  }
+
+  behavior of "WhiskEntity"
+
+  it should "define the entityType property in its json representation" in {
+    def assertType(d: WhiskEntity, entityType: String) = {
+      d.toDocumentRecord.fields("entityType") shouldBe JsString(entityType)
+    }
+
+    val action = WhiskAction(namespace, name, jsDefault("code"), Parameters())
+    assertType(action, "action")
+
+    val activation = WhiskActivation(namespace, name, Subject(), ActivationId(), Instant.now(), Instant.now())
+    assertType(activation, "activation")
+
+    val whiskPackage = WhiskPackage(namespace, name)
+    assertType(whiskPackage, "package")
+
+    val rule =
+      WhiskRule(namespace, name, FullyQualifiedEntityName(namespace, name), FullyQualifiedEntityName(namespace, name))
+    assertType(rule, "rule")
+
+    val trigger = WhiskTrigger(namespace, name)
+    assertType(trigger, "trigger")
   }
 }

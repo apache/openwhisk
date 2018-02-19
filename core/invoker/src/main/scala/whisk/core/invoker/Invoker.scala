@@ -67,9 +67,6 @@ object Invoker {
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
       invokerCoreShare -> "2",
-      invokerContainerPolicy -> "",
-      invokerContainerDns -> "",
-      invokerContainerNetwork -> null,
       invokerUseRunc -> "true") ++
       Map(invokerName -> "")
 
@@ -103,7 +100,7 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val execManifest = ExecManifest.initialize(config, localDockerImagePrefix = Some(config.dockerImagePrefix))
+    val execManifest = ExecManifest.initialize(config)
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
       abort("Bad configuration, cannot start.")

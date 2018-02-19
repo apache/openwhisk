@@ -223,16 +223,14 @@ trait WskTestHelpers extends Matchers {
                      totalWait: Duration)(check: ActivationResult => Unit)(implicit wskprops: WskProps): Unit = {
     val id = activationId
     val activation = wsk.waitForActivation(id, initialWait, pollPeriod, totalWait)
-    if (activation.isLeft) {
-      assert(false, s"error waiting for activation $id: ${activation.left.get}")
-    } else
-      try {
-        check(activation.right.get.convertTo[ActivationResult])
-      } catch {
-        case error: Throwable =>
-          println(s"check failed for activation $id: ${activation.right.get}")
-          throw error
-      }
+
+    activation match {
+      case Left(reason) => fail(s"error waiting for activation $id for $totalWait: $reason")
+      case Right(result) =>
+        withRethrowingPrint(s"check failed for activation $id: $result") {
+          check(result.convertTo[ActivationResult])
+        }
+    }
   }
 
   /**
@@ -278,6 +276,22 @@ trait WskTestHelpers extends Matchers {
       case error: Throwable =>
         println(s"[stderr] ${runResult.stderr}")
         println(s"[stdout] ${runResult.stdout}")
+        throw error
+    }
+  }
+
+  /**
+   * Prints the given information iff the inner test fails. Rethrows the tests exception to get a meaningful
+   * stacktrace.
+   *
+   * @param information additional information to print
+   * @param test test to run
+   */
+  def withRethrowingPrint(information: String)(test: => Unit): Unit = {
+    try test
+    catch {
+      case error: Throwable =>
+        println(information)
         throw error
     }
   }

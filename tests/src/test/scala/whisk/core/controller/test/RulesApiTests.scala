@@ -70,24 +70,20 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
     }.toList
     rules foreach { put(entityStore, _) }
-    waitOnView(entityStore, WhiskRule, namespace, 2)
+    waitOnView(entityStore, WhiskRule, namespace, 2, includeDocs = true)
     Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       rules.length should be(response.length)
-      rules forall { r =>
-        response contains r.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs rules.map(_.toJson)
     }
 
-    // it should "list trirulesggers with explicit namespace owned by subject" in {
+    // it should "list rules with explicit namespace owned by subject" in {
     Get(s"/$namespace/${collection.path}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[List[JsObject]]
       rules.length should be(response.length)
-      rules forall { r =>
-        response contains r.summaryAsJson
-      } should be(true)
+      response should contain theSameElementsAs rules.map(_.toJson)
     }
 
     // it should "reject list rules with explicit namespace not owned by subject" in {
@@ -103,7 +99,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.RULES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.RULES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }
@@ -116,14 +112,12 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
       WhiskRule(namespace, aname(), afullname(namespace, "bogus trigger"), afullname(namespace, "bogus action"))
     }.toList
     rules foreach { put(entityStore, _) }
-    waitOnView(entityStore, WhiskRule, namespace, 2)
+    waitOnView(entityStore, WhiskRule, namespace, 2, includeDocs = true)
     Get(s"$collectionPath?docs=true") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[List[WhiskRule]]
       rules.length should be(response.length)
-      rules forall { r =>
-        response contains r
-      } should be(true)
+      response should contain theSameElementsAs rules.map(_.toJson)
     }
   }
 
@@ -569,7 +563,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -600,7 +594,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -631,7 +625,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -662,7 +656,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -690,7 +684,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))

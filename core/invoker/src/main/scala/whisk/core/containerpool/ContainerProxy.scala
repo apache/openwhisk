@@ -37,6 +37,7 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
+import akka.event.Logging.InfoLevel
 
 // States
 sealed trait ContainerState
@@ -61,7 +62,7 @@ case class WarmedData(container: Container,
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
-case class Run(action: ExecutableWhiskAction, msg: ActivationMessage)
+case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
 case object Remove
 
 // Events sent by the actor
@@ -148,7 +149,7 @@ class ContainerProxy(
             val response = t match {
               case WhiskContainerStartupError(msg) => ActivationResponse.whiskError(msg)
               case BlackboxStartupError(msg)       => ActivationResponse.applicationError(msg)
-              case _                               => ActivationResponse.whiskError(t.getMessage)
+              case _                               => ActivationResponse.whiskError(Messages.resourceProvisionError)
             }
             // construct an appropriate activation and record it in the datastore,
             // also update the feed and active ack; the container cleanup is queued
@@ -379,7 +380,7 @@ class ContainerProxy(
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
+        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
         collectLogs(tid, job.msg.user, activation, container, job.action)
           .andThen {
             case Success(_) => tid.finished(this, start)

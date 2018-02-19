@@ -24,13 +24,11 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.math.BigDecimal.int2bigDecimal
 import scala.util.Try
-
-import akka.event.Logging.{InfoLevel, WarningLevel}
+import akka.event.Logging.{DebugLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
-import spray.json.JsArray
-import spray.json.JsNumber
-import spray.json.JsValue
-import spray.json.RootJsonFormat
+import spray.json._
+import whisk.core.ConfigKeys
+import pureconfig._
 import whisk.common.tracing.OpenTracingProvider
 
 /**
@@ -51,15 +49,16 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    *
    * @param from Reference, where the method was called from.
    * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
-   * @param message An additional message that is written into the log, together with the other information.
+   * @param message An additional message to be written into the log, together with the other information.
    * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
    */
-  def mark(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(
+  def mark(from: AnyRef, marker: LogMarkerToken, message: => String = "", logLevel: LogLevel = DebugLevel)(
     implicit logging: Logging) = {
 
     if (TransactionId.metricsLog) {
-      logging.emit(logLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
-    } else if (message.nonEmpty) {
+      // marker received with a debug level will be emitted on info level
+      logging.emit(InfoLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+    } else {
       logging.emit(logLevel, this, from, message)
     }
 
@@ -75,19 +74,19 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    *
    * @param from Reference, where the method was called from.
    * @param marker A LogMarkerToken. They are defined in <code>LoggingMarkers</code>.
-   * @param message An additional message that is written into the log, together with the other information.
+   * @param message An additional message to be written into the log, together with the other information.
    * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
    *
    * @return startMarker that has to be passed to the finished or failed method to calculate the time difference.
    */
-  def started(from: AnyRef, marker: LogMarkerToken, message: String = "", logLevel: LogLevel = InfoLevel)(
+  def started(from: AnyRef, marker: LogMarkerToken, message: => String = "", logLevel: LogLevel = DebugLevel)(
     implicit logging: Logging): StartMarker = {
-    
-    val logMarker = LogMarker(marker, deltaToStart)
+
     if (TransactionId.metricsLog) {
-      logging.emit(logLevel, this, from, createMessageWithMarker(message, logMarker), logMarker)
-    } else if (message.nonEmpty) {
-      logging.emit(logLevel, this, from, message, logMarker)
+      // marker received with a debug level will be emitted on info level
+      logging.emit(InfoLevel, this, from, createMessageWithMarker(message, LogMarker(marker, deltaToStart)))
+    } else {
+      logging.emit(logLevel, this, from, message)
     }
 
     if (TransactionId.metricsKamon) {
@@ -105,27 +104,27 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    *
    * @param from Reference, where the method was called from.
    * @param startMarker <code>StartMarker</code> returned by a <code>starting</code> method.
-   * @param message An additional message that is written into the log, together with the other information.
+   * @param message An additional message to be written into the log, together with the other information.
    * @param logLevel The Loglevel, the message should have. Default is <code>InfoLevel</code>.
    * @param endTime Manually set the timestamp of the end. By default it is NOW.
    */
   def finished(from: AnyRef,
                startMarker: StartMarker,
-               message: String = "",
-               logLevel: LogLevel = InfoLevel,
+               message: => String = "",
+               logLevel: LogLevel = DebugLevel,
                endTime: Instant = Instant.now(Clock.systemUTC))(implicit logging: Logging) = {
 
     val endMarker =
       LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
     val deltaToEnd = deltaToMarker(startMarker, endTime)
-    val logMarker = LogMarker(endMarker, deltaToStart, Some(deltaToEnd))
+
     if (TransactionId.metricsLog) {
       logging.emit(
-        logLevel,
+        InfoLevel,
         this,
         from,
-        createMessageWithMarker(message, logMarker), logMarker)
-    } else if (message.nonEmpty) {
+        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+    } else {
       logging.emit(logLevel, this, from, message)
     }
 
@@ -142,10 +141,10 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    *
    * @param from Reference, where the method was called from.
    * @param startMarker <code>StartMarker</code> returned by a <code>starting</code> method.
-   * @param message An additional message that is written into the log, together with the other information.
+   * @param message An additional message to be written into the log, together with the other information.
    * @param logLevel The <code>LogLevel</code> the message should have. Default is <code>WarningLevel</code>.
    */
-  def failed(from: AnyRef, startMarker: StartMarker, message: String = "", logLevel: LogLevel = WarningLevel)(
+  def failed(from: AnyRef, startMarker: StartMarker, message: => String = "", logLevel: LogLevel = WarningLevel)(
     implicit logging: Logging) = {
 
     val endMarker =
@@ -158,7 +157,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
         this,
         from,
         createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
-    } else if (message.nonEmpty) {
+    } else {
       logging.emit(logLevel, this, from, message)
     }
 
@@ -191,7 +190,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
    * @param message: The log message without the marker
    * @param marker: The marker to add to the message
    */
-  def createMessageWithMarker(message: String, marker: LogMarker): String = s"$message $marker"
+  private def createMessageWithMarker(message: String, marker: LogMarker): String = s"$message $marker"
 }
 
 /**
@@ -209,7 +208,7 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant)
+protected case class TransactionMetadata(val id: Long, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
 
@@ -228,33 +227,30 @@ object TransactionId {
   val controller = TransactionId(-130) // Controller startup
   val dbBatcher = TransactionId(-140) // Database batcher
 
-  def apply(tid: BigDecimal): TransactionId = {
+  def apply(tid: BigDecimal, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid.toLong, now))
+      TransactionId(TransactionMetadata(tid.toLong, now, extraLogging))
     } getOrElse unknown
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) = JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+    def write(t: TransactionId) = {
+      if (t.meta.extraLogging)
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
+      else
+        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+    }
 
     def read(value: JsValue) =
       Try {
         value match {
           case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue)))
+            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
-  }
-
-  /**
-    * Formats log message to include marker.
-    *
-    * @param message: The log message without the marker
-    * @param marker: The marker to add to the message
-    */
-  def createMessageWithMarker(message: String, marker: LogMarker): String = {
-    (Option(message).filter(_.trim.nonEmpty) ++ Some(marker)).mkString(" ")
   }
 }
 
@@ -262,12 +258,16 @@ object TransactionId {
  * A thread-safe transaction counter.
  */
 trait TransactionCounter {
-  val numberOfInstances: Int
+  case class TransactionCounterConfig(stride: Int)
+
+  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
+  val stride = transCounterConfig.stride
   val instanceOrdinal: Int
 
-  private lazy val cnt = new AtomicInteger(numberOfInstances + instanceOrdinal)
+  // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
+  private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
 
-  def transid(): TransactionId = {
-    TransactionId(cnt.addAndGet(numberOfInstances))
+  def transid(extraLogging: Boolean = false): TransactionId = {
+    TransactionId(cnt.addAndGet(stride), extraLogging)
   }
 }

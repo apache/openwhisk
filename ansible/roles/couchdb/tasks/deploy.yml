@@ -6,7 +6,7 @@
     coordinator: "{{ groups['db'][0] }}"
 
 - name: check if db credentials are valid for CouchDB
-  fail: msg="The db provider in your {{ inventory_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
+  fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
   when: db_provider != "CouchDB"
 
 - name: check for persistent disk
@@ -89,15 +89,3 @@
     password: "{{ db_password }}"
     force_basic_auth: yes
   when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
-
-- name: disable reduce limit on views
-  uri:
-    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_node/couchdb@{{ ansible_host }}/_config/query_server_config/reduce_limit"
-    method: PUT
-    body: >
-        "false"
-    body_format: json
-    status_code: 200
-    user: "{{ db_username }}"
-    password: "{{ db_password }}"
-    force_basic_auth: yes

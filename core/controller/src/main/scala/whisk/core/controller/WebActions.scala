@@ -483,7 +483,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                    if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -559,7 +559,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.asBool("raw-http").exists(identity)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean]("raw-http").exists(identity)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -658,7 +658,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       case Success(Left(activationId)) =>
         // blocking invoke which got queued instead
         // this should not happen, instead it should be a blocking invoke timeout
-        logging.info(this, "activation waiting period expired")
+        logging.debug(this, "activation waiting period expired")
         terminate(Accepted, Messages.responseNotReady)
 
       case Failure(t: RejectRequest) => terminate(t.code, t.message)
@@ -680,10 +680,10 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         // if the package lookup fails or the package doesn't conform to expected invariants,
         // fail the request with BadRequest so as not to leak information about the existence
         // of packages that are otherwise private
-        logging.info(this, s"package which does not exist")
+        logging.debug(this, s"package which does not exist")
         Future.failed(RejectRequest(NotFound))
       case _: NoSuchElementException =>
-        logging.warn(this, s"'$pkg' is a binding")
+        logging.debug(this, s"'$pkg' is a binding")
         Future.failed(RejectRequest(NotFound))
     }
   }
@@ -720,18 +720,18 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser = action.annotations.asBool("require-whisk-auth").exists(identity)
-      val isExported = action.annotations.asBool("web-export").exists(identity)
+      val requiresAuthenticatedUser = action.annotations.getAs[Boolean]("require-whisk-auth").exists(identity)
+      val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {
-        logging.info(this, s"${action.fullyQualifiedName(true)} is exported")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} is exported")
         Future.successful(action)
       } else if (!isExported) {
-        logging.info(this, s"${action.fullyQualifiedName(true)} not exported")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} not exported")
         Future.failed(RejectRequest(NotFound))
       } else {
-        logging.info(this, s"${action.fullyQualifiedName(true)} requires authentication")
+        logging.debug(this, s"${action.fullyQualifiedName(true)} requires authentication")
         Future.failed(RejectRequest(Unauthorized))
       }
     }

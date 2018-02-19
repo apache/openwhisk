@@ -65,8 +65,8 @@ Additionally for sequence related activations, the system will generate the foll
 
 Lastly, and in order to provide you with some performance transparency, activations also record:
 
-* `wait`: the time spent waiting in the internal OpenWhisk system. This is roughly the time spent between the controller receiving the activation request and when the invoker provisioned a container for the action. This value is currently only present for non-sequence related activations. For sequences, this information can be derived from the `topmost` sequence activation record.
-* `init`: the time spent initializing the function. If this value is present, the action required initialization and represents a cold start. A warm activation will skip initialization, and in this case, the annotation is not generated.
+* `waitTime`: the time spent waiting in the internal OpenWhisk system. This is roughly the time spent between the controller receiving the activation request and when the invoker provisioned a container for the action. This value is currently only present for non-sequence related activations. For sequences, this information can be derived from the `topmost` sequence activation record.
+* `initTime`: the time spent initializing the function. If this value is present, the action required initialization and represents a cold start. A warm activation will skip initialization, and in this case, the annotation is not generated.
 
 An example of these annotations as they would appear in an activation record is shown below.
 
@@ -77,7 +77,7 @@ An example of these annotations as they would appear in an activation record is 
     "value": "guest/echo"
   },
   {
-    "key": "wait",
+    "key": "waitTime",
     "value": 66
   },
   {
@@ -85,7 +85,7 @@ An example of these annotations as they would appear in an activation record is 
     "value": "nodejs:6"
   },
   {
-    "key": "init",
+    "key": "initTime",
     "value": 50
   },
   {

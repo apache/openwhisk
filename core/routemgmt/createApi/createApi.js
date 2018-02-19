@@ -154,6 +154,10 @@ function main(message) {
         return Promise.resolve(utils2.addEndpointToSwaggerApi(endpointDoc, doc, message.responsetype));
       }
     })
+    .then(function(apiSwagger){
+      console.log("Validating Swagger doc before sending it to API GW.")
+      return utils2.validateFinalSwagger(apiSwagger);
+    })
     .then(function(apiSwagger) {
       console.log('Final swagger API config: '+ JSON.stringify(apiSwagger));
       return utils2.addApiToGateway(gwInfo, message.spaceguid, apiSwagger, apiDocId);
@@ -206,6 +210,10 @@ function main(message) {
         console.log('Add the provided API endpoint');
         return Promise.resolve(utils.addEndpointToSwaggerApi(swaggerApi, doc));
       }
+    })
+    .then(function(apiSwagger){
+       console.log("Validating Swagger doc before sending it to API GW.")
+       return utils2.validateFinalSwagger(apiSwagger);
     })
     .then(function(swaggerApi) {
       console.log('Final swagger API config: '+ JSON.stringify(swaggerApi));

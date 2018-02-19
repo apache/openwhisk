@@ -44,7 +44,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import whisk.utils.retry
@@ -74,7 +73,7 @@ class ThrottleTests
   val throttleWindow = 1.minute
 
   // Due to the overhead of the per minute limit in the controller, we add this overhead here as well.
-  val overhead = if (WhiskProperties.getProperty(WhiskConfig.controllerHighAvailability).toBoolean) 1.2 else 1.0
+  val overhead = if (WhiskProperties.getControllerHosts.split(",").length > 1) 1.2 else 1.0
   val maximumInvokesPerMinute = math.ceil(getLimit("limits.actions.invokes.perMinute") * overhead).toInt
   val maximumFiringsPerMinute = math.ceil(getLimit("limits.triggers.fires.perMinute") * overhead).toInt
   val maximumConcurrentInvokes = getLimit("limits.actions.invokes.concurrent")
@@ -188,15 +187,12 @@ class ThrottleTests
     val numGroups = (totalInvokes / maximumConcurrentInvokes) + 1
     val invokesPerGroup = (totalInvokes / numGroups) + 1
     val interGroupSleep = 5.seconds
-    val results = (1 to numGroups)
-      .map { i =>
-        if (i != 1) { Thread.sleep(interGroupSleep.toMillis) }
-        untilThrottled(invokesPerGroup) { () =>
-          wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
-        }
+    val results = (1 to numGroups).flatMap { i =>
+      if (i != 1) { Thread.sleep(interGroupSleep.toMillis) }
+      untilThrottled(invokesPerGroup) { () =>
+        wsk.action.invoke(name, Map("payload" -> "testWord".toJson), expectedExitCode = DONTCARE_EXIT)
       }
-      .flatten
-      .toList
+    }.toList
     val afterInvokes = Instant.now
 
     try {
@@ -244,10 +240,12 @@ class ThrottleTests
         action.create(name, timeoutAction)
     }
 
-    // The sleep is necessary as the load balancer currently has a latency before recognizing concurency.
+    // The sleep is necessary as the load balancer currently has a latency before recognizing concurrency.
     val sleep = 15.seconds
-    val slowInvokes = maximumConcurrentInvokes
-    val fastInvokes = 2
+    // Adding a bit of overcommit since some loadbalancers rely on some overcommit. This won't hurt those who don't
+    // since all activations are taken into account to check for throttled invokes below.
+    val slowInvokes = (maximumConcurrentInvokes * 1.2).toInt
+    val fastInvokes = 4
     val fastInvokeDuration = 4.seconds
     val slowInvokeDuration = sleep + fastInvokeDuration
 
@@ -327,8 +325,12 @@ class NamespaceSpecificThrottleTests
   val oneProps = getAdditionalTestSubject("oneSubject")
   wskadmin.cli(Seq("limits", "set", oneProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
 
+  // Create a subject where the rate limits are set to 1 for testing sequences
+  val oneSequenceProps = getAdditionalTestSubject("oneSequenceSubject")
+  wskadmin.cli(Seq("limits", "set", oneSequenceProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
+
   override def afterAll() = {
-    Seq(zeroProps, zeroConcProps, oneProps).foreach { wp =>
+    Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps).foreach { wp =>
       val ns = wp.namespace
       disposeAdditionalTestSubject(ns)
       withClue(s"failed to delete temporary limits for $ns") {
@@ -398,6 +400,44 @@ class NamespaceSpecificThrottleTests
         include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
       }
     }, 2, Some(1.second))
+  }
+
+  // One sequence invocation should count as one invocation for rate throttling purposes.
+  // This is independent of the number of actions in the sequences.
+  it should "respect overridden rate-throttles of 1 for sequences" in withAssetCleaner(oneSequenceProps) {
+    (wp, assetHelper) =>
+      implicit val props = wp
+
+      val actionName = "oneAction"
+      val sequenceName = "oneSequence"
+
+      assetHelper.withCleaner(wsk.action, actionName) { (action, _) =>
+        action.create(actionName, defaultAction)
+      }
+
+      assetHelper.withCleaner(wsk.action, sequenceName) { (action, _) =>
+        action.create(sequenceName, Some(s"$actionName,$actionName"), kind = Some("sequence"))
+      }
+
+      val deployedControllers = WhiskProperties.getControllerHosts.split(",").length
+
+      // One invoke should be allowed.
+      wsk.action
+        .invoke(sequenceName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+        .exitCode shouldBe TestUtils.SUCCESS_EXIT
+
+      // One invoke should be allowed, the second one throttled.
+      // Due to the current implementation of the rate throttling,
+      // it is possible that the counter gets deleted, because the minute switches.
+      retry({
+        val results = (1 to deployedControllers + 1).map { _ =>
+          wsk.action.invoke(sequenceName, expectedExitCode = TestUtils.DONTCARE_EXIT)
+        }
+        results.map(_.exitCode) should contain(TestUtils.THROTTLED)
+        results.map(_.stderr).mkString should {
+          include(prefix(tooManyRequests(0, 0))) and include("allowed: 1")
+        }
+      }, 2, Some(1.second))
   }
 
   it should "respect overridden concurrent throttle of 0" in withAssetCleaner(zeroConcProps) { (wp, assetHelper) =>

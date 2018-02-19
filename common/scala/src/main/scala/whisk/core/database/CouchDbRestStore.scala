@@ -20,7 +20,6 @@ package whisk.core.database
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model._
@@ -28,9 +27,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.entity.BulkEntityResult
 import whisk.core.entity.DocInfo
 import whisk.core.entity.DocRevision
@@ -140,6 +137,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     implicit transid: TransactionId): Future[Seq[Either[ArtifactStoreException, DocInfo]]] = {
     val count = ds.size
     val start = transid.started(this, LoggingMarkers.DATABASE_BULK_SAVE, s"'$dbName' saving $count documents")
+
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.DATABASE_BATCH_SIZE, ds.size)
 
     val f = client.putDocs(ds).map {
       _ match {
@@ -288,45 +287,82 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       (startKey, endKey)
     }
 
-    val parts = table.split("/")
+    val Array(firstPart, secondPart) = table.split("/")
 
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table")
 
-    val f = for (eitherResponse <- client.executeView(parts(0), parts(1))(
-                   startKey = realStartKey,
-                   endKey = realEndKey,
-                   skip = Some(skip),
-                   limit = Some(limit),
-                   stale = stale,
-                   includeDocs = includeDocs,
-                   descending = descending,
-                   reduce = reduce))
-      yield
-        eitherResponse match {
-          case Right(response) =>
-            val rows = response.fields("rows").convertTo[List[JsObject]]
+    val f = client
+      .executeView(firstPart, secondPart)(
+        startKey = realStartKey,
+        endKey = realEndKey,
+        skip = Some(skip),
+        limit = Some(limit),
+        stale = stale,
+        includeDocs = includeDocs,
+        descending = descending,
+        reduce = reduce)
+      .map {
+        case Right(response) =>
+          val rows = response.fields("rows").convertTo[List[JsObject]]
 
-            val out = if (reduce && !rows.isEmpty) {
-              assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-              rows.head.fields("value").convertTo[List[JsObject]]
-            } else if (reduce) {
-              List(JsObject())
-            } else {
-              rows
-            }
+          val out = if (reduce && !rows.isEmpty) {
+            assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
+            rows.head.fields("value").convertTo[List[JsObject]]
+          } else if (reduce) {
+            List(JsObject())
+          } else {
+            rows
+          }
 
-            transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
-            out
+          transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
+          out
 
-          case Left(code) =>
-            transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
-            throw new Exception("Unexpected http response code: " + code)
-        }
+        case Left(code) =>
+          transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+          throw new Exception("Unexpected http response code: " + code)
+      }
 
     reportFailure(
       f,
       failure =>
         transid.failed(this, start, s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
+  }
+
+  protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
+    implicit transid: TransactionId): Future[Long] = {
+
+    val Array(firstPart, secondPart) = table.split("/")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$dbName' searching '$table")
+
+    val f = client
+      .executeView(firstPart, secondPart)(
+        startKey = startKey,
+        endKey = endKey,
+        skip = Some(skip),
+        stale = stale,
+        reduce = true)
+      .map {
+        case Right(response) =>
+          val rows = response.fields("rows").convertTo[List[JsObject]]
+
+          val out = if (!rows.isEmpty) {
+            assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
+            rows.head.fields("value").convertTo[Long]
+          } else 0L
+
+          transid.finished(this, start, s"[COUNT] '$dbName' completed: count $out")
+          out
+
+        case Left(code) =>
+          transid.failed(this, start, s"Unexpected http response code: $code", ErrorLevel)
+          throw new Exception("Unexpected http response code: " + code)
+      }
+
+    reportFailure(
+      f,
+      failure =>
+        transid.failed(this, start, s"[COUNT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
   override protected[core] def attach(

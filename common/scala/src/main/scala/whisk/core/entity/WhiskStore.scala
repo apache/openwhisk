@@ -24,6 +24,7 @@ import scala.language.postfixOps
 import scala.util.Try
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import spray.json.JsNumber
 import spray.json.JsObject
 import spray.json.JsString
 import spray.json.RootJsonFormat
@@ -202,7 +203,7 @@ object WhiskEntityQueries {
    * Name of view in design-doc that lists all entities in that views regardless of types.
    * This is uses in the namespace API, and also in tests to check preconditions.
    */
-  val viewAll: View = view(collection = "all")
+  lazy val viewAll: View = view(ddoc = s"all-$designDoc", collection = "all")
 
   /**
    * Queries the datastore for all entities in a namespace, and converts the list of entities
@@ -242,19 +243,42 @@ trait WhiskEntityQueries[T] {
    * @return list of records as JSON object if docs parameter is false, as Left
    *         and a list of the records as their type T if including the full record, as Right
    */
-  def listCollectionInNamespace[A <: WhiskEntity](db: ArtifactStore[A],
-                                                  path: EntityPath, // could be a namesapce or namespace + package name
-                                                  skip: Int,
-                                                  limit: Int,
-                                                  includeDocs: Boolean = false,
-                                                  since: Option[Instant] = None,
-                                                  upto: Option[Instant] = None,
-                                                  stale: StaleParameter = StaleParameter.No)(
-    implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
+  def listCollectionInNamespace[A <: WhiskEntity](
+    db: ArtifactStore[A],
+    path: EntityPath, // could be a namesapce or namespace + package name
+    skip: Int,
+    limit: Int,
+    includeDocs: Boolean = false,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    stale: StaleParameter = StaleParameter.No,
+    viewName: View = view)(implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
     val convert = if (includeDocs) Some((o: JsObject) => Try { serdes.read(o) }) else None
     val startKey = List(path.asString, since map { _.toEpochMilli } getOrElse 0)
     val endKey = List(path.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
-    query(db, view, startKey, endKey, skip, limit, reduce = false, stale, convert)
+    query(db, viewName, startKey, endKey, skip, limit, reduce = false, stale, convert)
+  }
+
+  /**
+   * Queries the datastore for the records count in a specific collection (i.e., type) matching
+   * the given path (which should be one namespace, or namespace + package name).
+   *
+   * @return JSON object with a single key, the collection name, and a value equal to the view length
+   */
+  def countCollectionInNamespace[A <: WhiskEntity](
+    db: ArtifactStore[A],
+    path: EntityPath, // could be a namespace or namespace + package name
+    skip: Int,
+    since: Option[Instant] = None,
+    upto: Option[Instant] = None,
+    stale: StaleParameter = StaleParameter.No,
+    viewName: View = view)(implicit transid: TransactionId): Future[JsObject] = {
+    implicit val ec = db.executionContext
+    val startKey = List(path.asString, since map { _.toEpochMilli } getOrElse 0)
+    val endKey = List(path.asString, upto map { _.toEpochMilli } getOrElse TOP, TOP)
+    db.count(viewName.name, startKey, endKey, skip, stale) map { count =>
+      JsObject(collectionName -> JsNumber(count))
+    }
   }
 
   protected[entity] def query[A <: WhiskEntity](
@@ -269,7 +293,7 @@ trait WhiskEntityQueries[T] {
     convert: Option[JsObject => Try[T]])(implicit transid: TransactionId): Future[Either[List[JsObject], List[T]]] = {
     implicit val ec = db.executionContext
     val includeDocs = convert.isDefined
-    db.query(view.name, startKey, endKey, skip, limit, includeDocs, true, reduce, stale) map { rows =>
+    db.query(view.name, startKey, endKey, skip, limit, includeDocs, descending = true, reduce, stale) map { rows =>
       convert map { fn =>
         Right(rows flatMap { row =>
           fn(row.fields("doc").asJsObject) toOption
