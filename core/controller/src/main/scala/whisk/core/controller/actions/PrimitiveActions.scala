@@ -39,6 +39,7 @@ import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.Scheduler
 import whisk.common.TransactionId
+import whisk.common.tracing.OpenTracingProvider
 import whisk.core.connector.ActivationMessage
 import whisk.core.controller.WhiskServices
 import whisk.core.database.NoDocumentException
@@ -51,7 +52,6 @@ import whisk.core.entity.types.EntityStore
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 import akka.event.Logging.InfoLevel
-import whisk.common.tracing.OpenTracingProvider
 
 protected[actions] trait PrimitiveActions {
   /** The core collections require backend services to be injected in this trait. */
@@ -161,17 +161,14 @@ protected[actions] trait PrimitiveActions {
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
     val activationId = activationIdFactory.make()
-
     val startActivation = transid.started(
       this,
       waitForResponse
         .map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING)
         .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
       logLevel = InfoLevel)
-
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
-
     val message = ActivationMessage(
       transid,
       FullyQualifiedEntityName(action.namespace, action.name, Some(action.version)),
@@ -183,8 +180,6 @@ protected[actions] trait PrimitiveActions {
       args,
       cause = cause,
       OpenTracingProvider.getTraceContext(transid))
-
-
 
     val postedFuture = loadBalancer.publish(action, message)
 

@@ -17,29 +17,30 @@
 
 package whisk.common.tracing
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
+
+import brave.Tracing
+import brave.opentracing.BraveTracer
 import io.opentracing.{ActiveSpan, SpanContext}
 import io.opentracing.util.GlobalTracer
-import whisk.common.{LogMarkerToken, TransactionId}
 import io.opentracing.propagation.{Format, TextMapExtractAdapter, TextMapInjectAdapter}
-import brave.Tracing
 import zipkin.reporter.Sender
 import zipkin.reporter.okhttp3.OkHttpSender
 import zipkin.reporter.AsyncReporter
 import zipkin.reporter.Reporter
-import brave.opentracing.BraveTracer
-
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import pureconfig._
+import whisk.common.{LogMarkerToken, TransactionId}
 import whisk.core.ConfigKeys
 
 /**
-  * OpenTracing based implementation for tracing
-  */
-object OpenTracingProvider{
+ * OpenTracing based implementation for tracing
+ */
+object OpenTracingProvider {
 
-  private val spanMap : mutable.Map[Long, mutable.ListBuffer[ActiveSpan]] =  TrieMap[Long, mutable.ListBuffer[ActiveSpan]]()
-  private val contextMap : mutable.Map[Long, SpanContext] =  TrieMap[Long, SpanContext]()
+  private val spanMap: mutable.Map[Long, mutable.ListBuffer[ActiveSpan]] =
+    TrieMap[Long, mutable.ListBuffer[ActiveSpan]]()
+  private val contextMap: mutable.Map[Long, SpanContext] = TrieMap[Long, SpanContext]()
 
   var enabled = false;
 
@@ -48,13 +49,13 @@ object OpenTracingProvider{
   }
 
   /**
-    * Start a Trace for given service.
-    *
-    * @param transactionId transactionId to which this Trace belongs.
-    * @return TracedRequest which provides details about current service being traced.
-    */
+   * Start a Trace for given service.
+   *
+   * @param transactionId transactionId to which this Trace belongs.
+   * @return TracedRequest which provides details about current service being traced.
+   */
   def startTrace(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
-    if(enabled) {
+    if (enabled) {
       transactionId.copy(transactionId.meta)
       var activeSpan: Option[ActiveSpan] = None
       spanMap.get(transactionId.meta.id) match {
@@ -83,37 +84,35 @@ object OpenTracingProvider{
     }
   }
 
-
-
   /**
-    * Finish a Trace associated with given transactionId.
-    *
-    * @param transactionId
-    */
+   * Finish a Trace associated with given transactionId.
+   *
+   * @param transactionId
+   */
   def finish(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
-    if(enabled)
+    if (enabled)
       clear(transactionId)
   }
 
   /**
-    * Register error
-    *
-    * @param transactionId
-    */
+   * Register error
+   *
+   * @param transactionId
+   */
   def error(transactionId: TransactionId): Unit = {
-    if(enabled)
+    if (enabled)
       clear(transactionId)
   }
 
   /**
-    * Get the current TraceContext which can be used for downstream services
-    *
-    * @param transactionId
-    * @return
-    */
+   * Get the current TraceContext which can be used for downstream services
+   *
+   * @param transactionId
+   * @return
+   */
   def getTraceContext(transactionId: TransactionId): Option[Map[String, String]] = {
     var contextMap: Option[Map[String, String]] = None
-      if(enabled){
+    if (enabled) {
       spanMap.get(transactionId.meta.id) match {
         case Some(spanList) => {
           var map: java.util.Map[String, String] = new java.util.HashMap()
@@ -128,17 +127,18 @@ object OpenTracingProvider{
   }
 
   /**
-    * Get the current TraceContext which can be used for downstream services
-    *
-    * @param transactionId
-    * @return
-    */
+   * Get the current TraceContext which can be used for downstream services
+   *
+   * @param transactionId
+   * @return
+   */
   def setTraceContext(transactionId: TransactionId, context: Option[Map[String, String]]) = {
-    if(enabled){
+    if (enabled) {
       context match {
         case Some(scalaMap) => {
-          var javaMap: java.util.Map[String, String] = scala.collection.JavaConverters.mapAsJavaMapConverter(scalaMap).asJava
-          var ctx: SpanContext =  GlobalTracer.get().extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(javaMap))
+          var javaMap: java.util.Map[String, String] =
+            scala.collection.JavaConverters.mapAsJavaMapConverter(scalaMap).asJava
+          var ctx: SpanContext = GlobalTracer.get().extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(javaMap))
           contextMap.put(transactionId.meta.id, ctx)
         }
         case None =>
@@ -151,7 +151,7 @@ object OpenTracingProvider{
       case Some(spanList) => {
         spanList.last.deactivate()
         spanList.remove(spanList.size - 1)
-        if(spanList.isEmpty){
+        if (spanList.isEmpty) {
           spanMap.remove(transactionId.meta.id)
           contextMap.remove(transactionId.meta.id)
         }
@@ -166,23 +166,27 @@ object OpenTracingProvider{
     val tracingConfig = loadConfigOrThrow[TracingConfig](ConfigKeys.tracing)
 
     enabled = tracingConfig.enabled
-    if(enabled) {
+    if (enabled) {
       val tracer = tracingConfig.tracer
 
       if (tracer.equalsIgnoreCase("zipkin")) {
         //configure opentracing with zipkin
-        val sender: Sender = OkHttpSender.create("http://" +
-          tracingConfig.zipkin.get("host").getOrElse("localhost") + ":" +
-          tracingConfig.zipkin.get("port").getOrElse(9411) + "/api/v1/spans")
+        val sender: Sender = OkHttpSender.create(
+          "http://" +
+            tracingConfig.zipkin.get("host").getOrElse("localhost") + ":" +
+            tracingConfig.zipkin.get("port").getOrElse(9411) + "/api/v1/spans")
 
         val reporter: Reporter[zipkin.Span] = AsyncReporter.builder(sender).build()
-        GlobalTracer.register(BraveTracer.create(Tracing.newBuilder()
-          .localServiceName(componentName)
-          .reporter(reporter)
-          .build()));
+        GlobalTracer.register(
+          BraveTracer.create(
+            Tracing
+              .newBuilder()
+              .localServiceName(componentName)
+              .reporter(reporter)
+              .build()))
       }
     }
   }
-
   case class TracingConfig(enabled: Boolean, tracer: String, zipkin: Map[String, String])
+
 }
