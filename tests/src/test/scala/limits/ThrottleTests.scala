@@ -298,10 +298,25 @@ class NamespaceSpecificThrottleTests
     with BeforeAndAfterAll
     with LocalHelper {
 
+  val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
+
   val wskadmin = new RunWskAdminCmd {}
   val wsk = new WskRest
 
-  val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
+  def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT) = {
+    namespaces.foreach { ns =>
+      try {
+        disposeAdditionalTestSubject(ns, expectedExitCode)
+        withClue(s"failed to delete temporary limits for $ns") {
+          wskadmin.cli(Seq("limits", "delete", ns), expectedExitCode)
+        }
+      } catch { case _: Throwable => }
+    }
+  }
+
+  sanitizeNamespaces(
+    Seq("zeroSubject", "zeroConcSubject", "oneSubject", "oneSequenceSubject"),
+    expectedExitCode = DONTCARE_EXIT)
 
   // Create a subject with rate limits == 0
   val zeroProps = getAdditionalTestSubject("zeroSubject")
@@ -330,13 +345,7 @@ class NamespaceSpecificThrottleTests
   wskadmin.cli(Seq("limits", "set", oneSequenceProps.namespace, "--invocationsPerMinute", "1", "--firesPerMinute", "1"))
 
   override def afterAll() = {
-    Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps).foreach { wp =>
-      val ns = wp.namespace
-      disposeAdditionalTestSubject(ns)
-      withClue(s"failed to delete temporary limits for $ns") {
-        wskadmin.cli(Seq("limits", "delete", ns))
-      }
-    }
+    sanitizeNamespaces(Seq(zeroProps, zeroConcProps, oneProps, oneSequenceProps).map(_.namespace))
   }
 
   behavior of "Namespace-specific throttles"
