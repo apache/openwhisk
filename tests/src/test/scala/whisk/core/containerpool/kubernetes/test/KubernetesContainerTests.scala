@@ -98,7 +98,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     awaitLogs: FiniteDuration = 2.seconds)(implicit kubernetes: KubernetesApi): KubernetesContainer = {
 
-    new KubernetesContainer(id, addr) {
+    new KubernetesContainer(id, addr, addr.host, "docker://"+id.asString) {
       override protected def callContainer(
         path: String,
         body: JsObject,
@@ -140,23 +140,13 @@ class KubernetesContainerTests
     await(container)
 
     kubernetes.runs should have size 1
-    kubernetes.inspects should have size 1
     kubernetes.rms should have size 0
 
-    val (testName, testImage, testArgs) = kubernetes.runs.head
+    val (testName, testImage, testEnv, testLabel) = kubernetes.runs.head
     testName shouldBe "my-container1"
     testImage shouldBe image
-    testArgs shouldBe Seq(
-      "--generator",
-      "run-pod/v1",
-      "--restart",
-      "Always",
-      "--limits",
-      "memory=256Mi",
-      "--env",
-      "test=hi",
-      "-l",
-      "invoker=0")
+    testEnv shouldBe environment
+    testLabel shouldBe labels
   }
 
   it should "pull a user provided image before creating the container" in {
@@ -167,31 +157,14 @@ class KubernetesContainerTests
     await(container)
 
     kubernetes.runs should have size 1
-    kubernetes.inspects should have size 1
     kubernetes.rms should have size 0
-  }
-
-  it should "remove the container if inspect fails" in {
-    implicit val kubernetes = new TestKubernetesClient {
-      override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] = {
-        inspects += id
-        Future.failed(new RuntimeException())
-      }
-    }
-
-    val container = KubernetesContainer.create(transid = transid, name = "name", image = "image")
-    a[WhiskContainerStartupError] should be thrownBy await(container)
-
-    kubernetes.runs should have size 1
-    kubernetes.inspects should have size 1
-    kubernetes.rms should have size 1
   }
 
   it should "provide a proper error if run fails for blackbox containers" in {
     implicit val kubernetes = new TestKubernetesClient {
-      override def run(name: String, image: String, args: Seq[String])(
-        implicit transid: TransactionId): Future[ContainerId] = {
-        runs += ((name, image, args))
+      override def run(name: String, image: String, env: Map[String, String] = Map(), labels: Map[String, String] = Map())(
+        implicit transid: TransactionId): Future[KubernetesContainer] = {
+        runs += ((name, image, env, labels))
         Future.failed(ProcessRunningException(1, "", ""))
       }
     }
@@ -201,26 +174,9 @@ class KubernetesContainerTests
     a[WhiskContainerStartupError] should be thrownBy await(container)
 
     kubernetes.runs should have size 1
-    kubernetes.inspects should have size 0
     kubernetes.rms should have size 0
   }
 
-  it should "provide a proper error if inspect fails for blackbox containers" in {
-    implicit val kubernetes = new TestKubernetesClient {
-      override def inspectIPAddress(id: ContainerId)(implicit transid: TransactionId): Future[ContainerAddress] = {
-        inspects += id
-        Future.failed(new RuntimeException())
-      }
-    }
-
-    val container =
-      KubernetesContainer.create(transid = transid, name = "name", image = "image", userProvidedImage = true)
-    a[WhiskContainerStartupError] should be thrownBy await(container)
-
-    kubernetes.runs should have size 1
-    kubernetes.inspects should have size 1
-    kubernetes.rms should have size 1
-  }
 
   /*
    * KUBERNETES COMMANDS
@@ -229,11 +185,11 @@ class KubernetesContainerTests
     implicit val kubernetes = stub[KubernetesApi]
 
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"))
+    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
 
     container.destroy()
 
-    (kubernetes.rm(_: ContainerId)(_: TransactionId)).verify(id, transid)
+    (kubernetes.rm(_: KubernetesContainer)(_: TransactionId)).verify(container, transid)
   }
 
   /*
@@ -340,9 +296,9 @@ class KubernetesContainerTests
     val logSrc = logSource(expectedLogEntry, appendSentinel = true)
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container:KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((id, sinceTime))
+        logCalls += ((container.id, sinceTime))
         logSrc
       }
     }
@@ -365,9 +321,9 @@ class KubernetesContainerTests
     val logSrc = logSource(expectedLogEntry, appendSentinel = false)
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((id, sinceTime))
+        logCalls += ((container.id, sinceTime))
         logSrc
       }
     }
@@ -387,9 +343,9 @@ class KubernetesContainerTests
 
   it should "fail log reading if error occurs during file reading" in {
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((containerId, sinceTime))
+        logCalls += ((container.id, sinceTime))
         Source.failed(new IOException)
       }
     }
@@ -409,9 +365,9 @@ class KubernetesContainerTests
     val logSources = mutable.Queue(logSource(firstLog, true), logSource(secondLog, true))
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(id: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container:KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((id, sinceTime))
+        logCalls += ((container.id, sinceTime))
         logSources.dequeue()
       }
     }
@@ -441,9 +397,9 @@ class KubernetesContainerTests
     rawLog should have size 1
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(containerId: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((containerId, sinceTime))
+        logCalls += ((container.id, sinceTime))
         // "Fakes" an infinite source with only 1 entry
         Source.tick(0.milliseconds, 10.seconds, rawLog.head)
       }
@@ -468,9 +424,9 @@ class KubernetesContainerTests
       TypedLogLine(currentTsp, "stdout", "This is a log entry.")
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(containerId: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((containerId, sinceTime))
+        logCalls += ((container.id, sinceTime))
         logSource(Seq(expectedLogEntry, expectedLogEntry), appendSentinel = false)
       }
     }
@@ -501,9 +457,9 @@ class KubernetesContainerTests
       TypedLogLine(currentTsp, "stdout", "This is a log entry.")
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(containerId: ContainerId, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
-        logCalls += ((containerId, sinceTime))
+        logCalls += ((container.id, sinceTime))
         logSource(expectedLogEntry, appendSentinel = true)
       }
     }
