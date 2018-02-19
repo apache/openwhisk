@@ -242,8 +242,7 @@ object LoggingMarkers {
   // Check invoker healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
-  def LOADBALANCER_ACTIVATION_START(namespaceId: String) =
-    LogMarkerToken(loadbalancer, s"activations_$namespaceId", count)
+  val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
@@ -258,8 +257,8 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
-  def INVOKER_CONTAINER_START(actionName: String, namespaceName: String, containerState: String) =
-    LogMarkerToken(invoker, s"container_start_${containerState}_${namespaceName}_$actionName", count)
+  def INVOKER_CONTAINER_START(containerState: String) =
+    LogMarkerToken(invoker, s"container_start_${containerState}", count)
 
   /*
    * General markers
