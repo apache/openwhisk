@@ -35,6 +35,8 @@ import whisk.core.entity.size._
 import whisk.http.{ErrorResponse, Messages}
 import whisk.spi.SpiLoader
 
+import scala.reflect.classTag
+
 /**
  * Tests Activations API.
  *
@@ -525,6 +527,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     val activationStore = SpiLoader
       .get[ArtifactStoreProvider]
       .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(
+        classTag[WhiskEntity],
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
         system,

@@ -24,9 +24,13 @@ import whisk.common.Logging
 import whisk.core.WhiskConfig
 import whisk.core.entity.DocumentReader
 
+import scala.reflect.ClassTag
+
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer](config: WhiskConfig, name: WhiskConfig => String, useBatching: Boolean)(
+  def makeStore[D <: DocumentSerializer: ClassTag](config: WhiskConfig,
+                                                   name: WhiskConfig => String,
+                                                   useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,

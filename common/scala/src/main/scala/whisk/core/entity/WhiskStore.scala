@@ -49,6 +49,8 @@ import whisk.core.database.StaleParameter
 import whisk.spi.SpiLoader
 import pureconfig._
 
+import scala.reflect.classTag
+
 package object types {
   type AuthStore = ArtifactStore[WhiskAuth]
   type EntityStore = ArtifactStore[WhiskEntity]
@@ -123,6 +125,7 @@ object WhiskEntityStore {
     SpiLoader
       .get[ArtifactStoreProvider]
       .makeStore[WhiskEntity](config, _.dbWhisk)(
+        classTag[WhiskEntity],
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
         system,
