@@ -12,3 +12,10 @@ task couchdbViews(type: JavaExec) {
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }
+
+task intellij(type: JavaExec) {
+    description 'Generates Intellij run config for Controller and Invoker'
+    main = 'intellijRunConfig'
+    args owHome.absolutePath
+    classpath = sourceSets.main.runtimeClasspath
+}
