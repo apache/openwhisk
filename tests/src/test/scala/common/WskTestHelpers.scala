@@ -150,7 +150,7 @@ trait WskTestHelpers extends Matchers {
    * list that is iterated at the end of the test so that these entities are deleted
    * (from most recently created to oldest).
    */
-  def withAssetCleaner(wskprops: WskProps)(test: (WskProps, AssetCleaner) => Any): Unit = {
+  def withAssetCleaner[T](wskprops: WskProps)(test: (WskProps, AssetCleaner) => T): T = {
     // create new asset list to track what must be deleted after test completes
     val assetsToDeleteAfterTest = new Assets()
 
