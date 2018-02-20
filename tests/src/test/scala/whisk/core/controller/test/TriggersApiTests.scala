@@ -366,6 +366,15 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     }
   }
 
+  it should "not fire a trigger without a rule" in {
+    implicit val tid = transid()
+    val trigger = WhiskTrigger(namespace, aname())
+    put(entityStore, trigger)
+    Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
+      status shouldBe NoContent
+    }
+  }
+
   //// invalid resource
   it should "reject invalid resource" in {
     implicit val tid = transid()

@@ -113,7 +113,7 @@ object Messages {
 
   /** Error messages for triggers */
   def triggerWithInactiveRule(rule: String, action: String) = {
-    s"Rule ${rule} is inactive; action ${action} was not activated."
+    s"Rule '$rule' is inactive, action '$action' was not activated."
   }
 
   /** Error messages for sequence activations. */

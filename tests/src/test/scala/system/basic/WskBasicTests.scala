@@ -39,6 +39,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests extends TestHelpers with WskTestHelpers {
@@ -808,7 +809,7 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
           JsObject(
             "statusCode" -> JsNumber(1),
             "success" -> JsBoolean(false),
-            "error" -> JsString(s"Rule ${ns}/$ruleName2 is inactive; action ${ns}/$actionName2 was not activated."),
+            "error" -> JsString(Messages.triggerWithInactiveRule(s"$ns/$ruleName2", s"$ns/$actionName2")),
             "rule" -> JsString(ns + "/" + ruleName2),
             "action" -> JsString(ns + "/" + actionName2)))
         logs shouldBe expectedLogs

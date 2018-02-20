@@ -150,9 +150,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
             complete(Accepted, triggerActivationId.toJsObject)
           } else {
             logging
-              .info(
+              .debug(
                 this,
-                s"[POST] trigger without an active rule was activated; no trigger activation record created for $triggerActivationId")
+                s"[POST] trigger without an active rule was activated; no trigger activation record created for $entityName")
             complete(NoContent)
           }
       })
