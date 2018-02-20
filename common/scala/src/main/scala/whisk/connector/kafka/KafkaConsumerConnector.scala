@@ -23,23 +23,18 @@ import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.collection.JavaConversions.seqAsJavaList
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
-
+import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
+import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
 class KafkaConsumerConnector(kafkahost: String,
                              groupid: String,
                              topic: String,
-                             override val maxPeek: Int = Int.MaxValue,
-                             readeos: Boolean = true,
-                             sessionTimeout: FiniteDuration = 30.seconds,
-                             autoCommitInterval: FiniteDuration = 10.seconds,
-                             maxPollInterval: FiniteDuration = 5.minutes)(implicit logging: Logging)
+                             override val maxPeek: Int = Int.MaxValue)(implicit logging: Logging)
     extends MessageConsumer {
 
   /**
@@ -68,19 +63,14 @@ class KafkaConsumerConnector(kafkahost: String,
     val props = new Properties
     props.put(ConsumerConfig.GROUP_ID_CONFIG, groupid)
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahost)
-    props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeout.toMillis.toString)
-    props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, (sessionTimeout.toMillis / 3).toString)
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true.toString)
-    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, autoCommitInterval.toMillis.toString)
     props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPeek.toString)
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, if (!readeos) "latest" else "earliest")
-    props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollInterval.toMillis.toString)
 
-    // This value controls the server-side wait time which affects polling latency.
-    // A low value improves latency performance but it is important to not set it too low
-    // as that will cause excessive busy-waiting.
-    props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "20")
-
+    val config =
+      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
+        KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaConsumer))
+    config.foreach {
+      case (key, value) => props.put(key, value)
+    }
     props
   }
 

@@ -75,8 +75,15 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  ssl:
+    client_authentication: required
+    keystore:
+      name: kafka-keystore.jks
+      password: openwhisk
+  protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
-  port: 9092
+  port: 9072
+  advertisedPort: 9093
   ras:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
@@ -84,9 +91,11 @@ kafka:
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
-                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.advertisedPort+loop.index-1)|string) ) }}\
                        {% endfor %}\
                        {{ ret | join(',') }}"
+
+kafka_protocol_for_setup: "{{ kafka_protocol | default('PLAINTEXT') }}"
 
 zookeeper:
   version: 3.4
