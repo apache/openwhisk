@@ -39,6 +39,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
 class WskBasicTests extends TestHelpers with WskTestHelpers {
@@ -748,6 +749,67 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
             "statusCode" -> JsNumber(1),
             "success" -> JsBoolean(false),
             "error" -> JsString("The requested resource does not exist."),
+            "rule" -> JsString(ns + "/" + ruleName2),
+            "action" -> JsString(ns + "/" + actionName2)))
+        logs shouldBe expectedLogs
+      }
+  }
+
+  it should "create and fire a trigger having an active rule and an inactive rule" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val ruleName1 = withTimestamp("r1toa1")
+      val ruleName2 = withTimestamp("r2toa2")
+      val triggerName = withTimestamp("t1tor1r2")
+      val actionName1 = withTimestamp("a1")
+      val actionName2 = withTimestamp("a2")
+      val ns = wsk.namespace.whois()
+
+      assetHelper.withCleaner(wsk.trigger, triggerName) { (trigger, _) =>
+        trigger.create(triggerName)
+        trigger.create(triggerName, update = true)
+      }
+
+      assetHelper.withCleaner(wsk.action, actionName1) { (action, name) =>
+        action.create(name, defaultAction)
+      }
+      assetHelper.withCleaner(wsk.action, actionName2) { (action, name) =>
+        action.create(name, defaultAction)
+      }
+
+      assetHelper.withCleaner(wsk.rule, ruleName1) { (rule, name) =>
+        rule.create(name, trigger = triggerName, action = actionName1)
+      }
+      assetHelper.withCleaner(wsk.rule, ruleName2) { (rule, name) =>
+        rule.create(name, trigger = triggerName, action = actionName2)
+        rule.disable(ruleName2)
+      }
+
+      val run = wsk.trigger.fire(triggerName)
+      withActivation(wsk.activation, run) { activation =>
+        activation.duration shouldBe 0L // shouldn't exist but CLI generates it
+        activation.end shouldBe Instant.EPOCH // shouldn't exist but CLI generates it
+        activation.logs shouldBe defined
+        activation.logs.get.size shouldBe 2
+
+        val logEntry1 = activation.logs.get(0).parseJson.asJsObject
+        val logEntry2 = activation.logs.get(1).parseJson.asJsObject
+        val logs = JsArray(logEntry1, logEntry2)
+        val ruleActivationId: String = if (logEntry1.getFields("activationId").size == 1) {
+          logEntry1.getFields("activationId")(0).convertTo[String]
+        } else {
+          logEntry2.getFields("activationId")(0).convertTo[String]
+        }
+        val expectedLogs = JsArray(
+          JsObject(
+            "statusCode" -> JsNumber(0),
+            "activationId" -> JsString(ruleActivationId),
+            "success" -> JsBoolean(true),
+            "rule" -> JsString(ns + "/" + ruleName1),
+            "action" -> JsString(ns + "/" + actionName1)),
+          JsObject(
+            "statusCode" -> JsNumber(1),
+            "success" -> JsBoolean(false),
+            "error" -> JsString(Messages.triggerWithInactiveRule(s"$ns/$ruleName2", s"$ns/$actionName2")),
             "rule" -> JsString(ns + "/" + ruleName2),
             "action" -> JsString(ns + "/" + actionName2)))
         logs shouldBe expectedLogs

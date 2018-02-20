@@ -111,6 +111,11 @@ object Messages {
   val notAllowedOnBinding = "Operation not permitted on package binding."
   def packageNameIsReserved(name: String) = s"Package name '$name' is reserved."
 
+  /** Error messages for triggers */
+  def triggerWithInactiveRule(rule: String, action: String) = {
+    s"Rule '$rule' is inactive, action '$action' was not activated."
+  }
+
   /** Error messages for sequence activations. */
   def sequenceRetrieveActivationTimeout(id: ActivationId) =
     s"Timeout reached when retrieving activation $id for sequence component."

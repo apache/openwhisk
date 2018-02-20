@@ -940,6 +940,9 @@
                             "$ref": "#/definitions/ItemId"
                         }
                     },
+                    "204": {
+                        "$ref": "#/responses/NoActiveRules"
+                    },
                     "401": {
                         "$ref": "#/responses/UnauthorizedRequest"
                     },
@@ -2109,6 +2112,9 @@
             "schema": {
                 "$ref": "#/definitions/ErrorMessage"
             }
+        },
+        "NoActiveRules": {
+            "description": "Trigger has no active rules"
         }
     }
 }
