@@ -137,3 +137,12 @@ Using that command will result in a replication for every database that matches 
 ### Replaying a snapshot
 
 To replay a snapshot, swap `--sourceDbUrl` and `--targetDbUrl` and call the script with the `replay` command. That command takes only 1 parameter: `--dbPrefix` to determine which backup to play back. Matching databases will be replicated back to the target database with the `backup_${TIMESTAMP_IN_SECONDS}_` removed, so they'd look just like the original database.
+
+## Database migration to new schema
+
+To reduce the memory consumption in the OpenWhisk controller, all code inlined in action documents has been moved to attachments. This change allows only metadata for actions to be fetched instead of the entire action. Though the OpenWhisk controller supports both mentioned schemas, it is ideal to update existing databases to use the new schema for memory consumption relief.
+
+Run `moveCodeToAttachment.py` to update actions in an existing database to the new action schema. Two parameters are required:
+
+* `--dbUrl`: Server URL of the database. E.g. 'https://xxx:yyy@domain.couch.com:443'.
+* `--dbName`: Name of the Database to update.
