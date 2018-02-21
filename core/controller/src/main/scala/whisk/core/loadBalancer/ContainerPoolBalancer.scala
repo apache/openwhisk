@@ -175,9 +175,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
                                       invoker: InstanceId): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
-    }
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val topic = s"invoker${invoker.toInt}"
     val start = transid.started(
       this,

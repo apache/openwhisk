@@ -183,9 +183,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
     val topic = s"invoker${invoker.toInt}"
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
-    }
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
