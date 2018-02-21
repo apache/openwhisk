@@ -63,9 +63,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
-    }
+    MetricEmitter.emitCounterMetric(marker)
 
   }
 
@@ -90,10 +88,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
-    }
-
+    MetricEmitter.emitCounterMetric(marker)
     StartMarker(Instant.now, marker)
   }
 
@@ -128,9 +123,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
-    }
+    MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
   }
 
   /**
@@ -158,10 +151,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
-      MetricEmitter.emitCounterMetric(endMarker)
-    }
+    MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+    MetricEmitter.emitCounterMetric(endMarker)
   }
 
   /**
