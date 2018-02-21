@@ -41,14 +41,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
 
   /**
-   * Invoker clock skew can sometimes make it appear as if an action was invoked
-   * _before_ the trigger was fired. The "fudge factor" below allows the test to look
-   * for action activations that occur starting at most this amount of time before
-   * the trigger was fired.
-   */
-  val activationTimeSkewFactorMs = 500
-
-  /**
    * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
    * and links it all up.
    *
@@ -57,7 +49,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
    *   where the action name for the created action is allowed to differ from that used by the rule binding
    *   for cases that reference actions in a package binding.
    */
-  def ruleSetup(rules: Seq[(String, String, (String, String, String))], assetHelper: AssetCleaner) = {
+  def ruleSetup(rules: Seq[(String, String, (String, String, String))], assetHelper: AssetCleaner): Unit = {
     val triggers = rules.map(_._2).distinct
     val actions = rules.map(_._3).distinct
 
@@ -85,7 +77,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
   /**
    * Append the current timestamp in ms
    */
-  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
+  def withTimestamp(text: String) = s"$text-${System.currentTimeMillis}"
 
   behavior of "Whisk rules"
 
@@ -113,8 +105,8 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
           .parseJson
           .asJsObject
           .fields
-          .get("status") shouldBe (status)
-        wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe (status)
+          .get("status") shouldBe status
+        wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
     }
   }
 
@@ -130,9 +122,10 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-      triggerActivation.logs.get should have size 1
 
-      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+      val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+      ruleActivations should have size 1
+      val ruleActivation = ruleActivations.head
       ruleActivation.success shouldBe true
       ruleActivation.statusCode shouldBe 0
 
@@ -162,7 +155,10 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+
+      val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+      ruleActivations should have size 1
+      val ruleActivation = ruleActivations.head
       ruleActivation.success shouldBe true
       ruleActivation.statusCode shouldBe 0
 
@@ -195,7 +191,10 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
     withActivation(wsk.activation, run) { triggerActivation =>
       triggerActivation.cause shouldBe None
-      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+
+      val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+      ruleActivations should have size 1
+      val ruleActivation = ruleActivations.head
       ruleActivation.success shouldBe true
       ruleActivation.statusCode shouldBe 0
 
@@ -245,7 +244,9 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val third = wsk.trigger.fire(triggerName, Map("payload" -> testString.toJson))
 
     withActivation(wsk.activation, first) { triggerActivation =>
-      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+      val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+      ruleActivations should have size 1
+      val ruleActivation = ruleActivations.head
       withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
         actionActivation.response.result shouldBe Some(testResult)
       }
@@ -254,7 +255,9 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     // second fire will not write an activation
 
     withActivation(wsk.activation, third) { triggerActivation =>
-      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+      val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+      ruleActivations should have size 1
+      val ruleActivation = ruleActivations.head
       withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
         actionActivation.response.result shouldBe Some(testResult)
       }
@@ -274,7 +277,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
       assetHelper.withCleaner(wsk.action, actionName) { (action, name) =>
         action.create(name, Some(defaultAction))
       }
-      assetHelper.withCleaner(wsk.rule, ruleName, false) { (rule, name) =>
+      assetHelper.withCleaner(wsk.rule, ruleName, confirmDelete = false) { (rule, name) =>
         rule.create(name, triggerName1, actionName)
       }
 
@@ -289,7 +292,9 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
 
       val first = wsk.trigger.fire(triggerName2, Map("payload" -> testString.toJson))
       withActivation(wsk.activation, first) { triggerActivation =>
-        val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+        val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+        ruleActivations should have size 1
+        val ruleActivation = ruleActivations.head
         withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
           actionActivation.response.result shouldBe Some(testResult)
         }
@@ -314,7 +319,9 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
       runs.zip(testPayloads).foreach {
         case (run, payload) =>
           withActivation(wsk.activation, run) { triggerActivation =>
-            val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+            val ruleActivations = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult])
+            ruleActivations should have size 1
+            val ruleActivation = ruleActivations.head
             withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
               actionActivation.response.result shouldBe Some(JsObject("count" -> payload.split(" ").length.toJson))
             }
@@ -415,6 +422,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val listOutput = ruleList.lines
     listOutput.find(_.contains(ruleNameEnable)).get should (include(ruleNameEnable) and include("active"))
     listOutput.find(_.contains(ruleName)).get should (include(ruleName) and include("inactive"))
-    ruleList should not include ("Unknown")
+    ruleList should not include "Unknown"
   }
 }
