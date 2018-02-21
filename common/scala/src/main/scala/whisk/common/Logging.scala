@@ -191,16 +191,14 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken): Unit = {
-    metrics
-      .counter(token.toString)
-      .increment(1)
+  def emitCounterMetric(token: LogMarkerToken, tags: Option[Map[String, String]] = None): Unit = {
+    if (tags.isEmpty) metrics.counter(token.toString).increment(1)
+    else metrics.counter(token.toString, tags.get).increment(1)
   }
 
-  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
-    metrics
-      .histogram(token.toString)
-      .record(value)
+  def emitHistogramMetric(token: LogMarkerToken, value: Long, tags: Option[Map[String, String]] = None): Unit = {
+    if (tags.isEmpty) metrics.histogram(token.toString).record(value)
+    else metrics.histogram(token.toString, tags.get).record(value)
   }
 
 }
