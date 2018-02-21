@@ -37,7 +37,7 @@ abstract class WskBasicNode6Tests extends TestHelpers with WskTestHelpers with J
   val defaultAction = Some(TestUtils.getTestActionFilename("hello.js"))
   lazy val currentNodeJsKind = "nodejs:6"
 
-  behavior of "Runtime $currentNodeJsKind"
+  behavior of s"Runtime $currentNodeJsKind"
 
   it should "Ensure that NodeJS actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>

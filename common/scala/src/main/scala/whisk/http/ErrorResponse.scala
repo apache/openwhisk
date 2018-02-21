@@ -129,9 +129,9 @@ object Messages {
   def compositionComponentInvalid(value: JsValue) =
     s"Failed to parse action name from json value $value during composition."
   def compositionComponentNotFound(name: String) =
-    s"""Failed to resolve action with name "$name" during composition."""
+    s"Failed to resolve action with name '$name' during composition."
   def compositionComponentNotAccessible(name: String) =
-    s"""Failed entitlement check for action with name "$name" during composition."""
+    s"Failed entitlement check for action with name '$name' during composition."
 
   /** Error messages for bad requests where parameters do not conform. */
   val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."

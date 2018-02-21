@@ -127,7 +127,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
-        "error" -> compositionComponentNotFound(missing.toString).toJson)
+        "error" -> compositionComponentNotFound(s"$namespace/$missing").toJson)
       response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
     }
   }
@@ -137,7 +137,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
     put(entityStore, WhiskAction(namespace, conductor, jsDefault("??"), annotations = Parameters("conductor", "true")))
     put(entityStore, WhiskAction(namespace, step, jsDefault("??")))
     put(entityStore, WhiskAction(alternateNamespace, step, jsDefault("??"))) // forbidden action
-    val forbidden = s"$alternateNamespace/$step" // forbidden action name
+    val forbidden = s"/$alternateNamespace/$step" // forbidden action name
 
     // dynamically invoke step action
     Post(
@@ -179,7 +179,7 @@ class ConductorsApiTests extends ControllerTestCommon with WhiskActionsApi {
       val response = responseAs[JsObject]
       response.fields("response").asJsObject.fields("status") shouldBe "application error".toJson
       response.fields("response").asJsObject.fields("result") shouldBe JsObject(
-        "error" -> compositionComponentNotAccessible(forbidden).toJson)
+        "error" -> compositionComponentNotAccessible(forbidden.drop(1)).toJson)
       response.fields("logs").convertTo[JsArray].elements.size shouldBe 1
     }
 

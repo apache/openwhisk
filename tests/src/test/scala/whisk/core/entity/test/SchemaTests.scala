@@ -322,6 +322,31 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     a[DeserializationException] should be thrownBy FullyQualifiedEntityName.serdesAsDocId.read(names(6))
   }
 
+  it should "resolve names that may or may not be fully qualified" in {
+    FullyQualifiedEntityName.resolveName(JsString("a"), EntityName("ns")) shouldBe Some(
+      EntityPath("ns/a").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("a/b"), EntityName("ns")) shouldBe Some(
+      EntityPath("ns/a/b").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("a/b/c"), EntityName("ns")) shouldBe Some(
+      EntityPath("/a/b/c").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("a/b/c/d"), EntityName("ns")) shouldBe None
+
+    FullyQualifiedEntityName.resolveName(JsString("/a"), EntityName("ns")) shouldBe None
+
+    FullyQualifiedEntityName.resolveName(JsString("/a/b"), EntityName("ns")) shouldBe Some(
+      EntityPath("/a/b").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("/a/b/c"), EntityName("ns")) shouldBe Some(
+      EntityPath("/a/b/c").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("/a/b/c/d"), EntityName("ns")) shouldBe None
+
+    FullyQualifiedEntityName.resolveName(JsString(""), EntityName("ns")) shouldBe None
+  }
+
   behavior of "Binding"
 
   it should "desiarilize legacy format" in {
