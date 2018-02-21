@@ -42,7 +42,7 @@ object OpenTracingProvider {
     TrieMap[Long, mutable.ListBuffer[ActiveSpan]]()
   private val contextMap: mutable.Map[Long, SpanContext] = TrieMap[Long, SpanContext]()
 
-  var enabled = false;
+  var enabled = false; 
 
   def apply(serviceName: String): Unit = {
     configureTracer(serviceName)
