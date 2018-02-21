@@ -245,15 +245,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       content.publish getOrElse trigger.publish,
       content.annotations getOrElse trigger.annotations,
       trigger.rules).revision[WhiskTrigger](trigger.docinfo.rev)
-
-    // feed must be specified in create, and cannot be added as a trigger update
-    content.annotations flatMap { _.get(Parameters.Feed) } map { _ =>
-      Future failed {
-        RejectRequest(BadRequest, "A trigger feed is only permitted when the trigger is created")
-      }
-    } getOrElse {
-      Future successful newTrigger
-    }
+    Future.successful(newTrigger)
   }
 
   /**

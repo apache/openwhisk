@@ -303,7 +303,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
@@ -313,7 +314,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(Parameters(Parameters.Feed, "xyz")))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
