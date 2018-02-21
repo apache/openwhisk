@@ -68,6 +68,19 @@ The logs are saved to `./B-build.log` and can be reprocessed using `citool` with
 citool -i -b B cat -s -g "tid_124" whisk/logs N
 ```
 
+## Gradle Build Scan Integration
+
+OpenWhisk builds on CI setups have [Gradle Build Scan][1] integrated. Each build on travis pushes scan reports to
+[Gradle Scan Community Hosted Server][2]. To see the scan report you need to check the travis build logs for lines like
+below 
+
+```
+Publishing build scan...
+https://gradle.com/s/reldo4qqlg3ka
+```
+
+The url above is the scan report url and is unique per build
+
 ## Troubleshooting
 
 If you encounter an error `ImportError: No module named pkg_resources` while running `redo`, try the workaround below
@@ -76,3 +89,6 @@ or see [these instructions](https://pypi.python.org/pypi/setuptools/0.9.8#instal
 ```
 pip install --upgrade setuptools
 ```
+
+[1]: https://gradle.com/build-scans
+[2]: https://scans.gradle.com
