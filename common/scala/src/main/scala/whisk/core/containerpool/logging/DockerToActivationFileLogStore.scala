@@ -58,7 +58,8 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
   override val containerParameters = Map("--log-driver" -> Set("json-file"))
 
   /* As logs are already part of the activation record, just return that bit of it */
-  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] = Future.successful(activation.logs)
+  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
+    Future.successful(activation.logs)
 
   /**
    * End of an event as written to a file. Closes the json-object and also appends a newline.
