@@ -121,7 +121,9 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
         InfoLevel,
         this,
         from,
-        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+        createMessageWithMarker(
+          if (logLevel <= InfoLevel) message else "",
+          LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
     } else {
       logging.emit(logLevel, this, from, message)
     }

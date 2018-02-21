@@ -281,6 +281,8 @@ protected[actions] trait PrimitiveActions {
       accounting = accounting.getOrElse(CompositionAccounting()), // share accounting with caller
       logs = Buffer.empty)
 
+    logging.info(this, s"invoking composition $action topmost ${cause.isEmpty} activationid '${session.activationId}'")
+
     val response: Future[Either[ActivationId, WhiskActivation]] =
       invokeConductor(user, payload, session).map(response => Right(completeActivation(user, session, response)))
 
@@ -587,7 +589,7 @@ protected[actions] trait PrimitiveActions {
       case _ =>
         // active ack received but it does not carry the response,
         // no result available except by polling the db
-        logging.warn(this, "pre-emptively polling db because active ack is missing result")
+        logging.warn(this, "preemptively polling db because active ack is missing result")
         finisher ! Scheduler.WorkOnceNow
     }
 

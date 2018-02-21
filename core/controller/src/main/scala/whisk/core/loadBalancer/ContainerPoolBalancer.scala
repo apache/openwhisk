@@ -185,11 +185,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
-        transid.finished(
-          this,
-          start,
-          s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
-          logLevel = InfoLevel)
+        transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
       case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
