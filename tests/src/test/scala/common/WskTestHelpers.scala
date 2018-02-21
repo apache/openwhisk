@@ -119,6 +119,12 @@ object ActivationResult extends DefaultJsonProtocol {
   }
 }
 
+/** The result of a rule-activation written into the trigger activation */
+case class RuleActivationResult(statusCode: Int, success: Boolean, activationId: String, action: String)
+object RuleActivationResult extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat4(RuleActivationResult.apply)
+}
+
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
  *
@@ -232,37 +238,9 @@ trait WskTestHelpers extends Matchers {
         }
     }
   }
-
-  /**
-   * Polls until it finds {@code N} activationIds from an entity. Asserts the count
-   * of the activationIds actually equal {@code N}. Takes a {@code since} parameter
-   * defining the oldest activationId to consider valid.
-   */
-  def withActivationsFromEntity(
-    wsk: BaseActivation,
-    entity: String,
-    N: Int = 1,
-    since: Option[Instant] = None,
-    pollPeriod: Duration = 1.second,
-    totalWait: Duration = 60.seconds)(check: Seq[ActivationResult] => Unit)(implicit wskprops: WskProps): Unit = {
-
-    val activationIds =
-      wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
-    withClue(
-      s"expecting $N activations matching '$entity' name since $since but found ${activationIds.mkString(",")} instead") {
-      activationIds.length shouldBe N
-    }
-
-    val parsed = activationIds.map { id =>
-      wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[ActivationResult]
-    }
-    try {
-      check(parsed)
-    } catch {
-      case error: Throwable =>
-        println(s"check failed for activations $activationIds: $parsed")
-        throw error
-    }
+  def withActivation(wsk: BaseActivation, activationId: String)(check: ActivationResult => Unit)(
+    implicit wskprops: WskProps): Unit = {
+    withActivation(wsk, activationId, 1.second, 1.second, 60.seconds)(check)
   }
 
   /**
