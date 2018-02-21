@@ -77,7 +77,7 @@
 - name: define options when deploying invoker on Ubuntu
   set_fact:
     linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
-  when: ansible_distribution == "Ubuntu"
+  when: (ansible_distribution == "Ubuntu") and (whisk_version_name != "local")
 
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
@@ -134,6 +134,23 @@
   when: jmx.enabled
   set_fact:
     invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
+
+- name: "determine 'runc' binary location"
+  shell: which runc || which docker-runc
+  register: runcBinaryNative
+  when: ansible_distribution != 'MacOSX'
+
+# in local environments where docker host is a VM, we need to get the path from the VM, not the local machine
+# and hence we use docker run to find out the paths on the VM
+- name: "determine 'runc' binary location (on docker host)"
+  shell: docker run --privileged --pid=host --userns=host debian nsenter -t 1 -m -u -n -i sh -c "which runc || which docker-runc"
+  register: runcBinaryOnVM
+  when: ansible_distribution == 'MacOSX'
+
+# this step is needed b/c Ansible messes the variable when a task is skipped https://github.com/ansible/ansible/issues/4297
+- name: "determine the final runc binary location"
+  set_fact:
+    runcBinary: "{{ runcBinaryNative if ansible_distribution != 'MacOSX' else runcBinaryOnVM }}"
 
 - name: start invoker using docker cli
   shell: >
@@ -204,6 +221,7 @@
         -e CONFIG_whisk_memory_std='{{ limit_action_memory_std | default() }}'
         -e CONFIG_whisk_activation_payload_max='{{ limit_activation_payload | default() }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
+        -v {{ runcBinary.stdout }}:/usr/bin/docker-runc
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
         -v {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf
