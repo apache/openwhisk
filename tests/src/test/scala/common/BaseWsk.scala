@@ -304,9 +304,6 @@ trait BaseNamespace extends BaseRunWsk {
   def list(expectedExitCode: Int = SUCCESS_EXIT, nameSort: Option[Boolean] = None)(implicit wp: WskProps): RunResult
 
   def whois()(implicit wskprops: WskProps): String
-
-  def get(namespace: Option[String] = None, expectedExitCode: Int, nameSort: Option[Boolean] = None)(
-    implicit wp: WskProps): RunResult
 }
 
 trait BaseApi extends BaseRunWsk {

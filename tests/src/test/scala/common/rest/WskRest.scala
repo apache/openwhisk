@@ -830,7 +830,7 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
   protected val noun = "namespaces"
 
   /**
-   * Lists available namespaces for whisk properties.
+   * Lists available namespaces for whisk key.
    *
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
@@ -842,24 +842,6 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
     val result = if (resp == None) new RestResult(NotFound) else new RestResult(resp.status, getRespData(resp))
     validateStatusCode(expectedExitCode, result.statusCode.intValue)
     result
-  }
-
-  /**
-   * Gets entities in namespace.
-   *
-   * @param namespace (optional) if specified must be  fully qualified namespace
-   * @param expectedExitCode (optional) the expected exit code for the command
-   * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-   */
-  override def get(namespace: Option[String] = None,
-                   expectedExitCode: Int = OK.intValue,
-                   nameSort: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val (ns, _) = namespace map { this.getNamespaceEntityName(_) } getOrElse (wp.namespace, "")
-    val entPath = Path(s"$basePath/namespaces/$ns/")
-    val resp = requestEntity(GET, entPath)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
   }
 
   /**

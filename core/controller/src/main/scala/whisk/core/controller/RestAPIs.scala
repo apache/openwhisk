@@ -229,12 +229,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   private val rules = new RulesApi(apiPath, apiVersion)
   private val web = new WebActionsApi(Seq("web"), new WebApiDirectives())
 
-  class NamespacesApi(val apiPath: String, val apiVersion: String)(
-    implicit override val entityStore: EntityStore,
-    override val entitlementProvider: EntitlementProvider,
-    override val executionContext: ExecutionContext,
-    override val logging: Logging)
-      extends WhiskNamespacesApi
+  class NamespacesApi(val apiPath: String, val apiVersion: String) extends WhiskNamespacesApi
 
   class ActionsApi(val apiPath: String, val apiVersion: String)(
     implicit override val actorSystem: ActorSystem,

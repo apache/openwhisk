@@ -165,33 +165,19 @@ protected[core] class View(ddoc: String, view: String) {
  * This object provides some utilities that query the whisk datastore.
  * The datastore is assumed to have views (pre-computed joins or indexes)
  * for each of the whisk collection types. Entities may be queries by
- * [namespace, date, name] where
+ * [path, date] where
  *
- * - namespace is the either root namespace for an entity (the owning subject
+ * - path is the either root namespace for an entity (the owning subject
  *   or organization) or a packaged qualified namespace,
  * - date is the date the entity was created or last updated, or for activations
  *   this is the start of the activation. See EntityRecord for the last updated
  *   property.
- * - name is the actual name of the entity (its simple name, not qualified by
- *   a package name)
  *
  * This order is important because the datastore is assumed to sort lexicographically
  * and hence either the fields are ordered according to the set of queries that are
  * desired: all entities in a namespace (by type), further refined by date, further
  * refined by name.
  *
- * In addition, for entities that may be queried across namespaces (currently
- * packages only), there must be a view which omits the namespace from the key,
- * as in [date, name] only. This permits the same queries that work for a collection
- * in a namespace to also work across namespaces.
- *
- * It is also assumed that the "-all" views implement a meaningful reduction for the
- * collection. Namely, the packages-all view will reduce the results to packages that
- * are public.
- *
- * The names of the views are assumed to be either the collection name, or
- * the collection name suffixed with "-all" per the method viewname. All of
- * the required views are installed by wipeTransientDBs.sh.
  */
 object WhiskEntityQueries {
   val TOP = "\ufff0"
@@ -201,34 +187,6 @@ object WhiskEntityQueries {
 
   /** The view name for the collection, within the design document. */
   def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)
-
-  /**
-   * Name of view in design-doc that lists all entities in that views regardless of types.
-   * This is uses in the namespace API, and also in tests to check preconditions.
-   */
-  lazy val viewAll: View = view(ddoc = s"all-$designDoc", collection = "all")
-
-  /**
-   * Queries the datastore for all entities in a namespace, and converts the list of entities
-   * to a map that collects the entities by their type. This method applies to only to the main
-   * asset database, not the activations records because it does not offer the required view.
-   */
-  def listAllInNamespace[A <: WhiskEntity](
-    db: ArtifactStore[A],
-    namespace: EntityName,
-    includeDocs: Boolean,
-    stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
-    implicit val ec = db.executionContext
-    val startKey = List(namespace.asString)
-    val endKey = List(namespace.asString, TOP)
-    db.query(viewAll.name, startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
-      _ map { row =>
-        val value = row.fields("value").asJsObject
-        val JsString(collection) = value.fields("collection")
-        (collection, JsObject(value.fields.filterNot { _._1 == "collection" }))
-      } groupBy { _._1 } mapValues { _.map(_._2) }
-    }
-  }
 }
 
 trait WhiskEntityQueries[T] {
