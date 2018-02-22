@@ -11,6 +11,7 @@ set -e
 set -x
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( dirname "$SOURCE" )"
+u_release="$(lsb_release -rs)"
 
 echo "*** installing basics"
 /bin/bash "$SCRIPTDIR/misc.sh"
