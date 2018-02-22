@@ -179,6 +179,14 @@ case class LogMarkerToken(component: String, action: String, state: String, tags
 }
 
 object LogMarkerToken {
+
+  def apply(component: String, action: String, state: String, tags: Map[String, String]): LogMarkerToken = {
+    if (!TransactionId.metricsKamonTags) {
+      val tagString = tags.values.mkString(".")
+      LogMarkerToken(component, s"$action.$tagString", state)
+    } else LogMarkerToken(component, action, state, Some(tags))
+  }
+
   def parse(s: String) = {
     // Per convention the components are guaranteed to not contain '_'
     // thus it's safe to split at '_' to get the components
@@ -189,9 +197,8 @@ object LogMarkerToken {
   def makeGranularToken(logMarkerToken: LogMarkerToken, namespaceName: String, actionName: String) = {
     if (TransactionId.granularMetric)
       if (TransactionId.metricsKamonTags)
-        logMarkerToken.copy(tags = Some(logMarkerToken.tags.get + ("namespace" -> namespaceName, "action" -> actionName)))
-      else
-        logMarkerToken.copy(action = s"${logMarkerToken.action}.$namespaceName.$actionName")
+        logMarkerToken.copy(tags = Some(logMarkerToken.tags.getOrElse(Map.empty) + ("namespace" → namespaceName, "action" → actionName)))
+      else logMarkerToken.copy(action = s"${logMarkerToken.action}.$namespaceName.$actionName")
     else logMarkerToken
   }
 }
@@ -200,17 +207,17 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken, tags: Option[Map[String, String]] = None): Unit = {
+  def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
-      if (tags.isEmpty) metrics.counter(token.toString).increment(1)
-      else metrics.counter(token.toString, tags.get).increment(1)
+      if (token.tags.nonEmpty) metrics.counter(token.toString, token.tags.get).increment(1)
+      else metrics.counter(token.toString).increment(1)
     }
   }
 
-  def emitHistogramMetric(token: LogMarkerToken, value: Long, tags: Option[Map[String, String]] = None): Unit = {
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      if (tags.isEmpty) metrics.histogram(token.toString).record(value)
-      else metrics.histogram(token.toString, tags.get).record(value)
+      if (token.tags.nonEmpty) metrics.histogram(token.toString, token.tags.get).record(value)
+      else metrics.histogram(token.toString).record(value)
     }
   }
 }
@@ -265,13 +272,11 @@ object LoggingMarkers {
 
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
-  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
-  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
-  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
+  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Map("cmd" → cmd))
+  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" → cmd))
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl", start, Map("cmd" → cmd))
   def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) = {
-    val logMarkerToken =
-      if (TransactionId.metricsKamonTags) LogMarkerToken(invoker, s"containerStart", count, Some(Map("containerState" → containerState)))
-      else LogMarkerToken(invoker, s"containerStart.$containerState", count)
+    val logMarkerToken = LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState))
     LogMarkerToken.makeGranularToken(logMarkerToken, namespaceName, actionName)
   }
 
