@@ -164,14 +164,14 @@ private object Logging {
     if (simpleName.endsWith("$")) simpleName.dropRight(1)
     else simpleName
   }
-
 }
 
 private object Emitter {
   val timeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneId.of("UTC"))
 }
 
-case class LogMarkerToken(component: String, action: String, state: String) {
+case class LogMarkerToken(component: String, action: String, state: String, tags: Option[Map[String, String]] = None) {
+
   override def toString() = component + "_" + action + "_" + state
 
   def asFinish = copy(state = LoggingMarkers.finish)
@@ -184,6 +184,15 @@ object LogMarkerToken {
     // thus it's safe to split at '_' to get the components
     val Array(component, action, state) = s.split("_")
     LogMarkerToken(component, action, state)
+  }
+
+  def makeGranularToken(logMarkerToken: LogMarkerToken, namespaceName: String, actionName: String) = {
+    if (TransactionId.granularMetric)
+      if (TransactionId.metricsKamonTags)
+        logMarkerToken.copy(tags = Some(logMarkerToken.tags.get + ("namespace" -> namespaceName, "action" -> actionName)))
+      else
+        logMarkerToken.copy(action = s"${logMarkerToken.action}.$namespaceName.$actionName")
+    else logMarkerToken
   }
 }
 
@@ -204,7 +213,6 @@ object MetricEmitter {
       else metrics.histogram(token.toString, tags.get).record(value)
     }
   }
-
 }
 
 object LoggingMarkers {
@@ -259,9 +267,13 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
-  def INVOKER_CONTAINER_START(containerState: String) =
-    LogMarkerToken(invoker, s"container_start_${containerState}", count)
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
+  def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) = {
+    val logMarkerToken =
+      if (TransactionId.metricsKamonTags) LogMarkerToken(invoker, s"containerStart", count, Some(Map("containerState" → containerState)))
+      else LogMarkerToken(invoker, s"containerStart.$containerState", count)
+    LogMarkerToken.makeGranularToken(logMarkerToken, namespaceName, actionName)
+  }
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
