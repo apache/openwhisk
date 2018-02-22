@@ -326,6 +326,15 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     FullyQualifiedEntityName.resolveName(JsString("a"), EntityName("ns")) shouldBe Some(
       EntityPath("ns/a").toFullyQualifiedEntityName)
 
+    FullyQualifiedEntityName.resolveName(JsString("/_/a"), EntityName("ns")) shouldBe Some(
+      EntityPath("ns/a").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("_/a"), EntityName("ns")) shouldBe Some(
+      EntityPath("ns/_/a").toFullyQualifiedEntityName)
+
+    FullyQualifiedEntityName.resolveName(JsString("/_/a/b"), EntityName("ns")) shouldBe Some(
+      EntityPath("ns/a/b").toFullyQualifiedEntityName)
+
     FullyQualifiedEntityName.resolveName(JsString("a/b"), EntityName("ns")) shouldBe Some(
       EntityPath("ns/a/b").toFullyQualifiedEntityName)
 
