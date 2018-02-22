@@ -1,15 +1,6 @@
 ---
 # This role will install Kafka with Zookeeper in group 'kafka' in the environment inventory
 
-- name: Set the kafka docker image names
-  set_fact:
-    kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
-
-- name: "pull the {{ kafka_image }} image"
-  shell: "docker pull {{ kafka_image }}"
-  retries: "{{ docker.pull.retries }}"
-  delay: "{{ docker.pull.delay }}"
-
 - name: "create kafka certificate directory"
   file:
     path: "{{ config_root_dir }}/kafka/certs"
@@ -39,6 +30,7 @@
       "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
       "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
+
 - name: add kafka ssl env vars
   when: kafka.protocol == 'SSL'
   set_fact:
@@ -76,7 +68,7 @@
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
   docker_container:
     name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
-    image: "{{ kafka_image }}"
+    image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
@@ -86,6 +78,7 @@
       - "{{ kafka.advertisedPort  + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
+    pull: true
 
 - name: wait until the kafka server started up
   shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
