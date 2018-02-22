@@ -29,6 +29,8 @@ import common.RuleActivationResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import java.time.Instant
+import whisk.utils.retry
+import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
@@ -99,14 +101,22 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     statusPermutations.foreach {
       case (trigger, status) =>
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-        wsk.rule
-          .create(ruleName, trigger, actionName, update = true)
-          .stdout
-          .parseJson
-          .asJsObject
-          .fields
-          .get("status") shouldBe status
-        wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
+
+        // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
+        retry(
+          {
+            wsk.rule
+              .create(ruleName, trigger, actionName, update = true)
+              .stdout
+              .parseJson
+              .asJsObject
+              .fields
+              .get("status") shouldBe status
+
+            wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
+          },
+          10,
+          Some(1.second))
     }
   }
 
