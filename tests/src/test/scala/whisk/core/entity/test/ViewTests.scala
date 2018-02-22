@@ -375,7 +375,7 @@ class ViewTests
         end = now.plusSeconds(20)))
 
     entities foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace1.root, entities.length, WhiskActivation.view)
+    waitOnView(activationStore, namespace1.addPath(actionName), entities.length, WhiskActivation.filtersView)
 
     getActivationsInNamespaceByNameSortedByDate(
       activationStore,
