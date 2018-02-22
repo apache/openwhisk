@@ -832,6 +832,23 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     }
   }
 
+  it should "not invoke an action when final parameters are redefined" in {
+    implicit val tid = transid()
+    val annotations = Parameters(WhiskActionMetaData.finalParamsAnnotationName, JsBoolean(true))
+    val parameters = Parameters("a", "A") ++ Parameters("empty", JsNull)
+    val action = WhiskAction(namespace, aname(), jsDefault("??"), parameters = parameters, annotations = annotations)
+    put(entityStore, action)
+    Seq((Parameters("a", "B"), BadRequest), (Parameters("empty", "C"), Accepted)).foreach {
+      case (p, code) =>
+        Post(s"$collectionPath/${action.name}", p.toJsObject) ~> Route.seal(routes(creds)) ~> check {
+          status should be(code)
+          if (code == BadRequest) {
+            responseAs[ErrorResponse].error shouldBe Messages.parametersNotAllowed
+          }
+        }
+    }
+  }
+
   it should "invoke an action, blocking with default timeout" in {
     implicit val tid = transid()
     val action = WhiskAction(
