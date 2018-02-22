@@ -17,63 +17,31 @@
 
 package whisk.core.containerpool.logging
 
+import java.time.ZonedDateTime
+
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.javadsl.model.headers.Authorization
-import akka.http.scaladsl.model.ContentTypes
-import akka.http.scaladsl.model.FormData
-import akka.http.scaladsl.model.HttpEntity
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.HttpMethods.POST
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
-import akka.stream.StreamTcpException
 import akka.stream.scaladsl.Flow
+import akka.stream.{ActorMaterializer, StreamTcpException}
 import akka.testkit.TestKit
-
 import common.StreamLogging
-
-import java.time.ZonedDateTime
-
-import pureconfig.error.ConfigReaderException
-
 import org.junit.runner.RunWith
-import org.scalatest.Matchers
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.FlatSpecLike
-
-import scala.concurrent.Await
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-import scala.util.Success
-import scala.util.Try
-import scala.util.Failure
-
-import spray.json.JsNumber
-import spray.json.JsObject
-import spray.json._
-
-import whisk.core.entity.ActionLimits
-import whisk.core.entity.ActivationId
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.EntityName
-import whisk.core.entity.EntityPath
-import whisk.core.entity.LogLimit
-import whisk.core.entity.MemoryLimit
-import whisk.core.entity.Parameters
-import whisk.core.entity.Subject
-import whisk.core.entity.TimeLimit
-import whisk.core.entity.WhiskActivation
+import pureconfig.error.ConfigReaderException
+import spray.json.{JsNumber, JsObject, _}
+import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.entity.AuthKey
-import whisk.core.entity.Identity
-import whisk.core.entity.ActivationLogs
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success, Try}
 
 @RunWith(classOf[JUnitRunner])
 class SplunkLogStoreTests
@@ -82,6 +50,9 @@ class SplunkLogStoreTests
     with Matchers
     with ScalaFutures
     with StreamLogging {
+
+  def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
+
   val testConfig = SplunkLogStoreConfig(
     "splunk-host",
     8080,
@@ -90,7 +61,7 @@ class SplunkLogStoreTests
     "splunk-index",
     "log_message",
     "activation_id",
-    false)
+    disableSNI = false)
 
   behavior of "Splunk LogStore"
 
@@ -115,8 +86,8 @@ class SplunkLogStoreTests
     annotations = Parameters("limits", ActionLimits(TimeLimit(1.second), MemoryLimit(128.MB), LogLimit(1.MB)).toJson),
     duration = Some(123))
 
-  implicit val ec = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val ec: ExecutionContext = system.dispatcher
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val testFlow: Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
     Flow[(HttpRequest, Promise[HttpResponse])]
@@ -165,34 +136,26 @@ class SplunkLogStoreTests
       }
 
   it should "fail when loading out of box configs (because whisk.logstore.splunk doesn't exist)" in {
-    assertThrows[ConfigReaderException[_]] {
-      val splunkStore = new SplunkLogStore(system)
-    }
-
+    a[ConfigReaderException[_]] should be thrownBy new SplunkLogStore(system)
   }
+
   it should "find logs based on activation timestamps" in {
     //use the a flow that asserts the request structure and provides a response in the expected format
     val splunkStore = new SplunkLogStore(system, Some(testFlow), testConfig)
-    val result = Await.result(splunkStore.fetchLogs(user, activation, request), 1.second)
+    val result = await(splunkStore.fetchLogs(user, activation, request))
     result shouldBe ActivationLogs(Vector("some log message", "some other log message"))
   }
 
   it should "fail to connect to bogus host" in {
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
-    val result = splunkStore.fetchLogs(user, activation, request)
-    whenReady(result.failed, Timeout(1.second)) { ex =>
-      ex shouldBe an[StreamTcpException]
-    }
+    a[StreamTcpException] should be thrownBy await(splunkStore.fetchLogs(user, activation, request))
   }
+
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
-    val result = splunkStore.fetchLogs(user, activation, request)
-    whenReady(result.failed, Timeout(1.second)) { ex =>
-      ex shouldBe an[RuntimeException]
-    }
-
+    a[RuntimeException] should be thrownBy await(splunkStore.fetchLogs(user, activation, request))
   }
 
 }
