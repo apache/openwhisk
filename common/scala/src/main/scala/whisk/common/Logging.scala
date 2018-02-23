@@ -263,6 +263,7 @@ object LoggingMarkers {
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
   def INVOKER_CONTAINER_START(containerState: String) =
     LogMarkerToken(invoker, s"container_start_${containerState}", count)
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
 
   /*
    * General markers

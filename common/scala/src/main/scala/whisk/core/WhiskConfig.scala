@@ -256,6 +256,9 @@ object ConfigKeys {
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
 
+  val kubernetes = "whisk.kubernetes"
+  val kubernetesTimeouts = s"$kubernetes.timeouts"
+
   val transactions = "whisk.transactions"
   val stride = s"$transactions.stride"
 
