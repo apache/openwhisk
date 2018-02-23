@@ -230,7 +230,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                 // incoming parameters may not override final parameters (i.e., parameters with already defined values)
                 // on an action once its parameters are resolved across package and binding
                 val allowInvoke = payload
-                  .map(_.fields.keySet.intersect(actionWithMergedParams.immutableParameters).isEmpty)
+                  .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
                   .getOrElse(true)
 
                 if (allowInvoke) {
