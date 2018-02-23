@@ -41,8 +41,16 @@ import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_KUBECTL_CMD
 import whisk.common.TransactionId
 import whisk.core.containerpool.{ContainerAddress, ContainerId}
-import whisk.core.containerpool.kubernetes.{KubernetesApi, KubernetesClient, KubernetesContainer, KubernetesRestLogSourceStage, TypedLogLine}
+import whisk.core.containerpool.kubernetes.{
+  KubernetesApi,
+  KubernetesClient,
+  KubernetesContainer,
+  KubernetesRestLogSourceStage,
+  TypedLogLine
+}
 import whisk.core.containerpool.docker.ProcessRunningException
+import whisk.core.entity.ByteSize
+import whisk.core.entity.size._
 
 import scala.collection.mutable
 import scala.collection.immutable
@@ -84,8 +92,10 @@ class KubernetesClientTests
       fixture
   }
 
-  def kubernetesContainer(id:ContainerId) =
-    new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://"+id.asString)(kubernetesClient { Future.successful("") }, global, logging)
+  def kubernetesContainer(id: ContainerId) =
+    new KubernetesContainer(id, ContainerAddress("ip"), "ip", "docker://" + id.asString)(kubernetesClient {
+      Future.successful("")
+    }, global, logging)
 
   behavior of "KubernetesClient"
 
@@ -233,21 +243,24 @@ object KubernetesClientTests {
     strToDate(str).get
 
   class TestKubernetesClient extends KubernetesApi with StreamLogging {
-    var runs = mutable.Buffer.empty[(String, String, Map[String,String], Map[String,String])]
+    var runs = mutable.Buffer.empty[(String, String, Map[String, String], Map[String, String])]
     var rms = mutable.Buffer.empty[ContainerId]
     var rmByLabels = mutable.Buffer.empty[(String, String)]
     var resumes = mutable.Buffer.empty[ContainerId]
     var suspends = mutable.Buffer.empty[ContainerId]
     var logCalls = mutable.Buffer.empty[(ContainerId, Option[Instant])]
 
-    def run(name: String, image: String, env: Map[String,String] = Map(), labels: Map[String,String] = Map())(
-      implicit transid: TransactionId): Future[KubernetesContainer] = {
+    def run(name: String,
+            image: String,
+            memory: ByteSize = 256.MB,
+            env: Map[String, String] = Map(),
+            labels: Map[String, String] = Map())(implicit transid: TransactionId): Future[KubernetesContainer] = {
       runs += ((name, image, env, labels))
       implicit val kubernetes = this
       val containerId = ContainerId("id")
       val addr: ContainerAddress = ContainerAddress("ip")
-      val workerIP:String = "127.0.0.1"
-      val nativeContainerId: String = "docker://"+containerId.asString
+      val workerIP: String = "127.0.0.1"
+      val nativeContainerId: String = "docker://" + containerId.asString
       Future.successful(new KubernetesContainer(containerId, addr, workerIP, nativeContainerId))
     }
 

@@ -66,7 +66,7 @@ object KubernetesContainer {
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
 
     for {
-      container <- kubernetes.run(podName, image, environment, labels).recoverWith {
+      container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
         case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
     } yield container
@@ -84,6 +84,7 @@ object KubernetesContainer {
  * @param id the id of the container
  * @param addr the ip & port of the container
  * @param workerIP the ip of the workernode on which the container is executing
+ * @param nativeContainerId the docker/containerd lowlevel id for the container
  */
 class KubernetesContainer(protected[core] val id: ContainerId,
                           protected[core] val addr: ContainerAddress,
@@ -104,7 +105,10 @@ class KubernetesContainer(protected[core] val id: ContainerId,
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    kubernetes.rm(this)
+    // Attempting to remove a pod with a suspended container leaves the pod stuck in "Terminating" state.
+    resume()
+      .recover { case _ => () } // Ignore errors; it is possible the container was not actually suspended.
+      .map(_ => kubernetes.rm(this))
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String

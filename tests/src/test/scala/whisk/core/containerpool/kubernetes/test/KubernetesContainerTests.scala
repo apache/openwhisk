@@ -43,7 +43,8 @@ import whisk.common.TransactionId
 import whisk.core.containerpool._
 import whisk.core.containerpool.kubernetes._
 import whisk.core.containerpool.docker._
-import whisk.core.entity.ActivationResponse
+import whisk.core.entity.{ActivationResponse, ByteSize}
+import whisk.core.entity.size._
 import whisk.core.entity.ActivationResponse.ContainerResponse
 import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
@@ -98,7 +99,7 @@ class KubernetesContainerTests
       Future.successful(RunResult(intervalOf(1.millisecond), Right(ContainerResponse(true, "", None)))),
     awaitLogs: FiniteDuration = 2.seconds)(implicit kubernetes: KubernetesApi): KubernetesContainer = {
 
-    new KubernetesContainer(id, addr, addr.host, "docker://"+id.asString) {
+    new KubernetesContainer(id, addr, addr.host, "docker://" + id.asString) {
       override protected def callContainer(
         path: String,
         body: JsObject,
@@ -162,8 +163,12 @@ class KubernetesContainerTests
 
   it should "provide a proper error if run fails for blackbox containers" in {
     implicit val kubernetes = new TestKubernetesClient {
-      override def run(name: String, image: String, env: Map[String, String] = Map(), labels: Map[String, String] = Map())(
-        implicit transid: TransactionId): Future[KubernetesContainer] = {
+      override def run(
+        name: String,
+        image: String,
+        memory: ByteSize = 256.MB,
+        env: Map[String, String] = Map(),
+        labels: Map[String, String] = Map())(implicit transid: TransactionId): Future[KubernetesContainer] = {
         runs += ((name, image, env, labels))
         Future.failed(ProcessRunningException(1, "", ""))
       }
@@ -177,7 +182,6 @@ class KubernetesContainerTests
     kubernetes.rms should have size 0
   }
 
-
   /*
    * KUBERNETES COMMANDS
    */
@@ -185,7 +189,9 @@ class KubernetesContainerTests
     implicit val kubernetes = stub[KubernetesApi]
 
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo") {
+      override def resume()(implicit transid: TransactionId): Future[Unit] = Future.successful(())
+    }
 
     container.destroy()
 
@@ -296,7 +302,7 @@ class KubernetesContainerTests
     val logSrc = logSource(expectedLogEntry, appendSentinel = true)
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(container:KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
         logCalls += ((container.id, sinceTime))
         logSrc
@@ -365,7 +371,7 @@ class KubernetesContainerTests
     val logSources = mutable.Queue(logSource(firstLog, true), logSource(secondLog, true))
 
     implicit val kubernetes = new TestKubernetesClient {
-      override def logs(container:KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
+      override def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean)(
         implicit transid: TransactionId): Source[TypedLogLine, Any] = {
         logCalls += ((container.id, sinceTime))
         logSources.dequeue()
