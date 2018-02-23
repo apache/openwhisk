@@ -18,6 +18,7 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{ActorSystem, Props}
 import akka.cluster.Cluster
@@ -343,7 +344,11 @@ object ContainerPoolBalancer extends LoadBalancerProvider {
         .find(_._3 < invokerBusyThreshold)
         .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 2))
         .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 3))
-        .orElse(invokerProgression.headOption)
+        .orElse(
+          if (invokerProgression.isEmpty)
+            None
+          else
+            Some(invokerProgression(ThreadLocalRandom.current().nextInt(invokerProgression.size))))
         .map(_._1)
     } else None
   }
