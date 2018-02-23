@@ -271,7 +271,7 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
 
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote') }}"
+  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
   local:
     location: "{{ openwhisk_cli_home }}/build"
   remote:
