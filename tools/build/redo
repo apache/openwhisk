@@ -398,7 +398,7 @@ def doOne(component, args, props):
         run(cmd, playbook.path(basedir), args.skiprun)
 
     if args.deploy and playbook is not None:
-        cmd = playbook.execcmd(props, extraArgs = extraArgs)
+        cmd = playbook.execcmd(props, extraAnsibleVars = args.extraAnsibleVars)
         run(cmd, playbook.path(basedir), args.skiprun)
 
 if __name__ == '__main__':
