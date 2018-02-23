@@ -95,7 +95,7 @@ def getArgs():
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
     parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to gradle build')
     parser.add_argument('-e', '--extra-ansible-vars', dest='extraAnsibleVars', action='append', help='pass extra vars to ansible-playbook')
-    parser.add_argument('components', nargs = '+', help='component name(s) to run (in order specified if more than one)')
+    parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
     parser.add_argument('--dir', help='whisk home directory')
 
     args = parser.parse_args()
