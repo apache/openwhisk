@@ -94,7 +94,7 @@ def getArgs():
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
     parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to underlying task command')
-    parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
+    parser.add_argument('components', nargs = '+', help='component name(s) to run (in order specified if more than one)')
     parser.add_argument('--dir', help='whisk home directory')
 
     args = parser.parse_args()
