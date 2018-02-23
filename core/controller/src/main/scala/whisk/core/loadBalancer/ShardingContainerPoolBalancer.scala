@@ -205,14 +205,11 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    * Subscribes to active acks (completion messages from the invokers), and
    * registers a handler for received active acks from invokers.
    */
+  private val activeAckTopic = s"completed${controllerInstance.toInt}"
   private val maxActiveAcksPerPoll = 128
   private val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(
-      config,
-      "completions",
-      s"completed${controllerInstance.toInt}",
-      maxPeek = maxActiveAcksPerPoll)
+    messagingProvider.getConsumer(config, activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll)
 
   private val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed(
