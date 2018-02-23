@@ -124,7 +124,7 @@ protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
             else if (leadingSlash || n == 3) Some(path)
             else Some(namespace.toPath.addPath(path))
           }
-          .map(_.toFullyQualifiedEntityName)
+          .map(_.resolveNamespace(namespace).toFullyQualifiedEntityName)
       case _ => None
     }
   }
