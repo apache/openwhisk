@@ -303,15 +303,17 @@ class NamespaceSpecificThrottleTests
   val wskadmin = new RunWskAdminCmd {}
   val wsk = new WskRest
 
-  def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT) = {
+  def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT): Unit = {
+    var errors = 0
     namespaces.foreach { ns =>
       try {
         disposeAdditionalTestSubject(ns, expectedExitCode)
         withClue(s"failed to delete temporary limits for $ns") {
           wskadmin.cli(Seq("limits", "delete", ns), expectedExitCode)
         }
-      } catch { case _: Throwable => }
+      } catch { case _: Throwable => errors += 1 }
     }
+    if (expectedExitCode == SUCCESS_EXIT) assert(errors == 0)
   }
 
   sanitizeNamespaces(
