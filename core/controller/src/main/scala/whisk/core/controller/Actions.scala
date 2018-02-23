@@ -219,17 +219,19 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'result ? false,
       'timeout.as[FiniteDuration] ? WhiskActionsApi.maxWaitForBlockingActivation) { (blocking, result, waitOverride) =>
       entity(as[Option[JsObject]]) { payload =>
-        getEntity(
-          WhiskActionMetaData,
-          entityStore,
-          entityName.toDocId,
-          Some { act: WhiskActionMetaData =>
+        getEntity(WhiskActionMetaData, entityStore, entityName.toDocId, Some {
+          act: WhiskActionMetaData =>
             // resolve the action --- special case for sequences that may contain components with '_' as default package
             val action = act.resolve(user.namespace)
             onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
               case Success(_) =>
                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
-                val allowInvoke = true
+
+                // incoming parameters may not override final parameters (i.e., parameters with already defined values)
+                // on an action once its parameters are resolved across package and binding
+                val allowInvoke = payload
+                  .map(_.fields.keySet.intersect(actionWithMergedParams.immutableParameters).isEmpty)
+                  .getOrElse(true)
 
                 if (allowInvoke) {
                   doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
@@ -240,7 +242,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
               case Failure(f) =>
                 super.handleEntitlementFailure(f)
             }
-          })
+        })
       }
     }
   }
