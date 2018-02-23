@@ -34,7 +34,7 @@ import whisk.core.entity.Subject
 import whisk.core.entity.ActivationId
 import java.time.Instant
 
-import spray.json.JsString
+import spray.json.{JsObject, JsString}
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.WhiskTrigger
 import whisk.core.entity.ReducedRule
@@ -114,6 +114,12 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     val withoutLogs = withLogs.withoutLogs
     withoutLogs shouldBe activation
     withoutLogs.rev shouldBe activation.rev
+  }
+
+  it should "return an empty jsobject if no response is present" in {
+    val activation = WhiskActivation(namespace, name, Subject(), ActivationId(), Instant.now(), Instant.now())
+      .revision[WhiskActivation](revision)
+    activation.resultAsJson shouldBe JsObject.empty
   }
 
   behavior of "WhiskTrigger"
