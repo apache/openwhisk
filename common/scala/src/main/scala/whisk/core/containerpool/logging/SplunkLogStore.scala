@@ -36,18 +36,24 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
+
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
+
 import pureconfig._
+
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import spray.json._
+
 import whisk.common.AkkaLogging
 import whisk.core.ConfigKeys
 import whisk.core.entity.ActivationLogs
 import whisk.core.entity.WhiskActivation
+import whisk.core.entity.Identity
 
 case class SplunkLogStoreConfig(host: String,
                                 port: Int,
@@ -92,7 +98,7 @@ class SplunkLogStore(
         Http().createClientHttpsContext(AkkaSSLConfig().mapSettings(s => s.withLoose(s.loose.withDisableSNI(true))))
       else Http().defaultClientHttpsContext)
 
-  override def fetchLogs(activation: WhiskActivation): Future[ActivationLogs] = {
+  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] = {
 
     //example curl request:
     //    curl -u  username:password -k https://splunkhost:port/services/search/jobs -d exec_mode=oneshot -d output_mode=json -d "search=search index=\"someindex\" | spath=activation_id | search activation_id=a930e5ae4ad4455c8f2505d665aad282 |  table log_message" -d "earliest_time=2017-08-29T12:00:00" -d "latest_time=2017-10-29T12:00:00"

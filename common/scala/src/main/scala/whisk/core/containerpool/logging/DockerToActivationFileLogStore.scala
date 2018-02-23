@@ -18,6 +18,7 @@
 package whisk.core.containerpool.logging
 
 import java.nio.file.{Path, Paths}
+import java.time.Instant
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -25,15 +26,15 @@ import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.{Graph, SinkShape, UniformFanOutShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, MergeHub, Sink, Source}
 import akka.util.ByteString
+
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 import whisk.core.entity.size._
+import whisk.http.Messages
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import java.time.Instant
-
-import whisk.http.Messages
 
 import scala.concurrent.Future
 
