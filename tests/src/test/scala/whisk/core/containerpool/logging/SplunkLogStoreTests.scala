@@ -26,7 +26,9 @@ import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.stream.StreamTcpException
@@ -96,7 +98,11 @@ class SplunkLogStoreTests
   val endTime = "2007-12-03T10:15:45Z"
   val endTimePlus5 = "2007-12-03T10:15:50Z" //queried end time range is endTime+5
   val user = Identity(Subject(), EntityName("testSpace"), AuthKey(), Set())
-  val headers = Seq(RawHeader("key", "value"))
+  val request = HttpRequest(
+    method = POST,
+    uri = "https://some.url",
+    headers = List(RawHeader("key", "value")),
+    entity = HttpEntity(MediaTypes.`application/json`, JsObject().compactPrint))
 
   val activation = WhiskActivation(
     namespace = EntityPath("ns"),
@@ -167,14 +173,14 @@ class SplunkLogStoreTests
   it should "find logs based on activation timestamps" in {
     //use the a flow that asserts the request structure and provides a response in the expected format
     val splunkStore = new SplunkLogStore(system, Some(testFlow), testConfig)
-    val result = Await.result(splunkStore.fetchLogs(user, activation, headers), 1.second)
+    val result = Await.result(splunkStore.fetchLogs(user, activation, request), 1.second)
     result shouldBe ActivationLogs(Vector("some log message", "some other log message"))
   }
 
   it should "fail to connect to bogus host" in {
     //use the default http flow with the default bogus-host config
     val splunkStore = new SplunkLogStore(system, splunkConfig = testConfig)
-    val result = splunkStore.fetchLogs(user, activation, headers)
+    val result = splunkStore.fetchLogs(user, activation, request)
     whenReady(result.failed, Timeout(1.second)) { ex =>
       ex shouldBe an[StreamTcpException]
     }
@@ -182,7 +188,7 @@ class SplunkLogStoreTests
   it should "display an error if API cannot be reached" in {
     //use a flow that generates a 500 response
     val splunkStore = new SplunkLogStore(system, Some(failFlow), testConfig)
-    val result = splunkStore.fetchLogs(user, activation, headers)
+    val result = splunkStore.fetchLogs(user, activation, request)
     whenReady(result.failed, Timeout(1.second)) { ex =>
       ex shouldBe an[RuntimeException]
     }

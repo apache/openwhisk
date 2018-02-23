@@ -19,7 +19,7 @@ package whisk.core.containerpool.logging
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
@@ -67,9 +67,8 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   override val containerParameters = Map("--log-driver" -> Set("json-file"))
 
   /* As logs are already part of the activation record, just return that bit of it */
-  override def fetchLogs(user: Identity,
-                         activation: WhiskActivation,
-                         headers: Seq[HttpHeader]): Future[ActivationLogs] = Future.successful(activation.logs)
+  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
+    Future.successful(activation.logs)
 
   override def collectLogs(transid: TransactionId,
                            user: Identity,

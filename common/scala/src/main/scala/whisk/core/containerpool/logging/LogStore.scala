@@ -18,7 +18,7 @@
 package whisk.core.containerpool.logging
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.HttpRequest
 
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
@@ -76,7 +76,7 @@ trait LogStore {
    * @param activation activation to fetch the logs for
    * @return the relevant logs
    */
-  def fetchLogs(user: Identity, activation: WhiskActivation, headers: Seq[HttpHeader]): Future[ActivationLogs]
+  def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs]
 }
 
 trait LogStoreProvider extends Spi {
