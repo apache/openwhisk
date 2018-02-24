@@ -275,7 +275,7 @@ object LoggingMarkers {
   def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) =
     LogMarkerToken(
       invoker,
-      s"containerStart",
+      "containerStart",
       count,
       Map("containerState" -> containerState),
       Map("namespaceName" -> namespaceName, "actionName" -> actionName))

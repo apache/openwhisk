@@ -123,7 +123,7 @@ trait BasicHttpService extends Directives with TransactionCounter {
 
       val token = LogMarkerToken(
         "http",
-        s"${m.toLowerCase}",
+        m.toLowerCase,
         LoggingMarkers.count,
         Map("statusCode" -> res.status.intValue.toString))
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
