@@ -226,38 +226,17 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             onComplete(entitleReferencedEntitiesMetaData(user, Privilege.ACTIVATE, Some(action.exec))) {
               case Success(_) =>
                 val actionWithMergedParams = env.map(action.inherit(_)) getOrElse action
-                val waitForResponse = if (blocking) Some(waitOverride) else None
-                onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
-                  case Success(Left(activationId)) =>
-                    // non-blocking invoke or blocking invoke which got queued instead
-                    complete(Accepted, activationId.toJsObject)
-                  case Success(Right(activation)) =>
-                    val response = if (result) activation.resultAsJson else activation.toExtendedJson
 
-                    if (activation.response.isSuccess) {
-                      complete(OK, response)
-                    } else if (activation.response.isApplicationError) {
-                      // actions that result is ApplicationError status are considered a 'success'
-                      // and will have an 'error' property in the result - the HTTP status is OK
-                      // and clients must check the response status if it exists
-                      // NOTE: response status will not exist in the JSON object if ?result == true
-                      // and instead clients must check if 'error' is in the JSON
-                      // PRESERVING OLD BEHAVIOR and will address defect in separate change
-                      complete(BadGateway, response)
-                    } else if (activation.response.isContainerError) {
-                      complete(BadGateway, response)
-                    } else {
-                      complete(InternalServerError, response)
-                    }
-                  case Failure(t: RecordTooLargeException) =>
-                    logging.debug(this, s"[POST] action payload was too large")
-                    terminate(RequestEntityTooLarge)
-                  case Failure(RejectRequest(code, message)) =>
-                    logging.debug(this, s"[POST] action rejected with code $code: $message")
-                    terminate(code, message)
-                  case Failure(t: Throwable) =>
-                    logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
-                    terminate(InternalServerError)
+                // incoming parameters may not override final parameters (i.e., parameters with already defined values)
+                // on an action once its parameters are resolved across package and binding
+                val allowInvoke = payload
+                  .map(_.fields.keySet.forall(key => !actionWithMergedParams.immutableParameters.contains(key)))
+                  .getOrElse(true)
+
+                if (allowInvoke) {
+                  doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
+                } else {
+                  terminate(BadRequest, Messages.parametersNotAllowed)
                 }
 
               case Failure(f) =>
@@ -265,6 +244,47 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
             }
         })
       }
+    }
+  }
+
+  private def doInvoke(user: Identity,
+                       actionWithMergedParams: WhiskActionMetaData,
+                       payload: Option[JsObject],
+                       blocking: Boolean,
+                       waitOverride: FiniteDuration,
+                       result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+    val waitForResponse = if (blocking) Some(waitOverride) else None
+    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+      case Success(Left(activationId)) =>
+        // non-blocking invoke or blocking invoke which got queued instead
+        complete(Accepted, activationId.toJsObject)
+      case Success(Right(activation)) =>
+        val response = if (result) activation.resultAsJson else activation.toExtendedJson
+
+        if (activation.response.isSuccess) {
+          complete(OK, response)
+        } else if (activation.response.isApplicationError) {
+          // actions that result is ApplicationError status are considered a 'success'
+          // and will have an 'error' property in the result - the HTTP status is OK
+          // and clients must check the response status if it exists
+          // NOTE: response status will not exist in the JSON object if ?result == true
+          // and instead clients must check if 'error' is in the JSON
+          // PRESERVING OLD BEHAVIOR and will address defect in separate change
+          complete(BadGateway, response)
+        } else if (activation.response.isContainerError) {
+          complete(BadGateway, response)
+        } else {
+          complete(InternalServerError, response)
+        }
+      case Failure(t: RecordTooLargeException) =>
+        logging.debug(this, s"[POST] action payload was too large")
+        terminate(RequestEntityTooLarge)
+      case Failure(RejectRequest(code, message)) =>
+        logging.debug(this, s"[POST] action rejected with code $code: $message")
+        terminate(code, message)
+      case Failure(t: Throwable) =>
+        logging.error(this, s"[POST] action activation failed: ${t.getMessage}")
+        terminate(InternalServerError)
     }
   }
 

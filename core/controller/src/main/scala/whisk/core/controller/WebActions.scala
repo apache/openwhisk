@@ -91,7 +91,7 @@ private case class Context(propertyMap: WebApiDirectives,
 
   // returns true iff the attached query and body parameters contain a property
   // that conflicts with the given reserved parameters
-  def overrides(reservedParams: Set[String]): Set[String] = {
+  def overrides(reservedParams: Set[String]): Boolean = {
     val queryParams = queryAsMap.keySet
     val bodyParams = body
       .map {
@@ -100,7 +100,7 @@ private case class Context(propertyMap: WebApiDirectives,
       }
       .getOrElse(Set.empty)
 
-    (queryParams ++ bodyParams) intersect reservedParams
+    (queryParams ++ bodyParams).forall(key => !reservedParams.contains(key))
   }
 
   // attach the body to the Context
@@ -612,8 +612,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       // since these are system properties, the action should not define them, and if it does,
       // they will be overwritten
       if (isRawHttpAction || context
-            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)
-            .isEmpty) {
+            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
         invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
       } else {
