@@ -197,7 +197,8 @@ object LogMarkerToken {
   def makeGranularToken(logMarkerToken: LogMarkerToken, namespaceName: String, actionName: String) = {
     if (TransactionId.granularMetric)
       if (TransactionId.metricsKamonTags)
-        logMarkerToken.copy(tags = Some(logMarkerToken.tags.getOrElse(Map.empty) + ("namespace" → namespaceName, "action" → actionName)))
+        logMarkerToken.copy(
+          tags = Some(logMarkerToken.tags.getOrElse(Map.empty) + ("namespace" → namespaceName, "action" → actionName)))
       else logMarkerToken.copy(action = s"${logMarkerToken.action}.$namespaceName.$actionName")
     else logMarkerToken
   }
@@ -276,7 +277,10 @@ object LoggingMarkers {
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" → cmd))
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl", start, Map("cmd" → cmd))
   def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) =
-    LogMarkerToken.makeGranularToken(LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState)), namespaceName, actionName)
+    LogMarkerToken.makeGranularToken(
+      LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState)),
+      namespaceName,
+      actionName)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
