@@ -171,14 +171,14 @@ private object Emitter {
 }
 
 /**
-  * It is used to record log message and make a metric name.
-  *
-  * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers
-  * @param action The name of the action defined for the record. not a action name for invoke.
-  * @param state State of action
-  * @param macroTags macroTags should be used for tags with a bounded number of permutations.
-  * @param microTags microTags can be used for whatever granularity you might need.
-  */
+ * Used to record log message and make a metric name.
+ *
+ * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers.
+ * @param action Action of the component.
+ * @param state State of the action.
+ * @param macroTags macroTags should be used for tags with a bounded number of permutations.
+ * @param microTags microTags can be used for whatever granularity you might need.
+ */
 case class LogMarkerToken(component: String,
                           action: String,
                           state: String,
