@@ -200,7 +200,6 @@ object TransactionId {
   // get the metric parameters directly from the environment since WhiskConfig can not be instantiated here
   val metricsKamon: Boolean = sys.env.get("METRICS_KAMON").getOrElse("False").toBoolean
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
-  val granularMetric: Boolean = sys.env.get("METRICS_GRANULAR_METRIC").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
   val unknown = TransactionId(0)

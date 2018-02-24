@@ -170,22 +170,20 @@ private object Emitter {
   val timeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneId.of("UTC"))
 }
 
-case class LogMarkerToken(component: String, action: String, state: String, tags: Option[Map[String, String]] = None) {
+case class LogMarkerToken(component: String,
+                          action: String,
+                          state: String,
+                          macroTags: Map[String, String] = Map.empty,
+                          microTags: Map[String, String] = Map.empty) {
 
   override def toString() = component + "_" + action + "_" + state
+  def toStringWithTags = component + "_" + action + macroTags.values.mkString(".", ".", "") + "_" + state
 
   def asFinish = copy(state = LoggingMarkers.finish)
   def asError = copy(state = LoggingMarkers.error)
 }
 
 object LogMarkerToken {
-
-  def apply(component: String, action: String, state: String, tags: Map[String, String]): LogMarkerToken = {
-    if (!TransactionId.metricsKamonTags) {
-      val tagString = tags.values.mkString(".")
-      LogMarkerToken(component, s"$action.$tagString", state)
-    } else LogMarkerToken(component, action, state, Some(tags))
-  }
 
   def parse(s: String) = {
     // Per convention the components are guaranteed to not contain '_'
@@ -194,14 +192,6 @@ object LogMarkerToken {
     LogMarkerToken(component, action, state)
   }
 
-  def makeGranularToken(logMarkerToken: LogMarkerToken, namespaceName: String, actionName: String) = {
-    if (TransactionId.granularMetric)
-      if (TransactionId.metricsKamonTags)
-        logMarkerToken.copy(
-          tags = Some(logMarkerToken.tags.getOrElse(Map.empty) + ("namespace" → namespaceName, "action" → actionName)))
-      else logMarkerToken.copy(action = s"${logMarkerToken.action}.$namespaceName.$actionName")
-    else logMarkerToken
-  }
 }
 
 object MetricEmitter {
@@ -210,15 +200,21 @@ object MetricEmitter {
 
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
-      if (token.tags.nonEmpty) metrics.counter(token.toString, token.tags.get).increment(1)
-      else metrics.counter(token.toString).increment(1)
+      if (TransactionId.metricsKamonTags) {
+        metrics.counter(token.toString, token.macroTags ++ token.microTags).increment(1)
+      } else {
+        metrics.counter(token.toStringWithTags).increment(1)
+      }
     }
   }
 
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      if (token.tags.nonEmpty) metrics.histogram(token.toString, token.tags.get).record(value)
-      else metrics.histogram(token.toString).record(value)
+      if (TransactionId.metricsKamonTags) {
+        metrics.histogram(token.toString, token.macroTags ++ token.microTags).record(value)
+      } else {
+        metrics.histogram(token.toStringWithTags).record(value)
+      }
     }
   }
 }
@@ -273,14 +269,16 @@ object LoggingMarkers {
 
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
-  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Map("cmd" → cmd))
-  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" → cmd))
-  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl", start, Map("cmd" → cmd))
+  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Map("cmd" -> cmd))
+  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" -> cmd))
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl", start, Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) =
-    LogMarkerToken.makeGranularToken(
-      LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState)),
-      namespaceName,
-      actionName)
+    LogMarkerToken(
+      invoker,
+      s"containerStart",
+      count,
+      Map("containerState" -> containerState),
+      Map("namespaceName" -> namespaceName, "actionName" -> actionName))
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
