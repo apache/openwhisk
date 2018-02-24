@@ -9,6 +9,9 @@ events {
 }
 
 http {
+{# nginx rate limit config parameters #}
+    limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
+    
 {# allow large uploads, need to thread proper limit into here #}
     client_max_body_size 50M;
 
@@ -94,18 +97,26 @@ http {
         }
 
         location /blackbox.tar.gz {
+            limit_req zone=mylimit burst=20 nodelay;
+            
             return 301 https://github.com/apache/incubator-openwhisk-runtime-docker/releases/download/sdk%400.1.0/blackbox-0.1.0.tar.gz;
         }
         # leaving this for a while for clients out there to update to the new endpoint
         location /blackbox-0.1.0.tar.gz {
+            limit_req zone=mylimit burst=20 nodelay;
+            
             return 301 /blackbox.tar.gz;
         }
 
         location /OpenWhiskIOSStarterApp.zip {
+            limit_req zone=mylimit burst=20 nodelay;
+            
             return 301 https://github.com/apache/incubator-openwhisk-client-swift/releases/download/0.2.3/starterapp-0.2.3.zip;
         }
 
         location /cli/go/download {
+            limit_req zone=mylimit burst=20 nodelay;
+            
             autoindex on;
             root /etc/nginx;
         }
