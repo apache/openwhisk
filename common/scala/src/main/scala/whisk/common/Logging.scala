@@ -275,10 +275,8 @@ object LoggingMarkers {
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Map("cmd" → cmd))
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" → cmd))
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl", start, Map("cmd" → cmd))
-  def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) = {
-    val logMarkerToken = LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState))
-    LogMarkerToken.makeGranularToken(logMarkerToken, namespaceName, actionName)
-  }
+  def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) =
+    LogMarkerToken.makeGranularToken(LogMarkerToken(invoker, s"containerStart", count, Map("containerState" → containerState)), namespaceName, actionName)
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
