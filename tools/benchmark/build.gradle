@@ -1,0 +1,20 @@
+apply plugin: 'scala'
+apply plugin: 'application'
+apply plugin: 'eclipse'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile project(':common:scala')
+
+    compile "org.scalanlp:breeze_2.11:0.13.2"
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
+
+mainClassName = "whisk.core.benchmark.ControllerSimulator"
