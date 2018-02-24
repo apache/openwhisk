@@ -1536,7 +1536,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           "action" -> "raw_export_c".toJson,
           "content" -> metaPayload(
             Post.method.name.toLowerCase,
-            Map(webApiDirectives.body -> JsObject(), webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
+            Map(webApiDirectives.body -> "".toJson, webApiDirectives.query -> queryString.toJson).toJson.asJsObject,
             creds,
             pkgName = "proxy"))
       }
@@ -1586,6 +1586,24 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
               pkgName = "proxy",
               headers = List(`Content-Type`(ContentTypes.`application/json`))))
         }
+      }
+    }
+
+    it should s"invoke raw action ensuring body and query arguments are empty strings when not specified in request (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      Post(s"$testRoutePath/$systemId/proxy/raw_export_c.json") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+        invocationsAllowed += 1
+        val response = responseAs[JsObject]
+        response shouldBe JsObject(
+          "pkg" -> s"$systemId/proxy".toJson,
+          "action" -> "raw_export_c".toJson,
+          "content" -> metaPayload(
+            Post.method.name.toLowerCase,
+            Map(webApiDirectives.body -> "".toJson, webApiDirectives.query -> "".toJson).toJson.asJsObject,
+            creds,
+            pkgName = "proxy"))
       }
     }
 

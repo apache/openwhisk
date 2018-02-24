@@ -129,11 +129,11 @@ private case class Context(propertyMap: WebApiDirectives,
     // if the body is a json object, merge with query parameters
     // otherwise, this is an opaque body that will be nested under
     // __ow_body in the parameters sent to the action as an argument
-    val bodyParams = body match {
+    val bodyParams: Map[String, JsValue] = body match {
       case Some(JsObject(fields)) if !boxQueryAndBody => fields
       case Some(v)                                    => Map(propertyMap.body -> v)
       case None if !boxQueryAndBody                   => Map.empty
-      case _                                          => Map(propertyMap.body -> JsObject())
+      case _                                          => Map(propertyMap.body -> JsString.empty)
     }
 
     // precedence order is: query params -> body (last wins)
