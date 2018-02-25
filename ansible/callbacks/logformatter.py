@@ -20,6 +20,7 @@
 from __future__ import (absolute_import, division, print_function)
 import os
 import sys
+import textwrap
 from ansible.plugins.callback import CallbackBase
 __metaclass__ = type
 
@@ -35,14 +36,18 @@ class CallbackModule(CallbackBase):
         """Emit colorized output based upon data contents."""
         if type(data) == dict:
             cmd = data['cmd'] if 'cmd' in data else None
+            msg = data['msg'] if 'msg' in data else None
             stdout = data['stdout'] if 'stdout' in data else None
             stderr = data['stderr'] if 'stderr' in data else None
             reason = data['reason'] if 'reason' in data else None
 
+            print()
             if cmd:
-                print(hilite('[%s]\n> %s' % (category, cmd), category))
+                print(hilite('[%s]\n> %s' % (category, cmd), category, wrap = False))
             if reason:
                 print(hilite(reason, category))
+            if msg:
+                print(hilite(msg, category))
             if stdout:
                 print(hilite(stdout, category))
             if stderr:
@@ -64,7 +69,7 @@ class CallbackModule(CallbackBase):
         self.emit(host, 'FAILED', res)
 
 
-def hilite(msg, status):
+def hilite(msg, status, wrap = True):
     """Highlight message."""
     def supports_color():
         if ((sys.platform != 'win32' or 'ANSICON' in os.environ) and
@@ -81,6 +86,7 @@ def hilite(msg, status):
         else:
             # bold
             attr.append('1')
-        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), msg)
+        text = '\x1b[%sm%s\x1b[0m' % (';'.join(attr), msg)
     else:
-        return msg
+        text = msg
+    return textwrap.fill(text, 80) if wrap else text
