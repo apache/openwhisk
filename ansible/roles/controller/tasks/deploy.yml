@@ -153,6 +153,7 @@
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
+      "METRICS_GRANULAR_METRIC": "{{ metrics.kamon.granular_metric }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
       "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"

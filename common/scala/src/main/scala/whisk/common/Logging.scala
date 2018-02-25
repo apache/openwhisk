@@ -186,7 +186,9 @@ case class LogMarkerToken(component: String,
                           microTags: Map[String, String] = Map.empty) {
 
   override def toString() = component + "_" + action + "_" + state
-  def toStringWithTags = component + "_" + action + macroTags.values.mkString(".", ".", "") + "_" + state
+  def toStringWithTags = component + "_" + action + getTags.values.mkString(".", ".", "") + "_" + state
+
+  def getTags = if (TransactionId.granularMetric) macroTags ++ microTags else macroTags
 
   def asFinish = copy(state = LoggingMarkers.finish)
   def asError = copy(state = LoggingMarkers.error)
@@ -210,7 +212,7 @@ object MetricEmitter {
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics.counter(token.toString, token.macroTags ++ token.microTags).increment(1)
+        metrics.counter(token.toString, token.getTags).increment(1)
       } else {
         metrics.counter(token.toStringWithTags).increment(1)
       }
@@ -220,7 +222,7 @@ object MetricEmitter {
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics.histogram(token.toString, token.macroTags ++ token.microTags).record(value)
+        metrics.histogram(token.toString, token.getTags).record(value)
       } else {
         metrics.histogram(token.toStringWithTags).record(value)
       }
