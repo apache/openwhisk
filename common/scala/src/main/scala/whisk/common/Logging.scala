@@ -289,7 +289,7 @@ object LoggingMarkers {
       "containerStart",
       count,
       Map("containerState" -> containerState),
-      Map("namespaceName" -> namespaceName, "actionName" -> actionName))
+      Map("namespace" -> namespaceName, "action" -> actionName))
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
