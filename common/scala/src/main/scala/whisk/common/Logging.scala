@@ -186,8 +186,10 @@ case class LogMarkerToken(component: String,
                           microTags: Map[String, String] = Map.empty) {
 
   override def toString() = component + "_" + action + "_" + state
-  def toStringWithTags = component + "_" + action + getTags.values.mkString(".", ".", "") + "_" + state
 
+  // folderLeft is used instead of mkString(".", ".", ""),
+  // because Map.empty.mkString returns "."
+  def toStringWithTags = component + "_" + action + getTags.values.foldLeft("")((a, v) => a + "." + v) + "_" + state
   def getTags = if (TransactionId.granularMetric) macroTags ++ microTags else macroTags
 
   def asFinish = copy(state = LoggingMarkers.finish)
