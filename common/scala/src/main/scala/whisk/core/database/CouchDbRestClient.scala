@@ -17,28 +17,18 @@
 
 package whisk.core.database
 
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-
 import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.util.{Failure, Success}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.HostConnectionPool
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.unmarshalling._
-import akka.stream.ActorMaterializer
-import akka.stream.OverflowStrategy
-import akka.stream.QueueOfferResult
 import akka.stream.scaladsl._
 import akka.util.ByteString
+
 import spray.json._
+
 import whisk.common.Logging
+import whisk.http.RestClient
 
 /**
  * This class only handles the basic communication to the proper endpoints
@@ -50,115 +40,16 @@ import whisk.common.Logging
  */
 class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(
   implicit system: ActorSystem,
-  logging: Logging) {
-  require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
-
-  private implicit val context = system.dispatcher
-  private implicit val materializer = ActorMaterializer()
-
-  // Creates or retrieves a connection pool for the host.
-  private val pool = if (protocol == "http") {
-    Http().cachedHostConnectionPool[Promise[HttpResponse]](host = host, port = port)
-  } else {
-    Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port)
-  }
-
-  private val poolPromise = Promise[HostConnectionPool]
-
-  // Additional queue in case all connections are busy. Should hardly ever be
-  // filled in practice but can be useful, e.g., in tests starting many
-  // asynchronous requests in a very short period of time.
-  private val QUEUE_SIZE = 16 * 1024;
-  private val requestQueue = Source
-    .queue(QUEUE_SIZE, OverflowStrategy.dropNew)
-    .via(pool.mapMaterializedValue { x =>
-      poolPromise.success(x); x
-    })
-    .toMat(Sink.foreach({
-      case ((Success(response), p)) => p.success(response)
-      case ((Failure(error), p))    => p.failure(error)
-    }))(Keep.left)
-    .run
-
-  // Properly encodes the potential slashes in each segment.
-  protected def uri(segments: Any*): Uri = {
-    val encodedSegments = segments.map(s => URLEncoder.encode(s.toString, StandardCharsets.UTF_8.name))
-    Uri(s"/${encodedSegments.mkString("/")}")
-  }
+  logging: Logging)
+    extends RestClient(protocol, host, port) {
 
   // Headers common to all requests.
-  private val baseHeaders =
+  override val baseHeaders: List[HttpHeader] =
     List(Authorization(BasicHttpCredentials(username, password)), Accept(MediaTypes.`application/json`))
 
-  // Prepares a request with the proper headers.
-  private def mkRequest0(method: HttpMethod,
-                         uri: Uri,
-                         body: Future[MessageEntity],
-                         forRev: Option[String] = None): Future[HttpRequest] = {
-    val revHeader = forRev.map(r => `If-Match`(EntityTagRange(EntityTag(r)))).toList
-    val headers = revHeader ::: baseHeaders
-    body.map { b =>
-      HttpRequest(method = method, uri = uri, headers = headers, entity = b)
-    }
-  }
-
-  protected def mkRequest(method: HttpMethod, uri: Uri, forRev: Option[String] = None): Future[HttpRequest] = {
-    mkRequest0(method, uri, Future.successful(HttpEntity.Empty), forRev = forRev)
-  }
-
-  protected def mkJsonRequest(method: HttpMethod,
-                              uri: Uri,
-                              body: JsValue,
-                              forRev: Option[String] = None): Future[HttpRequest] = {
-    val b = Marshal(body).to[MessageEntity]
-    mkRequest0(method, uri, b, forRev = forRev)
-  }
-
-  // Enqueue a request, and return a future capturing the corresponding response.
-  // WARNING: make sure that if the future response is not failed, its entity
-  // be drained entirely or the connection will be kept open until timeouts kick in.
-  private def request0(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
-    futureRequest flatMap { request =>
-      val promise = Promise[HttpResponse]
-
-      // When the future completes, we know whether the request made it
-      // through the queue.
-      requestQueue.offer(request -> promise).flatMap { buffered =>
-        buffered match {
-          case QueueOfferResult.Enqueued =>
-            promise.future
-
-          case QueueOfferResult.Dropped =>
-            Future.failed(new Exception("DB request queue is full."))
-
-          case QueueOfferResult.QueueClosed =>
-            Future.failed(new Exception("DB request queue was closed."))
-
-          case QueueOfferResult.Failure(f) =>
-            Future.failed(f)
-        }
-      }
-    }
-  }
-
-  // Runs a request and returns either a JsObject, or a StatusCode if not 2xx.
-  protected def requestJson[T: RootJsonReader](futureRequest: Future[HttpRequest]): Future[Either[StatusCode, T]] = {
-    request0(futureRequest) flatMap { response =>
-      if (response.status.isSuccess()) {
-        Unmarshal(response.entity.withoutSizeLimit()).to[T].map { o =>
-          Right(o)
-        }
-      } else {
-        // This is important, as it drains the entity stream.
-        // Otherwise the connection stays open and the pool dries up.
-        response.entity.withoutSizeLimit().dataBytes.runWith(Sink.ignore).map { _ =>
-          Left(response.status)
-        }
-      }
-    }
-  }
-
   import spray.json.DefaultJsonProtocol._
+
+  def revHeader(forRev: String) = List(`If-Match`(EntityTagRange(EntityTag(forRev))))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
   def putDoc(id: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
@@ -166,7 +57,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
   def putDoc(id: String, rev: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, forRev = Some(rev)))
+    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, headers = Some(revHeader(rev))))
 
   // http://docs.couchdb.org/en/2.1.0/api/database/bulk-api.html#inserting-documents-in-bulk
   def putDocs(docs: Seq[JsObject]): Future[Either[StatusCode, JsArray]] =
@@ -178,11 +69,11 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
   def getDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), forRev = Some(rev)))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), headers = Some(revHeader(rev))))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#delete--db-docid
   def deleteDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db, id), forRev = Some(rev)))
+    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db, id), headers = Some(revHeader(rev))))
 
   // http://docs.couchdb.org/en/1.6.1/api/ddoc/views.html
   def executeView(designDoc: String, viewName: String)(startKey: List[Any] = Nil,
@@ -249,7 +140,8 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
                     contentType: ContentType,
                     source: Source[ByteString, _]): Future[Either[StatusCode, JsObject]] = {
     val entity = HttpEntity.Chunked(contentType, source.map(bs => HttpEntity.ChunkStreamPart(bs)))
-    val request = mkRequest0(HttpMethods.PUT, uri(db, id, attName), Future.successful(entity), forRev = Some(rev))
+    val request =
+      mkRequest0(HttpMethods.PUT, uri(db, id, attName), Future.successful(entity), headers = Some(revHeader(rev)))
     requestJson[JsObject](request)
   }
 
@@ -259,7 +151,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
                        rev: String,
                        attName: String,
                        sink: Sink[ByteString, Future[T]]): Future[Either[StatusCode, (ContentType, T)]] = {
-    val request = mkRequest(HttpMethods.GET, uri(db, id, attName), forRev = Some(rev))
+    val request = mkRequest(HttpMethods.GET, uri(db, id, attName), headers = Some(revHeader(rev)))
 
     request0(request) flatMap { response =>
       if (response.status.isSuccess()) {
@@ -268,20 +160,5 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
         response.entity.withoutSizeLimit().dataBytes.runWith(Sink.ignore).map(_ => Left(response.status))
       }
     }
-  }
-
-  def shutdown(): Future[Unit] = {
-    materializer.shutdown()
-    // The code below shuts down the pool, but is apparently not tolerant
-    // to multiple clients shutting down the same pool (the second one just
-    // hangs). Given that shutdown is only relevant for tests (unused pools
-    // close themselves anyway after some time) and that they can call
-    // Http().shutdownAllConnectionPools(), this is not a major issue.
-    /* Reintroduce below if they ever make HostConnectionPool.shutdown()
-     * safe to call >1x.
-     * val poolOpt = poolPromise.future.value.map(_.toOption).flatten
-     * poolOpt.map(_.shutdown().map(_ => ())).getOrElse(Future.successful(()))
-     */
-    Future.successful(())
   }
 }
