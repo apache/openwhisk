@@ -43,7 +43,7 @@ abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
   behavior of "Wsk Package"
 
   it should "allow creation and deletion of a package" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "simplepackage"
+    val name = withTimestamp("simplepackage")
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
       pkg.create(name, Map())
     }
@@ -53,14 +53,14 @@ abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
   val params2 = Map("p1" -> "v1".toJson, "p2" -> "v2".toJson, "p3" -> "v3".toJson)
 
   it should "allow creation of a package with parameters" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "simplepackagewithparams"
+    val name = withTimestamp("simplepackagewithparams")
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
       pkg.create(name, params1)
     }
   }
 
   it should "allow updating a package" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "simplepackagetoupdate"
+    val name = withTimestamp("simplepackagetoupdate")
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
       pkg.create(name, params1)
       pkg.create(name, params2, update = true)
@@ -68,8 +68,8 @@ abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "allow binding of a package" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "simplepackagetobind"
-    val bindName = "simplebind"
+    val name = withTimestamp("simplepackagetobind")
+    val bindName = withTimestamp("simplebind")
     assetHelper.withCleaner(wsk.pkg, name) { (pkg, _) =>
       pkg.create(name, params1)
     }
@@ -79,9 +79,9 @@ abstract class WskPackageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "perform package binds so parameters are inherited" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val packageName = "package1"
-    val bindName = "package2"
-    val actionName = "print"
+    val packageName = withTimestamp("package1")
+    val bindName = withTimestamp("package2")
+    val actionName = withTimestamp("print")
     val packageActionName = packageName + "/" + actionName
     val bindActionName = bindName + "/" + actionName
     val packageParams = Map("key1a" -> "value1a".toJson, "key1b" -> "value1b".toJson)

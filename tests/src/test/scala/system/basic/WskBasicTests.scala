@@ -48,11 +48,6 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
   val wsk: common.rest.WskRest = new WskRest
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
 
-  /**
-   * Append the current timestamp in ms
-   */
-  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
-
   behavior of "Wsk REST"
 
   it should "reject creating duplicate entity" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

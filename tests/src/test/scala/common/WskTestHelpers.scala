@@ -293,4 +293,9 @@ trait WskTestHelpers extends Matchers {
       wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
     }
   }
+
+  /**
+   * Append the current timestamp in ms
+   */
+  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
 }
