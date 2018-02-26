@@ -1,7 +1,7 @@
 mode: deploy
 prompt_user: true
-openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
-openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home, true) }}"
+openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir + '/..', true) }}"
+openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -269,12 +269,11 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 # The location specifies the official website where Openwhisk CLI is hosted in
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
-#
 
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('remote') }}"
+  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
   local:
-    location: "{{ openwhisk_cli_home }}/bin"
+    location: "{{ openwhisk_cli_home }}/build"
   remote:
     name: OpenWhisk_CLI
     dest_name: OpenWhisk_CLI
