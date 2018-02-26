@@ -10,7 +10,7 @@ For more information on API Gateway feature you can read the [api management doc
 
 ### OpenWhisk CLI configuration
 
-Follow the instructions in [Configure CLI](https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md) on how to set the authentication key for your specific namespace.
+Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
 
 ### Create your first API using the CLI
 
@@ -46,7 +46,8 @@ Follow the instructions in [Configure CLI](https://github.com/apache/incubator-o
   ```
   $ curl https://${APIHOST}:9001/api/${GENERATED_API_ID}/hello/world?name=OpenWhisk
   ```
-  ```
+
+  ```json
   {
   "payload": "Hello world OpenWhisk"
   }
