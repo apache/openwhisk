@@ -137,13 +137,5 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
 }
 
 case class DockerContainerFactoryConfig(dataroot: Option[String]) {
-  def containerPath: File =
-    Paths
-      .get({
-        if (dataroot.isEmpty)
-          "/containers"
-        else
-          dataroot.get + "/containers"
-      })
-      .toFile
+  val containerPath: File = Paths.get(dataroot.getOrElse("") + "/containers").toFile
 }
