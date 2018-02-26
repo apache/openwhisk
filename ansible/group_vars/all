@@ -278,7 +278,7 @@ catalog_repos:
 
 openwhisk_cli_tag: "{{ cli_tag | default(lookup('ini', 'git_tag section=openwhisk-cli file=' ~ openwhisk_home ~ '/ansible/files/package-versions.ini')) }}"
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('remote') }}"
+  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
   archive_name: OpenWhisk_CLI
   nginxdir:
     name: "{{ nginx.confdir }}/cli/go/download"

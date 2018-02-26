@@ -1,0 +1,10 @@
+---
+# This role will configure and publish the CLI tarball.
+# In deploy mode it will generate a new CLI config, generate a tarball and copy it to nginx.
+# In clean mode it will clean the cli.nginxdir
+
+- include: deploy.yml
+  when: mode == "deploy"
+
+- include: clean.yml
+  when: mode == "clean"

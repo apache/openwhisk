@@ -62,29 +62,27 @@
       - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
       - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
 
-- name: "Generate a list of individual archives to expand"
+- name: "Generate a list of individual tarballs to expand"
   find:
       paths: "{{ openwhisk_cli.nginxdir.name }}"
-      patterns:
-          - '*.tgz'
-          - '*.zip'
+      patterns: '*.tgz'
       recurse: true
-  register: individual_archives
+  register: individual_tarballs
 
-- name: "Unarchive the individual archives into binaries"
+- name: "Unarchive the individual tarballs"
+  shell: tar zxf {{ item.path }} -C {{ item.path | dirname }}
+  with_items: "{{ individual_tarballs.files }}"
+
+- name: "Generate a list of individual zipfiles to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
+      patterns: '*.zip'
+      recurse: true
+  register: individual_zipfiles
+
+- name: "Unarchive the individual zipfiles into binaries"
   unarchive:
     remote_src: yes
     src: "{{ item.path }}"
     dest: "{{ item.path | dirname }}"
-  with_items: "{{ individual_archives.files }}"
-
-# TODO - This step may need to be a separate role/task to account for
-#        docker-machine based installations.
-- name: "Grab the local CLI from the unarchived binaries"
-  copy:
-    src: "{{ openwhisk_cli.nginxdir.name }}/{{ os }}/{{ arch }}/{{ wsk }}"
-    dest: "{{ openwhisk_home }}/bin"
-  vars:
-    arch: "{{ ansible_machine | replace ('x86_64', 'amd64') }}"
-    os: "{{ ansible_system | lower | replace('darwin', 'mac') }}"
-    wsk: "{{ ( ansible_system == 'Windows') | ternary('wsk.exe', 'wsk') }}"
+  with_items: "{{ individual_zipfiles.files }}"
