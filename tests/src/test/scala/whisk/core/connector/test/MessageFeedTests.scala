@@ -65,7 +65,7 @@ class MessageFeedTests
     val peekCount = new AtomicInteger()
 
     val consumer = new TestConnector("feedtest", 4, true) {
-      override def peek(duration: Duration) = {
+      override def peek(duration: FiniteDuration, retry: Int = 0) = {
         peekCount.incrementAndGet()
         super.peek(duration)
       }

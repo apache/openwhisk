@@ -169,7 +169,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
 
   /** Gets a producer which can publish messages to the kafka bus. */
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+  private val messageProducer = messagingProvider.getProducer(config)
 
   private def sendActivationToInvoker(producer: MessageProducer,
                                       msg: ActivationMessage,

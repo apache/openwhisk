@@ -21,23 +21,30 @@ import java.io.File
 import java.util.Calendar
 
 import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
+import ha.ShootComponentUtils
 import org.apache.kafka.clients.consumer.CommitFailedException
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import whisk.common.TransactionId
 import whisk.connector.kafka.{KafkaConsumerConnector, KafkaMessagingProvider, KafkaProducerConnector}
 import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.utils.{retry, ExecutionContextFactory}
 
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem with BeforeAndAfterAll with StreamLogging {
+class KafkaConnectorTests
+    extends FlatSpec
+    with Matchers
+    with WskActorSystem
+    with BeforeAndAfterAll
+    with StreamLogging
+    with ShootComponentUtils {
   implicit val transid: TransactionId = TransactionId.testing
   implicit val ec: ExecutionContext = ExecutionContextFactory.makeCachedThreadPoolExecutionContext()
 
@@ -46,7 +53,7 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
 
   val groupid = "kafkatest"
   val topic = "KafkaConnectorTestTopic"
-  val maxPollInterval = 10 seconds
+  val maxPollInterval = 10.seconds
 
   // Need to overwrite replication factor for tests that shut down and start
   // Kafka instances intentionally. These tests will fail if there is more than
@@ -57,10 +64,10 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
   println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
   assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
 
-  println(s"Create test topic '${topic}' with replicationFactor=${replicationFactor}")
-  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic ${topic} failed")
+  println(s"Create test topic '$topic' with replicationFactor=$replicationFactor")
+  assert(KafkaMessagingProvider.ensureTopic(config, topic, topic), s"Creation of topic $topic failed")
 
-  val producer = new KafkaProducerConnector(config.kafkaHosts, ec)
+  val producer = new KafkaProducerConnector(config.kafkaHosts)
   val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
 
   override def afterAll(): Unit = {
@@ -143,18 +150,31 @@ class KafkaConnectorTests extends FlatSpec with Matchers with WskActorSystem wit
         val startLog = s", started"
         val prevCount = startLog.r.findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout).length
 
-        commandComponent(kafkaHost, "stop", s"kafka$i")
-        sendAndReceiveMessage(message, 30 seconds, 30 seconds) should have size 1
+        // 1. stop one of kafka node
+        stopComponent(kafkaHost, s"kafka$i")
+
+        // 2. kafka cluster should be ok at least after three retries
+        retry({
+          val received = sendAndReceiveMessage(message, 40 seconds, 40 seconds)
+          received.size should be >= 1
+        }, 3, Some(100.milliseconds))
         consumer.commit()
 
-        commandComponent(kafkaHost, "start", s"kafka$i")
+        // 3. recover stopped node
+        startComponent(kafkaHost, s"kafka$i")
+
+        // 4. wait until kafka is up
         retry({
           startLog.r
             .findAllMatchIn(commandComponent(kafkaHost, "logs", s"kafka$i").stdout)
             .length shouldBe prevCount + 1
-        }, 20, Some(1.second)) // wait until kafka is up
+        }, 20, Some(1.second))
 
-        sendAndReceiveMessage(message, 30 seconds, 30 seconds) should have size 1
+        // 5. kafka cluster should be ok at least after three retires
+        retry({
+          val received = sendAndReceiveMessage(message, 40 seconds, 40 seconds)
+          received.size should be >= 1
+        }, 3, Some(100.milliseconds))
         consumer.commit()
       }
     }
