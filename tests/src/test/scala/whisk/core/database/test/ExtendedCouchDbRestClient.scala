@@ -43,7 +43,6 @@ class ExtendedCouchDbRestClient(protocol: String,
 
   // http://docs.couchdb.org/en/1.6.1/api/server/common.html#all-dbs
   def dbs(): Future[Either[StatusCode, List[String]]] = {
-    implicit val ec = system.dispatcher
     requestJson[JsArray](mkRequest(HttpMethods.GET, uri("_all_dbs"))).map { either =>
       either.right.map(_.convertTo[List[String]])
     }
