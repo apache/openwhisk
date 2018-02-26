@@ -78,5 +78,13 @@
     dest: "{{ item.path | dirname }}"
   with_items: "{{ individual_archives.files }}"
 
-- include: download_cli.yml
-  when: openwhisk_cli.installation_mode == "remote"
+# TODO - This step may need to be a separate role/task to account for
+#        docker-machine based installations.
+- name: "Grab the local CLI from the unarchived binaries"
+  copy:
+    src: "{{ openwhisk_cli.nginxdir.name }}/{{ os }}/{{ arch }}/{{ wsk }}"
+    dest: "{{ openwhisk_home }}/bin"
+  vars:
+    arch: "{{ ansible_machine | replace ('x86_64', 'amd64') }}"
+    os: "{{ ansible_system | lower | replace('darwin', 'mac') }}"
+    wsk: "{{ ( ansible_system == 'Windows') | ternary('wsk.exe', 'wsk') }}"
