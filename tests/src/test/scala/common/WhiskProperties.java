@@ -42,11 +42,6 @@ public class WhiskProperties {
     private static final int DEFAULT_CONCURRENCY = 20;
 
     /**
-     * The deployment target, e.g., local.
-     */
-    public static final String deployTarget = System.getProperty("deploy.target");
-
-    /**
      * If true, then tests will direct to the router rather than the edge
      * components.
      */
@@ -106,7 +101,6 @@ public class WhiskProperties {
         // set whisk home from read properties
         whiskHome = whiskProperties.getProperty("openwhisk.home");
 
-        System.out.format("deploy target %s\n", deployTarget != null ? deployTarget : "not defined");
         System.out.format("test router? %s\n", testRouter);
     }
 
