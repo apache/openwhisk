@@ -187,10 +187,12 @@ case class LogMarkerToken(component: String,
 
   override def toString() = component + "_" + action + "_" + state
 
-  // folderLeft is used instead of mkString(".", ".", ""),
-  // because Map.empty.mkString returns "."
-  def toStringWithTags = component + "_" + action + getTags.values.foldLeft("")((a, v) => a + "." + v) + "_" + state
-  def getTags = if (TransactionId.granularMetric) macroTags ++ microTags else macroTags
+  def toStringWithTags(includeMicroTags: Boolean) = {
+    val tags = if (includeMicroTags) allTags else macroTags
+    val tagString = tags.values.foldLeft("")(_ + "." + _) // graceful handling of an empty map
+    component + "_" + action + tagString + "_" + state
+  }
+  def allTags = macroTags ++ microTags
 
   def asFinish = copy(state = LoggingMarkers.finish)
   def asError = copy(state = LoggingMarkers.error)
@@ -214,9 +216,11 @@ object MetricEmitter {
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics.counter(token.toString, token.getTags).increment(1)
+        metrics
+          .counter(token.toString, if (TransactionId.granularMetric) token.allTags else token.macroTags)
+          .increment(1)
       } else {
-        metrics.counter(token.toStringWithTags).increment(1)
+        metrics.counter(token.toStringWithTags(includeMicroTags = TransactionId.granularMetric)).increment(1)
       }
     }
   }
@@ -224,9 +228,11 @@ object MetricEmitter {
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
-        metrics.histogram(token.toString, token.getTags).record(value)
+        metrics
+          .histogram(token.toString, if (TransactionId.granularMetric) token.allTags else token.macroTags)
+          .record(value)
       } else {
-        metrics.histogram(token.toStringWithTags).record(value)
+        metrics.histogram(token.toStringWithTags(includeMicroTags = TransactionId.granularMetric)).record(value)
       }
     }
   }
