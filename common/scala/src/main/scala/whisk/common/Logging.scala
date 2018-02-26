@@ -176,7 +176,7 @@ private object Emitter {
  * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers.
  * @param action Action of the component.
  * @param state State of the action.
- * @param macroTags macroTags should be used for tags with a bounded number of permutations.
+ * @param macroTags macroTags should be used for tags with a bounded number of permutations. (e.g. http status code)
  * @param microTags microTags can be used for whatever granularity you might need.
  */
 case class LogMarkerToken(component: String,
