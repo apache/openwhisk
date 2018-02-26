@@ -51,14 +51,14 @@ import whisk.core.entity.UUID
  * @param masterUrl The mesos url e.g. http://leader.mesos:5050.
  * @param masterPublicUrl A public facing mesos url (which may be different that the internal facing url) e.g. http://mymesos:5050.
  * @param role The role used by this framework (see http://mesos.apache.org/documentation/latest/roles/#associating-frameworks-with-roles).
- * @param failoverTimeoutSeconds Timeout allowed for framework to reconnect after disconnection.
+ * @param failoverTimeout Timeout allowed for framework to reconnect after disconnection.
  * @param mesosLinkLogMessage If true, display a link to mesos in the static log message, otherwise do not include a link to mesos.
  */
 case class MesosConfig(masterUrl: String,
-                       masterPublicUrl: Option[String] = None,
-                       role: String = "*",
-                       failoverTimeoutSeconds: FiniteDuration = 0.seconds,
-                       mesosLinkLogMessage: Boolean = true)
+                       masterPublicUrl: Option[String],
+                       role: String,
+                       failoverTimeout: FiniteDuration,
+                       mesosLinkLogMessage: Boolean)
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -156,7 +156,7 @@ object MesosContainerFactory {
           "whisk-containerfactory-framework",
           mesosConfig.masterUrl,
           mesosConfig.role,
-          mesosConfig.failoverTimeoutSeconds))
+          mesosConfig.failoverTimeout))
 
   val counter = new Counter()
   val startTime = Instant.now.getEpochSecond

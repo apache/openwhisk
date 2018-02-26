@@ -30,7 +30,6 @@ import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
 import com.adobe.api.platform.runtime.mesos.TaskDef
 import com.adobe.api.platform.runtime.mesos.User
-import com.typesafe.config.ConfigFactory
 import common.StreamLogging
 import org.apache.mesos.v1.Protos.AgentID
 import org.apache.mesos.v1.Protos.TaskID
@@ -42,7 +41,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-import pureconfig.loadConfigOrThrow
 import scala.collection.immutable.Map
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -90,10 +88,7 @@ class MesosContainerFactoryTest
 
   it should "send Subscribe on init" in {
     val wskConfig = new WhiskConfig(Map())
-    val config = """
-    master-url: "http://master:5050"
-    """
-    val mesosConfig = loadConfigOrThrow[MesosConfig](ConfigFactory.parseString(config))
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
     new MesosContainerFactory(
       wskConfig,
       system,
@@ -107,10 +102,7 @@ class MesosContainerFactoryTest
   }
 
   it should "send SubmitTask on create" in {
-    val config = """
-    master-url: "http://master:5050"
-    """
-    val mesosConfig = loadConfigOrThrow[MesosConfig](ConfigFactory.parseString(config))
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
 
     val factory =
       new MesosContainerFactory(
@@ -124,7 +116,7 @@ class MesosContainerFactoryTest
         testTaskId)
 
     expectMsg(Subscribe)
-    factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
 
     expectMsg(
       SubmitTask(TaskDef(
@@ -148,10 +140,7 @@ class MesosContainerFactoryTest
   }
 
   it should "send DeleteTask on destroy" in {
-    val config = """
-    master-url: "http://master:5050"
-    """
-    val mesosConfig = loadConfigOrThrow[MesosConfig](ConfigFactory.parseString(config))
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
 
     val probe = TestProbe()
     val factory =
@@ -170,7 +159,7 @@ class MesosContainerFactoryTest
     probe.reply(new SubscribeComplete)
 
     //create the container
-    val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
@@ -209,7 +198,7 @@ class MesosContainerFactoryTest
     val container = await(c)
 
     //destroy the container
-    implicit val tid = TransactionId(0)
+    implicit val tid = TransactionId.testing
     val deleted = container.destroy()
     probe.expectMsg(DeleteTask(lastTaskId))
 
@@ -220,10 +209,7 @@ class MesosContainerFactoryTest
   }
 
   it should "return static message for logs" in {
-    val config = """
-    master-url: "http://master:5050"
-    """
-    val mesosConfig = loadConfigOrThrow[MesosConfig](ConfigFactory.parseString(config))
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
 
     val probe = TestProbe()
     val factory =
@@ -242,7 +228,7 @@ class MesosContainerFactoryTest
     probe.reply(new SubscribeComplete)
 
     //create the container
-    val c = factory.createContainer(TransactionId(0), "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
 
     probe.expectMsg(
       SubmitTask(TaskDef(
@@ -280,7 +266,7 @@ class MesosContainerFactoryTest
     //wait for container
     val container = await(c)
 
-    implicit val tid = TransactionId(0)
+    implicit val tid = TransactionId.testing
     implicit val m = ActorMaterializer()
     val logs = container
       .logs(1.MB, false)
