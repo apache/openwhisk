@@ -61,7 +61,7 @@ object Scheduler {
       }
     }
     override def postStop() = {
-      logging.info(this, s"$name shutdown")
+      logging.debug(this, s"$name shutdown")
       lastSchedule.foreach(_.cancel())
     }
 

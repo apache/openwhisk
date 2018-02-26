@@ -21,6 +21,8 @@ import akka.actor.ActorSystem
 import akka.actor.Cancellable
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import common.StreamLogging
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
 import whisk.core.loadBalancer.{ActivationEntry, DistributedLoadBalancerData, LocalLoadBalancerData}
@@ -30,6 +32,7 @@ import whisk.core.entity.InstanceId
 
 import scala.concurrent.duration._
 
+@RunWith(classOf[JUnitRunner])
 class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
   final val emptyCancellable: Cancellable = new Cancellable {
     def isCancelled = false

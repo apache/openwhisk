@@ -22,23 +22,20 @@ import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
 
 import akka.actor.ActorSystem
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.containerpool.Container
-import whisk.core.containerpool.ContainerFactory
-import whisk.core.containerpool.ContainerFactoryProvider
-import whisk.core.entity.ByteSize
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
-import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
+import pureconfig._
+import whisk.common.{Logging, TransactionId}
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.containerpool.{Container, ContainerArgsConfig, ContainerFactory, ContainerFactoryProvider}
+import whisk.core.entity.{ByteSize, ExecManifest, InstanceId}
 
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 
-class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, parameters: Map[String, Set[String]])(
+class DockerContainerFactory(config: WhiskConfig,
+                             instance: InstanceId,
+                             parameters: Map[String, Set[String]],
+                             containerArgs: ContainerArgsConfig =
+                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs))(
   implicit actorSystem: ActorSystem,
   ec: ExecutionContext,
   logging: Logging)
@@ -68,11 +65,11 @@ class DockerContainerFactory(config: WhiskConfig, instance: InstanceId, paramete
       memory = memory,
       cpuShares = config.invokerCoreShare.toInt,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
-      network = config.invokerContainerNetwork,
-      dnsServers = config.invokerContainerDns,
+      network = containerArgs.network,
+      dnsServers = containerArgs.dnsServers,
       name = Some(name),
       useRunc = config.invokerUseRunc,
-      parameters)
+      parameters ++ containerArgs.extraArgs)
   }
 
   /** Perform cleanup on init */

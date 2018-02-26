@@ -42,13 +42,13 @@ trait MessageConsumer {
    * @param duration for the long poll
    * @return iterable collection (topic, partition, offset, bytes)
    */
-  def peek(duration: Duration): Iterable[(String, Int, Long, Array[Byte])]
+  def peek(duration: FiniteDuration, retry: Int = 3): Iterable[(String, Int, Long, Array[Byte])]
 
   /**
    * Commits offsets from last peek operation to ensure they are removed
    * from the connector.
    */
-  def commit(): Unit
+  def commit(retry: Int = 3): Unit
 
   /** Closes consumer. */
   def close(): Unit
@@ -212,7 +212,7 @@ class MessageFeed(description: String,
       val (topic, partition, offset, bytes) = outstandingMessages.head
       outstandingMessages = outstandingMessages.tail
 
-      if (logHandoff) logging.info(this, s"processing $topic[$partition][$offset] ($occupancy/$handlerCapacity)")
+      if (logHandoff) logging.debug(this, s"processing $topic[$partition][$offset] ($occupancy/$handlerCapacity)")
       handler(bytes)
       handlerCapacity -= 1
 

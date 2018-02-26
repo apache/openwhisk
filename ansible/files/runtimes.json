@@ -1,7 +1,4 @@
 {
-    "bypassPullForLocalImages": false,
-    "defaultImagePrefix": "openwhisk",
-    "defaultImageTag": "latest",
     "runtimes": {
         "nodejs": [
             {

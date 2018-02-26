@@ -45,7 +45,7 @@ import whisk.core.entity.LogLimit._
 import whisk.core.entity.MemoryLimit._
 import whisk.core.entity.TimeLimit._
 import whisk.core.entity.size.SizeInt
-import JsonArgsForTests._
+import TestJsonArgs._
 import whisk.http.Messages
 
 /**
@@ -428,21 +428,17 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
   }
 
   it should "ensure --web flags set the proper annotations" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "webaction"
-    val file = Some(TestUtils.getTestActionFilename("echo.js"))
-
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, file)
-    }
-
     Seq("true", "faLse", "tRue", "nO", "yEs", "no", "raw", "NO", "Raw").foreach { flag =>
       val webEnabled = flag.toLowerCase == "true" || flag.toLowerCase == "yes"
       val rawEnabled = flag.toLowerCase == "raw"
 
-      wsk.action.create(name, file, web = Some(flag.toLowerCase), update = true)
+      val name = "webaction-" + flag
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, Some(TestUtils.getTestActionFilename("echo.js")), web = Some(flag.toLowerCase))
+      }
 
       val action = wsk.action.get(name)
-      action.getFieldJsValue("annotations") shouldBe JsArray(
+      action.getFieldJsValue("annotations").convertTo[Set[JsObject]] shouldBe Set(
         JsObject("key" -> JsString("exec"), "value" -> JsString("nodejs:6")),
         JsObject("key" -> JsString("web-export"), "value" -> JsBoolean(webEnabled || rawEnabled)),
         JsObject("key" -> JsString("raw-http"), "value" -> JsBoolean(rawEnabled)),

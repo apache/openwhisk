@@ -18,7 +18,9 @@
 package whisk.core.containerpool.logging.test
 
 import common.{StreamLogging, WskActorSystem}
+import org.junit.runner.RunWith
 import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.junit.JUnitRunner
 import whisk.core.containerpool.logging.{DockerToActivationLogStoreProvider, LogCollectingException, LogLine}
 import whisk.core.entity.ExecManifest.{ImageName, RuntimeManifest}
 import whisk.core.entity._
@@ -34,6 +36,7 @@ import whisk.http.Messages
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
+@RunWith(classOf[JUnitRunner])
 class DockerToActivationLogStoreTests extends FlatSpec with Matchers with WskActorSystem with StreamLogging {
   def await[T](future: Future[T]) = Await.result(future, 1.minute)
 

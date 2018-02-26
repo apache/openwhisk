@@ -29,11 +29,8 @@ import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import spray.json._
-
 import spray.json.DefaultJsonProtocol._
-
 import kamon.Kamon
-
 import whisk.common.AkkaLogging
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -46,11 +43,12 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.{LoadBalancerService}
+import whisk.core.loadBalancer.LoadBalancerProvider
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
+import akka.event.Logging.InfoLevel
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -88,7 +86,8 @@ class Controller(val instance: InstanceId,
   TransactionId.controller.mark(
     this,
     LoggingMarkers.CONTROLLER_STARTUP(instance.toInt),
-    s"starting controller instance ${instance.toInt}")
+    s"starting controller instance ${instance.toInt}",
+    logLevel = InfoLevel)
 
   /**
    * A Route in Akka is technically a function taking a RequestContext as a parameter.
@@ -117,7 +116,10 @@ class Controller(val instance: InstanceId,
   })
 
   // initialize backend services
-  private implicit val loadBalancer = new LoadBalancerService(whiskConfig, instance, entityStore)
+  private implicit val loadBalancer =
+    SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
+  logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
+
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
@@ -137,12 +139,13 @@ class Controller(val instance: InstanceId,
    */
   private val internalInvokerHealth = {
     implicit val executionContext = actorSystem.dispatcher
-
     (path("invokers") & get) {
       complete {
-        loadBalancer.allInvokers.map(_.map {
-          case (instance, state) => s"invoker${instance.toInt}" -> state.asString
-        }.toMap.toJson.asJsObject)
+        loadBalancer
+          .invokerHealth()
+          .map(_.map {
+            case i => s"invoker${i.id.toInt}" -> i.status.asString
+          }.toMap.toJson.asJsObject)
       }
     }
   }
@@ -163,7 +166,7 @@ object Controller {
     Map(WhiskConfig.controllerInstances -> null) ++
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
-      LoadBalancerService.requiredProperties ++
+      SpiLoader.get[LoadBalancerProvider].requiredProperties ++
       EntitlementProvider.requiredProperties
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =

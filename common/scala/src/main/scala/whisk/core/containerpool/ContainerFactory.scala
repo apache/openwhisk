@@ -27,6 +27,10 @@ import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.spi.Spi
 
+case class ContainerArgsConfig(network: String,
+                               dnsServers: Seq[String] = Seq(),
+                               extraArgs: Map[String, Set[String]] = Map())
+
 /**
  * An abstraction for Container creation
  */

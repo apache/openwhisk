@@ -31,7 +31,7 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import akka.event.Logging.ErrorLevel
+import akka.event.Logging.{ErrorLevel, InfoLevel}
 import pureconfig.loadConfigOrThrow
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
@@ -180,7 +180,8 @@ class DockerClient(dockerHost: Option[String] = None,
     val start = transid.started(
       this,
       LoggingMarkers.INVOKER_DOCKER_CMD(args.head),
-      s"running ${cmd.mkString(" ")} (timeout: $timeout)")
+      s"running ${cmd.mkString(" ")} (timeout: $timeout)",
+      logLevel = InfoLevel)
     executeProcess(cmd, timeout).andThen {
       case Success(_) => transid.finished(this, start)
       case Failure(t) => transid.failed(this, start, t.getMessage, ErrorLevel)

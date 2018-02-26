@@ -24,21 +24,22 @@ import json
 import httplib
 import ssl
 import base64
+import socket
 from urlparse import urlparse
 
 # global configurations, can control whether to allow untrusted certificates
 # on HTTPS connections
 httpRequestProps = {'secure': True}
 
-def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None)):
+def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 10):
     url = urlparse(urlString)
     if url.scheme == 'http':
-        conn = httplib.HTTPConnection(url.netloc)
+        conn = httplib.HTTPConnection(url.netloc, timeout = timeout)
     else:
         if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy)
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, timeout = timeout)
         else:
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context())
+            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context(), timeout = timeout)
         if https_proxy:
             conn.set_tunnel(url.netloc)
 
@@ -77,28 +78,21 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
             print(res.read())
             print('========')
         return res
+    except socket.timeout:
+        return ErrorResponse(status = 500, error = 'request timed out at %d seconds' % timeout)
     except Exception as e:
-        res = dict2obj({ 'status' : 500, 'error': str(e) })
-        return res
+        return ErrorResponse(status = 500, error = str(e))
 
 
 def getPrettyJson(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': '))
 
 
-# class to convert dictionary to objects
-class dict2obj(dict):
-    def __getattr__(self, name):
-        if name in self:
-            return self[name]
-        else:
-            raise AttributeError('object has no attribute "%s"' % name)
+# class to normalize responses for exceptions with no HTTP response for canonical error handling
+class ErrorResponse:
+    def __init__(self, status, error):
+        self.status = status
+        self.error = error
 
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __delattr__(self, name):
-        if name in self:
-            del self[name]
-        else:
-            raise AttributeError('object has no attribute "%s"' % name)
+    def read(self):
+        return self.error

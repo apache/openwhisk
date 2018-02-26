@@ -18,6 +18,15 @@ incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/to
 cd $ROOTDIR
 TERM=dumb ./gradlew checkScalafmtAll
 
+# lint tests to all be actually runnable
+MISSING_TESTS=$(grep -rL "RunWith" --include="*Tests.scala" tests)
+if [ -n "$MISSING_TESTS" ]
+then
+  echo "The following tests are missing the 'RunWith' annotation"
+  echo $MISSING_TESTS
+  exit 1
+fi
+
 cd $ROOTDIR/ansible
 
 ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"

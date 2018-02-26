@@ -18,7 +18,6 @@
 
 - set_fact:
     skip_catalog_install="{{ item.value.skip | default(false) }}"
-    optional_package_skip="{{ item.value.optional_package_skip | default(true) }}"
 
 - set_fact:
     environment_catalog:

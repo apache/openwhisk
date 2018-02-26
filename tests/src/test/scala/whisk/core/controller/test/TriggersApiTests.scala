@@ -64,6 +64,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
   val namespace = EntityPath(creds.subject.asString)
   val collectionPath = s"/${EntityPath.DEFAULT}/${collection.path}"
   def aname() = MakeName.next("triggers_tests")
+  def afullname(namespace: EntityPath, name: String) = FullyQualifiedEntityName(namespace, EntityName(name))
   val parametersLimit = Parameters.sizeLimit
 
   //// GET /triggers
@@ -102,7 +103,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.TRIGGERS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.TRIGGERS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }
@@ -131,14 +132,14 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Get(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
 
     // it should "get trigger by name in explicit namespace owned by subject" in
     Get(s"/$namespace/${collection.path}/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
 
     // it should "reject get trigger by name in explicit namespace not owned by subject" in
@@ -169,7 +170,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Delete(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskTrigger]
-      response should be(trigger.withoutRules)
+      response should be(trigger)
     }
   }
 
@@ -302,7 +303,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
@@ -312,16 +314,21 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(Parameters(Parameters.Feed, "xyz")))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
   //// POST /triggers/name
   it should "fire a trigger" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
+    val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "bogus action"))
+    val trigger = WhiskTrigger(namespace, rule.trigger.name, rules = Some {
+      Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+    })
     val content = JsObject("xxx" -> "yyy".toJson)
     put(entityStore, trigger)
+    put(entityStore, rule)
     Post(s"$collectionPath/${trigger.name}", content) ~> Route.seal(routes(creds)) ~> check {
       status should be(Accepted)
       val response = responseAs[JsObject]
@@ -342,8 +349,12 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
 
   it should "fire a trigger without args" in {
     implicit val tid = transid()
-    val trigger = WhiskTrigger(namespace, aname(), Parameters("x", "b"))
+    val rule = WhiskRule(namespace, aname(), afullname(namespace, aname().name), afullname(namespace, "bogus action"))
+    val trigger = WhiskTrigger(namespace, rule.trigger.name, Parameters("x", "b"), rules = Some {
+      Map(rule.fullyQualifiedName(false) -> ReducedRule(rule.action, Status.ACTIVE))
+    })
     put(entityStore, trigger)
+    put(entityStore, rule)
     Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
@@ -354,6 +365,15 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
         del(activationStore, activationDoc, WhiskActivation)
         response.fields("activationId") should not be None
       }, 30, Some(1.second))
+    }
+  }
+
+  it should "not fire a trigger without a rule" in {
+    implicit val tid = transid()
+    val trigger = WhiskTrigger(namespace, aname())
+    put(entityStore, trigger)
+    Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
+      status shouldBe NoContent
     }
   }
 

@@ -19,8 +19,8 @@ package whisk.core.containerpool
 
 import java.time.Instant
 
-import akka.actor.{FSM, Props, Stash}
 import akka.actor.Status.{Failure => FailureMessage}
+import akka.actor.{FSM, Props, Stash}
 import akka.pattern.pipe
 import spray.json.DefaultJsonProtocol._
 import spray.json._

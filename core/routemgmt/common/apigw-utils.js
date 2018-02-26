@@ -721,7 +721,7 @@ function generateCliApiFromGwApi(gwApi) {
  *  result - an array of strings.
  *           result[0] : Entire URL
  *           result[1] : protocol (i.e. https)
- *           result[2] : host (i.e. myco.com, 1.2.3.4)
+ *           result[2] : host (i.e. myco.com, 1.2.3.4, myco.com/mywhisk)
  *           result[3] : namespace
  *           result[4] : package name
  *           result[5] : action name
@@ -729,7 +729,7 @@ function generateCliApiFromGwApi(gwApi) {
  */
 function parseActionUrl(actionUrl) {
   console.log('parseActionUrl: parsing action url: '+actionUrl);
-  var actionUrlPattern = /(\w+):\/\/([:\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.(\w+)/;
+  var actionUrlPattern = /(\w+):\/\/([:\/\w.\-]+)\/api\/v\d\/web\/([@\w .\-]+)\/([@\w .\-]+)\/([@\w .\-\/]+)\.(\w+)/;
   try {
     return actionUrl.match(actionUrlPattern);
   } catch(e) {

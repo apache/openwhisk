@@ -18,83 +18,42 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ThreadLocalRandom
+
+import akka.actor.{ActorSystem, Props}
+import akka.cluster.Cluster
+import akka.pattern.ask
+import akka.stream.ActorMaterializer
+import akka.util.Timeout
+import org.apache.kafka.clients.producer.RecordMetadata
+import pureconfig._
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import whisk.core.WhiskConfig._
+import whisk.core.connector._
+import whisk.core.entity._
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.spi.SpiLoader
+import akka.event.Logging.InfoLevel
+import pureconfig._
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import org.apache.kafka.clients.producer.RecordMetadata
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.actor.Props
-import akka.cluster.Cluster
-import akka.util.Timeout
-import akka.pattern.ask
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
-import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig._
-import whisk.core.connector.{ActivationMessage, CompletionMessage}
-import whisk.core.connector.MessageFeed
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessagingProvider
-import whisk.core.database.NoDocumentException
-import whisk.core.entity._
-import whisk.core.entity.{ActivationId, WhiskActivation}
-import whisk.core.entity.EntityName
-import whisk.core.entity.ExecutableWhiskActionMetaData
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.UUID
-import whisk.core.entity.WhiskAction
-import whisk.core.entity.types.EntityStore
-import whisk.spi.SpiLoader
-import pureconfig._
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success}
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 
-trait LoadBalancer {
-
-  val activeAckTimeoutGrace = 1.minute
-
-  /** Gets the number of in-flight activations for a specific user. */
-  def activeActivationsFor(namespace: UUID): Future[Int]
-
-  /** Gets the number of in-flight activations in the system. */
-  def totalActiveActivations: Future[Int]
-
-  /**
-   * Publishes activation message on internal bus for an invoker to pick up.
-   *
-   * @param action the action to invoke
-   * @param msg the activation message to publish on an invoker topic
-   * @param transid the transaction id for the request
-   * @return result a nested Future the outer indicating completion of publishing and
-   *         the inner the completion of the action (i.e., the result)
-   *         if it is ready before timeout (Right) otherwise the activation id (Left).
-   *         The future is guaranteed to complete within the declared action time limit
-   *         plus a grace period (see activeAckTimeoutGrace).
-   */
-  def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
-
-}
-
-class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore: EntityStore)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging)
+class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                                 logging: Logging,
+                                                                                 materializer: ActorMaterializer)
     extends LoadBalancer {
 
   private val lbConfig = loadConfigOrThrow[LoadbalancerConfig](ConfigKeys.loadbalancer)
 
   /** The execution context for futures */
-  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+
+  private val activeAckTimeoutGrace = 1.minute
 
   /** How many invokers are dedicated to blackbox images.  We range bound to something sensical regardless of configuration. */
   private val blackboxFraction: Double = Math.max(0.0, Math.min(1.0, lbConfig.blackboxFraction))
@@ -113,10 +72,6 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
   }
 
-  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
-
-  override def totalActiveActivations = loadBalancerData.totalActivationCount
-
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     chooseInvoker(msg.user, action).flatMap { invokerName =>
@@ -127,11 +82,18 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     }
   }
 
-  /** An indexed sequence of all invokers in the current system */
-  def allInvokers: Future[IndexedSeq[(InstanceId, InvokerState)]] =
+  /** An indexed sequence of all invokers in the current system. */
+  override def invokerHealth(): Future[IndexedSeq[InvokerHealth]] = {
     invokerPool
       .ask(GetStatus)(Timeout(5.seconds))
-      .mapTo[IndexedSeq[(InstanceId, InvokerState)]]
+      .mapTo[IndexedSeq[InvokerHealth]]
+  }
+
+  override def activeActivationsFor(namespace: UUID) = loadBalancerData.activationCountOn(namespace)
+
+  override def totalActiveActivations = loadBalancerData.totalActivationCount
+
+  override def clusterSize = config.controllerInstances.toInt
 
   /**
    * Tries to fill in the result slot (i.e., complete the promise) when a completion message arrives.
@@ -205,42 +167,22 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
       })
   }
 
-  /**
-   * Creates or updates a health test action by updating the entity store.
-   * This method is intended for use on startup.
-   * @return Future that completes successfully iff the action is added to the database
-   */
-  private def createTestActionForInvokerHealth(db: EntityStore, action: WhiskAction): Future[Unit] = {
-    implicit val tid = TransactionId.loadbalancer
-    WhiskAction
-      .get(db, action.docid)
-      .flatMap { oldAction =>
-        WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
-      }
-      .recover {
-        case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
-      }
-      .map(_ => {})
-      .andThen {
-        case Success(_) => logging.info(this, "test action for invoker health now exists")
-        case Failure(e) => logging.error(this, s"error creating test action for invoker health: $e")
-      }
-  }
-
   /** Gets a producer which can publish messages to the kafka bus. */
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+  private val messageProducer = messagingProvider.getProducer(config)
 
   private def sendActivationToInvoker(producer: MessageProducer,
                                       msg: ActivationMessage,
                                       invoker: InstanceId): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val topic = s"invoker${invoker.toInt}"
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting topic '$topic' with activation id '${msg.activationId}'")
+      s"posting topic '$topic' with activation id '${msg.activationId}'",
+      logLevel = InfoLevel)
 
     producer.send(topic, msg).andThen {
       case Success(status) =>
@@ -248,29 +190,15 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
       case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
-  private val invokerPool = {
-    // Do not create the invokerPool if it is not possible to create the health test action to recover the invokers.
-    InvokerPool
-      .healthAction(instance)
-      .map {
-        // Await the creation of the test action; on failure, this will abort the constructor which should
-        // in turn abort the startup of the controller.
-        a =>
-          Await.result(createTestActionForInvokerHealth(entityStore, a), 1.minute)
-      }
-      .orElse {
-        throw new IllegalStateException(
-          "cannot create test action for invoker health because runtime manifest is not valid")
-      }
 
-    val maxPingsPerPoll = 128
-    val pingConsumer =
-      messagingProvider.getConsumer(config, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
-    val invokerFactory = (f: ActorRefFactory, invokerInstance: InstanceId) =>
-      f.actorOf(InvokerActor.props(invokerInstance, instance))
+  private val invokerPool = {
+    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore(config))
 
     actorSystem.actorOf(
-      InvokerPool.props(invokerFactory, (m, i) => sendActivationToInvoker(messageProducer, m, i), pingConsumer))
+      InvokerPool.props(
+        (f, i) => f.actorOf(InvokerActor.props(i, controllerInstance)),
+        (m, i) => sendActivationToInvoker(messageProducer, m, i),
+        messagingProvider.getConsumer(config, s"health${controllerInstance.toInt}", "health", maxPeek = 128)))
   }
 
   /**
@@ -280,7 +208,11 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   val maxActiveAcksPerPoll = 128
   val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(config, "completions", s"completed${instance.toInt}", maxPeek = maxActiveAcksPerPoll)
+    messagingProvider.getConsumer(
+      config,
+      "completions",
+      s"completed${controllerInstance.toInt}",
+      maxPeek = maxActiveAcksPerPoll)
   val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed(
       "activeack",
@@ -307,9 +239,8 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   /** Compute the number of blackbox-dedicated invokers by applying a rounded down fraction of all invokers (but at least 1). */
   private def numBlackbox(totalInvokers: Int) = Math.max(1, (totalInvokers.toDouble * blackboxFraction).toInt)
 
-  /** Return invokers (almost) dedicated to running blackbox actions. */
-  private def blackboxInvokers(
-    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+  /** Return invokers dedicated to running blackbox actions. */
+  private def blackboxInvokers(invokers: IndexedSeq[InvokerHealth]): IndexedSeq[InvokerHealth] = {
     val blackboxes = numBlackbox(invokers.size)
     invokers.takeRight(blackboxes)
   }
@@ -318,8 +249,7 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
    * Return (at least one) invokers for running non black-box actions.
    * This set can overlap with the blackbox set if there is only one invoker.
    */
-  private def managedInvokers(
-    invokers: IndexedSeq[(InstanceId, InvokerState)]): IndexedSeq[(InstanceId, InvokerState)] = {
+  private def managedInvokers(invokers: IndexedSeq[InvokerHealth]): IndexedSeq[InvokerHealth] = {
     val managed = Math.max(1, invokers.length - numBlackbox(invokers.length))
     invokers.take(managed)
   }
@@ -329,14 +259,14 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
     val hash = generateHash(user.namespace, action)
 
     loadBalancerData.activationCountPerInvoker.flatMap { currentActivations =>
-      allInvokers.flatMap { invokers =>
+      invokerHealth().flatMap { invokers =>
         val invokersToUse = if (action.exec.pull) blackboxInvokers(invokers) else managedInvokers(invokers)
         val invokersWithUsage = invokersToUse.view.map {
           // Using a view defers the comparably expensive lookup to actual access of the element
-          case (instance, state) => (instance, state, currentActivations.getOrElse(instance.toString, 0))
+          case invoker => (invoker.id, invoker.status, currentActivations.getOrElse(invoker.id.toString, 0))
         }
 
-        LoadBalancerService.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
+        ContainerPoolBalancer.schedule(invokersWithUsage, lbConfig.invokerBusyThreshold, hash) match {
           case Some(invoker) => Future.successful(invoker)
           case None =>
             logging.error(this, s"all invokers down")(TransactionId.invokerHealth)
@@ -352,7 +282,13 @@ class LoadBalancerService(config: WhiskConfig, instance: InstanceId, entityStore
   }
 }
 
-object LoadBalancerService {
+object ContainerPoolBalancer extends LoadBalancerProvider {
+
+  override def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(
+    implicit actorSystem: ActorSystem,
+    logging: Logging,
+    materializer: ActorMaterializer): LoadBalancer = new ContainerPoolBalancer(whiskConfig, instance)
+
   def requiredProperties =
     kafkaHosts ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
@@ -367,7 +303,7 @@ object LoadBalancerService {
   def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
 
   /** Returns pairwise coprime numbers until x. Result is memoized. */
-  val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = LoadBalancerService.memoize {
+  val pairwiseCoprimeNumbersUntil: Int => IndexedSeq[Int] = ContainerPoolBalancer.memoize {
     case x =>
       (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
         if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
@@ -394,7 +330,7 @@ object LoadBalancerService {
     val numInvokers = invokers.size
     if (numInvokers > 0) {
       val homeInvoker = hash % numInvokers
-      val stepSizes = LoadBalancerService.pairwiseCoprimeNumbersUntil(numInvokers)
+      val stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(numInvokers)
       val step = stepSizes(hash % stepSizes.size)
 
       val invokerProgression = Stream
@@ -408,7 +344,11 @@ object LoadBalancerService {
         .find(_._3 < invokerBusyThreshold)
         .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 2))
         .orElse(invokerProgression.find(_._3 < invokerBusyThreshold * 3))
-        .orElse(invokerProgression.headOption)
+        .orElse(
+          if (invokerProgression.isEmpty)
+            None
+          else
+            Some(invokerProgression(ThreadLocalRandom.current().nextInt(invokerProgression.size))))
         .map(_._1)
     } else None
   }

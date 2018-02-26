@@ -41,10 +41,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
    */
   def size = {
     params
-      .map {
-        case (name, value) =>
-          name.size + value.size
-      }
+      .map { case (name, value) => name.size + value.size }
       .foldLeft(0 B)(_ + _)
   }
 
@@ -77,14 +74,14 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.keySet filter (params(_).isDefined) map (_.name)
   }
 
-  protected[core] def toJsArray =
+  protected[core] def toJsArray = {
     JsArray(params map { p =>
       JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson)
     } toSeq: _*)
-  protected[core] def toJsObject =
-    JsObject(params map { p =>
-      (p._1.name -> p._2.value.toJson)
-    })
+  }
+
+  protected[core] def toJsObject = JsObject(params.map(p => (p._1.name -> p._2.value.toJson)))
+
   override def toString = toJsArray.compactPrint
 
   /**
@@ -96,33 +93,21 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     Some { (toJsObject.fields ++ args.fields).toJson.asJsObject }
   }
 
-  /**
-   * Retrieves parameter by name if it exists.
-   */
-  protected[core] def get(p: String): Option[JsValue] = {
-    params.get(new ParameterName(p)).map(_.value)
-  }
+  /** Retrieves parameter by name if it exists. */
+  protected[core] def get(p: String): Option[JsValue] = params.get(new ParameterName(p)).map(_.value)
 
-  /**
-   * Retrieves parameter by name if it exist. If value of parameter
-   * is a boolean, return its value else false.
-   */
-  protected[core] def asBool(p: String): Option[Boolean] = {
-    get(p) flatMap {
-      case JsBoolean(b) => Some(b)
-      case _            => None
-    }
-  }
+  /** Retrieves parameter by name if it exists. Returns that parameter if it is deserializable to {@code T} */
+  protected[core] def getAs[T: JsonReader](p: String): Option[T] = get(p).flatMap(js => Try(js.convertTo[T]).toOption)
 
-  /**
-   * Retrieves parameter by name if it exist. If value of parameter
-   * is a string, return its value else none.
-   */
-  protected[core] def asString(p: String): Option[String] = {
-    get(p) flatMap {
-      case JsString(s) => Some(s)
-      case _           => None
-    }
+  /** Retrieves parameter by name if it exist. Returns true if parameter exists and has truthy value. */
+  protected[core] def isTruthy(p: String): Boolean = {
+    get(p) map {
+      case JsBoolean(b) => b
+      case JsNumber(n)  => n != 0
+      case JsString(s)  => s.nonEmpty
+      case JsNull       => false
+      case _            => true
+    } getOrElse false
   }
 }
 

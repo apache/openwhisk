@@ -196,22 +196,6 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
     containsHeaders(response.headers, Some(Set("GET")))
   }
 
-  it should "respond to OPTIONS for namespaces getEntities" in {
-    val path = basePath / "namespaces" / "barfoo"
-    val response = request(OPTIONS, url.withPath(path)).futureValue
-
-    response.status shouldBe OK
-    containsHeaders(response.headers, Some(Set("GET")))
-  }
-
-  it should "respond to GET for namespaces getEntities with Headers" in {
-    val path = basePath / "namespaces" / "_"
-    val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
-
-    response.status shouldBe OK
-    containsHeaders(response.headers)
-  }
-
   // Packages
   it should "respond to OPTIONS for listing packages" in {
     val path = basePath / "namespaces" / "barfoo" / "packages"

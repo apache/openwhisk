@@ -75,9 +75,8 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       if (!RESERVED_NAMES.contains(entityName.name.asString)) {
         entity(as[WhiskPackagePut]) { content =>
           val request = content.resolve(entityName.namespace)
-
           request.binding.map { b =>
-            logging.info(this, "checking if package is accessible")
+            logging.debug(this, "checking if package is accessible")
           }
           val referencedentities = referencedEntities(request)
 
@@ -266,7 +265,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
   private def rewriteEntitlementFailure(failure: Throwable)(
     implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
-    logging.info(this, s"rewriting failure $failure")
+    logging.debug(this, s"rewriting failure $failure")
     failure match {
       case RejectRequest(NotFound, _) => terminate(BadRequest, Messages.bindingDoesNotExist)
       case RejectRequest(Conflict, _) => terminate(Conflict, Messages.requestedBindingIsNotValid)
@@ -297,13 +296,13 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
     wp.binding map {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
-        logging.info(this, s"fetching package '$docid' for reference")
+        logging.debug(this, s"fetching package '$docid' for reference")
         getEntity(WhiskPackage, entityStore, docid, Some {
           mergePackageWithBinding(Some { wp }) _
         })
     } getOrElse {
       val pkg = ref map { _ inherit wp.parameters } getOrElse wp
-      logging.info(this, s"fetching package actions in '${wp.fullPath}'")
+      logging.debug(this, s"fetching package actions in '${wp.fullPath}'")
       val actions = WhiskAction.listCollectionInNamespace(entityStore, wp.fullPath, skip = 0, limit = 0) flatMap {
         case Left(list) =>
           Future.successful {
@@ -320,7 +319,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
 
       onComplete(actions) {
         case Success(p) =>
-          logging.info(this, s"[GET] entity success")
+          logging.debug(this, s"[GET] entity success")
           complete(OK, p)
         case Failure(t) =>
           logging.error(this, s"[GET] failed: ${t.getMessage}")

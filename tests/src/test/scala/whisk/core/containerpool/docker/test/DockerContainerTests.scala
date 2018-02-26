@@ -34,7 +34,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.FlatSpec
 import whisk.core.containerpool.logging.{DockerToActivationLogStore, LogLine}
-
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.Matchers
 import common.{StreamLogging, WskActorSystem}
@@ -50,7 +49,28 @@ import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.http.Messages
 
-import whisk.core.entity.size._
+import DockerContainerTests._
+
+object DockerContainerTests {
+
+  /** Awaits the given future, throws the exception enclosed in Failure. */
+  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
+
+  /** Creates an interval starting at EPOCH with the given duration. */
+  def intervalOf(duration: FiniteDuration) = Interval(Instant.EPOCH, Instant.ofEpochMilli(duration.toMillis))
+
+  def toRawLog(log: Seq[LogLine], appendSentinel: Boolean = true): ByteString = {
+    val appendedLog = if (appendSentinel) {
+      val lastTime = log.lastOption.map { case LogLine(time, _, _) => time }.getOrElse(Instant.EPOCH.toString)
+      log :+
+        LogLine(lastTime, "stderr", s"${DockerContainer.ActivationSentinel.utf8String}\n") :+
+        LogLine(lastTime, "stdout", s"${DockerContainer.ActivationSentinel.utf8String}\n")
+    } else {
+      log
+    }
+    ByteString(appendedLog.map(_.toJson.compactPrint).mkString("", "\n", "\n"))
+  }
+}
 
 /**
  * Unit tests for ContainerPool schedule
@@ -70,9 +90,6 @@ class DockerContainerTests
   }
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-
-  /** Awaits the given future, throws the exception enclosed in Failure. */
-  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
 
   /** Reads logs into memory and awaits them */
   def awaitLogs(source: Source[ByteString, Any], timeout: FiniteDuration = 500.milliseconds): Vector[String] =
@@ -101,9 +118,6 @@ class DockerContainerTests
       override protected val filePollInterval = 1.millisecond
     }
   }
-
-  /** Creates an interval starting at EPOCH with the given duration. */
-  def intervalOf(duration: FiniteDuration) = Interval(Instant.EPOCH, Instant.ofEpochMilli(duration.toMillis))
 
   behavior of "DockerContainer"
 
@@ -435,18 +449,6 @@ class DockerContainerTests
   /*
    * LOGS
    */
-  def toRawLog(log: Seq[LogLine], appendSentinel: Boolean = true): ByteString = {
-    val appendedLog = if (appendSentinel) {
-      val lastTime = log.lastOption.map { case LogLine(time, _, _) => time }.getOrElse(Instant.EPOCH.toString)
-      log :+
-        LogLine(lastTime, "stderr", s"${DockerContainer.ActivationSentinel.utf8String}\n") :+
-        LogLine(lastTime, "stdout", s"${DockerContainer.ActivationSentinel.utf8String}\n")
-    } else {
-      log
-    }
-    ByteString(appendedLog.map(_.toJson.compactPrint).mkString("", "\n", "\n"))
-  }
-
   it should "read a simple log with sentinel" in {
     val expectedLogEntry = LogLine(Instant.EPOCH.toString, "stdout", "This is a log entry.\n")
     val rawLog = toRawLog(Seq(expectedLogEntry), appendSentinel = true)
@@ -583,8 +585,9 @@ class DockerContainerTests
 
     docker.rawContainerLogsInvocations should have size 1
 
-    processedLog should have size expectedLog.length
-    processedLog shouldBe expectedLog.map(_.toFormattedString)
+    processedLog should have size expectedLog.length + 1 //error log should be appended
+    processedLog.head shouldBe expectedLog.head.toFormattedString
+    processedLog(1) should include(Messages.logFailure)
   }
 
   it should "truncate logs and advance reading position to end of current read" in {

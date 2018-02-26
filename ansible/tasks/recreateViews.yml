@@ -7,7 +7,6 @@
     doc: "{{ lookup('file', '{{ item }}') }}"
   with_items:
     - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_entities_db_v2.1.0.json"
-    - "{{ openwhisk_home }}/ansible/files/whisks_design_document_for_all_entities_db_v2.1.0.json"
     - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
 
 - include: db/recreateDoc.yml

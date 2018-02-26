@@ -157,7 +157,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.PACKAGES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.PACKAGES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }
@@ -335,10 +335,13 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
       aname(),
       jsDefault("??"),
       annotations = Parameters(Parameters.Feed, "true"))
+
     put(entityStore, provider)
     put(entityStore, reference)
     put(entityStore, action)
     put(entityStore, feed)
+
+    waitOnView(entityStore, WhiskAction, provider.fullPath, 2)
 
     // it should "reject get package reference from other subject" in {
     val auser = WhiskAuthHelpers.newIdentity()
@@ -349,7 +352,7 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     Get(s"$collectionPath/${reference.name}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
       val response = responseAs[WhiskPackageWithActions]
-      response should be(reference withActions (List(action, feed)))
+      response should be(reference withActions List(action, feed))
     }
   }
 

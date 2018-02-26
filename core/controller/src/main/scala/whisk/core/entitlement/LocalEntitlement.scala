@@ -49,7 +49,7 @@ protected[core] class LocalEntitlementProvider(private val config: WhiskConfig, 
     synchronized {
       val key = (subject, resource.id)
       matrix.put(key, matrix.get(key) map { _ + right } getOrElse Set(right))
-      logging.info(this, s"granted user '$subject' privilege '$right' for '$resource'")
+      logging.debug(this, s"granted user '$subject' privilege '$right' for '$resource'")
       true
     }
   }
@@ -60,7 +60,7 @@ protected[core] class LocalEntitlementProvider(private val config: WhiskConfig, 
     synchronized {
       val key = (subject, resource.id)
       val newrights = matrix.get(key) map { _ - right } map { matrix.put(key, _) }
-      logging.info(this, s"revoked user '$subject' privilege '$right' for '$resource'")
+      logging.debug(this, s"revoked user '$subject' privilege '$right' for '$resource'")
       true
     }
   }

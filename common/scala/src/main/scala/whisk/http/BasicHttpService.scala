@@ -124,10 +124,9 @@ trait BasicHttpService extends Directives with TransactionCounter {
       val token = LogMarkerToken("http", s"${m.toLowerCase}.${res.status.intValue}", LoggingMarkers.count)
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
-      if (TransactionId.metricsKamon) {
-        MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)
-        MetricEmitter.emitCounterMetric(token)
-      }
+      MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)
+      MetricEmitter.emitCounterMetric(token)
+
       if (TransactionId.metricsLog) {
         Some(LogEntry(s"[$tid] [$name] $marker", l))
       } else {

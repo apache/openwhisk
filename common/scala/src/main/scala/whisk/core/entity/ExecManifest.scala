@@ -17,10 +17,12 @@
 
 package whisk.core.entity
 
+import pureconfig.loadConfigOrThrow
+
 import scala.util.{Failure, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.entity.Attachments._
 import whisk.core.entity.Attachments.Attached._
 
@@ -41,11 +43,11 @@ protected[core] object ExecManifest {
    * singleton Runtime instance.
    *
    * @param config a valid configuration
-   * @param localDockerImagePrefix optional local docker prefix, permitting images matching prefix to bypass docker pull
    * @return the manifest if initialized successfully, or an failure
    */
-  protected[core] def initialize(config: WhiskConfig, localDockerImagePrefix: Option[String] = None): Try[Runtimes] = {
-    val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_, localDockerImagePrefix))
+  protected[core] def initialize(config: WhiskConfig): Try[Runtimes] = {
+    val rmc = loadConfigOrThrow[RuntimeManifestConfig](ConfigKeys.runtimes)
+    val mf = Try(config.runtimesManifest.parseJson.asJsObject).flatMap(runtimes(_, rmc))
     mf.foreach(m => manifest = Some(m))
     mf
   }
@@ -69,9 +71,10 @@ protected[core] object ExecManifest {
    * @param config a configuration object as JSON
    * @return Runtimes instance
    */
-  protected[entity] def runtimes(config: JsObject, localDockerImagePrefix: Option[String] = None): Try[Runtimes] = Try {
-    val prefix = config.fields.get("defaultImagePrefix").map(_.convertTo[String])
-    val tag = config.fields.get("defaultImageTag").map(_.convertTo[String])
+  protected[entity] def runtimes(config: JsObject, runtimeManifestConfig: RuntimeManifestConfig): Try[Runtimes] = Try {
+
+    val prefix = runtimeManifestConfig.defaultImagePrefix
+    val tag = runtimeManifestConfig.defaultImageTag
 
     val runtimes = config.fields
       .get("runtimes")
@@ -89,15 +92,25 @@ protected[core] object ExecManifest {
         ImageName(image.name, image.prefix.orElse(prefix), image.tag.orElse(tag))
       })
 
-    val bypassPullForLocalImages = config.fields
-      .get("bypassPullForLocalImages")
-      .map(_.convertTo[Boolean])
+    val bypassPullForLocalImages = runtimeManifestConfig.bypassPullForLocalImages
       .filter(identity)
-      .flatMap(_ => localDockerImagePrefix)
-      .map(_.trim)
+      .flatMap(_ => runtimeManifestConfig.localImagePrefix)
 
     Runtimes(runtimes.getOrElse(Set.empty), blackbox.getOrElse(Set.empty), bypassPullForLocalImages)
   }
+
+  /**
+   * Misc options related to runtime manifests
+   * @param defaultImagePrefix the default image prefix when not given explicitly
+   * @param defaultImageTag the default image tag
+   * @param bypassPullForLocalImages if true, allow images with a prefix that matches localImagePrefix
+   *                                 to skip docker pull in invoker even if the image is not part of the blackbox set
+   * @param localImagePrefix image prefix for bypassPullForLocalImages
+   */
+  protected[core] case class RuntimeManifestConfig(defaultImagePrefix: Option[String] = None,
+                                                   defaultImageTag: Option[String] = None,
+                                                   bypassPullForLocalImages: Option[Boolean] = None,
+                                                   localImagePrefix: Option[String] = None)
 
   /**
    * A runtime manifest describes the "exec" runtime support.

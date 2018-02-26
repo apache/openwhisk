@@ -28,20 +28,14 @@ import org.scalatest.FlatSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 
-import scala.Left
-import scala.Right
 import scala.collection.JavaConversions.mapAsJavaMap
 import scala.collection.mutable.Buffer
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 import scala.util.{Failure, Success}
-
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Accepted
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -56,24 +50,18 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.model.Uri
-import akka.http.scaladsl.model.Uri.Path
+import akka.http.scaladsl.model.Uri.{Path, Query}
 import akka.http.scaladsl.model.HttpMethods.DELETE
 import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.model.HttpMethods.PUT
 import akka.http.scaladsl.HttpsConnectionContext
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.{OverflowStrategy, QueueOfferResult}
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.JsValue
 import spray.json.pimpString
-
 import common._
 import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
@@ -81,7 +69,6 @@ import common.HasActivation
 import common.RunWskCmd
 import common.TestUtils
 import common.TestUtils.SUCCESS_EXIT
-import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
 import common.TestUtils.RunResult
@@ -89,13 +76,12 @@ import common.WaitFor
 import common.WhiskProperties
 import common.WskActorSystem
 import common.WskProps
-
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-
 import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
 
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import java.nio.charset.StandardCharsets
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
@@ -278,16 +264,16 @@ class WskRestAction
             ("", Base64.getEncoder.encodeToString(zip), artifactFile)
           }
           case ".js" => {
-            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("nodejs:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".py" => {
-            ("python:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("python:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".swift" => {
-            ("swift:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("swift:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case ".php" => {
-            ("php:default", FileUtils.readFileToString(new File(artifactFile)), artifactFile)
+            ("php:default", FileUtils.readFileToString(new File(artifactFile), StandardCharsets.UTF_8), artifactFile)
           }
           case _ => ("", "", artifactFile)
         }
@@ -530,7 +516,7 @@ class WskRestTrigger
                     expectedExitCode: Int = Accepted.intValue)(implicit wp: WskProps): RestResult = {
     val path = getNamePath(noun, name)
     val params = parameterFile map { l =>
-      val input = FileUtils.readFileToString(new File(l))
+      val input = FileUtils.readFileToString(new File(l), StandardCharsets.UTF_8)
       input.parseJson.convertTo[Map[String, JsValue]]
     } getOrElse parameters
     val resp =
@@ -844,7 +830,7 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
   protected val noun = "namespaces"
 
   /**
-   * Lists available namespaces for whisk properties.
+   * Lists available namespaces for whisk key.
    *
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
@@ -856,24 +842,6 @@ class WskRestNamespace extends RunWskRestCmd with BaseNamespace {
     val result = if (resp == None) new RestResult(NotFound) else new RestResult(resp.status, getRespData(resp))
     validateStatusCode(expectedExitCode, result.statusCode.intValue)
     result
-  }
-
-  /**
-   * Gets entities in namespace.
-   *
-   * @param namespace (optional) if specified must be  fully qualified namespace
-   * @param expectedExitCode (optional) the expected exit code for the command
-   * if the code is anything but DONTCARE_EXIT, assert the code is as expected
-   */
-  override def get(namespace: Option[String] = None,
-                   expectedExitCode: Int = OK.intValue,
-                   nameSort: Option[Boolean] = None)(implicit wp: WskProps): RestResult = {
-    val (ns, _) = namespace map { this.getNamespaceEntityName(_) } getOrElse (wp.namespace, "")
-    val entPath = Path(s"$basePath/namespaces/$ns/")
-    val resp = requestEntity(GET, entPath)
-    val r = new RestResult(resp.status, getRespData(resp))
-    validateStatusCode(expectedExitCode, r.statusCode.intValue)
-    r
   }
 
   /**
@@ -1019,7 +987,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
           } getOrElse Map[String, JsValue]()
         } ++ {
           swagger map { s =>
-            val swaggerFile = FileUtils.readFileToString(new File(s))
+            val swaggerFile = FileUtils.readFileToString(new File(s), StandardCharsets.UTF_8)
             Map("swagger" -> swaggerFile.toJson)
           } getOrElse Map[String, JsValue]()
         }
@@ -1050,7 +1018,7 @@ class WskRestApi extends RunWskRestCmd with BaseApi {
             var file = ""
             val fileName = swaggerFile.toString()
             try {
-              file = FileUtils.readFileToString(new File(fileName))
+              file = FileUtils.readFileToString(new File(fileName), StandardCharsets.UTF_8)
             } catch {
               case e: Throwable =>
                 return new RestResult(
@@ -1238,49 +1206,29 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     else ""
   }
 
-  def request(method: HttpMethod,
-              uri: Uri,
-              body: Option[String] = None,
-              creds: BasicHttpCredentials): Future[HttpResponse] = {
+  def requestEntity(method: HttpMethod, path: Path, params: Map[String, String] = Map(), body: Option[String] = None)(
+    implicit wp: WskProps): HttpResponse = {
+
+    val creds = getBasicHttpCredentials(wp)
+
+    // startsWith(http) includes https
+    val hostWithScheme = if (wp.apihost.startsWith("http")) {
+      Uri(wp.apihost)
+    } else {
+      Uri().withScheme("https").withHost(wp.apihost)
+    }
+
     val entity = body map { b =>
       HttpEntity(ContentTypes.`application/json`, b)
     } getOrElse HttpEntity(ContentTypes.`application/json`, "")
-    val request = HttpRequest(method, uri, List(Authorization(creds)), entity = entity)
-    val connectionPoolSettings =
-      ConnectionPoolSettings(actorSystem).withMaxOpenRequests(maxOpenRequest).withIdleTimeout(idleTimeout)
-    val pool = Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](
-      host = WhiskProperties.getApiHost,
-      connectionContext = connectionContext,
-      settings = connectionPoolSettings)
-    val queue = Source
-      .queue[(HttpRequest, Promise[HttpResponse])](queueSize, OverflowStrategy.dropNew)
-      .via(pool)
-      .toMat(Sink.foreach({
-        case ((Success(resp), p)) => p.success(resp)
-        case ((Failure(e), p))    => p.failure(e)
-      }))(Keep.left)
-      .run
 
-    val promise = Promise[HttpResponse]
-    val responsePromise = Promise[HttpResponse]()
-    queue.offer(request -> responsePromise).flatMap {
-      case QueueOfferResult.Enqueued => responsePromise.future
-      case QueueOfferResult.Dropped =>
-        Future.failed(new RuntimeException("Queue has overflowed. Please try again later."))
-      case QueueOfferResult.Failure(ex) => Future.failed(ex)
-      case QueueOfferResult.QueueClosed =>
-        Future.failed(
-          new RuntimeException("Queue was closed (pool shut down) while running the request. Please try again later."))
-    }
-  }
-
-  def requestEntity(method: HttpMethod,
-                    path: Path,
-                    params: Map[String, String] = Map(),
-                    body: Option[String] = None,
-                    whiskUrl: Uri = Uri(""))(implicit wp: WskProps): HttpResponse = {
-    val creds = getBasicHttpCredentials(wp)
-    request(method, whiskUrl.withPath(path).withQuery(Uri.Query(params)), body, creds = creds).futureValue
+    val request =
+      HttpRequest(
+        method,
+        hostWithScheme.withPath(path).withQuery(Query(params)),
+        List(Authorization(creds)),
+        entity = entity)
+    Http().singleRequest(request, connectionContext).futureValue
   }
 
   private def getBasicHttpCredentials(wp: WskProps): BasicHttpCredentials = {
@@ -1310,7 +1258,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
   def convertStringIntoKeyValue(file: String,
                                 feed: Option[String] = None,
                                 web: Option[String] = None): Array[JsValue] = {
-    val input = FileUtils.readFileToString(new File(file))
+    val input = FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8)
     val in = input.parseJson.convertTo[Map[String, JsValue]]
     convertMapIntoKeyValue(in, feed, web)
   }
@@ -1420,7 +1368,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
     var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
-      Some(FileUtils.readFileToString(new File(pf)))
+      Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))
     } getOrElse Some(parameters.toJson.toString())
     val resp = requestEntity(POST, path, paramMap, input)
     val r = new RestResult(resp.status.intValue, getRespData(resp), blocking)
@@ -1538,6 +1486,12 @@ class RestResult(var statusCode: StatusCode, var respData: String = "", blocking
       RestResult.convertStausCodeToExitCode(statusCode, blocking),
       respData,
       RestResult.convertHttpResponseToStderr(respData)) {
+
+  override def toString: String = {
+    super.toString + s"""statusCode: $statusCode
+       |respData: $respData
+       |blocking: $blocking""".stripMargin
+  }
 
   def respBody: JsObject = respData.parseJson.asJsObject
 

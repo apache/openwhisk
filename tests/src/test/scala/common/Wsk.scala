@@ -716,7 +716,7 @@ class WskNamespace() extends RunWskCmd with FullyQualifiedNames with BaseNamespa
   protected val noun = "namespace"
 
   /**
-   * Lists available namespaces for whisk properties.
+   * Lists available namespaces for whisk key.
    *
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
@@ -751,7 +751,7 @@ class WskNamespace() extends RunWskCmd with FullyQualifiedNames with BaseNamespa
    * @param expectedExitCode (optional) the expected exit code for the command
    * if the code is anything but DONTCARE_EXIT, assert the code is as expected
    */
-  override def get(namespace: Option[String] = None, expectedExitCode: Int, nameSort: Option[Boolean] = None)(
+  def get(namespace: Option[String] = None, expectedExitCode: Int, nameSort: Option[Boolean] = None)(
     implicit wp: WskProps): RunResult = {
     val params = {
       nameSort map { n =>
