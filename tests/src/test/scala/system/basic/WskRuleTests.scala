@@ -98,15 +98,12 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
 
         // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-        retry(
-          {
-            // CLI stdout must strip out the preamble text (i.e. "ok: got rule XXXXX") to get at the JSON
-            wsk.rule.create(ruleName, trigger, actionName, update = true)
-            val getStdout = wsk.rule.get(ruleName).stdout
-            getStdout.substring(getStdout.indexOf('{')).parseJson.asJsObject.fields.get("status") shouldBe status
-          },
-          10,
-          Some(1.second))
+        retry({
+          // CLI stdout must strip out the preamble text (i.e. "ok: got rule XXXXX") to get at the JSON
+          wsk.rule.create(ruleName, trigger, actionName, update = true)
+          val getStdout = wsk.rule.get(ruleName).stdout
+          getStdout.substring(getStdout.indexOf('{')).parseJson.asJsObject.fields.get("status") shouldBe status
+        }, 10, Some(1.second))
     }
   }
 
