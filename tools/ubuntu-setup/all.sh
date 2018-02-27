@@ -2,7 +2,7 @@
 
 #  This script can be tested for validity by doing something like:
 #
-#  docker run -v $OPENWHISK_HOME:/openwhisk ubuntu:trusty \
+#  docker run -v "${OPENWHISK_HOME}:/openwhisk" ubuntu:trusty \
 #    sh -c 'apt-get update && apt-get -y install sudo && /openwhisk/tools/ubuntu-setup/all.sh'
 #
 #  ...but see the WARNING at the bottom of the script before tinkering.
@@ -21,14 +21,7 @@ echo "*** installing python dependences"
 u_release="$(lsb_release -rs)"
 
 echo "*** installing java"
-if [ "${u_release%%.*}" -lt "16" ]; then
-    "$SCRIPTDIR/java8.sh"
-else
-    echo "--- WARNING -------------------------------------------------"
-    echo "Using EXPERIMENTAL OpenJDK 8 on Xenial or later Ubuntu"
-    echo "--- WARNING -------------------------------------------------"
-    "$SCRIPTDIR/java8-xenial.sh"
-fi
+"$SCRIPTDIR/java8.sh"
 
 echo "*** installing ansible"
 "$SCRIPTDIR/ansible.sh"
