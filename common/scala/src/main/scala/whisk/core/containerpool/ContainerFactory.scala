@@ -52,11 +52,12 @@ trait ContainerFactory {
 
 object ContainerFactory {
 
+  /** based on https://github.com/moby/moby/issues/3138 and https://github.com/moby/moby/blob/master/daemon/names/names.go */
+  private def isAllowed(c: Char) = c.isLetterOrDigit || c == '_' || c == '.' || c == '-'
+
   /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
   def containerNamePrefix(instanceId: InstanceId): String =
-    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}"
-      .replaceAll("[^a-zA-Z0-9_\\.\\-]", "") // based on https://github.com/moby/moby/issues/3138 and https://github.com/moby/moby/blob/master/daemon/names/names.go
-
+    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
 }
 
 /**
