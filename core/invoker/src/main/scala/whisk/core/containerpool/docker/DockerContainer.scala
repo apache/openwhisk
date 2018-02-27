@@ -239,7 +239,7 @@ class DockerContainer(protected val id: ContainerId,
       .rawContainerLogs(id, logFileOffset.get(), if (waitForSentinel) Some(filePollInterval) else None)
       .recover {
         case _: RuntimeException =>
-          ByteString(LogLine(Instant.now.toString, "stderr", "Ouch.").toJson.compactPrint)
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
       }
       // This stage only throws 'FramingException' so we cannot decide whether we got truncated due to a size
       // constraint (like StreamLimitReachedException below) or due to the file being truncated itself.
@@ -266,7 +266,7 @@ class DockerContainer(protected val id: ContainerId,
           // to the general error message. This will be the last element of the stream.
           ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
         case _: RuntimeException =>
-          ByteString(LogLine(Instant.now.toString, "stderr", "Ouch.").toJson.compactPrint)
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
       }
   }
 

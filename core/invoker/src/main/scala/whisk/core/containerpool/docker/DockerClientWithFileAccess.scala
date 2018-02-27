@@ -31,7 +31,6 @@ import whisk.core.containerpool.{ContainerAddress, ContainerId}
 
 import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
-import scala.io.Source
 
 class DockerClientWithFileAccess(dockerHost: Option[String] = None,
                                  containersDirectory: File = Paths.get("containers").toFile)(
