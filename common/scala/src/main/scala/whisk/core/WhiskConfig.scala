@@ -34,7 +34,7 @@ import whisk.common.{Config, Logging}
  * @param env an optional environment to initialize from.
  */
 class WhiskConfig(requiredProperties: Map[String, String],
-                  optionalProperties: Set[String] = Set(),
+                  optionalProperties: Set[String] = Set.empty,
                   propertiesFile: File = null,
                   env: Map[String, String] = sys.env)(implicit logging: Logging)
     extends Config(requiredProperties, optionalProperties)(env) {

@@ -275,14 +275,14 @@ object WhiskPackageWithActions {
             as map { a =>
               WhiskPackageAction.serdes.read(a)
             } toList
-          case _ => List()
+          case _ => List.empty
         }
         val feeds = value.asJsObject.getFields("feeds") match {
           case Seq(JsArray(as)) =>
             as map { a =>
               WhiskPackageAction.serdes.read(a)
             } toList
-          case _ => List()
+          case _ => List.empty
         }
         WhiskPackageWithActions(pkg, actions, feeds)
       } getOrElse deserializationError("whisk package with actions malformed")
