@@ -380,6 +380,18 @@ func main(args: [String:Any]) -> [String:Any] {
 }
 ```
 
+#### PHP
+
+```php
+<?php
+
+function main(array $args) : array
+{
+    $decoded = base64_decode($args['__ow_body']);
+    return ["body" => $decoded];
+}
+```
+
 As an example, save the Node function as `decode.js` and execute the following commands:
 ```bash
 $ wsk action create decode decode.js --web raw

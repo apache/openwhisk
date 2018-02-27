@@ -60,6 +60,12 @@
     mode: 0777
   become: "{{ invoker.dir.become }}"
 
+- name: "copy kafka truststore/keystore"
+  when: kafka.protocol == 'SSL'
+  copy:
+    src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
+    dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -149,6 +155,11 @@
         -e CONFIG_whisk_kafka_topics_invoker_retentionBytes='{{ kafka_topics_invoker_retentionBytes | default() }}'
         -e CONFIG_whisk_kafka_topics_invoker_retentionMs='{{ kafka_topics_invoker_retentionMS | default() }}'
         -e CONFIG_whisk_kakfa_topics_invoker_segmentBytes='{{ kafka_topics_invoker_segmentBytes | default() }}'
+        -e CONFIG_whisk_kafka_common_securityProtocol='{{ kafka.protocol }}'
+        -e CONFIG_whisk_kafka_common_sslTruststoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
+        -e CONFIG_whisk_kafka_common_sslTruststorePassword='{{ kafka.ssl.keystore.password }}'
+        -e CONFIG_whisk_kafka_common_sslKeystoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
+        -e CONFIG_whisk_kafka_common_sslKeystorePassword='{{ kafka.ssl.keystore.password }}'
         -e ZOOKEEPER_HOSTS='{{ zookeeper_connect_string }}'
         -e DB_PROTOCOL='{{ db_protocol }}'
         -e DB_PROVIDER='{{ db_provider }}'
@@ -165,6 +176,10 @@
         -e WHISK_API_HOST_PORT='{{ whisk_api_host_port | default('443') }}'
         -e WHISK_API_HOST_NAME='{{ whisk_api_host_name | default(groups['edge'] | first) }}'
         -e RUNTIMES_MANIFEST='{{ runtimesManifest | to_json }}'
+        -e CONFIG_whisk_runtimes_defaultImagePrefix='{{ runtimes_default_image_prefix | default() }}'
+        -e CONFIG_whisk_runtimes_defaultImageTag='{{ runtimes_default_image_tag | default() }}'
+        -e CONFIG_whisk_runtimes_bypassPullForLocalImages='{{ runtimes_bypass_pull_for_local_images | default() }}'
+        -e CONFIG_whisk_runtimes_localImagePrefix='{{ runtimes_local_image_prefix | default() }}'
         -e DOCKER_REGISTRY='{{ docker_registry }}'
         -e DOCKER_IMAGE_PREFIX='{{ docker.image.prefix }}'
         -e DOCKER_IMAGE_TAG='{{ docker.image.tag }}'

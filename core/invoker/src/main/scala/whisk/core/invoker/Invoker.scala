@@ -99,7 +99,7 @@ object Invoker {
       abort("Bad configuration, cannot start.")
     }
 
-    val execManifest = ExecManifest.initialize(config, localDockerImagePrefix = Some(config.dockerImagePrefix))
+    val execManifest = ExecManifest.initialize(config)
     if (execManifest.isFailure) {
       logger.error(this, s"Invalid runtimes manifest: ${execManifest.failed.get}")
       abort("Bad configuration, cannot start.")
@@ -183,7 +183,7 @@ object Invoker {
     if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
     }
-    val producer = msgProvider.getProducer(config, ec)
+    val producer = msgProvider.getProducer(config)
     val invoker = try {
       new InvokerReactive(config, invokerInstance, producer)
     } catch {

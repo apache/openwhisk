@@ -191,17 +191,22 @@ object MetricEmitter {
 
   val metrics = Kamon.metrics
 
-  def emitCounterMetric(token: LogMarkerToken) = {
-    metrics
-      .counter(token.toString)
-      .increment(1)
+  def emitCounterMetric(token: LogMarkerToken): Unit = {
+    if (TransactionId.metricsKamon) {
+      metrics
+        .counter(token.toString)
+        .increment(1)
+    }
   }
 
-  def emitHistogramMetric(token: LogMarkerToken, value: Long) = {
-    metrics
-      .histogram(token.toString)
-      .record(value)
+  def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
+    if (TransactionId.metricsKamon) {
+      metrics
+        .histogram(token.toString)
+        .record(value)
+    }
   }
+
 }
 
 object LoggingMarkers {
@@ -241,6 +246,7 @@ object LoggingMarkers {
   // Check invoker healthy state from loadbalancer
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
+  val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
@@ -255,6 +261,9 @@ object LoggingMarkers {
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
   def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
   def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
+  def INVOKER_CONTAINER_START(containerState: String) =
+    LogMarkerToken(invoker, s"container_start_${containerState}", count)
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
 
   /*
    * General markers
@@ -268,4 +277,5 @@ object LoggingMarkers {
   val DATABASE_QUERY = LogMarkerToken(database, "queryView", start)
   val DATABASE_ATT_GET = LogMarkerToken(database, "getDocumentAttachment", start)
   val DATABASE_ATT_SAVE = LogMarkerToken(database, "saveDocumentAttachment", start)
+  val DATABASE_BATCH_SIZE = LogMarkerToken(database, "batchSize", count)
 }

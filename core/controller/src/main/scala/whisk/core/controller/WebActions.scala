@@ -91,7 +91,7 @@ private case class Context(propertyMap: WebApiDirectives,
 
   // returns true iff the attached query and body parameters contain a property
   // that conflicts with the given reserved parameters
-  def overrides(reservedParams: Set[String]): Set[String] = {
+  def overrides(reservedParams: Set[String]): Boolean = {
     val queryParams = queryAsMap.keySet
     val bodyParams = body
       .map {
@@ -100,7 +100,7 @@ private case class Context(propertyMap: WebApiDirectives,
       }
       .getOrElse(Set.empty)
 
-    (queryParams ++ bodyParams) intersect reservedParams
+    (queryParams ++ bodyParams).forall(key => !reservedParams.contains(key))
   }
 
   // attach the body to the Context
@@ -129,11 +129,11 @@ private case class Context(propertyMap: WebApiDirectives,
     // if the body is a json object, merge with query parameters
     // otherwise, this is an opaque body that will be nested under
     // __ow_body in the parameters sent to the action as an argument
-    val bodyParams = body match {
+    val bodyParams: Map[String, JsValue] = body match {
       case Some(JsObject(fields)) if !boxQueryAndBody => fields
       case Some(v)                                    => Map(propertyMap.body -> v)
       case None if !boxQueryAndBody                   => Map.empty
-      case _                                          => Map(propertyMap.body -> JsObject())
+      case _                                          => Map(propertyMap.body -> JsString.empty)
     }
 
     // precedence order is: query params -> body (last wins)
@@ -483,7 +483,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    if (!action.annotations.asBool("web-custom-options").exists(identity)) {
+                    if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -559,7 +559,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       processRequest(actionOwnerIdentity, action, extension, onBehalfOf, context.withBody(body), isRawHttpAction)
     }
 
-    provide(action.annotations.asBool("raw-http").exists(identity)) { isRawHttpAction =>
+    provide(action.annotations.getAs[Boolean]("raw-http").exists(identity)) { isRawHttpAction =>
       httpEntity match {
         case Empty =>
           process(None, isRawHttpAction)
@@ -612,8 +612,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       // since these are system properties, the action should not define them, and if it does,
       // they will be overwritten
       if (isRawHttpAction || context
-            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)
-            .isEmpty) {
+            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
         invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
       } else {
@@ -720,8 +719,8 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser = action.annotations.asBool("require-whisk-auth").exists(identity)
-      val isExported = action.annotations.asBool("web-export").exists(identity)
+      val requiresAuthenticatedUser = action.annotations.getAs[Boolean]("require-whisk-auth").exists(identity)
+      val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
           (isExported && !requiresAuthenticatedUser)) {

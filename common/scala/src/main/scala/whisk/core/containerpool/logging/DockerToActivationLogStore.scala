@@ -19,17 +19,20 @@ package whisk.core.containerpool.logging
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
+
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
 import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
-import spray.json._
 import whisk.http.Messages
 
 import scala.concurrent.{ExecutionContext, Future}
+
+import spray.json._
 
 /**
  * Represents a single log line as read from a docker log
@@ -64,7 +67,8 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   override val containerParameters = Map("--log-driver" -> Set("json-file"))
 
   /* As logs are already part of the activation record, just return that bit of it */
-  override def fetchLogs(activation: WhiskActivation): Future[ActivationLogs] = Future.successful(activation.logs)
+  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
+    Future.successful(activation.logs)
 
   override def collectLogs(transid: TransactionId,
                            user: Identity,

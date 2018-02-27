@@ -1,7 +1,7 @@
 mode: deploy
 prompt_user: true
-openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME')|default(playbook_dir + '/..', true) }}"
-openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home, true) }}"
+openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir + '/..', true) }}"
+openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -18,22 +18,14 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}" 
+hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
 
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
-##
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
-# briefly:
-#   defaultImagePrefix: the default image prefix when not given explicitly
-#   defaultImageTag: the default image tag
-#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
-#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
-#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
-#                             to skip docker pull in invoker even if the image is not part of the blackbox set
-#
+
+# list of supported runtimes (see whisk.core.entity.ExecManifest for schema)
 runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
 
 ##
@@ -47,9 +39,6 @@ limits:
   concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
-
-controllerHostnameFromMap: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
-controllerHostname: "{{ controllerHostnameFromMap | default(inventory_hostname) }}"
 
 # port means outer port
 controller:
@@ -70,13 +59,9 @@ controller:
       bindPort: 2551
       # at this moment all controllers are seed nodes
       seedNodes: "{{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | list }}"
-  # We recommend to enable HA for the controllers only, if bookkeeping data are shared too. (localBookkeeping: false)
-  ha: "{{ controller_enable_ha | default(True) and groups['controllers'] | length > 1 }}"
+  loadbalancer:
+    spi: "{{ controller_loadbalancer_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
-  jmxremote:
-    jvmArgs:  "{% if inventory_hostname in groups['controllers'] %}
-    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ controllerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}
-    {% endif %}"
 
 jmx:
   basePortController: 15000
@@ -95,8 +80,15 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  ssl:
+    client_authentication: required
+    keystore:
+      name: kafka-keystore.jks
+      password: openwhisk
+  protocol: "{{ kafka_protocol_for_setup }}"
   version: 0.11.0.1
-  port: 9092
+  port: 9072
+  advertisedPort: 9093
   ras:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
@@ -104,9 +96,11 @@ kafka:
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
-                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.port+loop.index-1)|string) ) }}\
+                         {{ ret.append( hostvars[host].ansible_host + ':' + ((kafka.advertisedPort+loop.index-1)|string) ) }}\
                        {% endfor %}\
                        {{ ret | join(',') }}"
+
+kafka_protocol_for_setup: "{{ kafka_protocol | default('PLAINTEXT') }}"
 
 zookeeper:
   version: 3.4
@@ -280,12 +274,11 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 #
 # The location specifies the official website where Openwhisk CLI is hosted in
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
-#
 
 openwhisk_cli:
-  installation_mode: "{{ cli_installation_mode | default('remote') }}"
+  installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
   local:
-    location: "{{ openwhisk_cli_home }}/bin"
+    location: "{{ openwhisk_cli_home }}/build"
   remote:
     name: OpenWhisk_CLI
     dest_name: OpenWhisk_CLI

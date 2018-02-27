@@ -135,6 +135,13 @@ object WhiskActivation
   val causedByAnnotation = "causedBy"
   val initTimeAnnotation = "initTime"
   val waitTimeAnnotation = "waitTime"
+  val conductorAnnotation = "conductor"
+
+  /** Some field names for compositions */
+  val actionField = "action"
+  val paramsField = "params"
+  val stateField = "state"
+  val valueField = "value"
 
   protected[entity] implicit val instantSerdes = new RootJsonFormat[Instant] {
     def write(t: Instant) = t.toEpochMilli.toJson

@@ -35,6 +35,8 @@ import whisk.core.entity.size._
 import whisk.http.{ErrorResponse, Messages}
 import whisk.spi.SpiLoader
 
+import scala.reflect.classTag
+
 /**
  * Tests Activations API.
  *
@@ -388,7 +390,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.ACTIVATIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.ACTIVATIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }
@@ -525,6 +527,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     val activationStore = SpiLoader
       .get[ArtifactStoreProvider]
       .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(
+        classTag[WhiskEntity],
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
         system,

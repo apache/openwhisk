@@ -3,6 +3,14 @@
 
 - include: docker_login.yml
 
+- name: get controller index
+  set_fact:
+    controller_index: "{{ groups['controllers'].index(inventory_hostname) }}"
+
+- name: get controller name
+  set_fact:
+    controller_name: "controller{{ controller_index }}"
+
 - name: "pull the {{ docker.image.tag }} image of controller"
   shell: "docker pull {{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
   when: docker_registry != ""
@@ -11,14 +19,14 @@
 
 - name: ensure controller log directory is created with permissions
   file:
-    path: "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+    path: "{{ whisk_logs_dir }}/{{ controller_name }}"
     state: directory
     mode: 0777
   become: "{{ logs.dir.become }}"
 
 - name: ensure controller config directory is created with permissions
   file:
-    path: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+    path: "{{ controller.confdir }}/{{ controller_name }}"
     state: directory
     mode: 0777
   become: "{{ controller.dir.become }}"
@@ -27,15 +35,21 @@
   when: jmx.enabled
   template:
     src: "jmxremote.password.j2"
-    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.password"
+    dest: "{{ controller.confdir }}/{{ controller_name }}/jmxremote.password"
     mode: 0777
 
 - name: copy jmxremote access file
   when: jmx.enabled
   template:
     src: "jmxremote.access.j2"
-    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/jmxremote.access"
+    dest: "{{ controller.confdir }}/{{ controller_name }}/jmxremote.access"
     mode: 0777
+
+- name: "copy kafka truststore/keystore"
+  when: kafka.protocol == 'SSL'
+  copy:
+    src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
 
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
@@ -48,17 +62,17 @@
 
 - name: prepare controller ports
   set_fact:
-    ports_to_expose: ["{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}:8080", "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}:{{ controller.akka.cluster.bindPort }}"]
+    ports_to_expose: ["{{ controller.basePort + (controller_index | int) }}:8080", "{{ controller.akka.cluster.basePort + (controller_index | int) }}:{{ controller.akka.cluster.bindPort }}"]
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.basePortController + groups['controllers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortController + groups['controllers'].index(inventory_hostname) }}\" ]"
+    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortController + (controller_index | int) }}:{{ jmx.basePortController + (controller_index | int)}}\" ] + [ \"{{ jmx.rmiBasePortController + (controller_index | int) }}:{{ jmx.rmiBasePortController + (controller_index | int) }}\" ]"
 
 - name: add additional jvm params if jmxremote is enabled
   when: jmx.enabled
   set_fact:
-    controller_args: "{{ controller.arguments }} {{ controller.jmxremote.jvmArgs }}"
+    controller_args: "{{ controller.arguments }} {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ inventory_hostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + (controller_index | int) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + (controller_index | int) }}"
 
 - name: create seed nodes list
   set_fact:
@@ -68,19 +82,19 @@
 
 - name: (re)start controller
   docker_container:
-    name: controller{{ groups['controllers'].index(inventory_hostname) }}
+    name: "{{ controller_name }}"
     image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    hostname: "controller{{ groups['controllers'].index(inventory_hostname) }}"
+    hostname: "{{ controller_name }}"
     env:
       "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
       "JMX_REMOTE": "{{ jmx.enabled }}"
 
-      "COMPONENT_NAME": "controller{{ groups['controllers'].index(inventory_hostname) }}"
+      "COMPONENT_NAME": "{{ controller_name }}"
       "PORT": 8080
 
       "WHISK_VERSION_NAME": "{{ whisk_version_name }}"
@@ -98,7 +112,11 @@
       "CONFIG_whisk_kafka_topics_health_retentionBytes": "{{ kafka_topics_health_retentionBytes | default() }}"
       "CONFIG_whisk_kafka_topics_health_retentionMs": "{{ kafka_topics_health_retentionMS | default() }}"
       "CONFIG_whisk_kafka_topics_health_segmentBytes": "{{ kafka_topics_health_segmentBytes | default() }}"
-
+      "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}"
+      "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
       "DB_PROTOCOL": "{{ db_protocol }}"
       "DB_PROVIDER": "{{ db_provider }}"
       "DB_HOST": "{{ db_host }}"
@@ -125,9 +143,13 @@
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
+      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
-      "CONTROLLER_HA": "{{ controller.ha }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
@@ -136,27 +158,27 @@
       "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"
 
       "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
-      "CONFIG_akka_remote_netty_tcp_hostname": "{{ controller.akka.cluster.host[groups['controllers'].index(inventory_hostname)] }}"
-      "CONFIG_akka_remote_netty_tcp_port": "{{ controller.akka.cluster.basePort + groups['controllers'].index(inventory_hostname) }}"
+      "CONFIG_akka_remote_netty_tcp_hostname": "{{ controller.akka.cluster.host[(controller_index | int)] }}"
+      "CONFIG_akka_remote_netty_tcp_port": "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
       "CONFIG_akka_remote_netty_tcp_bindPort": "{{ controller.akka.cluster.bindPort }}"
 
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
 
       "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
-      
+      "CONFIG_whisk_spi_LoadBalancerProvider": "{{ controller.loadbalancer.spi }}"
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
       "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
     volumes:
-      - "{{ whisk_logs_dir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/logs"
-      - "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}:/conf"
+      - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
+      - "{{ controller.confdir }}/{{ controller_name }}:/conf"
     ports: "{{ ports_to_expose }}"
-    command: /bin/sh -c "exec /init.sh {{ groups['controllers'].index(inventory_hostname) }} >> /logs/controller{{ groups['controllers'].index(inventory_hostname) }}_logs.log 2>&1"
+    command: /bin/sh -c "exec /init.sh {{ controller_index }} >> /logs/{{ controller_name }}_logs.log 2>&1"
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
+    url: "http://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ping"
   register: result
   until: result.status == 200
   retries: 12

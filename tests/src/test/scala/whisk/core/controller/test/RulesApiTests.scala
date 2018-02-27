@@ -99,7 +99,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
-        Messages.maxListLimitExceeded(Collection.RULES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+        Messages.listLimitOutOfRange(Collection.RULES, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
       }
     }
   }
@@ -563,7 +563,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -594,7 +594,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -625,7 +625,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -656,7 +656,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))
@@ -684,7 +684,7 @@ class RulesApiTests extends ControllerTestCommon with WhiskRulesApi {
         WhiskRuleResponse(
           namespace,
           rule.name,
-          Status.ACTIVE,
+          Status.INACTIVE,
           trigger.fullyQualifiedName(false),
           action.fullyQualifiedName(false),
           version = SemVer().upPatch))

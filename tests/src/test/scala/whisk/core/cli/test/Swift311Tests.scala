@@ -35,8 +35,8 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
 
   implicit val wskprops = WskProps()
   val wsk = new WskRest
-  val expectedDuration = 45 seconds
-  val activationPollDuration = 60 seconds
+  val activationPollDuration = 2.minutes
+  val defaultJsAction = Some(TestUtils.getTestActionFilename("hello.js"))
 
   lazy val runtimeContainer = "swift:3.1.1"
 
@@ -51,7 +51,6 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
       action.create(name, Some(TestUtils.getTestActionFilename("hello.swift")))
     }
 
-    val start = System.currentTimeMillis()
     withActivation(wsk.activation, wsk.action.invoke(name), totalWait = activationPollDuration) {
       _.response.result.get.toString should include("Hello stranger!")
     }
@@ -61,11 +60,6 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
       wsk.action.invoke(name, Map("name" -> "Sir".toJson)),
       totalWait = activationPollDuration) {
       _.response.result.get.toString should include("Hello Sir!")
-    }
-
-    withClue("Test duration exceeds expectation (ms)") {
-      val duration = System.currentTimeMillis() - start
-      duration should be <= expectedDuration.toMillis
     }
   }
 
@@ -116,8 +110,18 @@ class Swift311Tests extends TestHelpers with WskTestHelpers with Matchers {
   it should "allow Swift actions to trigger events" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     // create a trigger
     val triggerName = s"TestTrigger ${System.currentTimeMillis()}"
+    val ruleName = s"TestTriggerRule ${System.currentTimeMillis()}"
+    val ruleActionName = s"TestTriggerAction ${System.currentTimeMillis()}"
     assetHelper.withCleaner(wsk.trigger, triggerName) { (trigger, _) =>
       trigger.create(triggerName)
+    }
+
+    assetHelper.withCleaner(wsk.action, ruleActionName) { (action, name) =>
+      action.create(name, defaultJsAction)
+    }
+
+    assetHelper.withCleaner(wsk.rule, ruleName) { (rule, name) =>
+      rule.create(name, trigger = triggerName, action = ruleActionName)
     }
 
     // create an action that fires the trigger

@@ -34,6 +34,7 @@ import common.TestUtils
 import common.TestUtils._
 import common.BaseWsk
 import common.WskProps
+import common.RuleActivationResult
 import common.WskTestHelpers
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -472,9 +473,10 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   private def checkEchoSeqRuleResult(triggerFireRun: RunResult, seqName: String, triggerPayload: JsObject) = {
     withActivation(wsk.activation, triggerFireRun) { triggerActivation =>
-      withActivationsFromEntity(wsk.activation, seqName, since = Some(triggerActivation.start)) { activationList =>
-        activationList.head.response.result shouldBe Some(triggerPayload)
-        activationList.head.cause shouldBe None
+      val ruleActivation = triggerActivation.logs.get.map(_.parseJson.convertTo[RuleActivationResult]).head
+      withActivation(wsk.activation, ruleActivation.activationId) { actionActivation =>
+        actionActivation.response.result shouldBe Some(triggerPayload)
+        actionActivation.cause shouldBe None
       }
     }
   }

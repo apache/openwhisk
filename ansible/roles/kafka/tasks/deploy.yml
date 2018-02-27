@@ -6,6 +6,67 @@
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
+- name: "create kafka certificate directory"
+  file:
+    path: "{{ config_root_dir }}/kafka/certs"
+    state: directory
+    mode: 0777
+
+- name: "copy keystore"
+  when: kafka.protocol == 'SSL'
+  copy:
+    src: "files/{{ kafka.ssl.keystore.name }}"
+    dest: "{{ config_root_dir }}/kafka/certs"
+
+- name: add kafka default env vars
+  set_fact:
+    kafka_env_vars:
+      "KAFKA_DEFAULT_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
+      "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
+      "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
+      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
+      "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
+
+- name: add kafka non-ssl vars
+  when: kafka.protocol != 'SSL'
+  set_fact:
+    kafka_non_ssl_vars:
+      "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
+- name: add kafka ssl env vars
+  when: kafka.protocol == 'SSL'
+  set_fact:
+    kafka_ssl_env_vars:
+      "KAFKA_ADVERTISED_PORT": "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_PORT": "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP": "INTERNAL:PLAINTEXT,EXTERNAL:SSL"
+      "KAFKA_LISTENERS": "EXTERNAL://:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_ADVERTISED_LISTENERS": "EXTERNAL://{{ ansible_host }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      "KAFKA_PROTOCOL_NAME": "INTERNAL"
+      "KAFKA_SSL_KEYSTORE_LOCATION": "/config/{{ kafka.ssl.keystore.name }}"
+      "KAFKA_SSL_KEYSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
+      "KAFKA_SSL_KEY_PASSWORD": "{{ kafka.ssl.keystore.password }}"
+      "KAFKA_SSL_TRUSTSTORE_LOCATION": "/config/{{ kafka.ssl.keystore.name }}"
+      "KAFKA_SSL_TRUSTSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
+      "KAFKA_SSL_CLIENT_AUTH": "{{ kafka.ssl.client_authentication }}"
+    # The sed script passed in CUSTOM_INIT_SCRIPT fixes a bug in the wurstmeister dcoker image
+    # by patching the server.configuration file right before kafka is started.
+    # The script adds the missing advertized hostname to the advertised.listener property
+    # Issue: https://github.com/wurstmeister/kafka-docker/issues/221
+      "CUSTOM_INIT_SCRIPT": sed -i \'/^advertised\\.listeners/ s/\\/\\/\\:/\\/\\/{{ ansible_host }}\\:/\' /opt/kafka/config/server.properties
+
+- name: "join kafka ssl env vars"
+  when: kafka.protocol == 'SSL'
+  set_fact:
+    kafka_env_vars: "{{ kafka_env_vars | combine(kafka_ssl_env_vars) }}"
+
+- name: join kafka non-ssl env vars
+  when: kafka.protocol != 'SSL'
+  set_fact:
+    kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
+
 - name: (re)start kafka
   vars:
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
@@ -15,17 +76,12 @@
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
-    env:
-      "KAFKA_DEFAULT_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
-      "KAFKA_BROKER_ID": "{{ groups['kafkas'].index(inventory_hostname) }}"
-      "KAFKA_ADVERTISED_HOST_NAME": "{{ ansible_host }}"
-      "KAFKA_ADVERTISED_PORT": "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
-      "KAFKA_HEAP_OPTS": "-Xmx{{ kafka.heap }} -Xms{{ kafka.heap }}"
-      "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
-      "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
-      "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
+    env: "{{ kafka_env_vars }}"
     ports:
-      - "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:9092"
+      - "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
+      - "{{ kafka.advertisedPort  + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+    volumes:
+      - "{{ config_root_dir }}/kafka/certs:/config"
 
 - name: wait until the kafka server started up
   shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}

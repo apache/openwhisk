@@ -21,7 +21,7 @@ import java.util.ArrayList
 import java.util.concurrent.LinkedBlockingQueue
 
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -37,7 +37,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
     extends MessageConsumer
     with StreamLogging {
 
-  override def peek(duration: Duration) = {
+  override def peek(duration: FiniteDuration, retry: Int = 0) = {
     val msgs = new ArrayList[Message]
     queue.synchronized {
       queue.drainTo(msgs, if (allowMoreThanMax) Int.MaxValue else maxPeek)
@@ -48,7 +48,7 @@ class TestConnector(topic: String, override val maxPeek: Int, allowMoreThanMax: 
     }
   }
 
-  override def commit() = {
+  override def commit(retry: Int = 0) = {
     if (throwCommitException) {
       throw new Exception("commit failed")
     } else {

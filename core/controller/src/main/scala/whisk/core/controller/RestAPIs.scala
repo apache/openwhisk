@@ -130,7 +130,7 @@ protected[controller] object RestApiCommons {
         case Success(n) if (n > 0 && n <= Collection.MAX_LIST_LIMIT) => ListLimit(n)
         case Success(n) =>
           throw new IllegalArgumentException(
-            Messages.maxListLimitExceeded(collection.path, n, Collection.MAX_LIST_LIMIT))
+            Messages.listLimitOutOfRange(collection.path, n, Collection.MAX_LIST_LIMIT))
         case Failure(t) => throw new IllegalArgumentException(Messages.listLimitIsNotAString)
       }
     }
@@ -229,12 +229,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   private val rules = new RulesApi(apiPath, apiVersion)
   private val web = new WebActionsApi(Seq("web"), new WebApiDirectives())
 
-  class NamespacesApi(val apiPath: String, val apiVersion: String)(
-    implicit override val entityStore: EntityStore,
-    override val entitlementProvider: EntitlementProvider,
-    override val executionContext: ExecutionContext,
-    override val logging: Logging)
-      extends WhiskNamespacesApi
+  class NamespacesApi(val apiPath: String, val apiVersion: String) extends WhiskNamespacesApi
 
   class ActionsApi(val apiPath: String, val apiVersion: String)(
     implicit override val actorSystem: ActorSystem,
