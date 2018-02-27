@@ -32,5 +32,5 @@
   when: binary_path.stat.exists
 
 - name: "copy the local binary to the root bin directory when architectures match"
-  local_action: copy src={{ source_file }} dest={{ openwhisk_home }}/bin
+  local_action: copy src={{ source_file }} dest={{ openwhisk_home }}/bin mode=0755
   when: system_match and arch_match
