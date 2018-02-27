@@ -88,9 +88,14 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       pkg.create(name, parameters = params, shared = Some(true))
       pkg.create(name, update = true)
     }
-    val pack = wsk.pkg.get(name)
+
+    // Add retry to ensure cache with "0.0.1" is replaced
+    val pack = whisk.utils.retry({
+      val p = wsk.pkg.get(name)
+      p.getField("version") shouldBe "0.0.2"
+      p
+    }, 5, Some(1.second))
     pack.getFieldJsValue("publish") shouldBe JsBoolean(true)
-    pack.getField("version") shouldBe "0.0.2"
     pack.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     val packageList = wsk.pkg.list()
     val packages = packageList.getBodyListJsObject()
@@ -220,10 +225,14 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       action.create(name, None, parameters = Map("b" -> "B".toJson), update = true)
     }
 
-    val action = wsk.action.get(name)
+    // Add retry to ensure cache with "0.0.1" is replaced
+    val action = whisk.utils.retry({
+      val a = wsk.action.get(name)
+      a.getField("version") shouldBe "0.0.2"
+      a
+    }, 5, Some(1.second))
     action.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("b"), "value" -> JsString("B")))
     action.getFieldJsValue("publish") shouldBe JsBoolean(false)
-    action.getField("version") shouldBe "0.0.2"
     val actionList = wsk.action.list()
     val actions = actionList.getBodyListJsObject()
     actions.exists(action => RestResult.getField(action, "name") == name) shouldBe true
@@ -509,10 +518,14 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       rule.create(name, trigger = triggerName, action = actionName)
     }
 
-    val trigger = wsk.trigger.get(triggerName)
+    // Add retry to ensure cache with "0.0.1" is replaced
+    val trigger = whisk.utils.retry({
+      val t = wsk.trigger.get(triggerName)
+      t.getField("version") shouldBe "0.0.2"
+      t
+    }, 5, Some(1.second))
     trigger.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     trigger.getFieldJsValue("publish") shouldBe JsBoolean(false)
-    trigger.getField("version") shouldBe "0.0.2"
 
     val expectedRules = JsObject(
       ns + "/" + ruleName -> JsObject(
@@ -836,8 +849,12 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     // finally, we perform the update, and expect success this time
     wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)
 
-    val rule = wsk.rule.get(ruleName)
-    rule.getField("version") shouldBe "0.0.2"
+    // Add retry to ensure cache with "0.0.1" is replaced
+    val rule = whisk.utils.retry({
+      val r = wsk.rule.get(ruleName)
+      r.getField("version") shouldBe "0.0.2"
+      r
+    }, 5, Some(1.second))
     rule.getField("name") shouldBe ruleName
     RestResult.getField(rule.getFieldJsObject("trigger"), "name") shouldBe triggerName
     RestResult.getField(rule.getFieldJsObject("action"), "name") shouldBe actionName
