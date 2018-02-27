@@ -135,19 +135,31 @@ object ActionContainer {
       case (k, v) => s"-e ${k}=${v}"
     } mkString (" ")
 
-    // We create the container...
-    val runOut = awaitDocker(s"run --name $name $envArgs -d $imageName", 10 seconds)
-    assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
+    // We create the container... and find out its IP address...
+    def createContainer(portFwd: Option[Int] = None): Unit = {
+      val runOut = awaitDocker(
+        s"run ${portFwd.map(p => s"-p $p:8080").getOrElse("")} --name $name $envArgs -d $imageName",
+        10 seconds)
+      assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
+    }
 
     // ...find out its IP address...
-    val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
-    assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
-    val ip = ipOut._2.replaceAll("""[^0-9.]""", "")
+    val (ip, port) = if (WhiskProperties.getProperty("whisk.version.name") == "local") {
+      val p = 8988 // port must be available or docker run will fail
+      createContainer(Some(p))
+      Thread.sleep(1500) // let container/server come up cleanly
+      ("localhost", p)
+    } else { // "mac"
+      createContainer()
+      val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
+      assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
+      (ipOut._2.replaceAll("""[^0-9.]""", ""), 8080)
+    }
 
     // ...we create an instance of the mock container interface...
     val mock = new ActionContainer {
-      def init(value: JsValue) = syncPost(ip, 8080, "/init", value)
-      def run(value: JsValue) = syncPost(ip, 8080, "/run", value)
+      def init(value: JsValue) = syncPost(ip, port, "/init", value)
+      def run(value: JsValue) = syncPost(ip, port, "/run", value)
     }
 
     try {

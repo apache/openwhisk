@@ -42,23 +42,6 @@ An expedient workaround is to add alias for `docker0` network to loopback interf
 sudo ifconfig lo0 alias 172.17.0.1/24
 ```
 
-##### Setup proxy container to run unit tests (optional)
-
-This step is only required to run tests with Docker for Mac.
-If you do not run tests locally, you can just skip this step.
-
-```
-docker run -d -p 3128:3128 style95/squid:3.5.26-p1
-```
-
-You need to configure gradle proxy settings.
-
-**~/.gradle/gradle.properties**
-```
-systemProp.http.proxyHost=localhost
-systemProp.http.proxyPort=3128
-```
-
 ### Using Ansible
 **Caveat:** All Ansible commands are meant to be executed from the `ansible` directory.
 This is important because that's where `ansible.cfg` is located which contains generic settings that are needed for the remaining steps.
