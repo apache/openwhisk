@@ -32,7 +32,7 @@ import spray.json._
 import whisk.common.Logging
 import whisk.common.LoggingMarkers
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
 import whisk.core.connector.MessageFeed
@@ -41,6 +41,7 @@ import whisk.core.connector.MessagingProvider
 import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.containerpool.ContainerPool
 import whisk.core.containerpool.ContainerProxy
+import whisk.core.containerpool.PrewarmConfig
 import whisk.core.containerpool.PrewarmingConfig
 import whisk.core.containerpool.Run
 import whisk.core.containerpool.logging.LogStoreProvider
@@ -50,6 +51,7 @@ import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
 import akka.event.Logging.InfoLevel
+import pureconfig.loadConfigOrThrow
 
 class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
   implicit actorSystem: ActorSystem,
@@ -141,8 +143,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   val childFactory = (f: ActorRefFactory) =>
     f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
 
-  val prewarmKind = config.prewarmKind
-  val prewarmCount = config.prewarmCount.toInt
+  val prewarmConfig = loadConfigOrThrow[PrewarmConfig](ConfigKeys.prewarm)
+  val prewarmKind = prewarmConfig.kind
+  val prewarmCount = prewarmConfig.count
   val prewarmExec = ExecManifest.runtimesManifest
     .resolveDefaultRuntime(prewarmKind)
     .map { manifest =>

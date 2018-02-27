@@ -67,8 +67,7 @@ object Invoker {
       invokerNumCore -> "4",
       invokerCoreShare -> "2",
       invokerUseRunc -> "true") ++
-      Map(invokerName -> "") ++
-      Map(prewarmKind -> "nodejs:6", prewarmCount -> "2")
+      Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
     Kamon.start()

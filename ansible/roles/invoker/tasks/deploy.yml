@@ -180,6 +180,8 @@
         -e CONFIG_whisk_runtimes_defaultImageTag='{{ runtimes_default_image_tag | default() }}'
         -e CONFIG_whisk_runtimes_bypassPullForLocalImages='{{ runtimes_bypass_pull_for_local_images | default() }}'
         -e CONFIG_whisk_runtimes_localImagePrefix='{{ runtimes_local_image_prefix | default() }}'
+        -e CONFIG_whisk_prewarm_kind='{{ prewarm_kind | default() }}'
+        -e CONFIG_whisk_prewarm_count='{{ prewarm_count | default() }}'
         -e DOCKER_REGISTRY='{{ docker_registry }}'
         -e DOCKER_IMAGE_PREFIX='{{ docker.image.prefix }}'
         -e DOCKER_IMAGE_TAG='{{ docker.image.tag }}'

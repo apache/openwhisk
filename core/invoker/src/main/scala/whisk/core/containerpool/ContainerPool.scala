@@ -291,3 +291,6 @@ object ContainerPool {
 
 /** Contains settings needed to perform container prewarming */
 case class PrewarmingConfig(count: Int, exec: CodeExec[_], memoryLimit: ByteSize)
+
+/** Contains configurable prewarm settings loaded using PureConfig way */
+case class PrewarmConfig(kind: String, count: Int)

@@ -251,6 +251,7 @@ object ConfigKeys {
   val activationPayload = s"$activation.payload"
 
   val runtimes = "whisk.runtimes"
+  val prewarm = "whisk.prewarm"
 
   val db = "whisk.db"
 
