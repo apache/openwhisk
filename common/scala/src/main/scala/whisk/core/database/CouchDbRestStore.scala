@@ -456,6 +456,11 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           ErrorLevel))
   }
 
+  override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
+    //For CouchDB attachments lifecycle is tied to document. So if the
+    //document is deleted then associated attachments are also removed
+    Future.successful(true)
+
   override def shutdown(): Unit = {
     Await.ready(client.shutdown(), 1.minute)
   }
