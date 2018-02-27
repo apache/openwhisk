@@ -11,7 +11,6 @@ set -e
 set -x
 SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( dirname "$SOURCE" )"
-u_release="$(lsb_release -rs)"
 
 echo "*** installing basics"
 /bin/bash "$SCRIPTDIR/misc.sh"
@@ -34,6 +33,7 @@ echo "*** installing ansible"
 # but nothing after this step will run in that validity test situation.
 
 echo "*** installing docker"
+<<<<<<< HEAD
 u_release="$(lsb_release -rs)"
 if [ "${u_release%%.*}" -lt "16" ]; then
     /bin/bash "$SCRIPTDIR/docker.sh"
@@ -43,3 +43,10 @@ else
     echo "--- WARNING -------------------------------------------------"
     /bin/bash "$SCRIPTDIR/docker-xenial.sh"
 fi
+=======
+"$SCRIPTDIR/docker.sh"
+
+echo "*** installing ansible"
+"$SCRIPTDIR/ansible.sh"
+
+>>>>>>> Restore ubuntu-tools to match master
