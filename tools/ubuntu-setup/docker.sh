@@ -11,7 +11,8 @@ sudo apt-get purge lxc-docker
 sudo apt-cache policy docker-engine
 
 # AUFS
-sudo apt-get -y install linux-image-extra-$(uname -r)
+# Use '-virtual' package to support docker tests of the script and still run under Vagrant
+sudo apt-get --no-install-recommends -y install linux-image-extra-virtual
 
 # DOCKER
 sudo apt-get install -y --force-yes docker-engine=1.12.0-0~trusty
@@ -19,7 +20,7 @@ sudo apt-mark hold docker-engine
 
 # enable (security - use 127.0.0.1)
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=aufs"'\'' >> /etc/default/docker'
-sudo gpasswd -a `whoami` docker
+sudo gpasswd -a "$(whoami)" docker
 
 # Set DOCKER_HOST as an environment variable
 sudo -E bash -c 'echo '\''export DOCKER_HOST="tcp://0.0.0.0:4243"'\'' >> /etc/bash.bashrc'
