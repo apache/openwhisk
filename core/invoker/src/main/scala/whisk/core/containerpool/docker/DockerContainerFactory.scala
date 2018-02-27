@@ -17,24 +17,19 @@
 
 package whisk.core.containerpool.docker
 
-import akka.actor.ActorSystem
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.WhiskConfig
-import whisk.core.containerpool.Container
-import whisk.core.containerpool.ContainerFactory
-import whisk.core.containerpool.ContainerFactoryProvider
-import whisk.core.entity.ByteSize
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
-import scala.concurrent.duration._
+import java.io.File
+import java.nio.file.Paths
 import java.util.concurrent.TimeoutException
+
+import akka.actor.ActorSystem
 import pureconfig._
-import whisk.core.ConfigKeys
-import whisk.core.containerpool.ContainerArgsConfig
+import whisk.common.{Logging, TransactionId}
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.containerpool.{Container, ContainerArgsConfig, ContainerFactory, ContainerFactoryProvider}
+import whisk.core.entity.{ByteSize, ExecManifest, InstanceId}
+
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
 class DockerContainerFactory(config: WhiskConfig,
                              instance: InstanceId,
@@ -45,9 +40,10 @@ class DockerContainerFactory(config: WhiskConfig,
   ec: ExecutionContext,
   logging: Logging)
     extends ContainerFactory {
+  private val dockerConfig = pureconfig.loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.docker)
 
   /** Initialize container clients */
-  implicit val docker = new DockerClientWithFileAccess()(ec)
+  implicit val docker = new DockerClientWithFileAccess(containersDirectory = dockerConfig.containerPath)(ec)
   implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
@@ -99,8 +95,8 @@ class DockerContainerFactory(config: WhiskConfig,
    * There is no checking whether container removal was successful
    * or not.
    *
-   * @throws InterruptedException     if the current thread is interrupted while waiting
-   * @throws TimeoutException         if after waiting for the specified time this `Awaitable` is still not ready
+   * @throws InterruptedException if the current thread is interrupted while waiting
+   * @throws TimeoutException     if after waiting for the specified time this `Awaitable` is still not ready
    */
   @throws(classOf[TimeoutException])
   @throws(classOf[InterruptedException])
@@ -135,4 +131,8 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
                                    instanceId: InstanceId,
                                    parameters: Map[String, Set[String]]): ContainerFactory =
     new DockerContainerFactory(config, instanceId, parameters)(actorSystem, actorSystem.dispatcher, logging)
+}
+
+case class DockerContainerFactoryConfig(dataroot: Option[String]) {
+  val containerPath: File = Paths.get(dataroot.getOrElse("") + "/containers").toFile
 }

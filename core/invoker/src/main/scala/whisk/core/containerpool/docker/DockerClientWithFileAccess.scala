@@ -24,18 +24,12 @@ import akka.actor.ActorSystem
 import akka.stream.alpakka.file.scaladsl.FileTailSource
 import akka.stream.scaladsl.{FileIO, Source => AkkaSource}
 import akka.util.ByteString
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.blocking
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import whisk.common.Logging
-import whisk.common.TransactionId
-import whisk.core.containerpool.ContainerId
-import whisk.core.containerpool.ContainerAddress
+import whisk.common.{Logging, TransactionId}
+import whisk.core.containerpool.{ContainerAddress, ContainerId}
 
-import scala.io.Source
+import scala.concurrent.{blocking, ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 
 class DockerClientWithFileAccess(dockerHost: Option[String] = None,

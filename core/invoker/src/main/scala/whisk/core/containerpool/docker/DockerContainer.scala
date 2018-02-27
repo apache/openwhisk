@@ -237,6 +237,10 @@ class DockerContainer(protected val id: ContainerId,
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
     docker
       .rawContainerLogs(id, logFileOffset.get(), if (waitForSentinel) Some(filePollInterval) else None)
+      .recover {
+        case _: RuntimeException =>
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
+      }
       // This stage only throws 'FramingException' so we cannot decide whether we got truncated due to a size
       // constraint (like StreamLimitReachedException below) or due to the file being truncated itself.
       .via(Framing.delimiter(delimiter, limit.toBytes.toInt))
@@ -260,6 +264,8 @@ class DockerContainer(protected val id: ContainerId,
           // Stream has already ended and we insert a notice that data might be missing from the logs. While a
           // FramingException can also mean exceeding the limits, we cannot decide which case happened so we resort
           // to the general error message. This will be the last element of the stream.
+          ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
+        case _: RuntimeException =>
           ByteString(LogLine(Instant.now.toString, "stderr", Messages.logFailure).toJson.compactPrint)
       }
   }

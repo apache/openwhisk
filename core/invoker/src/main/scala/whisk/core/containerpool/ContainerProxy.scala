@@ -19,25 +19,22 @@ package whisk.core.containerpool
 
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.Success
-import scala.util.Failure
-import akka.actor.FSM
-import akka.actor.Props
-import akka.actor.Stash
 import akka.actor.Status.{Failure => FailureMessage}
+import akka.actor.{FSM, Props, Stash}
 import akka.pattern.pipe
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogCollectingException
+import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity._
 import whisk.core.entity.size._
-import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
-import akka.event.Logging.InfoLevel
+
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 // States
 sealed trait ContainerState
@@ -380,8 +377,11 @@ class ContainerProxy(
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
-        collectLogs(tid, job.msg.user, activation, container, job.action)
+        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS)
+        val collected: Future[ActivationLogs] = try {
+          collectLogs(tid, job.msg.user, activation, container, job.action)
+        } catch { case t: Throwable => Future.failed(t) }
+        collected
           .andThen {
             case Success(_) => tid.finished(this, start)
             case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
