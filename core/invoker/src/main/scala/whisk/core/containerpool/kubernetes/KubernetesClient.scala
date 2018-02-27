@@ -238,6 +238,8 @@ class KubernetesClient(
     val id = ContainerId(pod.getMetadata.getName)
     val addr = ContainerAddress(pod.getStatus.getPodIP)
     val workerIP = pod.getStatus.getHostIP
+    // Extract the native (docker or containerd) containerId for the container
+    // By convention, kubernetes adds a docker:// prefix when using docker as the low-level container engine
     val nativeContainerId = pod.getStatus.getContainerStatuses.get(0).getContainerID.stripPrefix("docker://")
     implicit val kubernetes = this
     new KubernetesContainer(id, addr, workerIP, nativeContainerId)
