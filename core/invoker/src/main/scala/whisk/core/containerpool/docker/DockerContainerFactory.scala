@@ -106,24 +106,26 @@ class DockerContainerFactory(config: WhiskConfig,
   @throws(classOf[InterruptedException])
   private def removeAllActionContainers(): Unit = {
     implicit val transid = TransactionId.invoker
-    val cleaning = docker.ps(filters = Seq("name" -> s"wsk${instance.toInt}_"), all = true).flatMap { containers =>
-      logging.info(this, s"removing ${containers.size} action containers.")
-      val removals = containers.map { id =>
-        (if (config.invokerUseRunc) {
-           runc.resume(id)
-         } else {
-           docker.unpause(id)
-         })
-          .recoverWith {
-            // Ignore resume failures and try to remove anyway
-            case _ => Future.successful(())
+    val cleaning =
+      docker.ps(filters = Seq("name" -> s"${ContainerFactory.containerNamePrefix(instance)}_"), all = true).flatMap {
+        containers =>
+          logging.info(this, s"removing ${containers.size} action containers.")
+          val removals = containers.map { id =>
+            (if (config.invokerUseRunc) {
+               runc.resume(id)
+             } else {
+               docker.unpause(id)
+             })
+              .recoverWith {
+                // Ignore resume failures and try to remove anyway
+                case _ => Future.successful(())
+              }
+              .flatMap { _ =>
+                docker.rm(id)
+              }
           }
-          .flatMap { _ =>
-            docker.rm(id)
-          }
+          Future.sequence(removals)
       }
-      Future.sequence(removals)
-    }
     Await.ready(cleaning, 30.seconds)
   }
 }

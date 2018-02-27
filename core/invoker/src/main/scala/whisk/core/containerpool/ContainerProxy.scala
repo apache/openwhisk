@@ -18,7 +18,6 @@
 package whisk.core.containerpool
 
 import java.time.Instant
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
@@ -429,7 +428,8 @@ object ContainerProxy {
    * @return a unique container name
    */
   def containerName(instance: InstanceId, prefix: String, suffix: String) =
-    s"wsk${instance.toInt}_${containerCount.next()}_${prefix}_${suffix}".replaceAll("[^a-zA-Z0-9_]", "")
+    s"${ContainerFactory.containerNamePrefix(instance)}_${containerCount.next()}_${prefix}_${suffix}"
+      .replaceAll("[^a-zA-Z0-9_]", "")
 
   /**
    * Creates a WhiskActivation ready to be sent via active ack.

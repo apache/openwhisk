@@ -50,6 +50,15 @@ trait ContainerFactory {
   def cleanup(): Unit
 }
 
+object ContainerFactory {
+
+  /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
+  def containerNamePrefix(instanceId: InstanceId): String =
+    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}"
+      .replaceAll("[^a-zA-Z0-9_\\.\\-]", "") // based on https://github.com/moby/moby/issues/3138 and https://github.com/moby/moby/blob/master/daemon/names/names.go
+
+}
+
 /**
  * An SPI for ContainerFactory creation
  * All impls should use the parameters specified as additional args to "docker run" commands
