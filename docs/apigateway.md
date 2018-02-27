@@ -46,12 +46,12 @@ Follow the instructions in [Configure CLI](https://github.com/apache/incubator-o
   ```
   $ curl https://${APIHOST}:9001/api/${GENERATED_API_ID}/hello/world?name=OpenWhisk
   ```
-  ```json
+  ```
   {
   "payload": "Hello world OpenWhisk"
   }
   ```
-  The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
+   The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
 
 ### Full control over the HTTP response
 
@@ -105,7 +105,7 @@ You have a series of actions to implement your backend for the book club:
 
 Let's create an API for the book club, named `Book Club`, with `/club` as its HTTP URL base path and `books` as its resource and `{isbn}` as a path parameter used to identify a specific book by its ISBN.
 
-When using path parameters, the API must be defined with a response type of `http`, and the path, including the actual path parameter value(s), will be available in the `__ow_path` field of the action's JSON parameter.
+When using path parameters, the API must be defined with a response type of `http`, and the path, starting with the base path and including the actual path parameter value(s), will be available in the `__ow_path` field of the action's JSON parameter. Refer to the [Web Actions HTTP Context](webactions.md#http-context) documentation for more details about this and other HTTP context fields that are available to web actions invoked with a `http` response type.
 ```
 wsk api create -n "Book Club" /club /books/{isbn} get getBooks --response-type http
 wsk api create /club /books get getBooks                       --response-type http
@@ -175,7 +175,7 @@ curl -X GET https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 }
 ```
 
-Let's delete a specify book using our action `deleteBooks` via HTTP __DELETE__
+Let's delete a specify book using our action `deleteBooks` via HTTP __DELETE__. In this example, the `deleteBooks` action's `__ow_path` field value will be `/club/books/978-0596517748`, where `978-0596517748` is path's `{isbn}` actual value.
 ```
 curl -X DELETE https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/978-0596517748
 ```
