@@ -167,8 +167,8 @@ class KubernetesContainerTests
         name: String,
         image: String,
         memory: ByteSize = 256.MB,
-        env: Map[String, String] = Map(),
-        labels: Map[String, String] = Map())(implicit transid: TransactionId): Future[KubernetesContainer] = {
+        env: Map[String, String] = Map.empty,
+        labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
         runs += ((name, image, env, labels))
         Future.failed(ProcessRunningException(1, "", ""))
       }

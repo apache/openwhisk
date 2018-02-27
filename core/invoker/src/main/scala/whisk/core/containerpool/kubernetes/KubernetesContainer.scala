@@ -57,10 +57,10 @@ object KubernetesContainer {
              image: String,
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
-             environment: Map[String, String] = Map(),
-             labels: Map[String, String] = Map())(implicit kubernetes: KubernetesApi,
-                                                  ec: ExecutionContext,
-                                                  log: Logging): Future[KubernetesContainer] = {
+             environment: Map[String, String] = Map.empty,
+             labels: Map[String, String] = Map.empty)(implicit kubernetes: KubernetesApi,
+                                                      ec: ExecutionContext,
+                                                      log: Logging): Future[KubernetesContainer] = {
     implicit val tid = transid
 
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()

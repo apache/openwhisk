@@ -121,8 +121,8 @@ class KubernetesClient(
   def run(name: String,
           image: String,
           memory: ByteSize = 256.MB,
-          environment: Map[String, String] = Map(),
-          labels: Map[String, String] = Map())(implicit transid: TransactionId): Future[KubernetesContainer] = {
+          environment: Map[String, String] = Map.empty,
+          labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer] = {
 
     val envVars = environment.map {
       case (key, value) => new EnvVarBuilder().withName(key).withValue(value).build()
@@ -289,8 +289,8 @@ trait KubernetesApi {
   def run(name: String,
           image: String,
           memory: ByteSize,
-          environment: Map[String, String] = Map(),
-          labels: Map[String, String] = Map())(implicit transid: TransactionId): Future[KubernetesContainer]
+          environment: Map[String, String] = Map.empty,
+          labels: Map[String, String] = Map.empty)(implicit transid: TransactionId): Future[KubernetesContainer]
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 
