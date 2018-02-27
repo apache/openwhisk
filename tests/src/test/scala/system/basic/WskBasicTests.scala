@@ -53,6 +53,11 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
    */
   def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
 
+  /**
+   * Retry operations that need to settle the controller cache
+   */
+  def cacheRetry[T](fn: => T) = whisk.utils.retry(fn, 5, Some(1.second))
+
   behavior of "Wsk REST"
 
   it should "reject creating duplicate entity" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
@@ -90,11 +95,11 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     }
 
     // Add retry to ensure cache with "0.0.1" is replaced
-    val pack = whisk.utils.retry({
+    val pack = cacheRetry({
       val p = wsk.pkg.get(name)
       p.getField("version") shouldBe "0.0.2"
       p
-    }, 5, Some(1.second))
+    })
     pack.getFieldJsValue("publish") shouldBe JsBoolean(true)
     pack.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     val packageList = wsk.pkg.list()
@@ -226,11 +231,11 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     }
 
     // Add retry to ensure cache with "0.0.1" is replaced
-    val action = whisk.utils.retry({
+    val action = cacheRetry({
       val a = wsk.action.get(name)
       a.getField("version") shouldBe "0.0.2"
       a
-    }, 5, Some(1.second))
+    })
     action.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("b"), "value" -> JsString("B")))
     action.getFieldJsValue("publish") shouldBe JsBoolean(false)
     val actionList = wsk.action.list()
@@ -519,11 +524,11 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     }
 
     // Add retry to ensure cache with "0.0.1" is replaced
-    val trigger = whisk.utils.retry({
+    val trigger = cacheRetry({
       val t = wsk.trigger.get(triggerName)
       t.getField("version") shouldBe "0.0.2"
       t
-    }, 5, Some(1.second))
+    })
     trigger.getFieldJsValue("parameters") shouldBe JsArray(JsObject("key" -> JsString("a"), "value" -> JsString("A")))
     trigger.getFieldJsValue("publish") shouldBe JsBoolean(false)
 
@@ -850,11 +855,11 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
     wsk.rule.create(ruleName, trigger = triggerName, action = actionName, update = true)
 
     // Add retry to ensure cache with "0.0.1" is replaced
-    val rule = whisk.utils.retry({
+    val rule = cacheRetry({
       val r = wsk.rule.get(ruleName)
       r.getField("version") shouldBe "0.0.2"
       r
-    }, 5, Some(1.second))
+    })
     rule.getField("name") shouldBe ruleName
     RestResult.getField(rule.getFieldJsObject("trigger"), "name") shouldBe triggerName
     RestResult.getField(rule.getFieldJsObject("action"), "name") shouldBe actionName
