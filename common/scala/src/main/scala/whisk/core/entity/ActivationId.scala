@@ -43,11 +43,11 @@ protected[whisk] class ActivationId private (val asString: String) extends AnyVa
 protected[core] object ActivationId {
 
   protected[core] trait ActivationIdGenerator {
-    def make(): ActivationId = ActivationId()
+    def make(): ActivationId = ActivationId.generate()
   }
 
   /** Checks if the current character is hexadecimal */
-  private def isHexadecimal(c: Char) = c.isDigit || c == 'a' || c == 'b' || c == 'd' || c == 'e' || c == 'f'
+  private def isHexadecimal(c: Char) = c.isDigit || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'
 
   /**
    * Parses an activation id from a string.
@@ -74,9 +74,9 @@ protected[core] object ActivationId {
    *
    * @return new ActivationId
    */
-  protected[core] def apply(): ActivationId = new ActivationId(UUIDs.randomUUID().toString.filterNot(_ == '-'))
+  protected[core] def generate(): ActivationId = new ActivationId(UUIDs.randomUUID().toString.filterNot(_ == '-'))
 
-  protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
+  protected[core] implicit val serdes: RootJsonFormat[ActivationId] = new RootJsonFormat[ActivationId] {
     def write(d: ActivationId) = JsString(d.toString)
 
     def read(value: JsValue): ActivationId = {

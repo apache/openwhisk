@@ -76,7 +76,7 @@ class ContainerPoolTests
       action.fullyQualifiedName(true),
       action.rev,
       Identity(Subject(), invocationNamespace, AuthKey(), Set()),
-      ActivationId(),
+      ActivationId.generate(),
       InstanceId(0),
       blocking = false,
       content = None)

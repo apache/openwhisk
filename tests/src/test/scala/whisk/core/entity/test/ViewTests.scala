@@ -312,11 +312,11 @@ class ViewTests
     // creates 5 entities in each namespace as follows:
     // - some activations in each namespace (some may have prescribed action name to query by name)
     implicit val entities = Seq(
-      WhiskActivation(namespace1, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace1, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
+      WhiskActivation(namespace1, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace1, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, actionName, Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, actionName, Subject(), ActivationId.generate(), start = now, end = now))
 
     entities foreach { put(activationStore, _) }
     waitOnView(activationStore, namespace1.root, 2, WhiskActivation.view)
@@ -344,33 +344,33 @@ class ViewTests
     val actionName = aname()
     val now = Instant.now(Clock.systemUTC())
     implicit val entities = Seq(
-      WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now, end = now),
+      WhiskActivation(namespace1, actionName, Subject(), ActivationId.generate(), start = now, end = now),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(20),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(10),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(40),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(30),
         end = now.plusSeconds(20)))
 

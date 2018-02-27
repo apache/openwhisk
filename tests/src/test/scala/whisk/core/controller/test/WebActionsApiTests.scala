@@ -262,7 +262,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
         action.namespace,
         action.name,
         user.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
         response = {
@@ -290,7 +290,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
       Future.successful(Right(activation))
     } else if (failActivation == 1) {
-      Future.successful(Left(ActivationId()))
+      Future.successful(Left(ActivationId.generate()))
     } else {
       Future.failed(new IllegalStateException("bad activation"))
     }

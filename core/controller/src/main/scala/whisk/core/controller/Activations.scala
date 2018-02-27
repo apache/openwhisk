@@ -27,7 +27,6 @@ import akka.http.scaladsl.model.StatusCodes.BadRequest
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.unmarshalling._
 
-import spray.json._
 import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.LogStore
@@ -93,10 +92,10 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
 
   /** Validated entity name as an ActivationId from the matched path segment. */
   protected override def entityname(n: String) = {
-    val activationId = Try { ActivationId(n) }
+    val activationId = ActivationId.parse(n)
     validate(activationId.isSuccess, activationId match {
-      case Failure(DeserializationException(t, _, _)) => t
-      case _                                          => Messages.activationIdIllegal
+      case Failure(t: IllegalArgumentException) => t.getMessage
+      case _                                    => Messages.activationIdIllegal
     }) & extract(_ => n)
   }
 

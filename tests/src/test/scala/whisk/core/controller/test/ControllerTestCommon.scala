@@ -79,7 +79,7 @@ protected trait ControllerTestCommon
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api
-    private val fixedId = ActivationId()
+    private val fixedId = ActivationId.generate()
     override def make = fixedId
   }
 
