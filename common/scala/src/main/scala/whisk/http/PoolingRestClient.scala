@@ -17,9 +17,6 @@
 
 package whisk.http
 
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
@@ -30,7 +27,6 @@ import akka.http.scaladsl.Http.HostConnectionPool
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
 import akka.stream.OverflowStrategy
@@ -40,14 +36,13 @@ import akka.stream.scaladsl._
 import spray.json._
 
 /**
- * This class only handles the basic communication to the proper endpoints
- *  ("JSON in, JSON out"). It is up to its clients to interpret the results.
- *  It is built on akka-http host-level connection pools; compared to single
- *  requests, it saves some time on each request because it doesn't need to look
- *  up the pool corresponding to the host. It is also easier to add an extra
- *  queueing mechanism.
+ * This class only handles the basic communication to the proper endpoints.
+ *  It is up to its clients to interpret the results. It is built on akka-http
+ *  host-level connection pools; compared to single requests, it saves some time
+ *  on each request because it doesn't need to look up the pool corresponding
+ *  to the host. It is also easier to add an extra queueing mechanism.
  */
-class RestClient(protocol: String, host: String, port: Int)(implicit system: ActorSystem) {
+class PoolingRestClient(protocol: String, host: String, port: Int, queueSize: Int)(implicit system: ActorSystem) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
   implicit val context = system.dispatcher
@@ -65,9 +60,8 @@ class RestClient(protocol: String, host: String, port: Int)(implicit system: Act
   // Additional queue in case all connections are busy. Should hardly ever be
   // filled in practice but can be useful, e.g., in tests starting many
   // asynchronous requests in a very short period of time.
-  private val QUEUE_SIZE = 16 * 1024;
   private val requestQueue = Source
-    .queue(QUEUE_SIZE, OverflowStrategy.dropNew)
+    .queue(queueSize, OverflowStrategy.dropNew)
     .via(pool.mapMaterializedValue { x =>
       poolPromise.success(x); x
     })
@@ -77,35 +71,24 @@ class RestClient(protocol: String, host: String, port: Int)(implicit system: Act
     }))(Keep.left)
     .run
 
-  // Properly encodes the potential slashes in each segment.
-  protected def uri(segments: Any*): Uri = {
-    val encodedSegments = segments.map(s => URLEncoder.encode(s.toString, StandardCharsets.UTF_8.name))
-    Uri(s"/${encodedSegments.mkString("/")}")
-  }
-
-  // Headers common to all requests.
-  val baseHeaders: List[HttpHeader] = List(Accept(MediaTypes.`application/json`))
-
   // Prepares a request with the proper headers.
   def mkRequest0(method: HttpMethod,
                  uri: Uri,
                  body: Future[MessageEntity],
-                 headers: Option[List[HttpHeader]] = None): Future[HttpRequest] = {
+                 headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
     body.map { b =>
-      HttpRequest(method = method, uri = uri, headers = baseHeaders ++ headers.getOrElse(List()), entity = b)
+      HttpRequest(method, uri, headers, b)
     }
   }
 
-  protected def mkRequest(method: HttpMethod,
-                          uri: Uri,
-                          headers: Option[List[HttpHeader]] = None): Future[HttpRequest] = {
+  protected def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
     mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
   }
 
   protected def mkJsonRequest(method: HttpMethod,
                               uri: Uri,
                               body: JsValue,
-                              headers: Option[List[HttpHeader]] = None): Future[HttpRequest] = {
+                              headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
     val b = Marshal(body).to[MessageEntity]
     mkRequest0(method, uri, b, headers)
   }

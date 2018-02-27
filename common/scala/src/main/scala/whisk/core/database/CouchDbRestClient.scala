@@ -19,6 +19,9 @@ package whisk.core.database
 
 import scala.concurrent.Future
 
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
@@ -26,9 +29,10 @@ import akka.stream.scaladsl._
 import akka.util.ByteString
 
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import whisk.common.Logging
-import whisk.http.RestClient
+import whisk.http.PoolingRestClient
 
 /**
  * This class only handles the basic communication to the proper endpoints
@@ -41,39 +45,44 @@ import whisk.http.RestClient
 class CouchDbRestClient(protocol: String, host: String, port: Int, username: String, password: String, db: String)(
   implicit system: ActorSystem,
   logging: Logging)
-    extends RestClient(protocol, host, port) {
+    extends PoolingRestClient(protocol, host, port, 16 * 1024) {
 
   // Headers common to all requests.
-  override val baseHeaders: List[HttpHeader] =
+  val baseHeaders: List[HttpHeader] =
     List(Authorization(BasicHttpCredentials(username, password)), Accept(MediaTypes.`application/json`))
-
-  import spray.json.DefaultJsonProtocol._
 
   def revHeader(forRev: String) = List(`If-Match`(EntityTagRange(EntityTag(forRev))))
 
+  // Properly encodes the potential slashes in each segment.
+  protected def uri(segments: Any*): Uri = {
+    val encodedSegments = segments.map(s => URLEncoder.encode(s.toString, StandardCharsets.UTF_8.name))
+    Uri(s"/${encodedSegments.mkString("/")}")
+  }
+
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
   def putDoc(id: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc))
+    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#put--db-docid
   def putDoc(id: String, rev: String, doc: JsObject): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, headers = Some(revHeader(rev))))
+    requestJson[JsObject](mkJsonRequest(HttpMethods.PUT, uri(db, id), doc, baseHeaders ++ revHeader(rev)))
 
   // http://docs.couchdb.org/en/2.1.0/api/database/bulk-api.html#inserting-documents-in-bulk
   def putDocs(docs: Seq[JsObject]): Future[Either[StatusCode, JsArray]] =
-    requestJson[JsArray](mkJsonRequest(HttpMethods.POST, uri(db, "_bulk_docs"), JsObject("docs" -> docs.toJson)))
+    requestJson[JsArray](
+      mkJsonRequest(HttpMethods.POST, uri(db, "_bulk_docs"), JsObject("docs" -> docs.toJson), baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
   def getDoc(id: String): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id)))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), baseHeaders))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#get--db-docid
   def getDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), headers = Some(revHeader(rev))))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, uri(db, id), baseHeaders ++ revHeader(rev)))
 
   // http://docs.couchdb.org/en/1.6.1/api/document/common.html#delete--db-docid
   def deleteDoc(id: String, rev: String): Future[Either[StatusCode, JsObject]] =
-    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db, id), headers = Some(revHeader(rev))))
+    requestJson[JsObject](mkRequest(HttpMethods.DELETE, uri(db, id), baseHeaders ++ revHeader(rev)))
 
   // http://docs.couchdb.org/en/1.6.1/api/ddoc/views.html
   def executeView(designDoc: String, viewName: String)(startKey: List[Any] = Nil,
@@ -129,7 +138,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
 
     val viewUri = uri(db, "_design", designDoc, "_view", viewName).withQuery(Uri.Query(argMap))
 
-    requestJson[JsObject](mkRequest(HttpMethods.GET, viewUri))
+    requestJson[JsObject](mkRequest(HttpMethods.GET, viewUri, baseHeaders))
   }
 
   // Streams an attachment to the database
@@ -141,7 +150,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
                     source: Source[ByteString, _]): Future[Either[StatusCode, JsObject]] = {
     val entity = HttpEntity.Chunked(contentType, source.map(bs => HttpEntity.ChunkStreamPart(bs)))
     val request =
-      mkRequest0(HttpMethods.PUT, uri(db, id, attName), Future.successful(entity), headers = Some(revHeader(rev)))
+      mkRequest0(HttpMethods.PUT, uri(db, id, attName), Future.successful(entity), baseHeaders ++ revHeader(rev))
     requestJson[JsObject](request)
   }
 
@@ -151,7 +160,7 @@ class CouchDbRestClient(protocol: String, host: String, port: Int, username: Str
                        rev: String,
                        attName: String,
                        sink: Sink[ByteString, Future[T]]): Future[Either[StatusCode, (ContentType, T)]] = {
-    val request = mkRequest(HttpMethods.GET, uri(db, id, attName), headers = Some(revHeader(rev)))
+    val request = mkRequest(HttpMethods.GET, uri(db, id, attName), baseHeaders ++ revHeader(rev))
 
     request0(request) flatMap { response =>
       if (response.status.isSuccess()) {
