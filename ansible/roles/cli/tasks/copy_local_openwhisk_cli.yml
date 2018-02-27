@@ -2,11 +2,38 @@
 
 # Copy the cli binaries to Nginx directory
 
+- name: "set the basic variables os, arc and suffix"
+  set_fact:
+    os="{{ item[0] }}"
+    arc="{{ item[1] }}"
+    suffix="zip"
+
+- name: "change the suffix to tgz if the operating system is Linux"
+  set_fact:
+    suffix="tgz"
+  when: os == "linux"
+
+- name: "set the destination archive file name locally (default)"
+  set_fact:
+    dest_archive_name="{{ openwhisk_cli.local.dest_name }}-{{ os }}-{{ arc }}.{{ suffix }}"
+
+- name: "set the destination file name locally for 32 bit"
+  set_fact:
+    dest_archive_name="{{ openwhisk_cli.local.dest_name }}-{{ os }}-32bit.{{ suffix }}"
+  when: arc == "386"
+
+- name: "set the destination file name locally for amd64"
+  set_fact:
+    dest_archive_name="{{ openwhisk_cli.local.dest_name }}-{{ os }}.{{ suffix }}"
+  when: arc == "amd64"
+
 - name: "construct local file from which to source"
   set_fact:
     source_file: "{{ openwhisk_cli.local.location }}/\
       {{ item | join('-') | replace('mac','darwin') }}/\
       {{ (item[0] == 'windows') | ternary ('wsk.exe', 'wsk') }}"
+    source_archive_file: "{{ openwhisk_cli.local.archive_location }}/\
+      {{ openwhisk_cli.local.name }}-{{ openwhisk_cli_tag }}-{{ os }}-{{ arc }}.{{ suffix }}"
     target_dir: "{{ cli.nginxdir }}/{{ item[0] }}/{{ item[1] }}"
     system_match: "{{ ( \
         (ansible_system == 'Linux' and item[0] == 'linux') \
@@ -17,6 +44,9 @@
 
 - local_action: stat path={{ source_file }}
   register: binary_path
+
+- local_action: stat path={{ source_archive_file }}
+  register: archive_path
 
 - name: "ensure Nginx cli directory is writable"
   file:
@@ -30,6 +60,12 @@
     src: "{{ source_file }}"
     dest: "{{ target_dir }}/"
   when: binary_path.stat.exists
+
+- name: "copy the local archives from a local directory to Nginx directory"
+  copy:
+    src: "{{ source_archive_file }}"
+    dest: "{{ target_dir }}/{{ dest_archive_name }}"
+  when: archive_path.stat.exists
 
 - name: "copy the local binary to the root bin directory when architectures match"
   local_action: copy src={{ source_file }} dest={{ openwhisk_home }}/bin
