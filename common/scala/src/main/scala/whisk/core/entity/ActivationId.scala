@@ -40,12 +40,13 @@ protected[whisk] class ActivationId private (val asString: String) extends AnyVa
   def toJsObject: JsObject = JsObject("activationId" -> asString.toJson)
 }
 
-protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
+protected[core] object ActivationId {
 
   protected[core] trait ActivationIdGenerator {
     def make(): ActivationId = ActivationId()
   }
 
+  /** Checks if the current character is hexadecimal */
   private def isHexadecimal(c: Char) = c.isDigit || c == 'a' || c == 'b' || c == 'd' || c == 'e' || c == 'f'
 
   /**
@@ -75,7 +76,7 @@ protected[core] object ActivationId extends ArgNormalizer[ActivationId] {
    */
   protected[core] def apply(): ActivationId = new ActivationId(UUIDs.randomUUID().toString.filterNot(_ == '-'))
 
-  override protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
+  protected[core] implicit val serdes = new RootJsonFormat[ActivationId] {
     def write(d: ActivationId) = JsString(d.toString)
 
     def read(value: JsValue): ActivationId = {
