@@ -13,18 +13,16 @@ SOURCE="${BASH_SOURCE[0]}"
 SCRIPTDIR="$( dirname "$SOURCE" )"
 
 echo "*** installing basics"
-"$SCRIPTDIR/misc.sh"
+/bin/bash "$SCRIPTDIR/misc.sh"
 
 echo "*** installing python dependences"
-"$SCRIPTDIR/pip.sh"
-
-u_release="$(lsb_release -rs)"
+/bin/bash "$SCRIPTDIR/pip.sh"
 
 echo "*** installing java"
-"$SCRIPTDIR/java8.sh"
+/bin/bash "$SCRIPTDIR/java8.sh"
 
 echo "*** installing ansible"
-"$SCRIPTDIR/ansible.sh"
+/bin/bash "$SCRIPTDIR/ansible.sh"
 
 # WARNING:
 #
@@ -35,11 +33,12 @@ echo "*** installing ansible"
 # but nothing after this step will run in that validity test situation.
 
 echo "*** installing docker"
+u_release="$(lsb_release -rs)"
 if [ "${u_release%%.*}" -lt "16" ]; then
-    "$SCRIPTDIR/docker.sh"
+    /bin/bash "$SCRIPTDIR/docker.sh"
 else
     echo "--- WARNING -------------------------------------------------"
     echo "Using EXPERIMENTAL Docker CE script on Xenial or later Ubuntu"
     echo "--- WARNING -------------------------------------------------"
-    "$SCRIPTDIR/docker-xenial.sh"
+    /bin/bash "$SCRIPTDIR/docker-xenial.sh"
 fi

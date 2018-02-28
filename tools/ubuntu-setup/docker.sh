@@ -5,7 +5,7 @@ set -x
 sudo apt-get -y install apt-transport-https ca-certificates
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
 sudo sh -c "echo deb https://apt.dockerproject.org/repo ubuntu-trusty main  > /etc/apt/sources.list.d/docker.list"
-sudo apt-get -y update -qq
+sudo apt-get -y update
 
 sudo apt-get purge lxc-docker
 sudo apt-cache policy docker-engine

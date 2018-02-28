@@ -2,7 +2,7 @@
 set -e
 set -x
 
-sudo pip install --upgrade setuptools
+sudo pip install --upgrade setuptools pip
 sudo apt-get install -y software-properties-common
 sudo apt-add-repository -y ppa:ansible/ansible
 sudo apt-get update

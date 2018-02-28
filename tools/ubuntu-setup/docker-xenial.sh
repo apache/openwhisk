@@ -17,7 +17,7 @@ sudo apt-key fingerprint 0EBFCD88
 
 sudo add-apt-repository \
     "deb [arch=$(uname -m | sed -e 's/x86_64/amd64/g')] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-sudo apt-get -y update -qq
+sudo apt-get -y update
 
 sudo apt-get purge lxc-docker || /bin/true
 sudo apt-cache policy docker-engine
