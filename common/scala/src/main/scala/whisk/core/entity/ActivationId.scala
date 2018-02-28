@@ -19,8 +19,8 @@ package whisk.core.entity
 
 import spray.json.DefaultJsonProtocol.StringJsonFormat
 import spray.json._
+import whisk.common.RandomString
 import whisk.http.Messages
-
 import whisk.core.entity.size._
 
 import scala.util.{Failure, Success, Try}
@@ -74,7 +74,7 @@ protected[core] object ActivationId {
    *
    * @return new ActivationId
    */
-  protected[core] def generate(): ActivationId = new ActivationId(UUIDs.randomUUID().toString.filterNot(_ == '-'))
+  protected[core] def generate(): ActivationId = new ActivationId(RandomString.generateHexadecimal(32))
 
   protected[core] implicit val serdes: RootJsonFormat[ActivationId] = new RootJsonFormat[ActivationId] {
     def write(d: ActivationId) = JsString(d.toString)

@@ -19,6 +19,7 @@ package whisk.core.entity
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+import whisk.common.RandomString
 
 /**
  * Secret, a cryptographic string such as a key used for authentication.
@@ -57,19 +58,11 @@ protected[core] object Secret {
     new Secret(str)
   }
 
-  /**
-   * Creates a new random secret.
-   *
-   * @return Secret
-   */
-  protected[core] def apply(): Secret = {
-    Secret(rand.alphanumeric.take(MIN_LENGTH).mkString)
-  }
+  /** Creates a new random secret. */
+  protected[core] def apply(): Secret = Secret(RandomString.generate(RandomString.alphanumeric)(MIN_LENGTH))
 
   implicit val serdes: RootJsonFormat[Secret] = new RootJsonFormat[Secret] {
     def write(s: Secret): JsValue = s.toJson
     def read(value: JsValue): Secret = Secret(value.convertTo[String])
   }
-
-  private val rand = new scala.util.Random(new java.security.SecureRandom())
 }
