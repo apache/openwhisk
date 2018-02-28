@@ -27,7 +27,7 @@ task testLean(type: Test) {
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
     exclude '**/*ApiGwTests*'
-    exclude '**/*Cli*'
+    exclude '**/*WskCli*'
 }
 
 task testLeanCli(type: Test) {
