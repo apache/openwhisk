@@ -265,6 +265,9 @@ object LoggingMarkers {
     LogMarkerToken(invoker, s"container_start_${containerState}", count)
   def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
 
+  // Kafka related markers
+  def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
+
   /*
    * General markers
    */

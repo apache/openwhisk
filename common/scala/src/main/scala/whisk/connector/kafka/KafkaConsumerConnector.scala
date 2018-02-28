@@ -24,13 +24,14 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.common.errors.{RetriableException, WakeupException}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import pureconfig.loadConfigOrThrow
-import whisk.common.Logging
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter}
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
 import scala.collection.JavaConversions.{iterableAsScalaIterable, seqAsJavaList}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.collection.JavaConverters._
 
 case class KafkaConsumerConfig(sessionTimeoutMs: Long)
 
@@ -136,4 +137,15 @@ class KafkaConsumerConnector(
   }
 
   @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
+
+//  Read current lag of the consumed topic, e.g. invoker queue and
+//  emit kamon histogram metric every 5 seconds
+//  Since we use only one partition in kafka, it is defined 0 in the metric name
+  actorSystem.scheduler.schedule(10.second, 5.second) {
+    val queueSize = consumer.metrics.asScala
+      .find(_._1.name() == s"$topic-0.records-lag")
+      .map(_._2.value().toInt)
+      .getOrElse(0)
+    MetricEmitter.emitHistogramMetric(LoggingMarkers.KAFKA_QUEUE(topic), queueSize)
+  }
 }
