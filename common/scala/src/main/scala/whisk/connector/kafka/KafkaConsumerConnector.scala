@@ -138,6 +138,9 @@ class KafkaConsumerConnector(
 
   @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
 
+//  Read current lag of the consumed topic, e.g. invoker queue and
+//  emit kamon histogram metric every 5 seconds
+//  Since we use only one partition in kafka, it is defined 0 in the metric name
   actorSystem.scheduler.schedule(10.second, 5.second) {
     val queueSize = consumer.metrics.asScala
       .find(_._1.name() == s"$topic-0.records-lag")
