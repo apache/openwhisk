@@ -4,14 +4,11 @@ set -x
 
 export DEBIAN_FRONTEND=noninteractive
 
+sudo apt-get update -y
+sudo apt-get install -y ntp git zip tzdata lsb-release
+
 echo "Etc/UTC" | sudo tee /etc/timezone
 sudo dpkg-reconfigure --frontend noninteractive tzdata
 
-sudo apt-get update -y
-sudo apt-get install -y ntp
-
 sudo service ntp restart
 sudo ntpq -c lpeer
-
-sudo apt-get -y install git
-sudo apt-get -y install zip
