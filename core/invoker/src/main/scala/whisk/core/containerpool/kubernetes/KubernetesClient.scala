@@ -26,12 +26,11 @@ import java.time.format.DateTimeFormatterBuilder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.{ErrorLevel, InfoLevel}
-import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
 import akka.stream.{Attributes, Outlet, SourceShape}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
@@ -172,8 +171,10 @@ class KubernetesClient(
     runCmd(Seq("delete", "--now", "pod", container.id.asString), config.timeouts.rm).map(_ => ())
   }
 
-  def rm(key: String, value: String)(implicit transid: TransactionId): Future[Unit] = {
-    if (config.invokerAgent.enabled) {
+  def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
+    if (ensureUnpaused && config.invokerAgent.enabled) {
+      // The caller can't guarantee that every container with the label key=value is already unpaused.
+      // Therefore we must enumerate them and ensure they are unpaused before we attempt to delete them.
       Future {
         blocking {
           kubeRestClient
@@ -184,8 +185,11 @@ class KubernetesClient(
             .getItems
             .asScala
             .map { pod =>
-              // Call destroy to ensure container is resumed before it is deleted.
-              toContainer(pod).destroy()
+              val container = toContainer(pod)
+              container
+                .resume()
+                .recover { case _ => () } // Ignore errors; it is possible the container was not actually suspended.
+                .map(_ => rm(container))
             }
         }
       }.flatMap(futures =>
@@ -199,9 +203,7 @@ class KubernetesClient(
 
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
     if (config.invokerAgent.enabled) {
-      // Forward command to invoker-agent daemonset instance on container's worker node
-      Http()
-        .singleRequest(HttpRequest(uri = agentCommand("suspend", container)))
+      agentCommand("suspend", container)
         .map { response =>
           response.discardEntityBytes()
         }
@@ -212,9 +214,7 @@ class KubernetesClient(
 
   def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
     if (config.invokerAgent.enabled) {
-      // Forward command to invoker-agent daemonset instance on container's worker node
-      Http()
-        .singleRequest(HttpRequest(uri = agentCommand("resume", container)))
+      agentCommand("resume", container)
         .map { response =>
           response.discardEntityBytes()
         }
@@ -245,12 +245,14 @@ class KubernetesClient(
     new KubernetesContainer(id, addr, workerIP, nativeContainerId)
   }
 
-  private def agentCommand(command: String, container: KubernetesContainer): Uri = {
-    Uri()
+  // Forward a command to invoker-agent daemonset instance on container's worker node
+  private def agentCommand(command: String, container: KubernetesContainer): Future[HttpResponse] = {
+    val uri = Uri()
       .withScheme("http")
       .withHost(container.workerIP)
       .withPort(config.invokerAgent.port)
       .withPath(Path / command / container.nativeContainerId)
+    Http().singleRequest(HttpRequest(uri = uri))
   }
 
   private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
@@ -296,7 +298,7 @@ trait KubernetesApi {
 
   def rm(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 
-  def rm(key: String, value: String)(implicit transid: TransactionId): Future[Unit]
+  def rm(key: String, value: String, ensureUnpaused: Boolean)(implicit transid: TransactionId): Future[Unit]
 
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 

@@ -105,10 +105,7 @@ class KubernetesContainer(protected[core] val id: ContainerId,
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    // Attempting to remove a pod with a suspended container leaves the pod stuck in "Terminating" state.
-    resume()
-      .recover { case _ => () } // Ignore errors; it is possible the container was not actually suspended.
-      .map(_ => kubernetes.rm(this))
+    kubernetes.rm(this)
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String

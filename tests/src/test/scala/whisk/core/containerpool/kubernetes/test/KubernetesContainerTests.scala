@@ -189,9 +189,7 @@ class KubernetesContainerTests
     implicit val kubernetes = stub[KubernetesApi]
 
     val id = ContainerId("id")
-    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo") {
-      override def resume()(implicit transid: TransactionId): Future[Unit] = Future.successful(())
-    }
+    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
 
     container.destroy()
 
