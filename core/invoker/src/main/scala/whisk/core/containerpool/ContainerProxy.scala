@@ -427,9 +427,14 @@ object ContainerProxy {
    * @param suffix the container name's suffix
    * @return a unique container name
    */
-  def containerName(instance: InstanceId, prefix: String, suffix: String) =
-    s"${ContainerFactory.containerNamePrefix(instance)}_${containerCount.next()}_${prefix}_${suffix}"
-      .replaceAll("[^a-zA-Z0-9_]", "")
+  def containerName(instance: InstanceId, prefix: String, suffix: String): String = {
+    def isAllowed(c: Char): Boolean = c.isLetterOrDigit || c == '_'
+
+    val sanitizedPrefix = prefix.filter(isAllowed)
+    val sanitizedSuffix = suffix.filter(isAllowed)
+
+    s"${ContainerFactory.containerNamePrefix(instance)}_${containerCount.next()}_${sanitizedPrefix}_${sanitizedSuffix}"
+  }
 
   /**
    * Creates a WhiskActivation ready to be sent via active ack.
