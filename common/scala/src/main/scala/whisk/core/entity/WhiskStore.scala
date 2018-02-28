@@ -34,12 +34,6 @@ import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig.dbActivations
 import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbHost
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbPort
-import whisk.core.WhiskConfig.dbProtocol
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbUsername
 import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
@@ -97,14 +91,7 @@ object WhiskAuthStore {
   implicit val docReader = WhiskDocumentReader
 
   def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbAuths -> null)
+    Map(dbAuths -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
@@ -112,14 +99,7 @@ object WhiskAuthStore {
 
 object WhiskEntityStore {
   def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbWhisk -> null)
+    Map(dbWhisk -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader
@@ -136,14 +116,7 @@ object WhiskEntityStore {
 object WhiskActivationStore {
   implicit val docReader = WhiskDocumentReader
   def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbActivations -> null)
+    Map(dbActivations -> null)
 
   def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)

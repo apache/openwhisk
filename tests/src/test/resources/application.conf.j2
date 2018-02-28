@@ -31,4 +31,13 @@ whisk {
           max-poll-interval-ms: 10000
         }
     }
+
+    couchdb {
+        protocol = {{ db_protocol }}
+        host     = {{ db_host }}
+        port     = {{ db_port }}
+        username = {{ db_username }}
+        password = {{ db_password }}
+        provider = {{ db_provider }}
+    }
 }

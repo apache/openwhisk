@@ -77,12 +77,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val invokerHosts = this(WhiskConfig.invokerHostsList)
   val zookeeperHosts = this(WhiskConfig.zookeeperHostList)
 
-  val dbProvider = this(WhiskConfig.dbProvider)
-  val dbUsername = this(WhiskConfig.dbUsername)
-  val dbPassword = this(WhiskConfig.dbPassword)
-  val dbProtocol = this(WhiskConfig.dbProtocol)
-  val dbHost = this(WhiskConfig.dbHost)
-  val dbPort = this(WhiskConfig.dbPort)
   val dbPrefix = this(WhiskConfig.dbPrefix)
   val dbAuths = this(WhiskConfig.dbAuths)
   val dbWhisk = this(WhiskConfig.dbWhisk)
@@ -167,12 +161,6 @@ object WhiskConfig {
 
   val dockerEndpoint = "main.docker.endpoint"
 
-  val dbProvider = "db.provider"
-  val dbProtocol = "db.protocol"
-  val dbHost = "db.host"
-  val dbPort = "db.port"
-  val dbUsername = "db.username"
-  val dbPassword = "db.password"
   val dbPrefix = "db.prefix"
   val dbAuths = "db.whisk.auths"
   val dbWhisk = "db.whisk.actions"
@@ -235,6 +223,7 @@ object WhiskConfig {
 object ConfigKeys {
   val loadbalancer = "whisk.loadbalancer"
 
+  val couchdb = "whisk.couchdb"
   val kafka = "whisk.kafka"
   val kafkaCommon = s"$kafka.common"
   val kafkaProducer = s"$kafka.producer"

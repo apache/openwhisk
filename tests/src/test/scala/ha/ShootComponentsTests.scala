@@ -34,9 +34,12 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common._
 import common.rest.WskRest
+import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
+import whisk.core.ConfigKeys
+import whisk.core.database.CouchDbConfig
 import whisk.core.database.test.ExtendedCouchDbRestClient
 import whisk.utils.retry
 
@@ -67,12 +70,12 @@ class ShootComponentsTests
   val controller0DockerHost = WhiskProperties.getBaseControllerHost()
   val couchDB0DockerHost = WhiskProperties.getBaseDBHost()
 
-  val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
+  val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
+  val dbProtocol = dbConfig.protocol
   val dbHostsList = WhiskProperties.getDBHosts
-  val dbPort = WhiskProperties.getProperty(WhiskConfig.dbPort)
-  val dbUsername = WhiskProperties.getProperty(WhiskConfig.dbUsername)
-  val dbPassword = WhiskProperties.getProperty(WhiskConfig.dbPassword)
-  val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
+  val dbPort = dbConfig.port
+  val dbUsername = dbConfig.username
+  val dbPassword = dbConfig.password
   val dbWhiskAuth = WhiskProperties.getProperty(WhiskConfig.dbAuths)
 
   def ping(host: String, port: Int, path: String = "/") = {
@@ -99,7 +102,7 @@ class ShootComponentsTests
     require(instance >= 0 && instance < 2, "DB instance not known.")
 
     val host = WhiskProperties.getProperty("db.hosts").split(",")(instance)
-    val port = WhiskProperties.getDBPort + instance
+    val port = dbPort + instance
 
     val res = ping(host, port)
     res == Some(
