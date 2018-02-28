@@ -137,10 +137,12 @@ class DockerExampleContainerTests extends ActionProxyContainerTestUtils with Wsk
 
   it should "timeout bad proxy with exception" in {
     val (out, err) = withContainer("badproxy") { c =>
-      an[IllegalStateException] should be thrownBy {
+      val ex = the[Exception] thrownBy {
         val (code, out) = c.init(JsObject())
         println(code, out)
       }
+
+      ex should (be(a[TimeoutException]) or be(a[IllegalStateException]))
     }
 
     out shouldBe empty
