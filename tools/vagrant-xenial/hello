@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# Start with a new VM
-if [ -d ".vagrant" ]; then
-  vagrant destroy
-fi
-
-vagrant up
-

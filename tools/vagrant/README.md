@@ -1,10 +1,10 @@
 # OpenWhisk on Vagrant
 
-The following instructions were tested on Mac OS X El Capitan, Ubuntu 14.04.3 LTS and Windows.
+The following instructions were tested on Mac OS X El Capitan, Ubuntu 16.04 LTS.
 
 ## Requirements
-- Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.1.22)
-- Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 1.9.5)
+-   Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.2.6)
+-   Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 2.02)
 
 ## Setup
 
@@ -26,7 +26,8 @@ cd openwhisk/tools/vagrant
 ```
 #### Option B - Using a remote Database
 
-**Note:** Follow instructions [tools/db/README.md](../db/README.md) on how to configure the remote DB for OpenWhisk.
+**Note:** Follow instructions [tools/db/README.md](../db/README.md) on how to
+configure the remote DB for OpenWhisk.
 
 ##### Option B.1 - Setting a remote Cloudant DB
 ```
@@ -38,11 +39,19 @@ OW_DB=cloudant OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy ./hello
 
 ```
 # Provide credentials for couchdb database with admin permissions
-OW_DB=couchdb OW_DB_USERNAME=xxxxx OW_DB_PASSWORD=yyyyyy OW_DB_PROTOCOL=http OW_DB_HOST=1.2.3.4 OW_DB_PORT=5984 ./hello
+export OW_DB=couchdb
+export OW_DB_USERNAME=<username>
+export OW_DB_PASSWORD=<password>
+export OW_DB_PROTOCOL=http
+export OW_DB_HOST=<ip_address>
+export OW_DB_PORT=5984 ./hello
 ```
 
-**Note:** Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart), but will be destroyed if you initialze the DB.
-For more information on data store configurations see [tools/db/README.md](../db/README.md).
+**Note:**
+Data will persist after [safe re-deploy](#safe-re-deploy-after-vm-restart),
+but will be destroyed if you
+initialze the DB. For more information on data store configurations see
+[tools/db/README.md](../db/README.md).
 
 
 ### Wait for hello action output
@@ -52,28 +61,41 @@ wsk action invoke /whisk.system/utils/echo -p message hello --result
     "message": "hello"
 }
 ```
-**Tip:** The very first build may take 30 minutes or more depending on network speed.
-If there are any build failures, it might be due to network timeouts, to recover follow the manual
-process to build and deploy in [ansible/README.md](../../ansible/README.md)
+**Tip:**
+The very first build may take 30 minutes or more depending on network speed. If
+there are any build failures, it might be due to network timeouts, to recover
+follow the manual process to build and deploy in
+[ansible/README.md](../../ansible/README.md)
 
-**Tip:** By default, each `docker` command will timeout after 840 seconds (14 minutes). If you're on a really slow connection,
-this might be too short. You can modify the timeout value in [docker.gradle](../../../gradle/docker.gradle#L22) as needed.
+**Tip:**
+By default, each `docker` command will timeout after 840 seconds (14 minutes).
+If you're on a really slow connection, this might be too short. You can modify
+the timeout value in [docker.gradle](../../../gradle/docker.gradle#L22) as
+
 
 ### Using CLI from outside the VM
-You can use the CLI from the host machine as well as from inside the virtual machine.
-The IP address of the virtual machine accessible from outside is `192.168.33.13`.
-If you start another Vagrant VM take into account that the IP address will conflict, use `vagrant suspend` before starting another VM with the same IP address.
+You can use the CLI from the host machine as well as from inside the virtual
+machine. The IP address of the virtual machine accessible from outside is
+`192.168.33.16`. If you start another Vagrant VM take into account that the IP
+address will conflict, use `vagrant suspend` before starting another VM with the
+same IP address.
 
-The CLI is available in `../../bin`. There you will find binaries specific to various operating systems and architectures (e.g. `../../bin/mac/amd64/wsk`).
-When using the CLI with a local deployment of OpenWhisk (which provides an insecure/self-signed SSL certificate), you must use the argument `-i` to permit an insecure HTTPS connection to OpenWhisk. This should be used for development purposes only.
+The CLI is available in `../../bin`. There you will find binaries specific to
+various operating systems and architectures (e.g. `../../bin/mac/amd64/wsk`).
+When using the CLI with a local deployment of OpenWhisk (which provides an
+insecure/self-signed SSL certificate), you must use the argument `-i` to permit
+an insecure HTTPS connection to OpenWhisk. This should be used for development
+purposes only.
 
-Call the binary directly or setup your environment variable PATH to include the location of the binary that corresponds to your environment.
+Call the binary directly or setup your environment variable PATH to include the
+location of the binary that corresponds to your environment.
 
-From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk deployment and run the "echo" action again to test.
-The following commands assume that you have `wsk` setup correctly in your PATH.
+From your _host_, configure `wsk` to use your Vagrant-hosted OpenWhisk
+deployment and run the "echo" action again to test. The following commands
+assume that you have `wsk` setup correctly in your PATH.
 ```
 # Set your OpenWhisk Authorization Key.
-wsk property set --apihost 192.168.33.13 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk property set --apihost 192.168.33.16 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 
 # Run the hello sample action
 wsk -i action invoke /whisk.system/utils/echo -p message hello --result
@@ -82,19 +104,29 @@ wsk -i action invoke /whisk.system/utils/echo -p message hello --result
 }
 ```
 
-**Tip:** You need to use the `-i` switch as the default SSL certificate used by the Vagrant installation is self-signed. Alternatively, you can configure your __apihost__ to use the non-SSL interface:
+**Tip:**
+You need to use the `-i` switch as the default SSL certificate used by the
+Vagrant installation is self-signed. Alternatively, you can configure your
+_apihost_ to use the non-SSL interface:
 
 ```
-wsk property set --apihost http://192.168.33.13:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
+wsk property set --apihost http://192.168.33.16:10001 --auth `vagrant ssh -- cat openwhisk/ansible/files/auth.guest`
 ```
 
-You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk sdk` will not work, so you need to pass use `wsk -i --apihost 192.168.33.13  sdk {command}` in this case.
+You do not need to use the `-i` switch to `wsk` now. Note, however, that `wsk
+sdk` will not work, so you need to pass use `wsk -i --apihost 192.168.33.16  sdk
+{command}` in this case.
 
 
-**Note:** To connect to a different host API (i.e. bluemix.net) with the CLI, you will need to configure the CLI with new values for __apihost__, and __auth__ key.
+**Note:**
+To connect to a different host API (i.e. bluemix.net) with the CLI, you will
+need to configure the CLI with new values for _apihost_, and _auth_ key.
 
 ### Use the wsk CLI inside the VM
-For your convenience, a `wsk` wrapper is provided inside the VM which delegates CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i` parameter that is required for insecure access to the local OpenWhisk deployment.
+For your convenience, a `wsk` wrapper is provided inside the VM which delegates
+CLI commands to `$OPENWHISK_HOME/bin/linux/amd64/wsk` and adds the `-i`
+parameter that is required for insecure access to the local OpenWhisk
+deployment.
 
 Calling the wsk CLI via `vagrant ssh` directly
 ```
@@ -117,7 +149,9 @@ cd ${OPENWHISK_HOME}
 ```
 
 ## Building OpenWhisk
-Use gradle to build docker images from inside the VM, this is done automatically once at VM creation.
+Use gradle to build docker images from inside the VM, this is done automatically
+once at VM creation.
+
 ```
 vagrant ssh
 cd ${OPENWHISK_HOME}
@@ -126,7 +160,9 @@ cd ${OPENWHISK_HOME}
 
 ## Safe Re-deploy (after VM restart)
 
-If you restart the VM (e.g., `vagrant reload`), it may be necessary to refresh the OpenWhisk deployment. You can do this in a way that does not reload the data store container.
+If you restart the VM (e.g., `vagrant reload`), it may be necessary to refresh
+the OpenWhisk deployment. You can do this in a way that does not reload the data
+store container.
 
 ```
 vagrant ssh
@@ -137,11 +173,14 @@ ansible-playbook -i environments/local openwhisk.yml -e mode=clean
 ansible-playbook -i environments/local openwhisk.yml
 ```
 
-The following commands are helpful to deploy a fresh OpenWhisk and data store after booting a new VM using `vagrant up`.
+The following commands are helpful to deploy a fresh OpenWhisk and data store
+after booting a new VM using `vagrant up`.
 
 ### Teardown and Deploy (refresh the data store)
 Use ansible to re-deploy OpenWhisk from inside the VM
-To deploy a new code base you need to [re-build OpenWhisk](#build-openwhisk) first
+To deploy a new code base you need to [re-build OpenWhisk](#build-openwhisk)
+first
+
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
@@ -159,38 +198,52 @@ ansible-playbook -i environments/local openwhisk.yml
 ansible-playbook -i environments/local postdeploy.yml
 ```
 
-**Tip** Do not restart the VM using Virtual Box tools, and always use `vagrant` from the command line: `vagrant up` to start the VM and `vagrant reload` to restart it. This allows the `$HOME/openwhisk` folder to be available inside the VM.
+**Tip**
+Do not restart the VM using Virtual Box tools, and always use `vagrant` from the
+command line: `vagrant up` to start the VM and `vagrant reload` to restart it.
+This allows the `$HOME/openwhisk` folder to be available inside the VM.
 
 **Tip** If you have problems with data stores check that `ansible/db_local.ini`.
 
-**Tip** To initialize the data store from scratch run `ansible-playbook -i environments/local initdb.yml` inside the VM as described in [ansible setup](../../../ansible/README.md).
+**Tip**
+To initialize the data store from scratch run `ansible-playbook -i
+environments/local initdb.yml` inside the VM as described in
+[ansible setup](../../../ansible/README.md).
 
-Once deployed, several Docker containers will be running in your virtual machine.
-You can check that containers are running by using the docker cli with the command `vagrant ssh -- docker ps`.
-
+Once deployed, several Docker containers will be running in your virtual
+machine. You can check that containers are running by using the docker cli with
+the command `vagrant ssh -- docker ps`.
 
 ## Adding OpenWhisk users (Optional)
 
-An OpenWhisk user, also known as a *subject*, requires a valid authorization key.
-OpenWhisk is preconfigured with a guest key located in `ansible/files/auth.guest`.
+An OpenWhisk user, also known as a _subject_, requires a valid authorization
+key. OpenWhisk is preconfigured with a guest key located in
+`ansible/files/auth.guest`.
 
-You may use this key if you like, or use [`wskadmin`](../admin) inside the VM to create a new key.
+You may use this key if you like, or use [`wskadmin`](../admin) inside the VM to
+create a new key.
 
 ```
 vagrant ssh
 wskadmin user create <subject>
 ```
 
-This command will create a new *subject* with the authorization key shown on the console once you run `wskadmin`. This key is required when making API calls to OpenWhisk, or when using the command line interface (CLI). The namespace is the same as the `<subject>` name used to create the key.
+This command will create a new _subject_ with the authorization key shown on the
+console once you run `wskadmin`. This key is required when making API calls to
+OpenWhisk, or when using the command line interface (CLI). The namespace is the
+same as the `<subject>` name used to create the key.
 
-A namespace allows two or more subjects to share resources. Each subject will have their own authorization key to work with resources in a namespace, but will have equal rights to the namespace.
+A namespace allows two or more subjects to share resources. Each subject will
+have their own authorization key to work with resources in a namespace, but will
+have equal rights to the namespace.
 
 ```
 vagrant ssh
 wskadmin user create <subject> -ns <namespace>
 ```
 
-The same tool may be used to remove a subject from a namespace or to delete a subject entirely.
+The same tool may be used to remove a subject from a namespace or to delete a
+subject entirely.
 
 ```
 vagrant ssh
@@ -200,8 +253,10 @@ wskadmin user delete <subject>                   # deletes <subject>
 
 ## SSL certificate configuration (Optional)
 
-OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows untrusted certificates via `-i` on the command line.
-The certificate is generated during setup and stored in `ansible/roles/nginx/files/openwhisk-cert.pem`.
+OpenWhisk includes a _self-signed_ SSL certificate and the `wsk` CLI allows
+untrusted certificates via `-i` on the command line. The certificate is
+generated during setup and stored in
+`ansible/roles/nginx/files/openwhisk-cert.pem`.
 
 Do not use these certificates in production: replace with your own and modify
 the configuration to use trusted certificates instead.
@@ -221,14 +276,21 @@ the configuration to use trusted certificates instead.
   vagrant ssh -- wsk -h
   vagrant ssh -- wsk <command> -h
 ```
-**Tip**: Don't use `vagrant resume`. See [here](https://github.com/mitchellh/vagrant/issues/6787) for related issue.
+**Tip**:
+Don't use `vagrant resume`. See
+[here](https://github.com/mitchellh/vagrant/issues/6787) for related issue.
 
 ## Using Vagrant VM in GUI mode (Optional)
-Create VM with Desktop GUI. The `username` and `password` are both set to `vagrant` by default.
+Create VM with Desktop GUI. The `username` and `password` are both set to
+`vagrant` by default.
+
 ```
   gui=true ./hello
   gui=true vagrant reload
 ```
-**Tip**: Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when
-creating Vagrant VM using `gui-true`. Remember to use `gui=true` every time you do `vagrant reload`.
-Or, you can enable the GUI directly by editing the Vagrant file.
+
+**Tip**:
+Ignore error message `Sub-process /usr/bin/dpkg returned an error code (1)` when
+creating Vagrant VM using `gui-true`. Remember to use `gui=true` every time you
+do `vagrant reload`. Or, you can enable the GUI directly by editing the Vagrant
+file.
