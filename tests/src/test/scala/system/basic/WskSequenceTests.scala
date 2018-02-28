@@ -63,7 +63,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
 
   it should "invoke a sequence with normal payload and payload with error field" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "sequence"
+      val name = withTimestamp("sequence")
       val actions = Seq("split", "sort", "head", "cat")
       for (actionName <- actions) {
         val file = TestUtils.getTestActionFilename(s"$actionName.js")
@@ -120,8 +120,8 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   }
 
   it should "invoke a sequence with an enclosing sequence action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val inner_name = "inner_sequence"
-    val outer_name = "outer_sequence"
+    val inner_name = withTimestamp("inner_sequence")
+    val outer_name = withTimestamp("outer_sequence")
     val inner_actions = Seq("sort", "head")
     val actions = Seq("split") ++ inner_actions ++ Seq("cat")
     // create atomic actions
@@ -141,7 +141,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
 
     // create outer sequence
     assetHelper.withCleaner(wsk.action, outer_name) {
-      val outer_sequence = Seq("split", "inner_sequence", "cat").mkString(",")
+      val outer_sequence = Seq("split", inner_name, "cat").mkString(",")
       (action, _) =>
         action.create(outer_name, Some(outer_sequence), kind = Some("sequence"))
     }
@@ -171,22 +171,23 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   it should "replace atomic component in a sequence that is too long and report invoke error" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
-    val xName = "xSequence"
-    val sName = "sSequence"
+    val xName = withTimestamp("xSequence")
+    val sName = withTimestamp("sSequence")
     val echo = "echo"
+    val echoActionName = withTimestamp(s"$echo")
 
     // create echo action
     val file = TestUtils.getTestActionFilename(s"$echo.js")
-    assetHelper.withCleaner(wsk.action, echo) { (action, actionName) =>
+    assetHelper.withCleaner(wsk.action, echoActionName) { (action, actionName) =>
       action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
     }
     // create x
     assetHelper.withCleaner(wsk.action, xName) { (action, seqName) =>
-      action.create(seqName, Some(echo), kind = Some("sequence"))
+      action.create(seqName, Some(echoActionName), kind = Some("sequence"))
     }
     // create s
     assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
-      action.create(seqName, Some(s"$echo,$xName,$echo"), kind = Some("sequence"))
+      action.create(seqName, Some(s"$echoActionName,$xName,$echoActionName"), kind = Some("sequence"))
     }
 
     // invoke s
@@ -202,7 +203,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
     }
     // update x with limit echo
     val limit = whiskConfig.actionSequenceLimit.toInt
-    val manyEcho = for (i <- 1 to limit) yield echo
+    val manyEcho = for (i <- 1 to limit) yield echoActionName
 
     wsk.action.create(xName, Some(manyEcho.mkString(",")), kind = Some("sequence"), update = true)
 
@@ -224,19 +225,20 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
 
   it should "create and run a sequence in a package with parameters" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val sName = "sSequence"
+      val sName = withTimestamp("sSequence")
 
       // create a package
-      val pkgName = "echopackage"
+      val pkgName = withTimestamp("echopackage")
       val pkgStr = "LonelyPackage"
       assetHelper.withCleaner(wsk.pkg, pkgName) { (pkg, name) =>
         pkg.create(name, Map("payload" -> JsString(pkgStr)))
       }
-      val helloName = "hello"
-      val helloWithPkg = s"$pkgName/$helloName"
+      val hello = "hello"
+      val helloActionName = withTimestamp(s"$hello")
+      val helloWithPkg = s"$pkgName/$helloActionName"
 
       // create hello action in package
-      val file = TestUtils.getTestActionFilename(s"$helloName.js")
+      val file = TestUtils.getTestActionFilename(s"$hello.js")
       val actionStr = "AtomicAction"
       assetHelper.withCleaner(wsk.action, helloWithPkg) { (action, actionName) =>
         action.create(
@@ -274,9 +276,9 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
 
   it should "run a sequence with an action in a package binding with parameters" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val packageName = "package1"
-      val bindName = "package2"
-      val actionName = "print"
+      val packageName = withTimestamp("package1")
+      val bindName = withTimestamp("package2")
+      val actionName = withTimestamp("print")
       val packageActionName = packageName + "/" + actionName
       val bindActionName = bindName + "/" + actionName
       val packageParams = Map("key1a" -> "value1a".toJson, "key1b" -> "value1b".toJson)
@@ -313,21 +315,22 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   it should "stop execution of a sequence (with no payload) on error" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val sName = "sSequence"
+      val sName = withTimestamp("sSequence")
       val apperror = "applicationError"
       val echo = "echo"
 
       // create actions
       val actions = Seq(apperror, echo)
+      val actionNames = actions.map(a => (a -> withTimestamp(a))).toMap
       for (actionName <- actions) {
         val file = TestUtils.getTestActionFilename(s"$actionName.js")
-        assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
-          action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+        assetHelper.withCleaner(wsk.action, actionNames(actionName)) { (action, name) =>
+          action.create(name = name, artifact = Some(file), timeout = Some(allowedActionDuration))
         }
       }
       // create sequence s
       assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
-        action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+        action.create(seqName, artifact = Some(actionNames.values.mkString(",")), kind = Some("sequence"))
       }
       // run sequence s with no payload
       val run = wsk.action.invoke(sName)
@@ -348,23 +351,24 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   it should "propagate execution error (timeout) from atomic action to sequence" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val sName = "sSequence"
+      val sName = withTimestamp("sSequence")
       val initforever = "initforever"
       val echo = "echo"
 
       // create actions
       val actions = Seq(echo, initforever)
+      val actionNames = actions.map(a => (a -> withTimestamp(a))).toMap
       // timeouts for the action; make the one for initforever short
       val timeout = Map(echo -> allowedActionDuration, initforever -> shortDuration)
       for (actionName <- actions) {
         val file = TestUtils.getTestActionFilename(s"$actionName.js")
-        assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
-          action.create(name = actionName, artifact = Some(file), timeout = Some(timeout(actionName)))
+        assetHelper.withCleaner(wsk.action, actionNames(actionName)) { (action, name) =>
+          action.create(name = name, artifact = Some(file), timeout = Some(timeout(actionName)))
         }
       }
       // create sequence s
       assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
-        action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+        action.create(seqName, artifact = Some(actionNames.values.mkString(",")), kind = Some("sequence"))
       }
       // run sequence s with no payload
       val run = wsk.action.invoke(sName)
@@ -387,21 +391,22 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   it should "execute a sequence in blocking fashion and finish execution even if longer than blocking response timeout" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
-    val sName = "sSequence"
+    val sName = withTimestamp("sSequence")
     val sleep = "timeout"
     val echo = "echo"
 
     // create actions
     val actions = Seq(echo, sleep)
+    val actionNames = actions.map(a => (a -> withTimestamp(a))).toMap
     for (actionName <- actions) {
       val file = TestUtils.getTestActionFilename(s"$actionName.js")
-      assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
-        action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
+      assetHelper.withCleaner(wsk.action, actionNames(actionName)) { (action, name) =>
+        action.create(name = name, artifact = Some(file), timeout = Some(allowedActionDuration))
       }
     }
     // create sequence s
     assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
-      action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
+      action.create(seqName, artifact = Some(actionNames.values.mkString(",")), kind = Some("sequence"))
     }
     // run sequence s with sleep equal to payload
     val payload = 65000
@@ -429,10 +434,11 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
    */
   it should "execute a sequence that is part of a rule and pass the trigger parameters to the sequence" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
-    val seqName = "seqRule"
-    val actionName = "echo"
-    val triggerName = "trigSeq"
-    val ruleName = "ruleSeq"
+    val seqName = withTimestamp("seqRule")
+    val echoaction = "echo"
+    val actionName = withTimestamp(s"$echoaction")
+    val triggerName = withTimestamp("trigSeq")
+    val ruleName = withTimestamp("ruleSeq")
 
     val itIsNow = "it is now " + new Date()
     // set up all entities
@@ -442,7 +448,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
       trigger.create(name, parameters = triggerPayload)
     }
     // action
-    val file = TestUtils.getTestActionFilename(s"$actionName.js")
+    val file = TestUtils.getTestActionFilename(s"$echoaction.js")
     assetHelper.withCleaner(wsk.action, actionName) { (action, actionName) =>
       action.create(name = actionName, artifact = Some(file), timeout = Some(allowedActionDuration))
     }
