@@ -32,19 +32,12 @@ There are four configurations options available:
 
   Port number of the statsd server
 
-- **metrics_granular_metric** [true / false  (default: false)]
-
-  Enable/disable whether to send finely granulated metric.
-  
-  *Beware: This option cause scalability issues in common time-series databases and as such is dangerous to day-to-day operations.*
-
 
 Example configuration:
 
 ```
 metrics_kamon: true
 metrics_kamon_tags: false
-metrics_granular_metric: false
 metrics_kamon_statsd_host: '192.168.99.100'
 metrics_kamon_statsd_port: '8125'
 metrics_log: true

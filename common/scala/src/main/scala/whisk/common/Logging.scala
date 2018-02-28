@@ -137,7 +137,7 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
  */
 case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
   override def toString() = {
-    val parts = Seq(LogMarker.keyword, token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
+    val parts = Seq(LogMarker.keyword, token.toStringWithSubAction, deltaToTransactionStart) ++ deltaToMarkerStart
     "[" + parts.mkString(":") + "]"
   }
 }
@@ -176,23 +176,18 @@ private object Emitter {
  * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers.
  * @param action Action of the component.
  * @param state State of the action.
- * @param macroTags macroTags should be used for tags with a bounded number of permutations. (e.g. http status code)
- * @param microTags microTags can be used for whatever granularity you might need.
+ * @param subAction more specific identifier for "action", like `runc.resume`
+ * @param tags tags can be used for whatever granularity you might need.
  */
 case class LogMarkerToken(component: String,
                           action: String,
                           state: String,
-                          macroTags: Map[String, String] = Map.empty,
-                          microTags: Map[String, String] = Map.empty) {
+                          subAction: Option[String] = None,
+                          tags: Map[String, String] = Map.empty) {
 
-  override def toString() = component + "_" + action + "_" + state
-
-  def toStringWithTags(includeMicroTags: Boolean) = {
-    val tags = if (includeMicroTags) allTags else macroTags
-    val tagString = tags.values.foldLeft("")(_ + "." + _) // graceful handling of an empty map
-    component + "_" + action + tagString + "_" + state
-  }
-  def allTags = macroTags ++ microTags
+  override def toString = component + "_" + action + "_" + state
+  def toStringWithSubAction =
+    subAction.map(sa => component + "_" + action + "." + sa + "_" + state).getOrElse(toString)
 
   def asFinish = copy(state = LoggingMarkers.finish)
   def asError = copy(state = LoggingMarkers.error)
@@ -200,11 +195,18 @@ case class LogMarkerToken(component: String,
 
 object LogMarkerToken {
 
-  def parse(s: String) = {
+  def parse(string: String) = {
     // Per convention the components are guaranteed to not contain '_'
     // thus it's safe to split at '_' to get the components
-    val Array(component, action, state) = s.split("_")
-    LogMarkerToken(component, action, state)
+    val Array(component, action, state) = string.split('_')
+
+    val (generalAction, subAction) = action.split('.').toList match {
+      case Nil         => throw new IllegalArgumentException("LogMarkerToken malformed")
+      case a :: Nil    => (a, None)
+      case a :: s :: _ => (a, Some(s))
+    }
+
+    LogMarkerToken(component, generalAction, state, subAction)
   }
 
 }
@@ -217,10 +219,10 @@ object MetricEmitter {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         metrics
-          .counter(token.toString, if (TransactionId.granularMetric) token.allTags else token.macroTags)
+          .counter(token.toString, token.tags)
           .increment(1)
       } else {
-        metrics.counter(token.toStringWithTags(includeMicroTags = TransactionId.granularMetric)).increment(1)
+        metrics.counter(token.toStringWithSubAction).increment(1)
       }
     }
   }
@@ -229,10 +231,10 @@ object MetricEmitter {
     if (TransactionId.metricsKamon) {
       if (TransactionId.metricsKamonTags) {
         metrics
-          .histogram(token.toString, if (TransactionId.granularMetric) token.allTags else token.macroTags)
+          .histogram(token.toString, token.tags)
           .record(value)
       } else {
-        metrics.histogram(token.toStringWithTags(includeMicroTags = TransactionId.granularMetric)).record(value)
+        metrics.histogram(token.toStringWithSubAction).record(value)
       }
     }
   }
@@ -288,16 +290,11 @@ object LoggingMarkers {
 
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
-  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Map("cmd" -> cmd))
-  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Map("cmd" -> cmd))
-  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Map("cmd" -> cmd))
+  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String, namespaceName: String, actionName: String) =
-    LogMarkerToken(
-      invoker,
-      "containerStart",
-      count,
-      Map("containerState" -> containerState),
-      Map("namespace" -> namespaceName, "action" -> actionName))
+    LogMarkerToken(invoker, "containerStart", count, Some(containerState), Map("containerState" -> containerState))
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)

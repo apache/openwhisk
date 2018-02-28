@@ -122,7 +122,12 @@ trait BasicHttpService extends Directives with TransactionCounter {
       val name = "BasicHttpService"
 
       val token =
-        LogMarkerToken("http", m.toLowerCase, LoggingMarkers.count, Map("statusCode" -> res.status.intValue.toString))
+        LogMarkerToken(
+          "http",
+          m.toLowerCase,
+          LoggingMarkers.count,
+          Some(res.status.intValue.toString),
+          Map("statusCode" -> res.status.intValue.toString))
       val marker = LogMarker(token, tid.deltaToStart, Some(tid.deltaToStart))
 
       MetricEmitter.emitHistogramMetric(token, tid.deltaToStart)
