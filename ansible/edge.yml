@@ -8,7 +8,3 @@
   roles:
   - nginx
   - cli
-
-- hosts: ansible
-  roles:
-  - cli-ansible
