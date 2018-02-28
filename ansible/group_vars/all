@@ -274,6 +274,9 @@ openwhisk_cli:
   installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
   local:
     location: "{{ openwhisk_cli_home }}/build"
+    archive_location: "{{ openwhisk_cli_home }}/release"
+    name: OpenWhisk_CLI
+    dest_name: OpenWhisk_CLI
   remote:
     name: OpenWhisk_CLI
     dest_name: OpenWhisk_CLI
