@@ -19,18 +19,17 @@ package whisk.core.entity.test
 
 import java.time.Instant
 
-import scala.Vector
 import scala.concurrent.Await
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-
 import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
+import org.scalatest.mockito.MockitoSugar
+import org.mockito.Mockito._
 import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.CacheChangeNotification
@@ -46,6 +45,7 @@ class DatastoreTests
     with WskActorSystem
     with DbUtils
     with ExecHelpers
+    with MockitoSugar
     with StreamLogging {
 
   implicit val materializer = ActorMaterializer()
@@ -206,6 +206,19 @@ class DatastoreTests
     val revAction =
       WhiskAction(namespace, action.name, exec, Parameters(), ActionLimits()).revision[WhiskAction](docinfo.rev)
     putGetCheck(datastore, revAction, WhiskAction)
+  }
+
+  it should "delete action attachments" in {
+    implicit val tid = transid()
+    implicit val basename = EntityName("attachment action")
+    val javaAction =
+      WhiskAction(namespace, aname, javaDefault("ZHViZWU=", Some("hello")), annotations = Parameters("exec", "java"))
+    val docinfo = putGetCheck(datastore, javaAction, WhiskAction, false)._2.docinfo
+
+    val proxy = spy(datastore)
+    Await.result(WhiskAction.del(proxy, docinfo), dbOpTimeout)
+
+    verify(proxy).deleteAttachments(docinfo)
   }
 
   it should "update trigger with a revision" in {
