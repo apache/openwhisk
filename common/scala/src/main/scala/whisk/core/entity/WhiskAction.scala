@@ -379,10 +379,18 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   override def del[Wsuper >: WhiskAction](db: ArtifactStore[Wsuper], doc: DocInfo)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-    implicit val ec = db.executionContext
-    val fa = super.del(db, doc)
-    fa.flatMap { _ =>
-      super.deleteAttachments(db, doc)
+    Try {
+      require(db != null, "db undefined")
+      require(doc != null, "doc undefined")
+    }.map { _ =>
+      val fa = super.del(db, doc)
+      implicit val ec = db.executionContext
+      fa.flatMap { _ =>
+        super.deleteAttachments(db, doc)
+      }
+    } match {
+      case Success(f) => f
+      case Failure(f) => Future.failed(f)
     }
   }
 
