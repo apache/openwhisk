@@ -30,6 +30,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.core.ConfigKeys
+import whisk.core.WhiskConfig
 import whisk.core.database.CouchDbRestClient
 import whisk.core.database.CouchDbConfig
 
@@ -42,7 +43,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
   val dbPort = config.port
   val dbUsername = config.username
   val dbPassword = config.password
-  val dbPrefix = config.dbPrefix
+  val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
   val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
 
   def retry[T](task: => T) = whisk.utils.retry(task, 10, Some(500.milliseconds))

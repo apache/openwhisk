@@ -33,11 +33,8 @@ case class CouchDbConfig(provider: String,
                          port: Int,
                          username: String,
                          password: String,
-                         dbPrefix: String,
                          databases: Map[String, String]) {
-  assume(
-    Set(protocol, host, username, password, dbPrefix).forall(_.nonEmpty),
-    "At least one expected property is missing")
+  assume(Set(protocol, host, username, password).forall(_.nonEmpty), "At least one expected property is missing")
 
   def getDatabaseName(entityClass: Class[_]): String = {
     databases.get(entityClass.getSimpleName) match {
