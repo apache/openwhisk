@@ -2,7 +2,7 @@
 
 OpenWhisk actions can benefit from being managed by API management.
 
-The API Gateway acts as a proxy to [Web Actions](webactions.md) and provides them with additional features including HTTP method routing , client id/secrets, rate limiting and CORS.
+The API Gateway can act as a proxy to [Web Actions](webactions.md) and provides them with additional features including HTTP method routing , client id/secrets, rate limiting and CORS.
 For more information on API Gateway feature you can read the [api management documentation](https://github.com/apache/incubator-openwhisk-apigateway/blob/master/doc/v2/management_interface_v2.md)
 
 
@@ -10,7 +10,7 @@ For more information on API Gateway feature you can read the [api management doc
 
 ### OpenWhisk CLI configuration
 
-Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-cli) on how to set the authentication key for your specific namespace.
+Follow the instructions in [Configure CLI](https://github.com/apache/incubator-openwhisk/blob/master/docs/cli.md) on how to set the authentication key for your specific namespace.
 
 ### Create your first API using the CLI
 
@@ -37,27 +37,27 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   ```
   ```
   ok: created API /hello/world GET for action /_/hello
-  https://${APIHOST}:9001/api/21ef035/hello/world
+  https://${APIHOST}:9001/api/${GENERATED_API_ID}/hello/world
   ```
   A new URL is generated exposing the `hello` action via a __GET__ HTTP method.
 
 4. Let's give it a try by sending a HTTP request to the URL.
 
   ```
-  $ curl https://${APIHOST}:9001/api/21ef035/hello/world?name=OpenWhisk
+  $ curl https://${APIHOST}:9001/api/${GENERATED_API_ID}/hello/world?name=OpenWhisk
   ```
-  ```json
+  ```
   {
   "payload": "Hello world OpenWhisk"
   }
   ```
-  The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
+   The web action `hello` was invoked, returning back a JSON object including the parameter `name` sent via query parameter. You can pass parameters to the action via simple query parameters, or via the request body. Web actions allow you to invoke an action in a public way without the OpenWhisk authorization API key.
 
 ### Full control over the HTTP response
 
   The `--response-type` flag controls the target URL of the web action to be proxied by the API Gateway. Using `--response-type json` as above returns the full result of the action in JSON format and automatically sets the Content-Type header to `application/json` which enables you to easily get started.
 
-  Once you get started, you will want to have full control over the HTTP response properties like `statusCode`, `headers` and return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target URL of the web action with the `http` extension.
+  Once you get started, you will want to have full control over the HTTP response properties like `statusCode` and `headers`, and you may want to return different content types in the `body`. You can do this by using `--response-type http`, this will configure the target URL of the web action with the `http` extension.
 
   You can choose to change the code of the action to comply with the return of web actions with `http` extension or include the action in a sequence passing its result to a new action that transforms the result to be properly formatted for an HTTP response. You can read more about response types and web actions extensions in the [Web Actions](webactions.md) documentation.
 
@@ -65,13 +65,12 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   ```javascript
   function main({name:name='Serverless API'}) {
       return {
-        body: new Buffer(JSON.stringify({payload:`Hello world ${name}`})).toString('base64'),
+        body: {payload:`Hello world ${name}`},
         statusCode: 200,
         headers:{ 'Content-Type': 'application/json'}
       };
   }
   ```
-  Notice that the body needs to be return encoded in `base64` and not a string.
 
   Update the action with the modified result
   ```
@@ -83,7 +82,7 @@ Follow the instructions in [Configure CLI](./README.md#setting-up-the-openwhisk-
   ```
   Let's call the updated API
   ```
-  curl https://${APIHOST}:9001/api/21ef035/hello/world
+  curl https://${APIHOST}:9001/api/${GENERATED_API_ID}/hello/world
   ```
   ```json
   {
@@ -104,12 +103,15 @@ You have a series of actions to implement your backend for the book club:
 | putBooks    | PUT | updates book details |
 | deleteBooks | DELETE | deletes a book |
 
-Let's create an API for the book club, named `Book Club`, with `/club` as its HTTP URL base path and `books` as its resource.
+Let's create an API for the book club, named `Book Club`, with `/club` as its HTTP URL base path and `books` as its resource and `{isbn}` as a path parameter used to identify a specific book by its ISBN.
+
+When using path parameters, the API must be defined with a response type of `http`, and the path, starting with the base path and including the actual path parameter value(s), will be available in the `__ow_path` field of the action's JSON parameter. Refer to the [Web Actions HTTP Context](webactions.md#http-context) documentation for more details about this and other HTTP context fields that are available to web actions invoked with a `http` response type.
 ```
-wsk api create -n "Book Club" /club /books get getBooks --response-type http
-wsk api create /club /books post postBooks              --response-type http
-wsk api create /club /books put putBooks                --response-type http
-wsk api create /club /books delete deleteBooks          --response-type http
+wsk api create -n "Book Club" /club /books/{isbn} get getBooks --response-type http
+wsk api create /club /books get getBooks                       --response-type http
+wsk api create /club /books post postBooks                     --response-type http
+wsk api create /club /books/{isbn} put putBooks                --response-type http
+wsk api create /club /books/{isbn} delete deleteBooks          --response-type http
 ```
 
 Notice that the first action exposed with base path `/club` gets the API label with name `Book Club` any other actions exposed under `/club` will be associated with `Book Club`
@@ -117,39 +119,45 @@ Notice that the first action exposed with base path `/club` gets the API label w
 Let's list all the actions that we just exposed.
 
 ```
-wsk api list -f
+wsk api list /club -f
 ```
 ```
 ok: APIs
 Action: getBooks
   API Name: Book Club
   Base path: /club
+  Path: /books/{isbn}
+  Verb: get
+  URL: https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+Action: getBooks
+  API Name: Book Club
+  Base path: /club
   Path: /books
   Verb: get
-  URL: https://${APIHOST}:9001/api/21ef035/club/books
+  URL: https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 Action: postBooks
   API Name: Book Club
   Base path: /club
   Path: /books
   Verb: post
-  URL: https://${APIHOST}:9001/api/21ef035/club/books
+  URL: https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 Action: putBooks
   API Name: Book Club
   Base path: /club
-  Path: /books
+  Path: /books/{isbn}
   Verb: put
-  URL: https://${APIHOST}:9001/api/21ef035/club/books
+  URL: https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
 Action: deleteBooks
   API Name: Book Club
   Base path: /club
-  Path: /books
+  Path: /books/{isbn}
   Verb: delete
-  URL: https://${APIHOST}:9001/api/21ef035/club/books
+  URL: https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
 ```
 
 Now just for fun let's add a new book `JavaScript: The Good Parts` with a HTTP __POST__
 ```
-curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}' https://${APIHOST}:9001/api/21ef035/club/books
+curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}' -H "Content-Type: application/json" https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 ```
 ```
 {
@@ -159,12 +167,17 @@ curl -X POST -d '{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}'
 
 Let's get a list of books using our action `getBooks` via HTTP __GET__
 ```
-curl -X GET https://${APIHOST}:9001/api/21ef035/club/books
+curl -X GET https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 ```
 ```
 {
   "result": [{"name":"JavaScript: The Good Parts", "isbn":"978-0596517748"}]
 }
+```
+
+Let's delete a specify book using our action `deleteBooks` via HTTP __DELETE__. In this example, the `deleteBooks` action's `__ow_path` field value will be `/club/books/978-0596517748`, where `978-0596517748` is path's `{isbn}` actual value.
+```
+curl -X DELETE https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/978-0596517748
 ```
 
 ### Exporting the configuration
@@ -192,14 +205,16 @@ Now let's restore the API named `Book Club` by using the file `club-swagger.json
 wsk api create --config-file club-swagger.json
 ```
 ```
-ok: created api /books delete for action deleteBook
-https://${APIHOST}:9001/api/21ef035/club/books
-ok: created api /books get for action deleteBook
-https://${APIHOST}:9001/api/21ef035/club/books
-ok: created api /books post for action deleteBook
-https://${APIHOST}:9001/api/21ef035/club/books
-ok: created api /books put for action deleteBook
-https://${APIHOST}:9001/api/21ef035/club/books
+ok: created api /club/books/{isbn} get for action deleteBook
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+ok: created api /club/books/{isbn} put for action deleteBook
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+ok: created api /club/books/{isbn} delete for action deleteBook
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+ok: created api /club/books get for action deleteBook
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+ok: created api /club/books post for action deleteBook
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 ```
 
 We can verify that the API has been re-created
@@ -209,8 +224,9 @@ wsk api list /club
 ```
 ok: apis
 Action                    Verb         API Name        URL
-getBooks                   get         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
-postBooks                 post         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
-putBooks                   put         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
-deleteBooks             delete         Book Club       https://${APIHOST}:9001/api/21ef035/club/books
+getBooks                   get         Book Club       https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+postBooks                 post         Book Club       https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
+getBooks                   get         Book Club       https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+putBooks                   put         Book Club       https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+deleteBooks             delete         Book Club       https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
 ```
