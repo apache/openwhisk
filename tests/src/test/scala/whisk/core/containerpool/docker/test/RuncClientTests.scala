@@ -66,8 +66,6 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
 
   /** Verifies start and end logs are written correctly. */
   def verifyLogs(cmd: String, failed: Boolean = false) = {
-    println(logLines)
-
     logLines.head should include(s"${runcCommand} ${cmd} ${id.asString}")
 
     // start log maker must be found
