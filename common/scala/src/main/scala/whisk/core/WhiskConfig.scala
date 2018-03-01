@@ -242,6 +242,7 @@ object ConfigKeys {
   val kafkaTopics = s"$kafka.topics"
 
   val memory = "whisk.memory"
+  val timeLimit = "whisk.time-limit"
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
 
