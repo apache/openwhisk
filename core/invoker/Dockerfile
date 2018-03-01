@@ -19,12 +19,10 @@ RUN wget --no-verbose https://storage.googleapis.com/kubernetes-release/release/
 chmod +x kubectl && \
 mv kubectl /usr/bin/kubectl
 
-COPY build/distributions/invoker.tar ./
-RUN tar xf invoker.tar && \
-rm -f invoker.tar
+ADD build/distributions/invoker.tar ./
 
 COPY init.sh /
 RUN chmod +x init.sh
 
 EXPOSE 8080
-CMD ["init.sh", "0"]
+CMD ["./init.sh", "0"]
