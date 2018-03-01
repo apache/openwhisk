@@ -1,7 +1,8 @@
 mode: deploy
 prompt_user: true
-openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir + '/..', true) }}"
+openwhisk_home: "{{ lookup('env', 'OPENWHISK_HOME') | default(playbook_dir ~ '/..', true) }}"
 openwhisk_cli_home: "{{ lookup('env', 'OPENWHISK_CLI') | default(openwhisk_home ~ '/../incubator-openwhisk-cli', true) }}"
+openwhisk_build_dir: "{{ openwhisk_home }}/build"
 exclude_logs_from: []
 
 # This whisk_api_localhost_name_default is used to configure nginx to permit vanity URLs for web actions
@@ -24,9 +25,17 @@ whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
 
-
-# list of supported runtimes (see whisk.core.entity.ExecManifest for schema)
-runtimesManifest: "{{ runtimes_manifest | default(lookup('file', '{{ openwhisk_home }}/ansible/files/runtimes.json') | from_json) }}"
+##
+# list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
+# briefly:
+#   defaultImagePrefix: the default image prefix when not given explicitly
+#   defaultImageTag: the default image tag
+#   runtimes: set of language runtime families grouped by language (e.g., nodejs, python)
+#   blackboxes: list of pre-populated docker action images as "name" with optional "prefix" and "tag"
+#   bypassPullForLocalImages: optional, if true, allow images with a prefix that matches {{ docker.image.prefix }}
+#                             to skip docker pull in invoker even if the image is not part of the blackbox set
+#
+runtimesManifest: "{{ runtimes_manifest | default(lookup('file', openwhisk_home ~ '/ansible/files/runtimes.json') | from_json) }}"
 
 limits:
   invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
@@ -213,7 +222,6 @@ sdk:
 
 cli:
   path: "{{ openwhisk_home }}/bin/wsk"
-  nginxdir: "{{ nginx.confdir }}/cli/go/download"
   dir:
     become: "{{ cli_dir_become | default(false) }}"
 
@@ -254,8 +262,6 @@ catalog_repos:
     version: "HEAD"
     repo_update: "no"
 
-openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ openwhisk_home }}/ansible/files/package-versions.ini') }}"
-
 # The openwhisk_cli is used to determine how to install the OpenWhisk CLI. The
 # installation_mode can be specified into two modes: remote and local.
 # The mode remote means to download the available binaries from the releases page
@@ -270,25 +276,17 @@ openwhisk_cli_tag: "{{ lookup('ini', 'git_tag section=openwhisk-cli file={{ open
 # The location specifies the official website where Openwhisk CLI is hosted in
 # remote mode or location to save the binaries of the OpenWhisk CLI in local mode.
 
+openwhisk_cli_tag: "{{ cli_tag | default(lookup('ini', 'git_tag section=openwhisk-cli file=' ~ openwhisk_home ~ '/ansible/files/package-versions.ini')) }}"
 openwhisk_cli:
   installation_mode: "{{ cli_installation_mode | default(lookup('env', 'OPENWHISK_CLI_MODE')) | default('remote', true) }}"
+  archive_name: OpenWhisk_CLI
+  nginxdir:
+    name: "{{ nginx.confdir }}/cli/go/download"
+    become: "{{ cli_dir_become | default(false) }}"
   local:
     location: "{{ openwhisk_cli_home }}/build"
   remote:
-    name: OpenWhisk_CLI
-    dest_name: OpenWhisk_CLI
     location: "https://github.com/apache/incubator-openwhisk-cli/releases/download/{{ openwhisk_cli_tag }}"
-
-# The list of operating systems and architectures for which openwhisk cli binaries are downloaded,
-# if the installation_mode is remote.
-cli_os_arch:
-  - [ "linux", "amd64" ]
-  - [ "linux", "386" ]
-  - [ "linux", "s390x" ]
-  - [ "mac", "amd64" ]
-  - [ "mac", "386" ]
-  - [ "windows", "amd64" ]
-  - [ "windows", "386" ]
 
 # Controls access to log directories
 logs:

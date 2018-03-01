@@ -5,4 +5,5 @@
 
 - hosts: ansible
   roles:
+  - cli-install
   - routemgmt

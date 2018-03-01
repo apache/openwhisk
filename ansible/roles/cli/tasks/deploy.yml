@@ -1,30 +1,88 @@
 ---
 # Tasks for handling CLI customization and publishing
+#
+# Note:  The configuration directory is actually located on the local machine;
+#        this script is run under the local host, usually 172.17.0.1 (docker local)
 
-- name: "ensure nginx directory for cli exists"
+- name: "Ensure nginx directory for cli exists"
   file:
-    path: "{{ cli.nginxdir  }}"
+    path: "{{ openwhisk_cli.nginxdir.name }}"
     state: directory
-  become: "{{ cli.dir.become }}"
+  become: "{{ openwhisk_cli.nginxdir.become }}"
 
-- set_fact:
-    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+- name: "Ensure OpenWhisk build directory exists (for temp archive work)"
+  file:
+    path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
+    state: directory
 
-- include: docker_login.yml
+#
+#  Why are we unarchiving into the build directory instead of directly into
+#  the Nginx config directory?  Because the Nginx config directory is (by
+#  default) located in the /tmp/... directory tree, which has a sticky bit
+#  set.  Said sticky bit creates no end of troubles for tar, so we're going
+#  to just avoid it entirely, rather than muck about with who's got which tar
+#  with which right tar options installed where.  It makes for many more
+#  items in this ansible playbook than we'd hoped, but at least it's (fairly)
+#  straightforward.
+#
+- name: "Download release archive to build directory ..."
+  get_url:
+    url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+  when: openwhisk_cli.installation_mode == "remote"
 
-- name: "download the binaries from the release page of OpenWhisk CLI"
-  include: cli_remote_mode.yml
-  when: cli_installation_mode == "remote"
+- name: "... or Copy release archive to build directory"
+  copy:
+    src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+  when: openwhisk_cli.installation_mode == "local"
 
-- name: "copy the binaries from a local directory to Nginx directory"
-  include: copy_local_openwhisk_cli.yml
-  when: cli_installation_mode == "local"
+#
+#   I really wanted to use 'unarchive' here, but it was quite buggy and didn't
+#   want to cooperate, so we do a good old-fashioned tar x instead
+#
+- name: "Expand the archive into the build directory"
+  shell: >
+    tar zxf /{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz
+    -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
+
+- name: "Copy expanded archive to final configuration directory"
+  copy:
+    #  WARNING:  The trailing slash is significant, signalling to copy contents
+    src: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
+    dest: "{{ openwhisk_cli.nginxdir.name }}"
+
+- name: "Delete archive from build directory"
+  file:
+    path: "{{ item }}"
+    state: absent
+    force: yes
   with_items:
-    - "{{ cli_os_arch }}"
+      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
 
-- name: "copy the local content.json from a local directory to Nginx directory"
-  copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
-  when: cli_installation_mode == "local"
+- name: "Generate a list of individual tarballs to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
+      patterns: '*.tgz'
+      recurse: true
+  register: individual_tarballs
 
-- include: download_cli.yml
-  when: cli_installation_mode == "remote"
+- name: "Unarchive the individual tarballs"
+  shell: tar zxf {{ item.path }} -C {{ item.path | dirname }}
+  with_items: "{{ individual_tarballs.files }}"
+
+- name: "Generate a list of individual zipfiles to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
+      patterns: '*.zip'
+      recurse: true
+  register: individual_zipfiles
+
+- name: "Unarchive the individual zipfiles into binaries"
+  unarchive:
+    remote_src: yes
+    src: "{{ item.path }}"
+    dest: "{{ item.path | dirname }}"
+  with_items: "{{ individual_zipfiles.files }}"

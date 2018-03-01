@@ -1,0 +1,8 @@
+---
+
+- name: remove cli nginx directory
+  file:
+    path: "{{ openwhisk_home }}/bin/{{ wsk }}"
+    state: absent
+  vars:
+    wsk: "{{ ( ansible_system == 'Windows') | ternary('wsk.exe', 'wsk') }}"

@@ -2,6 +2,6 @@
 
 - name: remove cli nginx directory
   file:
-    path: "{{ cli.nginxdir }}"
+    path: "{{ openwhisk_cli.nginxdir.name }}"
     state: absent
-  become: "{{ cli.dir.become }}"
+  become: "{{ openwhisk_cli.nginxdir.become }}"
