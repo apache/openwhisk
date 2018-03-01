@@ -46,7 +46,7 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
 
   override def cleanup() = {
     logging.info(this, "Cleaning up function runtimes")
-    val cleaning = kubernetes.rm("invoker", label)(TransactionId.invokerNanny)
+    val cleaning = kubernetes.rm("invoker", label, true)(TransactionId.invokerNanny)
     Await.ready(cleaning, 30.seconds)
   }
 

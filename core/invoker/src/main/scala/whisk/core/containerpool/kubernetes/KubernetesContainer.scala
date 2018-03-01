@@ -50,46 +50,26 @@ object KubernetesContainer {
    *     or is an OpenWhisk provided image
    * @param labels labels to set on the container
    * @param name optional name for the container
-   * @return a Future which either completes with a KubernetesContainer or one of two specific failures
+   * @return a Future which either completes with a KubernetesContainer or a failure to create a container
    */
   def create(transid: TransactionId,
              name: String,
              image: String,
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
-             environment: Map[String, String] = Map(),
-             labels: Map[String, String] = Map())(implicit kubernetes: KubernetesApi,
-                                                  ec: ExecutionContext,
-                                                  log: Logging): Future[KubernetesContainer] = {
+             environment: Map[String, String] = Map.empty,
+             labels: Map[String, String] = Map.empty)(implicit kubernetes: KubernetesApi,
+                                                      ec: ExecutionContext,
+                                                      log: Logging): Future[KubernetesContainer] = {
     implicit val tid = transid
 
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
 
-    val environmentArgs = environment.flatMap {
-      case (key, value) => Seq("--env", s"$key=$value")
-    }.toSeq
-
-    val labelArgs = labels.map {
-      case (key, value) => s"$key=$value"
-    } match {
-      case Seq() => Seq()
-      case pairs => Seq("-l") ++ pairs
-    }
-
-    val args = Seq("--generator", "run-pod/v1", "--restart", "Always", "--limits", s"memory=${memory.toMB}Mi") ++ environmentArgs ++ labelArgs
-
     for {
-      id <- kubernetes.run(podName, image, args).recoverWith {
-        case _ => Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+      container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
+        case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
-      ip <- kubernetes.inspectIPAddress(id).recoverWith {
-        // remove the container immediately if inspect failed as
-        // we cannot recover that case automatically
-        case _ =>
-          kubernetes.rm(id)
-          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
-      }
-    } yield new KubernetesContainer(id, ip)
+    } yield container
   }
 
 }
@@ -103,11 +83,15 @@ object KubernetesContainer {
  * @constructor
  * @param id the id of the container
  * @param addr the ip & port of the container
+ * @param workerIP the ip of the workernode on which the container is executing
+ * @param nativeContainerId the docker/containerd lowlevel id for the container
  */
-class KubernetesContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
-  implicit kubernetes: KubernetesApi,
-  protected val ec: ExecutionContext,
-  protected val logging: Logging)
+class KubernetesContainer(protected[core] val id: ContainerId,
+                          protected[core] val addr: ContainerAddress,
+                          protected[core] val workerIP: String,
+                          protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
+                                                                         protected val ec: ExecutionContext,
+                                                                         protected val logging: Logging)
     extends Container {
 
   /** The last read timestamp in the log file */
@@ -115,15 +99,13 @@ class KubernetesContainer(protected val id: ContainerId, protected val addr: Con
 
   protected val waitForLogs: FiniteDuration = 2.seconds
 
-  // no-op under Kubernetes
-  def suspend()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
 
-  // no-op under Kubernetes
-  def resume()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def resume()(implicit transid: TransactionId): Future[Unit] = kubernetes.resume(this)
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    kubernetes.rm(id)
+    kubernetes.rm(this)
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
@@ -131,7 +113,7 @@ class KubernetesContainer(protected val id: ContainerId, protected val addr: Con
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 
     kubernetes
-      .logs(id, lastTimestamp.get, waitForSentinel)
+      .logs(this, lastTimestamp.get, waitForSentinel)
       .limitWeighted(limit.toBytes) { obj =>
         // Adding + 1 since we know there's a newline byte being read
         obj.jsonSize.toLong + 1
