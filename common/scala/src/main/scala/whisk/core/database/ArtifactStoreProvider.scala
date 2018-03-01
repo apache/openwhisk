@@ -21,7 +21,6 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
-import whisk.core.WhiskConfig
 import whisk.spi.Spi
 import whisk.core.entity.DocumentReader
 
@@ -31,9 +30,7 @@ import scala.reflect.ClassTag
  * An Spi for providing ArtifactStore implementations
  */
 trait ArtifactStoreProvider extends Spi {
-  def makeStore[D <: DocumentSerializer: ClassTag](config: WhiskConfig,
-                                                   name: WhiskConfig => String,
-                                                   useBatching: Boolean = false)(
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean = false)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,

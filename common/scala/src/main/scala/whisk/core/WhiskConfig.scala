@@ -77,10 +77,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val invokerHosts = this(WhiskConfig.invokerHostsList)
   val zookeeperHosts = this(WhiskConfig.zookeeperHostList)
 
-  val dbPrefix = this(WhiskConfig.dbPrefix)
-  val dbAuths = this(WhiskConfig.dbAuths)
-  val dbWhisk = this(WhiskConfig.dbWhisk)
-  val dbActivations = this(WhiskConfig.dbActivations)
   val mainDockerEndpoint = this(WhiskConfig.mainDockerEndpoint)
 
   val runtimesManifest = this(WhiskConfig.runtimesManifest)
@@ -160,11 +156,6 @@ object WhiskConfig {
   val dockerPort = "docker.port"
 
   val dockerEndpoint = "main.docker.endpoint"
-
-  val dbPrefix = "db.prefix"
-  val dbAuths = "db.whisk.auths"
-  val dbWhisk = "db.whisk.actions"
-  val dbActivations = "db.whisk.activations"
 
   // these are not private because they are needed
   // in the invoker (they are part of the environment

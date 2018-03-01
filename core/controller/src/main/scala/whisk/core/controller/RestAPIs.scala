@@ -87,13 +87,8 @@ protected[controller] object RestApiCommons {
   def requiredProperties =
     Map(WhiskConfig.servicePort -> 8080.toString) ++
       WhiskConfig.whiskVersion ++
-      WhiskAuthStore.requiredProperties ++
-      WhiskEntityStore.requiredProperties ++
-      WhiskActivationStore.requiredProperties ++
       EntitlementProvider.requiredProperties ++
-      WhiskActionsApi.requiredProperties ++
-      Authenticate.requiredProperties ++
-      Collection.requiredProperties
+      WhiskActionsApi.requiredProperties
 
   import akka.http.scaladsl.model.HttpCharsets
   import akka.http.scaladsl.model.MediaTypes.`application/json`
@@ -171,7 +166,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     with AuthenticatedRoute
     with RespondWithHeaders {
   implicit val executionContext = actorSystem.dispatcher
-  implicit val authStore = WhiskAuthStore.datastore(config)
+  implicit val authStore = WhiskAuthStore.datastore()
 
   def prefix = pathPrefix(apiPath / apiVersion)
 

@@ -89,9 +89,9 @@ protected trait ControllerTestCommon
     }
   }
 
-  val entityStore = WhiskEntityStore.datastore(whiskConfig)
-  val activationStore = WhiskActivationStore.datastore(whiskConfig)
-  val authStore = WhiskAuthStore.datastore(whiskConfig)
+  val entityStore = WhiskEntityStore.datastore()
+  val activationStore = WhiskActivationStore.datastore()
+  val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {

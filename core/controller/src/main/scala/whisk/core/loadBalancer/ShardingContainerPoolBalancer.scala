@@ -61,7 +61,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   cluster.joinSeedNodes(seedNodesProvider.getSeedNodes())
 
   /** Used to manage an action for testing invoker health */
-  private val entityStore = WhiskEntityStore.datastore(config)
+  private val entityStore = WhiskEntityStore.datastore()
 
   /** State related to invocations and throttling */
   private val activations = TrieMap[ActivationId, ActivationEntry]()
@@ -276,7 +276,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   private val invokerPool = {
-    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore(config))
+    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore())
 
     actorSystem.actorOf(
       InvokerPool.props(

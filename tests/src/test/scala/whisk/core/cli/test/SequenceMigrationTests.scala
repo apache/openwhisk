@@ -34,7 +34,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol.StringJsonFormat
-import whisk.core.WhiskConfig
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
@@ -48,9 +47,8 @@ class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtil
   implicit val matzerializer = ActorMaterializer()
   implicit val wskprops = WskProps()
   val wsk = new WskRest
-  val whiskConfig = new WhiskConfig(WhiskEntityStore.requiredProperties)
   // handle on the entity datastore
-  val entityStore = WhiskEntityStore.datastore(whiskConfig)
+  val entityStore = WhiskEntityStore.datastore()
   val namespace = wsk.namespace.whois()
   val allowedActionDuration = 120 seconds
 

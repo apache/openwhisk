@@ -76,7 +76,7 @@ class ShootComponentsTests
   val dbPort = dbConfig.port
   val dbUsername = dbConfig.username
   val dbPassword = dbConfig.password
-  val dbWhiskAuth = WhiskProperties.getProperty(WhiskConfig.dbAuths)
+  val dbWhiskAuth = dbConfig.databases.get("WhiskAuth").get
 
   def ping(host: String, port: Int, path: String = "/") = {
     val response = Try {

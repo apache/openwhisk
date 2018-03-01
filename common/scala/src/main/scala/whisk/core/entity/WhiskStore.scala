@@ -31,10 +31,6 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbActivations
-import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
@@ -90,21 +86,16 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
 object WhiskAuthStore {
   implicit val docReader = WhiskDocumentReader
 
-  def requiredProperties =
-    Map(dbAuths -> null)
-
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
-    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth]()
 }
 
 object WhiskEntityStore {
-  def requiredProperties =
-    Map(dbWhisk -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](config, _.dbWhisk)(
+      .makeStore[WhiskEntity]()(
         classTag[WhiskEntity],
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
@@ -115,11 +106,9 @@ object WhiskEntityStore {
 
 object WhiskActivationStore {
   implicit val docReader = WhiskDocumentReader
-  def requiredProperties =
-    Map(dbActivations -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
-    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](useBatching = true)
 }
 
 /**

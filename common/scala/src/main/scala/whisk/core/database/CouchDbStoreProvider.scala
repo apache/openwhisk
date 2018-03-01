@@ -21,7 +21,6 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
-import whisk.core.WhiskConfig
 import whisk.core.ConfigKeys
 import whisk.core.entity.DocumentReader
 import pureconfig._
@@ -33,15 +32,24 @@ case class CouchDbConfig(provider: String,
                          host: String,
                          port: Int,
                          username: String,
-                         password: String) {
-  assume(Set(protocol, host, username, password).forall(_.nonEmpty), "At least one expected property is missing")
+                         password: String,
+                         dbPrefix: String,
+                         databases: Map[String, String]) {
+  assume(
+    Set(protocol, host, username, password, dbPrefix).forall(_.nonEmpty),
+    "At least one expected property is missing")
+
+  def getDatabaseName(entityClass: Class[_]): String = {
+    databases.get(entityClass.getSimpleName) match {
+      case Some(name) => name
+      case None       => throw new IllegalArgumentException(s"Database name mapping not found for $entityClass")
+    }
+  }
 }
 
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer: ClassTag](config: WhiskConfig,
-                                                   name: WhiskConfig => String,
-                                                   useBatching: Boolean)(
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
@@ -51,7 +59,6 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
     require(
       dbConfig.provider == "Cloudant" || dbConfig.provider == "CouchDB",
       s"Unsupported db.provider: ${dbConfig.provider}")
-    assume(name(config).nonEmpty, "At least one expected property is missing")
 
     new CouchDbRestStore[D](
       dbConfig.protocol,
@@ -59,7 +66,7 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.port,
       dbConfig.username,
       dbConfig.password,
-      name(config),
+      dbConfig.getDatabaseName(implicitly[ClassTag[D]].runtimeClass),
       useBatching)
   }
 }

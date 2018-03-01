@@ -30,7 +30,6 @@ import common.StreamLogging
 import common.WskActorSystem
 import org.scalatest.mockito.MockitoSugar
 import org.mockito.Mockito._
-import whisk.core.WhiskConfig
 import whisk.core.database.DocumentConflictException
 import whisk.core.database.CacheChangeNotification
 import whisk.core.database.NoDocumentException
@@ -50,9 +49,8 @@ class DatastoreTests
 
   implicit val materializer = ActorMaterializer()
   val namespace = EntityPath("test namespace")
-  val config = new WhiskConfig(WhiskAuthStore.requiredProperties ++ WhiskEntityStore.requiredProperties)
-  val datastore = WhiskEntityStore.datastore(config)
-  val authstore = WhiskAuthStore.datastore(config)
+  val datastore = WhiskEntityStore.datastore()
+  val authstore = WhiskAuthStore.datastore()
 
   implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
 
