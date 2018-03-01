@@ -18,6 +18,12 @@ There are four configurations options available:
 
   Enable/disable whther metric information is send the configured statsd server.
 
+- **metrics_kamon_tags: false** [true / false  (default: false)]
+
+  Enable/disable whether to use the Kamon tags when sending metrics.
+  
+  *Notice: Tag is supported in some kamon-backend. (OpenTSDB, Datadog, InfluxDB)*
+
 - **metrics_kamon_statsd_host** [hostname or ip address]
 
   Hostname or ip address of the statsd server
@@ -31,6 +37,7 @@ Example configuration:
 
 ```
 metrics_kamon: true
+metrics_kamon_tags: false
 metrics_kamon_statsd_host: '192.168.99.100'
 metrics_kamon_statsd_port: '8125'
 metrics_log: true

@@ -152,6 +152,7 @@
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
 
       "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"

@@ -70,12 +70,12 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
 
     // start log maker must be found
     val start = LogMarker.parse(logLines.head)
-    start.token should be(INVOKER_RUNC_CMD(cmd))
+    start.token.toStringWithSubAction should be(INVOKER_RUNC_CMD(cmd).toStringWithSubAction)
 
     // end log marker must be found
     val expectedEnd = if (failed) INVOKER_RUNC_CMD(cmd).asError else INVOKER_RUNC_CMD(cmd).asFinish
     val end = LogMarker.parse(logLines.last)
-    end.token shouldBe expectedEnd
+    end.token.toStringWithSubAction shouldBe expectedEnd.toStringWithSubAction
   }
 
   behavior of "RuncClient"

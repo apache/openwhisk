@@ -107,8 +107,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
                logLevel: LogLevel = DebugLevel,
                endTime: Instant = Instant.now(Clock.systemUTC))(implicit logging: Logging) = {
 
-    val endMarker =
-      LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
+    val endMarker = startMarker.startMarker.asFinish
     val deltaToEnd = deltaToMarker(startMarker, endTime)
 
     if (TransactionId.metricsLog) {
@@ -137,8 +136,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def failed(from: AnyRef, startMarker: StartMarker, message: => String = "", logLevel: LogLevel = WarningLevel)(
     implicit logging: Logging) = {
 
-    val endMarker =
-      LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.error)
+    val endMarker = startMarker.startMarker.asError
     val deltaToEnd = deltaToMarker(startMarker)
 
     if (TransactionId.metricsLog) {
@@ -199,6 +197,7 @@ object TransactionId {
 
   // get the metric parameters directly from the environment since WhiskConfig can not be instantiated here
   val metricsKamon: Boolean = sys.env.get("METRICS_KAMON").getOrElse("False").toBoolean
+  val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
   val unknown = TransactionId(0)

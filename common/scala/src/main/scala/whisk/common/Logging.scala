@@ -137,7 +137,7 @@ class PrintStreamLogging(outputStream: PrintStream = Console.out) extends Loggin
  */
 case class LogMarker(token: LogMarkerToken, deltaToTransactionStart: Long, deltaToMarkerStart: Option[Long] = None) {
   override def toString() = {
-    val parts = Seq(LogMarker.keyword, token.toString, deltaToTransactionStart) ++ deltaToMarkerStart
+    val parts = Seq(LogMarker.keyword, token.toStringWithSubAction, deltaToTransactionStart) ++ deltaToMarkerStart
     "[" + parts.mkString(":") + "]"
   }
 }
@@ -164,27 +164,51 @@ private object Logging {
     if (simpleName.endsWith("$")) simpleName.dropRight(1)
     else simpleName
   }
-
 }
 
 private object Emitter {
   val timeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneId.of("UTC"))
 }
 
-case class LogMarkerToken(component: String, action: String, state: String) {
-  override def toString() = component + "_" + action + "_" + state
+/**
+ * Used to record log message and make a metric name.
+ *
+ * @param component Component like invoker, controller, and docker. It is defined in LoggingMarkers.
+ * @param action Action of the component.
+ * @param state State of the action.
+ * @param subAction more specific identifier for "action", like `runc.resume`
+ * @param tags tags can be used for whatever granularity you might need.
+ */
+case class LogMarkerToken(component: String,
+                          action: String,
+                          state: String,
+                          subAction: Option[String] = None,
+                          tags: Map[String, String] = Map.empty) {
+
+  override def toString = component + "_" + action + "_" + state
+  def toStringWithSubAction =
+    subAction.map(sa => component + "_" + action + "." + sa + "_" + state).getOrElse(toString)
 
   def asFinish = copy(state = LoggingMarkers.finish)
   def asError = copy(state = LoggingMarkers.error)
 }
 
 object LogMarkerToken {
-  def parse(s: String) = {
+
+  def parse(string: String) = {
     // Per convention the components are guaranteed to not contain '_'
     // thus it's safe to split at '_' to get the components
-    val Array(component, action, state) = s.split("_")
-    LogMarkerToken(component, action, state)
+    val Array(component, action, state) = string.split('_')
+
+    val (generalAction, subAction) = action.split('.').toList match {
+      case Nil         => throw new IllegalArgumentException("LogMarkerToken malformed")
+      case a :: Nil    => (a, None)
+      case a :: s :: _ => (a, Some(s))
+    }
+
+    LogMarkerToken(component, generalAction, state, subAction)
   }
+
 }
 
 object MetricEmitter {
@@ -193,20 +217,27 @@ object MetricEmitter {
 
   def emitCounterMetric(token: LogMarkerToken): Unit = {
     if (TransactionId.metricsKamon) {
-      metrics
-        .counter(token.toString)
-        .increment(1)
+      if (TransactionId.metricsKamonTags) {
+        metrics
+          .counter(token.toString, token.tags)
+          .increment(1)
+      } else {
+        metrics.counter(token.toStringWithSubAction).increment(1)
+      }
     }
   }
 
   def emitHistogramMetric(token: LogMarkerToken, value: Long): Unit = {
     if (TransactionId.metricsKamon) {
-      metrics
-        .histogram(token.toString)
-        .record(value)
+      if (TransactionId.metricsKamonTags) {
+        metrics
+          .histogram(token.toString, token.tags)
+          .record(value)
+      } else {
+        metrics.histogram(token.toStringWithSubAction).record(value)
+      }
     }
   }
-
 }
 
 object LoggingMarkers {
@@ -259,11 +290,11 @@ object LoggingMarkers {
 
   // Time in invoker
   val INVOKER_ACTIVATION = LogMarkerToken(invoker, activation, start)
-  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, s"docker.$cmd", start)
-  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, s"runc.$cmd", start)
+  def INVOKER_DOCKER_CMD(cmd: String) = LogMarkerToken(invoker, "docker", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_RUNC_CMD(cmd: String) = LogMarkerToken(invoker, "runc", start, Some(cmd), Map("cmd" -> cmd))
+  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, "kubectl", start, Some(cmd), Map("cmd" -> cmd))
   def INVOKER_CONTAINER_START(containerState: String) =
-    LogMarkerToken(invoker, s"container_start_${containerState}", count)
-  def INVOKER_KUBECTL_CMD(cmd: String) = LogMarkerToken(invoker, s"kubectl.$cmd", start)
+    LogMarkerToken(invoker, "containerStart", count, Some(containerState), Map("containerState" -> containerState))
 
   // Kafka related markers
   def KAFKA_QUEUE(topic: String) = LogMarkerToken(kafka, topic, count)
