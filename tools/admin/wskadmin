@@ -109,10 +109,10 @@ def parseArgs():
     subcmd.add_argument('authkey', help='the credentials to look up')
 
     subcmd = subparser.add_parser('block', help='block one or more users')
-    subcmd.add_argument('subject', help='comma separated list of users to block')
+    subcmd.add_argument('subjects', nargs='+', help='one or more users to block')
 
     subcmd = subparser.add_parser('unblock', help='unblock one or more users')
-    subcmd.add_argument('subject', help='comma separated list of users to unblock')
+    subcmd.add_argument('subjects', nargs='+', help='one or more users to unblock')
 
     subcmd = subparser.add_parser('list', help='list authorization keys associated with a namespace')
     subcmd.add_argument('namespace', help='the namespace to lookup')
@@ -469,7 +469,7 @@ def whoisUserCmd(args, props):
 
 def blockUserCmd(args, props):
     failed = 0
-    for subject in args.subject.split(","):
+    for subject in args.subjects:
         subject = subject.strip()
         if len(subject) > 0:
             (doc, res) = getDocumentFromDb(props, subject, args.verbose)
@@ -489,7 +489,7 @@ def blockUserCmd(args, props):
 
 def unblockUserCmd(args, props):
     failed = 0
-    for subject in args.subject.split(","):
+    for subject in args.subjects:
         subject = subject.strip()
         if len(subject) > 0:
             (doc, res) = getDocumentFromDb(props, subject, args.verbose)
