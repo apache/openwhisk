@@ -46,7 +46,7 @@ import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import whisk.utils.retry
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 protected[limits] trait LocalHelper {
   def prefix(msg: String) = msg.substring(0, msg.indexOf('('))
