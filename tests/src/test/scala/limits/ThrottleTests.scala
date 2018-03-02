@@ -25,14 +25,12 @@ import scala.collection.parallel.immutable.ParSeq
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
 import common.RunWskAdminCmd
 import common.TestHelpers
 import common.TestUtils
@@ -47,6 +45,8 @@ import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory
 import whisk.utils.retry
+
+import scala.util.{Failure, Success, Try}
 
 protected[limits] trait LocalHelper {
   def prefix(msg: String) = msg.substring(0, msg.indexOf('('))
@@ -304,16 +304,15 @@ class NamespaceSpecificThrottleTests
   val wsk = new WskRest
 
   def sanitizeNamespaces(namespaces: Seq[String], expectedExitCode: Int = SUCCESS_EXIT): Unit = {
-    var errors = 0
-    namespaces.foreach { ns =>
-      try {
+    val deletions = namespaces.map { ns =>
+      Try {
         disposeAdditionalTestSubject(ns, expectedExitCode)
         withClue(s"failed to delete temporary limits for $ns") {
           wskadmin.cli(Seq("limits", "delete", ns), expectedExitCode)
         }
-      } catch { case _: Throwable => errors += 1 }
+      }
     }
-    if (expectedExitCode == SUCCESS_EXIT) assert(errors == 0)
+    if (expectedExitCode == SUCCESS_EXIT) every(deletions) shouldBe a[Success[_]]
   }
 
   sanitizeNamespaces(
