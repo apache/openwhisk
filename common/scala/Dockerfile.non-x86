@@ -1,0 +1,8 @@
+FROM openjdk:8-jre-alpine
+
+COPY transformEnvironment.sh /
+COPY copyJMXFiles.sh /
+
+RUN mkdir /logs \
+ && chmod +x transformEnvironment.sh copyJMXFiles.sh \
+ && apk update && apk add curl

@@ -1,0 +1,13 @@
+FROM scala
+
+RUN apk update && apk add docker
+
+COPY build/distributions/invoker.tar ./
+COPY init.sh /
+
+RUN tar xf invoker.tar \
+ && rm -f invoker.tar \
+ && chmod +x init.sh
+
+EXPOSE 8080
+CMD ["init.sh", "0"]
