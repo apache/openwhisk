@@ -26,10 +26,13 @@
 #  straightforward.
 #
 - name: "Download release archive to build directory ..."
-  get_url:
-    url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
-    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
-    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+  local_action: >
+      shell curl -L "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz" \
+        -o "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+#  get_url:
+#    url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+#    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+#    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
   when: openwhisk_cli.installation_mode == "remote"
 
 - name: "... or Copy release archive to build directory"
