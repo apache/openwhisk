@@ -94,7 +94,7 @@ class AcceptAllHostNameVerifier extends HostnameVerifier {
 
 object SSL {
 
-  val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+  lazy val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
 
   def keyManagers(clientAuth: Boolean) = {
     if (clientAuth)
