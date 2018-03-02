@@ -130,7 +130,7 @@ trait ArtifactStore[DocumentAbstraction] {
     implicit transid: TransactionId): Future[(ContentType, T)]
 
   /**
-   * Deletes an attachments linked to given document
+   * Deletes all attachments linked to given document
    */
   protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
 
