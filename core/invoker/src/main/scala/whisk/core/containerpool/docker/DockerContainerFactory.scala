@@ -56,11 +56,11 @@ class DockerContainerFactory(config: WhiskConfig,
                                actionImage: ExecManifest.ImageName,
                                userProvidedImage: Boolean,
                                memory: ByteSize)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
-    val image = if (userProvidedImage) {
+    val image = //if (userProvidedImage) {
       actionImage.publicImageName
-    } else {
-      actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
-    }
+    //} else {
+    //  actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
+    //}
 
     DockerContainer.create(
       tid,
