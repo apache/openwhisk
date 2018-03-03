@@ -5,4 +5,4 @@ COPY copyJMXFiles.sh /
 
 RUN mkdir /logs \
  && chmod +x transformEnvironment.sh copyJMXFiles.sh \
- && apk update && apk add curl
+ && apk update && apk add bash curl sed

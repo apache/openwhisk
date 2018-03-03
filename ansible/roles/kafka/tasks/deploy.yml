@@ -63,12 +63,13 @@
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
 
-- name: (re)start kafka
+- name: "(re)start kafka using '{{ kafka_image }}' "
   vars:
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
+    kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
   docker_container:
     name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
-    image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
+    image: "{{ kafka_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
@@ -79,10 +80,12 @@
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
     pull: true
+  retries: "{{ docker.pull.retries }}"
+  delay: "{{ docker.pull.delay }}"
 
 - name: wait until the kafka server started up
-  shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}
+  shell: "(echo dump; sleep 1) | nc {{ansible_host}} {{zookeeper.port}} | grep /brokers/ids/{{ groups['kafkas'].index(inventory_hostname) }}"
   register: result
-  until: (('[Kafka Server ' + (groups['kafkas'].index(inventory_hostname)|string) + '], started') in result.stdout)
+  until: (result.rc == 0)
   retries: 10
   delay: 5
