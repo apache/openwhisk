@@ -1,4 +1,4 @@
 ext.dockerImageName = 'badaction'
 
 apply from: '../../../../gradle/docker.gradle'
-distDocker.dependsOn ':actionRuntimes:actionProxy:distDocker'
+//distDocker.dependsOn ':actionRuntimes:actionProxy:distDocker'
