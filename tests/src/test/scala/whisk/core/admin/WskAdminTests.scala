@@ -151,6 +151,32 @@ class WskAdminTests extends TestHelpers with Matchers {
     }
   }
 
+  it should "block and unblock should accept more than a single subject" in {
+    val wskadmin = new RunWskAdminCmd {}
+    val subject1 = Subject().asString
+    val subject2 = Subject().asString
+    try {
+      wskadmin.cli(Seq("user", "create", subject1))
+      wskadmin.cli(Seq("user", "create", subject2))
+
+      // empty subjects are expected to be ignored
+      wskadmin.cli(Seq("user", "block", subject1, subject2, "", " ")).stdout shouldBe {
+        s"""|"$subject1" blocked successfully
+            |"$subject2" blocked successfully
+            |""".stripMargin
+      }
+
+      wskadmin.cli(Seq("user", "unblock", subject1, subject2, "", " ")).stdout shouldBe {
+        s"""|"$subject1" unblocked successfully
+            |"$subject2" unblocked successfully
+            |""".stripMargin
+      }
+    } finally {
+      wskadmin.cli(Seq("user", "delete", subject1)).stdout should include("Subject deleted")
+      wskadmin.cli(Seq("user", "delete", subject2)).stdout should include("Subject deleted")
+    }
+  }
+
   it should "not allow edits on a blocked subject" in {
     val wskadmin = new RunWskAdminCmd {}
     val subject = Subject().asString
