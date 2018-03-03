@@ -293,6 +293,26 @@ class KubernetesContainerTests
   }
 
   /*
+   * LOG FORWARDING
+   */
+  it should "container should maintain lastOffset across calls to forwardLogs" in {
+    implicit val kubernetes = new TestKubernetesClient
+    val id = ContainerId("id")
+    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val logChunk = 10.kilobytes
+
+    Await.result(container.forwardLogs(logChunk, false, Map.empty, JsObject()), 500.milliseconds)
+    Await.result(container.forwardLogs(42.bytes, false, Map.empty, JsObject()), 500.milliseconds)
+    Await.result(container.forwardLogs(logChunk, false, Map.empty, JsObject()), 500.milliseconds)
+    Await.result(container.forwardLogs(42.bytes, false, Map.empty, JsObject()), 500.milliseconds)
+
+    kubernetes.forwardLogs(0) shouldBe (id, 0)
+    kubernetes.forwardLogs(1) shouldBe (id, logChunk.toBytes)
+    kubernetes.forwardLogs(2) shouldBe (id, logChunk.toBytes + 42)
+    kubernetes.forwardLogs(3) shouldBe (id, 2 * logChunk.toBytes + 42)
+  }
+
+  /*
    * LOGS
    */
   it should "read a simple log with sentinel" in {

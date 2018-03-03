@@ -99,7 +99,7 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   private val lastTimestamp = new AtomicReference[Option[Instant]](None)
 
   /** The last offset read in the remote log file */
-  protected val lastOffset = new AtomicReference[Long](0)
+  private val lastOffset = new AtomicReference[Long](0)
 
   protected val waitForLogs: FiniteDuration = 2.seconds
 

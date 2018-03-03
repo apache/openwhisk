@@ -37,6 +37,7 @@ import org.scalatest.Matchers
 import org.scalatest.time.{Seconds, Span}
 import common.{StreamLogging, WskActorSystem}
 import okio.Buffer
+import spray.json.{JsObject, JsValue}
 import whisk.common.TransactionId
 import whisk.core.containerpool.{ContainerAddress, ContainerId}
 import whisk.core.containerpool.kubernetes.{
@@ -194,6 +195,7 @@ object KubernetesClientTests {
     var rmByLabels = mutable.Buffer.empty[(String, String)]
     var resumes = mutable.Buffer.empty[ContainerId]
     var suspends = mutable.Buffer.empty[ContainerId]
+    var forwardLogs = mutable.Buffer.empty[(ContainerId, Long)]
     var logCalls = mutable.Buffer.empty[(ContainerId, Option[Instant])]
 
     def run(name: String,
@@ -229,6 +231,16 @@ object KubernetesClientTests {
     def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
       suspends += (container.id)
       Future.successful({})
+    }
+
+    def forwardLogs(container: KubernetesContainer,
+                    lastOffset: Long,
+                    sizeLimit: ByteSize,
+                    sentinelledLogs: Boolean,
+                    additionalMetadata: Map[String, JsValue],
+                    augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Long] = {
+      forwardLogs += ((container.id, lastOffset))
+      return Future.successful(lastOffset + sizeLimit.toBytes) // for testing, pretend we read size limit bytes
     }
 
     def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
