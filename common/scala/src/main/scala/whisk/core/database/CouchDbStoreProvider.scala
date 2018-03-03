@@ -36,10 +36,11 @@ case class CouchDbConfig(provider: String,
                          databases: Map[String, String]) {
   assume(Set(protocol, host, username, password).forall(_.nonEmpty), "At least one expected property is missing")
 
-  def getDatabaseName(entityClass: Class[_]): String = {
-    databases.get(entityClass.getSimpleName) match {
+  def databaseFor[D](implicit tag: ClassTag[D]): String = {
+    val entityType = tag.runtimeClass.getSimpleName
+    databases.get(entityType) match {
       case Some(name) => name
-      case None       => throw new IllegalArgumentException(s"Database name mapping not found for $entityClass")
+      case None       => throw new IllegalArgumentException(s"Database name mapping not found for $entityType")
     }
   }
 }
@@ -63,7 +64,7 @@ object CouchDbStoreProvider extends ArtifactStoreProvider {
       dbConfig.port,
       dbConfig.username,
       dbConfig.password,
-      dbConfig.getDatabaseName(implicitly[ClassTag[D]].runtimeClass),
+      dbConfig.databaseFor[D],
       useBatching)
   }
 }
