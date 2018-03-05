@@ -28,8 +28,8 @@ import whisk.core.entity.InstanceId
 import whisk.spi.Spi
 
 case class ContainerArgsConfig(network: String,
-                               dnsServers: Seq[String] = Seq(),
-                               extraArgs: Map[String, Set[String]] = Map())
+                               dnsServers: Seq[String] = Seq.empty,
+                               extraArgs: Map[String, Set[String]] = Map.empty)
 
 /**
  * An abstraction for Container creation

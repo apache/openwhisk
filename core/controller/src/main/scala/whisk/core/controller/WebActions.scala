@@ -227,7 +227,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
           }.toList
 
         case _ => throw new Throwable("Invalid header")
-      } getOrElse List()
+      } getOrElse List.empty
 
       val body = fields.get("body")
 
@@ -749,6 +749,6 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         .orElse(responseType.defaultProjection)
     } else responseType.defaultProjection
 
-    projection.getOrElse(List())
+    projection.getOrElse(List.empty)
   }
 }
