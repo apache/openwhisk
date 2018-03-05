@@ -313,6 +313,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   override val cacheEnabled = true
 
+  val requireWhiskAuthAnnotation = "require-whisk-auth"
+  val requireWhiskAuthHeader = "x-require-whisk-auth"
+
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
     implicit transid: TransactionId,
