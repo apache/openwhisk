@@ -108,11 +108,11 @@ def parseArgs():
     subcmd = subparser.add_parser('whois', help='identify user from an authorization key')
     subcmd.add_argument('authkey', help='the credentials to look up')
 
-    subcmd = subparser.add_parser('block', help='block a user')
-    subcmd.add_argument('subject', help='the user to block')
+    subcmd = subparser.add_parser('block', help='block one or more users')
+    subcmd.add_argument('subjects', nargs='+', help='one or more users to block')
 
-    subcmd = subparser.add_parser('unblock', help='unblock a user')
-    subcmd.add_argument('subject', help='the user to unblock')
+    subcmd = subparser.add_parser('unblock', help='unblock one or more users')
+    subcmd.add_argument('subjects', nargs='+', help='one or more users to unblock')
 
     subcmd = subparser.add_parser('list', help='list authorization keys associated with a namespace')
     subcmd.add_argument('namespace', help='the namespace to lookup')
@@ -231,7 +231,7 @@ def createUserCmd(args, props):
         uid = str(uuid.uuid4())
         key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
 
-    (doc, res) = getSubjectFromDb(args, props)
+    (doc, res) = getDocumentFromDb(props, args.subject, args.verbose)
     if doc is None:
         doc = {
             '_id': subject,
@@ -268,7 +268,7 @@ def createUserCmd(args, props):
         return 1
 
 def getUserCmd(args, props):
-    (doc, res) = getSubjectFromDb(args, props)
+    (doc, res) = getDocumentFromDb(props, args.subject, args.verbose)
 
     if doc is not None:
         if args.all is True:
@@ -307,12 +307,10 @@ def listUserCmd(args, props):
             return 0
         else:
             print('no identities found for namespace "%s"' % args.namespace)
+            return 0
     else:
         print('Failed to get namespace key (%s)' % res.read().strip())
         return 1
-
-def getSubjectFromDb(args, props):
-    return getDocumentFromDb(props, args.subject, args.verbose)
 
 def getDocumentFromDb(props, doc, verbose):
     protocol = props[DB_PROTOCOL]
@@ -389,7 +387,7 @@ def deleteUserCmd(args, props):
         print('Namespace must not be empty')
         return 2
 
-    (prev, res) = getSubjectFromDb(args, props)
+    (prev, res) = getDocumentFromDb(props, args.subject, args.verbose)
     if prev is None:
         print('Failed to delete subject (%s)' % res.read().strip())
         return 1
@@ -470,34 +468,44 @@ def whoisUserCmd(args, props):
     return 1
 
 def blockUserCmd(args, props):
-    (doc, res) = getSubjectFromDb(args, props)
+    failed = 0
+    for subject in args.subjects:
+        subject = subject.strip()
+        if len(subject) > 0:
+            (doc, res) = getDocumentFromDb(props, subject, args.verbose)
 
-    if doc is not None:
-        doc['blocked'] = True
-        insertRes = insertIntoDatabase(props, doc, args.verbose)
-        if insertRes.status in [201, 202]:
-            print('"%s" blocked successfully' % args.subject)
-        else:
-            print('Failed to block subject (%s)' % res.read().strip())
-            return 1
-    else:
-        print('Failed to get subject (%s)' % res.read().strip())
-        return 1
+            if doc is not None:
+                doc['blocked'] = True
+                insertRes = insertIntoDatabase(props, doc, args.verbose)
+                if insertRes.status in [201, 202]:
+                    print('"%s" blocked successfully' % subject)
+                else:
+                    print('Failed to block "%s" (%s)' % (subject, res.read().strip()))
+                    failed += 1
+            else:
+                print('Failed to block "%s" (%s)' % (subject, res.read().strip()))
+                failed += 1
+    return failed
 
 def unblockUserCmd(args, props):
-    (doc, res) = getSubjectFromDb(args, props)
+    failed = 0
+    for subject in args.subjects:
+        subject = subject.strip()
+        if len(subject) > 0:
+            (doc, res) = getDocumentFromDb(props, subject, args.verbose)
 
-    if doc is not None:
-        doc['blocked'] = False
-        insertRes = insertIntoDatabase(props, doc, args.verbose)
-        if insertRes.status in [201, 202]:
-            print('"%s" unblocked successfully' % args.subject)
-        else:
-            print('Failed to unblock subject (%s)' % res.read().strip())
-            return 1
-    else:
-        print('Failed to get subject (%s)' % res.read().strip())
-        return 1
+            if doc is not None:
+                doc['blocked'] = False
+                insertRes = insertIntoDatabase(props, doc, args.verbose)
+                if insertRes.status in [201, 202]:
+                    print('"%s" unblocked successfully' % subject)
+                else:
+                    print('Failed to unblock "%s" (%s)' % (subject, res.read().strip()))
+                    failed += 1
+            else:
+                print('Failed to unblock "%s" (%s)' % (subject, res.read().strip()))
+                failed += 1
+    return failed
 
 def setLimitsCmd(args, props):
     argsDict = vars(args)
