@@ -140,6 +140,10 @@
       "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
       "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
 
+      "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
+      "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
+      "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
 
       "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
