@@ -19,6 +19,7 @@ package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -29,9 +30,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.stream.ActorMaterializer
 import spray.json._
-import whisk.common.Logging
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionId
+import whisk.common.{Logging, LoggingMarkers, Scheduler, TransactionId}
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.connector.CompletionMessage
@@ -87,6 +86,17 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   /** Initialize needed databases */
   private val entityStore = WhiskEntityStore.datastore(config)
   private val activationStore = WhiskActivationStore.datastore(config)
+  private val authStore = WhiskAuthStore.datastore(config)
+
+  private val namespaceBlacklist = new NamespaceBlacklist(authStore)
+
+  Scheduler.scheduleWaitAtMost(5.minutes) { () =>
+    logging.info(this, "running background job to update blacklist")
+    namespaceBlacklist.refreshBlacklist()(ec, TransactionId.invoker).andThen {
+      case Success(set) => logging.info(this, s"updated blacklist to ${set.size} entries")
+      case Failure(t)   => logging.error(this, s"error on updating the blacklist: ${t.getMessage}")
+    }
+  }
 
   /** Initialize message consumers */
   val topic = s"invoker${instance.toInt}"
@@ -160,7 +170,14 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
     Future(ActivationMessage.parse(new String(bytes, StandardCharsets.UTF_8)))
-      .flatMap(Future.fromTry(_))
+      .flatMap(Future.fromTry)
+      .flatMap { msg =>
+        if (!namespaceBlacklist.isBlacklisted(msg.user)) {
+          Future.successful(msg)
+        } else {
+          Future.failed(NamespaceBlacklistedException(msg.user.namespace.name))
+        }
+      }
       .filter(_.action.version.isDefined)
       .flatMap { msg =>
         implicit val transid = msg.transid
@@ -235,7 +252,10 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
           // Iff everything above failed, we have a terminal error at hand. Either the message failed
           // to deserialize, or something threw an error where it is not expected to throw.
           activationFeed ! MessageFeed.Processed
-          logging.error(this, s"terminal failure while processing message: $t")
+          t match {
+            case nse: NamespaceBlacklistedException => logging.warn(this, nse.getMessage)
+            case _                                  => logging.error(this, s"terminal failure while processing message: $t")
+          }
           Future.successful(())
       }
   }

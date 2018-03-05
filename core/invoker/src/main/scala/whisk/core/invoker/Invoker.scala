@@ -22,13 +22,10 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Try
-
 import kamon.Kamon
-
 import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown
@@ -39,10 +36,7 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
-import whisk.core.entity.ExecManifest
-import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskEntityStore
+import whisk.core.entity._
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -60,6 +54,7 @@ object Invoker {
       ExecManifest.requiredProperties ++
       WhiskEntityStore.requiredProperties ++
       WhiskActivationStore.requiredProperties ++
+      WhiskAuthStore.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
       wskApiHost ++ Map(
