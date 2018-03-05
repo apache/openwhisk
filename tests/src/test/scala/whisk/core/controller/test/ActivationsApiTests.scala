@@ -565,6 +565,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         materializer)
     implicit val tid = transid()
 
+    //A bad activation type which breaks the deserialization by removing the subject entry
     class BadActivation(override val namespace: EntityPath,
                         override val name: EntityName,
                         override val subject: Subject,
