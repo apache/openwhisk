@@ -56,6 +56,9 @@ transformEnvScript = "/bin/bash $owHome/common/scala/transformEnvironment.sh"
 
 config = getConfig()
 
+Map controllerEnv = null
+Map invokerEnv = null
+
 containerNames.each{cn ->
     //Inspect the specific container
     def inspectResult = "docker inspect $cn".execute().text
@@ -63,16 +66,24 @@ containerNames.each{cn ->
 
     def imageName = json[0].'Config'.'Image'
     if (imageName.contains("controller") || imageName.contains("invoker")){
-        String type = imageName.contains("controller") ? "controller" : "invoker"
-
         def mappedPort = json.'NetworkSettings'.'Ports'.'8080/tcp'[0][0].'HostPort'
 
-        def env = json[0].'Config'.'Env'
+        def envBaseMap = getEnvMap(json[0].'Config'.'Env')
+        String type
+        if (imageName.contains("controller")){
+            type = "controller"
+            controllerEnv = envBaseMap
+        } else {
+            type = "invoker"
+            invokerEnv = envBaseMap
+        }
+
         def overrides = [
                 'PORT' : mappedPort,
                 'WHISK_LOGS_DIR' : "$owHome/core/$type/build/tmp"
         ]
-        def envMap = getEnv(env, type, overrides)
+
+        def envMap = getEnv(envBaseMap, type, overrides)
 
         //Prepare system properties
         def sysProps = getSysProps(envMap,type)
@@ -95,6 +106,46 @@ containerNames.each{cn ->
         launchFile.text = template
         println "Created ${launchFile.absolutePath}"
     }
+}
+
+/**
+ * Computes the env values which are common and then specific to controller and invoker
+ * and dumps them to a file. This can be used for docker-compose
+ */
+if (controllerEnv != null && invokerEnv != null){
+    Set<String> commonKeys = controllerEnv.keySet().intersect(invokerEnv.keySet())
+
+    SortedMap commonEnv = new TreeMap()
+    SortedMap controllerSpecificEnv = new TreeMap(controllerEnv)
+    SortedMap invokerSpecificEnv = new TreeMap(invokerEnv)
+    commonKeys.each{ key ->
+        if (controllerEnv[key] == invokerEnv[key]){
+            commonEnv[key] = controllerEnv[key]
+            controllerSpecificEnv.remove(key)
+            invokerSpecificEnv.remove(key)
+        }
+    }
+
+    copyEnvToFile(commonEnv,"whisk-common.env")
+    copyEnvToFile(controllerSpecificEnv,"whisk-controller.env")
+    copyEnvToFile(invokerSpecificEnv,"whisk-invoker.env")
+}
+
+def copyEnvToFile(SortedMap envMap,String envFileName){
+    File envFile = new File(getEnvFileDir(), envFileName)
+    envFile.withPrintWriter {pw ->
+        envMap.each{k,v ->
+            pw.println("$k=$v")
+
+        }
+    }
+    println "Wrote env to ${envFile.absolutePath}"
+}
+
+private File getEnvFileDir() {
+    File dir = new File(new File("build"), "env")
+    dir.mkdirs()
+    return dir
 }
 
 /**
@@ -133,26 +184,30 @@ def getSysProps(def envMap, String type){
  * Inspect command from docker returns the environment variables as list of string of form key=value
  * This method converts it to map and add provided overrides with overrides from config
  */
-def getEnv(def env, String type, Map overrides){
+def getEnv(Map envMap, String type, Map overrides){
     def ignoredKeys = ['PATH']
     def overridesFromConfig = config[type].env
-    Map envMap = env.collectEntries {String e ->
+    Map sortedMap = new TreeMap(envMap)
+    sortedMap.putAll(overrides)
+
+    //Config override come last
+    sortedMap.putAll(overridesFromConfig)
+
+    //Remove ignored keys like PATH which should be inherited
+    ignoredKeys.each {sortedMap.remove(it)}
+    sortedMap
+}
+
+def getEnvMap(def env){
+    def envMap = env.collectEntries {String e ->
         def eqIndex = e.indexOf('=')
         def k = e.substring(0, eqIndex)
         def v = e.substring(eqIndex + 1)
         [(k):v]
     }
-
-    envMap.putAll(overrides)
-
-    //Config override come last
-    envMap.putAll(overridesFromConfig)
-
-    //Remove ignored keys like PATH which should be inherited
-    ignoredKeys.each {envMap.remove(it)}
-
-    //Returned sorted view of env
-    new TreeMap(envMap)
+    def sortedMap = new TreeMap()
+    sortedMap.putAll(envMap)
+    Collections.unmodifiableSortedMap(sortedMap)
 }
 
 def getEnvAsList(Map envMap){
