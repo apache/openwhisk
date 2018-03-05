@@ -79,6 +79,8 @@ controller:
   loadbalancer:
     spi: "{{ controller_loadbalancer_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  entitlement:
+    spi: "{{ controller_entitlement_spi | default('') }}"
   protocol: "{{ controllerProtocolForSetup }}"
   ssl:
     cn: openwhisk-controllers
