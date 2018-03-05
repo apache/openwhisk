@@ -483,18 +483,27 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    val requireWebAuthIsBool = (action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation) != None)
-                    val annotationRequireWebAuth = action.annotations
-                      .getAs[Int](WhiskAction.requireWhiskAuthAnnotation).map(_.toString)
-                      .orElse(action.annotations.getAs[String](WhiskAction.requireWhiskAuthAnnotation))
-                    val enforceWhiskAuthHdr = (!requireWebAuthIsBool && annotationRequireWebAuth.isDefined)
-                    val headerWhiskAuth = context.headers.find(_.lowercaseName == WhiskAction.requireWhiskAuthHeader)
-                    // If the require-whisk-auth annotation is either an integer or a string, secure the web action by enforcing that
-                    // the require-whisk-auth annotation value == request header x-require-whisk-auth value
-                    if (enforceWhiskAuthHdr && (headerWhiskAuth.isEmpty || headerWhiskAuth.get.value != annotationRequireWebAuth.get)) {
+                    // If the require-whisk-auth annotation is either an integer or a string, secure the web action by enforcing
+                    //   require-whisk-auth annotation value == request header x-require-whisk-auth value
+                    // If the require-whisk-auth annotation is a boolean, skip the request header x-require-whisk-auth check
+                    val requireWhiskHeaderAuthenticationFailed = action.annotations
+                      .get(WhiskAction.requireWhiskAuthAnnotation)
+                      .flatMap {
+                        case JsString(authStr) => Some(authStr)
+                        case JsNumber(authNum) => Some(authNum.toInt.toString)
+                        case _                 => None
+                      }
+                      .map { reqWhiskAuthAnnotationStr =>
+                        context.headers
+                          .find(_.is(WhiskAction.requireWhiskAuthHeader))
+                          .map(_.value != reqWhiskAuthAnnotationStr)
+                          .getOrElse(true)
+                      }
+                      .getOrElse(false)
+                    if (requireWhiskHeaderAuthenticationFailed) {
                       logging.debug(
                         this,
-                        "web action with require-whisk-auth was invoked without matching x-require-whisk-auth header value")
+                        "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
                       terminate(Unauthorized)
                     } else if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
@@ -732,7 +741,8 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser = action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).exists(identity)
+      val requiresAuthenticatedUser =
+        action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).exists(identity)
       val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
