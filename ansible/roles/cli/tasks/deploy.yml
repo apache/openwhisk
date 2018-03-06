@@ -14,6 +14,8 @@
   file:
     path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
     state: directory
+    mode: 0777
+  become: true
 
 #
 #  Why are we unarchiving into the build directory instead of directly into
@@ -48,10 +50,7 @@
     -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
 
 - name: "Copy expanded archive to final configuration directory"
-  copy:
-    #  WARNING:  The trailing slash is significant, signalling to copy contents
-    src: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
-    dest: "{{ openwhisk_cli.nginxdir.name }}"
+  shell: cp -r {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/ {{ openwhisk_cli.nginxdir.name }}
 
 - name: "Delete archive from build directory"
   file:
