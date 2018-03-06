@@ -56,7 +56,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "reject malformed ids" in {
-    Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
+    Seq("", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
       an[IllegalArgumentException] should be thrownBy AuthKey(i)
     }
   }
