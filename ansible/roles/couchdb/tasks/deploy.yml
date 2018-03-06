@@ -51,6 +51,16 @@
   retries: 12
   delay: 5
 
+- name: create '_users' database for singleton mode
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_users"
+    method: PUT
+    status_code: 201
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+    force_basic_auth: yes
+  when: (couchdb.version|version_compare('2.0','>=')) and (db.instances|int == 1)
+
 - name: enable the cluster setup mode
   uri:
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_cluster_setup"
