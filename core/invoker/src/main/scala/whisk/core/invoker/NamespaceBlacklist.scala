@@ -25,9 +25,12 @@ import whisk.core.entity.types.AuthStore
 import scala.concurrent.{ExecutionContext, Future}
 import spray.json.DefaultJsonProtocol._
 
+import scala.concurrent.duration.FiniteDuration
+
 /**
- * The Namespace blacklist gets all namespaces that are throttled to 0 from the database.
- * The caller is responsible for a periodically update of the blacklist with `refreshBlacklist`.
+ * The namespace blacklist gets all namespaces that are throttled to 0 or blocked from the database.
+ *
+ * The caller is responsible for periodically updating the blacklist with `refreshBlacklist`.
  *
  * @param authStore Subjects database with the limit-documents.
  */
@@ -38,11 +41,12 @@ class NamespaceBlacklist(authStore: AuthStore) {
   /**
    * Check if the identity, who invoked the activation is in the blacklist.
    *
-   * @param identity User who invoked the action.
-   * @return true or false, depending if the current identity is blocked.
+   * @param identity which invoked the action.
+   * @return whether or not the current identity is considered blacklisted
    */
   def isBlacklisted(identity: Identity): Boolean = blacklist.contains(identity.namespace.name)
 
+  /** Refreshes the current blacklist from the database. */
   def refreshBlacklist()(implicit ec: ExecutionContext, tid: TransactionId): Future[Set[String]] = {
     authStore
       .query(
@@ -67,4 +71,8 @@ object NamespaceBlacklist {
   val view = View("namespaceThrottlings", "blockedNamespaces")
 }
 
+/** Configuration relevant to the namespace blacklist */
+case class NamespaceBlacklistConfig(pollInterval: FiniteDuration)
+
+/** Indicates the activation was stopped due to a blacklisted identity */
 case class NamespaceBlacklistedException(ns: String) extends Exception(s"Namespace $ns was blocked in invoker.")

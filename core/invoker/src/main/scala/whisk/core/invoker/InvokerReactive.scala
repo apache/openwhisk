@@ -20,35 +20,26 @@ package whisk.core.invoker
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-import org.apache.kafka.common.errors.RecordTooLargeException
-import akka.actor.ActorRefFactory
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
+import org.apache.kafka.common.errors.RecordTooLargeException
+import pureconfig._
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, Scheduler, TransactionId}
-import whisk.core.WhiskConfig
-import whisk.core.connector.ActivationMessage
-import whisk.core.connector.CompletionMessage
-import whisk.core.connector.MessageFeed
-import whisk.core.connector.MessageProducer
-import whisk.core.connector.MessagingProvider
-import whisk.core.containerpool.ContainerFactoryProvider
-import whisk.core.containerpool.ContainerPool
-import whisk.core.containerpool.ContainerProxy
-import whisk.core.containerpool.PrewarmingConfig
-import whisk.core.containerpool.Run
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.connector._
+import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogStoreProvider
 import whisk.core.database._
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
-import akka.event.Logging.InfoLevel
+
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
   implicit actorSystem: ActorSystem,
@@ -90,8 +81,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
   private val namespaceBlacklist = new NamespaceBlacklist(authStore)
 
-  Scheduler.scheduleWaitAtMost(5.minutes) { () =>
-    logging.info(this, "running background job to update blacklist")
+  Scheduler.scheduleWaitAtMost(loadConfigOrThrow[NamespaceBlacklistConfig](ConfigKeys.blacklist).pollInterval) { () =>
+    logging.debug(this, "running background job to update blacklist")
     namespaceBlacklist.refreshBlacklist()(ec, TransactionId.invoker).andThen {
       case Success(set) => logging.info(this, s"updated blacklist to ${set.size} entries")
       case Failure(t)   => logging.error(this, s"error on updating the blacklist: ${t.getMessage}")
