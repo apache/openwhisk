@@ -15,6 +15,8 @@
     path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
     state: directory
     mode: 0777
+  become: "{{ openwhisk_cli.nginxdir.become }}"
+
 
 #
 #  Why are we unarchiving into the build directory instead of directly into
@@ -31,12 +33,14 @@
     url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
     headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+    mode: 0777
   when: openwhisk_cli.installation_mode == "remote"
 
 - name: "... or Copy release archive to build directory"
   copy:
     src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+    mode: 0777
   when: openwhisk_cli.installation_mode == "local"
 
 #
@@ -49,10 +53,7 @@
     -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
 
 - name: "Copy expanded archive to final configuration directory"
-  copy:
-    #  WARNING:  The trailing slash is significant, signalling to copy contents
-    src: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
-    dest: "{{ openwhisk_cli.nginxdir.name }}"
+  shell: cp -r {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/* {{ openwhisk_cli.nginxdir.name }}
 
 - name: "Delete archive from build directory"
   file:
@@ -82,8 +83,5 @@
   register: individual_zipfiles
 
 - name: "Unarchive the individual zipfiles into binaries"
-  unarchive:
-    remote_src: yes
-    src: "{{ item.path }}"
-    dest: "{{ item.path | dirname }}"
+  command: "unzip -d {{ item.path | dirname }} {{ item.path }}"
   with_items: "{{ individual_zipfiles.files }}"
