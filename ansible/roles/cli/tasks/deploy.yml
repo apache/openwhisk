@@ -14,6 +14,7 @@
   file:
     path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
     state: directory
+  delegate_to: localhost
 
 #
 #  Why are we unarchiving into the build directory instead of directly into
@@ -31,12 +32,14 @@
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
     headers: "{{ openwhisk_cli.remote.headers | default('') }}"
   when: openwhisk_cli.installation_mode == "remote"
+  delegate_to: localhost
 
 - name: "... or Copy release archive to build directory"
   copy:
     src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "local"
+  delegate_to: localhost
 
 #
 #   I really wanted to use 'unarchive' here, but it was quite buggy and didn't
@@ -46,6 +49,7 @@
   shell: >
     tar zxf /{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz
     -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
+  delegate_to: localhost
 
 - name: "Copy expanded archive to final configuration directory"
   copy:
@@ -61,6 +65,7 @@
   with_items:
       - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
       - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
+  delegate_to: localhost
 
 - name: "Generate a list of individual tarballs to expand"
   find:
