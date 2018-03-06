@@ -82,14 +82,20 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         EntityPath(creds1.subject.asString),
         aname(),
         creds1.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
     } foreach { put(entityStore, _) }
 
     val actionName = aname()
     val activations = (1 to 2).map { i =>
-      WhiskActivation(namespace, actionName, creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(
+        namespace,
+        actionName,
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
     }.toList
     activations foreach { put(activationStore, _) }
     waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
@@ -151,7 +157,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         EntityPath(creds1.subject.asString),
         aname(),
         creds1.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
     } foreach { put(entityStore, _) }
@@ -162,7 +168,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
         response = ActivationResponse.success(Some(JsNumber(5))))
@@ -192,7 +198,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         EntityPath(creds1.subject.asString),
         aname(),
         creds1.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
     } foreach { put(activationStore, _) }
@@ -206,35 +212,35 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(9),
         end = now.plusSeconds(9)),
       WhiskActivation(
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(20),
         end = now.plusSeconds(20)), // should match
       WhiskActivation(
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(10),
         end = now.plusSeconds(20)), // should match
       WhiskActivation(
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(31),
         end = now.plusSeconds(31)),
       WhiskActivation(
         namespace,
         actionName,
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(30),
         end = now.plusSeconds(30))) // should match
     activations foreach { put(activationStore, _) }
@@ -316,7 +322,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         EntityPath(creds1.subject.asString),
         aname(),
         creds1.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
     } foreach { put(activationStore, _) }
@@ -326,7 +332,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         namespace,
         EntityName(s"xyz"),
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
     }.toList
@@ -337,7 +343,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         namespace,
         EntityName(s"xyz"),
         creds.subject,
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
         annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
@@ -416,7 +422,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   it should "get activation by id" in {
     implicit val tid = transid()
     val activation =
-      WhiskActivation(namespace, aname(), creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
     put(activationStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
@@ -443,7 +455,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   it should "get activation result by id" in {
     implicit val tid = transid()
     val activation =
-      WhiskActivation(namespace, aname(), creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
     put(activationStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
@@ -457,7 +475,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   it should "get activation logs by id" in {
     implicit val tid = transid()
     val activation =
-      WhiskActivation(namespace, aname(), creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
     put(activationStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> Route.seal(routes(creds)) ~> check {
@@ -471,7 +495,13 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   it should "reject request to get invalid activation resource" in {
     implicit val tid = transid()
     val activation =
-      WhiskActivation(namespace, aname(), creds.subject, ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(
+        namespace,
+        aname(),
+        creds.subject,
+        ActivationId.generate(),
+        start = Instant.now,
+        end = Instant.now)
     put(entityStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}/bogus") ~> Route.seal(routes(creds)) ~> check {
@@ -481,7 +511,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "reject get requests with invalid activation ids" in {
     implicit val tid = transid()
-    val activationId = ActivationId().toString
+    val activationId = ActivationId.generate().toString
     val tooshort = activationId.substring(0, 31)
     val toolong = activationId + "xxx"
     val malformed = tooshort + "z"
@@ -503,21 +533,21 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
   it should "reject request with put" in {
     implicit val tid = transid()
-    Put(s"$collectionPath/${ActivationId()}") ~> Route.seal(routes(creds)) ~> check {
+    Put(s"$collectionPath/${ActivationId.generate()}") ~> Route.seal(routes(creds)) ~> check {
       status should be(MethodNotAllowed)
     }
   }
 
   it should "reject request with post" in {
     implicit val tid = transid()
-    Post(s"$collectionPath/${ActivationId()}") ~> Route.seal(routes(creds)) ~> check {
+    Post(s"$collectionPath/${ActivationId.generate()}") ~> Route.seal(routes(creds)) ~> check {
       status should be(MethodNotAllowed)
     }
   }
 
   it should "reject request with delete" in {
     implicit val tid = transid()
-    Delete(s"$collectionPath/${ActivationId()}") ~> Route.seal(routes(creds)) ~> check {
+    Delete(s"$collectionPath/${ActivationId.generate()}") ~> Route.seal(routes(creds)) ~> check {
       status should be(MethodNotAllowed)
     }
   }
@@ -534,7 +564,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         logging,
         materializer)
     implicit val tid = transid()
-    val entity = BadEntity(namespace, EntityName(ActivationId().toString))
+    val entity = BadEntity(namespace, EntityName(ActivationId.generate().toString))
     put(activationStore, entity)
 
     Get(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {

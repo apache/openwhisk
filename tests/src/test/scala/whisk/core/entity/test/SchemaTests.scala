@@ -767,22 +767,22 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "parse activation id as uuid" in {
     val id = "213174381920559471141441e1111111"
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
   it should "parse activation id as uuid when made up of no numbers" in {
     val id = "a" * 32
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
   it should "parse activation id as uuid when made up of no letters" in {
     val id = "1" * 32
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
@@ -795,7 +795,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse invalid activation id" in {
     val id = "213174381920559471141441e111111z"
-    assert(ActivationId.unapply(id).isEmpty)
+    assert(ActivationId.parse(id).isFailure)
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdIllegal)
     }
@@ -803,7 +803,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse activation id if longer than uuid" in {
     val id = "213174381920559471141441e1111111abc"
-    assert(ActivationId.unapply(id).isEmpty)
+    assert(ActivationId.parse(id).isFailure)
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
     }
@@ -811,7 +811,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse activation id if shorter than uuid" in {
     val id = "213174381920559471141441e1"
-    ActivationId.unapply(id) shouldBe empty
+    ActivationId.parse(id) shouldBe 'failure
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
     }

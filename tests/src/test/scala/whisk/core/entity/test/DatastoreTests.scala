@@ -134,8 +134,8 @@ class DatastoreTests
     implicit val tid = transid()
     implicit val basename = EntityName("create action blackbox")
     val activations = Seq(
-      WhiskActivation(namespace, aname, Subject(), ActivationId(), start = Instant.now, end = Instant.now),
-      WhiskActivation(namespace, aname, Subject(), ActivationId(), start = Instant.now, end = Instant.now))
+      WhiskActivation(namespace, aname, Subject(), ActivationId.generate(), start = Instant.now, end = Instant.now),
+      WhiskActivation(namespace, aname, Subject(), ActivationId.generate(), start = Instant.now, end = Instant.now))
     val docs = activations.map { entity =>
       putGetCheck(datastore, entity, WhiskActivation)
     }
@@ -149,7 +149,7 @@ class DatastoreTests
         namespace,
         aname,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
         logs = ActivationLogs(Vector("Prote\u00EDna"))))
@@ -230,7 +230,7 @@ class DatastoreTests
     implicit val tid = transid()
     implicit val basename = EntityName("update activation")
     val activation =
-      WhiskActivation(namespace, aname, Subject(), ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(namespace, aname, Subject(), ActivationId.generate(), start = Instant.now, end = Instant.now)
     val docinfo = putGetCheck(datastore, activation, WhiskActivation, false)._2.docinfo
     val revActivation = WhiskActivation(
       namespace,
@@ -277,7 +277,7 @@ class DatastoreTests
     implicit val tid = transid()
     implicit val basename = EntityName("create activation twice")
     val activation =
-      WhiskActivation(namespace, aname, Subject(), ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(namespace, aname, Subject(), ActivationId.generate(), start = Instant.now, end = Instant.now)
     putGetCheck(datastore, activation, WhiskActivation)
     intercept[DocumentConflictException] {
       putGetCheck(datastore, activation, WhiskActivation)
@@ -325,7 +325,7 @@ class DatastoreTests
     implicit val tid = transid()
     implicit val basename = EntityName("delete activation twice")
     val activation =
-      WhiskActivation(namespace, aname, Subject(), ActivationId(), start = Instant.now, end = Instant.now)
+      WhiskActivation(namespace, aname, Subject(), ActivationId.generate(), start = Instant.now, end = Instant.now)
     val doc = putGetCheck(datastore, activation, WhiskActivation, false)._1
     assert(Await.result(WhiskActivation.del(datastore, doc), dbOpTimeout))
     intercept[NoDocumentException] {

@@ -41,9 +41,9 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   val activationIdPromise = Promise[Either[ActivationId, WhiskActivation]]()
   val firstEntry: ActivationEntry =
-    ActivationEntry(ActivationId(), UUID(), InstanceId(0), emptyCancellable, activationIdPromise)
+    ActivationEntry(ActivationId.generate(), UUID(), InstanceId(0), emptyCancellable, activationIdPromise)
   val secondEntry: ActivationEntry =
-    ActivationEntry(ActivationId(), UUID(), InstanceId(1), emptyCancellable, activationIdPromise)
+    ActivationEntry(ActivationId.generate(), UUID(), InstanceId(1), emptyCancellable, activationIdPromise)
 
   val port = 2552
   val host = "127.0.0.1"
@@ -159,9 +159,9 @@ class LoadBalancerDataTests extends FlatSpec with Matchers with StreamLogging {
 
   it should "respond with different values accordingly" in {
 
-    val entry = ActivationEntry(ActivationId(), UUID(), InstanceId(1), emptyCancellable, activationIdPromise)
-    val entrySameInvokerAndNamespace = entry.copy(id = ActivationId())
-    val entrySameInvoker = entry.copy(id = ActivationId(), namespaceId = UUID())
+    val entry = ActivationEntry(ActivationId.generate(), UUID(), InstanceId(1), emptyCancellable, activationIdPromise)
+    val entrySameInvokerAndNamespace = entry.copy(id = ActivationId.generate())
+    val entrySameInvoker = entry.copy(id = ActivationId.generate(), namespaceId = UUID())
 
     val distributedLoadBalancerData = new DistributedLoadBalancerData()
     val localLoadBalancerData = new LocalLoadBalancerData()

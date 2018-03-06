@@ -75,7 +75,7 @@ class RemoveLogsTests extends FlatSpec with DatabaseScriptTestUtils with StreamL
         namespace = EntityPath("testns1"),
         name = EntityName("testname1"),
         subject = Subject("test-sub1"),
-        activationId = ActivationId(),
+        activationId = ActivationId.generate(),
         start = Instant.now.minus(2, ChronoUnit.DAYS),
         end = Instant.now,
         logs = ActivationLogs(Vector("first line1", "second line1")))
@@ -84,7 +84,7 @@ class RemoveLogsTests extends FlatSpec with DatabaseScriptTestUtils with StreamL
         namespace = EntityPath("testns2"),
         name = EntityName("testname2"),
         subject = Subject("test-sub2"),
-        activationId = ActivationId(),
+        activationId = ActivationId.generate(),
         start = Instant.now,
         end = Instant.now,
         logs = ActivationLogs(Vector("first line2", "second line2")))

@@ -79,7 +79,7 @@ class SplunkLogStoreTests
     namespace = EntityPath("ns"),
     name = EntityName("a"),
     Subject(),
-    activationId = ActivationId(),
+    activationId = ActivationId.generate(),
     start = ZonedDateTime.parse(startTime).toInstant,
     end = ZonedDateTime.parse(endTime).toInstant,
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
