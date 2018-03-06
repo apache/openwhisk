@@ -129,6 +129,11 @@ trait ArtifactStore[DocumentAbstraction] {
   protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[(ContentType, T)]
 
+  /**
+   * Deletes all attachments linked to given document
+   */
+  protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean]
+
   /** Shut it down. After this invocation, every other call is invalid. */
   def shutdown(): Unit
 }
