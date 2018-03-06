@@ -23,14 +23,13 @@ import org.junit.runner.RunWith
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
-import whisk.core.database.CouchDbRestClient
 import whisk.core.database.test.{DbUtils, ExtendedCouchDbRestClient}
 import whisk.core.entity._
 import whisk.core.invoker.NamespaceBlacklist
-import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.duration._
 
@@ -60,6 +59,7 @@ class NamespaceBlacklistTests
     WhiskProperties.getProperty(WhiskConfig.dbPassword),
     WhiskProperties.getProperty(WhiskConfig.dbAuths))
 
+  /* Identities needed for the first test */
   val identities = Seq(
     Identity(Subject(), EntityName("testnamespace1"), AuthKey(), Set.empty, UserLimits(invocationsPerMinute = Some(0))),
     Identity(
@@ -75,40 +75,56 @@ class NamespaceBlacklistTests
       Set.empty,
       UserLimits(invocationsPerMinute = Some(1), concurrentInvocations = Some(1))))
 
-  override def beforeAll() = {
-    identities.foreach { id =>
-      putLimitsForIdentity(subjectsDb, id)
+  /* Subject document needed for the second test */
+  val subject = WhiskAuth(
+    Subject(),
+    Set(WhiskNamespace(EntityName("different1"), AuthKey()), WhiskNamespace(EntityName("different2"), AuthKey())))
+  val blockedSubject = JsObject(subject.toJson.fields + ("blocked" -> true.toJson))
+
+  val blockedNamespacesCount = 2 + subject.namespaces.size
+
+  def authToIdentities(auth: WhiskAuth): Set[Identity] = {
+    auth.namespaces.map { ns =>
+      Identity(auth.subject, ns.name, ns.authkey, Set(), UserLimits())
     }
-    // Wait on view
-    waitOnView(subjectsDb, NamespaceBlacklist.view.ddoc, NamespaceBlacklist.view.view, 2)(executionContext, 1.minute)
+  }
+
+  override def beforeAll() = {
+    val documents = identities.map { i =>
+      (i.namespace.name + "/limits", i.limits.toJson.asJsObject)
+    } :+ (subject.subject.asString, blockedSubject)
+
+    // Add all documents to the database
+    documents.foreach { case (id, doc) => subjectsDb.putDoc(id, doc).futureValue }
+
+    // Waits for the 2 blocked identities + the namespaces of the blocked subject
+    waitOnView(subjectsDb, NamespaceBlacklist.view.ddoc, NamespaceBlacklist.view.view, blockedNamespacesCount)(
+      executionContext,
+      1.minute)
   }
 
   override def afterAll() = {
-    identities.foreach { id =>
-      deleteLimitDocForIdentity(subjectsDb, id)
+    val ids = identities.map(_.namespace.name + "/limits") :+ subject.subject.asString
+
+    // Force remove all documents with those ids by first getting and then deleting the documents
+    ids.foreach { id =>
+      val docE = subjectsDb.getDoc(id).futureValue
+      docE shouldBe 'right
+      val doc = docE.right.get
+      subjectsDb
+        .deleteDoc(doc.fields("_id").convertTo[String], doc.fields("_rev").convertTo[String])
+        .futureValue
     }
+
     super.afterAll()
   }
 
-  def putLimitsForIdentity(db: CouchDbRestClient, identity: Identity) = {
-    db.putDoc(identity.namespace.name + "/limits", identity.limits.toJson.asJsObject).futureValue
-  }
-
-  def deleteLimitDocForIdentity(db: CouchDbRestClient, identity: Identity) = {
-    val doc = subjectsDb.getDoc(identity.namespace.name + "/limits").futureValue
-    doc shouldBe 'right
-    subjectsDb
-      .deleteDoc(doc.right.get.fields("_id").convertTo[String], doc.right.get.fields("_rev").convertTo[String])
-      .futureValue
-  }
-
-  it should "mark a namespace as blocked if limit is 0 in database" in {
+  it should "mark a namespace as blocked if limit is 0 in database or if one of its subjects is blocked" in {
     val blacklist = new NamespaceBlacklist(authStore)
 
-    // Execute refresh
-    blacklist.refreshBlacklist().futureValue should have size 2
+    blacklist.refreshBlacklist().futureValue should have size blockedNamespacesCount
 
-    // execute isBlacklisted -> true
     identities.map(blacklist.isBlacklisted) shouldBe Seq(true, true, false)
+    authToIdentities(subject).toSeq.map(blacklist.isBlacklisted) shouldBe Seq(true, true)
   }
 }
