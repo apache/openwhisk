@@ -483,24 +483,9 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    // If the require-whisk-auth annotation is either an integer or a string, secure the web action by enforcing
-                    //   require-whisk-auth annotation value == request header x-require-whisk-auth value
-                    // If the require-whisk-auth annotation is a boolean, skip the request header x-require-whisk-auth check
-                    val requireWhiskHeaderAuthenticationFailed = action.annotations
-                      .get(WhiskAction.requireWhiskAuthAnnotation)
-                      .flatMap {
-                        case JsString(authStr) => Some(authStr)
-                        case JsNumber(authNum) => Some(authNum.toInt.toString)
-                        case _                 => None
-                      }
-                      .map { reqWhiskAuthAnnotationStr =>
-                        context.headers
-                          .find(_.is(WhiskAction.requireWhiskAuthHeader))
-                          .map(_.value != reqWhiskAuthAnnotationStr)
-                          .getOrElse(true)
-                      }
-                      .getOrElse(false)
-                    if (requireWhiskHeaderAuthenticationFailed) {
+                    var requiredAuthOk =
+                      requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
+                    if (!requiredAuthOk) {
                       logging.debug(
                         this,
                         "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
@@ -773,5 +758,33 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
     } else responseType.defaultProjection
 
     projection.getOrElse(List.empty)
+  }
+
+  /**
+   * Check if "require-whisk-auth" authentication is needed, and if so, authenticate the request
+   * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported
+   *
+   * @param annotations - web action annotations
+   * @param reqHeaders - web action invocation request headers
+   * @return Option[Boolean]
+   *         None if annotations does not include require-whisk-auth (i.e. auth test not needed)
+   *         Some(true) if annotations includes require-whisk-auth and it's value matches the request header `X-Require-Whisk-Auth` value
+   *         Some(false) if annotations includes require-whisk-auth and the request does not include the header `X-Require-Whisk-Auth`
+   *         Some(false) if annotations includes require-whisk-auth and it's value deos not match the request header `X-Require-Whisk-Auth` value
+   */
+  private def requiredWhiskAuthSuccessful(annotations: Parameters, reqHeaders: Seq[HttpHeader]): Option[Boolean] = {
+    annotations
+      .get(WhiskAction.requireWhiskAuthAnnotation)
+      .flatMap {
+        case JsString(authStr) => Some(authStr)
+        case JsNumber(authNum) => Some(authNum.toString)
+        case _                 => None
+      }
+      .map { reqWhiskAuthAnnotationStr =>
+        reqHeaders
+          .find(_.is(WhiskAction.requireWhiskAuthHeader))
+          .map(_.value == reqWhiskAuthAnnotationStr)
+          .getOrElse(false) // false => when no x-require-whisk-auth header is present
+      }
   }
 }

@@ -413,6 +413,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           } else if (creds.isDefined) {
             val user = creds.get
             invocationsAllowed += 1
+
+            // web action require-whisk-auth is set and the header X-Require-Whisk-Auth value does not matches
             m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey) ~> Route
               .seal(routes(creds)) ~> check {
               status should be(OK)
@@ -428,7 +430,14 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                   headers = List(RawHeader("X-Require-Whisk-Auth", requireAuthenticationKey))))
               response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
             }
+
+            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value does not match
+            m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey + "-bad") ~> Route
+              .seal(routes(creds)) ~> check {
+              status should be(Unauthorized)
+            }
           } else {
+            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value is not set
             m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
               status should be(Unauthorized)
             }
