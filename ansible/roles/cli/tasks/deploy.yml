@@ -14,6 +14,7 @@
   file:
     path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
     state: directory
+    mode: 0777
 
 #
 #  Why are we unarchiving into the build directory instead of directly into
