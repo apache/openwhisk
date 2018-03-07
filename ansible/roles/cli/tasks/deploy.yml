@@ -8,6 +8,7 @@
   file:
     path: "{{ openwhisk_cli.nginxdir.name }}"
     state: directory
+    mode: 0777
   become: "{{ openwhisk_cli.nginxdir.become }}"
 
 - name: "Ensure OpenWhisk build directory exists (for temp archive work)"
@@ -15,6 +16,7 @@
     path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
     state: directory
     mode: 0777
+  become: "{{ openwhisk_cli.nginxdir.become }}"
 
 #
 #  Why are we unarchiving into the build directory instead of directly into
@@ -31,12 +33,14 @@
     url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
     headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+    mode: 0755
   when: openwhisk_cli.installation_mode == "remote"
 
 - name: "... or Copy release archive to build directory"
   copy:
     src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
     dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+    mode: 0755
   when: openwhisk_cli.installation_mode == "local"
 
 #
