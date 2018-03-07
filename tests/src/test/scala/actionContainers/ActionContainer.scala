@@ -144,17 +144,21 @@ object ActionContainer {
     }
 
     // ...find out its IP address...
-    val (ip, port) = if (WhiskProperties.getProperty("whisk.version.name") == "local") {
-      val p = 8988 // port must be available or docker run will fail
-      createContainer(Some(p))
-      Thread.sleep(1500) // let container/server come up cleanly
-      ("localhost", p)
-    } else { // "mac"
-      createContainer()
-      val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
-      assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
-      (ipOut._2.replaceAll("""[^0-9.]""", ""), 8080)
-    }
+    val (ip, port) =
+      if (WhiskProperties.getProperty("whisk.version.name") == "local" &&
+          WhiskProperties.onMacOSX()) {
+        // on MacOSX, where docker for mac does not permit communicating with container directly
+        val p = 8988 // port must be available or docker run will fail
+        createContainer(Some(p))
+        Thread.sleep(1500) // let container/server come up cleanly
+        ("localhost", p)
+      } else {
+        // not "mac" i.e., docker-for-mac, use direct container IP directly (this is OK for Ubuntu, and docker-machine)
+        createContainer()
+        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
+        assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
+        (ipOut._2.replaceAll("""[^0-9.]""", ""), 8080)
+      }
 
     // ...we create an instance of the mock container interface...
     val mock = new ActionContainer {
