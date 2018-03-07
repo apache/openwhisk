@@ -8,3 +8,4 @@
   roles:
   - nginx
   - cli
+  - cli-install
