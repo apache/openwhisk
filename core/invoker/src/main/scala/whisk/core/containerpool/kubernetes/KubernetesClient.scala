@@ -79,9 +79,7 @@ case class KubernetesInvokerAgentConfig(enabled: Boolean, port: Int)
 /**
  * General configuration for kubernetes client
  */
-case class KubernetesClientConfig(namespace: String,
-                                  timeouts: KubernetesClientTimeoutConfig,
-                                  invokerAgent: KubernetesInvokerAgentConfig)
+case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig, invokerAgent: KubernetesInvokerAgentConfig)
 
 /**
  * Serves as interface to the kubectl CLI tool.
@@ -150,12 +148,13 @@ class KubernetesClient(
       .endSpec()
       .build()
 
-    kubeRestClient.pods.inNamespace(config.namespace).create(pod)
+    val namespace = kubeRestClient.getNamespace
+    kubeRestClient.pods.inNamespace(namespace).create(pod)
 
     Future {
       blocking {
         val createdPod = kubeRestClient.pods
-          .inNamespace(config.namespace)
+          .inNamespace(namespace)
           .withName(name)
           .waitUntilReady(config.timeouts.run.length, config.timeouts.run.unit)
         toContainer(createdPod)
@@ -178,7 +177,7 @@ class KubernetesClient(
       Future {
         blocking {
           kubeRestClient
-            .inNamespace(config.namespace)
+            .inNamespace(kubeRestClient.getNamespace)
             .pods()
             .withLabel(key, value)
             .list()
