@@ -1,2 +1,0 @@
-ext.dockerImageName = 'python2action'
-apply from: '../../gradle/docker.gradle'

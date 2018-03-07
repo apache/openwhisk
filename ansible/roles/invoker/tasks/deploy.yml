@@ -12,17 +12,17 @@
   delay: "{{ docker.pull.delay }}"
 
 - name: "pull runtime action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item}}:{{docker.image.tag}}"
+  shell: "docker pull {{docker_registry}}{{docker.runtimes.prefix}}/{{item}}:{{docker.runtimes.tag}}"
   with_items: "{{ runtimesManifest.runtimes.values() | sum(start=[]) | selectattr('deprecated', 'equalto',false)  | map(attribute='image.name') | list | unique }}"
-  when: docker_registry != ""
+  #when: docker_registry != ""
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
 - name: "pull blackboxes action images with tag {{docker.image.tag}}"
-  shell: "docker pull {{docker_registry}}{{docker.image.prefix}}/{{item.name}}:{{docker.image.tag}}"
+  shell: "docker pull {{docker_registry}}{{docker.runtimes.prefix}}/{{item.name}}:{{docker.runtimes.tag}}"
   with_items:
     - "{{ runtimesManifest.blackboxes }}"
-  when: docker_registry != ""
+  #when: docker_registry != ""
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
 
@@ -177,8 +177,8 @@
         -e WHISK_API_HOST_PORT='{{ whisk_api_host_port | default('443') }}'
         -e WHISK_API_HOST_NAME='{{ whisk_api_host_name | default(groups['edge'] | first) }}'
         -e RUNTIMES_MANIFEST='{{ runtimesManifest | to_json }}'
-        -e CONFIG_whisk_runtimes_defaultImagePrefix='{{ runtimes_default_image_prefix | default() }}'
-        -e CONFIG_whisk_runtimes_defaultImageTag='{{ runtimes_default_image_tag | default() }}'
+        -e CONFIG_whisk_runtimes_defaultImagePrefix='{{ docker.runtimes.prefix }}'
+        -e CONFIG_whisk_runtimes_defaultImageTag='{{ docker.runtimes.tag }}'
         -e CONFIG_whisk_runtimes_bypassPullForLocalImages='{{ runtimes_bypass_pull_for_local_images | default() }}'
         -e CONFIG_whisk_runtimes_localImagePrefix='{{ runtimes_local_image_prefix | default() }}'
         -e DOCKER_REGISTRY='{{ docker_registry }}'

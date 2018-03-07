@@ -207,6 +207,9 @@ docker:
   image:
     prefix: "{{ docker_image_prefix | default('whisk') }}"
     tag: "{{ docker_image_tag | default('latest') }}"
+  runtimes:
+    prefix: "{{ runtime_image_prefix | default('openwhisk') }}"
+    tag: "{{ runtime_image_tag | default('latest') }}"
   version: 1.12.0-0~trusty
   storagedriver: overlay
   port: 4243
