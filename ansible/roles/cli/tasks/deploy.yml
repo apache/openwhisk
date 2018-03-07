@@ -40,7 +40,7 @@
 # Remote copy does not support recursive copy of directories. That's why I'm using the shell.
 - name: "Copy expanded archive to final configuration directory"
   #  WARNING:  The trailing slash is significant, signalling to copy contents
-  shell: "cp -r {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/ {{ openwhisk_cli.nginxdir.name }}"
+  shell: "cp -r {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/* {{ openwhisk_cli.nginxdir.name }}"
 
 - name: "Delete temp directory"
   file:
