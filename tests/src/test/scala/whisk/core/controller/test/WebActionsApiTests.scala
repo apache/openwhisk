@@ -133,6 +133,8 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   var failThrottleForSubject: Option[Subject] = None // toggle to cause throttle to fail for subject
   var actionResult: Option[JsObject] = None
   var requireAuthentication = false // toggle require-whisk-auth annotation on action
+  var requireAuthenticationAsBoolean = true // toggle value set in require-whisk-auth annotation (true or  requireAuthenticationKey)
+  var requireAuthenticationKey = "example-web-action-api-key"
   var customOptions = true // toogle web-custom-options annotation on action
   var invocationCount = 0
   var invocationsAllowed = 0
@@ -148,6 +150,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
     failThrottleForSubject = None
     actionResult = None
     requireAuthentication = false
+    requireAuthenticationAsBoolean = true
     customOptions = true
     assert(invocationsAllowed == invocationCount, "allowed invoke count did not match actual")
   }
@@ -197,7 +200,9 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
               annotations ++
                 Parameters("web-export", JsBoolean(true)) ++ {
                 if (requireAuthentication) {
-                  Parameters("require-whisk-auth", JsBoolean(true))
+                  Parameters(
+                    "require-whisk-auth",
+                    (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
                 } else Parameters()
               } ++ {
                 if (customOptions) {
@@ -209,7 +214,9 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                 Parameters("web-export", JsBoolean(true)) ++
                 Parameters("raw-http", JsBoolean(true)) ++ {
                 if (requireAuthentication) {
-                  Parameters("require-whisk-auth", JsBoolean(true))
+                  Parameters(
+                    "require-whisk-auth",
+                    (if (requireAuthenticationAsBoolean) JsBoolean(true) else JsString(requireAuthenticationKey)))
                 } else Parameters()
               } ++ {
                 if (customOptions) {
@@ -379,14 +386,17 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
 
       Seq(s"$systemId/proxy/export_auth").foreach { path =>
         allowedMethods.foreach { m =>
-          if (creds.isDefined)
-            invocationsAllowed += 1
           requireAuthentication = true
+          Seq(true, false).foreach { useReqWhiskAuthBool =>
+            requireAuthenticationAsBoolean = useReqWhiskAuthBool
+          }
 
-          m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
-            creds match {
-              case None => status should be(Unauthorized)
-              case Some(user) =>
+          if (requireAuthenticationAsBoolean) {
+            if (creds.isDefined) {
+              val user = creds.get
+              invocationsAllowed += 1
+              m(s"$testRoutePath/${path}.json") ~> Route
+                .seal(routes(creds)) ~> check {
                 status should be(OK)
                 val response = responseAs[JsObject]
                 response shouldBe JsObject(
@@ -394,6 +404,42 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
                   "action" -> "export_auth".toJson,
                   "content" -> metaPayload(m.method.name.toLowerCase, JsObject(), creds, pkgName = "proxy"))
                 response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
+              }
+            } else {
+              m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
+                status should be(Unauthorized)
+              }
+            }
+          } else if (creds.isDefined) {
+            val user = creds.get
+            invocationsAllowed += 1
+
+            // web action require-whisk-auth is set and the header X-Require-Whisk-Auth value does not matches
+            m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey) ~> Route
+              .seal(routes(creds)) ~> check {
+              status should be(OK)
+              val response = responseAs[JsObject]
+              response shouldBe JsObject(
+                "pkg" -> s"$systemId/proxy".toJson,
+                "action" -> "export_auth".toJson,
+                "content" -> metaPayload(
+                  m.method.name.toLowerCase,
+                  JsObject(),
+                  creds,
+                  pkgName = "proxy",
+                  headers = List(RawHeader("X-Require-Whisk-Auth", requireAuthenticationKey))))
+              response.fields("content").asJsObject.fields(webApiDirectives.namespace) shouldBe user.namespace.toJson
+            }
+
+            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value does not match
+            m(s"$testRoutePath/${path}.json") ~> addHeader("X-Require-Whisk-Auth", requireAuthenticationKey + "-bad") ~> Route
+              .seal(routes(creds)) ~> check {
+              status should be(Unauthorized)
+            }
+          } else {
+            // web action require-whisk-auth is set, but the header X-Require-Whisk-Auth value is not set
+            m(s"$testRoutePath/${path}.json") ~> Route.seal(routes(creds)) ~> check {
+              status should be(Unauthorized)
             }
           }
         }

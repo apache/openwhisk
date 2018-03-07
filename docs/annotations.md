@@ -48,7 +48,7 @@ and must be present and explicitly set to `true` to have an affect. The annotati
 * `final`: Makes all of the action parameters that are already defined immutable. A parameter of an action carrying the annotation may not be overridden by invoke-time parameters once the parameter has a value defined through its enclosing package or the action definition.
 * `raw-http`: When set, the HTTP request query and body parameters are passed to the action as reserved properties.
 * `web-custom-options`: When set, this annotation enables a web action to respond to OPTIONS requests with customized headers, otherwise a [default CORS response](webactions.md#options-requests) applies.
-* `require-whisk-auth`: This annotation protects the web action so that it is only accessible to an authenticated subject. It is important to note that the _owner_ of the web action will still incur the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
+* `require-whisk-auth`: This annotation protects the web action so that it is only invoked by requests that provide appropriate authentication credentials. When set to a boolean value, it controls whether or not the request's Basic Authentication value (i.e. Whisk auth key) will be authenticated - a value of `true` will authenticate the credentials, a value of `false` will invoke the action without any authentication. When set to a number or a string, this value must match the request's `X-Require-Whisk-Auth` header value. In both cases, it is important to note that the _owner_ of the web action will still incur the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
 
 # Annotations specific to activations
 
