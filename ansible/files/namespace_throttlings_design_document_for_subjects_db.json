@@ -1,0 +1,10 @@
+{
+  "_id": "_design/namespaceThrottlings",
+  "views": {
+    "blockedNamespaces": {
+      "map": "function (doc) {\n  if (doc._id.indexOf(\"/limits\") >= 0) {\n    if (doc.concurrentInvocations === 0 || doc.invocationsPerMinute === 0) {\n      var namespace = doc._id.replace(\"/limits\", \"\");\n      emit(namespace, 1);\n    }\n  } else if (doc.subject && doc.namespaces && doc.blocked) {\n    doc.namespaces.forEach(function(namespace) {\n      emit(namespace.name, 1);\n    });\n  }\n}",
+      "reduce": "_sum"
+    }
+  },
+  "language": "javascript"
+}

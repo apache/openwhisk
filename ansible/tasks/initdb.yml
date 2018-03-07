@@ -14,6 +14,7 @@
   with_items:
     - "{{ openwhisk_home }}/ansible/files/auth_index.json"
     - "{{ openwhisk_home }}/ansible/files/filter_design_document.json"
+    - "{{ openwhisk_home }}/ansible/files/namespace_throttlings_design_document_for_subjects_db.json"
 
 - name: create necessary "auth" keys
   include: db/recreateDoc.yml

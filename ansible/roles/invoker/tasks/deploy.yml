@@ -169,6 +169,7 @@
         -e DB_PASSWORD='{{ db_password }}'
         -e DB_WHISK_ACTIONS='{{ db.whisk.actions }}'
         -e DB_WHISK_ACTIVATIONS='{{ db.whisk.activations }}'
+        -e DB_WHISK_AUTHS='{{ db.whisk.auth }}'
         -e CONFIG_whisk_db_actionsDdoc='{{ db_whisk_actions_ddoc | default() }}'
         -e CONFIG_whisk_db_activationsDdoc='{{ db_whisk_activations_ddoc | default() }}'
         -e CONFIG_whisk_db_activationsFilterDdoc='{{ db_whisk_activations_filter_ddoc | default() }}'

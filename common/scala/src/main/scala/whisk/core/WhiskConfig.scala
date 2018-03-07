@@ -256,6 +256,7 @@ object ConfigKeys {
   val runcTimeouts = s"$runc.timeouts"
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
+  val blacklist = "whisk.blacklist"
 
   val kubernetes = "whisk.kubernetes"
   val kubernetesTimeouts = s"$kubernetes.timeouts"

@@ -155,7 +155,7 @@ object WhiskActivationStore {
  * @param ddoc the design document
  * @param view the view name within the design doc
  */
-protected[core] class View(ddoc: String, view: String) {
+protected[core] case class View(ddoc: String, view: String) {
 
   /** The name of the table to query. */
   val name = s"$ddoc/$view"
