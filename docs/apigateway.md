@@ -206,15 +206,15 @@ Now let's restore the API named `Book Club` by using the file `club-swagger.json
 wsk api create --config-file club-swagger.json
 ```
 ```
-ok: created api /club/books/{isbn} get for action deleteBook
+ok: created api /club/books/{isbn} get for action getBooks
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+ok: created api /club/books/{isbn} put for action putBooks
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+ok: created api /club/books/{isbn} delete for action deleteBooks
+https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books/{isbn}
+ok: created api /club/books get for action getBooks
 https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
-ok: created api /club/books/{isbn} put for action deleteBook
-https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
-ok: created api /club/books/{isbn} delete for action deleteBook
-https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
-ok: created api /club/books get for action deleteBook
-https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
-ok: created api /club/books post for action deleteBook
+ok: created api /club/books post for action postBooks
 https://${APIHOST}:9001/api/${GENERATED_API_ID}/club/books
 ```
 
