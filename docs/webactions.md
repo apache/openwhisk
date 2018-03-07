@@ -34,7 +34,7 @@ https://${APIHOST}/api/v1/web/guest/demo/hello
 ```
 
 Using the `--web` flag with a value of `true` or `yes` allows an action to be accessible via REST interface without the
-need for credentials. A web action can be invoked using a URL that is structured as follows:
+need for credentials. To configure a web action with credentials refer to [Securing web actions](webactions.md#securing-web-actions). A web action can be invoked using a URL that is structured as follows:
 `https://{APIHOST}/api/v1/web/{QUALIFIED ACTION NAME}.{EXT}`. The fully qualified name of an action consists of three
 parts: the namespace, the package name, and the action name.
 
@@ -279,6 +279,20 @@ $ wsk action create /guest/demo/hello hello.js \
 ```
 
 The result of these changes is that the `name` is bound to `Jane` and may not be overridden by query or body parameters because of the final annotation. This secures the action against query or body parameters that try to change this value whether by accident or intentionally. 
+
+## Securing web actions
+
+By default, a web action can be invoked by anyone having the web action's invocation URL. Use the `require-whisk-auth` [web action annotation](annotations.md#annotations-specific-to-web-actions) to secure the web action. When the `require-whisk-auth` annotation is set to `true`, the action will authenticate the invocation request's Basic Authorization credentials against the action owner's whisk auth key.  When set to a number or a case-sensitive string, the action's invocation request must include a `X-Require-Whisk-Auth` header having this same value. Secured web actions will return a `Not Authorized` when credential validation fails.
+
+```bash
+$ wsk action update /guest/demo/hello hello.js --web true -a require-whisk-auth my-secret
+```
+
+```bash
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X GET -H "X-Require-Whisk-Auth: my-secret"
+```
+
+It's important to note that the owner of the web action owns all of the web action's activations records and will incur the cost of running the action in the system regardless of how the action was invoked.
 
 ## Disabling web actions
 
