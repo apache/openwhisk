@@ -10,33 +10,22 @@
     state: directory
   become: "{{ openwhisk_cli.nginxdir.become }}"
 
-- name: "Ensure OpenWhisk build directory exists (for temp archive work)"
+- name: "Ensure temporary directory exists"
   file:
-    path: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}"
+    path: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}"
     state: directory
-    mode: 0777
 
-#
-#  Why are we unarchiving into the build directory instead of directly into
-#  the Nginx config directory?  Because the Nginx config directory is (by
-#  default) located in the /tmp/... directory tree, which has a sticky bit
-#  set.  Said sticky bit creates no end of troubles for tar, so we're going
-#  to just avoid it entirely, rather than muck about with who's got which tar
-#  with which right tar options installed where.  It makes for many more
-#  items in this ansible playbook than we'd hoped, but at least it's (fairly)
-#  straightforward.
-#
 - name: "Download release archive to build directory ..."
   get_url:
     url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
-    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+    dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
     headers: "{{ openwhisk_cli.remote.headers | default('') }}"
   when: openwhisk_cli.installation_mode == "remote"
 
 - name: "... or Copy release archive to build directory"
   copy:
     src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
-    dest: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
+    dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
   when: openwhisk_cli.installation_mode == "local"
 
 #
@@ -45,23 +34,19 @@
 #
 - name: "Expand the archive into the build directory"
   shell: >
-    tar zxf /{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz
-    -C {{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/
+    tar zxf {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz
+    -C {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/
 
+# Remote copy does not support recursive copy of directories. That's why I'm using the shell.
 - name: "Copy expanded archive to final configuration directory"
-  copy:
-    #  WARNING:  The trailing slash is significant, signalling to copy contents
-    src: "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
-    dest: "{{ openwhisk_cli.nginxdir.name }}"
+  #  WARNING:  The trailing slash is significant, signalling to copy contents
+  shell: "cp -r {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/* {{ openwhisk_cli.nginxdir.name }}"
 
-- name: "Delete archive from build directory"
+- name: "Delete temp directory"
   file:
-    path: "{{ item }}"
+    path: "{{ nginx.confdir }}/cli_temp"
     state: absent
     force: yes
-  with_items:
-      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}.tgz"
-      - "{{ openwhisk_build_dir }}/{{ openwhisk_cli.archive_name }}/"
 
 - name: "Generate a list of individual tarballs to expand"
   find:
