@@ -556,18 +556,34 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     implicit val materializer = ActorMaterializer()
     val activationStore = SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](whiskConfig, _.dbActivations)(
-        classTag[WhiskEntity],
-        WhiskEntityJsonFormat,
+      .makeStore[WhiskActivation]()(
+        classTag[WhiskActivation],
+        WhiskActivation.serdes,
         WhiskDocumentReader,
         system,
         logging,
         materializer)
     implicit val tid = transid()
-    val entity = BadEntity(namespace, EntityName(ActivationId.generate().toString))
-    put(activationStore, entity)
 
-    Get(s"$collectionPath/${entity.name}") ~> Route.seal(routes(creds)) ~> check {
+    //A bad activation type which breaks the deserialization by removing the subject entry
+    class BadActivation(override val namespace: EntityPath,
+                        override val name: EntityName,
+                        override val subject: Subject,
+                        override val activationId: ActivationId,
+                        override val start: Instant,
+                        override val end: Instant)
+        extends WhiskActivation(namespace, name, subject, activationId, start, end) {
+      override def toJson = {
+        val json = super.toJson
+        JsObject(json.fields - "subject")
+      }
+    }
+
+    val activation =
+      new BadActivation(namespace, aname(), creds.subject, ActivationId.generate(), Instant.now, Instant.now)
+    put(activationStore, activation)
+
+    Get(s"$collectionPath/${activation.activationId}") ~> Route.seal(routes(creds)) ~> check {
       status should be(InternalServerError)
       responseAs[ErrorResponse].error shouldBe Messages.corruptedEntity
     }

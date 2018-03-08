@@ -75,9 +75,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
   sys.addShutdownHook(containerFactory.cleanup())
 
   /** Initialize needed databases */
-  private val entityStore = WhiskEntityStore.datastore(config)
-  private val activationStore = WhiskActivationStore.datastore(config)
-  private val authStore = WhiskAuthStore.datastore(config)
+  private val entityStore = WhiskEntityStore.datastore()
+  private val activationStore = WhiskActivationStore.datastore()
+  private val authStore = WhiskAuthStore.datastore()
 
   private val namespaceBlacklist = new NamespaceBlacklist(authStore)
 

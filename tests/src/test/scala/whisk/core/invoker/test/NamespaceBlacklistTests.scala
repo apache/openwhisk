@@ -18,15 +18,17 @@
 package whisk.core.invoker.test
 
 import akka.stream.ActorMaterializer
-import common.{StreamLogging, WhiskProperties, WskActorSystem}
+import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
+import pureconfig.loadConfigOrThrow
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
+import whisk.core.database.CouchDbConfig
+import whisk.core.ConfigKeys
 import whisk.core.database.test.{DbUtils, ExtendedCouchDbRestClient}
 import whisk.core.entity._
 import whisk.core.invoker.NamespaceBlacklist
@@ -45,19 +47,18 @@ class NamespaceBlacklistTests
 
   behavior of "NamespaceBlacklist"
 
-  val config = new WhiskConfig(WhiskAuthStore.requiredProperties)
-
   implicit val materializer = ActorMaterializer()
   implicit val tid = TransactionId.testing
 
-  val authStore = WhiskAuthStore.datastore(config)
+  val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
+  val authStore = WhiskAuthStore.datastore()
   val subjectsDb = new ExtendedCouchDbRestClient(
-    WhiskProperties.getProperty(WhiskConfig.dbProtocol),
-    WhiskProperties.getProperty(WhiskConfig.dbHost),
-    WhiskProperties.getProperty(WhiskConfig.dbPort).toInt,
-    WhiskProperties.getProperty(WhiskConfig.dbUsername),
-    WhiskProperties.getProperty(WhiskConfig.dbPassword),
-    WhiskProperties.getProperty(WhiskConfig.dbAuths))
+    dbConfig.protocol,
+    dbConfig.host,
+    dbConfig.port,
+    dbConfig.username,
+    dbConfig.password,
+    dbConfig.databaseFor[WhiskAuth])
 
   /* Identities needed for the first test */
   val identities = Seq(

@@ -229,10 +229,6 @@ public class WhiskProperties {
         return whiskProperties.getProperty("db.hostsList");
     }
 
-    public static int getDBPort() {
-        return Integer.parseInt(whiskProperties.getProperty("db.port"));
-    }
-
     public static int getControllerBasePort() {
         return Integer.parseInt(whiskProperties.getProperty("controller.host.basePort"));
     }

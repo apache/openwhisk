@@ -192,7 +192,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
   }
 
   private val invokerPool = {
-    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore(config))
+    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore())
 
     actorSystem.actorOf(
       InvokerPool.props(

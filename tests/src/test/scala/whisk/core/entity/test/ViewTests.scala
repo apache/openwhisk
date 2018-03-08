@@ -28,7 +28,6 @@ import org.scalatest.junit.JUnitRunner
 import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
-import whisk.core.WhiskConfig
 import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.database.ArtifactStore
 import whisk.core.database.StaleParameter
@@ -65,9 +64,8 @@ class ViewTests
 
   implicit val materializer = ActorMaterializer()
 
-  val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
-  val entityStore = WhiskEntityStore.datastore(config)
-  val activationStore = WhiskActivationStore.datastore(config)
+  val entityStore = WhiskEntityStore.datastore()
+  val activationStore = WhiskActivationStore.datastore()
 
   override def afterEach = {
     cleanup()

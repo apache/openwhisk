@@ -37,6 +37,8 @@ import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
 import whisk.core.entity._
+import whisk.core.entity.ExecManifest
+import whisk.core.entity.InstanceId
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -52,9 +54,6 @@ object Invoker {
   def requiredProperties =
     Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
       ExecManifest.requiredProperties ++
-      WhiskEntityStore.requiredProperties ++
-      WhiskActivationStore.requiredProperties ++
-      WhiskAuthStore.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
       wskApiHost ++ Map(
