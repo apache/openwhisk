@@ -79,13 +79,13 @@ object MesosTask {
                                                            as: ActorSystem): Future[Container] = {
     implicit val tid = transid
 
-    log.info(this, s"creating task for image ${image}...")
+    log.info(this, s"creating task for image $image...")
 
-    val mesosCpuShares = cpuShares / 1024.0 //convert openwhisk (docker based) shares to mesos (cpu percentage)
+    val mesosCpuShares = cpuShares / 1024.0 // convert openwhisk (docker based) shares to mesos (cpu percentage)
     val mesosRam = memory.toMB.toInt
 
     val taskId = taskIdGenerator()
-    val lowerNetwork = network.toLowerCase //match bridge+host without case, but retain case for user specified network
+    val lowerNetwork = network.toLowerCase // match bridge+host without case, but retain case for user specified network
     val taskNetwork = lowerNetwork match {
       case "bridge" => Bridge
       case "host"   => Host
@@ -95,12 +95,12 @@ object MesosTask {
 
     val task = new TaskDef(
       taskId,
-      name.getOrElse(image), //task name either the indicated name, or else the image name
+      name.getOrElse(image), // task name either the indicated name, or else the image name
       image,
       mesosCpuShares,
       mesosRam,
-      List(8080), //all action containers listen on 8080
-      Some(0), //port at index 0 used for health
+      List(8080), // all action containers listen on 8080
+      Some(0), // port at index 0 used for health
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,
@@ -125,6 +125,7 @@ object MesosTask {
 object JsonFormatters extends DefaultJsonProtocol {
   implicit val createContainerJson = jsonFormat3(CreateContainer)
 }
+
 class MesosTask(override protected val id: ContainerId,
                 override protected val addr: ContainerAddress,
                 override protected val ec: ExecutionContext,
@@ -134,17 +135,15 @@ class MesosTask(override protected val id: ContainerId,
                 mesosConfig: MesosConfig)
     extends Container {
 
-  implicit val e = ec
-
   /** Stops the container from consuming CPU cycles. */
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
-    //suspend not supported
+    // suspend not supported
     Future.successful(Unit)
   }
 
   /** Dual of halt. */
   override def resume()(implicit transid: TransactionId): Future[Unit] = {
-    //resume not supported
+    // resume not supported
     Future.successful(Unit)
   }
 
@@ -154,26 +153,28 @@ class MesosTask(override protected val id: ContainerId,
       .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
       .mapTo[TaskStatus]
       .map(taskStatus => {
-        //verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
+        // verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
         if (taskStatus.getState != TaskState.TASK_KILLED) {
           logging.error(this, s"task kill resulted in unexpected state ${taskStatus.getState}")
         } else {
           logging.info(this, s"task killed ended with state ${taskStatus.getState}")
         }
-      })
+      })(ec)
   }
 
-  /** Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear. */
-  /** For Mesos, this log message is static per container, just indicating that mesos logs can be found via the mesos UI. */
-  /** To disable this message, and just store an static log message per activation, set whisk.mesos.mesosLinkLogMessage=false */
+  /**
+   * Obtains logs up to a given threshold from the container. Optionally waits for a sentinel to appear.
+   * For Mesos, this log message is static per container, just indicating that Mesos logs can be found via the Mesos UI.
+   * To disable this message, and just store an static log message per activation, set
+   *     whisk.mesos.mesosLinkLogMessage=false
+   */
   private val linkedLogMsg =
     s"Logs are not collected from Mesos containers currently. " +
-      s"You can browse the logs for Mesos Task ID ${taskId} using the mesos UI at ${mesosConfig.masterPublicUrl
+      s"You can browse the logs for Mesos Task ID $taskId using the mesos UI at ${mesosConfig.masterPublicUrl
         .getOrElse(mesosConfig.masterUrl)}"
   private val noLinkLogMsg = "Log collection is not configured correctly, check with your service administrator."
   private val logMsg = if (mesosConfig.mesosLinkLogMessage) linkedLogMsg else noLinkLogMsg
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(
     implicit transid: TransactionId): Source[ByteString, Any] =
     Source.single(ByteString(LogLine(logMsg, "stdout", Instant.now.toString).toJson.compactPrint))
-
 }
