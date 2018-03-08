@@ -184,7 +184,13 @@ trait ReadOps extends Directives {
     onComplete(factory.get(datastore, docid)) {
       case Success(entity) =>
         logging.debug(this, s"[PROJECT] entity success")
-        complete(OK, project(entity))
+
+        onComplete(project(entity)) {
+          case Success(response: JsObject) => complete(OK, response)
+          case Failure(t: Throwable) =>
+            logging.error(this, s"[PROJECT] projection failed: ${t.getMessage}")
+            terminate(InternalServerError, t.getMessage)
+        }
       case Failure(t: NoDocumentException) =>
         logging.debug(this, s"[PROJECT] entity does not exist")
         terminate(NotFound)
