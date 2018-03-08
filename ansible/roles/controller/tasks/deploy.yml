@@ -206,15 +206,12 @@
       "CONFIG_whisk_activation_payload_max":
         "{{ limit_activation_payload | default() }}"
 
-      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
-      "CONFIG_whisk_runtimes_defaultImagePrefix":
-        "{{ runtimes_default_image_prefix | default() }}"
-      "CONFIG_whisk_runtimes_defaultImageTag":
-        "{{ runtimes_default_image_tag | default() }}"
+      "RUNTIMES_MANIFEST": "{{ runtimes.manifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes.default_image_prefix }}"
+      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes.default_image_tag }}"
       "CONFIG_whisk_runtimes_bypassPullForLocalImages":
-        "{{ runtimes_bypass_pull_for_local_images | default() }}"
-      "CONFIG_whisk_runtimes_localImagePrefix":
-        "{{ runtimes_local_image_prefix | default() }}"
+        "{{ runtimes.bypass_pull_for_local_images }}"
+      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes.local_image_prefix }}"
 
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
@@ -286,4 +283,4 @@
   retries: 12
   delay: 5
 
-# VIM: let b:syntastic_yaml_yamllint_args="-c '".expand('%:p:h')."../../../yamllint.yml'"
+# VIM: let b:syntastic_yaml_yamllint_args="-c ".expand('%:p:h')."/../../../yamllint.yml"
