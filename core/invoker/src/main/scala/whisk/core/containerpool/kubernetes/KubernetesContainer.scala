@@ -24,6 +24,7 @@ import akka.stream.StreamLimitReachedException
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import spray.json.{JsObject, JsValue}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -97,6 +98,9 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   /** The last read timestamp in the log file */
   private val lastTimestamp = new AtomicReference[Option[Instant]](None)
 
+  /** The last offset read in the remote log file */
+  private val lastOffset = new AtomicReference[Long](0)
+
   protected val waitForLogs: FiniteDuration = 2.seconds
 
   def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
@@ -109,6 +113,17 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
+
+  def forwardLogs(sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Unit] = {
+    kubernetes
+      .forwardLogs(this, lastOffset.get(), sizeLimit, sentinelledLogs, additionalMetadata, augmentedActivation)
+      .map { newOffset =>
+        lastOffset.set(newOffset)
+      }
+  }
 
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 

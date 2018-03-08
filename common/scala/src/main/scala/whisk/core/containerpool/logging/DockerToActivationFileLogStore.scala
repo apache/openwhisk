@@ -22,21 +22,22 @@ import java.time.Instant
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
-import akka.stream.{Graph, SinkShape, UniformFanOutShape}
+import akka.stream.{ActorMaterializer, Graph, SinkShape, UniformFanOutShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Keep, MergeHub, Sink, Source}
 import akka.util.ByteString
 
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Docker based implementation of a LogStore.
@@ -48,7 +49,17 @@ import scala.concurrent.Future
  * Additionally writes logs to a separate file which can be processed by any backend service asynchronously.
  */
 class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: Path = Paths.get("logs"))
-    extends DockerToActivationLogStore(system) {
+    extends LogDriverForwarderLogStore(system) {
+
+  implicit val ec: ExecutionContext = system.dispatcher
+  implicit val mat: ActorMaterializer = ActorMaterializer()(system)
+
+  /* "json-file" is the log-driver that writes out to file */
+  override val containerParameters = Map("--log-driver" -> Set("json-file"))
+
+  /* As logs are already part of the activation record, just return that bit of it */
+  override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
+    Future.successful(activation.logs)
 
   /**
    * End of an event as written to a file. Closes the json-object and also appends a newline.
@@ -92,22 +103,14 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
     }))
     .run()
 
-  override def collectLogs(transid: TransactionId,
-                           user: Identity,
-                           activation: WhiskActivation,
-                           container: Container,
-                           action: ExecutableWhiskAction): Future[ActivationLogs] = {
+  def forwardLogs(transid: TransactionId,
+                  container: Container,
+                  sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject): Future[ActivationLogs] = {
 
-    val logs = container.logs(action.limits.logs.asMegaBytes, action.exec.sentinelledLogs)(transid)
-
-    // Adding the userId field to every written record, so any background process can properly correlate.
-    val userIdField = Map("namespaceId" -> user.authkey.uuid.toJson)
-
-    val additionalMetadata = Map(
-      "activationId" -> activation.activationId.asString.toJson,
-      "action" -> action.fullyQualifiedName(false).asString.toJson) ++ userIdField
-
-    val augmentedActivation = JsObject(activation.toJson.fields ++ userIdField)
+    val logs = container.logs(sizeLimit, sentinelledLogs)(transid)
 
     // Manually construct JSON fields to omit parsing the whole structure
     val metadata = ByteString("," + fieldsString(additionalMetadata))
@@ -124,7 +127,7 @@ class DockerToActivationFileLogStore(system: ActorSystem, destinationDirectory: 
     val combined = OwSink.combine(toSeq, toFile)(Broadcast[ByteString](_))
 
     logs.runWith(combined)._1.flatMap { seq =>
-      val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(action.limits.logs.asMegaBytes))
+      val possibleErrors = Set(Messages.logFailure, Messages.truncateLogs(sizeLimit))
       val errored = seq.lastOption.exists(last => possibleErrors.exists(last.contains))
       val logs = ActivationLogs(seq.toVector)
       if (!errored) {

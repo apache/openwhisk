@@ -26,9 +26,10 @@ import java.time.format.DateTimeFormatterBuilder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.{ErrorLevel, InfoLevel}
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{Attributes, Outlet, SourceShape}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
@@ -57,10 +58,12 @@ import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import collection.JavaConverters._
+
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import okhttp3.{Call, Callback, Request, Response}
 import okio.BufferedSource
+import whisk.core.entity.ByteSize
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -222,6 +225,28 @@ class KubernetesClient(
     }
   }
 
+  def forwardLogs(container: KubernetesContainer,
+                  lastOffset: Long,
+                  sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Long] = {
+    if (config.invokerAgent.enabled) {
+      val serializedData = Map(
+        "lastOffset" -> JsNumber(lastOffset),
+        "sizeLimit" -> JsNumber(sizeLimit.toBytes),
+        "sentinelledLogs" -> JsBoolean(sentinelledLogs),
+        "encodedLogLineMetadata" -> JsString(fieldsString(additionalMetadata)),
+        "encodedActivation" -> JsString(augmentedActivation.compactPrint))
+      agentCommand("logs", container, serializedData)
+        .flatMap { response =>
+          Unmarshal(response.entity).to[String].map(s => s.toLong)
+        }
+    } else {
+      Future.failed(new UnsupportedOperationException("forwardLogs requires whisk.kubernetes.invokerAgent=true"))
+    }
+  }
+
   def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any] = {
 
@@ -232,6 +257,13 @@ class KubernetesClient(
       .log("foobar")
 
   }
+
+  private def fieldsString(fields: Map[String, JsValue]) =
+    fields
+      .map {
+        case (key, value) => s""""$key":${value.compactPrint}"""
+      }
+      .mkString(",")
 
   private def toContainer(pod: Pod): KubernetesContainer = {
     val id = ContainerId(pod.getMetadata.getName)
@@ -245,13 +277,15 @@ class KubernetesClient(
   }
 
   // Forward a command to invoker-agent daemonset instance on container's worker node
-  private def agentCommand(command: String, container: KubernetesContainer): Future[HttpResponse] = {
+  private def agentCommand(command: String,
+                           container: KubernetesContainer,
+                           payload: Map[String, JsValue] = Map.empty): Future[HttpResponse] = {
     val uri = Uri()
       .withScheme("http")
       .withHost(container.workerIP)
       .withPort(config.invokerAgent.port)
       .withPath(Path / command / container.nativeContainerId)
-    Http().singleRequest(HttpRequest(uri = uri))
+    Http().singleRequest(HttpRequest(uri = uri, entity = payload.toJson.compactPrint))
   }
 
   private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
@@ -302,6 +336,13 @@ trait KubernetesApi {
   def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
 
   def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit]
+
+  def forwardLogs(container: KubernetesContainer,
+                  lastOffset: Long,
+                  sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Long]
 
   def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any]
