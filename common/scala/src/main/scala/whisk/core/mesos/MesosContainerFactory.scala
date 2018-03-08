@@ -74,29 +74,24 @@ class MesosContainerFactory(config: WhiskConfig,
   val subscribeTimeout = 10.seconds
   val teardownTimeout = 30.seconds
 
-  //init mesos framework:
   implicit val as: ActorSystem = actorSystem
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
-  //mesos master url to subscribe the framework to
-  val mesosMaster = mesosConfig.masterUrl
-  //public mesos url where developers can browse logs (till there is way to delegate log retrieval to an external system)
-  val mesosMasterPublic = mesosConfig.masterPublicUrl
-
+  /** Inits Mesos framework. */
   val mesosClientActor = clientFactory(as, mesosConfig)
 
   subscribe()
 
-  /** Subscribe mesos actor to mesos event stream; retry on timeout (which should be unusual) */
+  /** Subscribes Mesos actor to mesos event stream; retry on timeout (which should be unusual). */
   private def subscribe(): Future[Unit] = {
-    logging.info(this, s"subscribing to mesos master at ${mesosMaster}")
+    logging.info(this, s"subscribing to Mesos master at ${mesosConfig.masterUrl}")
     mesosClientActor
       .ask(Subscribe)(subscribeTimeout)
       .mapTo[SubscribeComplete]
-      .map(complete => logging.info(this, s"subscribe completed successfully...${complete}"))
+      .map(complete => logging.info(this, s"subscribe completed successfully... $complete"))
       .recoverWith {
         case e =>
-          logging.error(this, s"subscribe failed...${e}")
+          logging.error(this, s"subscribe failed... $e}")
           subscribe()
       }
   }
@@ -113,7 +108,7 @@ class MesosContainerFactory(config: WhiskConfig,
       actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
     }
 
-    logging.info(this, s"using Mesos to create a container with image ${image}...")
+    logging.info(this, s"using Mesos to create a container with image $image...")
     MesosTask.create(
       mesosClientActor,
       mesosConfig,
@@ -135,7 +130,7 @@ class MesosContainerFactory(config: WhiskConfig,
 
   override def init(): Unit = Unit
 
-  /** cleanup any remaining Containers; should block until complete; should ONLY be run at shutdown */
+  /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
   override def cleanup(): Unit = {
     val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
     Try(Await.result(complete, teardownTimeout))
@@ -143,7 +138,7 @@ class MesosContainerFactory(config: WhiskConfig,
       .recover {
         case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
         case t: Throwable =>
-          logging.error(this, s"Mesos framework teardown failed : ${t}")
+          logging.error(this, s"Mesos framework teardown failed : $t}")
       }
   }
 }
@@ -164,6 +159,7 @@ object MesosContainerFactory {
     s"whisk-${counter.next()}-${startTime}"
   }
 }
+
 object MesosContainerFactoryProvider extends ContainerFactoryProvider {
   override def getContainerFactory(actorSystem: ActorSystem,
                                    logging: Logging,
@@ -171,5 +167,4 @@ object MesosContainerFactoryProvider extends ContainerFactoryProvider {
                                    instance: InstanceId,
                                    parameters: Map[String, Set[String]]): ContainerFactory =
     new MesosContainerFactory(config, actorSystem, logging, parameters)
-
 }
