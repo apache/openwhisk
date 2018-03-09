@@ -91,14 +91,14 @@ class PoolingRestClient(
     }
   }
 
-  protected def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
     mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
   }
 
-  protected def mkJsonRequest(method: HttpMethod,
-                              uri: Uri,
-                              body: JsValue,
-                              headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+  def mkJsonRequest(method: HttpMethod,
+                    uri: Uri,
+                    body: JsValue,
+                    headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
     val b = Marshal(body).to[MessageEntity]
     mkRequest0(method, uri, b, headers)
   }
@@ -131,7 +131,7 @@ class PoolingRestClient(
   }
 
   // Runs a request and returns either a JsObject, or a StatusCode if not 2xx.
-  protected def requestJson[T: RootJsonReader](futureRequest: Future[HttpRequest]): Future[Either[StatusCode, T]] = {
+  def requestJson[T: RootJsonReader](futureRequest: Future[HttpRequest]): Future[Either[StatusCode, T]] = {
     request0(futureRequest) flatMap { response =>
       if (response.status.isSuccess()) {
         Unmarshal(response.entity.withoutSizeLimit()).to[T].map { o =>
