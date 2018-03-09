@@ -25,9 +25,13 @@ import common.{StreamLogging, TestUtils, WhiskProperties, WskActorSystem}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
+import pureconfig.loadConfigOrThrow
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
+import whisk.core.database.CouchDbConfig
+//import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.ConfigKeys
+import whisk.core.entity._
 
 @RunWith(classOf[JUnitRunner])
 class CleanUpWhisksDbSkriptTests
@@ -38,7 +42,8 @@ class CleanUpWhisksDbSkriptTests
     with StreamLogging {
 
   val cleanupScript = WhiskProperties.getFileRelativeToWhiskHome("tools/db/cleanUpWhisks.py").getAbsolutePath
-  val authDBName = WhiskProperties.getProperty(WhiskConfig.dbAuths)
+  val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
+  val authDBName = dbConfig.databaseFor[WhiskAuth]
 
   def runScript(dbUrl: String, whisksDbName: String, subjectsDbName: String) = {
     println(s"Running script: $dbUrl, $whisksDbName, $subjectsDbName")
