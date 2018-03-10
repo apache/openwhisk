@@ -78,3 +78,6 @@ ansible/roles/controller/files/*.p12
 !tests/dat/actions/python_virtualenv_dir.zip
 !tests/dat/actions/python_virtualenv_name.zip
 !tests/dat/actions/zippedaction.zip
+!tests/dat/build/swift4.1/HelloSwift4.zip
+!tests/dat/build/swift4.1/SwiftyRequest.zip
+!tests/dat/build/swift4.1/HelloSwift4Codable.zip
