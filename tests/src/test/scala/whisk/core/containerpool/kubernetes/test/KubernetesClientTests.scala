@@ -20,6 +20,7 @@ package whisk.core.containerpool.kubernetes.test
 import java.time.Instant
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpResponse
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Concat, Sink, Source}
 
@@ -37,15 +38,10 @@ import org.scalatest.Matchers
 import org.scalatest.time.{Seconds, Span}
 import common.{StreamLogging, WskActorSystem}
 import okio.Buffer
+import spray.json.{JsObject, JsValue}
 import whisk.common.TransactionId
 import whisk.core.containerpool.{ContainerAddress, ContainerId}
-import whisk.core.containerpool.kubernetes.{
-  KubernetesApi,
-  KubernetesClient,
-  KubernetesContainer,
-  KubernetesRestLogSourceStage,
-  TypedLogLine
-}
+import whisk.core.containerpool.kubernetes._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size._
 
@@ -65,6 +61,9 @@ class KubernetesClientTests
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
+  val commandTimeout = 500.milliseconds
+  def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
+
   /** Reads logs into memory and awaits them */
   def awaitLogs(source: Source[TypedLogLine, Any], timeout: FiniteDuration = 1000.milliseconds): Vector[TypedLogLine] =
     Await.result(source.runWith(Sink.seq[TypedLogLine]), timeout).toVector
@@ -77,16 +76,17 @@ class KubernetesClientTests
   val id = ContainerId("55db56ee082239428b27d3728b4dd324c09068458aad9825727d5bfc1bba6d52")
   val container = kubernetesContainer(id)
 
-  val commandTimeout = 500.milliseconds
-  def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
-
   val kubectlCommand = "kubectl"
 
   /** Returns a KubernetesClient with a mocked result for 'executeProcess' */
-  def kubernetesClient(fixture: => Future[String]) = new KubernetesClient()(global) {
-    override def findKubectlCmd() = kubectlCommand
-    override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext, as: ActorSystem) =
-      fixture
+  def kubernetesClient(fixture: => Future[String]) = {
+    new KubernetesClient()(global) {
+      override def findKubectlCmd() = kubectlCommand
+
+      override def executeProcess(args: Seq[String], timeout: Duration)(implicit ec: ExecutionContext,
+                                                                        as: ActorSystem) =
+        fixture
+    }
   }
 
   def kubernetesContainer(id: ContainerId) =
@@ -121,7 +121,7 @@ class KubernetesClientTests
     implicit val kubernetes = new TestKubernetesClient
     val id = ContainerId("id")
     val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
-    container.suspend()
+    await(container.suspend())
     kubernetes.suspends should have size 1
     kubernetes.suspends(0) shouldBe id
   }
@@ -130,7 +130,7 @@ class KubernetesClientTests
     implicit val kubernetes = new TestKubernetesClient
     val id = ContainerId("id")
     val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
-    container.resume()
+    await(container.resume())
     kubernetes.resumes should have size 1
     kubernetes.resumes(0) shouldBe id
   }
@@ -235,6 +235,28 @@ object KubernetesClientTests {
       implicit transid: TransactionId): Source[TypedLogLine, Any] = {
       logCalls += ((container.id, sinceTime))
       Source(List.empty[TypedLogLine])
+    }
+  }
+
+  class TestKubernetesClientWithInvokerAgent extends TestKubernetesClient with KubernetesApiWithInvokerAgent {
+    var agentCommands = mutable.Buffer.empty[(ContainerId, String, Option[Map[String, JsValue]])]
+    var forwardLogs = mutable.Buffer.empty[(ContainerId, Long)]
+
+    def agentCommand(command: String,
+                     container: KubernetesContainer,
+                     payload: Option[Map[String, JsValue]] = None): Future[HttpResponse] = {
+      agentCommands += ((container.id, command, payload))
+      Future.successful(HttpResponse())
+    }
+
+    def forwardLogs(container: KubernetesContainer,
+                    lastOffset: Long,
+                    sizeLimit: ByteSize,
+                    sentinelledLogs: Boolean,
+                    additionalMetadata: Map[String, JsValue],
+                    augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Long] = {
+      forwardLogs += ((container.id, lastOffset))
+      Future.successful(lastOffset + sizeLimit.toBytes) // for testing, pretend we read size limit bytes
     }
   }
 }

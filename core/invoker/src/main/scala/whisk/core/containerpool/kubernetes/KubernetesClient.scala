@@ -26,11 +26,10 @@ import java.time.format.DateTimeFormatterBuilder
 
 import akka.actor.ActorSystem
 import akka.event.Logging.{ErrorLevel, InfoLevel}
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.Uri.Query
 import akka.stream.{Attributes, Outlet, SourceShape}
-import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.stage._
@@ -82,10 +81,10 @@ case class KubernetesInvokerAgentConfig(enabled: Boolean, port: Int)
 case class KubernetesClientConfig(timeouts: KubernetesClientTimeoutConfig, invokerAgent: KubernetesInvokerAgentConfig)
 
 /**
- * Serves as interface to the kubectl CLI tool.
+ * Serves as an interface to the Kubernetes API by proxying its REST API and/or invoking the kubectl CLI.
  *
- * Be cautious with the ExecutionContext passed to this, as the
- * calls to the CLI are blocking.
+ * Be cautious with the ExecutionContext passed to this, as many
+ * operations are blocking.
  *
  * You only need one instance (and you shouldn't get more).
  */
@@ -94,9 +93,9 @@ class KubernetesClient(
   executionContext: ExecutionContext)(implicit log: Logging, as: ActorSystem)
     extends KubernetesApi
     with ProcessRunner {
-  implicit private val ec = executionContext
-  implicit private val am = ActorMaterializer()
-  implicit private val kubeRestClient = new DefaultKubernetesClient(
+  implicit protected val ec = executionContext
+  implicit protected val am = ActorMaterializer()
+  implicit protected val kubeRestClient = new DefaultKubernetesClient(
     new ConfigBuilder()
       .withConnectionTimeout(config.timeouts.logs.toMillis.toInt)
       .withRequestTimeout(config.timeouts.logs.toMillis.toInt)
@@ -171,56 +170,14 @@ class KubernetesClient(
   }
 
   def rm(key: String, value: String, ensureUnpaused: Boolean = false)(implicit transid: TransactionId): Future[Unit] = {
-    if (ensureUnpaused && config.invokerAgent.enabled) {
-      // The caller can't guarantee that every container with the label key=value is already unpaused.
-      // Therefore we must enumerate them and ensure they are unpaused before we attempt to delete them.
-      Future {
-        blocking {
-          kubeRestClient
-            .inNamespace(kubeRestClient.getNamespace)
-            .pods()
-            .withLabel(key, value)
-            .list()
-            .getItems
-            .asScala
-            .map { pod =>
-              val container = toContainer(pod)
-              container
-                .resume()
-                .recover { case _ => () } // Ignore errors; it is possible the container was not actually suspended.
-                .map(_ => rm(container))
-            }
-        }
-      }.flatMap(futures =>
-        Future
-          .sequence(futures)
-          .map(_ => ()))
-    } else {
-      runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), config.timeouts.rm).map(_ => ())
-    }
+    runCmd(Seq("delete", "--now", "pod", "-l", s"$key=$value"), config.timeouts.rm).map(_ => ())
   }
 
-  def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
-    if (config.invokerAgent.enabled) {
-      agentCommand("suspend", container)
-        .map { response =>
-          response.discardEntityBytes()
-        }
-    } else {
-      Future.successful({})
-    }
-  }
+  // suspend is a no-op with the basic KubernetesClient
+  def suspend(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = Future.successful({})
 
-  def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = {
-    if (config.invokerAgent.enabled) {
-      agentCommand("resume", container)
-        .map { response =>
-          response.discardEntityBytes()
-        }
-    } else {
-      Future.successful({})
-    }
-  }
+  // resume is a no-op with the basic KubernetesClient
+  def resume(container: KubernetesContainer)(implicit transid: TransactionId): Future[Unit] = Future.successful({})
 
   def logs(container: KubernetesContainer, sinceTime: Option[Instant], waitForSentinel: Boolean = false)(
     implicit transid: TransactionId): Source[TypedLogLine, Any] = {
@@ -233,7 +190,7 @@ class KubernetesClient(
 
   }
 
-  private def toContainer(pod: Pod): KubernetesContainer = {
+  protected def toContainer(pod: Pod): KubernetesContainer = {
     val id = ContainerId(pod.getMetadata.getName)
     val addr = ContainerAddress(pod.getStatus.getPodIP)
     val workerIP = pod.getStatus.getHostIP
@@ -244,17 +201,7 @@ class KubernetesClient(
     new KubernetesContainer(id, addr, workerIP, nativeContainerId)
   }
 
-  // Forward a command to invoker-agent daemonset instance on container's worker node
-  private def agentCommand(command: String, container: KubernetesContainer): Future[HttpResponse] = {
-    val uri = Uri()
-      .withScheme("http")
-      .withHost(container.workerIP)
-      .withPort(config.invokerAgent.port)
-      .withPath(Path / command / container.nativeContainerId)
-    Http().singleRequest(HttpRequest(uri = uri))
-  }
-
-  private def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
+  protected def runCmd(args: Seq[String], timeout: Duration)(implicit transid: TransactionId): Future[String] = {
     val cmd = kubectlCmd ++ args
     val start = transid.started(
       this,

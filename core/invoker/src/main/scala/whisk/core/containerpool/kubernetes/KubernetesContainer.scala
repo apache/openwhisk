@@ -18,12 +18,13 @@
 package whisk.core.containerpool.kubernetes
 
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import akka.stream.StreamLimitReachedException
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -97,6 +98,9 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   /** The last read timestamp in the log file */
   private val lastTimestamp = new AtomicReference[Option[Instant]](None)
 
+  /** The last offset read in the remote log file */
+  private val lastOffset = new AtomicLong(0)
+
   protected val waitForLogs: FiniteDuration = 2.seconds
 
   def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
@@ -109,6 +113,31 @@ class KubernetesContainer(protected[core] val id: ContainerId,
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
+
+  /**
+   * Request that the activation's log output be forwarded to an external log service (implicit in LogProvider choice).
+   * Additional per log line metadata and the activation record is provided to be optionally included
+   * in the forwarded log entry.
+   *
+   * @param sizeLimit The maximum number of bytes of log that should be forwardewd
+   * @param sentinelledLogs Should the log forwarder expect a sentinel line at the end of stdout/stderr streams?
+   * @param additionalMetadata Additional metadata that should be injected into every log line
+   * @param augmentedActivation Activation record to be appended to the forwarded log.
+   */
+  def forwardLogs(sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Unit] = {
+    kubernetes match {
+      case client: KubernetesApiWithInvokerAgent => {
+        client
+          .forwardLogs(this, lastOffset.get, sizeLimit, sentinelledLogs, additionalMetadata, augmentedActivation)
+          .map(newOffset => lastOffset.set(newOffset))
+      }
+      case _ =>
+        Future.failed(new UnsupportedOperationException("forwardLogs requires whisk.kubernetes.invokerAgent.enabled"))
+    }
+  }
 
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 
@@ -136,5 +165,4 @@ class KubernetesContainer(protected[core] val id: ContainerId,
         line.toByteString
       }
   }
-
 }

@@ -50,6 +50,7 @@ import whisk.core.entity.ActivationResponse.Timeout
 import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.core.containerpool.docker.test.DockerContainerTests._
+import whisk.core.containerpool.kubernetes.test.KubernetesClientTests.TestKubernetesClientWithInvokerAgent
 
 import scala.collection.{immutable, mutable}
 
@@ -84,8 +85,11 @@ class KubernetesContainerTests
   val toFormattedString: Flow[ByteString, String, NotUsed] =
     Flow[ByteString].map(_.utf8String.parseJson.convertTo[TypedLogLine].toString)
 
+  val commandTimeout = 500.milliseconds
+  def await[A](f: Future[A], timeout: FiniteDuration = commandTimeout) = Await.result(f, timeout)
+
   /** Reads logs into memory and awaits them */
-  def awaitLogs(source: Source[ByteString, Any], timeout: FiniteDuration = 500.milliseconds): Vector[String] =
+  def awaitLogs(source: Source[ByteString, Any], timeout: FiniteDuration = commandTimeout): Vector[String] =
     Await.result(source.via(toFormattedString).runWith(Sink.seq[String]), timeout).toVector
 
   val containerId = ContainerId("id")
@@ -290,6 +294,26 @@ class KubernetesContainerTests
     // assert the finish log is there
     val end = LogMarker.parse(logLines.last)
     end.token shouldBe INVOKER_ACTIVATION_RUN.asFinish
+  }
+
+  /*
+   * LOG FORWARDING
+   */
+  it should "container should maintain lastOffset across calls to forwardLogs" in {
+    implicit val kubernetes = new TestKubernetesClientWithInvokerAgent
+    val id = ContainerId("id")
+    val container = new KubernetesContainer(id, ContainerAddress("ip"), "127.0.0.1", "docker://foo")
+    val logChunk = 10.kilobytes
+
+    await(container.forwardLogs(logChunk, false, Map.empty, JsObject()))
+    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject()))
+    await(container.forwardLogs(logChunk, false, Map.empty, JsObject()))
+    await(container.forwardLogs(42.bytes, false, Map.empty, JsObject()))
+
+    kubernetes.forwardLogs(0) shouldBe (id, 0)
+    kubernetes.forwardLogs(1) shouldBe (id, logChunk.toBytes)
+    kubernetes.forwardLogs(2) shouldBe (id, logChunk.toBytes + 42)
+    kubernetes.forwardLogs(3) shouldBe (id, 2 * logChunk.toBytes + 42)
   }
 
   /*
