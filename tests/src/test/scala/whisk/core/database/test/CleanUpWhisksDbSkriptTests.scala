@@ -293,9 +293,9 @@ class CleanUpWhisksDbSkriptTests
 
     // Create document/action with random namespace
     val documents = Map(
-      ":AHA04676_dev:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")),
-      ":AHA04676_stage:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-stage")),
-      ":AHA04676_prod:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-prod")))
+      ":dev_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")),
+      ":stage_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-stage")),
+      ":prod_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-prod")))
 
     documents.foreach {
       case (id, document) =>
@@ -366,15 +366,15 @@ class CleanUpWhisksDbSkriptTests
 
     // Create document/action with random namespace
     val documents = Map(
-      "/AJackson@uk.ibm.com_dev/badgers" -> JsObject(
+      "/User@ibm.com_dev/badgers" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
-      "/AJackson@uk.ibm.com_dev/badgers2" -> JsObject(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40ibm.com_dev/triggers/badgers")),
+      "/User@ibm.com_dev/badgers2" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers2")),
-      "/AJackson@uk.ibm.com_dev/badgers3" -> JsObject(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40ibm.com_dev/triggers/badgers2")),
+      "/User@ibm.com_dev/badgers3" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers3")))
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40ibm.com_dev/triggers/badgers3")))
 
     documents.foreach {
       case (id, document) =>
@@ -451,15 +451,15 @@ class CleanUpWhisksDbSkriptTests
 
     // Create document/action with random namespace
     val documents = Map(
-      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_dev/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/user_gen4_org_dev/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
-      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_stage/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/user_gen4_org_stage/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers2")),
-      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_prod/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers2")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/user_gen4_org_prod/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers3")))
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers3")))
 
     documents.foreach {
       case (id, document) =>
@@ -496,13 +496,13 @@ class CleanUpWhisksDbSkriptTests
     val documents = Map(
       "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers")),
       "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger2" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers")),
       "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger3" -> JsObject(
         "triggerURL" -> JsString(
-          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")))
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40ibm.com_dev/triggers/badgers")))
 
     documents.foreach {
       case (id, document) =>

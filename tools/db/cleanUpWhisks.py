@@ -124,16 +124,12 @@ def updateLastNamespaceInfo(namespace, lastNamespaceInfo):
 def getDelimiters(whiskDatabaseType):
 
     if whiskDatabaseType == "whisks":
-        # "_id": "whisk.system/utils",
         return None, '/'
     elif whiskDatabaseType == "cloudanttrigger":
-        # "_id": ":AHA04676_dev:vision-cloudant-trigger",
         return ':', ':'
     elif whiskDatabaseType == "kafkatrigger":
-        # "_id": "/AJackson@uk.ibm.com_dev/badgers",
         return '/', '/'
     elif whiskDatabaseType == "alarmservice":
-        # "_id": "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_dev/trigger_2bd1d70424a7b627ef18827fac212dae"
         return '/', '/'
     else:
         print('{0}: error: {1} is not supported for --whiskDBType'.format(sys.argv[0], whiskDatabaseType))
@@ -199,7 +195,7 @@ parser.add_argument("--dbNameWhisks", required=True, help="Name of the Whisks Da
 parser.add_argument("--dbNameSubjects", required=True, help="Name of the Subjects Database.")
 parser.add_argument("--whiskDBType", required=True, help="Type of the Whisks Database. Supported are whisks, cloudanttrigger, kafkatrigger, alarmservice")
 parser.add_argument("--days", required=True, type=int, default=7, help="How many days whisks keep entries marked for deletion before deleting them.")
-parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 200.")
+parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 100.")
 parser.add_argument("--bufferLen", type=int, default=100, help="Maximum buffer length to cache already checked ns. Default is 100.")
 args = parser.parse_args()
 checkWhisks(args)
