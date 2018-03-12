@@ -119,21 +119,22 @@ def updateLastNamespaceInfo(namespace, lastNamespaceInfo):
 
 
 #
-# extract namespace for doc id
+# get delimiters for namespace retrieval by database type
 #
-def getNamespaceFromDocID(docID, whiskDatabaseType):
+def getDelimiters(whiskDatabaseType):
 
     if whiskDatabaseType == "whisks":
-        return docID[0:docID.find('/')]
+        # "_id": "whisk.system/utils",
+        return None, '/'
     elif whiskDatabaseType == "cloudanttrigger":
         # "_id": ":AHA04676_dev:vision-cloudant-trigger",
-        return docID[1:docID.find(':',1)]
+        return ':', ':'
     elif whiskDatabaseType == "kafkatrigger":
         # "_id": "/AJackson@uk.ibm.com_dev/badgers",
-        return docID[1:docID.find('/',1)]
+        return '/', '/'
     elif whiskDatabaseType == "alarmservice":
-        print('{0}: error: {1} is not yet implemented for --whiskDBType'.format(sys.argv[0], whiskDatabaseType))
-        exit(1)
+        # "_id": "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_dev/trigger_2bd1d70424a7b627ef18827fac212dae"
+        return '/', '/'
     else:
         print('{0}: error: {1} is not supported for --whiskDBType'.format(sys.argv[0], whiskDatabaseType))
         exit(1)
@@ -143,6 +144,8 @@ def getNamespaceFromDocID(docID, whiskDatabaseType):
 # check whisks db for entries having none existent ns
 #
 def checkWhisks(args):
+
+    delimiter1, delimiter2 = getDelimiters(args.whiskDBType)
 
     dbWhisks = couchdb.client.Server(args.dbUrl)[args.dbNameWhisks]
     dbSubjects = couchdb.client.Server(args.dbUrl)[args.dbNameSubjects]
@@ -161,7 +164,14 @@ def checkWhisks(args):
                     skipping += 1
                     print('skipping: {0}'.format(wdoc['id']))
                     continue
-                namespace = getNamespaceFromDocID(wdoc['id'], args.whiskDBType)
+
+                docID = wdoc['id']
+                index = 0
+
+                if delimiter1 != None:
+                    index = docID.find(delimiter1)+1
+                namespace = docID[index:docID.find(delimiter2, index)]
+
                 lastNamespaceInfo = updateLastNamespaceInfo(namespace, lastNamespaceInfo)
 
                 exists = rb.get(namespace)

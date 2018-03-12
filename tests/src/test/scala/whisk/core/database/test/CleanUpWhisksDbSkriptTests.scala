@@ -193,7 +193,7 @@ class CleanUpWhisksDbSkriptTests
     // Check, that script did not mark documents for deletion
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain ("3 doc(s) for namespace whisk.system")
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
@@ -272,7 +272,7 @@ class CleanUpWhisksDbSkriptTests
     // Check, that script kept documents in DB
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain ("3 doc(s) for namespace whisk.system")
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
@@ -346,7 +346,7 @@ class CleanUpWhisksDbSkriptTests
     // Check, that script did not mark documents for deletion
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain ("3 doc(s) for namespace whisk.system")
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
@@ -366,9 +366,15 @@ class CleanUpWhisksDbSkriptTests
 
     // Create document/action with random namespace
     val documents = Map(
-      "/AJackson@uk.ibm.com_dev/badgers" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
-      "/AJackson@uk.ibm.com_dev/badgers2" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers2")),
-      "/AJackson@uk.ibm.com_dev/badgers3" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers3")))
+      "/AJackson@uk.ibm.com_dev/badgers" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "/AJackson@uk.ibm.com_dev/badgers2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers2")),
+      "/AJackson@uk.ibm.com_dev/badgers3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers3")))
 
     documents.foreach {
       case (id, document) =>
@@ -403,9 +409,15 @@ class CleanUpWhisksDbSkriptTests
 
     // Create document/action with whisk-system namespace
     val documents = Map(
-      "/whisk.system/badgers" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
-      "/whisk.system/badgers2" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
-      "/whisk.system/badgers3" -> JsObject("triggerURL" -> JsString("https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")))
+      "/whisk.system/badgers" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "/whisk.system/badgers2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "/whisk.system/badgers3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")))
 
     documents.foreach {
       case (id, document) =>
@@ -419,7 +431,92 @@ class CleanUpWhisksDbSkriptTests
     // Check, that script did not mark documents for deletion
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain ("3 doc(s) for namespace whisk.system")
+    kept should contain("3 doc(s) for namespace whisk.system")
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+    val databaseDocumentIDs = databaseDocuments.map(_.fields("id").convertTo[String])
+    databaseDocumentIDs should contain allElementsOf ids
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "mark documents for deletion in alarmservice if namespace does not exist" in {
+    // Create alarmservice db
+    val dbName = dbPrefix + "cleanup_alarmservice_test_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with random namespace
+    val documents = Map(
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_dev/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_stage/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers2")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/swapna_gen4_org_prod/trigger_2bd1d70424a7b627ef18827fac212dae" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers3")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName, "alarmservice")
+    println(s"marked: $marked")
+
+    // Check, that script marked document to be deleted: output + document from DB
+    val ids = documents.keys
+    println(s"ids: $ids")
+    marked should contain allElementsOf ids
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+
+    databaseDocuments.foreach { doc =>
+      doc.fields("doc").asJsObject.fields.keys should contain("markedForDeletion")
+    }
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "not mark documents for deletion in alarmservice if namespace does exist" in {
+    // Create alarmservice db
+    val dbName = dbPrefix + "cleanup_alarmservice_test_not_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with whisk-system namespace
+    val documents = Map(
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")),
+      "02e116e9-b66f-4ed3-8159-a40048ae829b:XXX/whisk.system/trigger3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/AJackson%40uk.ibm.com_dev/triggers/badgers")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "alarmservice")
+    println(s"kept: $kept")
+
+    // Check, that script did not mark documents for deletion
+    val ids = documents.keys
+    println(s"ids: $ids")
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
