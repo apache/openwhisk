@@ -44,6 +44,7 @@
   *           backendMethod    Required.  Action invocation REST verb.  "POST"
   *           backendUrl       Required.  Action invocation REST url
   *           authkey          Required.  Action invocation auth key
+  *           secureKey        Optional.  Action's require-whisk-auth value
   *      swagger             Required if gatewayBasePath not provided.  API swagger JSON
   *
   * NOTE: The package containing this action will be bound to the following values:
@@ -122,6 +123,7 @@ function main(message) {
     console.log('action backendUrl: '+doc.action.backendUrl);
     console.log('action backendMethod: '+doc.action.backendMethod);
     console.log('action authkey: '+utils.confidentialPrint(doc.action.authkey));
+    console.log('action secureKey: '+utils.confidentialPrint(doc.action.secureKey));
   }
   console.log('calledAsWebAction: '+calledAsWebAction);
   console.log('apidoc        :\n'+JSON.stringify(doc));
