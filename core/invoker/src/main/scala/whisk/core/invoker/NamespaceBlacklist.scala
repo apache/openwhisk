@@ -73,6 +73,3 @@ object NamespaceBlacklist {
 
 /** Configuration relevant to the namespace blacklist */
 case class NamespaceBlacklistConfig(pollInterval: FiniteDuration)
-
-/** Indicates the activation was stopped due to a blacklisted identity */
-case class NamespaceBlacklistedException(ns: String) extends Exception(s"Namespace $ns was blocked in invoker.")
