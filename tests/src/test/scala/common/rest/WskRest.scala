@@ -17,7 +17,7 @@
 
 package common.rest
 
-import java.io.File
+import java.io.{File, FileInputStream}
 import java.time.Instant
 import java.util.Base64
 import java.security.cert.X509Certificate
@@ -78,17 +78,42 @@ import common.WskActorSystem
 import common.WskProps
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
+import javax.net.ssl._
 
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import java.nio.charset.StandardCharsets
+import java.security.KeyStore
+
+import akka.actor.ActorSystem
+import pureconfig.loadConfigOrThrow
+import whisk.common.Https.HttpsConfig
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
 }
 
 object SSL {
-  lazy val nonValidatingContext: SSLContext = {
+
+  lazy val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+
+  def keyManagers(clientAuth: Boolean) = {
+    if (clientAuth)
+      keyManagersForClientAuth
+    else
+      Array[KeyManager]()
+  }
+
+  def keyManagersForClientAuth: Array[KeyManager] = {
+    val keyFactoryType = "SunX509"
+    val keystorePassword = httpsConfig.keystorePassword.toCharArray
+    val ks: KeyStore = KeyStore.getInstance(httpsConfig.keystoreFlavor)
+    ks.load(new FileInputStream(httpsConfig.keystorePath), httpsConfig.keystorePassword.toCharArray)
+    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance(keyFactoryType)
+    keyManagerFactory.init(ks, keystorePassword)
+    keyManagerFactory.getKeyManagers
+  }
+
+  def nonValidatingContext(clientAuth: Boolean = false): SSLContext = {
     class IgnoreX509TrustManager extends X509TrustManager {
       def checkClientTrusted(chain: Array[X509Certificate], authType: String) = ()
       def checkServerTrusted(chain: Array[X509Certificate], authType: String) = ()
@@ -96,8 +121,34 @@ object SSL {
     }
 
     val context = SSLContext.getInstance("TLS")
-    context.init(Array[KeyManager](), Array(new IgnoreX509TrustManager), null)
+
+    context.init(keyManagers(clientAuth), Array(new IgnoreX509TrustManager), null)
     context
+  }
+
+  def httpsConnectionContext(implicit system: ActorSystem) = {
+    val sslConfig = AkkaSSLConfig().mapSettings { s =>
+      s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
+    }
+    new HttpsConnectionContext(SSL.nonValidatingContext(httpsConfig.clientAuth.toBoolean), Some(sslConfig))
+  }
+}
+
+object HttpConnection {
+
+  /**
+   * Returns either the https context that is tailored for self-signed certificates on the controller, or
+   * a default connection context used in Http.SingleRequest
+   * @param protocol protocol used to communicate with controller API
+   * @param system actor system
+   * @return https connection context
+   */
+  def getContext(protocol: String)(implicit system: ActorSystem) = {
+    if (protocol == "https")
+      SSL.httpsConnectionContext
+    else
+//    supports http
+      Http().defaultClientHttpsContext
   }
 }
 
@@ -1170,6 +1221,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
+  val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
@@ -1180,7 +1232,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
   }
 
-  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
+  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext(), Some(sslConfig))
 
   def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))

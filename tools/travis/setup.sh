@@ -32,4 +32,4 @@ docker info
 pip install --user couchdb
 
 # Ansible
-pip install --user ansible==2.3.0.0
+pip install --user ansible==2.4.2.0

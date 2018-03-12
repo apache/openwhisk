@@ -66,6 +66,25 @@ controller:
   loadbalancer:
     spi: "{{ controller_loadbalancer_spi | default('') }}"
   loglevel: "{{ controller_loglevel | default(whisk_loglevel) | default('INFO') }}"
+  protocol: "{{ controllerProtocolForSetup }}"
+  ssl:
+    cn: openwhisk-controllers
+    cert: "{{ controller_ca_cert | default('controller-openwhisk-server-cert.pem') }}"
+    key: "{{ controller_key | default('controller-openwhisk-server-key.pem') }}"
+    clientAuth: "{{ controller_client_auth | default('true') }}"
+    storeFlavor: PKCS12
+    keystore:
+      password: "{{ controllerKeystorePassword }}"
+      path: "/conf/{{ controllerKeystoreName }}"
+# keystore and truststore are the same as long as controller and nginx share the certificate
+    truststore:
+      password: "{{ controllerKeystorePassword }}"
+      path: "/conf/{{ controllerKeystoreName }}"
+# move controller protocol outside to not evaluate controller variables during execution of setup.yml
+controllerProtocolForSetup: "{{ controller_protocol | default('https') }}"
+controllerKeystoreName: "{{ controllerKeyPrefix }}openwhisk-keystore.p12"
+controllerKeyPrefix: "controller-"
+controllerKeystorePassword: openwhisk
 
 jmx:
   basePortController: 15000

@@ -49,6 +49,7 @@ import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
 import akka.event.Logging.InfoLevel
+import pureconfig.loadConfigOrThrow
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -159,6 +160,8 @@ class Controller(val instance: InstanceId,
  */
 object Controller {
 
+  protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
   // no default value specified, so it must appear in the properties file
@@ -233,7 +236,10 @@ object Controller {
           actorSystem,
           ActorMaterializer.create(actorSystem),
           logger)
-        BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
+        if (Controller.protocol == "https")
+          BasicHttpService.startHttpsService(controller.route, port, config)(actorSystem, controller.materializer)
+        else
+          BasicHttpService.startHttpService(controller.route, port)(actorSystem, controller.materializer)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")

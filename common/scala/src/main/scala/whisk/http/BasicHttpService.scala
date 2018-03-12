@@ -18,7 +18,7 @@
 package whisk.http
 
 import scala.collection.immutable.Seq
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
 import akka.actor.ActorSystem
 import akka.event.Logging
@@ -30,12 +30,8 @@ import akka.http.scaladsl.server.RouteResult.Rejected
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
 import spray.json._
-import whisk.common.LogMarker
-import whisk.common.LogMarkerToken
-import whisk.common.LoggingMarkers
-import whisk.common.TransactionCounter
-import whisk.common.TransactionId
-import whisk.common.MetricEmitter
+import whisk.common._
+import whisk.core.WhiskConfig
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
@@ -146,14 +142,31 @@ trait BasicHttpService extends Directives with TransactionCounter {
 object BasicHttpService {
 
   /**
+   * Starts an HTTPS route handler on given port and registers a shutdown hook.
+   */
+  def startHttpsService(route: Route, port: Int, config: WhiskConfig)(implicit actorSystem: ActorSystem,
+                                                                      materializer: ActorMaterializer): Unit = {
+
+    implicit val executionContext = actorSystem.dispatcher
+
+    val httpsBinding = Http().bindAndHandle(route, "0.0.0.0", port, connectionContext = Https.connectionContext(config))
+    addShutdownHook(httpsBinding)
+  }
+
+  /**
    * Starts an HTTP route handler on given port and registers a shutdown hook.
    */
-  def startService(route: Route, port: Int)(implicit actorSystem: ActorSystem,
-                                            materializer: ActorMaterializer): Unit = {
-    implicit val executionContext = actorSystem.dispatcher
+  def startHttpService(route: Route, port: Int)(implicit actorSystem: ActorSystem,
+                                                materializer: ActorMaterializer): Unit = {
     val httpBinding = Http().bindAndHandle(route, "0.0.0.0", port)
+    addShutdownHook(httpBinding)
+  }
+
+  def addShutdownHook(binding: Future[Http.ServerBinding])(implicit actorSystem: ActorSystem,
+                                                           materializer: ActorMaterializer): Unit = {
+    implicit val executionContext = actorSystem.dispatcher
     sys.addShutdownHook {
-      Await.result(httpBinding.map(_.unbind()), 30.seconds)
+      Await.result(binding.map(_.unbind()), 30.seconds)
       actorSystem.terminate()
       Await.result(actorSystem.whenTerminated, 30.seconds)
     }

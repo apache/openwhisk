@@ -51,6 +51,25 @@
     src: "{{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
 
+- name: copy nginx certificate keystore
+  when: controller.protocol == 'https'
+  copy:
+    src: files/{{ controllerKeystoreName }}
+    mode: 0666
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+  become: "{{ controller.dir.become }}"
+
+- name: copy certificates
+  when: controller.protocol == 'https'
+  copy:
+    src: "{{ openwhisk_home }}/ansible/roles/controller/files/{{ item }}"
+    mode: 0666
+    dest: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}"
+  with_items:
+  - "{{ controller.ssl.cert }}"
+  - "{{ controller.ssl.key }}"
+  become: "{{ controller.dir.become }}"
+
 - name: check, that required databases exist
   include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
@@ -154,11 +173,17 @@
 
       "CONTROLLER_LOCALBOOKKEEPING": "{{ controller.localBookkeeping }}"
       "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
-
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
-
+      "CONFIG_whisk_controller_protocol": "{{ controller.protocol }}"
+      "CONFIG_whisk_controller_https_keystorePath": "{{ controller.ssl.keystore.path }}"
+      "CONFIG_whisk_controller_https_keystorePassword": "{{ controller.ssl.keystore.password }}"
+      "CONFIG_whisk_controller_https_keystoreFlavor": "{{ controller.ssl.storeFlavor }}"
+      "CONFIG_whisk_controller_https_truststorePath": "{{ controller.ssl.truststore.path }}"
+      "CONFIG_whisk_controller_https_truststorePassword": "{{ controller.ssl.truststore.password }}"
+      "CONFIG_whisk_controller_https_truststoreFlavor": "{{ controller.ssl.storeFlavor }}"
+      "CONFIG_whisk_controller_https_clientAuth": "{{ controller.ssl.clientAuth }}"
       "CONFIG_whisk_loadbalancer_invokerBusyThreshold": "{{ invoker.busyThreshold }}"
       "CONFIG_whisk_loadbalancer_blackboxFraction": "{{ controller.blackboxFraction }}"
 
@@ -183,7 +208,10 @@
 
 - name: wait until the Controller in this host is up and running
   uri:
-    url: "http://{{ ansible_host }}:{{ controller.basePort + (controller_index | int) }}/ping"
+    url: "{{ controller.protocol }}://{{ ansible_host }}:{{ controller.basePort + groups['controllers'].index(inventory_hostname) }}/ping"
+    validate_certs: no
+    client_key: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.key }}"
+    client_cert: "{{ controller.confdir }}/controller{{ groups['controllers'].index(inventory_hostname) }}/{{ controller.ssl.cert }}"
   register: result
   until: result.status == 200
   retries: 12

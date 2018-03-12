@@ -45,4 +45,17 @@ whisk {
           WhiskActivation = {{ db.whisk.activations }}
         }
     }
+
+    controller {
+      protocol = {{ controller.protocol }}
+      https {
+        keystore-flavor = "{{ controller.ssl.storeFlavor }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        keystore-password = "{{ controller.ssl.keystore.password }}"
+        truststore-flavor = "{{ controller.ssl.storeFlavor }}"
+        truststore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        truststore-password = "{{ controller.ssl.keystore.password }}"
+        client-auth = "{{ controller.ssl.clientAuth }}"
+      }
+    }
 }
