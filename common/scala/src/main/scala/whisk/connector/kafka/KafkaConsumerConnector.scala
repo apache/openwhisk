@@ -50,7 +50,8 @@ class KafkaConsumerConnector(
   // logic, like the wakeup timer.
   private val cfg = loadConfigOrThrow[KafkaConsumerConfig](ConfigKeys.kafkaConsumer)
 
-// Currently consumed offset, is used to calculate the topic lag
+  // Currently consumed offset, is used to calculate the topic lag.
+  // It is updated from one thread in "peek", no concurrent data structure is necessary
   private var offset: Long = 0
 
   /**
@@ -146,8 +147,8 @@ class KafkaConsumerConnector(
 
   @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
 
-//  Read current lag of the consumed topic, e.g. invoker queue
-//  Since we use only one partition in kafka, it is defined 0
+  //  Read current lag of the consumed topic, e.g. invoker queue
+  //  Since we use only one partition in kafka, it is defined 0
   actorSystem.scheduler.schedule(10.second, cfg.metricFlushIntervalS.second) {
     val topicAndPartition = Set(new TopicPartition(topic, 0))
     consumer.endOffsets(topicAndPartition.asJava).asScala.find(_._1.topic() == topic).map(_._2).foreach { endOffset =>
