@@ -19,7 +19,7 @@ package actionContainers
 
 import java.io.File
 
-import common.WskActorSystem
+import common.{TestUtils, WskActorSystem}
 import ActionContainer.withContainer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -32,7 +32,7 @@ class Swift41CodableActionContainerTests extends BasicActionRunnerTests with Wsk
   // prints status messages and there doesn't seem to be a way to quiet them
   val enforceEmptyOutputStream = false
   lazy val swiftContainerImageName = "action-swift-v4.1"
-  lazy val swiftBinaryName = "tests/dat/build/swift4.1/HelloSwift4Codable.zip"
+  lazy val swiftBinaryName = "HelloSwift4Codable.zip"
 
   behavior of s"Codable $swiftContainerImageName"
 
@@ -215,7 +215,7 @@ class Swift41CodableActionContainerTests extends BasicActionRunnerTests with Wsk
   }
 
   it should "support pre-compiled binary in a zip file" in {
-    val zip = new File(swiftBinaryName).toPath
+    val zip = new File(TestUtils.getTestActionFilename(swiftBinaryName)).toPath
     val code = ResourceHelpers.readAsBase64(zip)
 
     val (out, err) = withActionContainer() { c =>

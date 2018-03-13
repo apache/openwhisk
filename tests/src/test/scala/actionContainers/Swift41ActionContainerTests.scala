@@ -19,7 +19,7 @@ package actionContainers
 
 import java.io.File
 
-import common.WskActorSystem
+import common.{TestUtils, WskActorSystem}
 import ActionContainer.withContainer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -32,8 +32,8 @@ class Swift41ActionContainerTests extends BasicActionRunnerTests with WskActorSy
   // prints status messages and there doesn't seem to be a way to quiet them
   val enforceEmptyOutputStream = false
   lazy val swiftContainerImageName = "action-swift-v4.1"
-  lazy val swiftBinaryName = "tests/dat/build/swift4.1/HelloSwift4.zip"
-  lazy val partyCompile = "tests/dat/build/swift4.1/SwiftyRequest.zip"
+  lazy val swiftBinaryName = "HelloSwift4.zip"
+  lazy val partyCompile = "SwiftyRequest.zip"
 
   val httpCode = """
                    | import Dispatch
@@ -246,7 +246,7 @@ class Swift41ActionContainerTests extends BasicActionRunnerTests with WskActorSy
   }
 
   it should "support pre-compiled binary in a zip file" in {
-    val zip = new File(swiftBinaryName).toPath
+    val zip = new File(TestUtils.getTestActionFilename(swiftBinaryName)).toPath
     val code = ResourceHelpers.readAsBase64(zip)
 
     val (out, err) = withActionContainer() { c =>
@@ -290,5 +290,45 @@ class Swift41ActionContainerTests extends BasicActionRunnerTests with WskActorSy
         if (enforceEmptyOutputStream) o shouldBe empty
         e shouldBe empty
     })
+  }
+
+  it should "support ability to use 3rd party packages like SwiftyRequest" in {
+    val zip = new File(TestUtils.getTestActionFilename(partyCompile)).toPath
+    val code = ResourceHelpers.readAsBase64(zip)
+
+    val (out, err) = withActionContainer() { c =>
+      val (initCode, initRes) = c.init(initPayload(code))
+      initCode should be(200)
+
+      val args = JsObject("message" -> (JsString("serverless")))
+      val (runCode, runRes) = c.run(runPayload(args))
+
+      runCode should be(200)
+      val json = runRes.get.fields.get("json")
+      json shouldBe Some(args)
+    }
+
+    checkStreams(out, err, {
+      case (o, e) =>
+        if (enforceEmptyOutputStream) o shouldBe empty
+        e shouldBe empty
+    })
+  }
+
+  it should "receive a large (1MB) argument" in {
+    withActionContainer() { c =>
+      val code = """
+                   | func main(args: [String: Any]) -> [String: Any] {
+                   |     return args
+                   | }
+                   |""".stripMargin
+
+      val (initCode, initRes) = c.init(initPayload(code))
+      initCode should be(200)
+
+      val arg = JsObject("arg" -> JsString(("a" * 1048561)))
+      val (_, runRes) = c.run(runPayload(arg))
+      runRes.get shouldBe arg
+    }
   }
 }
