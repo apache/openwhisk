@@ -67,11 +67,6 @@ class CleanUpWhisksDbSkriptTests
 
     val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
 
-    rr.stdout.lines.foreach {
-      case (line) =>
-        println(s"line: $line")
-    }
-
     val Seq(marking, marked, deleting, skipping, keeping, statistic) =
       Seq("marking: ", "marked: ", "deleting: ", "skipping: ", "keeping: ", "statistic: ").map { linePrefix =>
         rr.stdout.lines.collect {
