@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-set -e
+set -ex
 
 if [ -z "$1" ] ; then
     echo 'Error: Missing action name'
@@ -26,22 +26,15 @@ if [ -z "$2" ] ; then
     echo 'Error: Missing runtime docker image name, for example openwhisk/action-swift-v4.0'
     exit 2
 fi
-
-BASE_PATH="/swift3Action"
-DEST_SOURCE="$BASE_PATH/spm-build"
-RUNTIME="openwhisk/action-swift-v3.1.1"
+OUTPUT_DIR="build"
 if [ ${2} == "swift:3.1.1" ]; then
-  OUTPUT_DIR="build/swift311"
-elif [ ${2} == "swift:4.0" ]; then
-  RUNTIME="action-swift-v4.0"
-  BASE_PATH="/swift4Action"
-  DEST_SOURCE="/$BASE_PATH/spm-build/Sources/Action"
-  OUTPUT_DIR="build/swift4.0"
+  BASE_PATH="/swift3Action"
+  DEST_SOURCE="$BASE_PATH/spm-build"
+  RUNTIME="openwhisk/action-swift-v3.1.1"
 elif [ ${2} == "swift:4.1" ]; then
-  RUNTIME="action-swift-v4.1"
+  RUNTIME="openwhisk/action-swift-v4.1"
   BASE_PATH="/swift4Action"
   DEST_SOURCE="/$BASE_PATH/spm-build/Sources/Action"
-  OUTPUT_DIR="build/swift4.1"
 else
   echo "Error: Kind $2 not recognize"
   exit 3
@@ -52,7 +45,6 @@ BUILD_FLAGS=""
 if [ -n "$3" ] ; then
     BUILD_FLAGS=${3}
 fi
-
 
 echo "Using runtime $RUNTIME to compile swift"
 docker run --rm --name=compile-ow-swift -it -v "$(pwd):/owexec" $RUNTIME bash -ex -c "
