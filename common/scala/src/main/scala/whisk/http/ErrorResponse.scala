@@ -205,6 +205,8 @@ object Messages {
     }
   }
 
+  val namespacesBlacklisted = "The action was not invoked due to a blacklisted namespace."
+
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
   val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."
   val actionFetchErrorWhileInvoking = "Action could not be fetched."
