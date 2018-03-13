@@ -122,7 +122,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:latest",
+        "fakeImage:" + wskConfig.dockerImageTag,
         cpus,
         1,
         List(8080),
@@ -164,7 +164,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:latest",
+        "fakeImage:" + wskConfig.dockerImageTag,
         cpus,
         1,
         List(8080),
@@ -234,7 +234,7 @@ class MesosContainerFactoryTest
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
-        "fakeImage:latest",
+        "fakeImage:" + wskConfig.dockerImageTag,
         cpus,
         1,
         List(8080),
