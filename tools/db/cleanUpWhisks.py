@@ -22,8 +22,10 @@
 import argparse
 import time
 import couchdb.client
+import sys
 
 skipWhisks = 0
+marking = marked = deleting = skipping = keeping = 0
 
 try:
     long        # Python 2
@@ -38,36 +40,34 @@ DAY = HOUR * 24
 #
 class SimpleRingBuffer:
     def __init__(self, size):
-        self.index = -1
+        self.index = 0
         self.data = []
-        self.maxsize = size * 2
+        self.maxsize = size
 
-    def append(self, ns, bool):
-
-        self.index=(self.index+2)%self.maxsize
-
+    def append(self, ns, exists):
         if len(self.data) < self.maxsize:
-            self.data.append(ns)
-            self.data.append(bool)
+            self.data.append((ns,exists))
         else:
-            self.data[self.index-1]=ns
-            self.data[(self.index)]=bool
+            self.data[self.index]=(ns,exists)
+        self.index=(self.index+1)%self.maxsize
 
     def getself(self):
         return self.data
 
     def get(self, ns):
-        if ns in self.data:
-            return self.data[self.data.index(ns)+1]
+        if (ns,True) in self.data:
+            return True
+        elif (ns,False) in self.data:
+            return False
         else:
             return None
 
 #
 # mark whisks entry for deletion of delete if already marked
 #
-def deleteWhisk(dbWhisks, wdoc):
+def deleteWhisk(dbWhisks, wdoc, days):
 
-    global skipWhisks
+    global skipWhisks, marking, marked, deleting
 
     wdocd = dbWhisks[wdoc['id']]
     if not 'markedForDeletion' in wdocd:
@@ -75,18 +75,21 @@ def deleteWhisk(dbWhisks, wdoc):
         dts = int(time.time() * 1000)
         wdocd['markedForDeletion'] = dts
         dbWhisks.save(wdocd)
+        marking+=1
     else:
         dts = wdocd['markedForDeletion']
         now = int(time.time() * 1000)
         elapsedh = int((now - dts) / HOUR)
         elapsedd = int((now - dts) / DAY)
 
-        if elapsedd >= args.days:
+        if elapsedd >= days:
             print('deleting: {0}'.format(wdoc['id']))
             dbWhisks.delete(wdocd)
             skipWhisks-=1
+            deleting+=1
         else:
             print('marked: {0}, elapsed hours: {1}, elapsed days: {2}'.format(wdoc['id'], elapsedh, elapsedd))
+            marked+=1
 
 
 #
@@ -95,9 +98,7 @@ def deleteWhisk(dbWhisks, wdoc):
 def checkNamespace(dbSubjects, namespace):
 
     while True:
-
         allNamespaces = dbSubjects.view('subjects/identities', startkey=[namespace], endkey=[namespace])
-
         if allNamespaces:
             return True
         else:
@@ -105,9 +106,42 @@ def checkNamespace(dbSubjects, namespace):
 
 
 #
+# update last namespace info and print number of kept documents
+#
+def updateLastNamespaceInfo(namespace, lastNamespaceInfo):
+
+    if namespace != lastNamespaceInfo[0]:
+        if lastNamespaceInfo[0] != None:
+            print('keeping: {0} doc(s) for namespace {1}'.format(lastNamespaceInfo[1], lastNamespaceInfo[0]))
+        lastNamespaceInfo = (namespace,0)
+    lastNamespaceInfo = (namespace, lastNamespaceInfo[1]+1)
+    return lastNamespaceInfo
+
+
+#
+# get delimiters for namespace retrieval by database type
+#
+def getDelimiters(whiskDatabaseType):
+
+    if whiskDatabaseType == "whisks":
+        return None, '/'
+    elif whiskDatabaseType == "cloudanttrigger":
+        return ':', ':'
+    elif whiskDatabaseType == "kafkatrigger":
+        return '/', '/'
+    elif whiskDatabaseType == "alarmservice":
+        return '/', '/'
+    else:
+        print('{0}: error: {1} is not supported for --whiskDBType'.format(sys.argv[0], whiskDatabaseType))
+        exit(1)
+
+
+#
 # check whisks db for entries having none existent ns
 #
 def checkWhisks(args):
+
+    delimiter1, delimiter2 = getDelimiters(args.whiskDBType)
 
     dbWhisks = couchdb.client.Server(args.dbUrl)[args.dbNameWhisks]
     dbSubjects = couchdb.client.Server(args.dbUrl)[args.dbNameSubjects]
@@ -115,36 +149,53 @@ def checkWhisks(args):
     rb = SimpleRingBuffer(args.bufferLen)
 
     global skipWhisks
+    global skipWhisks, skipping, keeping, marking, marked, deleting
+    lastNamespaceInfo = (None, 0)
     while True:
         allWhisks = dbWhisks.view('_all_docs', limit=args.docsPerRequest, skip=skipWhisks)
         skipWhisks += args.docsPerRequest
         if allWhisks:
             for wdoc in allWhisks:
                 if wdoc['id'].startswith('_design/'):
+                    skipping += 1
                     print('skipping: {0}'.format(wdoc['id']))
                     continue
-                namespace = wdoc['id'][0:wdoc['id'].find('/')]
+
+                docID = wdoc['id']
+                index = 0
+
+                if delimiter1 != None:
+                    index = docID.find(delimiter1)+1
+                namespace = docID[index:docID.find(delimiter2, index)]
+
+                lastNamespaceInfo = updateLastNamespaceInfo(namespace, lastNamespaceInfo)
 
                 exists = rb.get(namespace)
                 if exists == None:
                     exists = checkNamespace(dbSubjects, namespace)
                     rb.append(namespace, exists)
 
-                if exists:
-                    print('keeping: {0}'.format(wdoc['id']))
+                if not exists:
+                    deleteWhisk(dbWhisks, wdoc, args.days)
+                    lastNamespaceInfo = (None, 0)
                 else:
-                    deleteWhisk(dbWhisks, wdoc)
+                    keeping += 1
+
         else:
-            return
+            break
+
+    # print final statistic
+    updateLastNamespaceInfo(None, lastNamespaceInfo)
+    print('statistic: skipped({0}), kept({1}), marked for deletion({2}), already marked({3}), deleted({4})'.format(skipping, keeping, marking, marked, deleting))
 
 
 parser = argparse.ArgumentParser(description="Utility to mark/delete whisks entries where the ns does not exist in the subjects database.")
 parser.add_argument("--dbUrl", required=True, help="Server URL of the database, that has to be cleaned of old activations. E.g. 'https://xxx:yyy@domain.couch.com:443'")
 parser.add_argument("--dbNameWhisks", required=True, help="Name of the Whisks Database of the whisks entries to be marked for deletion or deleted if already marked.")
 parser.add_argument("--dbNameSubjects", required=True, help="Name of the Subjects Database.")
+parser.add_argument("--whiskDBType", required=True, help="Type of the Whisks Database. Supported are whisks, cloudanttrigger, kafkatrigger, alarmservice")
 parser.add_argument("--days", required=True, type=int, default=7, help="How many days whisks keep entries marked for deletion before deleting them.")
-parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 200.")
+parser.add_argument("--docsPerRequest", type=int, default=200, help="Number of documents handled on each CouchDb Request. Default is 100.")
 parser.add_argument("--bufferLen", type=int, default=100, help="Maximum buffer length to cache already checked ns. Default is 100.")
 args = parser.parse_args()
-
 checkWhisks(args)

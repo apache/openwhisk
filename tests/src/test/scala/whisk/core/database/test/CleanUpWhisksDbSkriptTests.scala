@@ -45,8 +45,8 @@ class CleanUpWhisksDbSkriptTests
   val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
   val authDBName = dbConfig.databaseFor[WhiskAuth]
 
-  def runScript(dbUrl: String, whisksDbName: String, subjectsDbName: String) = {
-    println(s"Running script: $dbUrl, $whisksDbName, $subjectsDbName")
+  def runScript(dbUrl: String, whisksDbName: String, subjectsDbName: String, whiskDbType: String) = {
+    println(s"Running script: $dbUrl, $whisksDbName, $subjectsDbName, $whiskDbType")
 
     val cmd =
       Seq(
@@ -58,26 +58,30 @@ class CleanUpWhisksDbSkriptTests
         whisksDbName,
         "--dbNameSubjects",
         subjectsDbName,
+        "--whiskDBType",
+        whiskDbType,
         "--days",
-        "1",
+        "7",
         "--docsPerRequest",
         "1")
 
     val rr = TestUtils.runCmd(0, new File("."), cmd: _*)
 
-    val Seq(marked, deleted, skipped, kept) =
-      Seq("marking: ", "deleting: ", "skipping: ", "keeping: ").map { linePrefix =>
+    val Seq(marking, marked, deleting, skipping, keeping, statistic) =
+      Seq("marking: ", "marked: ", "deleting: ", "skipping: ", "keeping: ", "statistic: ").map { linePrefix =>
         rr.stdout.lines.collect {
           case line if line.startsWith(linePrefix) => line.replace(linePrefix, "")
         }.toList
       }
 
-    println(s"marked:  $marked")
-    println(s"deleted: $deleted")
-    println(s"skipped: $skipped")
-    println(s"kept:    $kept")
+    println(s"marked for deletion: $marking")
+    println(s"already marked:      $marked")
+    println(s"deleted:             $deleting")
+    println(s"skipped:             $skipping")
+    println(s"kept:                $keeping")
+    println(s"statistic:           $statistic")
 
-    (marked, deleted, skipped, kept)
+    (marking, deleting, skipping, keeping)
   }
 
   behavior of "Cleanup whisksDb script"
@@ -99,7 +103,7 @@ class CleanUpWhisksDbSkriptTests
     }
 
     // execute script
-    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName)
+    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName, "whisks")
     println(s"marked: $marked")
 
     // Check, that script marked document to be deleted: output + document from DB
@@ -142,7 +146,7 @@ class CleanUpWhisksDbSkriptTests
     }
 
     // execute script
-    val (marked, deleted, _, _) = runScript(dbUrl, dbName, authDBName)
+    val (marked, deleted, _, _) = runScript(dbUrl, dbName, authDBName, "whisks")
     println(s"marked: $marked")
     println(s"deleted: $deleted")
 
@@ -178,13 +182,13 @@ class CleanUpWhisksDbSkriptTests
     }
 
     // execute script
-    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName)
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "whisks")
     println(s"kept: $kept")
 
     // Check, that script did not mark documents for deletion
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain allElementsOf ids
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
@@ -214,7 +218,7 @@ class CleanUpWhisksDbSkriptTests
     }
 
     // execute script
-    val (_, _, skipped, _) = runScript(dbUrl, dbName, authDBName)
+    val (_, _, skipped, _) = runScript(dbUrl, dbName, authDBName, "whisks")
     println(s"skipped: $skipped")
 
     // Check, that script skipped design documents
@@ -257,19 +261,262 @@ class CleanUpWhisksDbSkriptTests
     }
 
     // execute script
-    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName)
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "whisks")
     println(s"kept: $kept")
 
     // Check, that script kept documents in DB
     val ids = documents.keys
     println(s"ids: $ids")
-    kept should contain allElementsOf ids
+    kept should contain("3 doc(s) for namespace whisk.system")
 
     val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
     databaseResponse should be('right)
 
     val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
 
+    val databaseDocumentIDs = databaseDocuments.map(_.fields("id").convertTo[String])
+    databaseDocumentIDs should contain allElementsOf ids
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "mark documents for deletion in cloudanttrigger if namespace does not exist" in {
+    // Create whisks db
+    val dbName = dbPrefix + "cleanup_cloudanttrigger_test_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with random namespace
+    val documents = Map(
+      ":dev_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")),
+      ":stage_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-stage")),
+      ":prod_cluster:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-prod")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName, "cloudanttrigger")
+    println(s"marked: $marked")
+
+    // Check, that script marked document to be deleted: output + document from DB
+    val ids = documents.keys
+    println(s"ids: $ids")
+    marked should contain allElementsOf ids
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+
+    databaseDocuments.foreach { doc =>
+      doc.fields("doc").asJsObject.fields.keys should contain("markedForDeletion")
+    }
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "not mark documents for deletion in cloudanttrigger if namespace does exist" in {
+    // Create whisks db
+    val dbName = dbPrefix + "cleanup_cloudanttrigger_test_not_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with whisk-system namespace
+    val documents = Map(
+      ":whisk.system:vision-cloudant-trigger" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")),
+      ":whisk.system:vision-cloudant-trigger2" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")),
+      ":whisk.system:vision-cloudant-trigger3" -> JsObject("dbname" -> JsString("openwhisk-darkvision-dev")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "cloudanttrigger")
+    println(s"kept: $kept")
+
+    // Check, that script did not mark documents for deletion
+    val ids = documents.keys
+    println(s"ids: $ids")
+    kept should contain("3 doc(s) for namespace whisk.system")
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+    val databaseDocumentIDs = databaseDocuments.map(_.fields("id").convertTo[String])
+    databaseDocumentIDs should contain allElementsOf ids
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "mark documents for deletion in kafkatrigger if namespace does not exist" in {
+    // Create whisks db
+    val dbName = dbPrefix + "cleanup_kafkatrigger_test_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with random namespace
+    val documents = Map(
+      "/User@com_dev/badgers" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers")),
+      "/User@com_dev/badgers2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers2")),
+      "/User@com_dev/badgers3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers3")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName, "kafkatrigger")
+    println(s"marked: $marked")
+
+    // Check, that script marked document to be deleted: output + document from DB
+    val ids = documents.keys
+    println(s"ids: $ids")
+    marked should contain allElementsOf ids
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+
+    databaseDocuments.foreach { doc =>
+      doc.fields("doc").asJsObject.fields.keys should contain("markedForDeletion")
+    }
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "not mark documents for deletion in kafkatrigger if namespace does exist" in {
+    // Create whisks db
+    val dbName = dbPrefix + "cleanup_kafkatrigger_test_not_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with whisk-system namespace
+    val documents = Map(
+      "/whisk.system/badgers" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers")),
+      "/whisk.system/badgers2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers2")),
+      "/whisk.system/badgers3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/User%40com_dev/triggers/badgers3")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "kafkatrigger")
+    println(s"kept: $kept")
+
+    // Check, that script did not mark documents for deletion
+    val ids = documents.keys
+    println(s"ids: $ids")
+    kept should contain("3 doc(s) for namespace whisk.system")
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+    val databaseDocumentIDs = databaseDocuments.map(_.fields("id").convertTo[String])
+    databaseDocumentIDs should contain allElementsOf ids
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "mark documents for deletion in alarmservice if namespace does not exist" in {
+    // Create alarmservice db
+    val dbName = dbPrefix + "cleanup_alarmservice_test_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with random namespace
+    val documents = Map(
+      "id:XXX/user_gen4_org_dev/trigger_id" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers")),
+      "id:XXX/user_gen4_org_stage/trigger_id" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers2")),
+      "id:XXX/user_gen4_org_prod/trigger_id" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers3")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (marked, _, _, _) = runScript(dbUrl, dbName, authDBName, "alarmservice")
+    println(s"marked: $marked")
+
+    // Check, that script marked document to be deleted: output + document from DB
+    val ids = documents.keys
+    println(s"ids: $ids")
+    marked should contain allElementsOf ids
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
+
+    databaseDocuments.foreach { doc =>
+      doc.fields("doc").asJsObject.fields.keys should contain("markedForDeletion")
+    }
+
+    // Delete database
+    client.deleteDb().futureValue
+  }
+
+  it should "not mark documents for deletion in alarmservice if namespace does exist" in {
+    // Create alarmservice db
+    val dbName = dbPrefix + "cleanup_alarmservice_test_not_mark_for_deletion"
+    val client = createDatabase(dbName, None)
+
+    // Create document/action with whisk-system namespace
+    val documents = Map(
+      "id:XXX/whisk.system/trigger" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers")),
+      "id:XXX/whisk.system/trigger2" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers2")),
+      "id:XXX/whisk.system/trigger3" -> JsObject(
+        "triggerURL" -> JsString(
+          "https://xxx:xxx@openwhisk.ng.bluemix.net/api/v1/namespaces/user%40com_dev/triggers/badgers3")))
+
+    documents.foreach {
+      case (id, document) =>
+        client.putDoc(id, document).futureValue
+    }
+
+    // execute script
+    val (_, _, _, kept) = runScript(dbUrl, dbName, authDBName, "alarmservice")
+    println(s"kept: $kept")
+
+    // Check, that script did not mark documents for deletion
+    val ids = documents.keys
+    println(s"ids: $ids")
+    kept should contain("3 doc(s) for namespace whisk.system")
+
+    val databaseResponse = client.getAllDocs(includeDocs = Some(true)).futureValue
+    databaseResponse should be('right)
+
+    val databaseDocuments = databaseResponse.right.get.fields("rows").convertTo[List[JsObject]]
     val databaseDocumentIDs = databaseDocuments.map(_.fields("id").convertTo[String])
     databaseDocumentIDs should contain allElementsOf ids
 
