@@ -714,6 +714,16 @@ func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
 }
 ```
 In this example the Swift action consumes a Codable and produces a Codable type.
+If you don't need to handle any Input you can use the function signature that doesn't take any input, only Codable output.
+```swift
+struct Output: Codable {
+    let greeting: String
+}
+func main(completion: (Output?, Error?) -> Void) -> Void {
+    let result = Output(greeting: "Hello OpenWhisk!")
+    completion(result, nil)
+}
+```
 
 
 You can create a OpenWhisk action called `helloSwift` from this function as
