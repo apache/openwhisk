@@ -714,7 +714,7 @@ func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
 }
 ```
 In this example the Swift action consumes a Codable and produces a Codable type.
-If you don't need to handle any Input you can use the function signature that doesn't take any input, only Codable output.
+If you don't need to handle any input you can use the function signature that doesn't take any input, only Codable output.
 ```swift
 struct Output: Codable {
     let greeting: String
@@ -903,8 +903,30 @@ and so you should include them in your own `Package.swift` only for Swift 3 acti
   wsk action invoke helloSwiftly --blocking
   ```
 
+  The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
+### Erro Handling in Swift 4
+
+With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
+[Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.
+The following example shows a an example on hanlding an error
+```swift
+enum VendingMachineError: Error {
+    case invalidSelection
+    case insufficientFunds(coinsNeeded: Int)
+    case outOfStock
+}
+func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
+    // Return real error
+    do{
+        throw VendingMachineError.insufficientFunds(coinsNeeded: 5)
+    } catch {
+        completion(nil, error)
+    } 
+}
+```
+
+
 
 ## Creating Java actions
 
