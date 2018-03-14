@@ -91,6 +91,8 @@ jmx:
   rmiBasePortController: 16000
   basePortInvoker: 17000
   rmiBasePortInvoker: 18000
+  basePortKafka: 19000
+  rmiBasePortKafka: 20000
   user: "{{ jmxuser | default('jmxuser') }}"
   pass: "{{ jmxuser | default('jmxpass') }}"
   jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
@@ -103,6 +105,7 @@ registry:
   confdir: "{{ config_root_dir }}/registry"
 
 kafka:
+  confdir: "{{ config_root_dir }}/kafka"
   ssl:
     client_authentication: required
     keystore:
@@ -135,9 +138,6 @@ zookeeper_connect_string: "{% set ret = [] %}\
                            {% endfor %}\
                            {{ ret | join(',') }}"
 
-invokerHostnameFromMap: "{{ groups['invokers'] | map('extract', hostvars, 'ansible_host') | list | first }}"
-invokerHostname: "{{ invokerHostnameFromMap | default(inventory_hostname) }}"
-
 invoker:
   dir:
     become: "{{ invoker_dir_become | default(false) }}"
@@ -158,7 +158,7 @@ invoker:
   loglevel: "{{ invoker_loglevel | default(whisk_loglevel) | default('INFO') }}"
   jmxremote:
     jvmArgs: "{% if inventory_hostname in groups['invokers'] %}
-    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ invokerHostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
+    {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ ansible_host }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}
     {% endif %}"
 
 userLogs:

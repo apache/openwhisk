@@ -18,6 +18,51 @@
     src: "files/{{ kafka.ssl.keystore.name }}"
     dest: "{{ config_root_dir }}/kafka/certs"
 
+- name: ensure kafka config directory is created with permissions
+  file:
+    path: "{{ kafka.confdir }}/kafka{{ groups['kafkas'].index(inventory_hostname) }}"
+    state: directory
+    mode: 0777
+
+- name: copy jmxremote password file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.password.j2"
+    dest: "{{ kafka.confdir }}/kafka{{ groups['kafkas'].index(inventory_hostname) }}/jmxremote.password"
+    mode: 0600
+
+- name: copy jmxremote access file
+  when: jmx.enabled
+  template:
+    src: "jmxremote.access.j2"
+    dest: "{{ kafka.confdir }}/kafka{{ groups['kafkas'].index(inventory_hostname) }}/jmxremote.access"
+    mode: 0600
+
+- name: "prepare the volume_dir"
+  set_fact:
+    volume_dir: ["{{ config_root_dir }}/kafka/certs:/config"]
+
+- name: "add additional jmx volume"
+  when: jmx.enabled
+  set_fact:
+    volume_dir: "{{ volume_dir }} + [ \"{{ kafka.confdir }}/kafka{{ groups['kafkas'].index(inventory_hostname) }}:/root\" ]"
+
+- name: prepare kafka ports
+  set_fact:
+    ports_to_expose: ["{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}", "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"]
+
+- name: expose additional ports if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortKafka + groups['kafkas'].index(inventory_hostname) }}:{{ jmx.basePortKafka + groups['kafkas'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortKafka + groups['kafkas'].index(inventory_hostname) }}:{{ jmx.rmiBasePortKafka + groups['kafkas'].index(inventory_hostname) }}\" ]"
+
+- name: add kafka jmx env vars if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    kafka_jmx_env_vars:
+      "KAFKA_JMX_OPTS": "{{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ ansible_host }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortKafka + groups['kafkas'].index(inventory_hostname) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortKafka + groups['kafkas'].index(inventory_hostname) }}"
+      "JMX_PORT": "{{ jmx.basePortKafka + groups['kafkas'].index(inventory_hostname) }}"
+
 - name: add kafka default env vars
   set_fact:
     kafka_env_vars:
@@ -67,6 +112,11 @@
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
 
+- name: "join kafka jmx env vars if jmxremote is enabled"
+  when: jmx.enabled
+  set_fact:
+    kafka_env_vars: "{{ kafka_env_vars | combine(kafka_jmx_env_vars) }}"
+
 - name: (re)start kafka
   vars:
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
@@ -77,11 +127,8 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     env: "{{ kafka_env_vars }}"
-    ports:
-      - "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
-      - "{{ kafka.advertisedPort  + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
-    volumes:
-      - "{{ config_root_dir }}/kafka/certs:/config"
+    ports: "{{ ports_to_expose }}"
+    volumes: "{{ volume_dir }}"
 
 - name: wait until the kafka server started up
   shell: docker logs kafka{{ groups['kafkas'].index(inventory_hostname) }}

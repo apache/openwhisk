@@ -16,3 +16,8 @@
     keep_volumes: False
     state: absent
   ignore_errors: True
+
+- name: remove kafka conf directory
+  file:
+    path: "{{ kafka.confdir }}/kafka{{ groups['kafkas'].index(inventory_hostname) }}"
+    state: absent
