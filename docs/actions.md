@@ -686,9 +686,9 @@ func main(args: [String:Any]) -> [String:Any] {
     }
 }
 ```
-In this example the Swift action consume a dictionary and produce a dictionary.
+In this example the Swift action consumes a dictionary and produces a dictionary.
 
-You can create a OpenWhisk action called `helloSwift` from this function as
+You can create an OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
