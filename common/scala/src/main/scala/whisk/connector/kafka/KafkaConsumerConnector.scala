@@ -25,14 +25,14 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.{RetriableException, WakeupException}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import pureconfig.loadConfigOrThrow
-import whisk.common.{Logging, LoggingMarkers, MetricEmitter}
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
 import scala.collection.JavaConversions.{iterableAsScalaIterable, seqAsJavaList}
-import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
+import scala.concurrent.{blocking, ExecutionContext, Future}
 
 case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricFlushIntervalS: Int)
 
@@ -147,13 +147,18 @@ class KafkaConsumerConnector(
 
   @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
 
-  //  Read current lag of the consumed topic, e.g. invoker queue
-  //  Since we use only one partition in kafka, it is defined 0
-  actorSystem.scheduler.schedule(10.second, cfg.metricFlushIntervalS.second) {
-    val topicAndPartition = Set(new TopicPartition(topic, 0))
-    consumer.endOffsets(topicAndPartition.asJava).asScala.find(_._1.topic() == topic).map(_._2).foreach { endOffset =>
-      val queueSize = endOffset - offset
-      MetricEmitter.emitHistogramMetric(LoggingMarkers.KAFKA_QUEUE(topic), queueSize)
+  // Read current lag of the consumed topic, e.g. invoker queue
+  // Since we use only one partition in kafka, it is defined 0
+  Scheduler.scheduleWaitAtMost(cfg.metricFlushIntervalS.seconds, 10.seconds, "kafka-lag-monitor") { () =>
+    Future {
+      blocking {
+        val topicAndPartition = new TopicPartition(topic, 0)
+        consumer.endOffsets(Set(topicAndPartition).asJava).asScala.get(topicAndPartition).foreach { endOffset =>
+          // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
+          val queueSize = (endOffset - offset).max(0)
+          MetricEmitter.emitHistogramMetric(LoggingMarkers.KAFKA_QUEUE(topic), queueSize)
+        }
+      }
     }
   }
 }
