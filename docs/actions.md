@@ -666,13 +666,14 @@ wsk action create helloPHP --kind php:7.1 helloPHP.zip
 
 The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and packaging an action in a zip file. 
 
-You can also use the online [Swift Sandbox](https://swiftlang.ng.bluemix.net) to test your Swift code without having to install Xcode on your machine.
+You can also use the online [Online Swift Playground](http://online.swiftplayground.run) to test your Swift code without having to install Xcode on your machine.
 
 **Attention:** Swift actions run in a Linux environment. Swift on Linux is still in
 development, and OpenWhisk usually uses the latest available release, which is not necessarily stable. In addition, the version of Swift that is used with OpenWhisk might be inconsistent with versions of Swift from stable releases of Xcode on MacOS.
 
 ### Creating and invoking an action
 
+#### Swift 3
 An action is simply a top-level Swift function. For example, create a file called
 `hello.swift` with the following content:
 
@@ -685,17 +686,55 @@ func main(args: [String:Any]) -> [String:Any] {
     }
 }
 ```
+In this example the Swift action consumes a dictionary and produces a dictionary.
 
-Swift actions always consume a dictionary and produce a dictionary.
+You can create an OpenWhisk action called `helloSwift` from this function as
+follows:
+
+```
+wsk action create helloSwift hello.swift --kind swift:3.1.1
+```
+
+#### Swift 4
+
+New in Swift 4 in addition of the above main function signature there are two more signatures out of the box taking advantage of the [Codable](https://developer.apple.com/documentation/swift/codable) type. You can learn more about data types encodable and decodable for compatibility with external representations such as JSON [here](https://developer.apple.com/documentation/foundation/archives_and_serialization/encoding_and_decoding_custom_types).
+
+The following takes as input parameter a Codable Input with field `name`, and returns a Codable output with a field `greetings`
+```swift
+struct Input: Codable {
+    let name: String?
+}
+struct Output: Codable {
+    let greeting: String
+}
+func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
+    let result = Output(greeting: "Hello \(param.name ?? "stranger")!")
+    print("Log greeting:\(result.greeting)")
+    completion(result, nil)
+}
+```
+In this example the Swift action consumes a Codable and produces a Codable type.
+If you don't need to handle any input you can use the function signature that doesn't take any input, only Codable output.
+```swift
+struct Output: Codable {
+    let greeting: String
+}
+func main(completion: (Output?, Error?) -> Void) -> Void {
+    let result = Output(greeting: "Hello OpenWhisk!")
+    completion(result, nil)
+}
+```
+
 
 You can create a OpenWhisk action called `helloSwift` from this function as
 follows:
 
 ```
-wsk action create helloSwift hello.swift
+wsk action create helloSwift hello.swift --kind swift:4.1
 ```
 
-The CLI automatically infers the type of the action from the source file extension. For `.swift` source files, the action runs using a Swift 3.1.1 runtime. See the Swift [reference](./reference.md#swift-actions) for more information about the Swift runtime.
+
+See the Swift [reference](./reference.md#swift-actions) for more information about the Swift runtime.
 
 Action invocation is the same for Swift actions as it is for JavaScript actions:
 
@@ -715,28 +754,87 @@ Find out more about parameters in the [Working with parameters](./parameters.md)
 
 When you create an OpenWhisk Swift action with a Swift source file, it has to be compiled into a binary before the action is run. Once done, subsequent calls to the action are much faster until the container holding your action is purged. This delay is known as the cold-start delay.
 
-To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in. These are the steps:
+To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in. 
 
-- Run an interactive Swift action container.
-  ```
-  docker run --rm -it -v "$(pwd):/owexec" openwhisk/action-swift-v3.1.1 bash
-  ```
-  This puts you in a bash shell within the Docker container.
+### Using a script to build Swift packaged action
+You can use a script to automate the packaging of the action. Create  script `compile.sh`h file the following.
+```bash
+#!/bin/bash
+set -ex
 
-- Copy the source code and prepare to build it.
-  ```
-  cp /owexec/hello.swift /swift3Action/spm-build/main.swift
-  ```
-  ```
-  cat /swift3Action/epilogue.swift >> /swift3Action/spm-build/main.swift
-  ```
-  ```
-  echo '_run_main(mainFunction:main)' >> /swift3Action/spm-build/main.swift
-  ```
-  Copy any additional source files to `/swift3Action/spm-build/`
+if [ -z "$1" ] ; then
+    echo 'Error: Missing action name'
+    exit 1
+fi
+if [ -z "$2" ] ; then
+    echo 'Error: Missing runtime docker image name, for example openwhisk/action-swift-v4.0'
+    exit 2
+fi
+OUTPUT_DIR="build"
+if [ ${2} == "swift:3.1.1" ]; then
+  BASE_PATH="/swift3Action"
+  DEST_SOURCE="$BASE_PATH/spm-build"
+  RUNTIME="openwhisk/action-swift-v3.1.1"
+elif [ ${2} == "swift:4.1" ]; then
+  RUNTIME="openwhisk/action-swift-v4.1"
+  BASE_PATH="/swift4Action"
+  DEST_SOURCE="/$BASE_PATH/spm-build/Sources/Action"
+else
+  echo "Error: Kind $2 not recognize"
+  exit 3
+fi
+DEST_PACKAGE_SWIFT="$BASE_PATH/spm-build/Package.swift"
 
+BUILD_FLAGS=""
+if [ -n "$3" ] ; then
+    BUILD_FLAGS=${3}
+fi
 
-- (Optional) Create the `Package.swift` file to add dependencies.
+echo "Using runtime $RUNTIME to compile swift"
+docker run --rm --name=compile-ow-swift -it -v "$(pwd):/owexec" $RUNTIME bash -ex -c "
+
+if [ -f \"/owexec/$OUTPUT_DIR/$1.zip\" ] ; then
+    rm \"/owexec/$OUTPUT_DIR/$1.zip\"
+fi
+
+echo 'Setting up build...'
+cp /owexec/actions/$1/Sources/*.swift $DEST_SOURCE/
+
+# action file can be either {action name}.swift or main.swift
+if [ -f \"$DEST_SOURCE/$1.swift\" ] ; then
+    echo 'renaming $DEST_SOURCE/$1.swift $DEST_SOURCE/main.swift'
+    mv \"$DEST_SOURCE/$1.swift\" $DEST_SOURCE/main.swift
+fi
+# Add in the OW specific bits
+cat $BASE_PATH/epilogue.swift >> $DEST_SOURCE/main.swift
+echo '_run_main(mainFunction:main)' >> $DEST_SOURCE/main.swift
+
+echo \"Compiling $1...\"
+cd /$BASE_PATH/spm-build
+cp /owexec/actions/$1/Package.swift $DEST_PACKAGE_SWIFT
+# we have our own Package.swift, do a full compile
+swift build ${BUILD_FLAGS} -c release
+
+echo 'Creating archive $1.zip...'
+#.build/release/Action
+mkdir -p /owexec/$OUTPUT_DIR
+zip \"/owexec/$OUTPUT_DIR/$1.zip\" .build/release/Action
+
+"
+```
+
+The script assumes you have a directory `actions` with each top level directory representing an action.
+```
+actions/
+├── hello
+│   ├── Package.swift
+│   └── Sources
+│       └── main.swift
+```
+
+- Create the `Package.swift` file to add dependencies.
+The syntax is different from Swift 3 to Swift 4 tools.
+For Swift 3 here is an example:
   ```swift
   import PackageDescription
 
@@ -751,40 +849,53 @@ To avoid the cold-start delay, you can compile your Swift file into a binary and
         ]
   )
   ```
-  As you can see this example adds `swift-watson-sdk` and `example-package-deckofplayingcards` dependencies.
+  For Swift 4 here is an example:
+  ```swift
+  // swift-tools-version:4.0
+  import PackageDescription
+
+  let package = Package(
+      name: "Action",
+      products: [
+        .executable(
+          name: "Action",
+          targets:  ["Action"]
+        )
+      ],
+      dependencies: [
+        .package(url: "https://github.com/apple/example-package-deckofplayingcards.git", .upToNextMajor(from: "3.0.0"))
+      ],
+      targets: [
+        .target(
+          name: "Action",
+          dependencies: ["DeckOfPlayingCards"],
+          path: "."
+        )
+      ]
+  )
+  ```
+  As you can see this example adds `example-package-deckofplayingcards` as a dependency.
   Notice that `CCurl`, `Kitura-net` and `SwiftyJSON` are provided in the standard Swift action
-and so you should include them in your own `Package.swift`.
+and so you should include them in your own `Package.swift` only for Swift 3 actions.
 
-- Copy Package.swift to spm-build directory
+- Build the action by runing the following command for a Swift 3 action:
   ```
-  cp /owexec/Package.swift /swift3Action/spm-build/Package.swift
+  bash compile.sh hello swift:3.1.1
   ```
-
-- Change to the spm-build directory.
+  To compile for Swift 4 use `swift:4.1` instead of `swift:3.1.1`
   ```
-  cd /swift3Action/spm-build
+  bash compile.sh hello swift:4.1
   ```
-
-- Compile your Swift Action.
-  ```
-  swift build -c release
-  ```
-
-- Create the zip archive.
-  ```
-  zip /owexec/hello.zip .build/release/Action
-  ```
-
-- Exit the Docker container.
-  ```
-  exit
-  ```
-
-  This has created hello.zip in the same directory as hello.swift.
+  This has created hello.zip in the `build`.
 
 - Upload it to OpenWhisk with the action name helloSwifty:
+  For Swift 3 use the kind `swift:3.1.1`
   ```
-  wsk action update helloSwiftly hello.zip --kind swift:3.1.1
+  wsk action update helloSwiftly build/hello.zip --kind swift:3.1.1
+  ```
+  For Swift 4 use the kind `swift:3.1.1`
+  ```
+  wsk action update helloSwiftly build/hello.zip --kind swift:4.1
   ```
 
 - To check how much faster it is, run
@@ -792,8 +903,30 @@ and so you should include them in your own `Package.swift`.
   wsk action invoke helloSwiftly --blocking
   ```
 
+  The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
 
-The time it took for the action to run is in the "duration" property and compare to the time it takes to run with a compilation step in the hello action.
+### Erro Handling in Swift 4
+
+With the new Codable completion handler, you can pass an Error to indicate a failure in your Action.
+[Error handling in Swift](https://developer.apple.com/library/content/documentation/Swift/Conceptual/Swift_Programming_Language/ErrorHandling.html) resembles exception handling in other languages, with the use of the `try, catch` and `throw` keywords.
+The following example shows a an example on hanlding an error
+```swift
+enum VendingMachineError: Error {
+    case invalidSelection
+    case insufficientFunds(coinsNeeded: Int)
+    case outOfStock
+}
+func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
+    // Return real error
+    do{
+        throw VendingMachineError.insufficientFunds(coinsNeeded: 5)
+    } catch {
+        completion(nil, error)
+    } 
+}
+```
+
+
 
 ## Creating Java actions
 

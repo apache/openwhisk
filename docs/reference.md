@@ -378,12 +378,18 @@ Python 2 actions are executed using Python 2.7.12. This is the default runtime f
 
 ### Swift 3
 Swift 3 actions are executed using Swift 3.1.1  `--kind swift:3.1.1`.  
-The default `--kind swift:default` is Swift 3.1.1.
 
 Swift 3.1.1 actions can use the following packages:
 - KituraNet version 1.7.6, https://github.com/IBM-Swift/Kitura-net
 - SwiftyJSON version 15.0.1, https://github.com/IBM-Swift/SwiftyJSON
 - Watson Developer Cloud SDK version 0.16.0, https://github.com/watson-developer-cloud/swift-sdk
+
+### Swift 4
+Swift 4 actions are executed using Swift 4.1  `--kind swift:4.1`.  
+The default `--kind swift:default` is Swift 4.1.
+
+Swift 4.1 action runtime doesn't embed any packages, follow the instructions for [packaged swift actions](./actions.md#packaging-an-action-as-a-swift-executable) to include dependencies using a Package.swift.
+ 
 
 ## PHP actions
 
