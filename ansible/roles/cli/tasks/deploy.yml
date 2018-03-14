@@ -66,9 +66,8 @@
       recurse: true
   register: individual_zipfiles
 
+# Use old good unzip instead of unarchive due to a known issue on MacOS
+# https://github.com/ansible/ansible-modules-core/issues/3952
 - name: "Unarchive the individual zipfiles into binaries"
-  unarchive:
-    remote_src: yes
-    src: "{{ item.path }}"
-    dest: "{{ item.path | dirname }}"
+  shell: unzip {{ item.path }} -d {{ item.path | dirname }}
   with_items: "{{ individual_zipfiles.files }}"

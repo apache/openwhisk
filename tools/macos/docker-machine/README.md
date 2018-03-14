@@ -55,7 +55,7 @@ brew install scala
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install docker==2.2.1 ansible==2.3.0.0 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
+sudo -H pip install docker==2.2.1 ansible==2.4.2.0 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
 # Create and configure Docker machine
@@ -131,7 +131,7 @@ cd /your/path/to/openwhisk
 
 ```
 brew install python
-pip install ansible==2.3.0.0
+pip install ansible==2.4.2.0
 pip install jinja2==2.9.6
 
 cd ansible
