@@ -713,7 +713,7 @@ func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
     completion(result, nil)
 }
 ```
-In this example the Swift action consume a Codable and produce a Codable type.
+In this example the Swift action consumes a Codable and produces a Codable type.
 
 
 You can create a OpenWhisk action called `helloSwift` from this function as
