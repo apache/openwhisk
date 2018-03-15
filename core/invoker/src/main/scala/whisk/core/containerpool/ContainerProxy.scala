@@ -18,6 +18,7 @@
 package whisk.core.containerpool
 
 import java.time.Instant
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
@@ -37,6 +38,8 @@ import whisk.core.entity.size._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
+import pureconfig.loadConfigOrThrow
+import whisk.core.ConfigKeys
 
 // States
 sealed trait ContainerState
@@ -406,6 +409,8 @@ class ContainerProxy(
   }
 }
 
+final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+
 object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
@@ -413,12 +418,14 @@ object ContainerProxy {
     store: (TransactionId, WhiskActivation) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
-    unusedTimeout: FiniteDuration = 10.minutes,
-    pauseGrace: FiniteDuration = 50.milliseconds) =
+    unusedTimeout: FiniteDuration = timeouts.idleContainer,
+    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
     Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
+
+  val timeouts = loadConfigOrThrow[ContainerProxyTimeoutConfig](ConfigKeys.containerProxyTimeouts)
 
   /**
    * Generates a unique container name.

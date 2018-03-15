@@ -250,4 +250,8 @@ object ConfigKeys {
   val elasticSearch = s"$logStore.elasticsearch"
 
   val mesos = "whisk.mesos"
+
+  val containerProxy = "whisk.container-proxy"
+  val containerProxyTimeouts = s"$containerProxy.timeouts"
+
 }

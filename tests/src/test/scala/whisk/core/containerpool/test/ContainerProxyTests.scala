@@ -23,9 +23,7 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import org.junit.runner.RunWith
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.FlatSpecLike
-import org.scalatest.Matchers
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Inside, Matchers}
 import org.scalatest.junit.JUnitRunner
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -37,6 +35,7 @@ import akka.stream.scaladsl.Source
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
 import common.LoggedFunction
 import common.StreamLogging
 
@@ -45,6 +44,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.ConfigKeys
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogCollectingException
@@ -60,6 +60,7 @@ class ContainerProxyTests
     with ImplicitSender
     with FlatSpecLike
     with Matchers
+    with Inside
     with BeforeAndAfterAll
     with StreamLogging {
 
@@ -666,6 +667,57 @@ class ContainerProxyTests
       acker.calls should have size 1
       store.calls should have size 1
     }
+  }
+
+  "the ContainerProxy's timeout configuration" should "load the configuration properly" in {
+
+    val tsConfig1 = ConfigFactory.parseString("""
+        |whisk {
+        |  container-proxy {
+        |    timeouts {
+        |      # The "unusedTimeout" in the ContainerProxy,
+        |      #aka 'How long should a container sit idle until we kill it?'
+        |      idle-container = 10 minutes
+        |      pause-grace = 50 milliseconds
+        |    }
+        |  }
+        |}
+      """.stripMargin)
+
+    val tsConfig2 = ConfigFactory.parseString("""
+        |whisk {
+        |  container-proxy {
+        |    timeouts {
+        |      # The "unusedTimeout" in the ContainerProxy,
+        |      #aka 'How long should a container sit idle until we kill it?'
+        |      idle-container = 512 seconds
+        |      pause-grace = 2048 hours
+        |    }
+        |  }
+        |}
+      """.stripMargin)
+
+    val timeouts1 =
+      pureconfig.loadConfigOrThrow[ContainerProxyTimeoutConfig](tsConfig1, ConfigKeys.containerProxyTimeouts)
+
+    timeouts1 should not be (null)
+    timeouts1 shouldBe a[ContainerProxyTimeoutConfig]
+
+    inside(timeouts1) {
+      case ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration) =>
+        idleContainer should be(10.minutes)
+        pauseGrace should be(50.milliseconds)
+    }
+
+    val timeouts2 =
+      pureconfig.loadConfigOrThrow[ContainerProxyTimeoutConfig](tsConfig2, ConfigKeys.containerProxyTimeouts)
+
+    inside(timeouts2) {
+      case ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration) =>
+        idleContainer should be(512.seconds)
+        pauseGrace should be(2048.hours)
+    }
+
   }
 
   /**
