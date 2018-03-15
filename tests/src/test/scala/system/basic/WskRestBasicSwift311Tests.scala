@@ -25,4 +25,5 @@ import org.scalatest.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class WskRestBasicSwift311Tests extends WskBasicSwift3Tests {
   override val wsk: common.rest.WskRest = new WskRest
+  override lazy val actionKind = "swift:3.1.1"
 }

@@ -47,7 +47,7 @@ abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with 
       val file = Some(TestUtils.getTestActionFilename("niam.swift"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, main = Some("niam"))
+        action.create(name, file, main = Some("niam"), kind = Some(actionKind))
       }
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
