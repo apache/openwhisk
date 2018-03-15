@@ -69,5 +69,5 @@
 # Use old good unzip instead of unarchive due to a known issue on MacOS
 # https://github.com/ansible/ansible-modules-core/issues/3952
 - name: "Unarchive the individual zipfiles into binaries"
-  shell: unzip {{ item.path }} -d {{ item.path | dirname }}
+  shell: unzip -o {{ item.path }} -d {{ item.path | dirname }}
   with_items: "{{ individual_zipfiles.files }}"

@@ -79,7 +79,7 @@
     env: "{{ kafka_env_vars }}"
     ports:
       - "{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.port + groups['kafkas'].index(inventory_hostname) }}"
-      - "{{ kafka.advertisedPort  + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
+      - "{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}:{{ kafka.advertisedPort + groups['kafkas'].index(inventory_hostname) }}"
     volumes:
       - "{{ config_root_dir }}/kafka/certs:/config"
 
