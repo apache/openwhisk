@@ -198,7 +198,7 @@ to (re-)configure the CLI installation:
 
 ```
 export OPENWHISK_ENVIRONMENT=local  # ... or whatever
-ansible-playbook -i environments/$OPENWHSIK_ENVIRONMENT edge.yml -e mode=clean
+ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml -e mode=clean
 ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml \
     -e cli_installation_mode=local \
     -e openwhisk_cli_home="$OPENWHISK_HOME/../incubator-openwhisk-cli"
