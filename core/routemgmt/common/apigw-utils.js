@@ -516,6 +516,7 @@ function generateBaseSwaggerApi(basepath, apiname) {
  *                    backendUrl:
  *                    name:
  *                    namespace:
+ *                    secureKey
  *                  }
  *                }
  *   responsetype Optional. The web action invocation .extension.  Defaults to json
@@ -569,6 +570,10 @@ function setActionOperationInvocationDetails(swagger, endpoint, operationId, res
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].operations', operations);
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.target-url',  makeWebActionBackendUrl(endpoint.action, responsetype, getPathParameters(endpoint.gatewayPath)));
   _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[0].invoke.verb', 'keep');
+  if (endpoint.action.secureKey) {
+    _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[1].set-variable.actions[0].set', 'message.headers.X-Require-Whisk-Auth' );
+    _.set(swagger, 'x-ibm-configuration.assembly.execute[0].operation-switch.case['+caseIdx+'].execute[1].set-variable.actions[0].value', endpoint.action.secureKey );
+  }
 }
 
 // Return the numeric index into case[] into which the associated operation will be configured
