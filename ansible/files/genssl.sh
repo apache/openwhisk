@@ -12,9 +12,8 @@ CN=$1
 TYPE=$2
 SCRIPTDIR=$3
 export TRUSTSTORE_PASSWORD=${4:-PASSWORD}
-GENKEY=$5
-NAME_PREFIX=$6
-
+NAME_PREFIX=$5
+GENKEY=$6
 
 
 ## generates a (self-signed) certificate
@@ -37,6 +36,14 @@ function gen_cert(){
       -signkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" \
       -out ${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem \
       -days 365
+}
+
+function gen_p12_keystore(){
+  openssl pkcs12 -export -name $CN \
+       -passout pass:$TRUSTSTORE_PASSWORD \
+       -in "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-cert.pem" \
+       -inkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" \
+       -out "$SCRIPTDIR/${NAME_PREFIX}openwhisk-keystore.p12"
 }
 
 if [ "$TYPE" == "server_with_JKS_keystore" ]; then
@@ -66,11 +73,10 @@ elif [ "$TYPE" == "server" ]; then
     gen_csr
     gen_cert
     echo generate keystore
-    openssl pkcs12 -export -name $CN \
-         -passout pass:$TRUSTSTORE_PASSWORD \
-         -in "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-cert.pem" \
-         -inkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" \
-         -out "$SCRIPTDIR/${NAME_PREFIX}openwhisk-keystore.p12"
+    gen_p12_keystore
+elif [ "$TYPE" == "p12_keystore_only" ]; then
+    gen_csr
+    gen_p12_keystore
 else
     echo generating client ca key
     openssl genrsa -aes256 -passout pass:$PASSWORD -out "$SCRIPTDIR/openwhisk-client-ca-key.pem" 2048
