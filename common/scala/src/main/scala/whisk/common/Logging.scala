@@ -18,15 +18,13 @@
 package whisk.common
 
 import java.io.PrintStream
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneId
+import java.time.{Clock, Instant, ZoneId}
 import java.time.format.DateTimeFormatter
 
-import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, WarningLevel}
-import akka.event.Logging.LogLevel
+import akka.event.Logging._
 import akka.event.LoggingAdapter
 import kamon.Kamon
+import whisk.core.entity.InstanceId
 
 trait Logging {
 
@@ -278,6 +276,9 @@ object LoggingMarkers {
   val LOADBALANCER_INVOKER_OFFLINE = LogMarkerToken(loadbalancer, "invokerOffline", count)
   val LOADBALANCER_INVOKER_UNHEALTHY = LogMarkerToken(loadbalancer, "invokerUnhealthy", count)
   val LOADBALANCER_ACTIVATION_START = LogMarkerToken(loadbalancer, "activations", count)
+
+  def LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance: InstanceId) =
+    LogMarkerToken(loadbalancer + controllerInstance.toInt, "activationsInflight", count)
 
   // Time that is needed to execute the action
   val INVOKER_ACTIVATION_RUN = LogMarkerToken(invoker, "activationRun", start)
