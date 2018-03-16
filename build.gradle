@@ -89,3 +89,41 @@ def configureUnixClasspath(File script) {
         }
         .join('\n')
 }
+
+project.ext {
+    basePackageName = "openwhisk"
+    packageExtension = "tar.gz"
+    if (project.hasProperty('projectVersion')) {
+        packageVersion = "${projectVersion}"
+    } else {
+        packageVersion = ""
+    }
+    buildFolder = "build"
+}
+
+task taredSources(type: Tar) {
+    baseName basePackageName
+    description "Creates a combined tar.gz file of openwhisk's sources"
+    group "Release artifact"
+    classifier "sources"
+
+    from(project.rootDir) {
+        include('gradle/**', 'actionRuntimes/**', 'ansible/**', 'common/**', 'core/**',
+                'docs/**', 'sdk/**', 'tests/**', 'tools/**')
+        include('.gitattributes', '.gitignore', '.project', '.pydevproject', '.scalafmt.conf')
+        include('README.md', 'CONTRIBUTING.md', 'CREDITS.txt')
+        include('gradlew', 'gradlew.bat', 'build.gradle', 'settings.gradle')
+        include('LICENSE.txt', 'NOTICE.txt', 'CHANGELOG.txt')
+    }
+    destinationDir file(buildFolder)
+    extension packageExtension
+    version packageVersion
+    compression = Compression.GZIP
+}
+
+task cleanBuild(type: Delete) {
+    def folder = new File(buildFolder)
+    if(folder.exists()) {
+        delete file(buildFolder).listFiles()
+    }
+}
