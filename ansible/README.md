@@ -209,6 +209,8 @@ the parameter `openwhisk_cli_home` specifies the home directory of your local
 OpenWhisk CLI.  (_n.b._ `openwhisk_cli_home` defaults to
 `$OPENWHISK_HOME/../incubator-openwhisk-cli`.)
 
+Once the CLI is installed, you can [use it to work with Whisk](../docs/cli.md).
+
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
 
