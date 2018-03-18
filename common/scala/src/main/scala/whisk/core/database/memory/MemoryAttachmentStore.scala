@@ -68,10 +68,9 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     name: String,
     contentType: ContentType,
     docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
-
-    val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$doc'")
-
     checkDocState(doc)
+    require(name != null, "name undefined")
+    val start = transid.started(this, DATABASE_ATT_SAVE, s"[ATT_PUT] uploading attachment '$name' of document '$doc'")
 
     val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
     val g = f
@@ -94,6 +93,9 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
    */
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[(ContentType, T)] = {
+    checkDocState(doc)
+    require(name != null, "name undefined")
+
     val start =
       transid.started(this, DATABASE_ATT_GET, s"[ATT_GET] '$dbName' finding attachment '$name' of document '$doc'")
 
@@ -118,8 +120,8 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
   }
 
   override protected[core] def deleteAttachments(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
     checkDocState(doc)
+    val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
 
     val f = enqueue(DelAction(doc)).flatMap(_ => Future.successful(true))
     f.onSuccess {
