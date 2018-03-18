@@ -299,6 +299,7 @@ class WskRestAction
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
+    websecure: Option[String] = None,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actName) = getNamespaceEntityName(name)
