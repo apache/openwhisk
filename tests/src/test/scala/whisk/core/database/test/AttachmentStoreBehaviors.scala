@@ -114,8 +114,26 @@ trait AttachmentStoreBehaviors extends ScalaFutures with DbUtils with Matchers w
     f.failed.futureValue shouldBe a[NoDocumentException]
   }
 
-  it should "not write an attachment when there is error in Source" is pending
+  it should "not write an attachment when there is error in Source" in {
+    implicit val tid = transid()
+
+    val info = DocInfo ! (newDocId, "1")
+    val error = new Error("boom!")
+    val faultySource = Source(1 to 10)
+      .map { n ⇒
+        if (n == 7) throw error
+        n
+      }
+      .map(ByteString(_))
+    val writeResult = store.attach(info, "code", ContentTypes.`application/octet-stream`, faultySource)
+    writeResult.failed.futureValue.getCause should be theSameInstanceAs error
+
+    val readResult = store.readAttachment(info, "code", byteStringSink)
+    readResult.failed.futureValue shouldBe a[NoDocumentException]
+  }
+
   it should "throw exception when doc is null" is pending
+  it should "have start and end markers" is pending
 
   private val prefix = Random.alphanumeric.take(10).mkString
   @volatile var counter = 0
