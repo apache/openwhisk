@@ -3,8 +3,8 @@
 # In deploy mode it will install docker using apt.
 # In clean mode it will uninstall docker.
 
-- include: deploy.yml
+- import_tasks: deploy.yml
   when: mode == "deploy"
 
-- include: clean.yml
+- import_tasks: clean.yml
   when: mode == "clean"

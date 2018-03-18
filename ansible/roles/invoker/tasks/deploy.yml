@@ -1,7 +1,7 @@
 ---
 # This role installs invokers.
 
-- include: docker_login.yml
+- import_tasks: docker_login.yml
 
 - name: "pull invoker image with tag {{docker.image.tag}}"
   shell: "docker pull {{docker_registry}}{{item}}:{{docker.image.tag}}"
@@ -67,7 +67,7 @@
     dest: "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}"
 
 - name: check, that required databases exist
-  include: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
+  include_tasks: "{{ openwhisk_home }}/ansible/tasks/db/checkDb.yml"
   vars:
     dbName: "{{ item }}"
   with_items:

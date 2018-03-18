@@ -3,5 +3,5 @@
 
 - hosts: ansible
   tasks:
-    - include: tasks/writeWhiskProperties.yml
+    - import_tasks: tasks/writeWhiskProperties.yml
       when: mode == "deploy"

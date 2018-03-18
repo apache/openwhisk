@@ -3,8 +3,8 @@
 # In deploy mode it will start the CouchDB container.
 # In clean mode it will remove the CouchDB container.
 
-- include: deploy.yml
+- import_tasks: deploy.yml
   when: mode == "deploy"
 
-- include: clean.yml
+- import_tasks: clean.yml
   when: mode == "clean"
