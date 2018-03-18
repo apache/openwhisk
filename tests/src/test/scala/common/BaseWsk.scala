@@ -204,6 +204,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              shared: Option[Boolean] = None,
              update: Boolean = false,
              web: Option[String] = None,
+             websecure: Option[String] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def invoke(name: String,
