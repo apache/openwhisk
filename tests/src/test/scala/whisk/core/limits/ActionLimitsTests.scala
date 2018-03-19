@@ -19,16 +19,13 @@ package whisk.core.limits
 
 import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
-
 import java.io.File
 import java.io.PrintWriter
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
@@ -38,9 +35,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.ActivationEntityLimit
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.Exec
+import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, Exec, TimeLimit}
 import whisk.core.entity.size._
 import whisk.http.Messages
 
@@ -52,6 +47,9 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
 
   val defaultDosAction = TestUtils.getTestActionFilename("timeout.js")
   val allowedActionDuration = 10 seconds
+
+  val defaultTimeoutAction = TestUtils.getTestActionFilename("timeoutLean.js")
+  val activationTimeLimit = TimeLimit.MAX_DURATION
 
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
   val actionCodeLimit = Exec.sizeLimit
@@ -94,6 +92,15 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     withActivation(wsk.activation, run) {
       _.response.result.get.toString should include("""[OK] message terminated successfully""")
 
+    }
+  }
+
+  it should "create an action with maximum time limit" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "TestActionWithMaxTimeLimit-" + System.currentTimeMillis()
+    assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
+      withClue(s"Could not create action '${name}' with timeout ${activationTimeLimit}:") {
+        action.create(name, Some(defaultTimeoutAction), timeout = Some(activationTimeLimit))
+      }
     }
   }
 
