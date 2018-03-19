@@ -79,7 +79,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entities to include in the result.",
+                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
                         "required": false,
                         "type": "integer"
                     },
@@ -384,7 +384,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entities to include in the result.",
+                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
                         "required": false,
                         "type": "integer"
                     },
@@ -646,7 +646,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entities to include in the result.",
+                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
                         "required": false,
                         "type": "integer"
                     },
@@ -916,7 +916,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entities to include in the result.",
+                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
                         "required": false,
                         "type": "integer"
                     },
@@ -1130,7 +1130,7 @@
                     {
                         "name": "limit",
                         "in": "query",
-                        "description": "Number of entities to include in the result.",
+                        "description": "Number of entities to include in the result (0-200). The default limit is 30. A value of 0 sets the limit to the maximum.",
                         "required": false,
                         "type": "integer"
                     },
