@@ -91,7 +91,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val active = Some("active".toJson)
     val inactive = Some("inactive".toJson)
     val statusPermutations =
-      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName2, inactive))
+      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName, inactive))
 
     ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
     assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>

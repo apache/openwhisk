@@ -1273,7 +1273,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
     val entity = body map { b =>
       HttpEntity(ContentTypes.`application/json`, b)
-    } getOrElse HttpEntity(ContentTypes.`application/json`, "")
+    } getOrElse HttpEntity.Empty
 
     val request =
       HttpRequest(
