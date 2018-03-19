@@ -1234,7 +1234,7 @@ action invocations using the REST interface, see
 
 Code associated with an existing action is fetched and saved locally. Saving is performed on all actions except sequences and docker actions. When saving action code to a file, the code is saved in the current working directory, and the saved file path is displayed.
 
-1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind is  used, or an extension of `.zip` will be used for action code that is a zip file.
+1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind is used, or an extension of `.zip` will be used for action code that is a zip file.
   ```
   wsk action get actionName --save
   ```
@@ -1242,7 +1242,7 @@ Code associated with an existing action is fetched and saved locally. Saving is 
   ok: saved action code to /absolutePath/currentDirectory/actionName.js
   ```
 
-2. Instead of allowing the CLI to determine the filename and extension  of the saved code, a custom filename and extension can be provided by using the `--save-as` flag.
+2. Instead of allowing the CLI to determine the filename and extension of the saved code, a custom filename and extension can be provided by using the `--save-as` flag.
   ```
   wsk action get actionName --save-as codeFile.js
   ```
