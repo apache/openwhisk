@@ -36,7 +36,7 @@ import whisk.core.connector.{Message, MessageProducer}
 import whisk.core.entity.UUIDs
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
@@ -54,12 +54,16 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
     val produced = Promise[RecordMetadata]()
 
-    producer.send(record, new Callback {
-      override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
-        if (exception == null) produced.success(metadata)
-        else produced.failure(exception)
+    Future {
+      blocking {
+        producer.send(record, new Callback {
+          override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
+            if (exception == null) produced.success(metadata)
+            else produced.failure(exception)
+          }
+        })
       }
-    })
+    }
 
     produced.future.andThen {
       case Success(status) =>
