@@ -64,31 +64,31 @@ Sample output
 
 This script enables creation of [Intellij Launch Configuration][1] in _<openwhisk home>/.idea/runConfigurations_ 
 with name controller0 and invoker0. For this to work your Intellij project should be [directory based][3]. If your 
-project is file based (uses ipr files) then you can convert it to directory based via _File -> Save as Directory-Based Format_
+project is file based (uses ipr files) then you can convert it to directory based via _File -> Save as Directory-Based Format_. These run configurations can then be invoked from _Run -> Edit Configurations -> Application_
 
 ### Usage
 
-First setup OpenWhisk so that Controller and Invoker containers are up and running. Then run the script
+First setup OpenWhisk so that Controller and Invoker containers are up and running. Then run the script:
 
     ./gradlew -p tools/dev intellij
     
 It would inspect the running docker containers and then generate the launch configs with name 'controller0' 
-and 'invoker0'
+and 'invoker0'.
 
-Key points to note
+Key points to note:
 
-1. Uses ~/tmp/openwhisk/controller (or invoker) as working directory
-2. Changes the PORT to linked one. So controller gets started at 10001 only just like container
+1. Uses ~/tmp/openwhisk/controller (or invoker) as working directory.
+2. Changes the PORT to linked one. So controller gets started at 10001 only just like as its done in container.
 
-Now the docker container can be stopped and application can be launched from within the IDE
+Now the docker container can be stopped and application can be launched from within the IDE.
 
-**Note** - Currently only controller can be run from IDE. Invoker posses some [problems][2]
+**Note** - Currently only the controller can be run from IDE. Invoker posses some [problems][2].
 
 ### Configuration
 
 The script allows some local customization of the launch configuration. This can be done by creating a [config][4] file
 `intellij-run-config.groovy` in project root directory. Below is an example of _<openwhisk home>/intellij-run-config.groovy_ 
-file to customize the logging and db port used for CouchDB
+file to customize the logging and db port used for CouchDB.
 
 ```groovy
 //Configures the settings for controller application
@@ -117,11 +117,11 @@ invoker {
 
 ```
 
-The config allows following properties
+The config allows following properties:
 
-* `workingDir` - Base directory used for controller or invoker process
-* `props` - Map of system properties which should be passed to the application
-* `env` - Map of environment variables which should be set for application process
+* `workingDir` - Base directory used for controller or invoker process.
+* `props` - Map of system properties which should be passed to the application.
+* `env` - Map of environment variables which should be set for application process.
 
 [1]: https://www.jetbrains.com/help/idea/run-debug-configurations-dialog.html#run_config_common_options
 [2]: https://github.com/apache/incubator-openwhisk/issues/3195
