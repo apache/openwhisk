@@ -44,6 +44,8 @@ dependencies {
     compile 'io.fabric8:kubernetes-client:2.5.7'
     compile 'io.kamon:kamon-core_2.11:0.6.7'
     compile 'io.kamon:kamon-statsd_2.11:0.6.7'
+    //for mesos
+    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.4'
 }
 
 tasks.withType(ScalaCompile) {

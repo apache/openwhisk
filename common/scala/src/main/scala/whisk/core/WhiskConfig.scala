@@ -247,4 +247,6 @@ object ConfigKeys {
 
   val logStore = "whisk.logstore"
   val splunk = s"$logStore.splunk"
+
+  val mesos = "whisk.mesos"
 }
