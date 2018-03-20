@@ -22,6 +22,7 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
 
 import common.RunWskAdminCmd
 import common.TestHelpers
@@ -31,9 +32,26 @@ import common.WskProps
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Subject
 import common.TestUtils
+import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class WskAdminTests extends TestHelpers with Matchers {
+class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
+
+  override def beforeAll() = {
+    val wskadmin = new RunWskAdminCmd {}
+    val testSpaces = Seq("testspace", "testspace1", "testspace2")
+    testSpaces.foreach(testspace => {
+      Try {
+        val identities = wskadmin.cli(Seq("user", "list", "-a", testspace))
+        identities.stdout
+          .split("\n")
+          .foreach(ident => {
+            val sub = ident.split("\\s+").last
+            wskadmin.cli(Seq("user", "delete", sub, "-ns", testspace))
+          })
+      }
+    })
+  }
 
   behavior of "Wsk Admin CLI"
 
