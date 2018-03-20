@@ -95,13 +95,14 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     }
   }
 
-  it should "create an action with maximum time limit" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "TestActionWithMaxTimeLimit-" + System.currentTimeMillis()
-    assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
-      withClue(s"Could not create action '${name}' with timeout ${activationTimeLimit}:") {
-        action.create(name, Some(defaultTimeoutAction), timeout = Some(activationTimeLimit))
+  it should s"create an action with maximum time limit (${activationTimeLimit})" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "TestActionWithMaxTimeLimit-" + System.currentTimeMillis()
+      assetHelper.withCleaner(wsk.action, name, confirmDelete = false) { (action, _) =>
+        withClue(s"Could not create action '${name}' with timeout ${activationTimeLimit}:") {
+          action.create(name, Some(defaultTimeoutAction), timeout = Some(activationTimeLimit))
+        }
       }
-    }
   }
 
   it should "succeed but truncate logs, if log size exceeds its limit" in withAssetCleaner(wskprops) {
