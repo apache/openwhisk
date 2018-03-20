@@ -611,8 +611,6 @@ abstract class ApiGwTests extends BaseApiGwTests {
   }
 
   it should "verify successful creation of a new API using an action name using all allowed characters" in {
-    // Be aware: full action name is close to being truncated by the 'list' command
-    // e.g. /lime@us.ibm.com/CLI_APIGWTEST9a-c@t ion  is currently at the 40 char 'list' display max
     val testName = "CLI_APIGWTEST9"
     val testbasepath = "/" + testName + "_bp"
     val testrelpath = "/path"
