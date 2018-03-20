@@ -41,8 +41,10 @@ echo '
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # install cask
 brew tap caskroom/cask
+# install for finding alternative versions (java8)
+brew tap caskroom/versions
 # install java 8
-brew cask install java
+brew cask install java8
 # install scala
 brew install scala
 # install pip
