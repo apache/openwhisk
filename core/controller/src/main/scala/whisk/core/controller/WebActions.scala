@@ -233,18 +233,13 @@ protected[core] object WhiskWebActionsApi extends Directives {
 
       val code = fields.get(rp.statusCode).map {
         case JsNumber(c) =>
-          // the following throws an exception if the code is
-          // not a whole number or a valid code
+          // the following throws an exception if the code is not a whole number or a valid code
           StatusCode.int2StatusCode(c.toIntExact)
         case JsString(c) =>
-          try {
-            val intCode = c.toInt
-            // contrast to JsNumber, already parse the string to Int instead of BigInt.
-            StatusCode.int2StatusCode(intCode)
-          } catch {
-            // rethrow NumberFormatException to an unified exception
-            case e: NumberFormatException => throw new Throwable("Illegal status code")
-          }
+          // parse the string to an Int (not a BigInt) matching JsNumber case match above
+          // c.toInt could throw an exception if the string isn't an integer
+          StatusCode.int2StatusCode(c.toInt)
+
         case _ => throw new Throwable("Illegal status code")
       }
 
