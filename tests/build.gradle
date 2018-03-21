@@ -30,7 +30,6 @@ def leanExcludes = [
         '**/*ThrottleTests*',
         '**/MaxActionDurationTests*',
         '**/*ApiGwRestBasicTests*',
-        '**/*Cli*',
         '**/*WskCli*'
 ]
 
