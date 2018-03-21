@@ -50,7 +50,7 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
             conn.set_tunnel(url.netloc)
 
     if auth is not None:
-        auth = base64.encodestring(auth).replace('\n', '')
+        auth = base64.b64encode(auth.encode()).decode()
         headers['Authorization'] = 'Basic %s' % auth
 
     if verbose:
