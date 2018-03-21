@@ -249,7 +249,7 @@ def createUserCmd(args, props):
         }
     else:
         if not doc.get('blocked'):
-            namespaces = filter(lambda ns: ns['name'] == desiredNamespace, doc['namespaces'])
+            namespaces = [ns for ns in doc['namespaces'] if ns['name'] == desiredNamespace]
             if len(namespaces) == 0:
                 doc['namespaces'].append({
                     'name': desiredNamespace,
@@ -283,7 +283,7 @@ def getUserCmd(args, props):
           # if requesting key for specific namespace, report only that key;
           # use default namespace if no namespace provided
           namespaceName = args.namespace if args.namespace is not None else args.subject
-          namespaces = filter(lambda ns: ns['name'] == namespaceName, doc['namespaces'])
+          namespaces = [ns for ns in doc['namespaces'] if ns['name'] == namespaceName]
           if len(namespaces) == 1:
               ns = namespaces[0]
               print('%s:%s' % (ns['uuid'], ns['key']))
@@ -417,7 +417,7 @@ def deleteUserCmd(args, props):
             return 1
     else:
         namespaceToDelete = args.namespace.strip()
-        namespaces = filter(lambda ns: ns['name'] != namespaceToDelete, prev['namespaces'])
+        namespaces = [ns for ns in prev['namespaces'] if ns['name'] != namespaceToDelete]
         if len(prev['namespaces']) == len(namespaces):
             print('Namespace "%s" does not exist for "%s"' % (namespaceToDelete, prev['_id']))
             return 1
