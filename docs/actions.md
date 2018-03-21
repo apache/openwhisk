@@ -31,6 +31,7 @@ Learn how to create, invoke, and debug actions in your preferred development env
 In addition, learn about:
 
 * [Watching action output](#watching-action-output)
+* [Getting actions](#getting-actions)
 * [Listing actions](#listing-actions)
 * [Deleting actions](#deleting-actions)
 * [Accessing action metadata within the action body](#accessing-action-metadata-within-the-action-body)
@@ -142,42 +143,6 @@ Review the following steps and examples to create your first JavaScript action.
   activations
   44794bd6aab74415b4e42a308d880e5b         hello
   6bf1f670ee614a7eb5af3c9fde813043         hello
-  ```
-
-### Getting an action URL
-
-An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
-
-```
-wsk action get actionName --url
-```
-```
-ok: got action actionName
-https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
-```
-
-**Note:** Authentication must be provided when invoking an action via an HTTPS request. For more information regarding
-action invocations using the REST interface, see
-[Using REST APIs with OpenWhisk](rest_api.md#actions).
-
-### Saving action code
-
-Code associated with an existing action is fetched and saved locally. Saving is performed on all actions except sequences and docker actions. When saving action code to a file, the code is saved in the current working directory, and the saved file path is displayed.
-
-1. Save action code to a filename that corresponds with an existing action name. A file extension that corresponds to the action kind is  used, or an extension of `.zip` will be used for action code that is a zip file.
-  ```
-  wsk action get actionName --save
-  ```
-  ```
-  ok: saved action code to /absolutePath/currentDirectory/actionName.js
-  ```
-
-2. Instead of allowing the CLI to determine the filename and extension  of the saved code, a custom filename and extension can be provided by using the `--save-as` flag.
-  ```
-  wsk action get actionName --save-as codeFile.js
-  ```
-  ```
-  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
   ```
 
 ### Creating asynchronous actions
@@ -1219,6 +1184,79 @@ This command starts a polling loop that continuously checks for logs from activa
 
   Similarly, whenever you run the poll utility, you see in real time the logs for any actions running on your behalf in OpenWhisk.
 
+## Getting actions
+
+Metadata that describes existing actions can be retrieved via the `wsk action get` command.
+
+```
+wsk action get hello
+ok: got action hello
+{
+    "namespace": "user@email.com",
+    "name": "hello",
+    "version": "0.0.1",
+    "exec": {
+        "kind": "nodejs:6",
+        "binary": false
+    },
+    "annotations": [
+        {
+            "key": "exec",
+            "value": "nodejs:6"
+        }
+    ],
+    "limits": {
+        "timeout": 60000,
+        "memory": 256,
+        "logs": 10
+    },
+    "publish": false
+}
+```
+
+### Getting an action URL
+
+An action can be invoked through the REST interface via an HTTPS request. To get an action URL, execute the following command:
+
+```
+wsk action get actionName --url
+```
+
+A URL with the following format will be returned for standard actions:
+```
+ok: got action actionName
+https://${APIHOST}/api/v1/namespaces/${NAMESPACE}/actions/actionName
+```
+
+For [web actions](https://github.com/apache/incubator-openwhisk/blob/master/docs/webactions.md#web-actions), a URL will be returned in the the following format:
+```
+ok: got action actionName
+https://${APIHOST}/api/v1/web/${NAMESPACE}/${PACKAGE}/actionName
+```
+
+**Note:** For standard actions, authentication must be provided when invoking an action via an HTTPS request. For more information regarding
+action invocations using the REST interface, see
+[Using REST APIs with OpenWhisk](rest_api.md#actions).
+
+### Saving action code
+
+Code associated with an existing action may be retrieved and saved locally. Saving can be performed on all actions except sequences and docker actions.
+
+1. Save action code to a filename that corresponds with an existing action name in the current working directory. A file extension that corresponds to the action kind is used, or an extension of `.zip` will be used for action code that is a zip file.
+  ```
+  wsk action get actionName --save
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/actionName.js
+  ```
+
+2. Instead of allowing the CLI to determine the destination of the code to be saved, a custom file path, filename and extension can be provided by using the `--save-as` flag.
+  ```
+  wsk action get actionName --save-as codeFile.js
+  ```
+  ```
+  ok: saved action code to /absolutePath/currentDirectory/codeFile.js
+  ```
 
 ## Listing actions
 
