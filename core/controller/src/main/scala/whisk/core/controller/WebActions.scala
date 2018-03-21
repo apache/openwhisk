@@ -236,8 +236,16 @@ protected[core] object WhiskWebActionsApi extends Directives {
           // the following throws an exception if the code is
           // not a whole number or a valid code
           StatusCode.int2StatusCode(c.toIntExact)
-
-        case _ => throw new Throwable("Illegal code")
+        case JsString(c) =>
+          try {
+            val intCode = c.toInt
+            // contrast to JsNumber, already parse the string to Int instead of BigInt.
+            StatusCode.int2StatusCode(intCode)
+          } catch {
+            // rethrow NumberFormatException to an unified exception
+            case e: NumberFormatException => throw new Throwable("Illegal status code")
+          }
+        case _ => throw new Throwable("Illegal status code")
       }
 
       body.collect {

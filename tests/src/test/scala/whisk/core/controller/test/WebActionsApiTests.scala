@@ -1711,6 +1711,21 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
           }
         }
     }
+
+    it should s"allowed string based status code (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+      invocationsAllowed += 2
+
+      actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("200")))
+      Head(s"$testRoutePath/$systemId/proxy/export_c.http") ~> Route.seal(routes(creds)) ~> check {
+        status should be(OK)
+      }
+
+      actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("xyz")))
+      Head(s"$testRoutePath/$systemId/proxy/export_c.http") ~> Route.seal(routes(creds)) ~> check {
+        status should be(BadRequest)
+      }
+    }
   }
 
   class TestingEntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)
