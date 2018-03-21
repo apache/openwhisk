@@ -12,10 +12,16 @@ http {
 {# allow large uploads, need to thread proper limit into here #}
     client_max_body_size 50M;
 
+    map $http_ow_tid $ow_tid {
+        # request_id: unique request identifier generated from 16 random bytes, in hexadecimal
+        default $request_id;
+        "~^(?<tid>[0-9a-f]{32}+)$" $tid;
+    }
+
     rewrite_log on;
 {# change log format to display the upstream information #}
     log_format combined-upstream '$remote_addr - $remote_user [$time_local] '
-        '$request $status $body_bytes_sent '
+        '[#tid_$ow_tid] $request $status $body_bytes_sent '
         '$http_referer $http_user_agent $upstream_addr';
     access_log /logs/nginx_access.log combined-upstream;
 
@@ -86,8 +92,7 @@ http {
         proxy_ssl_verify off;
         proxy_ssl_session_reuse on;
 
-        # request_id: unique request identifier generated from 16 random bytes, in hexadecimal
-        proxy_set_header OW-TID $request_id;
+        proxy_set_header OW-TID $ow_tid;
 
         # proxy to the web action path
         location / {

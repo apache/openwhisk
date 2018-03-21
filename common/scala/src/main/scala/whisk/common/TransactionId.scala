@@ -36,14 +36,15 @@ import scala.util.Try
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
+  def idAsString = meta.idAsString
   override def toString = {
-    if (meta.id > 0) s"#tid_${meta.id.toString(16)}"
+    if (meta.id > 0) s"#tid_${meta.idAsString}"
     else if (meta.id < 0) s"#sid_${-meta.id}"
     else "??"
   }
 
   def toHeader = {
-    RawHeader("OW-TID", meta.id.toString(16))
+    RawHeader("OW-TID", meta.idAsString)
   }
 
   /**
@@ -193,7 +194,12 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: BigInt, val start: Instant, val extraLogging: Boolean = false)
+protected case class TransactionMetadata(val id: BigInt, val start: Instant, val extraLogging: Boolean = false) {
+  def idAsString = {
+    val bigIntAsString = id.toString(16)
+    ("0" * (32 - bigIntAsString.length)) + bigIntAsString
+  }
+}
 
 object TransactionId {
 
