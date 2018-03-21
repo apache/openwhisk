@@ -28,8 +28,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 
-import scala.collection.JavaConversions.mapAsJavaMap
-import scala.collection.mutable.Buffer
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -67,7 +65,6 @@ import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
 import common.HasActivation
 import common.RunWskCmd
-import common.TestUtils
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
@@ -144,11 +141,12 @@ object HttpConnection {
    * @return https connection context
    */
   def getContext(protocol: String)(implicit system: ActorSystem) = {
-    if (protocol == "https")
+    if (protocol == "https") {
       SSL.httpsConnectionContext
-    else
-//    supports http
+    } else {
+      // supports http
       Http().defaultClientHttpsContext
+    }
   }
 }
 
@@ -1359,22 +1357,10 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     else name
   }
 
-  def fullEntityName(name: String)(implicit wp: WskProps) = {
-    name.split("/") match {
-      // Example: /namespace/package_name/entity_name
-      case Array(empty, namespace, packageName, entityName) if empty.isEmpty => s"/$namespace/$packageName/$entityName"
-      // Example: /namespace/entity_name
-      case Array(empty, namespace, entityName) if empty.isEmpty => s"/$namespace/$entityName"
-      // Example: namespace/package_name/entity_name
-      case Array(namespace, packageName, entityName) => s"/$namespace/$packageName/$entityName"
-      // Example: /namespace
-      case Array(empty, namespace) if empty.isEmpty => namespace
-      // Example: package_name/entity_name
-      case Array(packageName, entityName) if !packageName.isEmpty => s"/${wp.namespace}/$packageName/$entityName"
-      // Example: entity_name
-      case Array(entityName) => s"/${wp.namespace}/$name"
-      case _                 => s"/${wp.namespace}/$name"
-    }
+  def fullEntityName(name: String)(implicit wp: WskProps): String = {
+    val (ns, rest) = getNamespaceEntityName(name)
+    if (rest.nonEmpty) s"/$ns/$rest"
+    else s"/$ns"
   }
 
   def convertIntoComponents(comps: String)(implicit wp: WskProps): Array[JsValue] = {
@@ -1419,7 +1405,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     val path =
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
-    var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
+    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))
     } getOrElse Some(parameters.toJson.toString())
@@ -1435,67 +1421,6 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       }
     }
     r
-  }
-}
-
-object WskRestAdmin {
-  private val binDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
-  private val binaryName = "wskadmin"
-
-  def exists = {
-    val dir = binDir
-    val exec = new File(dir, binaryName)
-    assert(dir.exists, s"did not find $dir")
-    assert(exec.exists, s"did not find $exec")
-  }
-
-  def baseCommand = {
-    Buffer(WhiskProperties.python, new File(binDir, binaryName).toString)
-  }
-
-  def listKeys(namespace: String, pick: Integer = 1): List[(String, String)] = {
-    val wskadmin = new RunWskRestAdminCmd {}
-    wskadmin
-      .cli(Seq("user", "list", namespace, "--pick", pick.toString))
-      .stdout
-      .split("\n")
-      .map("""\s+""".r.split(_))
-      .map(parts => (parts(0), parts(1)))
-      .toList
-  }
-
-}
-
-trait RunWskRestAdminCmd extends RunWskCmd {
-  override def baseCommand = WskRestAdmin.baseCommand
-
-  def adminCommand(params: Seq[String],
-                   expectedExitCode: Int = SUCCESS_EXIT,
-                   verbose: Boolean = false,
-                   env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
-                   workingDir: File = new File("."),
-                   stdinFile: Option[File] = None,
-                   showCmd: Boolean = false): RunResult = {
-    val args = baseCommand
-    if (verbose) args += "--verbose"
-    if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-    val rr = TestUtils.runCmd(
-      DONTCARE_EXIT,
-      workingDir,
-      TestUtils.logger,
-      sys.env ++ env,
-      stdinFile.getOrElse(null),
-      args ++ params: _*)
-
-    withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
-      if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
-        val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
-        if (!ok) {
-          rr.exitCode shouldBe expectedExitCode
-        }
-      }
-    }
-    rr
   }
 }
 
