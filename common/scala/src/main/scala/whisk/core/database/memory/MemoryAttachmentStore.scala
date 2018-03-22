@@ -20,17 +20,16 @@ package whisk.core.database.memory
 import akka.actor.ActorSystem
 import akka.event.Logging.ErrorLevel
 import akka.http.scaladsl.model.ContentType
-import akka.stream.{ActorMaterializer, OverflowStrategy, QueueOfferResult}
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.{ByteString, ByteStringBuilder}
+import whisk.common.LoggingMarkers.{DATABASE_ATT_DELETE, DATABASE_ATT_GET, DATABASE_ATT_SAVE}
 import whisk.common.{Logging, StartMarker, TransactionId}
-import whisk.common.LoggingMarkers.DATABASE_ATT_GET
-import whisk.common.LoggingMarkers.DATABASE_ATT_SAVE
-import whisk.common.LoggingMarkers.DATABASE_ATT_DELETE
 import whisk.core.database._
 import whisk.core.entity.{DocId, DocInfo}
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
 
 object MemoryAttachmentStoreProvider extends AttachmentStoreProvider {
@@ -40,6 +39,9 @@ object MemoryAttachmentStoreProvider extends AttachmentStoreProvider {
     new MemoryAttachmentStore(implicitly[ClassTag[D]].runtimeClass.getSimpleName.toLowerCase)
 }
 
+/**
+ * Basic in-memory AttachmentStore implementation. Useful for testing.
+ */
 class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
                                             logging: Logging,
                                             materializer: ActorMaterializer)
@@ -47,21 +49,9 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
   override protected[core] implicit val executionContext: ExecutionContext = system.dispatcher
 
-  private sealed trait Action {
-    def doc: DocInfo
-  }
-  private case class AddAction(doc: DocInfo, name: String, attachment: Attachment) extends Action
-  private case class DelAction(doc: DocInfo) extends Action
   private case class Attachment(bytes: ByteString, contentType: ContentType)
 
-  @volatile
-  private var attachments: Map[String, Attachment] = Map()
-
-  private val actionQueue =
-    Source
-      .queue(16 * 1024, OverflowStrategy.dropNew)
-      .toMat(Sink.foreach[(Action, Promise[DocInfo])](a => process(a._1, a._2)))(Keep.left)
-      .run
+  private val attachments = new TrieMap[String, Attachment]
 
   override protected[core] def attach(
     doc: DocInfo,
@@ -74,8 +64,7 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
 
     val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
     val g = f
-      .map(b => AddAction(doc, name, Attachment(b.result().compact, contentType)))
-      .map(enqueue(_))
+      .map(b => attachments += (attachmentKey(doc.id, name) -> Attachment(b.result().compact, contentType)))
       .flatMap(_ => {
         transid
           .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
@@ -123,51 +112,15 @@ class MemoryAttachmentStore(dbName: String)(implicit system: ActorSystem,
     checkDocState(doc)
     val start = transid.started(this, DATABASE_ATT_DELETE, s"[ATT_DELETE] uploading attachment of document '$doc'")
 
-    val f = enqueue(DelAction(doc)).flatMap(_ => Future.successful(true))
-    f.onSuccess {
-      case _ =>
-        transid.finished(this, start, s"[ATT_DELETE] completed: delete attachment of document '$doc'")
-    }
-
-    reportFailure(
-      f,
-      start,
-      failure => s"[ATT_DELETE] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'")
+    val prefix = doc.id.id + "/"
+    attachments --= attachments.keySet.filter(_.startsWith(prefix))
+    transid.finished(this, start, s"[ATT_DELETE] completed: delete attachment of document '$doc'")
+    Future.successful(true)
   }
 
   private def checkDocState(doc: DocInfo): Unit = {
     require(doc != null, "doc undefined")
     require(doc.rev.rev != null, "doc revision must be specified")
-  }
-
-  private def process(action: Action, p: Promise[DocInfo]): Unit = {
-    action match {
-      case DelAction(doc) =>
-        val prefix = doc.id.id + "/"
-        attachments = attachments -- attachments.keySet.filter(_.startsWith(prefix))
-        p.success(doc)
-      case AddAction(doc, name, attachment) =>
-        attachments = attachments + (attachmentKey(doc.id, name) -> attachment)
-        p.success(doc)
-    }
-  }
-
-  private def enqueue(action: Action): Future[DocInfo] = {
-    val promise = Promise[DocInfo]
-
-    actionQueue.offer(action -> promise).flatMap {
-      case QueueOfferResult.Enqueued =>
-        promise.future
-
-      case QueueOfferResult.Dropped =>
-        Future.failed(new Exception("Memory request queue is full."))
-
-      case QueueOfferResult.QueueClosed =>
-        Future.failed(new Exception("Memory request queue was closed."))
-
-      case QueueOfferResult.Failure(f) =>
-        Future.failed(f)
-    }
   }
 
   private def attachmentKey(docId: DocId, name: String) = s"${docId.id}/$name"
