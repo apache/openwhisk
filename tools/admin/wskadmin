@@ -32,7 +32,7 @@ import sys
 import traceback
 import uuid
 import wskprop
-if (sys.version_info > (3, 0)):
+if sys.version_info.major >= 3:
     from urllib.parse import quote_plus
 else:
     from urllib import quote_plus

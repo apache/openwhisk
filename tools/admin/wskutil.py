@@ -22,7 +22,7 @@
 import os
 import json
 import sys
-if (sys.version_info > (3, 0)):
+if sys.version_info.major >= 3:
     from http.client import HTTPConnection, HTTPSConnection, IncompleteRead
     from urllib.parse import urlparse
 else:
