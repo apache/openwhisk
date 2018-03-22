@@ -43,7 +43,7 @@ def replicateDatabases(args):
     targetDb = couchdb.client.Server(args.targetDbUrl)
 
     excludedDatabases = args.exclude.split(",")
-    excludedBaseNames = filter(lambda x: x != "", args.excludeBaseName.split(","))
+    excludedBaseNames = [x for x in args.excludeBaseName.split(",") if x != ""]
 
     # Create _replicator DB if it does not exist yet.
     if "_replicator" not in sourceDb:
@@ -59,12 +59,12 @@ def replicateDatabases(args):
         # is the databaseName is in the list of excluded database
         isNameExcluded = dbNameWithoutPrefix in excludedDatabases
         # if one of the basenames matches, the database is excluded
-        isBaseNameExcluded = functools.reduce(lambda x, y: x or y, map(lambda en: dbNameWithoutPrefix.startswith(en), excludedBaseNames), False)
+        isBaseNameExcluded = functools.reduce(lambda x, y: x or y, [dbNameWithoutPrefix.startswith(en) for en in excludedBaseNames], False)
         return isNameExcluded or isBaseNameExcluded
 
     # Create backup of all databases with given prefix
     print("----- Create backups -----")
-    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix) and not isExcluded(dbName), sourceDb):
+    for db in [dbName for dbName in sourceDb if dbName.startswith(args.dbPrefix) and not isExcluded(dbName)]:
         backupDb = backupPrefix + db if not args.continuous else 'continuous_' + db
         replicateDesignDocument = {
             "_id": backupDb,
@@ -92,14 +92,14 @@ def replicateDatabases(args):
 
     # Delete all documents in the _replicator-database of old backups to avoid that they continue after they are deprecated
     print("----- Delete backup-documents older than %d seconds -----" % args.expires)
-    for doc in filter(lambda doc: isBackupDb(doc.id) and isExpired(extractTimestamp(doc.id)), replicator.view('_all_docs', include_docs=True)):
+    for doc in [doc for doc in replicator.view('_all_docs', include_docs=True) if isBackupDb(doc.id) and isExpired(extractTimestamp(doc.id))]:
         print("deleting backup document: %s" % doc.id)
         # Get again the latest version of the document to delete the right revision and avoid Conflicts
         retry(lambda: replicator.delete(replicator[doc.id]), 5)
 
     # Delete all backup-databases, that are older than specified
     print("----- Delete backups older than %d seconds -----" % args.expires)
-    for db in filter(lambda db: isBackupDb(db) and isExpired(extractTimestamp(db)), targetDb):
+    for db in [db for db in targetDb if isBackupDb(db) and isExpired(extractTimestamp(db))]:
         print("deleting backup: %s" % db)
         targetDb.delete(db)
 
@@ -112,7 +112,7 @@ def replayDatabases(args):
     if "_replicator" not in sourceDb:
         sourceDb.create("_replicator")
 
-    for db in filter(lambda dbName: dbName.startswith(args.dbPrefix), sourceDb):
+    for db in [dbName for dbName in sourceDb if dbName.startswith(args.dbPrefix)]:
         plainDbName = db.replace(args.dbPrefix, "")
         (identifier, _) = sourceDb["_replicator"].save({
             "source": args.sourceDbUrl + "/" + db,
