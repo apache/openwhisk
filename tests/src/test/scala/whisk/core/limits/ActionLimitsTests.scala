@@ -19,16 +19,13 @@ package whisk.core.limits
 
 import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
-
 import java.io.File
 import java.io.PrintWriter
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
@@ -38,9 +35,7 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.ActivationEntityLimit
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.Exec
+import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, Exec}
 import whisk.core.entity.size._
 import whisk.http.Messages
 
@@ -50,7 +45,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
   val wsk = new WskRest
 
-  val defaultDosAction = TestUtils.getTestActionFilename("timeout.js")
+  val defaultSleepAction = TestUtils.getTestActionFilename("sleep.js")
   val allowedActionDuration = 10 seconds
 
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
@@ -63,37 +58,46 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
   behavior of "Action limits"
 
   /**
-   * Test a long running action that exceeds the maximum execution time allowed for action
-   * by setting the action limit explicitly and attempting to run the action for an additional second.
+   * Test an action that exceeds its specified time limit. Explicitly specify a rather low time
+   * limit to keep the test's runtime short. Invoke an action that sleeps for the specified time
+   * limit plus one second.
    */
   it should "error with a proper warning if the action exceeds its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "TestActionCausingTimeout"
+      val name = "TestActionCausingTimeout-" + System.currentTimeMillis()
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-        action.create(name, Some(defaultDosAction), timeout = Some(allowedActionDuration))
+        action.create(name, Some(defaultSleepAction), timeout = Some(allowedActionDuration))
       }
 
-      val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
-      withActivation(wsk.activation, run) {
-        _.response.result.get.fields("error") shouldBe {
-          Messages.timedoutActivation(allowedActionDuration, false).toJson
+      val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.plus(1 second).toMillis.toJson))
+      withActivation(wsk.activation, run) { result =>
+        withClue("Activation result not as expected:") {
+          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+          result.response.result.get.fields("error") shouldBe {
+            Messages.timedoutActivation(allowedActionDuration, init = false).toJson
+          }
+          result.duration.toInt should be >= allowedActionDuration.toMillis.toInt
         }
       }
   }
 
   /**
-   * Test an action that does not exceed the allowed execution timeout of an action.
+   * Test an action that tightly stays within its specified time limit. Explicitly specify a rather low time
+   * limit to keep the test's runtime short. Invoke an action that sleeps for the specified time
+   * limit minus one second.
    */
   it should "succeed on an action staying within its time limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "TestActionCausingNoTimeout"
+    val name = "TestActionCausingNoTimeout-" + System.currentTimeMillis()
     assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-      action.create(name, Some(defaultDosAction), timeout = Some(allowedActionDuration))
+      action.create(name, Some(defaultSleepAction), timeout = Some(allowedActionDuration))
     }
 
-    val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.minus(1 second).toMillis.toJson))
-    withActivation(wsk.activation, run) {
-      _.response.result.get.toString should include("""[OK] message terminated successfully""")
-
+    val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.minus(1 second).toMillis.toJson))
+    withActivation(wsk.activation, run) { result =>
+      withClue("Activation result not as expected:") {
+        result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
+        result.response.result.get.toString should include("""Terminated successfully after around""")
+      }
     }
   }
 
