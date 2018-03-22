@@ -21,11 +21,17 @@
 
 import os
 import json
-import httplib
+import sys
+if sys.version_info.major >= 3:
+    from http.client import HTTPConnection, HTTPSConnection, IncompleteRead
+    from urllib.parse import urlparse
+else:
+    from httplib import HTTPConnection, HTTPSConnection, IncompleteRead
+    from urlparse import urlparse
 import ssl
 import base64
 import socket
-from urlparse import urlparse
+
 
 # global configurations, can control whether to allow untrusted certificates
 # on HTTPS connections
@@ -34,17 +40,17 @@ httpRequestProps = {'secure': True}
 def request(method, urlString, body = '', headers = {}, auth = None, verbose = False, https_proxy = os.getenv('https_proxy', None), timeout = 10):
     url = urlparse(urlString)
     if url.scheme == 'http':
-        conn = httplib.HTTPConnection(url.netloc, timeout = timeout)
+        conn = HTTPConnection(url.netloc, timeout = timeout)
     else:
         if httpRequestProps['secure'] or not hasattr(ssl, '_create_unverified_context'):
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, timeout = timeout)
+            conn = HTTPSConnection(url.netloc if https_proxy is None else https_proxy, timeout = timeout)
         else:
-            conn = httplib.HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context(), timeout = timeout)
+            conn = HTTPSConnection(url.netloc if https_proxy is None else https_proxy, context=ssl._create_unverified_context(), timeout = timeout)
         if https_proxy:
             conn.set_tunnel(url.netloc)
 
     if auth is not None:
-        auth = base64.encodestring(auth).replace('\n', '')
+        auth = base64.b64encode(auth.encode()).decode()
         headers['Authorization'] = 'Basic %s' % auth
 
     if verbose:
@@ -63,7 +69,7 @@ def request(method, urlString, body = '', headers = {}, auth = None, verbose = F
         body = ''
         try:
             body = res.read()
-        except httplib.IncompleteRead as e:
+        except IncompleteRead as e:
             body = e.partial
 
         # patch the read to return just the body since the normal read
