@@ -235,7 +235,7 @@ class ThrottleTests
   it should "throttle 'concurrent' activations of one action" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "checkConcurrentActionThrottle"
     assetHelper.withCleaner(wsk.action, name) {
-      val timeoutAction = Some(TestUtils.getTestActionFilename("timeout.js"))
+      val timeoutAction = Some(TestUtils.getTestActionFilename("sleep.js"))
       (action, _) =>
         action.create(name, timeoutAction)
     }
@@ -252,7 +252,10 @@ class ThrottleTests
     // These invokes will stay active long enough that all are issued and load balancer has recognized concurrency.
     val startSlowInvokes = Instant.now
     val slowResults = untilThrottled(slowInvokes) { () =>
-      wsk.action.invoke(name, Map("payload" -> slowInvokeDuration.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
+      wsk.action.invoke(
+        name,
+        Map("sleepTimeInMs" -> slowInvokeDuration.toMillis.toJson),
+        expectedExitCode = DONTCARE_EXIT)
     }
     val afterSlowInvokes = Instant.now
     val slowIssueDuration = durationBetween(startSlowInvokes, afterSlowInvokes)
@@ -266,7 +269,10 @@ class ThrottleTests
     // These fast invokes will trigger the concurrency-based throttling.
     val startFastInvokes = Instant.now
     val fastResults = untilThrottled(fastInvokes) { () =>
-      wsk.action.invoke(name, Map("payload" -> slowInvokeDuration.toMillis.toJson), expectedExitCode = DONTCARE_EXIT)
+      wsk.action.invoke(
+        name,
+        Map("sleepTimeInMs" -> fastInvokeDuration.toMillis.toJson),
+        expectedExitCode = DONTCARE_EXIT)
     }
     val afterFastInvokes = Instant.now
     val fastIssueDuration = durationBetween(afterFastInvokes, startFastInvokes)
