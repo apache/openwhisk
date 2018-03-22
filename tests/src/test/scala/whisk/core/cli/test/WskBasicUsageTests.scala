@@ -702,56 +702,72 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
 
   behavior of "Wsk action parameters"
 
-  it should "create an action with different permutations of limits" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
+  sealed case class PermutationTestParameter(timeout: Option[Duration] = None,
+                                             memory: Option[ByteSize] = None,
+                                             logs: Option[ByteSize] = None,
+                                             ec: Int = SUCCESS_EXIT) {
+    override def toString: String =
+      s"timeout = ${timeout}, memory = ${memory}, logsize = ${logs}, expected exit code = ${ec}"
+  }
+
+  // Assert for valid permutations that the values are set correctly
+  val basePerms = for {
+    time <- Seq(None, Some(MIN_DURATION), Some(MAX_DURATION))
+    mem <- Seq(None, Some(minMemory), Some(maxMemory))
+    log <- Seq(None, Some(MIN_LOGSIZE), Some(MAX_LOGSIZE))
+  } yield PermutationTestParameter(time, mem, log)
+
+  val allPerms = basePerms ++ Seq(
+    PermutationTestParameter(Some(0.milliseconds), None, None, BAD_REQUEST), // timeout that is lower than allowed
+    PermutationTestParameter(Some(MAX_DURATION.plus(1 second)), None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
+    PermutationTestParameter(Some(100.minutes), None, None, BAD_REQUEST), // timeout that is much higher than allowed
+    PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
+    PermutationTestParameter(None, Some(maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
+    PermutationTestParameter(None, Some(32768.MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
+    PermutationTestParameter(None, None, Some(32768.MB), BAD_REQUEST))
+
+  /**
+   * Integration test to verify that valid timeout, memory and log size limits are accepted
+   * when creating an action while any invalid limit is rejected.
+   *
+   * At the first sight, this test looks like a typical unit test that should not be performed
+   * as an integration test. It is performed as an integration test requiring an OpenWhisk
+   * deployment to verify that limit settings of the tested deployment fit with the values
+   * used in this test.
+   */
+  allPerms.foreach { parm =>
+    it should s"create an action with limits: ${parm}" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
       val file = Some(TestUtils.getTestActionFilename("hello.js"))
 
-      def testLimit(timeout: Option[Duration] = None,
-                    memory: Option[ByteSize] = None,
-                    logs: Option[ByteSize] = None,
-                    ec: Int = SUCCESS_EXIT) = {
-        // Limits to assert, standard values if CLI omits certain values
-        val limits = JsObject(
-          "timeout" -> timeout.getOrElse(STD_DURATION).toMillis.toJson,
-          "memory" -> memory.getOrElse(stdMemory).toMB.toInt.toJson,
-          "logs" -> logs.getOrElse(STD_LOGSIZE).toMB.toInt.toJson)
+      // Limits to assert, standard values if CLI omits certain values
+      val limits = JsObject(
+        "timeout" -> parm.timeout.getOrElse(STD_DURATION).toMillis.toJson,
+        "memory" -> parm.memory.getOrElse(stdMemory).toMB.toInt.toJson,
+        "logs" -> parm.logs.getOrElse(STD_LOGSIZE).toMB.toInt.toJson)
 
-        val name = "ActionLimitTests" + Instant.now.toEpochMilli
-        val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (ec == SUCCESS_EXIT)) {
-          (action, _) =>
-            val result = action.create(
-              name,
-              file,
-              logsize = logs,
-              memory = memory,
-              timeout = timeout,
-              expectedExitCode = DONTCARE_EXIT)
-            withClue(s"create failed for parameters: timeout = $timeout, memory = $memory, logsize = $logs:") {
-              result.exitCode should be(ec)
-            }
-            result
-        }
-
-        if (ec == SUCCESS_EXIT) {
-          val JsObject(parsedAction) = wsk.action.get(name).respBody
-          parsedAction("limits") shouldBe limits
-        } else {
-          createResult.stderr should include("allowed threshold")
-        }
+      val name = "ActionLimitTests" + Instant.now.toEpochMilli
+      val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
+        (action, _) =>
+          val result = action.create(
+            name,
+            file,
+            logsize = parm.logs,
+            memory = parm.memory,
+            timeout = parm.timeout,
+            expectedExitCode = DONTCARE_EXIT)
+          withClue(
+            s"create failed for parameters: timeout = ${parm.timeout}, memory = ${parm.memory}, logsize = ${parm.logs}:") {
+            result.exitCode should be(parm.ec)
+          }
+          result
       }
 
-      // Assert for valid permutations that the values are set correctly
-      for {
-        time <- Seq(None, Some(MIN_DURATION), Some(MAX_DURATION))
-        mem <- Seq(None, Some(minMemory), Some(maxMemory))
-        log <- Seq(None, Some(MIN_LOGSIZE), Some(MAX_LOGSIZE))
-      } testLimit(time, mem, log)
-
-      // Assert that invalid permutation are rejected
-      testLimit(Some(0.milliseconds), None, None, BAD_REQUEST)
-      testLimit(Some(100.minutes), None, None, BAD_REQUEST)
-      testLimit(None, Some(0.MB), None, BAD_REQUEST)
-      testLimit(None, Some(32768.MB), None, BAD_REQUEST)
-      testLimit(None, None, Some(32768.MB), BAD_REQUEST)
+      if (parm.ec == SUCCESS_EXIT) {
+        val JsObject(parsedAction) = wsk.action.get(name).respBody
+        parsedAction("limits") shouldBe limits
+      } else {
+        createResult.stderr should include("allowed threshold")
+      }
+    }
   }
 }
