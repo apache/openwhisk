@@ -21,21 +21,23 @@ import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
 import java.io.File
 import java.io.PrintWriter
+import java.time.Instant
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
 import common.WhiskProperties
 import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, Exec}
+import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize, Exec, LogLimit, MemoryLimit, TimeLimit}
 import whisk.core.entity.size._
 import whisk.http.Messages
 
@@ -56,6 +58,114 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
   val minExpectedOpenFiles = openFileLimit - 15 // allow for already opened files in container
 
   behavior of "Action limits"
+
+  /**
+   * Helper class for the integration test following below.
+   * @param timeout the action timeout limit to be set in test
+   * @param memory the action memory size limit to be set in test
+   * @param logs the action log size limit to be set in test
+   * @param ec the expected exit code when creating the action
+   */
+  sealed case class PermutationTestParameter(timeout: Option[Duration] = None,
+                                             memory: Option[ByteSize] = None,
+                                             logs: Option[ByteSize] = None,
+                                             ec: Int = SUCCESS_EXIT) {
+    override def toString: String =
+      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, logsize: ${toLogsString}"
+
+    val toTimeoutString = timeout match {
+      case None                                    => "None"
+      case Some(TimeLimit.MIN_DURATION)            => s"${TimeLimit.MIN_DURATION} (= min)"
+      case Some(TimeLimit.STD_DURATION)            => s"${TimeLimit.STD_DURATION} (= std)"
+      case Some(TimeLimit.MAX_DURATION)            => s"${TimeLimit.MAX_DURATION} (= max)"
+      case Some(t) if (t < TimeLimit.MIN_DURATION) => s"${t} (< min)"
+      case Some(t) if (t > TimeLimit.MAX_DURATION) => s"${t} (> max)"
+      case Some(t)                                 => s"${t} (allowed)"
+    }
+
+    val toMemoryString = memory match {
+      case None                                   => "None"
+      case Some(MemoryLimit.minMemory)            => s"${MemoryLimit.minMemory.toMB.MB} (= min)"
+      case Some(MemoryLimit.stdMemory)            => s"${MemoryLimit.stdMemory.toMB.MB} (= std)"
+      case Some(MemoryLimit.maxMemory)            => s"${MemoryLimit.maxMemory.toMB.MB} (= max)"
+      case Some(m) if (m < MemoryLimit.minMemory) => s"${m.toMB.MB} (< min)"
+      case Some(m) if (m > MemoryLimit.maxMemory) => s"${m.toMB.MB} (> max)"
+      case Some(m)                                => s"${m.toMB.MB} (allowed)"
+    }
+
+    val toLogsString = logs match {
+      case None                                  => "None"
+      case Some(LogLimit.MIN_LOGSIZE)            => s"${LogLimit.MIN_LOGSIZE} (= min)"
+      case Some(LogLimit.STD_LOGSIZE)            => s"${LogLimit.STD_LOGSIZE} (= std)"
+      case Some(LogLimit.MAX_LOGSIZE)            => s"${LogLimit.MAX_LOGSIZE} (= max)"
+      case Some(l) if (l < LogLimit.MIN_LOGSIZE) => s"${l} (< min)"
+      case Some(l) if (l > LogLimit.MAX_LOGSIZE) => s"${l} (> max)"
+      case Some(l)                               => s"${l} (allowed)"
+    }
+
+    val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
+  }
+
+  val perms = (// Assert for valid permutations that the values are set correctly
+  for {
+    time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
+    mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
+    log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
+  } yield PermutationTestParameter(time, mem, log)) ++
+    // Add variations for negative tests
+    Seq(
+      PermutationTestParameter(Some(0.milliseconds), None, None, BAD_REQUEST), // timeout that is lower than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
+      PermutationTestParameter(Some(100.minutes), None, None, BAD_REQUEST), // timeout that is much higher than allowed
+      PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
+      PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
+      PermutationTestParameter(None, Some(32768.MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some(32768.MB), BAD_REQUEST)) // log size limit that is much higher than allowed
+
+  /**
+   * Integration test to verify that valid timeout, memory and log size limits are accepted
+   * when creating an action while any invalid limit is rejected.
+   *
+   * At the first sight, this test looks like a typical unit test that should not be performed
+   * as an integration test. It is performed as an integration test requiring an OpenWhisk
+   * deployment to verify that limit settings of the tested deployment fit with the values
+   * used in this test.
+   */
+  perms.foreach { parm =>
+    it should s"${parm.toExpectedResultString} creation of an action with these limits: ${parm}" in withAssetCleaner(
+      wskprops) { (wp, assetHelper) =>
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+
+      // Limits to assert, standard values if CLI omits certain values
+      val limits = JsObject(
+        "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
+        "memory" -> parm.memory.getOrElse(MemoryLimit.stdMemory).toMB.toInt.toJson,
+        "logs" -> parm.logs.getOrElse(LogLimit.STD_LOGSIZE).toMB.toInt.toJson)
+
+      val name = "ActionLimitTests" + Instant.now.toEpochMilli
+      val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
+        (action, _) =>
+          val result = action.create(
+            name,
+            file,
+            logsize = parm.logs,
+            memory = parm.memory,
+            timeout = parm.timeout,
+            expectedExitCode = DONTCARE_EXIT)
+          withClue(s"Action creation result is unexpected:") {
+            result.exitCode should be(parm.ec)
+          }
+          result
+      }
+
+      if (parm.ec == SUCCESS_EXIT) {
+        val JsObject(parsedAction) = wsk.action.get(name).respBody
+        parsedAction("limits") shouldBe limits
+      } else {
+        createResult.stderr should include("allowed threshold")
+      }
+    }
+  }
 
   /**
    * Test an action that exceeds its specified time limit. Explicitly specify a rather low time
