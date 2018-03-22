@@ -17,6 +17,7 @@
 
 package whisk.core.connector
 
+import akka.actor.ActorRef
 import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.concurrent.Future
@@ -70,6 +71,9 @@ object MessageFeed {
   /** Steady state message, indicates capacity in downstream process to receive more messages. */
   object Processed
 
+  /** message to indicate max offset is reached */
+  object MaxOffset
+
   /** Indicates the fill operation has completed. */
   private case class FillCompleted(messages: Seq[(String, Int, Long, Array[Byte])])
 }
@@ -97,7 +101,8 @@ class MessageFeed(description: String,
                   longPollDuration: FiniteDuration,
                   handler: Array[Byte] => Future[Unit],
                   autoStart: Boolean = true,
-                  logHandoff: Boolean = true)
+                  logHandoff: Boolean = true,
+                  offsetMonitor: Option[ActorRef] = None)
     extends FSM[MessageFeed.FeedState, MessageFeed.FeedData] {
   import MessageFeed._
 
@@ -185,6 +190,10 @@ class MessageFeed(description: String,
           // of the commit should be masked.
           val records = consumer.peek(longPollDuration)
           consumer.commit()
+          if (records.size < maxPipelineDepth) {
+            //reached the max offset
+            offsetMonitor.foreach(_ ! MaxOffset)
+          }
           FillCompleted(records.toSeq)
         }
       }.andThen {

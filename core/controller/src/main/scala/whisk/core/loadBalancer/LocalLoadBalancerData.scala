@@ -20,7 +20,6 @@ package whisk.core.loadBalancer
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
 import whisk.core.entity.{ActivationId, UUID}
 
 /**
@@ -36,27 +35,36 @@ class LocalLoadBalancerData() extends LoadBalancerData {
   private val activationByNamespaceId = TrieMap[UUID, AtomicInteger]()
   private val activationsById = TrieMap[ActivationId, ActivationEntry]()
   private val totalActivations = new AtomicInteger(0)
+  private val overflowActivations = new AtomicInteger(0)
 
-  override def totalActivationCount: Future[Int] = Future.successful(totalActivations.get)
+  override def totalActivationCount: Int = totalActivations.get
 
-  override def activationCountOn(namespace: UUID): Future[Int] = {
-    Future.successful(activationByNamespaceId.get(namespace).map(_.get).getOrElse(0))
+  override def activationCountOn(namespace: UUID): Int = {
+    activationByNamespaceId.get(namespace).map(_.get).getOrElse(0)
   }
 
-  override def activationCountPerInvoker: Future[Map[String, Int]] = {
-    Future.successful(activationByInvoker.toMap.mapValues(_.get))
+  override def activationCountPerInvoker: Map[String, Int] = {
+    activationByInvoker.toMap.mapValues(_.get)
   }
+
+  override def overflowActivationCount: Int = overflowActivations.get
 
   override def activationById(activationId: ActivationId): Option[ActivationEntry] = {
     activationsById.get(activationId)
   }
 
-  override def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry = {
+  override def putActivation(id: ActivationId,
+                             update: => ActivationEntry,
+                             isOverflow: Boolean = false): ActivationEntry = {
     activationsById.getOrElseUpdate(id, {
       val entry = update
       totalActivations.incrementAndGet()
       activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).incrementAndGet()
-      activationByInvoker.getOrElseUpdate(entry.invokerName.toString, new AtomicInteger(0)).incrementAndGet()
+      entry.invokerName match {
+        case Some(i) => activationByInvoker.getOrElseUpdate(i.toString, new AtomicInteger(0)).incrementAndGet()
+        case None    => overflowActivations.incrementAndGet()
+      }
+
       entry
     })
   }
@@ -65,7 +73,10 @@ class LocalLoadBalancerData() extends LoadBalancerData {
     activationsById.remove(entry.id).map { x =>
       totalActivations.decrementAndGet()
       activationByNamespaceId.getOrElseUpdate(entry.namespaceId, new AtomicInteger(0)).decrementAndGet()
-      activationByInvoker.getOrElseUpdate(entry.invokerName.toString, new AtomicInteger(0)).decrementAndGet()
+      entry.invokerName match {
+        case Some(i) => activationByInvoker.getOrElseUpdate(i.toString, new AtomicInteger(0)).decrementAndGet()
+        case None    => overflowActivations.decrementAndGet()
+      }
       x
     }
   }

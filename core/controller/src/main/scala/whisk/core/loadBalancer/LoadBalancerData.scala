@@ -17,21 +17,20 @@
 
 package whisk.core.loadBalancer
 
-import whisk.core.entity.{ActivationId, InstanceId, UUID, WhiskActivation}
+import whisk.core.entity.{ActivationId, UUID, WhiskActivation}
+import scala.concurrent.{Promise}
+import whisk.core.entity.InstanceId
 
-import akka.actor.Cancellable
-import scala.concurrent.{Future, Promise}
-
-// please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
-                           invokerName: InstanceId,
-                           timeoutHandler: Cancellable,
-                           promise: Promise[Either[ActivationId, WhiskActivation]])
+                           var invokerName: Option[InstanceId],
+                           promise: Promise[Either[ActivationId, WhiskActivation]],
+                           originalController: Option[InstanceId] = None,
+                           isOverflow: Boolean = false)
 trait LoadBalancerData {
 
   /** Get the number of activations across all namespaces. */
-  def totalActivationCount: Future[Int]
+  def totalActivationCount: Int
 
   /**
    * Get the number of activations for a specific namespace.
@@ -39,14 +38,20 @@ trait LoadBalancerData {
    * @param namespace The namespace to get the activation count for
    * @return a map (namespace -> number of activations in the system)
    */
-  def activationCountOn(namespace: UUID): Future[Int]
+  def activationCountOn(namespace: UUID): Int
 
   /**
    * Get the number of activations for each invoker.
    *
    * @return a map (invoker -> number of activations queued for the invoker)
    */
-  def activationCountPerInvoker: Future[Map[String, Int]]
+  def activationCountPerInvoker: Map[String, Int]
+
+  /**
+   * Get the number of activations waiting at the overflow queue
+   * @return
+   */
+  def overflowActivationCount: Int
 
   /**
    * Get an activation entry for a given activation id.
@@ -63,10 +68,11 @@ trait LoadBalancerData {
    * @param update block calculating the entry to add.
    *               Note: This is evaluated iff the entry
    *               didn't exist before.
+   * @param isOverflow true if this activation should count against user rates (otherwise only counts for invoker stats)
    * @return the entry calculated by the block or iff it did
    *         exist before the entry from the state
    */
-  def putActivation(id: ActivationId, update: => ActivationEntry): ActivationEntry
+  def putActivation(id: ActivationId, update: => ActivationEntry, isOverflow: Boolean = false): ActivationEntry
 
   /**
    * Removes the given entry.

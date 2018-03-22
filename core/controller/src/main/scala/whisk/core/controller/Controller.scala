@@ -23,6 +23,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import akka.Done
 import akka.actor.ActorSystem
+
 import akka.actor.CoordinatedShutdown
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
@@ -43,7 +44,7 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer.LoadBalancerProvider
+import whisk.core.loadBalancer._
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
@@ -116,9 +117,17 @@ class Controller(val instance: InstanceId,
   })
 
   // initialize backend services
+  private val messagingProvider = SpiLoader.get[MessagingProvider]
+  val maxPingsPerPoll = 128
+  val pingConsumer =
+    messagingProvider.getConsumer(whiskConfig, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
+  private val messageProducer = messagingProvider.getProducer(whiskConfig)
+  
   private implicit val loadBalancer =
     SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
   logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
+
+  
 
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}

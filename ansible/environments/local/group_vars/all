@@ -24,6 +24,11 @@ apigw_host_v2: "http://{{ groups['apigateway']|first }}:{{apigateway.port.api}}/
 
 invoker_allow_multiple_instances: true
 
+limit_invocations_per_minute: 60000
+limit_invocations_concurrent: 30000
+limit_invocations_concurrent_system: 50000
+limit_fires_per_minute: 60
+
 # Set kafka configuration
 kafka_heap: '512m'
 kafka_topics_completed_retentionBytes: 104857600

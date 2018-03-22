@@ -57,7 +57,7 @@ trait LoadBalancer {
    *         plus a grace period (see activeAckTimeoutGrace).
    */
   def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]]
+    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
   /**
    * Returns a message indicating the health of the containers and/or container pool in general.

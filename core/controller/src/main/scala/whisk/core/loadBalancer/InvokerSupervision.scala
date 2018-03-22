@@ -41,6 +41,8 @@ import whisk.core.entity.types.EntityStore
 
 // Received events
 case object GetStatus
+case class SubscribeLoadBalancer(loadBalancerActor: ActorRef)
+case class StatusUpdate(status: IndexedSeq[InvokerHealth])
 
 case object Tick
 
@@ -86,15 +88,22 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
   var instanceToRef = immutable.Map.empty[InstanceId, ActorRef]
   var refToInstance = immutable.Map.empty[ActorRef, InstanceId]
   var status = IndexedSeq[InvokerHealth]()
+  var lbActor: Option[ActorRef] = None
 
   def receive = {
     case p: PingMessage =>
       val invoker = instanceToRef.getOrElse(p.instance, registerInvoker(p.instance))
       instanceToRef = instanceToRef.updated(p.instance, invoker)
 
+      lbActor.foreach(_ ! StatusUpdate(status))
+
       invoker.forward(p)
 
     case GetStatus => sender() ! status
+
+    case SubscribeLoadBalancer(lb) =>
+      lbActor = Some(lb)
+      lb ! StatusUpdate(status)
 
     case msg: InvocationFinishedMessage =>
       // Forward message to invoker, if InvokerActor exists
@@ -103,12 +112,14 @@ class InvokerPool(childFactory: (ActorRefFactory, InstanceId) => ActorRef,
     case CurrentState(invoker, currentState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
         status = status.updated(instance.toInt, new InvokerHealth(instance, currentState))
+        lbActor.foreach(_ ! StatusUpdate(status))
       }
       logStatus()
 
     case Transition(invoker, oldState: InvokerState, newState: InvokerState) =>
       refToInstance.get(invoker).foreach { instance =>
         status = status.updated(instance.toInt, new InvokerHealth(instance, newState))
+        lbActor.foreach(_ ! StatusUpdate(status))
       }
       logStatus()
 
