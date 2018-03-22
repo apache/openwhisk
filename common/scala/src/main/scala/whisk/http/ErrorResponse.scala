@@ -224,7 +224,7 @@ case class ErrorResponse(error: String, code: TransactionId, transaction: String
 object ErrorResponse extends Directives with DefaultJsonProtocol {
 
   def apply(error: String, code: TransactionId): ErrorResponse = {
-    ErrorResponse(error, code, code.idAsString)
+    ErrorResponse(error, code, code.id)
   }
 
   def terminate(status: StatusCode, error: String)(implicit transid: TransactionId,
@@ -255,14 +255,14 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
     def write(er: ErrorResponse) =
       JsObject(
         "error" -> er.error.toJson,
-        "code" -> er.code.meta.id.toJson,
-        "transaction" -> er.code.meta.idAsString.toJson)
+        "code" -> er.code.meta.idNumber.toJson,
+        "transaction" -> er.code.meta.id.toJson)
 
     def read(v: JsValue) =
       Try {
         v.asJsObject.getFields("error", "code", "transaction") match {
-          case Seq(JsString(error), JsNumber(code), JsString(transaction)) =>
-            ErrorResponse(error, TransactionId(code.toBigInt), transaction)
+          case Seq(JsString(error), JsNumber(_), JsString(transaction)) =>
+            ErrorResponse(error, TransactionId(transaction), transaction)
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)
         }

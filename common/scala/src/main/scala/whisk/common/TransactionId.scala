@@ -36,15 +36,14 @@ import scala.util.Try
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
-  def idAsString = meta.idAsString
   override def toString = {
-    if (meta.id > 0) s"#tid_${meta.idAsString}"
-    else if (meta.id < 0) s"#sid_${-meta.id}"
+    if (meta.idNumber > 0) s"#tid_${meta.id}"
+    else if (meta.idNumber < 0) s"#sid_${-meta.idNumber}"
     else "??"
   }
 
   def toHeader = {
-    RawHeader("OW-TID", meta.idAsString)
+    RawHeader("OW-TID", meta.id)
   }
 
   /**
@@ -194,11 +193,8 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: BigInt, val start: Instant, val extraLogging: Boolean = false) {
-  def idAsString = {
-    val bigIntAsString = id.toString(16)
-    ("0" * (32 - bigIntAsString.length)) + bigIntAsString
-  }
+protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false) {
+  val idNumber: BigInt = new BigInteger(id, 16)
 }
 
 object TransactionId {
@@ -208,18 +204,18 @@ object TransactionId {
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
-  val unknown = TransactionId(0)
-  val testing = TransactionId(-1) // Common id for for unit testing
-  val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
-  val invokerWarmup = TransactionId(-101) // Invoker warmup thread that makes stem-cell containers
-  val invokerNanny = TransactionId(-102) // Invoker nanny thread
-  val dispatcher = TransactionId(-110) // Kafka message dispatcher
-  val loadbalancer = TransactionId(-120) // Loadbalancer thread
-  val invokerHealth = TransactionId(-121) // Invoker supervision
-  val controller = TransactionId(-130) // Controller startup
-  val dbBatcher = TransactionId(-140) // Database batcher
+  val unknown = TransactionId(0.toString)
+  val testing = TransactionId((-1).toString) // Common id for for unit testing
+  val invoker = TransactionId((-100).toString) // Invoker startup/shutdown or GC activity
+  val invokerWarmup = TransactionId((-101).toString) // Invoker warmup thread that makes stem-cell containers
+  val invokerNanny = TransactionId((-102).toString) // Invoker nanny thread
+  val dispatcher = TransactionId((-110).toString) // Kafka message dispatcher
+  val loadbalancer = TransactionId((-120).toString) // Loadbalancer thread
+  val invokerHealth = TransactionId((-121).toString) // Invoker supervision
+  val controller = TransactionId((-130).toString) // Controller startup
+  val dbBatcher = TransactionId((-140).toString) // Database batcher
 
-  def apply(tid: BigInt, extraLogging: Boolean = false): TransactionId = {
+  def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
       TransactionId(TransactionMetadata(tid, now, extraLogging))
@@ -237,10 +233,10 @@ object TransactionId {
     def read(value: JsValue) =
       Try {
         value match {
-          case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id.toBigInt, Instant.ofEpochMilli(start.longValue), false))
-          case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
+          case JsArray(Vector(JsString(id), JsNumber(start))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
   }
@@ -263,9 +259,11 @@ trait TransactionCounter {
     tidValue
       .flatMap { id =>
         Try {
-          TransactionId(new BigInteger(id, 16), extraLogging)
+          // Try to create the tid with this value
+          TransactionId(id, extraLogging)
         }.toOption
       }
-      .getOrElse(TransactionId(cnt.addAndGet(stride), extraLogging))
+      // Fallback to old tids if it doesn't work.
+      .getOrElse(TransactionId(cnt.addAndGet(stride).toString, extraLogging))
   }
 }
