@@ -18,8 +18,6 @@
 package whisk.core.containerpool.logging
 
 import java.time.ZonedDateTime
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -73,8 +71,10 @@ class ElasticSearchLogStoreTests
       443,
       "/whisk_user_logs/_search",
       "user_logs",
+      "message",
       "activationId_str",
       "stream_str",
+      "time_date",
       "action_str")
   private val defaultConfigRequiredHeaders =
     ElasticSearchLogStoreConfig(
@@ -83,10 +83,12 @@ class ElasticSearchLogStoreTests
       443,
       "/whisk_user_logs/_search",
       "user_logs",
+      "message",
       "activationId_str",
       "stream_str",
+      "time_date",
       "action_str",
-      "x-auth-token,x-auth-project-id")
+      Seq("x-auth-token", "x-auth-project-id"))
   private val defaultHeaders: List[HttpHeader] = List(Accept(MediaTypes.`application/json`))
   private val defaultHttpResponse = HttpResponse(
     StatusCodes.OK,
@@ -97,8 +99,8 @@ class ElasticSearchLogStoreTests
   private val defaultPayload = JsObject(
     "query" -> JsObject(
       "query_string" -> JsObject("query" -> JsString(
-        s"_type: ${defaultConfig.logMessageField} AND ${defaultConfig.activationIdField}: $activationId"))),
-    "sort" -> JsArray(JsObject("time_date" -> JsObject("order" -> JsString("asc"))))).compactPrint
+        s"_type: ${defaultConfig.userLogsField} AND ${defaultConfig.activationIdField}: $activationId"))),
+    "sort" -> JsArray(JsObject(defaultConfig.timeField -> JsObject("order" -> JsString("asc"))))).compactPrint
   private val defaultUri = Uri(s"/whisk_user_logs/_search")
 
   private var expectedHeaders: List[HttpHeader] = defaultHeaders
@@ -187,20 +189,21 @@ class ElasticSearchLogStoreTests
     await(esLogStore.fetchLogs(user, activation.withoutLogs, requiredHeadersHttpRequest)) shouldBe expectedLogs
   }
 
-  it should "dynamically replace $UUID and $DATE in request path" in {
+  it should "dynamically replace $UUID in request path" in {
     val dynamicPathConfig =
       ElasticSearchLogStoreConfig(
         "https",
         "host",
         443,
-        "/elasticsearch/logstash-$UUID-$DATE/_search",
+        "/elasticsearch/logstash-%s*/_search",
         "user_logs",
+        "message",
         "activationId_str",
         "stream_str",
+        "time_date",
         "action_str")
     val esLogStore = new ElasticSearchLogStore(system, Some(testFlow), elasticSearchConfig = dynamicPathConfig)
-    val date = LocalDate.now.format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
-    expectedUri = Uri(s"/elasticsearch/logstash-${user.uuid.asString}-$date/_search")
+    expectedUri = Uri(s"/elasticsearch/logstash-${user.uuid.asString}*/_search")
 
     await(esLogStore.fetchLogs(user, activation.withoutLogs, defaultHttpRequest)) shouldBe expectedLogs
   }
@@ -226,10 +229,12 @@ class ElasticSearchLogStoreTests
         443,
         "/whisk_user_logs",
         "user_logs",
+        "message",
         "activationId_str",
         "stream_str",
+        "time_date",
         "action_str",
-        "none")
+        Seq.empty)
 
     a[IllegalArgumentException] should be thrownBy new ElasticSearchLogStore(
       system,
