@@ -142,7 +142,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
         "memory" -> parm.memory.getOrElse(MemoryLimit.stdMemory).toMB.toInt.toJson,
         "logs" -> parm.logs.getOrElse(LogLimit.STD_LOGSIZE).toMB.toInt.toJson)
 
-      val name = "ActionLimitTests" + Instant.now.toEpochMilli
+      val name = "ActionLimitTests-" + Instant.now.toEpochMilli
       val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
         (action, _) =>
           val result = action.create(
@@ -152,7 +152,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
             memory = parm.memory,
             timeout = parm.timeout,
             expectedExitCode = DONTCARE_EXIT)
-          withClue(s"Action creation result is unexpected:") {
+          withClue(s"Unexpected result when creating action '${name}':\n${result.toString}\nFailed assertion:") {
             result.exitCode should be(parm.ec)
           }
           result
