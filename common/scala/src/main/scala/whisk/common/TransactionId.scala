@@ -17,7 +17,6 @@
 
 package whisk.common
 
-import java.math.BigInteger
 import java.time.{Clock, Duration, Instant}
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -196,15 +195,7 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
 protected case class TransactionMetadata(val id: String,
                                          val start: Instant,
                                          val extraLogging: Boolean = false,
-                                         val isSid: Boolean = false) {
-
-  /**
-   * Convert the Id to a number. This is needed to be compatible with the current Error Response.
-   * To get no errors on this operation it is necessary to check that the tid get's checked with `TransactionId.checkFormat()` before creating it.
-   */
-  // Use radix 10 for sids and radix 16 for tids
-  def idNumber: BigInt = new BigInteger(id, if (isSid) 10 else 16)
-}
+                                         val isSid: Boolean = false)
 
 object TransactionId {
 
@@ -229,19 +220,6 @@ object TransactionId {
       val now = Instant.now(Clock.systemUTC())
       TransactionId(TransactionMetadata(tid, now, extraLogging, isSid))
     } getOrElse unknown
-  }
-
-  /**
-   * Check the format of an incoming tid. It should be a hex String with 32 characters.
-   * This method is necessary to check, that the transformation into ja JsNumber is working if we have to return an error message.
-   *
-   * @param tid The tid-String to check
-   * @return
-   */
-  def checkFormat(tid: String): Boolean = {
-    tid.length == 32 && Try {
-      new BigInteger(tid, 16)
-    }.toOption.isDefined
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
@@ -277,10 +255,8 @@ trait TransactionCounter {
 
   def transid(tidValue: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
     tidValue
-      .flatMap { id =>
-        if (TransactionId.checkFormat(id)) {
-          Some(TransactionId(id, extraLogging))
-        } else None
+      .map { id =>
+        TransactionId(id, extraLogging)
       }
       // Fallback to old tids if it doesn't work.
       .getOrElse(TransactionId(cnt.addAndGet(stride).toString, extraLogging))

@@ -17,10 +17,11 @@
 
 package whisk.http
 
+import java.math.BigInteger
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
-
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -28,9 +29,7 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.server.StandardRoute
-
 import spray.json._
-
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
@@ -248,21 +247,27 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
   }
 
   implicit val serializer = new RootJsonFormat[ErrorResponse] {
-    def write(er: ErrorResponse) =
-      JsObject(
-        "error" -> er.error.toJson,
-        "code" -> er.code.meta.idNumber.toJson,
-        "transaction" -> er.code.meta.id.toJson)
+    def write(er: ErrorResponse) = {
+      val tidMeta = er.code.meta
+      // Convert the tid to a number. If this is not possible, use `unknown`-tid
+      // We have to keep this field to not change the API (JSON-response in case of error)
+      // But on changing the tid from a number to String, it is not necessarely possible to always have a valid number.
+      // Now the important information is placed in `transaction`.
+      val tidAsNumber = Try {
+        // Use the radix 16 for tids (as they are hexadecimal) and 10 for sids (as they are decimal in our code).
+        // Use BigInteger to create numbers with different radixes. But BigInt is needed for JSON-conversion.
+        BigInt(new BigInteger(tidMeta.id, if (tidMeta.isSid) 10 else 16))
+      }.toOption.getOrElse {
+        BigInt(new BigInteger(TransactionId.unknown.meta.id, 10))
+      }.toJson
+      JsObject("error" -> er.error.toJson, "code" -> tidAsNumber, "transaction" -> tidMeta.id.toJson)
+    }
 
     def read(v: JsValue) =
       Try {
         v.asJsObject.getFields("error", "code", "transaction") match {
           case Seq(JsString(error), JsNumber(_), JsString(transaction)) =>
-            if (TransactionId.checkFormat(transaction)) {
-              ErrorResponse(error, TransactionId(transaction))
-            } else {
-              ErrorResponse(error, TransactionId.unknown)
-            }
+            ErrorResponse(error, TransactionId(transaction))
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)
         }
