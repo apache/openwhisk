@@ -1,9 +1,13 @@
 apply plugin: 'groovy'
 
+repositories {
+    mavenCentral()
+}
+
 def owHome = project.projectDir.parentFile.parentFile
 
 dependencies {
-    compile localGroovy()
+    compile "org.codehaus.groovy:groovy-all:2.4.14"
 }
 
 task couchdbViews(type: JavaExec) {

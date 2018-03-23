@@ -51,9 +51,6 @@ def meta = [
 //Get names of all running containers
 def containerNames = 'docker ps --format {{.Names}}'.execute().text.split("\n")
 
-//Command for transformEnvironment script
-transformEnvScript = "/bin/bash $owHome/common/scala/transformEnvironment.sh"
-
 config = getConfig()
 
 Map controllerEnv = null
@@ -175,9 +172,40 @@ def getWorkDir(String type){
 
 def getSysProps(def envMap, String type){
     def props = config[type].props
-    def sysProps = transformEnvScript.execute(getEnvAsList(envMap), new File(".")).text
-    sysProps += props.collect{k,v -> "-D$k='$v'"}.join(' ')
-    sysProps.replace('\'','')
+    def sysProps = transformEnv(envMap)
+    sysProps.putAll(props)
+    sysProps.collect{k,v -> "-D$k='$v'"}.join(' ').replace('\'','')
+}
+
+//Implements the logic from transformEnvironment.sh
+//to ensure comparability as sed -r is not supported on Mac
+def transformEnv(Map<String, String> envMap){
+    def transformedMap = [:]
+    envMap.each{String k,String v ->
+        if (!k.startsWith("CONFIG_") || v.isEmpty()) return
+        k = k.substring("CONFIG_".length())
+        def parts = k.split("\\_")
+        def transformedKey = parts.collect {p ->
+            if (Character.isUpperCase(p[0] as char)){
+                // if the current part starts with an uppercase letter (is PascalCased)
+                // leave it alone
+                return p
+            } else {
+                // rewrite camelCased to kebab-cased
+                return p.replaceAll(/([a-z0-9])([A-Z])/,/$1-$2/).toLowerCase()
+            }
+        }
+
+        //Resolve values which again refer to env variables
+        if (v.startsWith('$')) {
+            def valueAsKey = v.substring(1)
+            if (envMap.containsKey(valueAsKey)){
+                v = envMap.get(valueAsKey)
+            }
+        }
+        transformedMap[transformedKey.join('.')] = v
+    }
+    return transformedMap
 }
 
 /**

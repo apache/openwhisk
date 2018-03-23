@@ -101,7 +101,8 @@ controller {
     ]
     //Environment variables to be set
     env = [
-            'DB_PORT' : '5989'
+            'DB_PORT' : '5989',
+            'CONFIG_whisk_controller_protocol' : 'http'
     ]
 }
 
