@@ -219,13 +219,9 @@ object Messages {
 }
 
 /** Replaces rejections with Json object containing cause and transaction id. */
-case class ErrorResponse(error: String, code: TransactionId, transaction: String)
+case class ErrorResponse(error: String, code: TransactionId)
 
 object ErrorResponse extends Directives with DefaultJsonProtocol {
-
-  def apply(error: String, code: TransactionId): ErrorResponse = {
-    ErrorResponse(error, code, code.id)
-  }
 
   def terminate(status: StatusCode, error: String)(implicit transid: TransactionId,
                                                    jsonPrinter: JsonPrinter): StandardRoute = {
@@ -262,7 +258,11 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
       Try {
         v.asJsObject.getFields("error", "code", "transaction") match {
           case Seq(JsString(error), JsNumber(_), JsString(transaction)) =>
-            ErrorResponse(error, TransactionId(transaction), transaction)
+            if (TransactionId.checkFormat(transaction)) {
+              ErrorResponse(error, TransactionId(transaction))
+            } else {
+              ErrorResponse(error, TransactionId.unknown)
+            }
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)
         }
