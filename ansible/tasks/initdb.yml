@@ -2,7 +2,7 @@
 # This task will initialize the immortal DBs in the database account.
 # This step is usually done only once per deployment.
 
-- import_tasks: db/recreateDb.yml
+- include_tasks: db/recreateDb.yml
   vars:
     dbName: "{{ db.whisk.auth }}"
     forceRecreation: False
