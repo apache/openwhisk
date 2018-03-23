@@ -37,8 +37,8 @@ import scala.util.Try
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
   override def toString = {
-    if (meta.idNumber > 0) s"#tid_${meta.id}"
-    else if (meta.idNumber < 0) s"#sid_${-meta.idNumber}"
+    if (!meta.isSid) s"#tid_${meta.id}"
+    else if (meta.isSid) s"#sid_${meta.id}"
     else "??"
   }
 
@@ -193,8 +193,17 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false) {
-  val idNumber: BigInt = new BigInteger(id, 16)
+protected case class TransactionMetadata(val id: String,
+                                         val start: Instant,
+                                         val extraLogging: Boolean = false,
+                                         val isSid: Boolean = false) {
+
+  /**
+   * Convert the Id to a number. This is needed to be compatible with the current Error Response.
+   * To get no errors on this operation it is necessary to check that the tid get's checked with `TransactionId.checkFormat()` before creating it.
+   */
+  // Use radix 10 for sids and radix 16 for tids
+  def idNumber: BigInt = new BigInteger(id, if (isSid) 10 else 16)
 }
 
 object TransactionId {
@@ -204,39 +213,50 @@ object TransactionId {
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
-  val unknown = TransactionId(0.toString)
-  val testing = TransactionId((-1).toString) // Common id for for unit testing
-  val invoker = TransactionId((-100).toString) // Invoker startup/shutdown or GC activity
-  val invokerWarmup = TransactionId((-101).toString) // Invoker warmup thread that makes stem-cell containers
-  val invokerNanny = TransactionId((-102).toString) // Invoker nanny thread
-  val dispatcher = TransactionId((-110).toString) // Kafka message dispatcher
-  val loadbalancer = TransactionId((-120).toString) // Loadbalancer thread
-  val invokerHealth = TransactionId((-121).toString) // Invoker supervision
-  val controller = TransactionId((-130).toString) // Controller startup
-  val dbBatcher = TransactionId((-140).toString) // Database batcher
+  val unknown = TransactionId(0.toString, isSid = true)
+  val testing = TransactionId((1).toString, isSid = true) // Common id for for unit testing
+  val invoker = TransactionId((100).toString, isSid = true) // Invoker startup/shutdown or GC activity
+  val invokerWarmup = TransactionId((101).toString, isSid = true) // Invoker warmup thread that makes stem-cell containers
+  val invokerNanny = TransactionId((102).toString, isSid = true) // Invoker nanny thread
+  val dispatcher = TransactionId((110).toString, isSid = true) // Kafka message dispatcher
+  val loadbalancer = TransactionId((120).toString, isSid = true) // Loadbalancer thread
+  val invokerHealth = TransactionId((121).toString, isSid = true) // Invoker supervision
+  val controller = TransactionId((130).toString, isSid = true) // Controller startup
+  val dbBatcher = TransactionId((140).toString, isSid = true) // Database batcher
 
-  def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
+  def apply(tid: String, extraLogging: Boolean = false, isSid: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid, now, extraLogging))
+      TransactionId(TransactionMetadata(tid, now, extraLogging, isSid))
     } getOrElse unknown
   }
 
+  /**
+   * Check the format of an incoming tid. It should be a hex String with 32 characters.
+   * This method is necessary to check, that the transformation into ja JsNumber is working if we have to return an error message.
+   *
+   * @param tid The tid-String to check
+   * @return
+   */
+  def checkFormat(tid: String): Boolean = {
+    tid.length == 32 && Try {
+      new BigInteger(tid, 16)
+    }.toOption.isDefined
+  }
+
   implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) = {
-      if (t.meta.extraLogging)
-        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
-      else
-        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
-    }
+    def write(t: TransactionId) =
+      JsArray(
+        JsString(t.meta.id),
+        JsNumber(t.meta.start.toEpochMilli),
+        JsBoolean(t.meta.extraLogging),
+        JsBoolean(t.meta.isSid))
 
     def read(value: JsValue) =
       Try {
         value match {
-          case JsArray(Vector(JsString(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
-          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
-            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging), JsBoolean(isSid))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging, isSid))
         }
       } getOrElse unknown
   }
@@ -258,10 +278,9 @@ trait TransactionCounter {
   def transid(tidValue: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
     tidValue
       .flatMap { id =>
-        Try {
-          // Try to create the tid with this value
-          TransactionId(id, extraLogging)
-        }.toOption
+        if (TransactionId.checkFormat(id)) {
+          Some(TransactionId(id, extraLogging))
+        } else None
       }
       // Fallback to old tids if it doesn't work.
       .getOrElse(TransactionId(cnt.addAndGet(stride).toString, extraLogging))

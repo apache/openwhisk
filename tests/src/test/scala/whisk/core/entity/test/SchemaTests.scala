@@ -71,32 +71,16 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   behavior of "TransactionId"
 
-  it should "serdes a transaction id without extraLogging parameter" in {
-    val txIdWithoutParameter = TransactionId(4711)
-
-    // test serialization
-    val serializedTxIdWithoutParameter = TransactionId.serdes.write(txIdWithoutParameter)
-    serializedTxIdWithoutParameter match {
-      case JsArray(Vector(JsNumber(id), JsNumber(_))) =>
-        assert(id == txIdWithoutParameter.meta.id)
-      case _ => withClue(serializedTxIdWithoutParameter) { assert(false) }
-    }
-
-    // test deserialization
-    val deserializedTxIdWithoutParameter = TransactionId.serdes.read(serializedTxIdWithoutParameter)
-    deserializedTxIdWithoutParameter.meta.id should equal(txIdWithoutParameter.meta.id)
-    deserializedTxIdWithoutParameter.meta.extraLogging should equal(false)
-  }
-
-  it should "serdes a transaction id with extraLogging parameter" in {
-    val txIdWithParameter = TransactionId(4711, true)
+  it should "serdes a transaction id" in {
+    val txIdWithParameter = TransactionId(4711.toString, true, false)
 
     // test serialization
     val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithParameter)
     serializedTxIdWithParameter match {
-      case JsArray(Vector(JsNumber(id), JsNumber(_), JsBoolean(extraLogging))) =>
+      case JsArray(Vector(JsString(id), JsNumber(_), JsBoolean(extraLogging), JsBoolean(isSid))) =>
         assert(id == txIdWithParameter.meta.id)
-        assert(extraLogging)
+        extraLogging shouldBe true
+        isSid shouldBe false
       case _ => withClue(serializedTxIdWithParameter) { assert(false) }
     }
 
