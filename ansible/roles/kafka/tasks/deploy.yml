@@ -63,12 +63,13 @@
   set_fact:
     kafka_env_vars: "{{ kafka_env_vars | combine(kafka_non_ssl_vars) }}"
 
-- name: (re)start kafka
+- name: "(re)start kafka using '{{ kafka_image }}' "
   vars:
     zookeeper_idx: "{{ groups['kafkas'].index(inventory_hostname) % (groups['zookeepers'] | length) }}"
+    kafka_image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
   docker_container:
     name: kafka{{ groups['kafkas'].index(inventory_hostname) }}
-    image: "{{ kafka.docker_image | default ('wurstmeister/kafka:' ~ kafka.version) }}"
+    image: "{{ kafka_image }}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
