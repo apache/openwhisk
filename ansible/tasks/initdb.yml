@@ -2,12 +2,12 @@
 # This task will initialize the immortal DBs in the database account.
 # This step is usually done only once per deployment.
 
-- include: db/recreateDb.yml
+- include_tasks: db/recreateDb.yml
   vars:
     dbName: "{{ db.whisk.auth }}"
     forceRecreation: False
 
-- include: db/recreateDoc.yml
+- include_tasks: db/recreateDoc.yml
   vars:
     dbName: "{{ db.whisk.auth }}"
     doc: "{{ lookup('file', '{{ item }}') }}"
@@ -17,7 +17,7 @@
     - "{{ openwhisk_home }}/ansible/files/namespace_throttlings_design_document_for_subjects_db.json"
 
 - name: create necessary "auth" keys
-  include: db/recreateDoc.yml
+  include_tasks: db/recreateDoc.yml
   vars:
     key: "{{ lookup('file', 'files/auth.{{ item }}') }}"
     dbName: "{{ db.whisk.auth }}"

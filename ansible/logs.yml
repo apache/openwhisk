@@ -1,7 +1,7 @@
 ---
 # This playbook is used for utilities around logs
 
-- include: properties.yml
+- import_playbook: properties.yml
 
 - hosts: ansible
   tasks:

@@ -2,15 +2,15 @@
 # Wipe transient databases. You should know what you are doing here.
 # withViews: True or False. Says, if the views have to be recreated.
 
-- include: db/recreateDb.yml
+- include_tasks: db/recreateDb.yml
   vars:
     dbName: "{{ db.whisk.actions }}"
     forceRecreation: True
-- include: db/recreateDb.yml
+- include_tasks: db/recreateDb.yml
   vars:
     dbName: "{{ db.whisk.activations }}"
     forceRecreation: True
   when: db.whisk.activations != db.whisk.actions
 
-- include: recreateViews.yml
+- include_tasks: recreateViews.yml
   when: withViews == True

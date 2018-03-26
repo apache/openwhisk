@@ -4,8 +4,8 @@
 # Recycling means retaining the last few images of all repos and importing them into the new instance.
 # In clean mode it will remove the registry, deleting all images.
 
-- include: deploy.yml
+- import_tasks: deploy.yml
   when: mode == "deploy"
 
-- include: clean.yml
+- import_tasks: clean.yml
   when: mode == "clean"

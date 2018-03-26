@@ -1,7 +1,7 @@
 ---
 # Add user and patch kernel.
 
-- include: addUser.yml
+- import_tasks: addUser.yml
   when: docker.user is defined
 
-- include: patchKernel.yml
+- import_tasks: patchKernel.yml

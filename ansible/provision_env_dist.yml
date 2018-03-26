@@ -9,7 +9,7 @@
         dest: "{{hosts_dir}}/hosts"
 
     - name: Create instances
-      include: boot_instances_dist.yml instance={{item}}
+      import_tasks: boot_instances_dist.yml instance={{item}}
       with_items: instances
 
     - meta: refresh_inventory

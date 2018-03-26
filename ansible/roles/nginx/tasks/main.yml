@@ -3,8 +3,8 @@
 # In deploy mode it will deploy an nginx server.
 # In clean mode it will remove the nginx server as well as nginx.confdir
 
-- include: deploy.yml
+- import_tasks: deploy.yml
   when: mode == "deploy"
 
-- include: clean.yml
+- import_tasks: clean.yml
   when: mode == "clean"

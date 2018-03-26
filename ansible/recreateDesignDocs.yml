@@ -3,5 +3,5 @@
 
 - hosts: ansible
   tasks:
-    - include: tasks/recreateViews.yml
+    - import_tasks: tasks/recreateViews.yml
       when: mode == "deploy"

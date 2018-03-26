@@ -3,8 +3,8 @@
 # In deploy mode it will patch the system with the right kernel.
 # In clean mode it will do nothing atm.
 
-- include: deploy.yml
+- import_tasks: deploy.yml
   when: mode == "deploy"
 
-- include: clean.yml
+- import_tasks: clean.yml
   when: mode == "clean"
