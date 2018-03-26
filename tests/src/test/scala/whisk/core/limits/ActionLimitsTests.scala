@@ -106,21 +106,22 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
   }
 
-  val perms = (// Assert for valid permutations that the values are set correctly
-  for {
-    time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
-    mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
-    log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
-  } yield PermutationTestParameter(time, mem, log)) ++
+  val perms = { // Assert for valid permutations that the values are set correctly
+    for {
+      time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
+      mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
+      log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
+    } yield PermutationTestParameter(time, mem, log)
+  } ++
     // Add variations for negative tests
     Seq(
       PermutationTestParameter(Some(0.milliseconds), None, None, BAD_REQUEST), // timeout that is lower than allowed
       PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
-      PermutationTestParameter(Some(100.minutes), None, None, BAD_REQUEST), // timeout that is much higher than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, BAD_REQUEST), // timeout that is much higher than allowed
       PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
       PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
-      PermutationTestParameter(None, Some(32768.MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
-      PermutationTestParameter(None, None, Some(32768.MB), BAD_REQUEST)) // log size limit that is much higher than allowed
+      PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some((LogLimit.MAX_LOGSIZE.toMB * 5).MB), BAD_REQUEST)) // log size limit that is much higher than allowed
 
   /**
    * Integration test to verify that valid timeout, memory and log size limits are accepted

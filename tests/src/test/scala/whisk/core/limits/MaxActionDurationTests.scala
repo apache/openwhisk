@@ -65,16 +65,13 @@ class MaxActionDurationTests extends TestHelpers with WskTestHelpers {
     Map("node" -> "helloDeadline.js", "python" -> "sleep.py", "java" -> "sleep.jar").par.map {
       case (k, name) =>
         println(s"Testing action kind '${k}' with action '${name}'")
-        assetHelper.withCleaner(wsk.action, name) {
-          if (k == "java") { (action, _) =>
-            action.create(
-              name,
-              Some(TestUtils.getTestActionFilename(name)),
-              timeout = Some(TimeLimit.MAX_DURATION),
-              main = Some("Sleep"))
-          } else { (action, _) =>
-            action.create(name, Some(TestUtils.getTestActionFilename(name)), timeout = Some(TimeLimit.MAX_DURATION))
-          }
+        assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+          val main = if (k == "java") Some("Sleep") else None
+          action.create(
+            name,
+            Some(TestUtils.getTestActionFilename(name)),
+            timeout = Some(TimeLimit.MAX_DURATION),
+            main = main)
         }
 
         val run = wsk.action.invoke(
