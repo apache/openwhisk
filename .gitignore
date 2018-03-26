@@ -79,3 +79,6 @@ ansible/roles/controller/files/*.p12
 !tests/dat/actions/python_virtualenv_dir.zip
 !tests/dat/actions/python_virtualenv_name.zip
 !tests/dat/actions/zippedaction.zip
+
+# dev
+intellij-run-config.groovy
