@@ -116,6 +116,8 @@ kafka:
     port: 8093
   heap: "{{ kafka_heap | default('1g') }}"
   replicationFactor: "{{ kafka_replicationFactor | default((groups['kafkas']|length)|int) }}"
+  # adapt this param for production deployments depending on the number of kafka consumers
+  networkThreads: "{{ kafka_network_threads | default(3) }}"
 
 kafka_connect_string: "{% set ret = [] %}\
                        {% for host in groups['kafkas'] %}\
