@@ -29,9 +29,7 @@ import scala.language.postfixOps
 import org.scalatest.Matchers
 
 import TestUtils._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
+import spray.json._
 import whisk.core.entity.ByteSize
 
 case class WskProps(

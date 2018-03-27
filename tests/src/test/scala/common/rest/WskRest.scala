@@ -57,9 +57,6 @@ import akka.http.scaladsl.HttpsConnectionContext
 import akka.stream.ActorMaterializer
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
 import common._
 import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
