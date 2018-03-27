@@ -1,0 +1,17 @@
+### S390X specifics (TODO: could I include what's above?) ###
+
+nginx_version: 1.12
+
+# Docker images to pull for S390X docker
+
+couchdb:
+    docker_image: "docker.xanophis.com/s390x/couchdb:latest"
+
+kafka:
+    docker_image: "docker.xanophis.com/s390x/wurstmeister-kafka:0.11"
+
+apigateway:
+    docker_image: "docker.xanophis.com/s390x/openwhisk-apigateway:latest"
+
+#  Because we don't (yet) support s390x compiles of the CLI; a different challenge...
+#  cli_installation_mode: local

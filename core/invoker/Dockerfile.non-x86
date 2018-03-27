@@ -1,0 +1,19 @@
+FROM scala
+
+RUN if [ x`uname -m` == xs390x ]; then \
+      apkopts="--update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/community/ --allow-untrusted"; \
+    else \
+      apkopts="--update-cache"; \
+    fi \
+ && echo APK options will be ${apkopts} \
+ && apk add docker ${apkopts}
+
+COPY build/distributions/invoker.tar ./
+COPY init.sh /
+
+RUN tar xf invoker.tar \
+ && rm -f invoker.tar \
+ && chmod +x init.sh
+
+EXPOSE 8080
+CMD ["init.sh", "0"]

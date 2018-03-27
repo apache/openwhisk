@@ -1,0 +1,14 @@
+### Power specifics 
+
+nginx_version: '1.13.9'
+
+# Docker images to pull for Power docker
+
+couchdb:
+    docker_image: "docker.xanophis.com/ppc64le/couchdb:latest"
+
+kafka:
+    docker_image: "docker.xanophis.com/ppc64le/wurstmeister-kafka:0.11"
+
+apigateway:
+    docker_image: "docker.xanophis.com/ppc64le/openwhisk-apigateway:latest"
