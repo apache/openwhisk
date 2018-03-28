@@ -173,9 +173,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case NeedWork(data: WarmedData) =>
       logging.info(this, s"NeedWork1 ${data}")
       freePool = freePool + (sender() -> data)
-//      if (active && replicatePrewarm) {
-//        replicateFreePool(data)
-//      }
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
         feed ! MessageFeed.Processed
@@ -186,17 +183,10 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       logging.info(this, s"NeedWork2 ${data}")
       prewarmedPool = prewarmedPool + (sender() -> data)
       logging.info(this, s"added to prewarm; new size of prewarm pool:${prewarmedPool.toMap.size}")
-//      if (active && replicatePrewarm) {
-//        replicatePrewarmPool(data)
-//      }
 
     // Container got removed
     case ContainerRemoved =>
-//      val oldData = freePool.get(sender())
       freePool = freePool - sender()
-//      if (active && replicatePrewarm && oldData.isDefined) {
-//        unreplicateFreePool(oldData.get)
-//      }
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
         // container was busy, so there is capacity to accept another job request
@@ -209,11 +199,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // 3. The container aged and is destroying itself
     // Update the free/busy lists but no message is sent to the feed since there is no change in capacity yet
     case RescheduleJob =>
-//      val oldData = freePool.get(sender())
       freePool = freePool - sender()
-//      if (active && replicatePrewarm && oldData.isDefined) {
-//        unreplicateFreePool(oldData.get)
-//      }
       busyPool = busyPool - sender()
   }
 
@@ -222,61 +208,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     val ref = childFactory(context)
     val data = NoData()
     freePool = freePool + (ref -> data)
-//    if (active && replicatePrewarm) {
-//      replicateFreePool(data)
-//    }
-
     ref -> data
   }
 
   /** Creates a new prewarmed container */
   def prewarmContainer(exec: CodeExec[_], memoryLimit: ByteSize) =
     childFactory(context) ! Start(exec, memoryLimit)
-
-//  def attachPrewarmContainer(id: ContainerId, ip: ContainerAddress, exec: CodeExec[_], memoryLimit: ByteSize) =
-//    childFactory(context) ! Attach(id, ip, exec, memoryLimit)
-//  def attachFreeContainer(id: ContainerId,
-//                          ip: ContainerAddress,
-//                          invocationNamespace: EntityName,
-//                          action: ExecutableWhiskAction) =
-//    childFactory(context) ! AttachFree(id, ip, invocationNamespace, action)
-//
-//  def replicateFreePool(cd: ContainerData) =
-//    cd match {
-//      case data: WarmedData =>
-//        data.action.fullyQualifiedName(true).toString
-//        data.action.rev.rev
-//        replicator ! Update(freePoolKey, ORSet.empty[ReplicatedWarm], WriteLocal)(
-//          _ + ReplicatedWarm(
-//            data.container.id,
-//            data.container.addr,
-//            data.lastUsed,
-//            data.invocationNamespace.toString,
-//            FullyQualifiedEntityName.serdes.write(data.action.fullyQualifiedName(true)),
-//            data.action.rev.asString))
-//      case _ => logging.info(this, s"skipping freepool replication of ${cd}")
-//    }
-//
-//  def unreplicateFreePool(cd: ContainerData) =
-//    cd match {
-//      case data: WarmedData =>
-//        replicator ! Update(freePoolKey, ORSet.empty[ReplicatedWarm], WriteLocal)(
-//          _ - ReplicatedWarm(
-//            data.container.id,
-//            data.container.addr,
-//            data.lastUsed,
-//            data.invocationNamespace.toString,
-//            FullyQualifiedEntityName.serdes.write(data.action.fullyQualifiedName(true)),
-//            data.action.rev.asString))
-//      case _ => logging.info(this, s"skipping freepool unreplication of ${cd}")
-//    }
-//
-//  def replicatePrewarmPool(data: PreWarmedData) =
-//    replicator ! Update(prewarmPoolKey, ORSet.empty[ReplicatedPrewarm], WriteLocal)(
-//      _ + ReplicatedPrewarm(data.container.id, data.container.addr, data.kind, data.memoryLimit))
-//  def unreplicatePrewarmPool(data: PreWarmedData) =
-//    replicator ! Update(prewarmPoolKey, ORSet.empty[ReplicatedPrewarm], WriteLocal)(
-//      _ - ReplicatedPrewarm(data.container.id, data.container.addr, data.kind, data.memoryLimit))
 
   /**
    * Takes a prewarm container out of the prewarmed pool
@@ -301,10 +238,6 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             // Move the container to the usual pool
             freePool = freePool + (ref -> data)
             prewarmedPool = prewarmedPool - ref
-//            if (active && replicatePrewarm) {
-//              replicateFreePool(data)
-//              unreplicatePrewarmPool(data)
-//            }
             // Create a new prewarm container
             prewarmContainer(config.exec, config.memoryLimit)
 
@@ -315,11 +248,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   /** Removes a container and updates state accordingly. */
   def removeContainer(toDelete: ActorRef) = {
     toDelete ! Remove
-//    val oldData = freePool.get(toDelete)
     freePool = freePool - toDelete
-//    if (active && replicatePrewarm && oldData.isDefined) {
-//      unreplicateFreePool(oldData.get)
-//    }
     busyPool = busyPool - toDelete
   }
 }

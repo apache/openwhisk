@@ -149,7 +149,6 @@ class ContainerProxy(
         job.action.limits.memory.megabytes.MB)
         .map(container => {
           logging.info(this, s"got container ${container} from attachFactory...")
-//                WarmedData(container, job.exec.kind, job.memoryLimit)
           WarmedData(container, job.invocationNamespace, job.action, Instant.now)
         })
         .pipeTo(self)
@@ -209,11 +208,6 @@ class ContainerProxy(
       logging.info(this, s"sending NeedWork to parent ${context.parent} for ${data}")
       context.parent ! NeedWork(data)
       goto(Started) using data
-//    // container was successfully obtained
-//    case Event(data: WarmedData, _) =>
-//      logging.info(this, s"sending NeedWork to parent ${context.parent} for ${data}")
-//      context.parent ! NeedWork(data)
-//      goto(Started) using data
 
     // container creation failed
     case Event(_: FailureMessage, _) =>
