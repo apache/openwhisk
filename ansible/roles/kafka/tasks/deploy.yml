@@ -27,6 +27,7 @@
       "KAFKA_ZOOKEEPER_CONNECT": "{{ zookeeper_connect_string }}"
       "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
+      "KAFKA_NUM_NETWORK_THREADS": "{{ kafka.networkThreads }}"
 
 - name: add kafka non-ssl vars
   when: kafka.protocol != 'SSL'
