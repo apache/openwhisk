@@ -117,7 +117,11 @@ class MesosContainerFactory(config: WhiskConfig,
     mesosClientActor
       .ask(Subscribe)(subscribeTimeout)
       .mapTo[SubscribeComplete]
-      .map(complete => logging.info(this, s"subscribe completed successfully... $complete"))
+      .map(complete => {
+        //capture the framework id, so that reconcile will work later if the singleton dies
+        MesosContainerFactory.frameworkId = Some(complete.id)
+        logging.info(this, s"subscribe completed successfully... $complete")
+      })
       .recoverWith {
         case e =>
           logging.error(this, s"subscribe failed... $e}")

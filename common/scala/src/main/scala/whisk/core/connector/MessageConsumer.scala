@@ -171,7 +171,10 @@ class MessageFeed(description: String,
   initialize()
 
   private implicit val ec = context.system.dispatcher
-
+  override def postStop(): Unit = {
+    //close consumer as soon as this actor stops, to allow quick failover to another consumer
+    consumer.close()
+  }
   private def fillPipeline(): Unit = {
     if (outstandingMessages.size <= pipelineFillThreshold) {
       Future {
