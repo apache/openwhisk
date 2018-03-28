@@ -25,7 +25,7 @@ trait ContainerPoolInitializer {
   def initPool(pool: ActorRef): Unit
 }
 
-class DefaultContainerPoolInitializer() extends ContainerPoolInitializer {
+class DefaultContainerPoolInitializer extends ContainerPoolInitializer {
   def createFreePool = new DefaultContainerPoolMap()
   def createPrewarmPool = new DefaultContainerPoolMap()
   def initPool(pool: ActorRef) = {

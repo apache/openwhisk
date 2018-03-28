@@ -32,7 +32,6 @@ import com.adobe.api.platform.runtime.mesos.LIKE
 import com.adobe.api.platform.runtime.mesos.MesosClient
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
-import com.adobe.api.platform.runtime.mesos.TaskState
 import com.adobe.api.platform.runtime.mesos.Teardown
 import com.adobe.api.platform.runtime.mesos.UNLIKE
 import java.time.Instant

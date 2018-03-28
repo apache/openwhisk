@@ -105,35 +105,41 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
-//  val activationFeed = actorSystem.actorOf(Props {
-//    new MessageFeed(
-//      "activation",
-//      logging,
-//      consumer,
-//      maximumContainers,
-//      500.milliseconds,
-//      processActivationMessage,
-//      activationConsumerController)
-//  })
-  private val activationFeedMaster = actorSystem.actorOf(
-    ClusterSingletonManager.props(
-      Props(
-        new MessageFeed(
-          "activation",
-          logging,
-          consumer,
-          maximumContainers,
-          500.milliseconds,
-          processActivationMessage)),
-      terminationMessage = PoisonPill,
-      settings = ClusterSingletonManagerSettings(actorSystem)),
-    name = "activationFeedMaster")
-  private val activationFeed = actorSystem.actorOf(
-    ClusterSingletonProxy
-      .props(
-        singletonManagerPath = "/user/activationFeedMaster",
-        settings = ClusterSingletonProxySettings(actorSystem)),
-    name = "activationFeedProxy")
+  val poolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
+
+  //for replicated pools, use the ReplicatedPoolInitializer
+  val poolInitializer = if (poolConfig.passiveReplicatedPools) {
+    new ReplicatedPoolInitializer(actorSystem, entityStore)
+  } else {
+    new DefaultContainerPoolInitializer
+  }
+
+  //for singleton ContainerPool, only activate a single MessageFeed for the "activation" topic
+  val activationFeed = if (poolConfig.singleton) {
+    actorSystem.actorOf(
+      ClusterSingletonManager.props(
+        Props(
+          new MessageFeed(
+            "activation",
+            logging,
+            consumer,
+            maximumContainers,
+            500.milliseconds,
+            processActivationMessage)),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(actorSystem)),
+      name = "activationFeedMaster")
+    actorSystem.actorOf(
+      ClusterSingletonProxy
+        .props(
+          singletonManagerPath = "/user/activationFeedMaster",
+          settings = ClusterSingletonProxySettings(actorSystem)),
+      name = "activationFeedProxy")
+  } else {
+    actorSystem.actorOf(Props {
+      new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
+    })
+  }
 
   /** Sends an active-ack. */
   private val ack = (tid: TransactionId,
@@ -187,7 +193,6 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     .map(manifest => CodeExecAsString(manifest, "", None))
     .get
 
-  val poolInitializer = new ReplicatedPoolInitializer(actorSystem, entityStore)
   private val pool = actorSystem.actorOf(
     ContainerPool.props(
       childFactory,

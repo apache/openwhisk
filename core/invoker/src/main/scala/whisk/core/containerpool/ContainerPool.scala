@@ -40,6 +40,9 @@ case object Free extends WorkerState
 case class WorkerData(data: ContainerData, state: WorkerState)
 
 case object Prewarm //sent to initiate prewarming of containers
+
+case class ContainerPoolConfig(singleton: Boolean, passiveReplicatedPools: Boolean)
+
 /**
  * A pool managing containers to run actions on.
  *
