@@ -39,6 +39,7 @@ import common.StreamLogging
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.entity.Exec
+import common.WhiskProperties
 
 /**
  * For testing convenience, this interface abstracts away the REST calls to a
@@ -90,8 +91,16 @@ object ActionContainer {
   private lazy val dockerCmd: String = {
     /*
      * The docker host is set to a provided property 'docker.host' if it's
-     * available; otherwise by the environment variable DOCKER_HOST
-     * (which is usually set, especially for DOCKER_MACHINE).
+     * available; otherwise we check with WhiskProperties to see whether we are
+     * running on a docker-machine.
+     *
+     * IMPLICATION:  The test must EITHER have the 'docker.host' system
+     * property set OR the 'OPENWHISK_HOME' environment variable set and a
+     * valid 'whisk.properties' file generated.  The 'docker.host' system
+     * property takes precedence.
+     *
+     * WARNING:  Adding a non-docker-machine environment that contains 'mac'
+     * (i.e. 'environments/local-mac') will likely break things.
      *
      * The plan is to move builds to using 'gradle-docker-plugin', which know
      * its docker socket and to have it pass the docker socket implicitly using
@@ -104,19 +113,25 @@ object ActionContainer {
       sys.props
         .get("docker.host")
         .orElse(sys.env.get("DOCKER_HOST"))
+        .orElse {
+          // Check if we are running on docker-machine env.
+          Option(WhiskProperties.getProperty("whisk.version.name")).filter(_.toLowerCase.contains("mac")).map {
+            case _ => s"tcp://${WhiskProperties.getMainDockerEndpoint}"
+          }
+        }
         .map(" --host " + _)
         .getOrElse("")
+
     // Test here that this actually works, otherwise throw a somewhat understandable error message
     proc(s"$dockerCmdString info").onComplete {
-      case Success((v, _, _)) if (v != 0) =>
-        throw new RuntimeException(s"""Unable to connect to docker host using $dockerCmdString as command string.
-          |The docker host is determined using the Java property 'docker.host' or
-          |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
-          |other is set for your build/test process.""".stripMargin)
-      case Success((v, _, _)) if (v == 0) =>
-      // Do nothing
-      case Failure(t) =>
-        throw t
+      case Success((v, _, _)) if v != 0 =>
+        throw new RuntimeException(s"""
+              |Unable to connect to docker host using $dockerCmdString as command string.
+              |The docker host is determined using the Java property 'docker.host' or
+              |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+              |other is set for your build/test process.""".stripMargin)
+      case Success((v, _, _)) if v == 0 => // Do nothing
+      case Failure(t)                   => throw t
     }
 
     dockerCmdString
