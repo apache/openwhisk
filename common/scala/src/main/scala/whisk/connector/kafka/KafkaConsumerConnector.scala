@@ -39,12 +39,13 @@ case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricFlushIntervalS: Int
 class KafkaConsumerConnector(
   kafkahost: String,
   groupid: String,
-  topic: String,
+  val topic: String,
   override val maxPeek: Int = Int.MaxValue)(implicit logging: Logging, actorSystem: ActorSystem)
     extends MessageConsumer {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   private val gracefulWaitTime = 100.milliseconds
+  @volatile private var closing = false //to close, set closing=true, then close will happen after peek
 
   // The consumer is generally configured via getProps. This configuration only loads values necessary for "outer"
   // logic, like the wakeup timer.
@@ -62,7 +63,6 @@ class KafkaConsumerConnector(
    */
   override def peek(duration: FiniteDuration = 500.milliseconds,
                     retry: Int = 3): Iterable[(String, Int, Long, Array[Byte])] = {
-
     // poll can be infinitely blocked in edge-cases, so we need to wakeup explicitly.
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
@@ -74,42 +74,60 @@ class KafkaConsumerConnector(
       response
     } catch {
       // Happens if the peek hangs.
-      case _: WakeupException if retry > 0 =>
+      case _: WakeupException if !closing && retry > 0 =>
         logging.error(this, s"poll timeout occurred. Retrying $retry more times.")
         Thread.sleep(gracefulWaitTime.toMillis) // using Thread.sleep is okay, since `poll` is blocking anyway
         peek(duration, retry - 1)
-      case e: RetriableException if retry > 0 =>
+      case e: RetriableException if !closing && retry > 0 =>
         logging.error(this, s"$e: Retrying $retry more times")
         wakeUpTask.cancel()
         Thread.sleep(gracefulWaitTime.toMillis) // using Thread.sleep is okay, since `poll` is blocking anyway
         peek(duration, retry - 1)
+      case _ if (closing) =>
+        wakeUpTask.cancel()
+        logging.info(this, s"closing ${topic}")
+        Seq.empty
       // Every other error results in a restart of the consumer
       case e: Throwable =>
         recreateConsumer()
         throw e
-    } finally wakeUpTask.cancel()
+    } finally {
+      wakeUpTask.cancel()
+      if (closing) consumer.close()
+
+    }
   }
 
   /**
    * Commits offsets from last poll.
    */
   def commit(retry: Int = 3): Unit =
-    try {
-      consumer.commitSync()
-    } catch {
-      case e: RetriableException =>
-        if (retry > 0) {
-          logging.error(this, s"$e: retrying $retry more times")
-          Thread.sleep(gracefulWaitTime.toMillis) // using Thread.sleep is okay, since `commitSync` is blocking anyway
-          commit(retry - 1)
-        } else {
-          throw e
-        }
+    if (closing) {
+      logging.info(this, "skipping commit because close in progress...")
+    } else {
+      try {
+        consumer.commitSync()
+      } catch {
+        case e: RetriableException =>
+          if (retry > 0) {
+            logging.error(this, s"$e: retrying $retry more times")
+            Thread.sleep(gracefulWaitTime.toMillis) // using Thread.sleep is okay, since `commitSync` is blocking anyway
+            commit(retry - 1)
+          } else {
+            throw e
+          }
+        case _ if (closing) =>
+          logging.info(this, s"closing ${topic}")
+      } finally {
+        if (closing) consumer.close()
+      }
     }
 
   override def close(): Unit = {
-    consumer.close()
-    logging.info(this, s"closing '$topic' consumer")
+    //calling close immediately will fail because the consumer doesn't allow multithreaded access
+    closing = true
+    logging.info(this, s"closing '$topic' consumer after wakeup")
+    consumer.wakeup()
   }
 
   private def getProps: Properties = {

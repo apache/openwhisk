@@ -19,11 +19,22 @@ package whisk.core.mesos
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.PoisonPill
+import akka.cluster.Cluster
+import akka.cluster.singleton.ClusterSingletonManager
+import akka.cluster.singleton.ClusterSingletonManagerSettings
+import akka.cluster.singleton.ClusterSingletonProxy
+import akka.cluster.singleton.ClusterSingletonProxySettings
 import akka.pattern.ask
+import com.adobe.api.platform.runtime.mesos.Constraint
+import com.adobe.api.platform.runtime.mesos.DistributedDataTaskStore
+import com.adobe.api.platform.runtime.mesos.LIKE
 import com.adobe.api.platform.runtime.mesos.MesosClient
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
+import com.adobe.api.platform.runtime.mesos.TaskState
 import com.adobe.api.platform.runtime.mesos.Teardown
+import com.adobe.api.platform.runtime.mesos.UNLIKE
 import java.time.Instant
 import pureconfig.loadConfigOrThrow
 import scala.concurrent.Await
@@ -32,19 +43,23 @@ import scala.concurrent.Future
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Try
+import whisk.common.AkkaLogging
 import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.containerpool.Container
+import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.ContainerArgsConfig
 import whisk.core.containerpool.ContainerFactory
 import whisk.core.containerpool.ContainerFactoryProvider
+import whisk.core.containerpool.ContainerId
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
+import whisk.core.loadBalancer.StaticSeedNodesProvider
 
 /**
  * Configuration for MesosClient
@@ -53,12 +68,21 @@ import whisk.core.entity.UUID
  * @param role The role used by this framework (see http://mesos.apache.org/documentation/latest/roles/#associating-frameworks-with-roles).
  * @param failoverTimeout Timeout allowed for framework to reconnect after disconnection.
  * @param mesosLinkLogMessage If true, display a link to mesos in the static log message, otherwise do not include a link to mesos.
+ * @param constraints Cluster placement constraints for non-blackbox containers; supports Strings in the form "<agent attribute name><delimiter>LIKE|UNLIKE<delimiter><attribute value regex>"
+ * @param constraintDelimiter Delimiter for constraint strings.
+ * @param blackboxConstraints Cluster placement constraints for blackbox containers; supports Strings in the form "<agent attribute name><delimiter>LIKE|UNLIKE<delimiter><attribute value regex>"
+ * @param teardownOnExit On system exit should the framework be removed? (if so, failover will not be possible; so typically should be false in HA deployment)
+ *
  */
 case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String],
                        role: String,
                        failoverTimeout: FiniteDuration,
-                       mesosLinkLogMessage: Boolean)
+                       mesosLinkLogMessage: Boolean,
+                       constraints: Seq[String],
+                       constraintDelimiter: String,
+                       blackboxConstraints: Seq[String],
+                       teardownOnExit: Boolean) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -74,10 +98,16 @@ class MesosContainerFactory(config: WhiskConfig,
   val subscribeTimeout = 10.seconds
   val teardownTimeout = 30.seconds
 
+  /** Inits Mesos framework. */
   implicit val as: ActorSystem = actorSystem
   implicit val ec: ExecutionContext = actorSystem.dispatcher
 
-  /** Inits Mesos framework. */
+  implicit val cluster = Cluster(as)
+
+  val seedNodesProvider = new StaticSeedNodesProvider(config.seedNodes, as.name)
+  logging.info(this, s"joining cluster seed nodes ${seedNodesProvider.getSeedNodes()}")
+  cluster.joinSeedNodes(seedNodesProvider.getSeedNodes())
+
   val mesosClientActor = clientFactory(as, mesosConfig)
 
   subscribe()
@@ -107,8 +137,13 @@ class MesosContainerFactory(config: WhiskConfig,
     } else {
       actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
     }
+    val constraintStrings = if (userProvidedImage) {
+      mesosConfig.blackboxConstraints
+    } else {
+      mesosConfig.constraints
+    }
 
-    logging.info(this, s"using Mesos to create a container with image $image...")
+    logging.info(this, s"using Mesos to create a container with image ${image}...")
     MesosTask.create(
       mesosClientActor,
       mesosConfig,
@@ -125,36 +160,91 @@ class MesosContainerFactory(config: WhiskConfig,
       //strip any "--" prefixes on parameters (should make this consistent everywhere else)
       parameters
         .map({ case (k, v) => if (k.startsWith("--")) (k.replaceFirst("--", ""), v) else (k, v) })
-        ++ containerArgs.extraArgs)
+        ++ containerArgs.extraArgs,
+      parseConstraints(constraintStrings))
+  }
+
+  /**
+   * Validate that constraint strings are well formed, and ignore constraints with unknown operators
+   * @param constraintStrings
+   * @param logging
+   * @return
+   */
+  def parseConstraints(constraintStrings: Seq[String])(implicit logging: Logging): Seq[Constraint] =
+    constraintStrings.flatMap(cs => {
+      val parts = cs.split(mesosConfig.constraintDelimiter)
+      require(parts.length == 3, "constraint must be in the form <attribute><delimiter><operator><delimiter><value>")
+      Seq(LIKE, UNLIKE).find(_.toString == parts(1)) match {
+        case Some(o) => Some(Constraint(parts(0), o, parts(2)))
+        case _ =>
+          logging.warn(this, s"ignoring unsupported constraint operator ${parts(1)}")
+          None
+      }
+    })
+
+  override def attach(id: ContainerId,
+                      ip: ContainerAddress,
+                      tid: TransactionId,
+                      actionImage: ExecManifest.ImageName,
+                      userProvidedImage: Boolean,
+                      memory: ByteSize): Future[Container] = {
+    logging.info(this, s"attaching to existing mesos task ${id}")
+    Future.successful(new MesosTask(id, ip, ec, logging, id.asString, mesosClientActor, mesosConfig))
   }
 
   override def init(): Unit = Unit
 
-  /** Cleanups any remaining Containers; should block until complete; should ONLY be run at shutdown. */
+  /** cleanup any remaining Containers; should block until complete; should ONLY be run at shutdown */
   override def cleanup(): Unit = {
-    val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
-    Try(Await.result(complete, teardownTimeout))
-      .map(_ => logging.info(this, "Mesos framework teardown completed."))
-      .recover {
-        case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
-        case t: Throwable =>
-          logging.error(this, s"Mesos framework teardown failed : $t}")
-      }
+    if (mesosConfig.teardownOnExit) {
+      val complete: Future[Any] = mesosClientActor.ask(Teardown)(teardownTimeout)
+      Try(Await.result(complete, teardownTimeout))
+        .map(_ => logging.info(this, "Mesos framework teardown completed."))
+        .recover {
+          case _: TimeoutException => logging.error(this, "Mesos framework teardown took too long.")
+          case t: Throwable =>
+            logging.error(this, s"Mesos framework teardown failed : ${t}")
+        }
+    }
   }
 }
 object MesosContainerFactory {
-  private def createClient(actorSystem: ActorSystem, mesosConfig: MesosConfig): ActorRef =
+  private var frameworkId: Option[String] = None
+  private def createClient(actorSystem: ActorSystem, mesosConfig: MesosConfig): ActorRef = {
+//    val seedNodes = MarathonConfig.getSeedNodes(config)
+//    System.out.println(s"joining cluster with seed nodes ${seedNodes}")
+//
+//    cluster.joinSeedNodes(seedNodes.toList)
+    implicit val cluster = Cluster(actorSystem)
+    implicit val logging = new AkkaLogging(actorSystem.log)
+    //create task store
+    val tasks = new DistributedDataTaskStore(actorSystem)
+
     actorSystem.actorOf(
-      MesosClient
-        .props(
-          "whisk-containerfactory-" + UUID(),
+      ClusterSingletonManager.props(
+        MesosClient.props(
+          () => {
+            logging.info(this, "reseting startTime...")
+            MesosContainerFactory.startTime = Instant.now.getEpochSecond
+            frameworkId.getOrElse("whisk-containerfactory-" + UUID())
+          },
           "whisk-containerfactory-framework",
           mesosConfig.masterUrl,
           mesosConfig.role,
-          mesosConfig.failoverTimeout))
+          mesosConfig.failoverTimeout,
+          autoSubscribe = true,
+          taskStore = tasks),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(actorSystem)),
+      name = "mesosClientMaster")
+    actorSystem.actorOf(
+      ClusterSingletonProxy
+        .props(singletonManagerPath = "/user/mesosClientMaster", settings = ClusterSingletonProxySettings(actorSystem)),
+      name = "mesosClientProxy")
+  }
 
   val counter = new Counter()
-  val startTime = Instant.now.getEpochSecond
+  private var startTime = Instant.now.getEpochSecond
   private def taskIdGenerator(): String = {
     s"whisk-${counter.next()}-${startTime}"
   }

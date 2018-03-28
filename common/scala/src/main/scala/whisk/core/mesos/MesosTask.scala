@@ -24,6 +24,8 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import akka.util.Timeout
 import com.adobe.api.platform.runtime.mesos.Bridge
+import com.adobe.api.platform.runtime.mesos.CommandDef
+import com.adobe.api.platform.runtime.mesos.Constraint
 import com.adobe.api.platform.runtime.mesos.DeleteTask
 import com.adobe.api.platform.runtime.mesos.Host
 import com.adobe.api.platform.runtime.mesos.Running
@@ -70,22 +72,23 @@ object MesosTask {
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
              cpuShares: Int = 0,
-             environment: Map[String, String] = Map(),
+             environment: Map[String, String] = Map.empty,
              network: String = "bridge",
-             dnsServers: Seq[String] = Seq(),
+             dnsServers: Seq[String] = Seq.empty,
              name: Option[String] = None,
-             parameters: Map[String, Set[String]] = Map())(implicit ec: ExecutionContext,
-                                                           log: Logging,
-                                                           as: ActorSystem): Future[Container] = {
+             parameters: Map[String, Set[String]] = Map.empty,
+             constraints: Seq[Constraint] = Seq.empty)(implicit ec: ExecutionContext,
+                                                       log: Logging,
+                                                       as: ActorSystem): Future[Container] = {
     implicit val tid = transid
 
-    log.info(this, s"creating task for image $image...")
+    log.info(this, s"creating task for image ${image}...")
 
-    val mesosCpuShares = cpuShares / 1024.0 // convert openwhisk (docker based) shares to mesos (cpu percentage)
+    val mesosCpuShares = cpuShares / 1024.0 //convert openwhisk (docker based) shares to mesos (cpu percentage)
     val mesosRam = memory.toMB.toInt
 
     val taskId = taskIdGenerator()
-    val lowerNetwork = network.toLowerCase // match bridge+host without case, but retain case for user specified network
+    val lowerNetwork = network.toLowerCase //match bridge+host without case, but retain case for user specified network
     val taskNetwork = lowerNetwork match {
       case "bridge" => Bridge
       case "host"   => Host
@@ -95,16 +98,17 @@ object MesosTask {
 
     val task = new TaskDef(
       taskId,
-      name.getOrElse(image), // task name either the indicated name, or else the image name
+      name.getOrElse(image), //task name either the indicated name, or else the image name
       image,
       mesosCpuShares,
       mesosRam,
-      List(8080), // all action containers listen on 8080
-      Some(0), // port at index 0 used for health
+      List(8080), //all action containers listen on 8080
+      Some(0), //port at index 0 used for health
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,
-      environment)
+      Some(CommandDef(environment)),
+      constraints.toSet)
 
     val launched: Future[Running] =
       mesosClientActor.ask(SubmitTask(task))(taskLaunchTimeout).mapTo[Running]
@@ -125,25 +129,27 @@ object MesosTask {
 object JsonFormatters extends DefaultJsonProtocol {
   implicit val createContainerJson = jsonFormat3(CreateContainer)
 }
-
-class MesosTask(override protected val id: ContainerId,
-                override protected val addr: ContainerAddress,
+class MesosTask(override val id: ContainerId,
+                override val addr: ContainerAddress,
                 override protected val ec: ExecutionContext,
                 override protected val logging: Logging,
                 taskId: String,
                 mesosClientActor: ActorRef,
                 mesosConfig: MesosConfig)
-    extends Container {
+    extends Container
+    with Serializable {
+
+  implicit val e = ec
 
   /** Stops the container from consuming CPU cycles. */
   override def suspend()(implicit transid: TransactionId): Future[Unit] = {
-    // suspend not supported
+    //suspend not supported
     Future.successful(Unit)
   }
 
   /** Dual of halt. */
   override def resume()(implicit transid: TransactionId): Future[Unit] = {
-    // resume not supported
+    //resume not supported
     Future.successful(Unit)
   }
 
@@ -153,7 +159,7 @@ class MesosTask(override protected val id: ContainerId,
       .ask(DeleteTask(taskId))(MesosTask.taskDeleteTimeout)
       .mapTo[TaskStatus]
       .map(taskStatus => {
-        // verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
+        //verify that task ended in TASK_KILLED state (but don't fail if it didn't...)
         if (taskStatus.getState != TaskState.TASK_KILLED) {
           logging.error(this, s"task kill resulted in unexpected state ${taskStatus.getState}")
         } else {

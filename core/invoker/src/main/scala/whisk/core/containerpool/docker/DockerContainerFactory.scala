@@ -34,7 +34,9 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
 import pureconfig._
 import whisk.core.ConfigKeys
+import whisk.core.containerpool.ContainerAddress
 import whisk.core.containerpool.ContainerArgsConfig
+import whisk.core.containerpool.ContainerId
 
 class DockerContainerFactory(config: WhiskConfig,
                              instance: InstanceId,
@@ -78,6 +80,13 @@ class DockerContainerFactory(config: WhiskConfig,
 
   /** Perform cleanup on init */
   override def init(): Unit = removeAllActionContainers()
+  override def attach(id: ContainerId,
+                      ip: ContainerAddress,
+                      tid: TransactionId,
+                      actionImage: ExecManifest.ImageName,
+                      userProvidedImage: Boolean,
+                      memory: ByteSize): Future[Container] =
+    Future.failed(new Exception("DockerContainerFactory cannot attach to existing containers"))
 
   /** Perform cleanup on exit - to be registered as shutdown hook */
   override def cleanup(): Unit = {

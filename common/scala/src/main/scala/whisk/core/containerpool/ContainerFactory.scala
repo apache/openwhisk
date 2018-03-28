@@ -46,6 +46,13 @@ trait ContainerFactory {
   /** perform any initialization */
   def init(): Unit
 
+  def attach(id: ContainerId,
+             ip: ContainerAddress,
+             tid: TransactionId,
+             actionImage: ExecManifest.ImageName,
+             userProvidedImage: Boolean,
+             memory: ByteSize): Future[Container]
+
   /** cleanup any remaining Containers; should block until complete; should ONLY be run at startup/shutdown */
   def cleanup(): Unit
 }

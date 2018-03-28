@@ -60,7 +60,8 @@ object Invoker {
       dockerImageTag -> "latest",
       invokerNumCore -> "4",
       invokerCoreShare -> "2",
-      invokerUseRunc -> "true") ++
+      invokerUseRunc -> "true",
+      seedNodes -> "") ++
       Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {

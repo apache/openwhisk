@@ -37,6 +37,9 @@ import whisk.core.entity.size._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
+import whisk.common.TransactionId
+import whisk.core.entity.ByteSize
+import whisk.core.entity.ExecManifest.ImageName
 
 // States
 sealed trait ContainerState
@@ -61,6 +64,11 @@ case class WarmedData(container: Container,
 
 // Events received by the actor
 case class Start(exec: CodeExec[_], memoryLimit: ByteSize)
+case class Attach(id: ContainerId, address: ContainerAddress, exec: CodeExec[_], memoryLimit: ByteSize)
+case class AttachFree(id: ContainerId,
+                      address: ContainerAddress,
+                      invocationNamespace: EntityName,
+                      action: ExecutableWhiskAction)
 case class Run(action: ExecutableWhiskAction, msg: ActivationMessage, retryLogDeadline: Option[Deadline] = None)
 case object Remove
 
@@ -92,6 +100,7 @@ case object RescheduleJob // job is sent back to parent and could not be process
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+  attachFactory: (ContainerId, ContainerAddress, TransactionId, ImageName, Boolean, ByteSize) => Future[Container],
   sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
@@ -119,7 +128,33 @@ class ContainerProxy(
         .pipeTo(self)
 
       goto(Starting)
+    case Event(job: Attach, _) =>
+      logging.info(this, "adding existing container to pool...")
+      attachFactory(job.id, job.address, TransactionId.invokerWarmup, job.exec.image, job.exec.pull, job.memoryLimit)
+        .map(container => {
+          logging.info(this, s"got container ${container} from attachFactory...")
+          PreWarmedData(container, job.exec.kind, job.memoryLimit)
+        })
+        .pipeTo(self)
 
+      goto(Starting)
+    case Event(job: AttachFree, _) =>
+      logging.info(this, "adding existing container to pool...")
+      attachFactory(
+        job.id,
+        job.address,
+        TransactionId.invokerWarmup,
+        job.action.exec.image,
+        job.action.exec.pull,
+        job.action.limits.memory.megabytes.MB)
+        .map(container => {
+          logging.info(this, s"got container ${container} from attachFactory...")
+//                WarmedData(container, job.exec.kind, job.memoryLimit)
+          WarmedData(container, job.invocationNamespace, job.action, Instant.now)
+        })
+        .pipeTo(self)
+
+      goto(Running)
     // cold start (no container to reuse or available stem cell container)
     case Event(job: Run, _) =>
       implicit val transid = job.msg.transid
@@ -171,8 +206,14 @@ class ContainerProxy(
   when(Starting) {
     // container was successfully obtained
     case Event(data: PreWarmedData, _) =>
+      logging.info(this, s"sending NeedWork to parent ${context.parent} for ${data}")
       context.parent ! NeedWork(data)
       goto(Started) using data
+//    // container was successfully obtained
+//    case Event(data: WarmedData, _) =>
+//      logging.info(this, s"sending NeedWork to parent ${context.parent} for ${data}")
+//      context.parent ! NeedWork(data)
+//      goto(Started) using data
 
     // container creation failed
     case Event(_: FailureMessage, _) =>
@@ -407,6 +448,12 @@ class ContainerProxy(
 }
 
 object ContainerProxy {
+  def emptyAttach(id: ContainerId,
+                  addr: ContainerAddress,
+                  tid: TransactionId,
+                  image: ImageName,
+                  collectLogs: Boolean,
+                  memorySize: ByteSize): Future[Container] = Future.failed(new Exception("attach is not supported"))
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
@@ -414,8 +461,10 @@ object ContainerProxy {
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
     unusedTimeout: FiniteDuration = 10.minutes,
-    pauseGrace: FiniteDuration = 50.milliseconds) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
+    pauseGrace: FiniteDuration = 50.milliseconds,
+    attachFactory: (ContainerId, ContainerAddress, TransactionId, ImageName, Boolean, ByteSize) => Future[Container] =
+      emptyAttach) =
+    Props(new ContainerProxy(factory, attachFactory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
@@ -440,7 +489,8 @@ object ContainerProxy {
    * Creates a WhiskActivation ready to be sent via active ack.
    *
    * @param job the job that was executed
-   * @param interval the time it took to execute the job
+   * @param initInterval the time it took to init the job
+   * @param totalInterval the time it took to execute the job
    * @param response the response to return to the user
    * @return a WhiskActivation to be sent to the user
    */
