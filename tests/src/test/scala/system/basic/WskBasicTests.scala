@@ -26,7 +26,6 @@ import akka.http.scaladsl.model.StatusCodes.NotFound
 import java.time.Instant
 
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -482,11 +481,16 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
 
   it should "create, and invoke an action that times out to ensure the proper response is received" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
-    val name = "sleepAction"
-    val params = Map("payload" -> "100000".toJson)
-    val allowedActionDuration = 120 seconds
+    val name = "sleepAction-" + System.currentTimeMillis()
+    // Must be larger than 60 seconds to see the expected exit code
+    val allowedActionDuration = 120.seconds
+    // Sleep time must be larger than 60 seconds to see the expected exit code
+    // Set sleep time to a value smaller than allowedActionDuration to not raise a timeout
+    val sleepTime = allowedActionDuration - 20.seconds
+    sleepTime should be >= 60.seconds
+    val params = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson)
     val res = assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("timeout.js")), timeout = Some(allowedActionDuration))
+      action.create(name, Some(TestUtils.getTestActionFilename("sleep.js")), timeout = Some(allowedActionDuration))
       action.invoke(name, parameters = params, result = true, expectedExitCode = Accepted.intValue)
     }
   }
