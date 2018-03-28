@@ -21,7 +21,7 @@ import akka.actor.Address
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
-import whisk.core.loadBalancer.StaticSeedNodesProvider
+import whisk.core.StaticSeedNodesProvider
 
 @RunWith(classOf[JUnitRunner])
 class SeedNodesProviderTests extends FlatSpec with Matchers {

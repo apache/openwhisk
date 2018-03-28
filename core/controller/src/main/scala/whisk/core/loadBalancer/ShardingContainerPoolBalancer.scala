@@ -20,7 +20,6 @@ package whisk.core.loadBalancer
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.LongAdder
-
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
@@ -35,12 +34,12 @@ import whisk.core.connector._
 import whisk.core.entity._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
-
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
+import whisk.core.StaticSeedNodesProvider
 
 /**
  * A loadbalancer that uses "horizontal" sharding to not collide with fellow loadbalancers.

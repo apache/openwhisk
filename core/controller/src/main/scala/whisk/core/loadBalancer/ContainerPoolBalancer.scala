@@ -19,7 +19,6 @@ package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
-
 import akka.actor.{ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.pattern.ask
@@ -35,11 +34,11 @@ import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.spi.SpiLoader
 import akka.event.Logging.InfoLevel
 import pureconfig._
-
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
+import whisk.core.StaticSeedNodesProvider
 
 case class LoadbalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
 

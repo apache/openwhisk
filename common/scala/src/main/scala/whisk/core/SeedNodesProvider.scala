@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package whisk.core.loadBalancer
+package whisk.core
 
 import akka.actor.Address
-
 import scala.collection.immutable.Seq
 
 trait SeedNodesProvider {

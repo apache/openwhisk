@@ -47,6 +47,7 @@ import whisk.common.Counter
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
+import whisk.core.StaticSeedNodesProvider
 import whisk.core.WhiskConfig
 import whisk.core.containerpool.Container
 import whisk.core.containerpool.ContainerAddress
@@ -58,7 +59,6 @@ import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
 import whisk.core.entity.UUID
-import whisk.core.loadBalancer.StaticSeedNodesProvider
 
 /**
  * Configuration for MesosClient
@@ -214,10 +214,6 @@ class MesosContainerFactory(config: WhiskConfig,
 object MesosContainerFactory {
   private var frameworkId: Option[String] = None
   private def createClient(actorSystem: ActorSystem, mesosConfig: MesosConfig): ActorRef = {
-//    val seedNodes = MarathonConfig.getSeedNodes(config)
-//    System.out.println(s"joining cluster with seed nodes ${seedNodes}")
-//
-//    cluster.joinSeedNodes(seedNodes.toList)
     implicit val cluster = Cluster(actorSystem)
     implicit val logging = new AkkaLogging(actorSystem.log)
     //create task store
