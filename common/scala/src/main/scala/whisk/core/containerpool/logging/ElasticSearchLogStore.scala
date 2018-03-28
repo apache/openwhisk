@@ -34,16 +34,17 @@ import spray.json._
 
 import pureconfig._
 
+case class ElasticSearchLogFieldConfig(userLogs: String,
+                                       message: String,
+                                       activationId: String,
+                                       stream: String,
+                                       time: String)
+
 case class ElasticSearchLogStoreConfig(protocol: String,
                                        host: String,
                                        port: Int,
                                        path: String,
-                                       userLogsField: String,
-                                       messageField: String,
-                                       activationIdField: String,
-                                       streamField: String,
-                                       timeField: String,
-                                       actionField: String,
+                                       logSchema: ElasticSearchLogFieldConfig,
                                        requiredHeaders: Seq[String] = Seq.empty)
 
 /**
@@ -60,7 +61,7 @@ class ElasticSearchLogStore(
     extends DockerToActivationFileLogStore(system, destinationDirectory) {
 
   // Schema of resultant logs from ES
-  case class UserLogEntry(message: String, stream: String, time: String, action: String) {
+  case class UserLogEntry(message: String, stream: String, time: String) {
     def toFormattedString = s"${time} ${stream}: ${message.stripLineEnd}"
   }
 
@@ -68,10 +69,9 @@ class ElasticSearchLogStore(
     implicit val serdes =
       jsonFormat(
         UserLogEntry.apply,
-        elasticSearchConfig.messageField,
-        elasticSearchConfig.streamField,
-        elasticSearchConfig.timeField,
-        elasticSearchConfig.actionField)
+        elasticSearchConfig.logSchema.message,
+        elasticSearchConfig.logSchema.stream,
+        elasticSearchConfig.logSchema.time)
   }
 
   implicit val actorSystem = system
@@ -86,23 +86,18 @@ class ElasticSearchLogStore(
     ActivationLogs(queryResult.hits.hits.map(_.source.convertTo[UserLogEntry].toFormattedString))
 
   private def extractRequiredHeaders(headers: Seq[HttpHeader]) =
-    headers.filter {
-      case header: HttpHeader if elasticSearchConfig.requiredHeaders.contains(header.lowercaseName) => true
-      case _                                                                                        => false
-    }.toList
+    headers.filter(h => elasticSearchConfig.requiredHeaders.contains(h.lowercaseName)).toList
 
   private def generatePayload(activation: WhiskActivation) = {
     val logQuery =
-      s"_type: ${elasticSearchConfig.userLogsField} AND ${elasticSearchConfig.activationIdField}: ${activation.activationId}"
+      s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
     val queryString = EsQueryString(logQuery)
-    val queryOrder = EsQueryOrder(elasticSearchConfig.timeField, EsOrderAsc)
+    val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrderAsc)
 
     EsQuery(queryString, Some(queryOrder))
   }
 
-  private def generatePath(user: Identity) = {
-    Uri(elasticSearchConfig.path.format(user.uuid.asString))
-  }
+  private def generatePath(user: Identity) = Uri(elasticSearchConfig.path.format(user.uuid.asString))
 
   override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] = {
     val headers = extractRequiredHeaders(request.headers)
@@ -110,13 +105,10 @@ class ElasticSearchLogStore(
     // Return logs from ElasticSearch, or return logs from activation if required headers are not present
     if (headers.length == elasticSearchConfig.requiredHeaders.length) {
       esClient.query[EsSearchResult](generatePath(user), headers, Some(generatePayload(activation))).flatMap {
-        response =>
-          response match {
-            case Right(queryResult) =>
-              Future.successful(transcribeLogs(queryResult))
-            case Left(code) =>
-              Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
-          }
+        case Right(queryResult) =>
+          Future.successful(transcribeLogs(queryResult))
+        case Left(code) =>
+          Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
       }
     } else {
       Future.successful(activation.logs)

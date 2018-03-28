@@ -23,13 +23,11 @@ import org.junit.runner.RunWith
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.BeforeAndAfterEach
 
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
@@ -40,7 +38,7 @@ import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 @RunWith(classOf[JUnitRunner])
 class ElasticSearchRestClientTests
@@ -48,8 +46,7 @@ class ElasticSearchRestClientTests
     with FlatSpecLike
     with Matchers
     with ScalaFutures
-    with StreamLogging
-    with BeforeAndAfterEach {
+    with StreamLogging {
 
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -58,32 +55,21 @@ class ElasticSearchRestClientTests
     """{"stream":"stdout","activationId":"197d60b33137424ebd60b33137d24ea3","action":"guest/someAction","@version":"1","@timestamp":"2018-03-27T15:48:09.112Z","type":"user_logs","tenant":"19bc46b1-71f6-4ed5-8c54-816aa4f8c502","message":"namespace     : user@email.com\n","time_date":"2018-03-27T15:48:08.716152793Z"}"""
   private val defaultResponse =
     s"""{"took":2,"timed_out":false,"_shards":{"total":5,"successful":5,"failed":0},"hits":{"total":1375,"max_score":1.0,"hits":[{"_index":"whisk_user_logs","_type":"user_logs","_id":"AWJoJSwAMGbzgxiD1jr9","_score":1.0,"_source":$defaultResponseSource}]}}"""
-  private val defaultHttpResponse =
-    HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, defaultResponse))
+  private val defaultHttpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, defaultResponse))
+  private val defaultHttpRequest = HttpRequest(headers = List(Accept(MediaTypes.`application/json`)))
 
-  private var expectedHttpResponse = defaultHttpResponse
-
-  private val testFlow
+  private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
     : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
     Flow[(HttpRequest, Promise[HttpResponse])]
       .mapAsyncUnordered(1) {
         case (request, userContext) =>
-          Unmarshal(request.entity)
-            .to[String]
-            .map { payload =>
-              (Success(expectedHttpResponse), userContext)
-            }
-            .recover {
-              case e =>
-                (Failure(e), userContext)
-            }
+          request shouldBe httpRequest
+          Future.successful((Success(httpResponse), userContext))
       }
 
-  override def beforeEach = {
-    expectedHttpResponse = defaultHttpResponse
-  }
-
   private def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
+
+  behavior of "ElasticSearch Rest Client"
 
   it should "construct a query with must" in {
     val queryTerms = Vector(EsQueryBoolMatch("someKey1", "someValue1"), EsQueryBoolMatch("someKey2", "someValue2"))
@@ -183,14 +169,15 @@ class ElasticSearchRestClientTests
   }
 
   it should "error when search response does not match expected type" in {
-    val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow))
+    val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpRequest = defaultHttpRequest)))
 
-    a[RuntimeException] should be thrownBy await(esClient.query[String](Uri./, List.empty))
+    a[RuntimeException] should be thrownBy await(esClient.query[JsObject](Uri./))
   }
 
   it should "parse query response into EsSearchResult" in {
-    val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow))
-    val response = await(esClient.query[EsSearchResult](Uri./, List.empty))
+    val esClient =
+      new ElasticSearchRestClient("https", "host", 443, Some(testFlow(defaultHttpResponse, defaultHttpRequest)))
+    val response = await(esClient.query[EsSearchResult](Uri./))
 
     response shouldBe 'right
     response.right.get.hits.hits should have size 1
@@ -198,9 +185,11 @@ class ElasticSearchRestClientTests
   }
 
   it should "return status code when HTTP error occurs" in {
-    val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow))
-    expectedHttpResponse = HttpResponse(StatusCodes.InternalServerError)
+    val httpResponse = HttpResponse(StatusCodes.InternalServerError)
+    val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpResponse, defaultHttpRequest)))
+    val response = await(esClient.query[JsObject](Uri./))
 
-    await(esClient.query[JsObject](Uri./, List.empty)) shouldBe Left(StatusCodes.InternalServerError)
+    response shouldBe 'left
+    response.left.get shouldBe StatusCodes.InternalServerError
   }
 }

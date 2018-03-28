@@ -18,12 +18,7 @@
 package whisk.core.containerpool.logging
 
 import scala.concurrent.Future
-import scala.util.Either
-import scala.util.Failure
-import scala.util.Left
-import scala.util.Right
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Either, Try}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
@@ -43,6 +38,7 @@ trait EsRange
 trait EsAgg
 trait EsMatch
 
+// Schema of ES query operators
 case object EsOrderAsc extends EsOrder { override def toString = "asc" }
 case object EsOrderDesc extends EsOrder { override def toString = "desc" }
 case object EsRangeGte extends EsRange { override def toString = "gte" }
@@ -80,13 +76,8 @@ object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
   implicit object EsQueryMatchJsonFormat extends RootJsonFormat[EsQueryMatch] {
     def read(query: JsValue) = ???
     def write(query: EsQueryMatch) = {
-      query.matchType match {
-        case Some(matchType) =>
-          JsObject(
-            "match" -> JsObject(
-              query.field -> JsObject("query" -> query.value.toJson, "type" -> matchType.toString.toJson)))
-        case None => JsObject("match" -> JsObject(query.field -> JsObject("query" -> query.value.toJson)))
-      }
+      val matchQuery = Map("query" -> query.value.toJson) ++ query.matchType.map(m => "type" -> m.toString.toJson)
+      JsObject("match" -> JsObject(query.field -> matchQuery.toJson))
     }
   }
 
@@ -114,11 +105,9 @@ object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
 
   implicit object EsQueryMustJsonFormat extends RootJsonFormat[EsQueryMust] {
     def read(query: JsValue) = ???
-    def write(query: EsQueryMust) = query.range match {
-      case Some(range) =>
-        JsObject("bool" -> JsObject("must" -> query.matches.toJson, "filter" -> range.toJson))
-      case None =>
-        JsObject("bool" -> JsObject("must" -> query.matches.toJson))
+    def write(query: EsQueryMust) = {
+      val boolQuery = Map("must" -> query.matches.toJson) ++ query.range.map(r => "filter" -> r.toJson)
+      JsObject("bool" -> boolQuery.toJson)
     }
   }
 
@@ -182,30 +171,15 @@ class ElasticSearchRestClient(
    * @param payload Optional JSON to be sent in the request
    * @return Future with either the response with type T or the status code of the request, if the request is unsuccessful
    */
-  def query[T: JsonFormat](uri: Uri,
-                           headers: List[HttpHeader] = List.empty,
-                           payload: Option[EsQuery] = None): Future[Either[StatusCode, T]] = {
-    val queryRes = payload match {
+  def query[T: RootJsonReader](uri: Uri,
+                               headers: List[HttpHeader] = List.empty,
+                               payload: Option[EsQuery] = None): Future[Either[StatusCode, T]] = {
+    payload match {
       case Some(payload) =>
-        requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri, payload.toJson.asJsObject, baseHeaders ++ headers))
+        requestJson[T](mkJsonRequest(HttpMethods.POST, uri, payload.toJson.asJsObject, baseHeaders ++ headers))
 
       case None =>
-        requestJson[JsObject](mkRequest(HttpMethods.GET, uri, baseHeaders ++ headers))
-    }
-
-    queryRes map { res =>
-      res match {
-        case Right(response) => {
-          Try(response.convertTo[T]) match {
-            case Success(h) => new Right(h)
-
-            case Failure(e) =>
-              throw new RuntimeException("ElasticSearch response did not match expected type")
-          }
-        }
-
-        case Left(code) => new Left(code)
-      }
+        requestJson[T](mkRequest(HttpMethods.GET, uri, baseHeaders ++ headers))
     }
   }
 }
