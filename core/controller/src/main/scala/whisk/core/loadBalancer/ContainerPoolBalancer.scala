@@ -64,7 +64,7 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
     } else {
 
       /** Specify how cluster is joined */
-      SpiLoader.get[ClusterProvider].joinCluster(config, actorSystem)
+      ClusterProvider.joinCluster(config, actorSystem)
       new DistributedLoadBalancerData()
     }
   }

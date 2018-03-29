@@ -57,7 +57,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** Build a cluster of all loadbalancers */
-  SpiLoader.get[ClusterProvider].joinCluster(config, actorSystem)
+  ClusterProvider.joinCluster(config, actorSystem)
   val cluster = Cluster(actorSystem)
 
   /** Used to manage an action for testing invoker health */
