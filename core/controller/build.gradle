@@ -15,6 +15,8 @@ repositories {
 
 dependencies {
     compile 'com.typesafe.akka:akka-distributed-data_2.11:2.5.4'
+    compile "com.lightbend.akka.management:akka-management-cluster-bootstrap_2.11:0.10.0"
+    compile "com.lightbend.akka.discovery:akka-discovery-marathon-api_2.11:0.10.0"
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
     compile project(':common:scala')
 }

@@ -19,16 +19,22 @@ package whisk.core.loadBalancer
 
 import akka.actor.ActorSystem
 import akka.actor.Address
+import akka.cluster.Cluster
+import akka.management.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import scala.collection.immutable.Seq
 import whisk.core.WhiskConfig
 import whisk.spi.Spi
 
-trait SeedNodesProvider extends Spi {
-  def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address]
+trait ClusterProvider extends Spi {
+  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit
 }
 
-object StaticSeedNodesProvider extends SeedNodesProvider {
-  def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address] =
+object StaticSeedNodesClusterProvider extends ClusterProvider {
+  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit =
+    Cluster(actorSystem).joinSeedNodes(seedNodes(config, actorSystem))
+
+  protected[loadBalancer] def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address] =
     config.controllerSeedNodes
       .split(' ')
       .flatMap { rawNodes =>
@@ -39,4 +45,13 @@ object StaticSeedNodesProvider extends SeedNodesProvider {
         }
       }
       .toIndexedSeq
+}
+
+object AkkaClusterBootstrapProvider extends ClusterProvider {
+  override def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit = {
+    //use akka management + cluster bootstrap to init the cluster
+    AkkaManagement(actorSystem).start()
+    ClusterBootstrap(actorSystem).start()
+  }
+
 }
