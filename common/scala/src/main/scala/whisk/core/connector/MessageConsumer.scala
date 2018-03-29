@@ -170,7 +170,7 @@ class MessageFeed(description: String,
   startWith(Idle, MessageFeed.NoData)
   initialize()
 
-  private implicit val ec = context.system.dispatcher
+  private implicit val ec = context.system.dispatchers.lookup("dispatchers.kafka-dispatcher")
 
   private def fillPipeline(): Unit = {
     if (outstandingMessages.size <= pipelineFillThreshold) {
