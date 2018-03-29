@@ -25,11 +25,15 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
+import pureconfig.loadConfigOrThrow
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.REJECT
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
+import whisk.connector.kafka.KafkaMessagingProvider
+import whisk.core.WhiskConfig.EventSourcing
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.connector.{EventMessage, Metric}
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
 import whisk.core.loadBalancer.{LoadBalancer, ShardingContainerPoolBalancer}
@@ -74,11 +78,14 @@ protected[core] object EntitlementProvider {
  * A trait that implements entitlements to resources. It performs checks for CRUD and Acivation requests.
  * This is where enforcement of activation quotas takes place, in additional to basic authorization.
  */
-protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBalancer: LoadBalancer)(
-  implicit actorSystem: ActorSystem,
-  logging: Logging) {
+protected[core] abstract class EntitlementProvider(
+  config: WhiskConfig,
+  loadBalancer: LoadBalancer,
+  controllerInstance: String)(implicit actorSystem: ActorSystem, logging: Logging) {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+
+  private val eventSourcing = loadConfigOrThrow[EventSourcing](ConfigKeys.eventSourcing).enabled
 
   /**
    * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
@@ -141,6 +148,8 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
       loadBalancer,
       activationThrottleCalculator(config.actionInvokeConcurrentLimit.toInt, _.limits.concurrentInvocations),
       config.actionInvokeSystemOverloadLimit.toInt)
+
+  private val eventProducer = KafkaMessagingProvider.getProducer(this.config)
 
   /**
    * Grants a subject the right to access a resources.
@@ -358,10 +367,30 @@ protected[core] abstract class EntitlementProvider(config: WhiskConfig, loadBala
   private def checkThrottleOverload(throttle: Future[RateLimit], user: Identity)(
     implicit transid: TransactionId): Future[Unit] = {
     throttle.flatMap { limit =>
+      val userId = user.authkey.uuid
       if (limit.ok) {
+
+        if (eventSourcing) {
+          limit match {
+            case c: ConcurrentRateLimit => {
+              val metric =
+                Metric("concurrent_activations", c.count + 1)
+              eventProducer.send(
+                "events",
+                EventMessage(s"controller$controllerInstance", metric, user.subject, user.namespace.toString, userId, metric.getClass.getSimpleName))
+            }
+            case _ => // ignore
+          }
+        }
         Future.successful(())
       } else {
         logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
+        if (eventSourcing) {
+          val metric = Metric(limit.limitName, 1)
+          eventProducer.send(
+            "events",
+            EventMessage(s"controller$controllerInstance", metric, user.subject, user.namespace.toString, userId,  metric.getClass.getSimpleName))
+        }
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

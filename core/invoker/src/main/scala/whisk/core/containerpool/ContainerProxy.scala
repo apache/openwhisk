@@ -31,7 +31,7 @@ import akka.pattern.pipe
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
-import whisk.core.connector.ActivationMessage
+import whisk.core.connector.{ActivationMessage}
 import whisk.core.containerpool.logging.LogCollectingException
 import whisk.core.entity._
 import whisk.core.entity.size._
@@ -39,7 +39,8 @@ import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
 import pureconfig.loadConfigOrThrow
-import whisk.core.ConfigKeys
+import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.connector.kafka.KafkaMessagingProvider
 
 // States
 sealed trait ContainerState
@@ -95,18 +96,22 @@ case object RescheduleJob // job is sent back to parent and could not be process
  */
 class ContainerProxy(
   factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-  sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+  sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId, UUID) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InstanceId,
   poolConfig: ContainerPoolConfig,
+  config: WhiskConfig,
   unusedTimeout: FiniteDuration,
   pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
+  implicit val system = context.system
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
+
+  private val eventProducer = KafkaMessagingProvider.getProducer(config)
 
   startWith(Uninitialized, NoData())
 
@@ -161,7 +166,7 @@ class ContainerProxy(
             // implicitly via a FailureMessage which will be processed later when the state
             // transitions to Running
             val activation = ContainerProxy.constructWhiskActivation(job, None, Interval.zero, response)
-            sendActiveAck(transid, activation, job.msg.blocking, job.msg.rootControllerIndex)
+            sendActiveAck(transid, activation, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.authkey.uuid)
             storeActivation(transid, activation)
         }
         .flatMap { container =>
@@ -380,7 +385,7 @@ class ContainerProxy(
       }
 
     // Sending active ack. Entirely asynchronous and not waited upon.
-    activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
+    activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.authkey.uuid))
 
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
@@ -422,14 +427,15 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 object ContainerProxy {
   def props(
     factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
-    ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
+    ack: (TransactionId, WhiskActivation, Boolean, InstanceId, UUID) => Future[Any],
     store: (TransactionId, WhiskActivation) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
     poolConfig: ContainerPoolConfig,
+    config: WhiskConfig,
     unusedTimeout: FiniteDuration = timeouts.idleContainer,
     pauseGrace: FiniteDuration = timeouts.pauseGrace) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, config, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
