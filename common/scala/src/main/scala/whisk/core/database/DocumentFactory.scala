@@ -95,9 +95,10 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
    * @param doc the entity to store
    * @param transid the transaction id for logging
    * @param notifier an optional callback when cache changes
+   * @param old an optional old document in case of update
    * @return Future[DocInfo] with completion to DocInfo containing the save document id and revision
    */
-  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W)(
+  def put[Wsuper >: W](db: ArtifactStore[Wsuper], doc: W, old: Option[W])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
     Try {

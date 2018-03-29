@@ -177,10 +177,10 @@ object InvokerPool {
     WhiskAction
       .get(db, action.docid)
       .flatMap { oldAction =>
-        WhiskAction.put(db, action.revision(oldAction.rev))(tid, notifier = None)
+        WhiskAction.put(db, action.revision(oldAction.rev), Some(oldAction))(tid, notifier = None)
       }
       .recover {
-        case _: NoDocumentException => WhiskAction.put(db, action)(tid, notifier = None)
+        case _: NoDocumentException => WhiskAction.put(db, action, old = None)(tid, notifier = None)
       }
       .map(_ => {})
       .andThen {

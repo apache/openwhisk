@@ -317,7 +317,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
   val requireWhiskAuthHeader = "x-require-whisk-auth"
 
   // overriden to store attached code
-  override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
+  override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction, old: Option[WhiskAction])(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
@@ -336,7 +336,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
           val manifest = exec.manifest.attached.get
 
-          for (i1 <- super.put(db, newDoc);
+          for (i1 <- super.put(db, newDoc, old);
                i2 <- attach[A](
                  db,
                  newDoc.revision(i1.rev),
@@ -348,7 +348,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
                  })) yield i2
 
         case _ =>
-          super.put(db, doc)
+          super.put(db, doc, old)
       }
     } match {
       case Success(f) => f
