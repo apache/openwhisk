@@ -22,36 +22,37 @@ import akka.actor.Address
 import akka.cluster.Cluster
 import akka.management.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
+import pureconfig._
 import scala.collection.immutable.Seq
+import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
-import whisk.spi.Spi
 
-trait ClusterProvider extends Spi {
-  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit
+case class ClusterProviderConfig(useClusterBootstrap: Boolean)
+
+object ClusterProvider {
+  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem) = {
+    val clusterConfig: ClusterProviderConfig = loadConfigOrThrow[ClusterProviderConfig](ConfigKeys.cluster)
+    if (clusterConfig.useClusterBootstrap) {
+      AkkaManagement(actorSystem).start()
+      ClusterBootstrap(actorSystem).start()
+    } else {
+      Cluster(actorSystem).joinSeedNodes(
+        new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name).getSeedNodes())
+    }
+  }
 }
 
-object StaticSeedNodesClusterProvider extends ClusterProvider {
-  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit =
-    Cluster(actorSystem).joinSeedNodes(seedNodes(config, actorSystem))
-
-  protected[loadBalancer] def seedNodes(config: WhiskConfig, actorSystem: ActorSystem): Seq[Address] =
-    config.controllerSeedNodes
+class StaticSeedNodesProvider(seedNodes: String, actorSystemName: String) {
+  def getSeedNodes(): Seq[Address] = {
+    seedNodes
       .split(' ')
       .flatMap { rawNodes =>
         val ipWithPort = rawNodes.split(":")
         ipWithPort match {
-          case Array(host, port) => Seq(Address("akka.tcp", actorSystem.name, host, port.toInt))
+          case Array(host, port) => Seq(Address("akka.tcp", actorSystemName, host, port.toInt))
           case _                 => Seq.empty[Address]
         }
       }
       .toIndexedSeq
-}
-
-object AkkaClusterBootstrapProvider extends ClusterProvider {
-  override def joinCluster(config: WhiskConfig, actorSystem: ActorSystem): Unit = {
-    //use akka management + cluster bootstrap to init the cluster
-    AkkaManagement(actorSystem).start()
-    ClusterBootstrap(actorSystem).start()
   }
-
 }

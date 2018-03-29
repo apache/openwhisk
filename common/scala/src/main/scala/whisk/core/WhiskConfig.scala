@@ -215,6 +215,7 @@ object WhiskConfig {
 object ConfigKeys {
   val loadbalancer = "whisk.loadbalancer"
 
+  val cluster = "whisk.cluster"
   val couchdb = "whisk.couchdb"
   val kafka = "whisk.kafka"
   val kafkaCommon = s"$kafka.common"
