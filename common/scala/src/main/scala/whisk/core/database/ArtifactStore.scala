@@ -26,6 +26,7 @@ import akka.util.ByteString
 import spray.json.JsObject
 import whisk.common.Logging
 import whisk.common.TransactionId
+import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.DocInfo
 
 abstract class StaleParameter(val value: Option[String])
@@ -78,7 +79,7 @@ trait ArtifactStore[DocumentAbstraction] {
 
   /**
    * Gets all documents from database view that match a start key, up to an end key, using a future.
-   * If the operation is successful, the promise completes with List[View]] with zero or more documents.
+   * If the operation is successful, the promise completes with List[View] with zero or more documents.
    *
    * @param table the name of the table to query
    * @param startKey to starting key to query the view for
@@ -120,8 +121,12 @@ trait ArtifactStore[DocumentAbstraction] {
   /**
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
    */
-  protected[core] def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
-    implicit transid: TransactionId): Future[DocInfo]
+  protected[database] def putAndAttach[A <: DocumentAbstraction](
+    d: A,
+    update: (A, Attached) => A,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)]
 
   /**
    * Retrieves a saved attachment, streaming it into the provided Sink.

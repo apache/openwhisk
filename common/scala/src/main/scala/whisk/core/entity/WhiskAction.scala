@@ -330,22 +330,24 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           implicit val logger = db.logging
           implicit val ec = db.executionContext
 
-          val newDoc = doc.copy(exec = exec.attach)
-          newDoc.revision(doc.rev)
-
           val stream = new ByteArrayInputStream(Base64.getDecoder().decode(code))
           val manifest = exec.manifest.attached.get
+          val oldAttachment = old
+            .flatMap(_.exec match {
+              case CodeExecAsAttachment(_, a: Attached, _) => Some(a)
+              case _                                       => None
+            })
 
-          for (i1 <- super.put(db, newDoc, old);
-               i2 <- attach[A](
-                 db,
-                 newDoc.revision(i1.rev),
-                 manifest.attachmentName,
-                 manifest.attachmentType,
-                 stream,
-                 Some { a: WhiskAction =>
-                   a.copy(exec = exec.inline(code.getBytes("UTF-8")))
-                 })) yield i2
+          super.putAndAttach(
+            db,
+            doc,
+            (d, a) => d.copy(exec = exec.attach(a)).revision[WhiskAction](d.rev),
+            manifest.attachmentType,
+            stream,
+            oldAttachment,
+            Some { a: WhiskAction =>
+              a.copy(exec = exec.inline(code.getBytes("UTF-8")))
+            })
 
         case _ =>
           super.put(db, doc, old)

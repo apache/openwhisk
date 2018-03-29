@@ -29,6 +29,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.StreamConverters
 import spray.json.JsObject
 import whisk.common.TransactionId
+import whisk.core.entity.Attachments.Attached
 import whisk.core.entity.CacheKey
 import whisk.core.entity.DocId
 import whisk.core.entity.DocInfo
@@ -121,12 +122,13 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     }
   }
 
-  def attach[Wsuper >: W](db: ArtifactStore[Wsuper],
-                          doc: W,
-                          attachmentName: String,
-                          contentType: ContentType,
-                          bytes: InputStream,
-                          postProcess: Option[W => W] = None)(
+  def putAndAttach[Wsuper >: W](db: ArtifactStore[Wsuper],
+                                doc: W,
+                                update: (W, Attached) => W,
+                                contentType: ContentType,
+                                bytes: InputStream,
+                                oldAttachment: Option[Attached],
+                                postProcess: Option[W => W] = None)(
     implicit transid: TransactionId,
     notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
@@ -138,14 +140,16 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
 
       val key = CacheKey(doc)
-      val docInfo = doc.docinfo
       val src = StreamConverters.fromInputStream(() => bytes)
       val cacheDoc = postProcess map { _(doc) } getOrElse doc
 
-      cacheUpdate(cacheDoc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
-        cacheDoc.revision[W](newDocInfo.rev)
-        cacheDoc.docinfo
-      })
+      db.putAndAttach[W](doc, update, contentType, src, oldAttachment) flatMap {
+        case (newDocInfo, attached) =>
+          val newDoc = update(doc, attached).revision[W](newDocInfo.rev)
+          val cacheDoc = postProcess map { _(newDoc) } getOrElse doc
+          cacheUpdate(cacheDoc, key, Future.successful(newDocInfo))
+      }
+
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)

@@ -28,11 +28,13 @@ import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import whisk.core.entity.Attachments.Attached
 import whisk.core.database.StoreUtils._
 import whisk.core.entity.BulkEntityResult
 import whisk.core.entity.DocInfo
-import whisk.http.Messages
 import whisk.core.entity.DocumentReader
+import whisk.core.entity.UUID
+import whisk.http.Messages
 
 /**
  * Basic client to put and delete artifacts in a data store.
@@ -343,11 +345,25 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
         transid.failed(this, start, s"[COUNT] '$dbName' internal error, failure: '${failure.getMessage}'", ErrorLevel))
   }
 
-  override protected[core] def attach(
-    doc: DocInfo,
-    name: String,
+  override protected[database] def putAndAttach[A <: DocumentAbstraction](
+    d: A,
+    update: (A, Attached) => A,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
+    docStream: Source[ByteString, _],
+    oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
+
+    val attachmentName = UUID().asString
+    val attached = Attached(attachmentName, contentType)
+    val updatedDoc = update(d, attached)
+
+    for {
+      i1 <- put(updatedDoc)
+      i2 <- attach(i1, attached.attachmentName, attached.attachmentType, docStream)
+    } yield (i2, attached)
+  }
+
+  private def attach(doc: DocInfo, name: String, contentType: ContentType, docStream: Source[ByteString, _])(
+    implicit transid: TransactionId): Future[DocInfo] = {
 
     val start = transid.started(
       this,
