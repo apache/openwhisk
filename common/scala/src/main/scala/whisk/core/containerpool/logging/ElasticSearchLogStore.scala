@@ -97,14 +97,14 @@ class ElasticSearchLogStore(
     EsQuery(queryString, Some(queryOrder))
   }
 
-  private def generatePath(user: Identity) = Uri(elasticSearchConfig.path.format(user.uuid.asString))
+  private def generatePath(user: Identity) = elasticSearchConfig.path.format(user.uuid.asString)
 
   override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] = {
     val headers = extractRequiredHeaders(request.headers)
 
     // Return logs from ElasticSearch, or return logs from activation if required headers are not present
     if (headers.length == elasticSearchConfig.requiredHeaders.length) {
-      esClient.query[EsSearchResult](generatePath(user), headers, Some(generatePayload(activation))).flatMap {
+      esClient.search[EsSearchResult](generatePath(user), generatePayload(activation), headers).flatMap {
         case Right(queryResult) =>
           Future.successful(transcribeLogs(queryResult))
         case Left(code) =>

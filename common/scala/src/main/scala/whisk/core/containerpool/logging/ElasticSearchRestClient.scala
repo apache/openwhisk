@@ -22,6 +22,7 @@ import scala.util.{Either, Try}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
 
@@ -162,24 +163,16 @@ class ElasticSearchRestClient(
 
   private val baseHeaders: List[HttpHeader] = List(Accept(MediaTypes.`application/json`))
 
-  /**
-   * Method to perform an ElasticSearch query that expects JSON response. If a payload is provided, a POST request will
-   * be performed. Otherwise, a GET request will be performed.
-   *
-   * @param uri     relative path to be used in the request to Elasticsearch
-   * @param headers list of HTTP request headers
-   * @param payload Optional JSON to be sent in the request
-   * @return Future with either the response with type T or the status code of the request, if the request is unsuccessful
-   */
-  def query[T: RootJsonReader](uri: Uri,
-                               headers: List[HttpHeader] = List.empty,
-                               payload: Option[EsQuery] = None): Future[Either[StatusCode, T]] = {
-    payload match {
-      case Some(payload) =>
-        requestJson[T](mkJsonRequest(HttpMethods.POST, uri, payload.toJson.asJsObject, baseHeaders ++ headers))
-
-      case None =>
-        requestJson[T](mkRequest(HttpMethods.GET, uri, baseHeaders ++ headers))
-    }
+  def info(headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, JsObject]] = {
+    requestJson[JsObject](mkRequest(GET, Uri./, baseHeaders ++ headers))
   }
+
+  def index(index: String, headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, JsObject]] = {
+    requestJson[JsObject](mkRequest(GET, Uri(index), baseHeaders ++ headers))
+  }
+
+  def search[T: RootJsonReader](index: String,
+                                payload: EsQuery = EsQuery(EsQueryAll()),
+                                headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, T]] =
+    requestJson[T](mkJsonRequest(POST, Uri(index), payload.toJson.asJsObject, baseHeaders ++ headers))
 }

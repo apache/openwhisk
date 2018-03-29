@@ -31,6 +31,7 @@ import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
+import akka.http.scaladsl.model.HttpMethods.POST
 
 import common.StreamLogging
 
@@ -56,7 +57,10 @@ class ElasticSearchRestClientTests
   private val defaultResponse =
     s"""{"took":2,"timed_out":false,"_shards":{"total":5,"successful":5,"failed":0},"hits":{"total":1375,"max_score":1.0,"hits":[{"_index":"whisk_user_logs","_type":"user_logs","_id":"AWJoJSwAMGbzgxiD1jr9","_score":1.0,"_source":$defaultResponseSource}]}}"""
   private val defaultHttpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, defaultResponse))
-  private val defaultHttpRequest = HttpRequest(headers = List(Accept(MediaTypes.`application/json`)))
+  private val defaultHttpRequest = HttpRequest(
+    POST,
+    headers = List(Accept(MediaTypes.`application/json`)),
+    entity = HttpEntity(ContentTypes.`application/json`, EsQuery(EsQueryAll()).toJson.toString))
 
   private def testFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
     : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
@@ -171,13 +175,13 @@ class ElasticSearchRestClientTests
   it should "error when search response does not match expected type" in {
     val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpRequest = defaultHttpRequest)))
 
-    a[RuntimeException] should be thrownBy await(esClient.query[JsObject](Uri./))
+    a[RuntimeException] should be thrownBy await(esClient.search[JsObject]("/"))
   }
 
-  it should "parse query response into EsSearchResult" in {
+  it should "parse search response into EsSearchResult" in {
     val esClient =
       new ElasticSearchRestClient("https", "host", 443, Some(testFlow(defaultHttpResponse, defaultHttpRequest)))
-    val response = await(esClient.query[EsSearchResult](Uri./))
+    val response = await(esClient.search[EsSearchResult]("/"))
 
     response shouldBe 'right
     response.right.get.hits.hits should have size 1
@@ -187,9 +191,33 @@ class ElasticSearchRestClientTests
   it should "return status code when HTTP error occurs" in {
     val httpResponse = HttpResponse(StatusCodes.InternalServerError)
     val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpResponse, defaultHttpRequest)))
-    val response = await(esClient.query[JsObject](Uri./))
+    val response = await(esClient.search[JsObject]("/"))
 
     response shouldBe 'left
     response.left.get shouldBe StatusCodes.InternalServerError
+  }
+
+  it should "perform info request" in {
+    val responseBody = s"""{"cluster_name" : "elasticsearch"}"""
+    val httpRequest = HttpRequest(headers = List(Accept(MediaTypes.`application/json`)))
+    val httpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, responseBody))
+    val esClient =
+      new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpResponse, httpRequest)))
+    val response = await(esClient.info())
+
+    response shouldBe 'right
+    response.right.get shouldBe responseBody.parseJson.asJsObject
+  }
+
+  it should "perform index request" in {
+    val responseBody = s"""{"some_index" : {}}"""
+    val httpRequest = HttpRequest(uri = Uri("some_index"), headers = List(Accept(MediaTypes.`application/json`)))
+    val httpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, responseBody))
+    val esClient =
+      new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpResponse, httpRequest)))
+    val response = await(esClient.index("some_index"))
+
+    response shouldBe 'right
+    response.right.get shouldBe responseBody.parseJson.asJsObject
   }
 }
