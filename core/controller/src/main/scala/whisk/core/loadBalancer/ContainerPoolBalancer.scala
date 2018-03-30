@@ -21,12 +21,10 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{ActorSystem, Props}
-import akka.cluster.Cluster
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import org.apache.kafka.clients.producer.RecordMetadata
-import pureconfig._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
 import whisk.core.WhiskConfig._
 import whisk.core.connector._
@@ -65,9 +63,8 @@ class ContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)
       new LocalLoadBalancerData()
     } else {
 
-      /** Specify how seed nodes are generated */
-      val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-      Cluster(actorSystem).joinSeedNodes(seedNodesProvider.getSeedNodes())
+      /** Specify how cluster is joined */
+      ClusterProvider.joinCluster(config, actorSystem)
       new DistributedLoadBalancerData()
     }
   }

@@ -57,9 +57,8 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** Build a cluster of all loadbalancers */
-  val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
+  ClusterProvider.joinCluster(config, actorSystem)
   val cluster = Cluster(actorSystem)
-  cluster.joinSeedNodes(seedNodesProvider.getSeedNodes())
 
   /** Used to manage an action for testing invoker health */
   private val entityStore = WhiskEntityStore.datastore()

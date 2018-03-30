@@ -17,15 +17,32 @@
 
 package whisk.core.loadBalancer
 
+import akka.actor.ActorSystem
 import akka.actor.Address
-
+import akka.cluster.Cluster
+import akka.management.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
+import pureconfig._
 import scala.collection.immutable.Seq
+import whisk.core.ConfigKeys
+import whisk.core.WhiskConfig
 
-trait SeedNodesProvider {
-  def getSeedNodes(): Seq[Address]
+case class ClusterProviderConfig(useClusterBootstrap: Boolean)
+
+object ClusterProvider {
+  def joinCluster(config: WhiskConfig, actorSystem: ActorSystem) = {
+    val clusterConfig: ClusterProviderConfig = loadConfigOrThrow[ClusterProviderConfig](ConfigKeys.cluster)
+    if (clusterConfig.useClusterBootstrap) {
+      AkkaManagement(actorSystem).start()
+      ClusterBootstrap(actorSystem).start()
+    } else {
+      Cluster(actorSystem).joinSeedNodes(
+        new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name).getSeedNodes())
+    }
+  }
 }
 
-class StaticSeedNodesProvider(seedNodes: String, actorSystemName: String) extends SeedNodesProvider {
+class StaticSeedNodesProvider(seedNodes: String, actorSystemName: String) {
   def getSeedNodes(): Seq[Address] = {
     seedNodes
       .split(' ')
