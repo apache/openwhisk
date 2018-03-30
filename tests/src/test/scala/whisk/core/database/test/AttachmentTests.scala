@@ -17,6 +17,7 @@
 
 package whisk.core.database.test
 
+import akka.http.scaladsl.model.Uri
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
@@ -76,6 +77,10 @@ class AttachmentTests
     docsToDelete += ((datastore, i2))
 
     attached(action2).attachmentName should not be attached(action3).attachmentName
+
+    //Check that attachment name is actually a uri
+    val attachmentUri = Uri(attached(action2).attachmentName)
+    attachmentUri.isAbsolute shouldBe true
   }
 
   private def attached(a: WhiskAction): Attached =

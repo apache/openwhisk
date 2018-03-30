@@ -64,6 +64,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   protected[core] implicit val executionContext = system.dispatcher
 
+  private val attachmentScheme = "couch"
   private val client: CouchDbRestClient =
     new CouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
 
@@ -352,13 +353,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     docStream: Source[ByteString, _],
     oldAttachment: Option[Attached])(implicit transid: TransactionId): Future[(DocInfo, Attached)] = {
 
-    val attachmentName = UUID().asString
-    val attached = Attached(attachmentName, contentType)
+    val attachmentUri = Uri.from(scheme = attachmentScheme, path = UUID().asString)
+    val attached = Attached(attachmentUri.toString(), contentType)
     val updatedDoc = update(d, attached)
 
     for {
       i1 <- put(updatedDoc)
-      i2 <- attach(i1, attached.attachmentName, attached.attachmentType, docStream)
+      i2 <- attach(i1, attachmentUri.path.toString(), attached.attachmentType, docStream)
     } yield (i2, attached)
   }
 
@@ -417,7 +418,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     require(doc != null, "doc undefined")
     require(doc.rev.rev != null, "doc revision must be specified")
 
-    val f = client.getAttachment[T](doc.id.id, doc.rev.rev, name, sink)
+    val attachmentUri = Uri(name)
+    val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString(), sink)
     val g = f.map { e =>
       e match {
         case Right((contentType, result)) =>
