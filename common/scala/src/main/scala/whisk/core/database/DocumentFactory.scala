@@ -224,7 +224,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
   def getAttachment[Wsuper >: W](
     db: ArtifactStore[Wsuper],
     doc: W,
-    attachmentName: String,
+    attached: Attached,
     outputStream: OutputStream,
     postProcess: Option[W => W] = None)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
 
@@ -242,7 +242,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       val key = CacheKey(docInfo)
       val sink = StreamConverters.fromOutputStream(() => outputStream)
 
-      db.readAttachment[IOResult](docInfo, attachmentName, sink).map {
+      db.readAttachment[IOResult](docInfo, attached, sink).map {
         case _ =>
           val cacheDoc = postProcess map { _(doc) } getOrElse doc
 

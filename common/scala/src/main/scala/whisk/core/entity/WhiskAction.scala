@@ -371,11 +371,11 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     fa.flatMap { action =>
       action.exec match {
-        case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
+        case exec @ CodeExecAsAttachment(_, attached: Attached, _) =>
           val boas = new ByteArrayOutputStream()
           val b64s = Base64.getEncoder().wrap(boas)
 
-          getAttachment[A](db, action, attachmentName, b64s, Some { a: WhiskAction =>
+          getAttachment[A](db, action, attached, b64s, Some { a: WhiskAction =>
             b64s.close()
             val newAction = a.copy(exec = exec.inline(boas.toByteArray))
             newAction.revision(a.rev)

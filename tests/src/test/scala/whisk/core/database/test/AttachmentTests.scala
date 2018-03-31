@@ -28,7 +28,7 @@ import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec}
 import whisk.common.TransactionId
 import whisk.core.controller.test.WhiskAuthHelpers
-import whisk.core.database.CacheChangeNotification
+import whisk.core.database.{AttachmentInliner, CacheChangeNotification}
 import whisk.core.entity.Attachments.{Attached, Attachment, Inline}
 import whisk.core.entity._
 import whisk.core.entity.test.ExecHelpers
@@ -67,7 +67,7 @@ class AttachmentTests
 
   it should "generate different attachment name on update" in {
     implicit val tid: TransactionId = transid()
-    val exec = javaDefault("ZHViZWU=", Some("hello"))
+    val exec = javaDefault(encodedRandomBytes(nonInlineMultiChunkSize), Some("hello"))
     val javaAction =
       WhiskAction(namespace, EntityName("attachment_unique"), exec)
 
@@ -90,9 +90,8 @@ class AttachmentTests
 
   it should "put and read same attachment" in {
     implicit val tid: TransactionId = transid()
-    val size = 4000
-    val bytes = randomBytes(size)
-    val base64 = Base64.getEncoder.encodeToString(bytes)
+    val size = nonInlineMultiChunkSize
+    val base64 = encodedRandomBytes(nonInlineMultiChunkSize)
 
     val exec = javaDefault(base64, Some("hello"))
     val javaAction =
@@ -117,15 +116,47 @@ class AttachmentTests
     inlined(action3).value shouldBe base64
   }
 
+  it should "inline small attachments" in {
+    implicit val tid: TransactionId = transid()
+    val attachmentSize = inlineSize - 1
+    val base64 = encodedRandomBytes(attachmentSize)
+
+    val exec = javaDefault(base64, Some("hello"))
+    val javaAction = WhiskAction(namespace, EntityName("attachment_inline"), exec)
+
+    val i1 = WhiskAction.put(datastore, javaAction, old = None).futureValue
+    val action2 = datastore.get[WhiskAction](i1, attachmentHandler).futureValue
+    val action3 = WhiskAction.get(datastore, i1.id, i1.rev).futureValue
+
+    docsToDelete += ((datastore, i1))
+
+    action3.exec shouldBe exec
+    inlined(action3).value shouldBe base64
+
+    val a = attached(action2)
+
+    val attachmentUri = Uri(a.attachmentName)
+    attachmentUri.scheme shouldBe AttachmentInliner.MemScheme
+    a.length shouldBe Some(attachmentSize)
+    a.digest should not be empty
+  }
+
   private def attached(a: WhiskAction): Attached =
     a.exec.asInstanceOf[CodeExec[Attachment[Nothing]]].code.asInstanceOf[Attached]
 
   private def inlined(a: WhiskAction): Inline[String] =
     a.exec.asInstanceOf[CodeExec[Attachment[String]]].code.asInstanceOf[Inline[String]]
 
+  private def encodedRandomBytes(size: Int) = Base64.getEncoder.encodeToString(randomBytes(size))
+
   private def randomBytes(size: Int): Array[Byte] = {
     val arr = new Array[Byte](size)
     Random.nextBytes(arr)
     arr
   }
+
+  private def nonInlineMultiChunkSize = Math.max(inlineSize, chunkSize).toInt * 2
+  private def inlineSize = couchStore.maxInlineSize.toBytes.toInt
+  private def chunkSize = couchStore.chunkSize.toBytes
+  private def couchStore = datastore.asInstanceOf[AttachmentInliner]
 }
