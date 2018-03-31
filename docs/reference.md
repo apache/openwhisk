@@ -207,7 +207,7 @@ For the `whisk.error()` you can return a rejected Promise (i.e. Promise.reject).
 ### JavaScript runtime environments
 
 JavaScript actions can be executed in Node.js version 6 or Node.js version 8.
-Currently actions are executed by default in a Node.js version 6.12.2 environment.
+Currently actions are executed by default in a Node.js version 6 environment.
 
 ### Node.js version 6 environment
 The Node.js 6.14.0 environment will be used for an action if the `--kind` flag is explicitly specified with a value of 'nodejs:6' when creating/updating the action.
