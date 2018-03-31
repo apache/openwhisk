@@ -23,7 +23,7 @@ if [ -z "$1" ] ; then
     exit 1
 fi
 if [ -z "$2" ] ; then
-    echo 'Error: Missing runtime docker image name, for example openwhisk/action-swift-v4.0'
+    echo 'Error: Missing kind, for example swift:4.1'
     exit 2
 fi
 OUTPUT_DIR="build"
@@ -64,6 +64,12 @@ fi
 # Add in the OW specific bits
 cat $BASE_PATH/epilogue.swift >> $DEST_SOURCE/main.swift
 echo '_run_main(mainFunction:main)' >> $DEST_SOURCE/main.swift
+
+# Only for Swift4
+if [ ${2} != "swift:3.1.1" ]; then
+  echo 'Adding wait to deal with escaping'
+  echo '_ = _whisk_semaphore.wait(timeout: .distantFuture)' >> $DEST_SOURCE/main.swift
+fi
 
 echo \"Compiling $1...\"
 cd /$BASE_PATH/spm-build

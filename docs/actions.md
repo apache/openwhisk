@@ -629,7 +629,7 @@ wsk action create helloPHP --kind php:7.1 helloPHP.zip
 
 ## Creating Swift actions
 
-The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and packaging an action in a zip file. 
+The process of creating Swift actions is similar to that of JavaScript actions. The following sections guide you through creating and invoking a single swift action, and packaging an action in a zip file.
 
 You can also use the online [Online Swift Playground](http://online.swiftplayground.run) to test your Swift code without having to install Xcode on your machine.
 
@@ -719,7 +719,7 @@ Find out more about parameters in the [Working with parameters](./parameters.md)
 
 When you create an OpenWhisk Swift action with a Swift source file, it has to be compiled into a binary before the action is run. Once done, subsequent calls to the action are much faster until the container holding your action is purged. This delay is known as the cold-start delay.
 
-To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in. 
+To avoid the cold-start delay, you can compile your Swift file into a binary and then upload to OpenWhisk in a zip file. As you need the OpenWhisk scaffolding, the easiest way to create the binary is to build it within the same environment as it will be run in.
 
 ### Using a script to build Swift packaged action
 You can use a script to automate the packaging of the action. Create  script `compile.sh`h file the following.
@@ -732,7 +732,7 @@ if [ -z "$1" ] ; then
     exit 1
 fi
 if [ -z "$2" ] ; then
-    echo 'Error: Missing runtime docker image name, for example openwhisk/action-swift-v4.0'
+    echo 'Error: Missing kind, for example swift:4.1'
     exit 2
 fi
 OUTPUT_DIR="build"
@@ -773,6 +773,12 @@ fi
 # Add in the OW specific bits
 cat $BASE_PATH/epilogue.swift >> $DEST_SOURCE/main.swift
 echo '_run_main(mainFunction:main)' >> $DEST_SOURCE/main.swift
+
+# Only for Swift4
+if [ ${2} != "swift:3.1.1" ]; then
+  echo 'Adding wait to deal with escaping'
+  echo '_ = _whisk_semaphore.wait(timeout: .distantFuture)' >> $DEST_SOURCE/main.swift
+fi
 
 echo \"Compiling $1...\"
 cd /$BASE_PATH/spm-build
@@ -887,7 +893,7 @@ func main(param: Input, completion: (Output?, Error?) -> Void) -> Void {
         throw VendingMachineError.insufficientFunds(coinsNeeded: 5)
     } catch {
         completion(nil, error)
-    } 
+    }
 }
 ```
 
@@ -1105,7 +1111,7 @@ import "os"
 func main() {
     //program receives one argument: the JSON object as a string
     arg := os.Args[1]
-   
+
     // unmarshal the string to a JSON object
     var obj map[string]interface{}
     json.Unmarshal([]byte(arg), &obj)
