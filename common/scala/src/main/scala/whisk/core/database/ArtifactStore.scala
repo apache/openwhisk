@@ -70,6 +70,7 @@ trait ArtifactStore[DocumentAbstraction] {
    * If the operation is successful, the future completes with the requested document if it exists.
    *
    * @param doc the document info for the record to get (must contain valid id and rev)
+   * @param attachmentHandler function to update the attachment details in document
    * @param transid the transaction id for logging
    * @param ma manifest for A to determine its runtime type, required by some db APIs
    * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
@@ -121,6 +122,10 @@ trait ArtifactStore[DocumentAbstraction] {
 
   /**
    * Attaches a "file" of type `contentType` to an existing document. The revision for the document must be set.
+   *
+   * @param update - function to transform the document with new attachment details
+   * @param oldAttachment Optional old document instance for the update scenario. It would be used to determine
+   *                      the existing attachment details.
    */
   protected[database] def putAndAttach[A <: DocumentAbstraction](
     d: A,
