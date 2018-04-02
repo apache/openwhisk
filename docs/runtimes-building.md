@@ -30,20 +30,24 @@ by referring to its root `README.md` file.
 
 ## Reading this document
 
-For this document, we will assume an environment variable `ACTION_NAME` has
+For this document, we will assume an environment variable `ACTION_KIND` has
 been set to the directory name of an action in the runtime repository on which
 work is being done (i.e. set to `nodejs6Action` while working in
 `incubator-openwhisk-runtime-nodejs`).
 
 ## Building a single-architecture Docker image locally
 
-To build a single-architecture image locally on a 64-bit x86 machine, execute
+To build a single-architecture image locally on the local machine, execute
 
 ```
-./gradlew core:$ACTION_NAME:dockerBuildImage -Pdocker_local_json='{"amd64":null}'
+docker_local_json='{"local":null}' ./gradlew core:$ACTION_KIND:dockerBuildImage
 ```
 
-To check on what images will be produced, look in the `settings.json` file in
+(For the curious at heart, the assignment of `docker_local_json` serves to
+document to the script that the command is to build a single-architecture image
+on the default docker connection).
+
+To check on what Docker images will be produced, look in the `settings.json` file in
 the runtime repository (look for `gradle.ext.dockerBuildProjects =`).  The
 default image prefix is currently 'whisk'.
 
@@ -92,7 +96,7 @@ necessary that they be unique and legitimate symbols for docker tags.
 Once the `docker-local.json` file is set up, building is a matter of executing
 
 ```
-./gradlew core:$ACTION_NAME:dockerBuildImage
+./gradlew core:$ACTION_KIND:dockerBuildImage
 ```
 
 By default, the images built will be tagged `latest-<arch>`, for example
@@ -114,7 +118,7 @@ One configured, pushing images is a matter of setting (or substituting) a
 `user_prefix` and executing
 
 ```
-./gradlew core:$ACTION_NAME:dockerPushImage -PdockerImagePrefix=$user_prefix
+./gradlew core:$ACTION_KIND:dockerPushImage -PdockerImagePrefix=$user_prefix
 ```
 
 This pushes *individual* images tagged for the separate architectures.
@@ -127,11 +131,11 @@ At this point, putting a multi-architecture manifest list that can be pulled
 by any supported architecture is simply a matter of executing
 
 ```
-./gradlew core:$ACTION_NAME:dockerPushImage -PdockerImagePrefix=$user_prefix
+./gradlew core:$ACTION_KIND:dockerPushImage -PdockerImagePrefix=$user_prefix
 ```
 
 The daring can feel free to start with this command which, if properly
-configured, will run all preliminaries
+configured, will run all preliminaries.
 
 ## Using an action in your OpenWhisk environment
 
