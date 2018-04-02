@@ -57,12 +57,16 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** Build a cluster of all loadbalancers */
-  val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-  val cluster = Cluster(actorSystem)
-  cluster.joinSeedNodes(seedNodesProvider.getSeedNodes())
+  private val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
+  private val seedNodes = seedNodesProvider.getSeedNodes()
 
-  /** Used to manage an action for testing invoker health */
-  private val entityStore = WhiskEntityStore.datastore()
+  private val cluster: Option[Cluster] = if (seedNodes.nonEmpty) {
+    val cluster = Cluster(actorSystem)
+    cluster.joinSeedNodes(seedNodes)
+    Some(cluster)
+  } else {
+    None
+  }
 
   /** State related to invocations and throttling */
   private val activations = TrieMap[ActivationId, ActivationEntry]()
@@ -84,7 +88,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    */
   private val monitor = actorSystem.actorOf(Props(new Actor {
     override def preStart(): Unit = {
-      cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
+      cluster.foreach(_.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent]))
     }
 
     // all members of the cluster that are available
@@ -204,7 +208,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           start,
           s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
           logLevel = InfoLevel)
-      case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
+      case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
 
@@ -250,7 +254,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     val aid = response.fold(l => l, r => r.activationId)
 
     // treat left as success (as it is the result of a message exceeding the bus limit)
-    val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
+    val isSuccess = response.fold(_ => true, r => !r.response.isWhiskError)
 
     activations.remove(aid) match {
       case Some(entry) =>
