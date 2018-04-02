@@ -55,9 +55,12 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   val wsk: BaseWsk
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
+  val cli = false
 
-  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
-  assert(whiskConfig.isValid)
+  if (!cli) {
+    val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
+    assert(whiskConfig.isValid)
+  }
 
   behavior of "Wsk Sequence"
 
@@ -201,7 +204,12 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
       result.fields.get("payload") shouldBe Some(argsJson)
     }
     // update x with limit echo
-    val limit = whiskConfig.actionSequenceLimit.toInt
+    val limit: Int = 0
+    if (cli) {
+      limit = WhiskProperties.getProperty("limits.actions.sequence.maxLength").toInt
+    } else {
+      limit = whiskConfig.actionSequenceLimit.toInt
+    }
     val manyEcho = for (i <- 1 to limit) yield echo
 
     wsk.action.create(xName, Some(manyEcho.mkString(",")), kind = Some("sequence"), update = true)
