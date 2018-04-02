@@ -423,7 +423,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
   }
 
   override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = {
+    implicit transid: TransactionId): Future[T] = {
 
     val name = attached.attachmentName
     val start = transid.started(
@@ -436,13 +436,13 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
     val attachmentUri = Uri(name)
     val g = if (isInlined(attachmentUri)) {
-      memorySource(attachmentUri).runWith(sink).map(t => (attached.attachmentType, t))
+      memorySource(attachmentUri).runWith(sink)
     } else {
       val f = client.getAttachment[T](doc.id.id, doc.rev.rev, attachmentUri.path.toString(), sink)
       f.map {
-        case Right((contentType, result)) =>
+        case Right((_, result)) =>
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          (contentType, result)
+          result
 
         case Left(StatusCodes.NotFound) =>
           transid.finished(

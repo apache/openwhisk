@@ -246,7 +246,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   }
 
   override protected[core] def readAttachment[T](doc: DocInfo, attached: Attached, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = {
+    implicit transid: TransactionId): Future[T] = {
     //TODO Temporary implementation till MemoryAttachmentStore PR is merged
     val name = attached.attachmentName
     val start = transid.started(
@@ -256,7 +256,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     val attachmentUri = Uri(name)
     if (isInlined(attachmentUri)) {
-      memorySource(attachmentUri).runWith(sink).map(t => (attached.attachmentType, t))
+      memorySource(attachmentUri).runWith(sink)
     } else {
       val storedName = attachmentUri.path.toString()
       artifacts.get(doc.id.id) match {
@@ -264,7 +264,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
           val attachment = a.attachments(storedName)
           val r = Source.single(attachment.bytes).toMat(sink)(Keep.right).run
           transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
-          r.map(t => (attachment.contentType, t))
+          r
         case None =>
           Future.failed(NoDocumentException("Not found on 'readAttachment'."))
       }
