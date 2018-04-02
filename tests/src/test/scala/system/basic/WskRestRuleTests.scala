@@ -23,10 +23,6 @@ import org.scalatest.junit.JUnitRunner
 import common.TestUtils.RunResult
 import common.rest.WskRest
 import common.rest.RestResult
-import whisk.utils.retry
-import scala.concurrent.duration._
-import spray.json._
-import spray.json.DefaultJsonProtocol._
 
 @RunWith(classOf[JUnitRunner])
 class WskRestRuleTests extends WskRuleTests {
@@ -44,42 +40,5 @@ class WskRestRuleTests extends WskRuleTests {
     rules.exists(rule => RestResult.getField(rule, "name") == ruleNameEnable) shouldBe true
     rules.exists(rule => RestResult.getField(rule, "name") == ruleName) shouldBe true
     ruleListResultRest.respData should not include ("Unknown")
-  }
-
-  it should "preserve rule status when a rule is updated" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val ruleName = withTimestamp("r1to1")
-    val triggerName = withTimestamp("t1to1")
-    val actionName = withTimestamp("a1 to 1")
-    val triggerName2 = withTimestamp("t2to1")
-    val active = Some("active".toJson)
-    val inactive = Some("inactive".toJson)
-    val statusPermutations =
-      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName, inactive))
-
-    ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
-    assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
-      trigger.create(name)
-    }
-
-    statusPermutations.foreach {
-      case (trigger, status) =>
-        if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-
-        // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-        retry(
-          {
-            wsk.rule
-              .create(ruleName, trigger, actionName, update = true)
-              .stdout
-              .parseJson
-              .asJsObject
-              .fields
-              .get("status") shouldBe status
-
-            wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
-          },
-          10,
-          Some(1.second))
-    }
   }
 }

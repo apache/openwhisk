@@ -38,6 +38,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
 
   implicit val wskprops = WskProps()
   val wsk: BaseWsk
+  val cli = false
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
@@ -221,6 +222,17 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
     withActivation(wsk.activation, run) { activation =>
       activation.response.status shouldBe "action developer error"
       activation.response.result shouldBe Some(JsObject("error" -> "Missing main/no code to execute.".toJson))
+    }
+  }
+
+  it should "create an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "empty"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
+    }
+    val rr = wsk.action.get(name)
+    if (!cli){
+      wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
     }
   }
 
