@@ -33,6 +33,7 @@ import common.TestHelpers
 import common.TestUtils
 import common.TestUtils._
 import common.BaseWsk
+import common.WhiskProperties
 import common.WskProps
 import common.RuleActivationResult
 import common.WskTestHelpers
@@ -57,8 +58,9 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   val shortDuration = 10 seconds
   val cli = false
 
+  var whiskConfig: WhiskConfig = _
   if (!cli) {
-    val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
+    whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
     assert(whiskConfig.isValid)
   }
 
@@ -204,7 +206,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
       result.fields.get("payload") shouldBe Some(argsJson)
     }
     // update x with limit echo
-    val limit: Int = 0
+    var limit: Int = 0
     if (cli) {
       limit = WhiskProperties.getProperty("limits.actions.sequence.maxLength").toInt
     } else {
