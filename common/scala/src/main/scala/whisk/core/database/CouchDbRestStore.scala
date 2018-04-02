@@ -54,8 +54,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                                                   dbPassword: String,
                                                                   dbName: String,
                                                                   useBatching: Boolean = false,
-                                                                  val maxInlineSize: ByteSize = 4.KB,
-                                                                  val chunkSize: ByteSize = 8.KB)(
+                                                                  val inliningConfig: InliningConfig)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],

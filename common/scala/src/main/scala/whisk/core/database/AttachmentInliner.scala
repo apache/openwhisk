@@ -39,6 +39,8 @@ object AttachmentInliner {
   val MemScheme: String = "mem"
 }
 
+case class InliningConfig(maxInlineSize: ByteSize, chunkSize: ByteSize)
+
 /**
  * Provides support for inlining small attachments. Inlined attachment contents are encoded as part of attachment
  * name itself.
@@ -100,9 +102,11 @@ trait AttachmentInliner {
   /**
    * Attachments having size less than this would be inlined
    */
-  def maxInlineSize: ByteSize
+  def maxInlineSize: ByteSize = inliningConfig.maxInlineSize
 
-  def chunkSize: ByteSize
+  def chunkSize: ByteSize = inliningConfig.chunkSize
+
+  protected def inliningConfig: InliningConfig
 
   protected def attachmentScheme: String
 
