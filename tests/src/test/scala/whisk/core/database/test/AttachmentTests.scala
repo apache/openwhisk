@@ -110,6 +110,9 @@ class AttachmentTests
       .attached
       .get
       .attachmentType
+    attached(action2).length shouldBe Some(size)
+    attached(action2).digest should not be empty
+
     action3.exec shouldBe exec
     inlined(action3).value shouldBe base64
   }
