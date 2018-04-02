@@ -669,57 +669,6 @@ class ContainerProxyTests
     }
   }
 
-  "the ContainerProxy's timeout configuration" should "load the configuration properly" in {
-
-    val tsConfig1 = ConfigFactory.parseString("""
-        |whisk {
-        |  container-proxy {
-        |    timeouts {
-        |      # The "unusedTimeout" in the ContainerProxy,
-        |      #aka 'How long should a container sit idle until we kill it?'
-        |      idle-container = 10 minutes
-        |      pause-grace = 50 milliseconds
-        |    }
-        |  }
-        |}
-      """.stripMargin)
-
-    val tsConfig2 = ConfigFactory.parseString("""
-        |whisk {
-        |  container-proxy {
-        |    timeouts {
-        |      # The "unusedTimeout" in the ContainerProxy,
-        |      #aka 'How long should a container sit idle until we kill it?'
-        |      idle-container = 512 seconds
-        |      pause-grace = 2048 hours
-        |    }
-        |  }
-        |}
-      """.stripMargin)
-
-    val timeouts1 =
-      pureconfig.loadConfigOrThrow[ContainerProxyTimeoutConfig](tsConfig1, ConfigKeys.containerProxyTimeouts)
-
-    timeouts1 should not be (null)
-    timeouts1 shouldBe a[ContainerProxyTimeoutConfig]
-
-    inside(timeouts1) {
-      case ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration) =>
-        idleContainer should be(10.minutes)
-        pauseGrace should be(50.milliseconds)
-    }
-
-    val timeouts2 =
-      pureconfig.loadConfigOrThrow[ContainerProxyTimeoutConfig](tsConfig2, ConfigKeys.containerProxyTimeouts)
-
-    inside(timeouts2) {
-      case ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration) =>
-        idleContainer should be(512.seconds)
-        pauseGrace should be(2048.hours)
-    }
-
-  }
-
   /**
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
