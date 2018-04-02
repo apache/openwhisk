@@ -74,8 +74,9 @@ trait ArtifactStore[DocumentAbstraction] {
    * @param ma manifest for A to determine its runtime type, required by some db APIs
    * @return a future that completes either with DocumentAbstraction if the document exists and is deserializable into desired type
    */
-  protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(implicit transid: TransactionId,
-                                                                      ma: Manifest[A]): Future[A]
+  protected[database] def get[A <: DocumentAbstraction](doc: DocInfo, attachmentHandler: Option[(A, Attached) => A])(
+    implicit transid: TransactionId,
+    ma: Manifest[A]): Future[A]
 
   /**
    * Gets all documents from database view that match a start key, up to an end key, using a future.

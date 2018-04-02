@@ -49,6 +49,7 @@ class AttachmentTests
   implicit val materializer = ActorMaterializer()
   private val namespace = EntityPath(WhiskAuthHelpers.newIdentity().subject.asString)
   private val datastore = WhiskEntityStore.datastore()
+  private val attachmentHandler = Some(WhiskAction.attachmentHandler _)
 
   implicit val cacheUpdateNotifier: Option[CacheChangeNotification] = None
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
@@ -71,12 +72,12 @@ class AttachmentTests
       WhiskAction(namespace, EntityName("attachment_unique"), exec)
 
     val i1 = WhiskAction.put(datastore, javaAction, old = None).futureValue
-    val action2 = datastore.get[WhiskAction](i1).futureValue
+    val action2 = datastore.get[WhiskAction](i1, attachmentHandler).futureValue
 
     //Change attachment to inline one otherwise WhiskAction would not go for putAndAttach
     val action2Updated = action2.copy(exec = exec).revision[WhiskAction](i1.rev)
     val i2 = WhiskAction.put(datastore, action2Updated, old = Some(action2)).futureValue
-    val action3 = datastore.get[WhiskAction](i2).futureValue
+    val action3 = datastore.get[WhiskAction](i2, attachmentHandler).futureValue
 
     docsToDelete += ((datastore, i2))
 
@@ -89,7 +90,8 @@ class AttachmentTests
 
   it should "put and read same attachment" in {
     implicit val tid: TransactionId = transid()
-    val bytes = randomBytes(4000)
+    val size = 4000
+    val bytes = randomBytes(size)
     val base64 = Base64.getEncoder.encodeToString(bytes)
 
     val exec = javaDefault(base64, Some("hello"))
@@ -97,8 +99,10 @@ class AttachmentTests
       WhiskAction(namespace, EntityName("attachment_unique"), exec)
 
     val i1 = WhiskAction.put(datastore, javaAction, old = None).futureValue
-    val action2 = datastore.get[WhiskAction](i1).futureValue
+    val action2 = datastore.get[WhiskAction](i1, attachmentHandler).futureValue
     val action3 = WhiskAction.get(datastore, i1.id, i1.rev).futureValue
+
+    docsToDelete += ((datastore, i1))
 
     attached(action2).attachmentType shouldBe ExecManifest.runtimesManifest
       .resolveDefaultRuntime(JAVA_DEFAULT)

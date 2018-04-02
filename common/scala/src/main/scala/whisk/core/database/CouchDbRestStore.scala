@@ -210,8 +210,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           ErrorLevel))
   }
 
-  override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(implicit transid: TransactionId,
-                                                                               ma: Manifest[A]): Future[A] = {
+  override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo,
+                                                                 attachmentHandler: Option[(A, Attached) => A] = None)(
+    implicit transid: TransactionId,
+    ma: Manifest[A]): Future[A] = {
 
     val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$dbName' finding document: '$doc'")
 
@@ -459,6 +461,31 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   override def shutdown(): Unit = {
     Await.ready(client.shutdown(), 1.minute)
+  }
+
+  private def processAttachments[A <: DocumentAbstraction](doc: A,
+                                                           js: JsObject,
+                                                           attachmentHandler: (A, Attached) => A): A = {
+    js.fields
+      .get("_attachments")
+      .map {
+        case JsObject(fields) if fields.size == 1 =>
+          val (name, value) = fields.head
+          value.asJsObject.getFields("content_type", "digest", "length") match {
+            case Seq(JsString(contentTypeValue), JsString(digest), JsNumber(length)) =>
+              val attachmentName = Uri.from(scheme = attachmentScheme, path = name).toString()
+              val contentType = ContentType.parse(contentTypeValue) match {
+                case Right(ct) => ct
+                case Left(_)   => ContentTypes.NoContentType //Should not happen
+              }
+              attachmentHandler(doc, Attached(attachmentName, contentType, Some(length.intValue()), Some(digest)))
+            case x =>
+              throw DeserializationException("Attachment json does not have required fields" + x)
+
+          }
+        case x => throw DeserializationException("Multiple attachments found" + x)
+      }
+      .getOrElse(doc)
   }
 
   private def reportFailure[T, U](f: Future[T], onFailure: Throwable => U): Future[T] = {

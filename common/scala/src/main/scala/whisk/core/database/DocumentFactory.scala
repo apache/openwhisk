@@ -196,6 +196,15 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     doc: DocId,
     rev: DocRevision = DocRevision.empty,
     fromCache: Boolean = cacheEnabled)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
+    getWithAttachment(db, doc, rev, fromCache, None)
+  }
+
+  protected def getWithAttachment[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: DocId,
+    rev: DocRevision = DocRevision.empty,
+    fromCache: Boolean,
+    attachmentHandler: Option[(W, Attached) => W])(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
     Try {
       require(db != null, "db undefined")
     } map {
@@ -203,7 +212,7 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val ec = db.executionContext
       val key = doc.asDocInfo(rev)
       _ =>
-        cacheLookup(CacheKey(key), db.get[W](key), fromCache)
+        cacheLookup(CacheKey(key), db.get[W](key, attachmentHandler), fromCache)
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)

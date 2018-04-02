@@ -367,7 +367,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
     implicit val ec = db.executionContext
 
-    val fa = super.get(db, doc, rev, fromCache)
+    val fa = super.getWithAttachment(db, doc, rev, fromCache, Some(attachmentHandler _))
 
     fa.flatMap { action =>
       action.exec match {
@@ -386,6 +386,16 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           Future.successful(action)
       }
     }
+  }
+
+  def attachmentHandler(action: WhiskAction, attached: Attached): WhiskAction = {
+    val eu = action.exec match {
+      case exec @ CodeExecAsAttachment(_, Attached(attachmentName, _, _, _), _) =>
+        require(attachmentName == attached.attachmentName)
+        exec.attach(attached)
+      case exec => exec
+    }
+    action.copy(exec = eu).revision[WhiskAction](action.rev)
   }
 
   override def del[Wsuper >: WhiskAction](db: ArtifactStore[Wsuper], doc: DocInfo)(
