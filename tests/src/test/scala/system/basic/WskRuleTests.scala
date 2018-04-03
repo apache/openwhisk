@@ -103,15 +103,12 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
       case (trigger, status) =>
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
         // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-        retry(
-          {
-            val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
-            val getStdout = wsk.rule.get(ruleName).stdout
-            getJSONFromResponse(createStdout, cli).fields.get("status") shouldBe status
-            getJSONFromResponse(getStdout, cli).fields.get("status") shouldBe status
-          },
-          10,
-          Some(1.second))
+        retry({
+          val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
+          val getStdout = wsk.rule.get(ruleName).stdout
+          getJSONFromResponse(createStdout, cli).fields.get("status") shouldBe status
+          getJSONFromResponse(getStdout, cli).fields.get("status") shouldBe status
+        }, 10, Some(1.second))
     }
   }
 
