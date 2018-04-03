@@ -3,7 +3,7 @@
 
 FROM adoptopenjdk/openjdk8-openj9:jdk8u162-b12_openj9-0.8.0-alpine
 
-RUN apk add --update sed curl
+RUN apk add --update sed curl bash
 
 RUN mkdir /logs
 
