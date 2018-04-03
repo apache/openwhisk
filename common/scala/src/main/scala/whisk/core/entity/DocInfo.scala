@@ -97,11 +97,8 @@ protected[core] case class DocInfo protected[entity] (id: DocId, rev: DocRevisio
  * @param error the error, that occured on trying to put this document into CouchDB
  * @param reason the error message that correspands to the error
  */
-case class BulkEntityResult(id: String,
-                            rev: DocRevision = DocRevision.empty,
-                            error: Option[String],
-                            reason: Option[String]) {
-  def toDocInfo = DocInfo(DocId(id), rev)
+case class BulkEntityResult(id: String, rev: Option[DocRevision], error: Option[String], reason: Option[String]) {
+  def toDocInfo = DocInfo(DocId(id), rev.getOrElse(DocRevision.empty))
 }
 
 protected[core] object DocId extends ArgNormalizer[DocId] {
