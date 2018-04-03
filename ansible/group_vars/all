@@ -170,7 +170,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default(1.11) }}"
+  version: "{{ nginx_version | default('1.12') }}"
   port:
     http: 80
     api: 443
