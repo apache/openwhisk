@@ -145,6 +145,7 @@
         --name invoker{{ groups['invokers'].index(inventory_hostname) }}
         --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
         --restart {{ docker.restart.policy }}
+        --network {{ invoker_container_network_name | default("bridge") }}
         -e JAVA_OPTS='-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log'
         -e INVOKER_OPTS='{{ invoker_args | default(invoker.arguments) }}'
         -e JMX_REMOTE='{{ jmx.enabled }}'
