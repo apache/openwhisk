@@ -20,6 +20,7 @@ package whisk.http
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
+import scala.util.Try
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -32,6 +33,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.OverflowStrategy
 import akka.stream.QueueOfferResult
 import akka.stream.scaladsl._
+import akka.stream.scaladsl.Flow
 
 import spray.json._
 
@@ -42,7 +44,13 @@ import spray.json._
  *  on each request because it doesn't need to look up the pool corresponding
  *  to the host. It is also easier to add an extra queueing mechanism.
  */
-class PoolingRestClient(protocol: String, host: String, port: Int, queueSize: Int)(implicit system: ActorSystem) {
+class PoolingRestClient(
+  protocol: String,
+  host: String,
+  port: Int,
+  queueSize: Int,
+  httpFlow: Option[Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), Any]] = None)(
+  implicit system: ActorSystem) {
   require(protocol == "http" || protocol == "https", "Protocol must be one of { http, https }.")
 
   implicit val context = system.dispatcher
@@ -55,6 +63,10 @@ class PoolingRestClient(protocol: String, host: String, port: Int, queueSize: In
     Http().cachedHostConnectionPoolHttps[Promise[HttpResponse]](host = host, port = port)
   }
 
+  private val defaultHttpFlow = pool.mapMaterializedValue { x =>
+    poolPromise.success(x); x
+  }
+
   private val poolPromise = Promise[HostConnectionPool]
 
   // Additional queue in case all connections are busy. Should hardly ever be
@@ -62,9 +74,7 @@ class PoolingRestClient(protocol: String, host: String, port: Int, queueSize: In
   // asynchronous requests in a very short period of time.
   private val requestQueue = Source
     .queue(queueSize, OverflowStrategy.dropNew)
-    .via(pool.mapMaterializedValue { x =>
-      poolPromise.success(x); x
-    })
+    .via(httpFlow.getOrElse(defaultHttpFlow))
     .toMat(Sink.foreach({
       case ((Success(response), p)) => p.success(response)
       case ((Failure(error), p))    => p.failure(error)
