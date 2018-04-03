@@ -92,7 +92,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     val active = Some("active".toJson)
     val inactive = Some("inactive".toJson)
     val statusPermutations =
-      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName2, inactive))
+      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName, inactive))
 
     ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
     assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
@@ -102,29 +102,16 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     statusPermutations.foreach {
       case (trigger, status) =>
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-
-        if (cli) {
-          // CLI stdout must strip out the preamble text (i.e. "ok: got rule XXXXX") to get at the JSON
-          wsk.rule.create(ruleName, trigger, actionName, update = true)
-          val getStdout = wsk.rule.get(ruleName).stdout
-          getStdout.substring(getStdout.indexOf('{')).parseJson.asJsObject.fields.get("status") shouldBe status
-        } else {
-          // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-          retry(
-            {
-              wsk.rule
-                .create(ruleName, trigger, actionName, update = true)
-                .stdout
-                .parseJson
-                .asJsObject
-                .fields
-                .get("status") shouldBe status
-
-              wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
-            },
-            10,
-            Some(1.second))
-        }
+        // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
+        retry(
+          {
+            val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
+            val getStdout = wsk.rule.get(ruleName).stdout
+            getJSONFromResponse(createStdout, cli).fields.get("status") shouldBe status
+            getJSONFromResponse(getStdout, cli).fields.get("status") shouldBe status
+          },
+          10,
+          Some(1.second))
     }
   }
 
