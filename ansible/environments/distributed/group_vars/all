@@ -6,6 +6,7 @@ db_username: couch_user
 db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
 db_prefix: whisk_distributed_
+db_confdir: "{{ config_root_dir }}/couchdb"
 
 whisk_version_name: distributed
 config_root_dir: /tmp/wskconf

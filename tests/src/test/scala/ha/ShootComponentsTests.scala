@@ -110,8 +110,8 @@ class ShootComponentsTests
   def isDBAlive(instance: Int): Boolean = {
     require(instance >= 0 && instance < 2, "DB instance not known.")
 
-    val host = WhiskProperties.getProperty("db.hosts").split(",")(instance)
-    val port = dbPort + instance
+    val host = WhiskProperties.getDBHosts.split(",")(instance)
+    val port = WhiskProperties.getDBPort + instance
 
     val res = ping(host, port)
     res == Some(

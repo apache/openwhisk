@@ -9,22 +9,38 @@
   fail: msg="The db provider in your {{ hosts_dir }}/group_vars/all is {{ db_provider }}, it has to be CouchDB, pls double check"
   when: db_provider != "CouchDB"
 
-- name: check for persistent disk
-  shell: df -h
-  register: disk_status
-  when: block_device is defined
-
 - name: "set the volume_dir"
-  vars:
-    instance: "{{instances | selectattr('name', 'equalto', 'db') | list | first}}"
   set_fact:
-    volume_dir: "{{ instance.volume.fsmount | default( '/mnt/' + group_names|first, true ) }}:/usr/local/var/lib/couchdb"
-  when: (block_device is defined) and (block_device in disk_status.stdout)
+    volume_dir: "{% if db_datadir is defined and db_confdir is defined  %}[ '{{ db_confdir }}:/opt/couchdb/etc', '{{ db_datadir }}:/opt/couchdb/data' ]{% elif db_datadir is undefined  %}{{ db_confdir }}:/opt/couchdb/etc{% else %}{{ db_datadir }}:/opt/couchdb/data{%- endif %}"
+  when: db_datadir is defined or db_confdir is defined
+
+- name: ensure CouchDB config directory exists
+  file:
+    path: "{{ db_confdir }}"
+    state: directory
+  become: "{{ db.dir.become }}"
+  become_user: root
+  when: db_confdir is defined
+
+- name: synchronize default configuration files from local to remote in CouchDB config directory
+  synchronize:
+    src: "files/"
+    dest: "{{ db_confdir }}"
+    delete: yes
+    recursive: yes
+  become: "{{ db.dir.become }}"
+  when: db_confdir is defined
 
 - name: "pull the apache/couchdb:{{ couchdb.version }} image"
   shell: "docker pull apache/couchdb:{{ couchdb.version }}"
   retries: "{{ docker.pull.retries }}"
   delay: "{{ docker.pull.delay }}"
+
+- name: "check configuration files"
+  shell: "ls -l {{ db_confdir }}"
+
+- name: "check configuration files"
+  shell: "cat /etc/passwd"
 
 - name: (re)start CouchDB
   docker_container:
@@ -34,6 +50,7 @@
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
     volumes: "{{volume_dir | default([])}}"
+    user: root 
     ports:
       - "{{ db_port }}:5984"
       - "4369:4369"
@@ -43,9 +60,36 @@
       COUCHDB_PASSWORD: "{{ db_password }}"
       NODENAME: "{{ ansible_host }}"
 
+- name: "check configuration files"
+  shell: "docker exec -i couchdb whoami"
+
+- name: "check configuration files"
+  shell: "docker exec -i couchdb id"
+  `
+- name: "check configuration files"
+  shell: "whoami"
+
+- name: "check configuration files"
+  shell: "ps -ef | grep couchdb"
+
+- name: "check logs"
+  shell: "docker logs -f couchdb"
+
+- name: wait until CouchDB in this host is up and running
+  uri:
+    url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
+  register: result
+  until: result.status == 200
+  retries: 12
+  delay: 5
+
 - name: wait until CouchDB in this host is up and running
   uri:
     url: "{{ db_protocol }}://{{ ansible_host }}:{{ db_port }}/_utils/"
+    user: "{{ db_username }}"
+    password: "{{ db_password }}"
   register: result
   until: result.status == 200
   retries: 12
@@ -72,7 +116,7 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
+  when: inventory_hostname == coordinator
 
 - name: add remote nodes to the cluster
   uri:
@@ -98,4 +142,4 @@
     user: "{{ db_username }}"
     password: "{{ db_password }}"
     force_basic_auth: yes
-  when: (inventory_hostname == coordinator) and (db.instances|int >= 2)
+  when: inventory_hostname == coordinator
