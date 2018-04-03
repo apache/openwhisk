@@ -23,7 +23,9 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Inside, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.FlatSpecLike
+import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -35,7 +37,6 @@ import akka.stream.scaladsl.Source
 import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
 import common.LoggedFunction
 import common.StreamLogging
 
@@ -44,7 +45,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.ConfigKeys
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogCollectingException
@@ -60,7 +60,6 @@ class ContainerProxyTests
     with ImplicitSender
     with FlatSpecLike
     with Matchers
-    with Inside
     with BeforeAndAfterAll
     with StreamLogging {
 
