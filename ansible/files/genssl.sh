@@ -34,7 +34,7 @@ function gen_cert(){
   openssl x509 -req \
       -in "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-request.csr" \
       -signkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" \
-      -out ${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem \
+      -out "${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem" \
       -days 365
 }
 
@@ -53,7 +53,7 @@ if [ "$TYPE" == "server_with_JKS_keystore" ]; then
   keytool -genkey -v \
     -alias $CN \
     -dname "C=US,ST=NY,L=Yorktown,O=OpenWhisk,CN=$CN" \
-    -keystore ${SCRIPTDIR}/${NAME_PREFIX}keystore.jks \
+    -keystore "${SCRIPTDIR}/${NAME_PREFIX}keystore.jks" \
     -keypass:env TRUSTSTORE_PASSWORD \
     -storepass:env TRUSTSTORE_PASSWORD \
     -keyalg RSA \
@@ -61,13 +61,13 @@ if [ "$TYPE" == "server_with_JKS_keystore" ]; then
     -ext BasicConstraints:critical="ca:true" \
     -validity 365
   echo export private key from the keystore
-  keytool -keystore ${SCRIPTDIR}/${NAME_PREFIX}keystore.jks -alias $CN -certreq -file ${SCRIPTDIR}/${NAME_PREFIX}cert-file -storepass:env TRUSTSTORE_PASSWORD
+  keytool -keystore "${SCRIPTDIR}/${NAME_PREFIX}keystore.jks" -alias $CN -certreq -file "${SCRIPTDIR}/${NAME_PREFIX}cert-file" -storepass:env TRUSTSTORE_PASSWORD
   echo sign the certificate with private key
-  openssl x509 -req -CA ${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem -CAkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" -in ${SCRIPTDIR}/${NAME_PREFIX}cert-file -out ${SCRIPTDIR}/${NAME_PREFIX}cert-signed -days 365 -CAcreateserial -passin pass:$TRUSTSTORE_PASSWORD
+  openssl x509 -req -CA "${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem" -CAkey "$SCRIPTDIR/${NAME_PREFIX}openwhisk-server-key.pem" -in "${SCRIPTDIR}/${NAME_PREFIX}cert-file" -out "${SCRIPTDIR}/${NAME_PREFIX}cert-signed" -days 365 -CAcreateserial -passin pass:$TRUSTSTORE_PASSWORD
   echo import CA cert in the keystore
-  keytool -keystore ${SCRIPTDIR}/${NAME_PREFIX}keystore.jks -alias CARoot -import -file ${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem -storepass:env TRUSTSTORE_PASSWORD -noprompt
+  keytool -keystore "${SCRIPTDIR}/${NAME_PREFIX}keystore.jks" -alias CARoot -import -file "${SCRIPTDIR}/${NAME_PREFIX}openwhisk-server-cert.pem" -storepass:env TRUSTSTORE_PASSWORD -noprompt
   echo import the private key in the keystore
-  keytool -keystore ${SCRIPTDIR}/${NAME_PREFIX}keystore.jks -alias $CN -import -file ${SCRIPTDIR}/${NAME_PREFIX}cert-signed -storepass:env TRUSTSTORE_PASSWORD -noprompt
+  keytool -keystore "${SCRIPTDIR}/${NAME_PREFIX}keystore.jks" -alias $CN -import -file "${SCRIPTDIR}/${NAME_PREFIX}cert-signed" -storepass:env TRUSTSTORE_PASSWORD -noprompt
 
 elif [ "$TYPE" == "server" ]; then
     gen_csr
