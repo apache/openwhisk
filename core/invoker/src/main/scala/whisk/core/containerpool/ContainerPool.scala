@@ -17,26 +17,31 @@
 
 package whisk.core.containerpool
 
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.ActorRefFactory
+import akka.actor.Props
 import scala.collection.immutable
-
-import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
-
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
-
+import scala.concurrent.duration._
+import whisk.common.AkkaLogging
+import whisk.common.LoggingMarkers
+import whisk.common.TransactionId
+import whisk.core.connector.MessageFeed
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
-import whisk.core.connector.MessageFeed
-
-import scala.concurrent.duration._
 
 sealed trait WorkerState
 case object Busy extends WorkerState
 case object Free extends WorkerState
 
 case class WorkerData(data: ContainerData, state: WorkerState)
+
+case object Prewarm //sent to initiate prewarming of containers
+
+case class ContainerPoolConfig(singleton: Boolean, passiveReplicatedPools: Boolean)
 
 /**
  * A pool managing containers to run actions on.
@@ -63,21 +68,26 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                     maxActiveContainers: Int,
                     maxPoolSize: Int,
                     feed: ActorRef,
-                    prewarmConfig: Option[PrewarmingConfig] = None)
+                    prewarmConfig: Option[PrewarmingConfig] = None,
+                    poolInitializer: ContainerPoolInitializer)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
-
-  var freePool = immutable.Map.empty[ActorRef, ContainerData]
+  implicit val ec = context.dispatcher
+  var freePool: ContainerPoolMap = poolInitializer.createFreePool
   var busyPool = immutable.Map.empty[ActorRef, ContainerData]
-  var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
+  var prewarmedPool: ContainerPoolMap = poolInitializer.createPrewarmPool
+
+  //initialize the pool
+  poolInitializer.initPool(self)
   val logMessageInterval = 10.seconds
 
-  prewarmConfig.foreach { config =>
-    logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
-    (1 to config.count).foreach { _ =>
-      prewarmContainer(config.exec, config.memoryLimit)
+  def prewarm() =
+    prewarmConfig.foreach { config =>
+      logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
+      (1 to config.count).foreach { _ =>
+        prewarmContainer(config.exec, config.memoryLimit)
+      }
     }
-  }
 
   def logContainerStart(r: Run, containerState: String): Unit = {
     val namespaceName = r.msg.user.namespace.name
@@ -92,6 +102,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   }
 
   def receive: Receive = {
+    case Prewarm       => prewarm()
+    case a: Attach     => childFactory(context) ! a
+    case a: AttachFree => childFactory(context) ! a
     // A job to run on a container
     //
     // Run messages are received either via the feed or from child containers which cannot process
@@ -102,12 +115,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
         // Schedule a job to a warm container
         ContainerPool
-          .schedule(r.action, r.msg.user.namespace, freePool)
+          .schedule(r.action, r.msg.user.namespace, freePool.toMap)
           .map(container => {
             (container, "warm")
           })
           .orElse {
-            if (busyPool.size + freePool.size < maxPoolSize) {
+            if (busyPool.size + freePool.toMap.size < maxPoolSize) {
               takePrewarmContainer(r.action)
                 .map(container => {
                   (container, "prewarmed")
@@ -119,7 +132,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           }
           .orElse {
             // Remove a container and create a new one for the given job
-            ContainerPool.remove(freePool).map { toDelete =>
+            ContainerPool.remove(freePool.toMap).map { toDelete =>
               removeContainer(toDelete)
               takePrewarmContainer(r.action)
                 .map(container => {
@@ -146,7 +159,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
           val retryLogDeadline = if (isErrorLogged) {
             logging.error(
               this,
-              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
+              s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.toMap.size}, " +
                 s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, " +
                 s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
             Some(logMessageInterval.fromNow)
@@ -158,6 +171,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
+      logging.info(this, s"NeedWork1 ${data}")
       freePool = freePool + (sender() -> data)
       busyPool.get(sender()).foreach { _ =>
         busyPool = busyPool - sender()
@@ -166,7 +180,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is prewarmed and ready to take work
     case NeedWork(data: PreWarmedData) =>
+      logging.info(this, s"NeedWork2 ${data}")
       prewarmedPool = prewarmedPool + (sender() -> data)
+      logging.info(this, s"added to prewarm; new size of prewarm pool:${prewarmedPool.toMap.size}")
 
     // Container got removed
     case ContainerRemoved =>
@@ -210,10 +226,12 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     prewarmConfig.flatMap { config =>
       val kind = action.exec.kind
       val memory = action.limits.memory.megabytes.MB
-      prewarmedPool
+      prewarmedPool.toMap
         .find {
-          case (_, PreWarmedData(_, `kind`, `memory`)) => true
-          case _                                       => false
+          case (_, PreWarmedData(_, `kind`, `memory`)) =>
+            logging.info(this, s"found prewarm for kind ${kind}")
+            true
+          case _ => false
         }
         .map {
           case (ref, data) =>
@@ -285,9 +303,21 @@ object ContainerPool {
             maxActive: Int,
             size: Int,
             feed: ActorRef,
-            prewarmConfig: Option[PrewarmingConfig] = None) =
-    Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig))
+            prewarmConfig: Option[PrewarmingConfig] = None,
+            poolInitializer: ContainerPoolInitializer = new DefaultContainerPoolInitializer) =
+    Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig, poolInitializer))
 }
 
 /** Contains settings needed to perform container prewarming */
 case class PrewarmingConfig(count: Int, exec: CodeExec[_], memoryLimit: ByteSize)
+
+trait ContainerPoolMap {
+  def +(kv: (ActorRef, ContainerData)): ContainerPoolMap
+  def -(k: ActorRef): ContainerPoolMap
+  def toMap: Map[ActorRef, ContainerData]
+}
+class DefaultContainerPoolMap(backing: Map[ActorRef, ContainerData] = immutable.Map.empty) extends ContainerPoolMap {
+  def +(kv: (ActorRef, ContainerData)) = new DefaultContainerPoolMap(backing + kv)
+  def -(k: ActorRef): ContainerPoolMap = new DefaultContainerPoolMap(backing - k)
+  def toMap = backing
+}

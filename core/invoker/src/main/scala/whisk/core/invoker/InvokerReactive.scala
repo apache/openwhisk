@@ -19,8 +19,14 @@ package whisk.core.invoker
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-
-import akka.actor.{ActorRefFactory, ActorSystem, Props}
+import akka.actor.ActorRefFactory
+import akka.actor.ActorSystem
+import akka.actor.PoisonPill
+import akka.actor.Props
+import akka.cluster.singleton.ClusterSingletonManager
+import akka.cluster.singleton.ClusterSingletonManagerSettings
+import akka.cluster.singleton.ClusterSingletonProxy
+import akka.cluster.singleton.ClusterSingletonProxySettings
 import akka.event.Logging.InfoLevel
 import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
@@ -36,7 +42,6 @@ import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.Messages
 import whisk.spi.SpiLoader
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -100,9 +105,41 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     maximumContainers,
     maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
-  private val activationFeed = actorSystem.actorOf(Props {
-    new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
-  })
+  val poolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
+
+  //for replicated pools, use the ReplicatedPoolInitializer
+  val poolInitializer = if (poolConfig.passiveReplicatedPools) {
+    new ReplicatedPoolInitializer(actorSystem, entityStore)
+  } else {
+    new DefaultContainerPoolInitializer
+  }
+
+  //for singleton ContainerPool, only activate a single MessageFeed for the "activation" topic
+  val activationFeed = if (poolConfig.singleton) {
+    actorSystem.actorOf(
+      ClusterSingletonManager.props(
+        Props(
+          new MessageFeed(
+            "activation",
+            logging,
+            consumer,
+            maximumContainers,
+            500.milliseconds,
+            processActivationMessage)),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(actorSystem)),
+      name = "activationFeedMaster")
+    actorSystem.actorOf(
+      ClusterSingletonProxy
+        .props(
+          singletonManagerPath = "/user/activationFeedMaster",
+          settings = ClusterSingletonProxySettings(actorSystem)),
+      name = "activationFeedProxy")
+  } else {
+    actorSystem.actorOf(Props {
+      new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)
+    })
+  }
 
   /** Sends an active-ack. */
   private val ack = (tid: TransactionId,
@@ -140,7 +177,15 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
   /** Creates a ContainerProxy Actor when being called. */
   private val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
+    f.actorOf(
+      ContainerProxy
+        .props(
+          containerFactory.createContainer,
+          ack,
+          store,
+          logsProvider.collectLogs,
+          instance,
+          attachFactory = containerFactory.attach))
 
   private val prewarmKind = "nodejs:6"
   private val prewarmExec = ExecManifest.runtimesManifest
@@ -154,7 +199,8 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
       maximumContainers,
       maximumContainers,
       activationFeed,
-      Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
+      Some(PrewarmingConfig(2, prewarmExec, 256.MB)),
+      poolInitializer))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {

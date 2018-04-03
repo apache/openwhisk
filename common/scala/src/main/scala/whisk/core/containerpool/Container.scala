@@ -56,8 +56,8 @@ case class ContainerAddress(val host: String, val port: Int = 8080) {
 
 trait Container {
 
-  protected val id: ContainerId
-  protected val addr: ContainerAddress
+  val id: ContainerId
+  val addr: ContainerAddress
   protected implicit val logging: Logging
   protected implicit val ec: ExecutionContext
 

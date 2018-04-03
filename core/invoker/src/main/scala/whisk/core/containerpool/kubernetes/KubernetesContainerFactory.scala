@@ -24,7 +24,6 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
-
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
@@ -34,6 +33,8 @@ import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.InstanceId
 import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.containerpool.ContainerAddress
+import whisk.core.containerpool.ContainerId
 
 class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit actorSystem: ActorSystem,
                                                                      ec: ExecutionContext,
@@ -80,6 +81,14 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
       labels = Map("invoker" -> label))
   }
+
+  override def attach(id: ContainerId,
+                      ip: ContainerAddress,
+                      tid: TransactionId,
+                      actionImage: ImageName,
+                      userProvidedImage: Boolean,
+                      memory: ByteSize): Future[Container] =
+    Future.failed(new Exception("KubernetesContainerFactory cannot attach to existing containers"))
 }
 
 object KubernetesContainerFactoryProvider extends ContainerFactoryProvider {

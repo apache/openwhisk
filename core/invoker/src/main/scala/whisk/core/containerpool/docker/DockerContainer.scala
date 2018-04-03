@@ -142,13 +142,12 @@ object DockerContainer {
  * @param id the id of the container
  * @param addr the ip of the container
  */
-class DockerContainer(protected val id: ContainerId,
-                      protected val addr: ContainerAddress,
-                      protected val useRunc: Boolean)(implicit docker: DockerApiWithFileAccess,
-                                                      runc: RuncApi,
-                                                      as: ActorSystem,
-                                                      protected val ec: ExecutionContext,
-                                                      protected val logging: Logging)
+class DockerContainer(val id: ContainerId, val addr: ContainerAddress, protected val useRunc: Boolean)(
+  implicit docker: DockerApiWithFileAccess,
+  runc: RuncApi,
+  as: ActorSystem,
+  protected val ec: ExecutionContext,
+  protected val logging: Logging)
     extends Container {
 
   /** The last read-position in the log file */

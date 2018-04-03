@@ -87,8 +87,8 @@ object KubernetesContainer {
  * @param workerIP the ip of the workernode on which the container is executing
  * @param nativeContainerId the docker/containerd lowlevel id for the container
  */
-class KubernetesContainer(protected[core] val id: ContainerId,
-                          protected[core] val addr: ContainerAddress,
+class KubernetesContainer(val id: ContainerId,
+                          val addr: ContainerAddress,
                           protected[core] val workerIP: String,
                           protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
                                                                          protected val ec: ExecutionContext,

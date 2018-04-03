@@ -672,8 +672,8 @@ class ContainerProxyTests
    * Implements all the good cases of a perfect run to facilitate error case overriding.
    */
   class TestContainer extends Container {
-    protected val id = ContainerId("testcontainer")
-    protected val addr = ContainerAddress("0.0.0.0")
+    val id = ContainerId("testcontainer")
+    val addr = ContainerAddress("0.0.0.0")
     protected implicit val logging: Logging = log
     protected implicit val ec: ExecutionContext = system.dispatcher
     var suspendCount = 0
