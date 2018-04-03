@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.LongAdder
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorSystem, Cancellable, Props}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.event.Logging.InfoLevel
@@ -309,9 +309,22 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     kafkaHosts ++
       Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
 
+  /** Generates a hash based on the string representation of namespace and action */
   def generateHash(namespace: EntityName, action: FullyQualifiedEntityName): Int = {
     (namespace.asString.hashCode() ^ action.asString.hashCode()).abs
   }
+
+  /** Euclidean algorithm to determine the greatest-common-divisor */
+  @tailrec
+  def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
+  /** Returns pairwise coprime numbers until x. Result is memoized. */
+  def pairwiseCoprimeNumbersUntil(x: Int): IndexedSeq[Int] =
+    (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
+      if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
+        primes :+ cur
+      } else primes
+    })
 
   /**
    * Scans through all invokers and searches for an invoker tries to get a free slot on an invoker. If no slot can be
@@ -374,8 +387,8 @@ case class ShardingContainerPoolBalancerState(
   private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  private var _managedStepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
-  private var _blackboxStepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
   private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore],
   private var _clusterSize: Int = 1)(
   lbConfig: ShardingContainerPoolBalancerConfig =
@@ -419,8 +432,8 @@ case class ShardingContainerPoolBalancerState(
     _managedInvokers = _invokers.take(managed)
 
     if (oldSize != newSize) {
-      _managedStepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)
-      _blackboxStepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(blackboxes)
+      _managedStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)
+      _blackboxStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(blackboxes)
 
       if (oldSize < newSize) {
         // Keeps the existing state..
@@ -467,3 +480,18 @@ case class ShardingContainerPoolBalancerState(
  * @param invokerBusyThreshold how many slots an invoker has available in total
  */
 case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
+
+/**
+ * State kept for each activation until completion.
+ *
+ * @param id id of the activation
+ * @param namespaceId namespace that invoked the action
+ * @param invokerName invoker the action is scheduled to
+ * @param timeoutHandler times out completion of this activation, should be canceled on good paths
+ * @param promise the promise to be completed by the activation
+ */
+case class ActivationEntry(id: ActivationId,
+                           namespaceId: UUID,
+                           invokerName: InstanceId,
+                           timeoutHandler: Cancellable,
+                           promise: Promise[Either[ActivationId, WhiskActivation]])
