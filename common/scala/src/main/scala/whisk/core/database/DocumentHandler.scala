@@ -220,6 +220,14 @@ object WhisksHandler extends SimpleHandler {
     }
   }
 
+  def getEntityTypeForDesignDoc(ddoc: String, view: String): String = view match {
+    case "actions"                      => "action"
+    case "rules"                        => "rule"
+    case "triggers"                     => "trigger"
+    case "packages" | "packages-public" => "package"
+    case _                              => throw UnsupportedView(s"$ddoc/$view")
+  }
+
   private def computeTriggersView(js: JsObject): JsObject = {
     JsObject(js.fields.filterKeys(commonFields))
   }

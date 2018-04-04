@@ -23,9 +23,14 @@ import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import spray.json.{JsArray, JsNumber, JsObject, JsString, JsValue}
 import whisk.common.{TransactionCounter, TransactionId}
-import whisk.core.database.{ArtifactStore, DocumentConflictException, NoDocumentException}
+import whisk.core.database.{ArtifactStore, DocumentConflictException, NoDocumentException, StaleParameter}
+import whisk.core.entity.WhiskEntityQueries.TOP
 import whisk.core.entity._
+import whisk.utils.JsHelpers
+
+import scala.util.Random
 
 trait ArtifactStoreBehaviors
     extends ScalaFutures
@@ -56,6 +61,11 @@ trait ArtifactStoreBehaviors
     activationStore.shutdown()
     super.afterAll()
   }
+
+  protected val prefix = s"artifactTests_${Random.alphanumeric.take(10).mkString}"
+
+  private val ns = EntityPath(prefix)
+  private val exec = BlackBoxExec(ExecManifest.ImageName("image"), None, None, native = false)
 
   behavior of s"${storeType}ArtifactStore put"
 
@@ -179,6 +189,47 @@ trait ArtifactStoreBehaviors
     authStore.get[WhiskAuth](DocInfo("non-existing-doc")).failed.futureValue shouldBe a[NoDocumentException]
   }
 
+  behavior of s"${storeType}ArtifactStore query"
+
+  it should "find single entity" in {
+    implicit val tid: TransactionId = transid()
+
+    val ns = newNS()
+    val action = newAction(ns)
+    val docInfo = put(entityStore, action)
+
+    val result = query[WhiskEntity](
+      entityStore,
+      "whisks/actions",
+      List(ns.asString, 0),
+      List(ns.asString, TOP, TOP),
+      includeDocs = true)
+
+    result should have length 1
+
+    def js = result.head
+    js.fields("id") shouldBe JsString(docInfo.id.id)
+    js.fields("key") shouldBe JsArray(JsString(ns.asString), JsNumber(action.updated.toEpochMilli))
+    js.fields.get("value") shouldBe defined
+    js.fields.get("doc") shouldBe defined
+    js.fields("value") shouldBe action.summaryAsJson
+    dropRev(js.fields("doc").asJsObject) shouldBe action.toDocumentRecord
+  }
+
+  private def query[A <: WhiskEntity](
+    db: ArtifactStore[A],
+    table: String,
+    startKey: List[Any],
+    endKey: List[Any],
+    skip: Int = 0,
+    limit: Int = 0,
+    includeDocs: Boolean = false,
+    descending: Boolean = true,
+    reduce: Boolean = false,
+    stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): List[JsObject] = {
+    db.query(table, startKey, endKey, skip, limit, includeDocs, descending, reduce, stale).futureValue
+  }
+
   private def getWhiskAuth(doc: DocInfo)(implicit transid: TransactionId) = {
     authStore.get[WhiskAuth](doc).futureValue
   }
@@ -191,5 +242,43 @@ trait ArtifactStoreBehaviors
 
   private def wskNS(name: String) = {
     WhiskNamespace(EntityName(name), AuthKey())
+  }
+
+  private def newAction(ns: EntityPath): WhiskAction = {
+    WhiskAction(ns, aname(), exec)
+  }
+
+  private def newActivation(ns: String, actionName: String, start: Long): WhiskActivation = {
+    WhiskActivation(
+      EntityPath(ns),
+      EntityName(actionName),
+      Subject(),
+      ActivationId.generate(),
+      Instant.ofEpochMilli(start),
+      Instant.ofEpochMilli(start + 1000))
+  }
+
+  private def aname() = MakeName.next("querytests")
+
+  private def newNS() = EntityPath(s"artifactTests_${Random.alphanumeric.take(10).mkString}")
+
+  private object MakeName {
+    @volatile var counter = 1
+    def next(prefix: String = "test")(): EntityName = {
+      counter = counter + 1
+      EntityName(s"${prefix}_name$counter")
+    }
+  }
+
+  private def dropRev(js: JsObject): JsObject = {
+    JsObject(js.fields - "_rev")
+  }
+
+  private def getJsObject(js: JsObject, fields: String*): JsObject = {
+    JsHelpers.getFieldPath(js, fields: _*).get.asJsObject
+  }
+
+  private def getJsField(js: JsObject, subObject: String, fieldName: String): JsValue = {
+    js.fields(subObject).asJsObject().fields(fieldName)
   }
 }

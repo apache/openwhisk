@@ -43,27 +43,29 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
     materializer: ActorMaterializer): ArtifactStore[D] = {
 
     val classTag = implicitly[ClassTag[D]]
-    val (dbName, handler) = handlerAndMapper(classTag)
+    val (dbName, handler, viewMapper) = handlerAndMapper(classTag)
 
-    new MemoryArtifactStore(dbName, handler)
+    new MemoryArtifactStore(dbName, handler, viewMapper)
   }
 
   private def handlerAndMapper[D](entityType: ClassTag[D])(
     implicit actorSystem: ActorSystem,
     logging: Logging,
-    materializer: ActorMaterializer): (String, DocumentHandler) = {
+    materializer: ActorMaterializer): (String, DocumentHandler, MemoryViewMapper) = {
     entityType.runtimeClass match {
       case x if x == classOf[WhiskEntity] =>
-        ("whisks", WhisksHandler)
+        ("whisks", WhisksHandler, WhisksViewMapper)
       case x if x == classOf[WhiskActivation] =>
-        ("activations", ActivationHandler)
+        ("activations", ActivationHandler, ActivationViewMapper)
       case x if x == classOf[WhiskAuth] =>
-        ("subjects", SubjectHandler)
+        ("subjects", SubjectHandler, SubjectViewMapper)
     }
   }
 }
 
-class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: String, documentHandler: DocumentHandler)(
+class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: String,
+                                                                     documentHandler: DocumentHandler,
+                                                                     viewMapper: MemoryViewMapper)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
@@ -189,8 +191,43 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
                                      includeDocs: Boolean,
                                      descending: Boolean,
                                      reduce: Boolean,
-                                     stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] =
-    ???
+                                     stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
+    require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
+    require(!reduce, "Reduce scenario not supported") //TODO Investigate reduce
+
+    val Array(ddoc, viewName) = table.split("/")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$dbName' searching '$table")
+
+    val s = artifacts.toStream
+      .map(_._2)
+      .filter(a => viewMapper.filter(ddoc, viewName, startKey, endKey, a.doc, a.computed))
+      .map(_.doc)
+
+    val sorted = viewMapper.sort(ddoc, viewName, descending, s)
+
+    val out = if (limit > 0) sorted.slice(skip, skip + limit) else sorted.drop(skip)
+
+    val realIncludeDocs = includeDocs | documentHandler.shouldAlwaysIncludeDocs(ddoc, viewName)
+
+    val r = out.map { js =>
+      documentHandler.transformViewResult(
+        ddoc,
+        viewName,
+        startKey,
+        endKey,
+        realIncludeDocs,
+        js,
+        MemoryArtifactStore.this)
+    }.toList
+
+    val f = Future.sequence(r)
+    f.onSuccess({
+      case _ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
+    })
+    reportFailure(f, start, failure => s"[QUERY] '$dbName' internal error, failure: '${failure.getMessage}'")
+
+  }
 
   override protected[core] def count(table: String,
                                      startKey: List[Any],
