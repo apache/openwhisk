@@ -34,7 +34,7 @@ class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehaviors {
     MemoryArtifactStoreProvider.makeStore[WhiskAuth]()
   }
 
-  override def entityStore =
+  override val entityStore =
     MemoryArtifactStoreProvider.makeStore[WhiskEntity]()(
       classTag[WhiskEntity],
       WhiskEntityJsonFormat,
@@ -43,7 +43,7 @@ class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehaviors {
       logging,
       materializer)
 
-  override def activationStore = {
+  override val activationStore = {
     implicit val docReader = WhiskDocumentReader
     MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
   }

@@ -17,12 +17,14 @@
 
 package whisk.core.database.test
 
+import java.time.Instant
+
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import whisk.common.{TransactionCounter, TransactionId}
-import whisk.core.database.{ArtifactStore, DocumentConflictException}
+import whisk.core.database.{ArtifactStore, DocumentConflictException, NoDocumentException}
 import whisk.core.entity._
 
 trait ArtifactStoreBehaviors
@@ -101,6 +103,80 @@ trait ArtifactStoreBehaviors
     intercept[DocumentConflictException] {
       put(authStore, auth)
     }
+  }
+
+  behavior of s"${storeType}ArtifactStore delete"
+
+  it should "deletes existing document" in {
+    implicit val tid: TransactionId = transid()
+    val doc = put(authStore, newAuth())
+    delete(authStore, doc) shouldBe true
+  }
+
+  it should "throws IllegalArgumentException when deleting without revision" in {
+    intercept[IllegalArgumentException] {
+      implicit val tid: TransactionId = transid()
+      delete(authStore, DocInfo("doc-with-empty-revision"))
+    }
+  }
+
+  it should "throws NoDocumentException when document does not exist" in {
+    intercept[NoDocumentException] {
+      implicit val tid: TransactionId = transid()
+      delete(authStore, DocInfo ! ("non-existing-doc", "42"))
+    }
+  }
+
+  behavior of s"${storeType}ArtifactStore get"
+
+  it should "get existing entity matching id and rev" in {
+    implicit val tid: TransactionId = transid()
+    val auth = newAuth()
+    val doc = put(authStore, auth)
+    val authFromGet = getWhiskAuth(doc)
+    authFromGet shouldBe auth
+    authFromGet.docinfo.rev shouldBe doc.rev
+  }
+
+  it should "get existing entity matching id only" in {
+    implicit val tid: TransactionId = transid()
+    val auth = newAuth()
+    val doc = put(authStore, auth)
+    val authFromGet = getWhiskAuth(doc)
+    authFromGet shouldBe auth
+  }
+
+  it should "get entity with timestamp" in {
+    implicit val tid: TransactionId = transid()
+    val activation = WhiskActivation(
+      EntityPath("testnamespace"),
+      EntityName("activation1"),
+      Subject(),
+      ActivationId.generate(),
+      start = Instant.now,
+      end = Instant.now)
+    val activationDoc = put(activationStore, activation)
+    val activationFromDb = activationStore.get[WhiskActivation](activationDoc).futureValue
+    activationFromDb shouldBe activation
+  }
+
+  it should "throws NoDocumentException when document revision does not match" in {
+    implicit val tid: TransactionId = transid()
+    val auth = newAuth()
+    val doc = put(authStore, auth)
+
+    val auth2 = getWhiskAuth(doc).copy(namespaces = Set(wskNS("foo1"))).revision[WhiskAuth](doc.rev)
+    val doc2 = put(authStore, auth2)
+
+    authStore.get[WhiskAuth](doc).failed.futureValue shouldBe a[NoDocumentException]
+
+    val authFromGet = getWhiskAuth(doc2)
+    authFromGet shouldBe auth2
+  }
+
+  it should "throws NoDocumentException when document does not exist" in {
+    implicit val tid: TransactionId = transid()
+    authStore.get[WhiskAuth](DocInfo("non-existing-doc")).failed.futureValue shouldBe a[NoDocumentException]
   }
 
   private def getWhiskAuth(doc: DocInfo)(implicit transid: TransactionId) = {

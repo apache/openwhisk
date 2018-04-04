@@ -119,7 +119,25 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     reportFailure(f, start, failure => s"[PUT] '$dbName' internal error, failure: '${failure.getMessage}'")
   }
 
-  override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = ???
+  override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
+    require(doc != null && doc.rev.asString != null, "doc revision required for delete")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
+    val t = Try[Boolean] {
+      if (artifacts.remove(doc.id.id, Artifact(doc))) {
+        transid.finished(this, start, s"[DEL] '$dbName' completed document: '$doc'")
+        true
+      } else {
+        transid.finished(this, start, s"[DEL] '$dbName', document: '$doc'; not found.")
+        // for compatibility
+        throw NoDocumentException("not found on 'delete'")
+      }
+    }
+
+    val f = Future.fromTry(t)
+
+    reportFailure(f, start, failure => s"[DEL] '$dbName' internal error, doc: '$doc', failure: '${failure.getMessage}'")
+  }
 
   override protected[database] def get[A <: DocumentAbstraction](doc: DocInfo)(implicit transid: TransactionId,
                                                                                ma: Manifest[A]): Future[A] = {
@@ -202,6 +220,9 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }
   }
 
+  //Use curried case class to allow equals support only for id and rev
+  //This allows us to implement atomic replace and remove which check
+  //for id,rev equality only
   private case class Artifact(id: String, rev: Int)(val doc: JsObject, val computed: JsObject) {
     def incrementRev(): Artifact = {
       val newRev = rev + 1
@@ -217,6 +238,10 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   private object Artifact {
     def apply(id: String, rev: Int, doc: JsObject): Artifact = {
       Artifact(id, rev)(doc, documentHandler.computedFields(doc))
+    }
+
+    def apply(info: DocInfo): Artifact = {
+      Artifact(info.id.id, info.rev.rev.toInt)(JsObject.empty, JsObject.empty)
     }
   }
 
