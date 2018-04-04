@@ -57,7 +57,6 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   val shortDuration = 10 seconds
 
   val whiskConfig: WhiskConfig
-  assert(whiskConfig.isValid)
 
   behavior of "Wsk Sequence"
 

@@ -31,4 +31,5 @@ import whisk.core.WhiskConfig
 class WskRestSequenceTests extends WskSequenceTests {
   override val wsk: common.rest.WskRest = new WskRest
   override val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
+  assert(whiskConfig.isValid)
 }
