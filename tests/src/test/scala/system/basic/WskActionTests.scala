@@ -38,6 +38,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
 
   implicit val wskprops = WskProps()
   val wsk: BaseWsk
+  val cli = false
 
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
@@ -230,7 +231,7 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
       action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
     }
     val rr = wsk.action.get(name)
-    wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
+    getJSONFromResponse(rr.stdout, cli).getFieldPath("exec", "code") shouldBe Some(JsString(""))
   }
 
   it should "blocking invoke of nested blocking actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

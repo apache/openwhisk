@@ -41,6 +41,7 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
   val secondAction = TestUtils.getTestActionFilename("hello.js")
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
+  val cli = false
 
   /**
    * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
@@ -101,22 +102,13 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     statusPermutations.foreach {
       case (trigger, status) =>
         if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-
         // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-        retry(
-          {
-            wsk.rule
-              .create(ruleName, trigger, actionName, update = true)
-              .stdout
-              .parseJson
-              .asJsObject
-              .fields
-              .get("status") shouldBe status
-
-            wsk.rule.get(ruleName).stdout.parseJson.asJsObject.fields.get("status") shouldBe status
-          },
-          10,
-          Some(1.second))
+        retry({
+          val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
+          val getStdout = wsk.rule.get(ruleName).stdout
+          getJSONFromResponse(createStdout, cli).fields.get("status") shouldBe status
+          getJSONFromResponse(getStdout, cli).fields.get("status") shouldBe status
+        }, 10, Some(1.second))
     }
   }
 
