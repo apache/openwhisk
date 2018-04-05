@@ -21,8 +21,20 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
 import common.rest.WskRest
+import common.TestUtils
+
+import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class WskRestActionTests extends WskActionTests {
   override val wsk: WskRest = new WskRest
+
+  it should "create an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+    val name = "empty"
+    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+      action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
+    }
+    val rr = wsk.action.get(name)
+    getJSONFromResponse(rr.stdout, false).getFieldPath("exec", "code") shouldBe Some(JsString(""))
+  }
 }

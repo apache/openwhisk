@@ -29,8 +29,6 @@ import common.RuleActivationResult
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import java.time.Instant
-import whisk.utils.retry
-import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
@@ -41,7 +39,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
   val secondAction = TestUtils.getTestActionFilename("hello.js")
   val testString = "this is a test"
   val testResult = JsObject("count" -> testString.split(" ").length.toJson)
-  val cli = false
 
   /**
    * Sets up trigger -> rule -> action triplets. Deduplicates triggers and rules
@@ -83,34 +80,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
   def withTimestamp(text: String) = s"$text-${System.currentTimeMillis}"
 
   behavior of "Whisk rules"
-
-  it should "preserve rule status when a rule is updated" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val ruleName = withTimestamp("r1to1")
-    val triggerName = withTimestamp("t1to1")
-    val actionName = withTimestamp("a1 to 1")
-    val triggerName2 = withTimestamp("t2to1")
-    val active = Some("active".toJson)
-    val inactive = Some("inactive".toJson)
-    val statusPermutations =
-      Seq((triggerName, active), (triggerName, inactive), (triggerName2, active), (triggerName, inactive))
-
-    ruleSetup(Seq((ruleName, triggerName, (actionName, actionName, defaultAction))), assetHelper)
-    assetHelper.withCleaner(wsk.trigger, triggerName2) { (trigger, name) =>
-      trigger.create(name)
-    }
-
-    statusPermutations.foreach {
-      case (trigger, status) =>
-        if (status == active) wsk.rule.enable(ruleName) else wsk.rule.disable(ruleName)
-        // Needs to be retried since the enable/disable causes a cache invalidation which needs to propagate first
-        retry({
-          val createStdout = wsk.rule.create(ruleName, trigger, actionName, update = true).stdout
-          val getStdout = wsk.rule.get(ruleName).stdout
-          getJSONFromResponse(createStdout, cli).fields.get("status") shouldBe status
-          getJSONFromResponse(getStdout, cli).fields.get("status") shouldBe status
-        }, 10, Some(1.second))
-    }
-  }
 
   it should "invoke the action attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
