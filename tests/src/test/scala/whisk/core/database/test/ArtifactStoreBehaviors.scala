@@ -345,6 +345,41 @@ trait ArtifactStoreBehaviors
     result.map(js => JsObject(getJsObject(js, "doc").fields - "_rev")) shouldBe activations.map(_.toDocumentRecord)
   }
 
+  behavior of s"${storeType}ArtifactStore count"
+
+  it should "should match all created activations" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val result = count[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP))
+
+    result shouldBe 10
+  }
+
+  it should "count with skip" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val result = count[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP),
+      skip = 4)
+
+    result shouldBe 10 - 4
+  }
+
   private def query[A <: WhiskEntity](
     db: ArtifactStore[A],
     table: String,
@@ -357,6 +392,16 @@ trait ArtifactStoreBehaviors
     reduce: Boolean = false,
     stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): List[JsObject] = {
     db.query(table, startKey, endKey, skip, limit, includeDocs, descending, reduce, stale).futureValue
+  }
+
+  private def count[A <: WhiskEntity](
+    db: ArtifactStore[A],
+    table: String,
+    startKey: List[Any],
+    endKey: List[Any],
+    skip: Int = 0,
+    stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): Long = {
+    db.count(table, startKey, endKey, skip, stale).futureValue
   }
 
   private def getWhiskAuth(doc: DocInfo)(implicit transid: TransactionId) = {

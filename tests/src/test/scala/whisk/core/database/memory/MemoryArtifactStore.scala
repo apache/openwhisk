@@ -234,7 +234,11 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
                                      startKey: List[Any],
                                      endKey: List[Any],
                                      skip: Int,
-                                     stale: StaleParameter)(implicit transid: TransactionId): Future[Long] = ???
+                                     stale: StaleParameter)(implicit transid: TransactionId): Future[Long] = {
+    val f =
+      query(table, startKey, endKey, skip, limit = 0, includeDocs = false, descending = true, reduce = false, stale)
+    f.map(_.size)
+  }
 
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[(ContentType, T)] = ???
