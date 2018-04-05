@@ -23,8 +23,10 @@ import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsNumber, JsObject, JsString, JsValue}
 import whisk.common.{TransactionCounter, TransactionId}
+import whisk.core.ConfigKeys
 import whisk.core.database.{ArtifactStore, DocumentConflictException, NoDocumentException, StaleParameter}
 import whisk.core.entity.WhiskEntityQueries.TOP
 import whisk.core.entity._
@@ -47,6 +49,7 @@ trait ArtifactStoreBehaviors
 
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
+  val ddconfig = loadConfigOrThrow[DBConfig](ConfigKeys.db)
 
   def authStore: ArtifactStore[WhiskAuth]
   def entityStore: ArtifactStore[WhiskEntity]
@@ -200,7 +203,7 @@ trait ArtifactStoreBehaviors
 
     val result = query[WhiskEntity](
       entityStore,
-      "whisks/actions",
+      s"${ddconfig.actionsDdoc}/actions",
       List(ns.asString, 0),
       List(ns.asString, TOP, TOP),
       includeDocs = true)
@@ -214,6 +217,132 @@ trait ArtifactStoreBehaviors
     js.fields.get("doc") shouldBe defined
     js.fields("value") shouldBe action.summaryAsJson
     dropRev(js.fields("doc").asJsObject) shouldBe action.toDocumentRecord
+  }
+
+  it should "not have doc with includeDocs = false" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val action = newAction(ns)
+    val docInfo = put(entityStore, action)
+
+    val result = query[WhiskEntity](
+      entityStore,
+      s"${ddconfig.actionsDdoc}/actions",
+      List(ns.asString, 0),
+      List(ns.asString, TOP, TOP))
+
+    result should have length 1
+
+    def js = result.head
+    js.fields("id") shouldBe JsString(docInfo.id.id)
+    js.fields("key") shouldBe JsArray(JsString(ns.asString), JsNumber(action.updated.toEpochMilli))
+    js.fields.get("value") shouldBe defined
+    js.fields.get("doc") shouldBe None
+    js.fields("value") shouldBe action.summaryAsJson
+  }
+
+  it should "find all entities" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val entities = Seq(newAction(ns), newAction(ns))
+
+    entities foreach {
+      put(entityStore, _)
+    }
+
+    val result = query[WhiskEntity](
+      entityStore,
+      s"${ddconfig.actionsDdoc}/actions",
+      List(ns.asString, 0),
+      List(ns.asString, TOP, TOP))
+
+    result should have length entities.length
+    result.map(_.fields("value")) should contain theSameElementsAs entities.map(_.summaryAsJson)
+  }
+
+  it should "return result in sorted order" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val resultDescending = query[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP))
+
+    resultDescending should have length activations.length
+    resultDescending.map(getJsField(_, "value", "start")) shouldBe activations
+      .map(_.summaryAsJson.fields("start"))
+      .reverse
+
+    val resultAscending = query[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP),
+      descending = false)
+
+    resultAscending.map(getJsField(_, "value", "start")) shouldBe activations.map(_.summaryAsJson.fields("start"))
+  }
+
+  it should "support skipping results" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val result = query[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP),
+      skip = 5,
+      descending = false)
+
+    result.map(getJsField(_, "value", "start")) shouldBe activations.map(_.summaryAsJson.fields("start")).drop(5)
+  }
+
+  it should "support limiting results" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val result = query[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP),
+      limit = 5,
+      descending = false)
+
+    result.map(getJsField(_, "value", "start")) shouldBe activations.map(_.summaryAsJson.fields("start")).take(5)
+  }
+
+  it should "support including complete docs" in {
+    implicit val tid = transid()
+
+    val ns = newNS()
+    val activations = (1000 until 1100 by 10).map(newActivation(ns.asString, "testact", _))
+    activations foreach (put(activationStore, _))
+
+    val result = query[WhiskActivation](
+      activationStore,
+      s"${ddconfig.activationsFilterDdoc}/activations",
+      List(s"${ns.asString}/testact", 0),
+      List(s"${ns.asString}/testact", TOP, TOP),
+      includeDocs = true,
+      descending = false)
+
+    //Drop the _rev field as activations do not have that field
+    result.map(js => JsObject(getJsObject(js, "doc").fields - "_rev")) shouldBe activations.map(_.toDocumentRecord)
   }
 
   private def query[A <: WhiskEntity](

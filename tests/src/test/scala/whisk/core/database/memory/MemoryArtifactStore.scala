@@ -203,6 +203,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
       .map(_._2)
       .filter(a => viewMapper.filter(ddoc, viewName, startKey, endKey, a.doc, a.computed))
       .map(_.doc)
+      .toList
 
     val sorted = viewMapper.sort(ddoc, viewName, descending, s)
 

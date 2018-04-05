@@ -18,7 +18,7 @@
 package whisk.core.database.memory
 
 import spray.json.{JsNumber, JsObject, JsString}
-import whisk.core.database.{UnsupportedQueryKeys, UnsupportedView, WhisksHandler}
+import whisk.core.database.{ActivationHandler, UnsupportedQueryKeys, UnsupportedView, WhisksHandler}
 import whisk.core.entity.WhiskEntityQueries
 import whisk.utils.JsHelpers
 
@@ -62,12 +62,49 @@ trait MemoryViewMapper {
           case _                 => 0L
       }
     val order = implicitly[Ordering[Long]]
-    val ordering = if (descending) order else order.reverse
+    val ordering = if (descending) order.reverse else order
     s.sortBy(f)(ordering)
   }
 }
 
-private object ActivationViewMapper extends MemoryViewMapper {}
+private object ActivationViewMapper extends MemoryViewMapper {
+  private val NS = "namespace"
+  private val NS_WITH_PATH = ActivationHandler.NS_PATH
+  private val START = "start"
+
+  override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject) = {
+    checkKeys(startKey, endKey)
+    val nsValue = startKey.head.asInstanceOf[String]
+    view match {
+      //whisks-filters ddoc uses namespace + invoking action path as first key
+      case "activations" if ddoc.startsWith("whisks-filters") =>
+        filterActivation(d, equal(c, NS_WITH_PATH, nsValue), startKey, endKey)
+      //whisks ddoc uses namespace as first key
+      case "activations" if ddoc.startsWith("whisks") => filterActivation(d, equal(d, NS, nsValue), startKey, endKey)
+      case _                                          => throw UnsupportedView(s"$ddoc/$view")
+    }
+  }
+
+  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]) =
+    view match {
+      case "activations" if ddoc.startsWith("whisks") => numericSort(s, descending, START)
+      case _                                          => throw UnsupportedView(s"$ddoc/$view")
+    }
+
+  def filterActivation(d: JsObject, matchNS: Boolean, startKey: List[Any], endKey: List[Any]): Boolean = {
+    val filterResult = (startKey, endKey) match {
+      case (_ :: Nil, _ :: `TOP` :: Nil) =>
+        matchNS
+      case (_ :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
+        matchNS && gte(d, START, since)
+      case (_ :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
+        matchNS && gte(d, START, since) && lte(d, START, upto)
+      case _ => throw UnsupportedQueryKeys(s"$startKey, $endKey")
+    }
+    filterResult
+  }
+
+}
 
 private object WhisksViewMapper extends MemoryViewMapper {
   val NS = "namespace"
@@ -86,7 +123,7 @@ private object WhisksViewMapper extends MemoryViewMapper {
     //Here ddocs for actions, rules and triggers use
     //namespace and namespace/packageName as first key
 
-    val result = (startKey, endKey) match {
+    val filterResult = (startKey, endKey) match {
       case (ns :: Nil, _ :: `TOP` :: Nil) =>
         (matchType && matchNS) || (matchType && matchRootNS)
 
@@ -99,7 +136,7 @@ private object WhisksViewMapper extends MemoryViewMapper {
 
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
-    result
+    filterResult
   }
 
   override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]) = {
