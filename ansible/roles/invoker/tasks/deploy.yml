@@ -161,71 +161,70 @@
 
 - name: prepare invoker env
   set_fact:
-    env: {
-      "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log",
-      "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}",
-      "JMX_REMOTE": "{{ jmx.enabled }}",
-      "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}",
-      "PORT": 8080,
-      "KAFKA_HOSTS": "{{ kafka_connect_string }}",
-      "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}",
-      "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}",
-      "CONFIG_whisk_kafka_topics_invoker_retentionMs": "{{ kafka_topics_invoker_retentionMS | default() }}",
-      "CONFIG_whisk_kakfa_topics_invoker_segmentBytes": "{{ kafka_topics_invoker_segmentBytes | default() }}",
-      "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}",
-      "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}",
-      "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}",
-      "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}",
-      "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}",
-      "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}",
-      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}",
-      "CONFIG_whisk_couchdb_host": "{{ db_host }}",
-      "CONFIG_whisk_couchdb_port": "{{ db_port }}",
-      "CONFIG_whisk_couchdb_username": "{{ db_username }}",
-      "CONFIG_whisk_couchdb_password": "{{ db_password }}",
-      "CONFIG_whisk_couchdb_provider": "{{ db_provider }}",
-      "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}",
-      "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}",
-      "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}",
-      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}",
-      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}",
-      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}",
-      "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}",
-      "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}",
-      "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}",
-      "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}",
-      "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}",
-      "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}",
-      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}",
-      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}",
-      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}",
-      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}",
-      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}",
-      "DOCKER_REGISTRY": "{{ docker_registry }}",
-      "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}",
-      "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}",
-      "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}",
-      "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}",
-      "INVOKER_NUMCORE": "{{ invoker.numcore }}",
-      "INVOKER_CORESHARE": "{{ invoker.coreshare }}",
-      "INVOKER_USE_RUNC": "{{ invoker.useRunc }}",
-      "INVOKER_NAME": "{{ groups['invokers'].index(inventory_hostname) }}",
-      "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}",
-      "METRICS_KAMON": "{{ metrics.kamon.enabled }}",
-      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}",
-      "METRICS_LOG": "{{ metrics.log.enabled }}",
-      "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}",
-      "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}",
-      "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}",
-      "CONFIG_logback_log_level": "{{ invoker.loglevel }}",
-      "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}",
-      "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}",
-      "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}",
-      "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}",
-      "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}",
-      "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}",
+    env:
+      "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
+      "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
+      "JMX_REMOTE": "{{ jmx.enabled }}"
+      "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+      "PORT": 8080
+      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
+      "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_invoker_retentionMs": "{{ kafka_topics_invoker_retentionMS | default() }}"
+      "CONFIG_whisk_kakfa_topics_invoker_segmentBytes": "{{ kafka_topics_invoker_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}"
+      "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
+      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
+      "CONFIG_whisk_couchdb_host": "{{ db_host }}"
+      "CONFIG_whisk_couchdb_port": "{{ db_port }}"
+      "CONFIG_whisk_couchdb_username": "{{ db_username }}"
+      "CONFIG_whisk_couchdb_password": "{{ db_password }}"
+      "CONFIG_whisk_couchdb_provider": "{{ db_provider }}"
+      "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
+      "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
+      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
+      "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
+      "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
+      "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
+      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+      "DOCKER_REGISTRY": "{{ docker_registry }}"
+      "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}"
+      "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}"
+      "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
+      "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
+      "INVOKER_NUMCORE": "{{ invoker.numcore }}"
+      "INVOKER_CORESHARE": "{{ invoker.coreshare }}"
+      "INVOKER_USE_RUNC": "{{ invoker.useRunc }}"
+      "INVOKER_NAME": "{{ groups['invokers'].index(inventory_hostname) }}"
+      "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
+      "METRICS_LOG": "{{ metrics.log.enabled }}"
+      "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
+      "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
+      "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
+      "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
+      "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
+      "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
+      "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
+      "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
+      "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
-    }
 
 - name: extend invoker env
   set_fact:
