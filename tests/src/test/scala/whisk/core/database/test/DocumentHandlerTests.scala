@@ -160,26 +160,6 @@ class DocumentHandlerTests extends FlatSpec with Matchers {
     WhisksHandler.computeView("foo", "actions", js) shouldBe result
   }
 
-  it should "include collection field in all view" in {
-    val js = """{
-               |  "entityType" : "action",
-               |  "namespace" : "foo",
-               |  "version" : 5,
-               |  "binding"   : {"foo" : "bar"},
-               |  "limits" : 204,
-               |  "exec" : { "code" : "stuff" }
-               |}""".stripMargin.parseJson.asJsObject
-
-    val result = """{
-                   |  "collection" : "action",
-                   |  "namespace" : "foo",
-                   |  "version" : 5,
-                   |  "limits" : 204,
-                   |  "exec" : { "binary" : false }
-                   |}""".stripMargin.parseJson.asJsObject
-    WhisksHandler.computeView("foo", "all", js) shouldBe result
-  }
-
   behavior of "WhisksHandler fieldsRequiredForView"
 
   it should "match the expected field names" in {
