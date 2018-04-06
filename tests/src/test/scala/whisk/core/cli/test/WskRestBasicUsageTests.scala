@@ -48,7 +48,7 @@ import whisk.http.Messages
  * Tests for basic CLI usage. Some of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
+class WskRestBasicUsageTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: common.rest.WskRest = new WskRest
