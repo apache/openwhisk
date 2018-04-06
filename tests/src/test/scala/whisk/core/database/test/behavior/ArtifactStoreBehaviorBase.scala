@@ -21,7 +21,7 @@ import java.time.Instant
 
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import pureconfig.loadConfigOrThrow
 import spray.json.{JsObject, JsValue}
@@ -42,6 +42,7 @@ trait ArtifactStoreBehaviorBase
     with DbUtils
     with WskActorSystem
     with IntegrationPatience
+    with BeforeAndAfterEach
     with BeforeAndAfterAll {
   this: FlatSpec =>
 
@@ -61,6 +62,10 @@ trait ArtifactStoreBehaviorBase
   def activationStore: ArtifactStore[WhiskActivation]
 
   def storeType: String
+
+  override def afterEach(): Unit = {
+    cleanup()
+  }
 
   override def afterAll(): Unit = {
     println("Shutting down store connections")

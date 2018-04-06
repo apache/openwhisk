@@ -30,12 +30,16 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     implicit val tid: TransactionId = transid()
     val ak1 = AuthKey()
     val ak2 = AuthKey()
-    val subs = Array(
-      WhiskAuth(Subject(), Set(WhiskNamespace(EntityName("sub_ns1"), ak1))),
-      WhiskAuth(Subject(), Set(WhiskNamespace(EntityName("sub_ns2"), ak2))))
+    val ns1 = aname()
+    val ns2 = aname()
+    val subs =
+      Array(WhiskAuth(Subject(), Set(WhiskNamespace(ns1, ak1))), WhiskAuth(Subject(), Set(WhiskNamespace(ns2, ak2))))
     subs foreach (put(authStore, _))
 
-    val s1 = Identity.get(authStore, EntityName("sub_ns1")).futureValue
+    waitOnView(authStore, ak1, 1)
+    waitOnView(authStore, ak2, 1)
+
+    val s1 = Identity.get(authStore, ns1).futureValue
     s1.subject shouldBe subs(0).subject
 
     val s2 = Identity.get(authStore, ak2).futureValue
@@ -52,6 +56,9 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
       WhiskAuth(Subject(), Set(WhiskNamespace(name1, ak1))),
       WhiskAuth(Subject(), Set(WhiskNamespace(name2, ak2))))
     subs foreach (put(authStore, _))
+
+    waitOnView(authStore, ak1, 1)
+    waitOnView(authStore, ak2, 1)
 
     val limits = UserLimits(invocationsPerMinute = Some(7), firesPerMinute = Some(31))
     put(authStore, new LimitEntity(name1, limits))
