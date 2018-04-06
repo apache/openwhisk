@@ -26,6 +26,11 @@ scala:
 services:
   - docker
 
+env:
+  global:
+    - ANSIBLE_CMD="ansible-playbook -i environments/local -e docker_image_prefix=testing"
+    - GRADLE_PROJS_SKIP="-x :actionRuntimes:pythonAction:distDocker  -x :actionRuntimes:python2Action:distDocker -x actionRuntimes:swift3.1.1Action:distDocker -x actionRuntimes:swift4.1Action:distDocker -x :actionRuntimes:javaAction:distDocker"
+
 notifications:
   email: false
   slack:
@@ -48,7 +53,16 @@ before_install:
 install:
   - ./tools/travis/setup.sh
 
-script:
-  - ./tools/travis/build.sh
-  - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
-  - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+jobs:
+  include:
+    - script:
+        - ./tools/travis/build.sh
+        - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
+        - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+      env: DESCRIPTION="Execute test suite."
+    - script:
+        - ./performance/preparation/deploy.sh
+        - TERM=dumb ./performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 2m
+        - TERM=dumb ./performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 4 2 2m
+      env:
+        - DESCRIPTION="Execute wrk-performance test suite."
