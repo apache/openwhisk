@@ -74,11 +74,6 @@ abstract class WskRuleTests extends TestHelpers with WskTestHelpers {
     }
   }
 
-  /**
-   * Append the current timestamp in ms
-   */
-  def withTimestamp(text: String) = s"$text-${System.currentTimeMillis}"
-
   behavior of "Whisk rules"
 
   it should "invoke the action attached on trigger fire, creating an activation for each entity including the cause" in withAssetCleaner(

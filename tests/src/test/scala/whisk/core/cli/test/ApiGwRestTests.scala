@@ -252,7 +252,7 @@ class ApiGwRestTests extends ApiGwTests with RestUtil {
     return apiResultRest.getField("gwApiUrl") + "/path"
   }
 
-  def getParametersFromJson(rr: RunResult, pathName: String): Vector[JsObject] = {
+  def getRestParametersFromJson(rr: RunResult, pathName: String): Vector[JsObject] = {
     val apiResult = rr.asInstanceOf[RestResult]
     val apidoc = apiResult.getFieldJsObject("apidoc")
     val paths = RestResult.getFieldJsObject(apidoc, "paths")
@@ -286,7 +286,7 @@ class ApiGwRestTests extends ApiGwTests with RestUtil {
         var rr = apiCreate(swagger = Some(file), expectedExitCode = SUCCESS_EXIT)
         val apiResult = rr.asInstanceOf[RestResult]
         val url = apiResult.getField("gwApiUrl")
-        val params = getParametersFromJson(rr, testRelPath)
+        val params = getRestParametersFromJson(rr, testRelPath)
         println("url: " + url)
         params.size should be(1)
         RestResult.getField(params(0), "name") should be("name")

@@ -46,11 +46,6 @@ abstract class WskConsoleTests extends TestHelpers with WskTestHelpers {
   val wsk: BaseWsk
   val guestNamespace = wskprops.namespace
 
-  /**
-   * Append the current timestamp in ms
-   */
-  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
-
   behavior of "Wsk Activation Console"
 
   it should "show an activation log message for hello world" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
