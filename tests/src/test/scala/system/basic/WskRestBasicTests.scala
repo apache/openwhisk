@@ -46,6 +46,7 @@ class WskRestBasicTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: common.rest.WskRest = new WskRest
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
+
   /**
    * Retry operations that need to settle the controller cache
    */
