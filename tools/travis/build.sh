@@ -63,7 +63,7 @@ $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-TERM=dumb ./gradlew tests:testCoverageLean :tests:reportCoverage
+TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
