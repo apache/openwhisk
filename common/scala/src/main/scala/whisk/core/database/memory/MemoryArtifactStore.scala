@@ -151,24 +151,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
       artifacts.get(doc.id.id) match {
         case Some(a) if doc.rev.empty || a.matchesRev(doc.rev) =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
-          val response = a.doc
-          val asFormat = try {
-            docReader.read(ma, response)
-          } catch {
-            case _: Exception => jsonFormat.read(response)
-          }
-
-          if (asFormat.getClass != ma.runtimeClass) {
-            throw DocumentTypeMismatchException(
-              s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
-          }
-
-          val deserialized = asFormat.asInstanceOf[A]
-
-          val responseRev = response.fields(_rev).convertTo[String]
-          assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
-          // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
-          deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
+          deserialize[A, DocumentAbstraction](doc, a.doc)
         case _ =>
           transid.finished(this, start, s"[GET] '$dbName', document: '$doc'; not found.")
           // for compatibility

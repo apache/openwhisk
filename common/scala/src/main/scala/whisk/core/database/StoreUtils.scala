@@ -18,8 +18,10 @@
 package whisk.core.database
 
 import akka.event.Logging.ErrorLevel
+import spray.json.{JsObject, RootJsonFormat}
 import whisk.common.{Logging, StartMarker, TransactionId}
-import whisk.core.entity.DocInfo
+import spray.json.DefaultJsonProtocol._
+import whisk.core.entity.{DocInfo, DocRevision, DocumentReader, WhiskDocument}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -39,5 +41,28 @@ private[database] object StoreUtils {
   def checkDocHasRevision(doc: DocInfo): Unit = {
     require(doc != null, "doc undefined")
     require(doc.rev.rev != null, "doc revision must be specified")
+  }
+
+  def deserialize[A <: DocumentAbstraction, DocumentAbstraction](doc: DocInfo, response: JsObject)(
+    implicit docReader: DocumentReader,
+    ma: Manifest[A],
+    jsonFormat: RootJsonFormat[DocumentAbstraction]): A = {
+    val asFormat = try {
+      docReader.read(ma, response)
+    } catch {
+      case _: Exception => jsonFormat.read(response)
+    }
+
+    if (asFormat.getClass != ma.runtimeClass) {
+      throw DocumentTypeMismatchException(
+        s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
+    }
+
+    val deserialized = asFormat.asInstanceOf[A]
+
+    val responseRev = response.fields("_rev").convertTo[String]
+    assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
+    // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
+    deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
   }
 }
