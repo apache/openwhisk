@@ -138,7 +138,7 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
     val auth2 = getWhiskAuth(doc).copy(namespaces = Set(wskNS("foo1"))).revision[WhiskAuth](doc.rev)
     val doc2 = put(authStore, auth2)
 
-    authStore.get[WhiskAuth](doc).failed.futureValue shouldBe a[NoDocumentException]
+    authStore.get[WhiskAuth](doc).failed.futureValue.getCause shouldBe a[AssertionError]
 
     val authFromGet = getWhiskAuth(doc2)
     authFromGet shouldBe auth2

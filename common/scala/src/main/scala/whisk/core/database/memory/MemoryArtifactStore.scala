@@ -149,7 +149,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     val t = Try[A] {
       artifacts.get(doc.id.id) match {
-        case Some(a) if doc.rev.empty || a.matchesRev(doc.rev) =>
+        case Some(a) =>
+          //Revision matching is enforced in deserilization logic
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
           deserialize[A, DocumentAbstraction](doc, a.doc)
         case _ =>
