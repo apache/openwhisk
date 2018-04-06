@@ -72,7 +72,12 @@ private object ActivationViewMapper extends MemoryViewMapper {
   private val NS_WITH_PATH = ActivationHandler.NS_PATH
   private val START = "start"
 
-  override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject) = {
+  override def filter(ddoc: String,
+                      view: String,
+                      startKey: List[Any],
+                      endKey: List[Any],
+                      d: JsObject,
+                      c: JsObject): Boolean = {
     checkKeys(startKey, endKey)
     val nsValue = startKey.head.asInstanceOf[String]
     view match {
@@ -85,13 +90,13 @@ private object ActivationViewMapper extends MemoryViewMapper {
     }
   }
 
-  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]) =
+  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] =
     view match {
       case "activations" if ddoc.startsWith("whisks") => numericSort(s, descending, START)
       case _                                          => throw UnsupportedView(s"$ddoc/$view")
     }
 
-  def filterActivation(d: JsObject, matchNS: Boolean, startKey: List[Any], endKey: List[Any]): Boolean = {
+  private def filterActivation(d: JsObject, matchNS: Boolean, startKey: List[Any], endKey: List[Any]): Boolean = {
     val filterResult = (startKey, endKey) match {
       case (_ :: Nil, _ :: `TOP` :: Nil) =>
         matchNS
@@ -103,7 +108,6 @@ private object ActivationViewMapper extends MemoryViewMapper {
     }
     filterResult
   }
-
 }
 
 private object WhisksViewMapper extends MemoryViewMapper {
@@ -112,7 +116,12 @@ private object WhisksViewMapper extends MemoryViewMapper {
   val TYPE = "entityType"
   val UPDATED = "updated"
 
-  override def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject) = {
+  override def filter(ddoc: String,
+                      view: String,
+                      startKey: List[Any],
+                      endKey: List[Any],
+                      d: JsObject,
+                      c: JsObject): Boolean = {
     checkKeys(startKey, endKey)
     val entityType = WhisksHandler.getEntityTypeForDesignDoc(ddoc, view)
 
@@ -139,7 +148,7 @@ private object WhisksViewMapper extends MemoryViewMapper {
     filterResult
   }
 
-  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]) = {
+  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = {
     view match {
       case "actions" | "rules" | "triggers" | "packages" | "packages-public" if ddoc.startsWith("whisks") =>
         numericSort(s, descending, UPDATED)

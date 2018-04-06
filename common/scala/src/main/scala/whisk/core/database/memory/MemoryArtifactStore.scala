@@ -246,10 +246,11 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
     ???
 
-  override protected[core] def attach(doc: DocInfo,
-                                      name: String,
-                                      contentType: ContentType,
-                                      docStream: Source[ByteString, _])(implicit transid: TransactionId) = ???
+  override protected[core] def attach(
+    doc: DocInfo,
+    name: String,
+    contentType: ContentType,
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = ???
 
   override def shutdown(): Unit = {}
 
@@ -274,7 +275,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     def docInfo = DocInfo(DocId(id), DocRevision(rev.toString))
 
-    def matchesRev(r: DocRevision) = rev == r.rev.toInt
+    def matchesRev(r: DocRevision): Boolean = rev == r.rev.toInt
   }
 
   private object Artifact {
