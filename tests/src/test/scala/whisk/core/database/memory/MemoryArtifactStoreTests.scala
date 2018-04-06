@@ -20,17 +20,17 @@ package whisk.core.database.memory
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.test.ArtifactStoreBehaviors
+import whisk.core.database.test.behavior.ArtifactStoreBehavior
 import whisk.core.entity._
 
 import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
-class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehaviors {
+class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
   override def storeType = "Memory"
 
   override val authStore = {
-    implicit val docReader = WhiskDocumentReader
+    implicit val docReader: DocumentReader = WhiskDocumentReader
     MemoryArtifactStoreProvider.makeStore[WhiskAuth]()
   }
 
@@ -44,7 +44,7 @@ class MemoryArtifactStoreTests extends FlatSpec with ArtifactStoreBehaviors {
       materializer)
 
   override val activationStore = {
-    implicit val docReader = WhiskDocumentReader
+    implicit val docReader: DocumentReader = WhiskDocumentReader
     MemoryArtifactStoreProvider.makeStore[WhiskActivation]()
   }
 }
