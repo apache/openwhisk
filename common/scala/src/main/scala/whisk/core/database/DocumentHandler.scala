@@ -20,6 +20,7 @@ package whisk.core.database
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
+import whisk.core.entity.DocId
 import whisk.core.entity.EntityPath.PATHSEP
 import whisk.utils.JsHelpers
 
@@ -31,7 +32,7 @@ import scala.concurrent.ExecutionContext
  * to perform queries related to join support
  */
 trait DocumentProvider {
-  protected[database] def get(id: String)(implicit transid: TransactionId): Future[JsObject]
+  protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[JsObject]
 }
 
 trait DocumentHandler {
@@ -278,7 +279,7 @@ object SubjectHandler extends DocumentHandler {
       JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey), "value" -> viewJS, "doc" -> JsNull)
     if (subject.matchInNamespace) {
       val limitDocId = s"${subject.namespace}/limits"
-      provider.get(limitDocId).map(limits => JsObject(result.fields + ("doc" -> limits)))
+      provider.get(DocId(limitDocId)).map(limits => JsObject(result.fields + ("doc" -> limits)))
     } else {
       Future.successful(result)
     }

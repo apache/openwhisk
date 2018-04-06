@@ -254,7 +254,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   override def shutdown(): Unit = {}
 
-  override protected[database] def get(id: String)(implicit transid: TransactionId): Future[JsObject] = ???
+  override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[JsObject] = ???
 
   private def getRevision(asJson: JsObject) = {
     asJson.fields.get(_rev) match {
