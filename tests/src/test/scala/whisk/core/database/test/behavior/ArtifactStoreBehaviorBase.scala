@@ -126,17 +126,11 @@ trait ArtifactStoreBehaviorBase
       Instant.ofEpochMilli(start + 1000))
   }
 
-  protected def aname() = MakeName.next("querytests")
+  protected def aname() = EntityName(s"${prefix}_name_${randomString()}")
 
-  protected def newNS() = EntityPath(s"${prefix}_${Random.alphanumeric.take(5).mkString}")
+  protected def newNS() = EntityPath(s"${prefix}_ns_${randomString()}")
 
-  protected object MakeName {
-    @volatile var counter = 1
-    def next(prefix: String = "test")(): EntityName = {
-      counter = counter + 1
-      EntityName(s"${prefix}_name$counter")
-    }
-  }
+  private def randomString() = Random.alphanumeric.take(5).mkString
 
   protected def getJsObject(js: JsObject, fields: String*): JsObject = {
     JsHelpers.getFieldPath(js, fields: _*).get.asJsObject
