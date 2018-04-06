@@ -179,8 +179,6 @@ object WhisksHandler extends SimpleHandler {
   private val packagePublicFields = commonFields
   private val ruleFields = commonFields
   private val triggerFields = commonFields
-  private val allFields = commonFields ++ actionFields ++ packageFields ++ packagePublicFields ++ ruleFields ++ triggerFields ++ Seq(
-    "entityType")
 
   override def computedFields(js: JsObject): JsObject = {
     js.fields.get("namespace") match {
@@ -198,7 +196,6 @@ object WhisksHandler extends SimpleHandler {
     case "packages-public" => packagePublicFields
     case "rules"           => ruleFields
     case "triggers"        => triggerFields
-    case "all"             => allFields
     case _                 => throw UnsupportedView(s"$ddoc/$view")
   }
 
@@ -208,7 +205,6 @@ object WhisksHandler extends SimpleHandler {
     case "packages-public" => computePublicPackageView(js)
     case "rules"           => computeRulesView(js)
     case "triggers"        => computeTriggersView(js)
-    case "all"             => computeAllView(js)
     case _                 => throw UnsupportedView(s"$ddoc/$view")
   }
 
@@ -253,17 +249,6 @@ object WhisksHandler extends SimpleHandler {
     val base = js.fields.filterKeys(commonFields ++ Set("limits"))
     val exec_binary = JsHelpers.getFieldPath(js, "exec", "binary")
     JsObject(base + ("exec" -> JsObject("binary" -> exec_binary.getOrElse(JsFalse))))
-  }
-
-  private def computeAllView(js: JsObject): JsObject = {
-    val collection = js.fields("entityType").convertTo[String]
-    val computed = collection match {
-      case "action"  => computeActionView(js)
-      case "package" => computePackageView(js)
-      case "rule"    => computeRulesView(js)
-      case "trigger" => computeTriggersView(js)
-    }
-    JsObject(computed.fields + ("collection" -> JsString(collection)))
   }
 }
 
