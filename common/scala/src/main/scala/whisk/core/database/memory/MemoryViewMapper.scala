@@ -17,7 +17,7 @@
 
 package whisk.core.database.memory
 
-import spray.json.{JsNumber, JsObject, JsString}
+import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString}
 import whisk.core.database.{ActivationHandler, UnsupportedQueryKeys, UnsupportedView, WhisksHandler}
 import whisk.core.entity.WhiskEntityQueries
 import whisk.utils.JsHelpers
@@ -25,10 +25,9 @@ import whisk.utils.JsHelpers
 trait MemoryViewMapper {
   protected val TOP: String = WhiskEntityQueries.TOP
 
-  def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject): Boolean =
-    ???
+  def filter(ddoc: String, view: String, startKey: List[Any], endKey: List[Any], d: JsObject, c: JsObject): Boolean
 
-  def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = ???
+  def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject]
 
   protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
     require(startKey.nonEmpty)
@@ -40,6 +39,12 @@ trait MemoryViewMapper {
     JsHelpers.getFieldPath(js, name) match {
       case Some(JsString(v)) => v == value
       case _                 => false
+    }
+
+  def notEqual(js: JsObject, name: String, value: Boolean): Boolean =
+    JsHelpers.getFieldPath(js, name) match {
+      case Some(JsBoolean(v)) => v != value
+      case _                  => true
     }
 
   def gte(js: JsObject, name: String, value: Number): Boolean =
@@ -111,10 +116,10 @@ private object ActivationViewMapper extends MemoryViewMapper {
 }
 
 private object WhisksViewMapper extends MemoryViewMapper {
-  val NS = "namespace"
-  val ROOT_NS = WhisksHandler.ROOT_NS
-  val TYPE = "entityType"
-  val UPDATED = "updated"
+  private val NS = "namespace"
+  private val ROOT_NS = WhisksHandler.ROOT_NS
+  private val TYPE = "entityType"
+  private val UPDATED = "updated"
 
   override def filter(ddoc: String,
                       view: String,
@@ -157,4 +162,48 @@ private object WhisksViewMapper extends MemoryViewMapper {
   }
 }
 
-private object SubjectViewMapper extends MemoryViewMapper {}
+private object SubjectViewMapper extends MemoryViewMapper {
+  private val BLOCKED = "blocked"
+  private val SUBJECT = "subject"
+  private val UUID = "uuid"
+  private val KEY = "key"
+  private val NS_NAME = "name"
+
+  override def filter(ddoc: String,
+                      view: String,
+                      startKey: List[Any],
+                      endKey: List[Any],
+                      d: JsObject,
+                      c: JsObject): Boolean = {
+    require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
+    val notBlocked = notEqual(d, BLOCKED, value = true)
+    startKey match {
+      case (ns: String) :: Nil => notBlocked && (equal(d, SUBJECT, ns) || matchingNamespace(d, equal(_, NS_NAME, ns)))
+      case (uuid: String) :: (key: String) :: Nil =>
+        notBlocked &&
+          (
+            (equal(d, UUID, uuid) && equal(d, KEY, key))
+              || matchingNamespace(d, js => equal(js, UUID, uuid) && equal(js, KEY, key))
+          )
+      case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
+    }
+  }
+
+  override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = {
+    checkSupportedView(ddoc, view)
+    s //No sorting to be done
+  }
+
+  def checkSupportedView(ddoc: String, view: String): Unit = {
+    if (ddoc != "subjects" || view != "identities") {
+      throw UnsupportedView(s"$ddoc/$view")
+    }
+  }
+
+  def matchingNamespace(js: JsObject, matcher: JsObject => Boolean): Boolean = {
+    js.fields.get("namespaces") match {
+      case Some(JsArray(e)) => e.exists(v => matcher(v.asJsObject))
+      case _                => false
+    }
+  }
+}

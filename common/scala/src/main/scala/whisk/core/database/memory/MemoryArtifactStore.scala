@@ -237,7 +237,24 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
   override def shutdown(): Unit = {}
 
-  override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[JsObject] = ???
+  override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {
+    val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$dbName' finding document: '$id'")
+
+    val t = Try {
+      artifacts.get(id.id) match {
+        case Some(a) =>
+          transid.finished(this, start, s"[GET] '$dbName' completed: found document '$id'")
+          Some(a.doc)
+        case _ =>
+          transid.finished(this, start, s"[GET] '$dbName', document: '$id'; not found.")
+          None
+      }
+    }
+
+    val f = Future.fromTry(t)
+
+    reportFailure(f, start, failure => s"[GET] '$dbName' internal error, doc: '$id', failure: '${failure.getMessage}'")
+  }
 
   private def getRevision(asJson: JsObject) = {
     asJson.fields.get(_rev) match {

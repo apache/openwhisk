@@ -32,7 +32,7 @@ import scala.concurrent.ExecutionContext
  * to perform queries related to join support
  */
 trait DocumentProvider {
-  protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[JsObject]
+  protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]]
 }
 
 trait DocumentHandler {
@@ -69,6 +69,8 @@ abstract class SimpleHandler extends DocumentHandler {
     includeDocs: Boolean,
     js: JsObject,
     provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[JsObject] = {
+    //Query result from CouchDB have below object structure with actual result in `value` key
+    //So transform the result to confirm to that structure
     val viewResult = JsObject(
       "id" -> js.fields("_id"),
       "key" -> createKey(ddoc, view, startKey, js),
@@ -279,7 +281,9 @@ object SubjectHandler extends DocumentHandler {
       JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey), "value" -> viewJS, "doc" -> JsNull)
     if (subject.matchInNamespace) {
       val limitDocId = s"${subject.namespace}/limits"
-      provider.get(DocId(limitDocId)).map(limits => JsObject(result.fields + ("doc" -> limits)))
+      provider
+        .get(DocId(limitDocId))
+        .map(limits => JsObject(result.fields + ("doc" -> limits.getOrElse(JsObject.empty))))
     } else {
       Future.successful(result)
     }

@@ -18,11 +18,28 @@
 package whisk.core.database.test.behavior
 
 import org.scalatest.FlatSpec
+import whisk.common.TransactionId
+import whisk.core.entity._
 
-trait ArtifactStoreBehavior
-    extends ArtifactStoreBehaviorBase
-    with ArtifactStoreQueryBehaviors
-    with ArtifactStoreCRUDBehaviors
-    with ArtifactStoreSubjectQueryBehaviors {
+trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
   this: FlatSpec =>
+
+  behavior of s"${storeType}ArtifactStore query subjects"
+
+  it should "find subject by namespace" in {
+    implicit val tid: TransactionId = transid()
+    val ak1 = AuthKey()
+    val ak2 = AuthKey()
+    val subs = Array(
+      WhiskAuth(Subject(), Set(WhiskNamespace(EntityName("sub_ns1"), ak1))),
+      WhiskAuth(Subject(), Set(WhiskNamespace(EntityName("sub_ns2"), ak2))))
+    subs foreach (put(authStore, _))
+
+    val s1 = Identity.get(authStore, EntityName("sub_ns1")).futureValue
+    s1.subject shouldBe subs(0).subject
+
+    val s2 = Identity.get(authStore, ak2).futureValue
+    s2.subject shouldBe subs(1).subject
+  }
+
 }
