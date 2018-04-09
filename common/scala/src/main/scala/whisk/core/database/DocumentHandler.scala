@@ -293,17 +293,18 @@ object SubjectHandler extends DocumentHandler {
     require(includeDocs) //For subject/identities includeDocs is always true
 
     val subject = computeSubjectView(ddoc, view, startKey, js)
+    val limitDocId = s"${subject.namespace}/limits"
     val viewJS = JsObject(
+      "_id" -> JsString(limitDocId),
       "namespace" -> JsString(subject.namespace),
       "uuid" -> JsString(subject.uuid),
       "key" -> JsString(subject.key))
     val result =
       JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey), "value" -> viewJS, "doc" -> JsNull)
     if (subject.matchInNamespace) {
-      val limitDocId = s"${subject.namespace}/limits"
       provider
         .get(DocId(limitDocId))
-        .map(limits => JsObject(result.fields + ("doc" -> limits.getOrElse(JsObject.empty))))
+        .map(limits => JsObject(result.fields + ("doc" -> limits.getOrElse(JsNull))))
     } else {
       Future.successful(result)
     }

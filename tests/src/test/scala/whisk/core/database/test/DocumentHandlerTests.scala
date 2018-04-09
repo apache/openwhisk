@@ -22,13 +22,24 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
 import spray.json._
 import DefaultJsonProtocol._
+import common.WskActorSystem
+import org.scalatest.concurrent.ScalaFutures
+import whisk.common.{TransactionCounter, TransactionId}
 import whisk.core.database.SubjectHandler.SubjectView
 import whisk.core.database.WhisksHandler.ROOT_NS
-import whisk.core.database.{ActivationHandler, SubjectHandler, UnsupportedView, WhisksHandler}
-import whisk.core.entity.{EntityName, EntityPath, FullyQualifiedEntityName, WhiskRule}
+import whisk.core.database._
+import whisk.core.entity._
+
+import scala.concurrent.Future
 
 @RunWith(classOf[JUnitRunner])
-class DocumentHandlerTests extends FlatSpec with Matchers {
+class DocumentHandlerTests
+    extends FlatSpec
+    with Matchers
+    with ScalaFutures
+    with TransactionCounter
+    with WskActorSystem {
+  override val instanceOrdinal = 0
 
   behavior of "WhisksHandler computeFields"
 
@@ -441,5 +452,78 @@ class DocumentHandlerTests extends FlatSpec with Matchers {
                |}""".stripMargin.parseJson.asJsObject
     an[IllegalArgumentException] should be thrownBy
       SubjectHandler.computeSubjectView("subjects", "identities", List("foo"), js)
+  }
+
+  behavior of "SubjectHandler transformViewResult"
+
+  it should "json should match format of CouchDB response" in {
+    implicit val tid: TransactionId = transid()
+    val js = """{
+               |  "_id": "bar",
+               |  "subject": "bar",
+               |  "uuid": "u1",
+               |  "key" : "k1",
+               |  "namespaces" : [
+               |    {"name": "foo", "uuid":"u2", "key":"k2"}
+               |  ]
+               |}""".stripMargin.parseJson.asJsObject
+    val result = """{
+                   |  "id": "bar",
+                   |  "key": [
+                   |    "u2",
+                   |    "k2"
+                   |  ],
+                   |  "value": {
+                   |    "_id": "foo/limits",
+                   |    "namespace": "foo",
+                   |    "uuid": "u2",
+                   |    "key": "k2"
+                   |  },
+                   |  "doc": null
+                   |}""".stripMargin.parseJson.asJsObject
+    val queryKey = List("u2", "k2")
+    SubjectHandler
+      .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
+      .futureValue shouldBe result
+  }
+
+  it should "json should match format of CouchDB response" in {
+    implicit val tid: TransactionId = transid()
+    val js = """{
+               |  "_id": "bar",
+               |  "subject": "bar",
+               |  "uuid": "u1",
+               |  "key" : "k1",
+               |  "namespaces" : [
+               |    {"name": "foo", "uuid":"u2", "key":"k2"}
+               |  ]
+               |}""".stripMargin.parseJson.asJsObject
+    val result = """{
+                   |  "id": "bar",
+                   |  "key": [
+                   |    "u2",
+                   |    "k2"
+                   |  ],
+                   |  "value": {
+                   |    "_id": "foo/limits",
+                   |    "namespace": "foo",
+                   |    "uuid": "u2",
+                   |    "key": "k2"
+                   |  },
+                   |  "doc": null
+                   |}""".stripMargin.parseJson.asJsObject
+    val queryKey = List("u2", "k2")
+    SubjectHandler
+      .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
+      .futureValue shouldBe result
+  }
+
+  private case class TestDocumentProvider(js: Option[JsObject]) extends DocumentProvider {
+    override protected[database] def get(id: DocId)(implicit transid: TransactionId) = Future.successful(js)
+  }
+
+  private object TestDocumentProvider {
+    def apply(js: JsObject): DocumentProvider = new TestDocumentProvider(Some(js))
+    def apply(): DocumentProvider = new TestDocumentProvider(None)
   }
 }
