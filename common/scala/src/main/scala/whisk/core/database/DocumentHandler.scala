@@ -55,6 +55,14 @@ trait DocumentHandler {
     provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[JsObject]
 
   def shouldAlwaysIncludeDocs(ddoc: String, view: String): Boolean = false
+
+  def checkIfTableSupported(table: String): Unit = {
+    if (!supportedTables.contains(table)) {
+      throw UnsupportedView(table)
+    }
+  }
+
+  protected def supportedTables: Set[String]
 }
 
 /**
@@ -97,6 +105,9 @@ object ActivationHandler extends SimpleHandler {
   private val commonFields =
     Set("namespace", "name", "version", "publish", "annotations", "activationId", "start", "cause")
   private val fieldsForView = commonFields ++ Seq("end", "response.statusCode")
+
+  protected val supportedTables =
+    Set("activations/byDate", "whisks-filters.v2.1.0/activations", "whisks.v2.1.0-activations")
 
   override def computedFields(js: JsObject): JsObject = {
     val path = js.fields.get("namespace") match {
@@ -183,6 +194,13 @@ object WhisksHandler extends SimpleHandler {
   private val ruleFields = commonFields
   private val triggerFields = commonFields
 
+  protected val supportedTables = Set(
+    "whisks.v2.1.0/actions",
+    "whisks.v2.1.0/packages",
+    "whisks.v2.1.0/packages-public",
+    "whisks.v2.1.0/rules",
+    "whisks.v2.1.0/triggers")
+
   override def computedFields(js: JsObject): JsObject = {
     js.fields.get("namespace") match {
       case Some(JsString(namespace)) =>
@@ -256,6 +274,8 @@ object WhisksHandler extends SimpleHandler {
 }
 
 object SubjectHandler extends DocumentHandler {
+
+  protected val supportedTables = Set("subjects/identities")
 
   override def shouldAlwaysIncludeDocs(ddoc: String, view: String): Boolean = {
     checkSupportedView(ddoc, view)
