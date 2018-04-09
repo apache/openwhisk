@@ -18,7 +18,7 @@
 package whisk.core.database.test
 
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers, OptionValues}
 import org.scalatest.junit.JUnitRunner
 import spray.json._
 import DefaultJsonProtocol._
@@ -37,6 +37,7 @@ class DocumentHandlerTests
     extends FlatSpec
     with Matchers
     with ScalaFutures
+    with OptionValues
     with TransactionCounter
     with WskActorSystem {
   override val instanceOrdinal = 0
@@ -394,7 +395,7 @@ class DocumentHandlerTests
                |  "uuid": "u1",
                |  "key" : "k1"
                |}""".stripMargin.parseJson.asJsObject
-    SubjectHandler.computeSubjectView("subjects", "identities", List("foo"), js) shouldBe SubjectView("foo", "u1", "k1")
+    SubjectHandler.findMatchingSubject(List("foo"), js).value shouldBe SubjectView("foo", "u1", "k1")
   }
 
   it should "match subject with child namespace" in {
@@ -406,7 +407,7 @@ class DocumentHandlerTests
                |    {"name": "foo", "uuid":"u2", "key":"k2"}
                |  ]
                |}""".stripMargin.parseJson.asJsObject
-    SubjectHandler.computeSubjectView("subjects", "identities", List("foo"), js) shouldBe
+    SubjectHandler.findMatchingSubject(List("foo"), js).value shouldBe
       SubjectView("foo", "u2", "k2", matchInNamespace = true)
   }
 
@@ -416,7 +417,7 @@ class DocumentHandlerTests
                |  "uuid": "u1",
                |  "key" : "k1"
                |}""".stripMargin.parseJson.asJsObject
-    SubjectHandler.computeSubjectView("subjects", "identities", List("u1", "k1"), js) shouldBe
+    SubjectHandler.findMatchingSubject(List("u1", "k1"), js).value shouldBe
       SubjectView("foo", "u1", "k1")
   }
 
@@ -429,19 +430,8 @@ class DocumentHandlerTests
                |    {"name": "foo", "uuid":"u2", "key":"k2"}
                |  ]
                |}""".stripMargin.parseJson.asJsObject
-    SubjectHandler.computeSubjectView("subjects", "identities", List("u2", "k2"), js) shouldBe
+    SubjectHandler.findMatchingSubject(List("u2", "k2"), js).value shouldBe
       SubjectView("foo", "u2", "k2", matchInNamespace = true)
-  }
-
-  it should "throw exception when subject is blocked" in {
-    val js = """{
-               |  "subject": "foo",
-               |  "uuid": "u1",
-               |  "key" : "k1",
-               |  "blocked" : true
-               |}""".stripMargin.parseJson.asJsObject
-    an[IllegalArgumentException] should be thrownBy
-      SubjectHandler.computeSubjectView("subjects", "identities", List("foo"), js)
   }
 
   it should "throw exception when namespace match but key missing" in {
@@ -450,8 +440,7 @@ class DocumentHandlerTests
                |  "uuid": "u1",
                |  "blocked" : true
                |}""".stripMargin.parseJson.asJsObject
-    an[IllegalArgumentException] should be thrownBy
-      SubjectHandler.computeSubjectView("subjects", "identities", List("foo"), js)
+    SubjectHandler.findMatchingSubject(List("foo"), js) shouldBe empty
   }
 
   behavior of "SubjectHandler transformViewResult"
@@ -484,7 +473,7 @@ class DocumentHandlerTests
     val queryKey = List("u2", "k2")
     SubjectHandler
       .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
-      .futureValue shouldBe Some(result)
+      .futureValue shouldBe Seq(result)
   }
 
   it should "should return none when passed object does not passes view criteria" in {
@@ -503,7 +492,95 @@ class DocumentHandlerTests
     val queryKey = List("u2", "k3")
     SubjectHandler
       .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
-      .futureValue shouldBe None
+      .futureValue shouldBe empty
+  }
+
+  behavior of "SubjectHandler blacklisted namespaces"
+
+  it should "match limits with 0 concurrentInvocations" in {
+    val js = """{
+               |  "_id": "bar/limits",
+               |  "concurrentInvocations": 0
+               |}""".stripMargin.parseJson.asJsObject
+    val result = """{
+                   |  "id": "bar/limits",
+                   |  "key": "bar",
+                   |  "value": 1
+                   |}""".stripMargin.parseJson.asJsObject
+    blacklistingResults(js) shouldBe Seq(result)
+  }
+
+  it should "match limits with 0 invocationsPerMinute" in {
+    val js = """{
+               |  "_id": "bar/limits",
+               |  "concurrentInvocations": 10,
+               |  "invocationsPerMinute": 0
+               |}""".stripMargin.parseJson.asJsObject
+    val result = """{
+                   |  "id": "bar/limits",
+                   |  "key": "bar",
+                   |  "value": 1
+                   |}""".stripMargin.parseJson.asJsObject
+    blacklistingResults(js) shouldBe Seq(result)
+  }
+
+  it should "not match limits with invocationsPerMinute and concurrentInvocations defined" in {
+    val js = """{
+               |  "_id": "bar/limits",
+               |  "concurrentInvocations": 10,
+               |  "invocationsPerMinute": 40
+               |}""".stripMargin.parseJson.asJsObject
+    blacklistingResults(js) shouldBe empty
+  }
+
+  it should "list all namespaces of blocked subject" in {
+    val js = """{
+               |  "_id": "bar",
+               |  "blocked": true,
+               |  "subject": "bar",
+               |  "namespaces" : [
+               |    {"name": "foo", "uuid":"u2", "key":"k2"},
+               |    {"name": "foo2", "uuid":"u3", "key":"k3"}
+               |  ]
+               |}""".stripMargin.parseJson.asJsObject
+    val r1 = """{
+               |  "id": "bar",
+               |  "key": "foo",
+               |  "value": 1
+               |}""".stripMargin.parseJson.asJsObject
+    val r2 = """{
+               |  "id": "bar",
+               |  "key": "foo2",
+               |  "value": 1
+               |}""".stripMargin.parseJson.asJsObject
+    blacklistingResults(js).toSet shouldBe Set(r1, r2)
+  }
+
+  it should "list no namespace of unblocked subject" in {
+    val js = """{
+               |  "_id": "bar",
+               |  "subject": "bar",
+               |  "namespaces" : [
+               |    {"name": "foo", "uuid":"u2", "key":"k2"},
+               |    {"name": "foo2", "uuid":"u3", "key":"k3"}
+               |  ]
+               |}""".stripMargin.parseJson.asJsObject
+
+    blacklistingResults(js) shouldBe empty
+  }
+
+  private def blacklistingResults(js: JsObject) = {
+    implicit val tid: TransactionId = transid()
+    SubjectHandler
+      .transformViewResult(
+        "namespaceThrottlings",
+        "blockedNamespaces",
+        List.empty,
+        List.empty,
+        includeDocs = false,
+        js,
+        TestDocumentProvider())
+      .futureValue
   }
 
   private case class TestDocumentProvider(js: Option[JsObject]) extends DocumentProvider {

@@ -17,9 +17,9 @@
 
 package whisk.core.database.memory
 
-import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString}
+import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsTrue}
 import whisk.core.database.{ActivationHandler, UnsupportedQueryKeys, UnsupportedView, WhisksHandler}
-import whisk.core.entity.WhiskEntityQueries
+import whisk.core.entity.{UserLimits, WhiskEntityQueries}
 import whisk.utils.JsHelpers
 
 trait MemoryViewMapper {
@@ -176,6 +176,35 @@ private object SubjectViewMapper extends MemoryViewMapper {
                       d: JsObject,
                       c: JsObject): Boolean = {
     require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
+    (ddoc, view) match {
+      case ("subjects", "identities") =>
+        filterForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey, d)
+      case ("namespaceThrottlings", "blockedNamespaces") =>
+        filterForBlacklistedNamespace(d)
+      case _ =>
+        throw UnsupportedView(s"$ddoc/$view")
+    }
+  }
+
+  private def filterForBlacklistedNamespace(d: JsObject): Boolean = {
+    val id = d.fields("_id")
+    id match {
+      case JsString(idv) if idv.endsWith("/limits") =>
+        val limits = UserLimits.serdes.read(d)
+        limits.concurrentInvocations.contains(0) || limits.invocationsPerMinute.contains(0)
+      case _ =>
+        d.getFields("blocked") match {
+          case Seq(JsTrue) => true
+          case _           => false
+        }
+    }
+  }
+
+  private def filterForMatchingSubjectOrNamespace(ddoc: String,
+                                                  view: String,
+                                                  startKey: List[Any],
+                                                  endKey: List[Any],
+                                                  d: JsObject) = {
     val notBlocked = notEqual(d, BLOCKED, value = true)
     startKey match {
       case (ns: String) :: Nil => notBlocked && (equal(d, SUBJECT, ns) || matchingNamespace(d, equal(_, NS_NAME, ns)))
@@ -190,14 +219,7 @@ private object SubjectViewMapper extends MemoryViewMapper {
   }
 
   override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = {
-    checkSupportedView(ddoc, view)
     s //No sorting to be done
-  }
-
-  def checkSupportedView(ddoc: String, view: String): Unit = {
-    if (ddoc != "subjects" || view != "identities") {
-      throw UnsupportedView(s"$ddoc/$view")
-    }
   }
 
   def matchingNamespace(js: JsObject, matcher: JsObject => Boolean): Boolean = {

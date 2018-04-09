@@ -20,10 +20,11 @@ package whisk.core.database
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
-import whisk.core.entity.DocId
+import whisk.core.entity.{DocId, UserLimits}
 import whisk.core.entity.EntityPath.PATHSEP
 import whisk.utils.JsHelpers
 
+import scala.collection.immutable.Seq
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
@@ -63,7 +64,7 @@ trait DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]]
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]]
 
   /**
    * Determines if the complete document should be fetched even if `includeDocs` is set to true. For some view computation
@@ -92,7 +93,7 @@ abstract class SimpleHandler extends DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]] = {
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]] = {
     //Query result from CouchDB have below object structure with actual result in `value` key
     //So transform the result to confirm to that structure
     val viewResult = JsObject(
@@ -101,7 +102,7 @@ abstract class SimpleHandler extends DocumentHandler {
       "value" -> computeView(ddoc, view, js))
 
     val result = if (includeDocs) JsObject(viewResult.fields + ("doc" -> js)) else viewResult
-    Future.successful(Some(result))
+    Future.successful(Seq(result))
   }
 
   /**
@@ -291,11 +292,14 @@ object WhisksHandler extends SimpleHandler {
 
 object SubjectHandler extends DocumentHandler {
 
-  protected val supportedTables = Set("subjects/identities")
+  protected val supportedTables = Set("subjects/identities", "namespaceThrottlings/blockedNamespaces")
 
   override def shouldAlwaysIncludeDocs(ddoc: String, view: String): Boolean = {
-    checkSupportedView(ddoc, view)
-    true
+    (ddoc, view) match {
+      case ("subjects", "identities")                    => true
+      case ("namespaceThrottlings", "blockedNamespaces") => true
+      case _                                             => throw UnsupportedView(s"$ddoc/$view")
+    }
   }
 
   override def transformViewResult(
@@ -305,10 +309,63 @@ object SubjectHandler extends DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]] = {
-    require(includeDocs) //For subject/identities includeDocs is always true
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Seq[JsObject]] = {
 
-    val subjectOpt = computeSubjectView(ddoc, view, startKey, js)
+    val result = (ddoc, view) match {
+      case ("subjects", "identities") =>
+        require(includeDocs) //For subject/identities includeDocs is always true
+        computeSubjectView(startKey, js, provider)
+      case ("namespaceThrottlings", "blockedNamespaces") =>
+        Future.successful(computeBlacklistedNamespaces(js))
+      case _ =>
+        throw UnsupportedView(s"$ddoc/$view")
+    }
+    result
+  }
+
+  /**
+   * {{{
+   *   function (doc) {
+   *   if (doc._id.indexOf("/limits") >= 0) {
+   *     if (doc.concurrentInvocations === 0 || doc.invocationsPerMinute === 0) {
+   *       var namespace = doc._id.replace("/limits", "");
+   *       emit(namespace, 1);
+   *     }
+   *   } else if (doc.subject && doc.namespaces && doc.blocked) {
+   *     doc.namespaces.forEach(function(namespace) {
+   *       emit(namespace.name, 1);
+   *     });
+   *   }
+   * }
+   * }}}
+   */
+  private def computeBlacklistedNamespaces(js: JsObject): Seq[JsObject] = {
+    val id = js.fields("_id")
+    val value = JsNumber(1)
+    id match {
+      case JsString(idv) if idv.endsWith("/limits") =>
+        val limits = UserLimits.serdes.read(js)
+        if (limits.concurrentInvocations.contains(0) || limits.invocationsPerMinute.contains(0)) {
+          val ns = idv.substring(0, idv.indexOf("/limits"))
+          Seq(JsObject("id" -> id, "key" -> JsString(ns), "value" -> value))
+        } else Seq.empty
+      case _ =>
+        js.getFields("subject", "namespaces", "blocked") match {
+          case Seq(_, namespaces: JsArray, JsTrue) =>
+            namespaces.elements.map { ns =>
+              val name = ns.asJsObject.fields("name")
+              JsObject("id" -> id, "key" -> name, "value" -> value)
+            }
+          case _ =>
+            Seq.empty
+        }
+    }
+  }
+
+  private def computeSubjectView(startKey: List[Any], js: JsObject, provider: DocumentProvider)(
+    implicit transid: TransactionId,
+    ec: ExecutionContext) = {
+    val subjectOpt = findMatchingSubject(startKey, js)
     val result = subjectOpt match {
       case Some(subject) =>
         val limitDocId = s"${subject.namespace}/limits"
@@ -318,31 +375,21 @@ object SubjectHandler extends DocumentHandler {
           "uuid" -> JsString(subject.uuid),
           "key" -> JsString(subject.key))
         val result =
-          JsObject(
-            "id" -> js.fields("_id"),
-            "key" -> createKey(ddoc, view, startKey),
-            "value" -> viewJS,
-            "doc" -> JsNull)
+          JsObject("id" -> js.fields("_id"), "key" -> createKey(startKey), "value" -> viewJS, "doc" -> JsNull)
         if (subject.matchInNamespace) {
           provider
             .get(DocId(limitDocId))
-            .map(limits => Some(JsObject(result.fields + ("doc" -> limits.getOrElse(JsNull)))))
+            .map(limits => Seq(JsObject(result.fields + ("doc" -> limits.getOrElse(JsNull)))))
         } else {
-          Future.successful(Some(result))
+          Future.successful(Seq(result))
         }
       case None =>
-        Future.successful(None)
+        Future.successful(Seq.empty)
     }
     result
   }
 
-  def checkSupportedView(ddoc: String, view: String): Unit = {
-    if (ddoc != "subjects" || view != "identities") {
-      throw UnsupportedView(s"$ddoc/$view")
-    }
-  }
-
-  def computeSubjectView(ddoc: String, view: String, startKey: List[Any], js: JsObject): Option[SubjectView] = {
+  def findMatchingSubject(startKey: List[Any], js: JsObject): Option[SubjectView] = {
     startKey match {
       case (ns: String) :: Nil => findMatchingSubject(js, s => s.namespace == ns && !s.blocked)
       case (uuid: String) :: (key: String) :: Nil =>
@@ -351,7 +398,7 @@ object SubjectHandler extends DocumentHandler {
     }
   }
 
-  private def createKey(ddoc: String, view: String, startKey: List[Any]): JsArray = {
+  private def createKey(startKey: List[Any]): JsArray = {
     startKey match {
       case (ns: String) :: Nil                    => JsArray(Vector(JsString(ns))) //namespace or subject
       case (uuid: String) :: (key: String) :: Nil => JsArray(Vector(JsString(uuid), JsString(key))) // uuid, key

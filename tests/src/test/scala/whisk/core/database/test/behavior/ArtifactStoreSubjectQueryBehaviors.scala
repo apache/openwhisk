@@ -18,10 +18,15 @@
 package whisk.core.database.test.behavior
 
 import org.scalatest.FlatSpec
+import spray.json.DefaultJsonProtocol._
 import spray.json.{JsBoolean, JsObject}
 import whisk.common.TransactionId
-import whisk.core.database.NoDocumentException
+import whisk.core.database.{NoDocumentException, StaleParameter}
 import whisk.core.entity._
+import whisk.core.entity.types.AuthStore
+import whisk.core.invoker.NamespaceBlacklist
+
+import scala.concurrent.duration.Duration
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
   this: FlatSpec =>
@@ -71,6 +76,7 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     put(authStore, auth)
 
+    waitOnView(authStore, AuthKey(ak1.uuid, ak2.key), 1)
     Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
@@ -94,6 +100,69 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     val i = Identity.get(authStore, name1).futureValue
     i.subject shouldBe subs(0).subject
     i.limits shouldBe limits
+  }
+
+  it should "find blacklisted namespaces" in {
+    implicit val tid: TransactionId = transid()
+
+    val n1 = aname()
+    val n2 = aname()
+    val n3 = aname()
+    val n4 = aname()
+    val n5 = aname()
+
+    val ak1 = AuthKey()
+    val ak2 = AuthKey()
+
+    //Create 3 limits entry where one has limits > 0 thus non blacklisted
+    //And one blocked subject with 2 namespaces
+    val limitsAndAuths = Seq(
+      new LimitEntity(n1, UserLimits(invocationsPerMinute = Some(0))),
+      new LimitEntity(n2, UserLimits(concurrentInvocations = Some(0))),
+      new LimitEntity(n3, UserLimits(invocationsPerMinute = Some(7), concurrentInvocations = Some(7))),
+      new ExtendedAuth(Subject(), Set(WhiskNamespace(n4, ak1), WhiskNamespace(n5, ak2)), blocked = true))
+
+    limitsAndAuths foreach (put(authStore, _))
+
+    //2 for limits
+    //2 for 2 namespace in user blocked
+    waitOnBlacklistView(authStore, 2 + 2)
+
+    //Use contains assertion to ensure that even if same db is used by other setup
+    //we at least get our expected entries
+    val blacklist = new NamespaceBlacklist(authStore)
+    blacklist
+      .refreshBlacklist()
+      .futureValue should contain allElementsOf Seq(n1, n2, n4, n5).map(_.asString).toSet
+  }
+
+  def waitOnBlacklistView(db: AuthStore, count: Int)(implicit transid: TransactionId, timeout: Duration) = {
+    val success = retry(() => {
+      blacklistCount().map { listCount =>
+        if (listCount != count) {
+          throw RetryOp()
+        } else true
+      }
+    }, timeout)
+    assert(success.isSuccess, "wait aborted after: " + timeout + ": " + success)
+  }
+
+  private def blacklistCount()(implicit transid: TransactionId) = {
+    //NamespaceBlacklist uses StaleParameter.UpdateAfter which would lead to race condition
+    //So use actual call here
+    authStore
+      .query(
+        table = NamespaceBlacklist.view.name,
+        startKey = List.empty,
+        endKey = List.empty,
+        skip = 0,
+        limit = Int.MaxValue,
+        includeDocs = false,
+        descending = true,
+        reduce = false,
+        stale = StaleParameter.No)
+      .map(_.map(_.fields("key").convertTo[String]).toSet)
+      .map(_.size)
   }
 
   private class LimitEntity(name: EntityName, limits: UserLimits) extends WhiskAuth(Subject(), Set.empty) {
