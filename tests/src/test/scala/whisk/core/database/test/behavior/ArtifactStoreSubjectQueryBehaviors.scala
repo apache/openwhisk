@@ -58,6 +58,22 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     Identity.get(authStore, ns1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
+  it should "not find subject when authKey matches partially" in {
+    implicit val tid: TransactionId = transid()
+    val ak1 = AuthKey()
+    val ak2 = AuthKey()
+    val ns1 = aname()
+    val ns2 = aname()
+
+    val auth = WhiskAuth(
+      Subject(),
+      Set(WhiskNamespace(ns1, AuthKey(ak1.uuid, ak2.key)), WhiskNamespace(ns2, AuthKey(ak2.uuid, ak1.key))))
+
+    put(authStore, auth)
+
+    Identity.get(authStore, ak1).failed.futureValue shouldBe a[NoDocumentException]
+  }
+
   it should "find subject by namespace with limits" in {
     implicit val tid: TransactionId = transid()
     val ak1 = AuthKey()
