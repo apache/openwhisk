@@ -18,7 +18,9 @@
 package whisk.core.database.test.behavior
 
 import org.scalatest.FlatSpec
+import spray.json.{JsBoolean, JsObject}
 import whisk.common.TransactionId
+import whisk.core.database.NoDocumentException
 import whisk.core.entity._
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
@@ -44,6 +46,16 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     val s2 = Identity.get(authStore, ak2).futureValue
     s2.subject shouldBe subs(1).subject
+  }
+
+  it should "not get blocked subject" in {
+    implicit val tid: TransactionId = transid()
+    val ns1 = aname()
+    val ak1 = AuthKey()
+    val auth = new ExtendedAuth(Subject(), Set(WhiskNamespace(ns1, ak1)), blocked = true)
+    put(authStore, auth)
+
+    Identity.get(authStore, ns1).failed.futureValue shouldBe a[NoDocumentException]
   }
 
   it should "find subject by namespace with limits" in {
@@ -74,5 +86,10 @@ trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
     //There is no api to write limits. So piggy back on WhiskAuth but replace auth json
     //with limits!
     override def toJson = UserLimits.serdes.write(limits).asJsObject
+  }
+
+  private class ExtendedAuth(subject: Subject, namespaces: Set[WhiskNamespace], blocked: Boolean)
+      extends WhiskAuth(subject, namespaces) {
+    override def toJson = JsObject(super.toJson.fields + ("blocked" -> JsBoolean(blocked)))
   }
 }
