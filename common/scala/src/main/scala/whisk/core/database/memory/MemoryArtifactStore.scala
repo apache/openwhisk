@@ -276,8 +276,6 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     }
 
     def docInfo = DocInfo(DocId(id), DocRevision(rev.toString))
-
-    def matchesRev(r: DocRevision): Boolean = rev == r.rev.toInt
   }
 
   private object Artifact {
