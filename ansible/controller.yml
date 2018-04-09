@@ -17,5 +17,9 @@
 # This playbook deploys Openwhisk Controllers.
 
 - hosts: controllers
+  vars:
+    host_group: "{{ groups['controllers'] }}"
+    name_prefix: "controller"
+    controller_index_base: 0
   roles:
-  - controller
+    - controller
