@@ -20,8 +20,8 @@ package whisk.core.database.memory
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentType
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.util.{ByteString, ByteStringBuilder}
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, RootJsonFormat}
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.database.StoreUtils._
@@ -226,16 +226,47 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   }
 
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = ???
+    implicit transid: TransactionId): Future[(ContentType, T)] = {
+    //TODO Temporary implementation till MemoryAttachmentStore PR is merged
+    artifacts.get(doc.id.id) match {
+      case Some(a: Artifact) if a.attachments.contains(name) =>
+        val attachment = a.attachments(name)
+        val r = Source.single(attachment.bytes).toMat(sink)(Keep.right).run
+        r.map(t => (attachment.contentType, t))
+      case None =>
+        Future.failed(NoDocumentException("Not found on 'readAttachment'."))
+    }
+  }
 
-  override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
-    ???
+  override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
+    Future.successful(true)
+  }
 
   override protected[core] def attach(
     doc: DocInfo,
     name: String,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = ???
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
+
+    //TODO Temporary implementation till MemoryAttachmentStore PR is merged
+    val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
+    val g = f
+      .map { b =>
+        artifacts.get(doc.id.id) match {
+          case Some(a) =>
+            val existing = Artifact(doc, a.doc, a.computed)
+            val updated = existing.attach(name, Attachment(b.result().compact, contentType))
+            if (artifacts.replace(doc.id.id, existing, updated)) {
+              updated.docInfo
+            } else {
+              throw DocumentConflictException("conflict on 'put'")
+            }
+          case None =>
+            throw DocumentConflictException("conflict on 'put'")
+        }
+      }
+    g
+  }
 
   override def shutdown(): Unit = {}
 
@@ -268,15 +299,29 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   //Use curried case class to allow equals support only for id and rev
   //This allows us to implement atomic replace and remove which check
   //for id,rev equality only
-  private case class Artifact(id: String, rev: Int)(val doc: JsObject, val computed: JsObject) {
+  private case class Artifact(id: String, rev: Int)(val doc: JsObject,
+                                                    val computed: JsObject,
+                                                    val attachments: Map[String, Attachment] = Map.empty) {
     def incrementRev(): Artifact = {
-      val newRev = rev + 1
-      val updatedDoc = JsObject(doc.fields + (_rev -> JsString(newRev.toString)))
-      copy(rev = newRev)(updatedDoc, computed)
+      val (newRev, updatedDoc) = incrementAndGet()
+      copy(rev = newRev)(updatedDoc, computed, Map.empty) //With Couch attachments are lost post update
     }
 
     def docInfo = DocInfo(DocId(id), DocRevision(rev.toString))
+
+    def attach(name: String, attachment: Attachment): Artifact = {
+      val (newRev, updatedDoc) = incrementAndGet()
+      copy(rev = newRev)(updatedDoc, computed, attachments + (name -> attachment))
+    }
+
+    private def incrementAndGet() = {
+      val newRev = rev + 1
+      val updatedDoc = JsObject(doc.fields + (_rev -> JsString(newRev.toString)))
+      (newRev, updatedDoc)
+    }
   }
+
+  private case class Attachment(bytes: ByteString, contentType: ContentType)
 
   private object Artifact {
     def apply(id: String, rev: Int, doc: JsObject): Artifact = {
@@ -285,6 +330,10 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
 
     def apply(info: DocInfo): Artifact = {
       Artifact(info.id.id, info.rev.rev.toInt)(JsObject.empty, JsObject.empty)
+    }
+
+    def apply(info: DocInfo, doc: JsObject, c: JsObject): Artifact = {
+      Artifact(info.id.id, info.rev.rev.toInt)(doc, c)
     }
   }
 
