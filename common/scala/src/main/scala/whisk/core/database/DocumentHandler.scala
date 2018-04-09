@@ -43,8 +43,19 @@ trait DocumentHandler {
    */
   def computedFields(js: JsObject): JsObject = JsObject.empty
 
+  /**
+   * Returns the set of field names (including sub document field) which needs to be fetched as part of
+   * query made for the given view.
+   */
   def fieldsRequiredForView(ddoc: String, view: String): Set[String] = Set()
 
+  /**
+   * Transforms the query result instance from artifact store as per view requirements. Some view computation
+   * may result in performing a join operation.
+   *
+   * If the passed instance does not confirm to view conditions that transformed result would be None. This
+   * would be the case if view condition cannot be completed handled in query made to artifact store
+   */
   def transformViewResult(
     ddoc: String,
     view: String,
@@ -52,8 +63,13 @@ trait DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[JsObject]
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]]
 
+  /**
+   * Determines if the complete document should be fetched even if `includeDocs` is set to true. For some view computation
+   * complete document (including sub documents) may be needed and for them its required that complete document must be
+   * fetched as part of query response
+   */
   def shouldAlwaysIncludeDocs(ddoc: String, view: String): Boolean = false
 
   def checkIfTableSupported(table: String): Unit = {
@@ -76,7 +92,7 @@ abstract class SimpleHandler extends DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[JsObject] = {
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]] = {
     //Query result from CouchDB have below object structure with actual result in `value` key
     //So transform the result to confirm to that structure
     val viewResult = JsObject(
@@ -85,7 +101,7 @@ abstract class SimpleHandler extends DocumentHandler {
       "value" -> computeView(ddoc, view, js))
 
     val result = if (includeDocs) JsObject(viewResult.fields + ("doc" -> js)) else viewResult
-    Future.successful(result)
+    Future.successful(Some(result))
   }
 
   /**
@@ -289,25 +305,35 @@ object SubjectHandler extends DocumentHandler {
     endKey: List[Any],
     includeDocs: Boolean,
     js: JsObject,
-    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[JsObject] = {
+    provider: DocumentProvider)(implicit transid: TransactionId, ec: ExecutionContext): Future[Option[JsObject]] = {
     require(includeDocs) //For subject/identities includeDocs is always true
 
-    val subject = computeSubjectView(ddoc, view, startKey, js)
-    val limitDocId = s"${subject.namespace}/limits"
-    val viewJS = JsObject(
-      "_id" -> JsString(limitDocId),
-      "namespace" -> JsString(subject.namespace),
-      "uuid" -> JsString(subject.uuid),
-      "key" -> JsString(subject.key))
-    val result =
-      JsObject("id" -> js.fields("_id"), "key" -> createKey(ddoc, view, startKey), "value" -> viewJS, "doc" -> JsNull)
-    if (subject.matchInNamespace) {
-      provider
-        .get(DocId(limitDocId))
-        .map(limits => JsObject(result.fields + ("doc" -> limits.getOrElse(JsNull))))
-    } else {
-      Future.successful(result)
+    val subjectOpt = computeSubjectView(ddoc, view, startKey, js)
+    val result = subjectOpt match {
+      case Some(subject) =>
+        val limitDocId = s"${subject.namespace}/limits"
+        val viewJS = JsObject(
+          "_id" -> JsString(limitDocId),
+          "namespace" -> JsString(subject.namespace),
+          "uuid" -> JsString(subject.uuid),
+          "key" -> JsString(subject.key))
+        val result =
+          JsObject(
+            "id" -> js.fields("_id"),
+            "key" -> createKey(ddoc, view, startKey),
+            "value" -> viewJS,
+            "doc" -> JsNull)
+        if (subject.matchInNamespace) {
+          provider
+            .get(DocId(limitDocId))
+            .map(limits => Some(JsObject(result.fields + ("doc" -> limits.getOrElse(JsNull)))))
+        } else {
+          Future.successful(Some(result))
+        }
+      case None =>
+        Future.successful(None)
     }
+    result
   }
 
   def checkSupportedView(ddoc: String, view: String): Unit = {
@@ -316,14 +342,13 @@ object SubjectHandler extends DocumentHandler {
     }
   }
 
-  def computeSubjectView(ddoc: String, view: String, startKey: List[Any], js: JsObject): SubjectView = {
-    val viewJs = startKey match {
+  def computeSubjectView(ddoc: String, view: String, startKey: List[Any], js: JsObject): Option[SubjectView] = {
+    startKey match {
       case (ns: String) :: Nil => findMatchingSubject(js, s => s.namespace == ns && !s.blocked)
       case (uuid: String) :: (key: String) :: Nil =>
         findMatchingSubject(js, s => s.uuid == uuid && s.key == key && !s.blocked)
       case _ => None
     }
-    viewJs.getOrElse(throw new IllegalArgumentException(s"Subject does not match ${startKey.head}"))
   }
 
   private def createKey(ddoc: String, view: String, startKey: List[Any]): JsArray = {

@@ -484,10 +484,10 @@ class DocumentHandlerTests
     val queryKey = List("u2", "k2")
     SubjectHandler
       .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
-      .futureValue shouldBe result
+      .futureValue shouldBe Some(result)
   }
 
-  it should "json should match format of CouchDB response" in {
+  it should "should return none when passed object does not passes view criteria" in {
     implicit val tid: TransactionId = transid()
     val js = """{
                |  "_id": "bar",
@@ -495,27 +495,15 @@ class DocumentHandlerTests
                |  "uuid": "u1",
                |  "key" : "k1",
                |  "namespaces" : [
-               |    {"name": "foo", "uuid":"u2", "key":"k2"}
+               |    {"name": "foo", "uuid":"u2", "key":"k2"},
+               |    {"name": "foo2", "uuid":"u3", "key":"k3"}
                |  ]
                |}""".stripMargin.parseJson.asJsObject
-    val result = """{
-                   |  "id": "bar",
-                   |  "key": [
-                   |    "u2",
-                   |    "k2"
-                   |  ],
-                   |  "value": {
-                   |    "_id": "foo/limits",
-                   |    "namespace": "foo",
-                   |    "uuid": "u2",
-                   |    "key": "k2"
-                   |  },
-                   |  "doc": null
-                   |}""".stripMargin.parseJson.asJsObject
-    val queryKey = List("u2", "k2")
+
+    val queryKey = List("u2", "k3")
     SubjectHandler
       .transformViewResult("subjects", "identities", queryKey, queryKey, includeDocs = true, js, TestDocumentProvider())
-      .futureValue shouldBe result
+      .futureValue shouldBe None
   }
 
   private case class TestDocumentProvider(js: Option[JsObject]) extends DocumentProvider {

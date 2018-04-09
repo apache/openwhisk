@@ -207,7 +207,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
         MemoryArtifactStore.this)
     }.toList
 
-    val f = Future.sequence(r)
+    val f = Future.sequence(r).map(_.flatten)
     f.onSuccess({
       case _ => transid.finished(this, start, s"[QUERY] '$dbName' completed: matched ${out.size}")
     })
