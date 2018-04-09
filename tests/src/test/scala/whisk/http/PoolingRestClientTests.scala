@@ -41,6 +41,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
 
+import whisk.http.PoolingRestClient._
+
 @RunWith(classOf[JUnitRunner])
 class PoolingRestClientTests
     extends TestKit(ActorSystem("PoolingRestClientTests"))
@@ -112,7 +114,7 @@ class PoolingRestClientTests
     val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
-    val request = poolingRestClient.mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
 
     await(poolingRestClient.requestJson[JsObject](request)) shouldBe Right(JsObject())
   }
@@ -121,7 +123,7 @@ class PoolingRestClientTests
     val httpResponse = HttpResponse(NotFound)
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
-    val request = poolingRestClient.mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
 
     await(poolingRestClient.requestJson[JsObject](request)) shouldBe Left(NotFound)
   }
@@ -130,20 +132,20 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest()
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow()))
 
-    await(poolingRestClient.mkRequest(GET, Uri./)) shouldBe httpRequest
+    await(mkRequest(GET, Uri./)) shouldBe httpRequest
   }
 
   it should "create an HttpRequest with a JSON payload" in {
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpRequest = httpRequest)))
 
-    await(poolingRestClient.mkJsonRequest(GET, Uri./, JsObject(), List.empty)) shouldBe httpRequest
+    await(mkJsonRequest(GET, Uri./, JsObject(), List.empty)) shouldBe httpRequest
   }
 
   it should "create an HttpRequest with a payload" in {
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpRequest = httpRequest)))
-    val request = poolingRestClient.mkRequest0(
+    val request = mkRequest0(
       GET,
       Uri./,
       Future.successful(HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint)),

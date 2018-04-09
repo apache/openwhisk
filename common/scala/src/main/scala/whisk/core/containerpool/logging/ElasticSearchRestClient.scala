@@ -32,6 +32,7 @@ import scala.util.Try
 import spray.json._
 
 import whisk.http.PoolingRestClient
+import whisk.http.PoolingRestClient._
 
 trait EsQueryMethod
 trait EsOrder

@@ -33,6 +33,7 @@ import spray.json.DefaultJsonProtocol._
 
 import whisk.common.Logging
 import whisk.http.PoolingRestClient
+import whisk.http.PoolingRestClient._
 
 /**
  * This class only handles the basic communication to the proper endpoints

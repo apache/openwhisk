@@ -81,28 +81,6 @@ class PoolingRestClient(
     }))(Keep.left)
     .run
 
-  // Prepares a request with the proper headers.
-  def mkRequest0(method: HttpMethod,
-                 uri: Uri,
-                 body: Future[MessageEntity],
-                 headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
-    body.map { b =>
-      HttpRequest(method, uri, headers, b)
-    }
-  }
-
-  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
-    mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
-  }
-
-  def mkJsonRequest(method: HttpMethod,
-                    uri: Uri,
-                    body: JsValue,
-                    headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
-    val b = Marshal(body).to[MessageEntity]
-    mkRequest0(method, uri, b, headers)
-  }
-
   // Enqueue a request, and return a future capturing the corresponding response.
   // WARNING: make sure that if the future response is not failed, its entity
   // be drained entirely or the connection will be kept open until timeouts kick in.
@@ -160,5 +138,33 @@ class PoolingRestClient(
      * poolOpt.map(_.shutdown().map(_ => ())).getOrElse(Future.successful(()))
      */
     Future.successful(())
+  }
+}
+
+object PoolingRestClient {
+  private implicit val system = ActorSystem()
+  private implicit val materializer = ActorMaterializer()
+  private implicit val executionContext2 = system.dispatcher
+
+  // Prepares a request with the proper headers.
+  def mkRequest0(method: HttpMethod,
+                 uri: Uri,
+                 body: Future[MessageEntity],
+                 headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+    body.map { b =>
+      HttpRequest(method, uri, headers, b)
+    }
+  }
+
+  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+    mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
+  }
+
+  def mkJsonRequest(method: HttpMethod,
+                    uri: Uri,
+                    body: JsValue,
+                    headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+    val b = Marshal(body).to[MessageEntity]
+    mkRequest0(method, uri, b, headers)
   }
 }

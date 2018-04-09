@@ -21,10 +21,13 @@ import scala.concurrent.Future
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 import whisk.common.Logging
 import whisk.core.database.CouchDbRestClient
+import whisk.http.PoolingRestClient._
 
 /**
  * Implementation of additional endpoints that should only be used in testing.
