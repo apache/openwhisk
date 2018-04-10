@@ -210,7 +210,7 @@ private object SubjectViewMapper extends MemoryViewMapper {
         val limits = UserLimits.serdes.read(d)
         limits.concurrentInvocations.contains(0) || limits.invocationsPerMinute.contains(0)
       case _ =>
-        d.getFields("blocked") match {
+        d.getFields(BLOCKED) match {
           case Seq(JsTrue) => true
           case _           => false
         }

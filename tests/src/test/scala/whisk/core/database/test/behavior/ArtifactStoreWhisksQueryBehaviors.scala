@@ -17,10 +17,12 @@
 
 package whisk.core.database.test.behavior
 
+import java.time.Instant
+
 import org.scalatest.FlatSpec
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskEntityQueries.TOP
-import whisk.core.entity.{Binding, WhiskEntity, WhiskPackage}
+import whisk.core.entity._
 
 trait ArtifactStoreWhisksQueryBehaviors extends ArtifactStoreBehaviorBase {
   this: FlatSpec =>
@@ -54,5 +56,33 @@ trait ArtifactStoreWhisksQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     resultPublic.size shouldBe 1
     resultPublic.head.fields("value") shouldBe pkgs(1).summaryAsJson
+  }
+
+  it should "list packages between given times" in {
+    implicit val tid: TransactionId = transid()
+
+    val ns = newNS()
+    val pkgs = (1000 until 1100 by 10).map(new TestWhiskPackage(ns, aname(), _))
+
+    pkgs foreach (put(entityStore, _))
+
+    waitOnView(entityStore, WhiskPackage, ns, pkgs.length)
+
+    val resultSince =
+      query[WhiskEntity](entityStore, WhiskPackage.view.name, List(ns.asString, 1050), List(ns.asString, TOP, TOP))
+
+    resultSince.map(_.fields("value")) shouldBe pkgs.reverse.filter(_.updated.toEpochMilli >= 1050).map(_.summaryAsJson)
+
+    val resultBetween =
+      query[WhiskEntity](entityStore, WhiskPackage.view.name, List(ns.asString, 1050), List(ns.asString, 1090, TOP))
+    resultBetween.map(_.fields("value")) shouldBe pkgs.reverse
+      .filter(p => p.updated.toEpochMilli >= 1050 && p.updated.toEpochMilli <= 1090)
+      .map(_.summaryAsJson)
+  }
+
+  private class TestWhiskPackage(override val namespace: EntityPath, override val name: EntityName, updatedTest: Long)
+      extends WhiskPackage(namespace, name) {
+    //Not possible to easily control the updated so need to use this workaround
+    override val updated = Instant.ofEpochMilli(updatedTest)
   }
 }

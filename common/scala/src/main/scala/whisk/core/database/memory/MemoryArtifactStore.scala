@@ -122,7 +122,7 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   }
 
   override protected[database] def del(doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] = {
-    require(doc != null && doc.rev.asString != null, "doc revision required for delete")
+    checkDocHasRevision(doc)
 
     val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$dbName' deleting document: '$doc'")
     val t = Try[Boolean] {

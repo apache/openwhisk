@@ -24,6 +24,7 @@ trait ArtifactStoreBehavior
     with ArtifactStoreQueryBehaviors
     with ArtifactStoreCRUDBehaviors
     with ArtifactStoreSubjectQueryBehaviors
-    with ArtifactStoreWhisksQueryBehaviors {
+    with ArtifactStoreWhisksQueryBehaviors
+    with ArtifactStoreActivationsQueryBehaviors {
   this: FlatSpec =>
 }
