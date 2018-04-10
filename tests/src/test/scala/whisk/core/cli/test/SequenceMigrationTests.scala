@@ -52,8 +52,9 @@ class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtil
   val namespace = wsk.namespace.whois()
   val allowedActionDuration = 120 seconds
 
-  before {
+  override protected def withFixture(test: NoArgTest) = {
     assume(!isMemoryStore(entityStore))
+    super.withFixture(test)
   }
 
   behavior of "Sequence Migration"

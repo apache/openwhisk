@@ -90,9 +90,12 @@ class NamespaceBlacklistTests
     }
   }
 
-  override def beforeAll() = {
+  override protected def withFixture(test: NoArgTest) = {
     assume(isCouchStore(authStore))
+    super.withFixture(test)
+  }
 
+  override def beforeAll() = {
     val documents = identities.map { i =>
       (i.namespace.name + "/limits", i.limits.toJson.asJsObject)
     } :+ (subject.subject.asString, blockedSubject)
