@@ -142,7 +142,7 @@ class ApiGwRestTests extends ApiGwTests with RestUtil {
   }
 
   override def verifyApiGet(rr: RunResult): Unit = {
-    rr.stdout should include regex (s""""operationId":"getPathWithSub_pathsInIt"""")
+    rr.stdout should include(s""""operationId":"getPathWithSub_pathsInIt"""")
   }
 
   override def verifyApiFullList(rr: RunResult,
