@@ -48,7 +48,7 @@ trait DocumentHandler {
    * Returns the set of field names (including sub document field) which needs to be fetched as part of
    * query made for the given view.
    */
-  def fieldsRequiredForView(ddoc: String, view: String): Set[String] = Set()
+  def fieldsRequiredForView(ddoc: String, view: String): Set[String] = Set.empty
 
   /**
    * Transforms the query result instance from artifact store as per view requirements. Some view computation

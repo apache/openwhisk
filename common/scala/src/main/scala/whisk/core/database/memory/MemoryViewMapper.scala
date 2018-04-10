@@ -35,31 +35,31 @@ trait MemoryViewMapper {
     require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
   }
 
-  def equal(js: JsObject, name: String, value: String): Boolean =
+  protected def equal(js: JsObject, name: String, value: String): Boolean =
     JsHelpers.getFieldPath(js, name) match {
       case Some(JsString(v)) => v == value
       case _                 => false
     }
 
-  def isTrue(js: JsObject, name: String): Boolean =
+  protected def isTrue(js: JsObject, name: String): Boolean =
     JsHelpers.getFieldPath(js, name) match {
       case Some(JsBoolean(v)) => v
       case _                  => false
     }
 
-  def gte(js: JsObject, name: String, value: Number): Boolean =
+  protected def gte(js: JsObject, name: String, value: Number): Boolean =
     JsHelpers.getFieldPath(js, name) match {
       case Some(JsNumber(n)) => n.longValue() >= value.longValue()
       case _                 => false
     }
 
-  def lte(js: JsObject, name: String, value: Number): Boolean =
+  protected def lte(js: JsObject, name: String, value: Number): Boolean =
     JsHelpers.getFieldPath(js, name) match {
       case Some(JsNumber(n)) => n.longValue() <= value.longValue()
       case _                 => false
     }
 
-  def numericSort(s: Seq[JsObject], descending: Boolean, name: String): Seq[JsObject] = {
+  protected def numericSort(s: Seq[JsObject], descending: Boolean, name: String): Seq[JsObject] = {
     val f =
       (js: JsObject) =>
         JsHelpers.getFieldPath(js, name) match {
@@ -239,7 +239,7 @@ private object SubjectViewMapper extends MemoryViewMapper {
     s //No sorting to be done
   }
 
-  def matchingNamespace(js: JsObject, matcher: JsObject => Boolean): Boolean = {
+  private def matchingNamespace(js: JsObject, matcher: JsObject => Boolean): Boolean = {
     js.fields.get("namespaces") match {
       case Some(JsArray(e)) => e.exists(v => matcher(v.asJsObject))
       case _                => false

@@ -268,7 +268,9 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     g
   }
 
-  override def shutdown(): Unit = {}
+  override def shutdown(): Unit = {
+    artifacts.clear()
+  }
 
   override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {
     val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET] '$dbName' finding document: '$id'")
