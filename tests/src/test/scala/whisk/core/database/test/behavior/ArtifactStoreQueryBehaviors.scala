@@ -38,7 +38,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(entityStore, ns.root, 1, WhiskAction.view)
     val result = query[WhiskEntity](
       entityStore,
-      s"${ddconfig.actionsDdoc}/actions",
+      WhiskAction.view.name,
       List(ns.asString, 0),
       List(ns.asString, TOP, TOP),
       includeDocs = true)
@@ -62,11 +62,8 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     val docInfo = put(entityStore, action)
 
     waitOnView(entityStore, ns.root, 1, WhiskAction.view)
-    val result = query[WhiskEntity](
-      entityStore,
-      s"${ddconfig.actionsDdoc}/actions",
-      List(ns.asString, 0),
-      List(ns.asString, TOP, TOP))
+    val result =
+      query[WhiskEntity](entityStore, WhiskAction.view.name, List(ns.asString, 0), List(ns.asString, TOP, TOP))
 
     result should have length 1
 
@@ -89,11 +86,8 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     }
 
     waitOnView(entityStore, ns.root, 2, WhiskAction.view)
-    val result = query[WhiskEntity](
-      entityStore,
-      s"${ddconfig.actionsDdoc}/actions",
-      List(ns.asString, 0),
-      List(ns.asString, TOP, TOP))
+    val result =
+      query[WhiskEntity](entityStore, WhiskAction.view.name, List(ns.asString, 0), List(ns.asString, TOP, TOP))
 
     result should have length entities.length
     result.map(_.fields("value")) should contain theSameElementsAs entities.map(_.summaryAsJson)
@@ -111,7 +105,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     val resultDescending = query[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP))
 
@@ -122,7 +116,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
 
     val resultAscending = query[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP),
       descending = false)
@@ -141,7 +135,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(activationStore, EntityPath(entityPath), activations.size, WhiskActivation.filtersView)
     val result = query[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP),
       skip = 5,
@@ -161,7 +155,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(activationStore, EntityPath(entityPath), activations.size, WhiskActivation.filtersView)
     val result = query[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP),
       limit = 5,
@@ -181,7 +175,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(activationStore, EntityPath(entityPath), activations.size, WhiskActivation.filtersView)
     val result = query[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP),
       includeDocs = true,
@@ -204,7 +198,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(activationStore, EntityPath(entityPath), activations.size, WhiskActivation.filtersView)
     val result = count[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP))
 
@@ -223,7 +217,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     waitOnView(activationStore, EntityPath(entityPath), activations.size, WhiskActivation.filtersView)
     val result = count[WhiskActivation](
       activationStore,
-      s"${ddconfig.activationsFilterDdoc}/activations",
+      WhiskActivation.filtersView.name,
       List(entityPath, 0),
       List(entityPath, TOP, TOP),
       skip = 4)

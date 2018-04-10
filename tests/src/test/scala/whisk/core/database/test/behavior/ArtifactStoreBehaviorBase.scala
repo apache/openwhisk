@@ -21,14 +21,12 @@ import java.time.Instant
 
 import akka.stream.ActorMaterializer
 import common.{StreamLogging, WskActorSystem}
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import pureconfig.loadConfigOrThrow
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import spray.json.{JsObject, JsValue}
 import whisk.common.{TransactionCounter, TransactionId}
-import whisk.core.ConfigKeys
-import whisk.core.database.{ArtifactStore, StaleParameter}
 import whisk.core.database.test.DbUtils
+import whisk.core.database.{ArtifactStore, StaleParameter}
 import whisk.core.entity._
 import whisk.utils.JsHelpers
 
@@ -52,8 +50,6 @@ trait ArtifactStoreBehaviorBase
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)
 
   protected implicit val materializer: ActorMaterializer = ActorMaterializer()
-
-  protected val ddconfig = loadConfigOrThrow[DBConfig](ConfigKeys.db)
 
   protected val prefix = s"artifactTCK_${Random.alphanumeric.take(4).mkString}"
 
