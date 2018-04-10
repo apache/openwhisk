@@ -52,6 +52,10 @@ class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtil
   val namespace = wsk.namespace.whois()
   val allowedActionDuration = 120 seconds
 
+  before {
+    assume(!isMemoryStore(entityStore))
+  }
+
   behavior of "Sequence Migration"
 
   it should "check default namespace '_' is preserved in WhiskAction of old style sequence" in {

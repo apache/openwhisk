@@ -91,6 +91,8 @@ class NamespaceBlacklistTests
   }
 
   override def beforeAll() = {
+    assume(isCouchStore(authStore))
+
     val documents = identities.map { i =>
       (i.namespace.name + "/limits", i.limits.toJson.asJsObject)
     } :+ (subject.subject.asString, blockedSubject)

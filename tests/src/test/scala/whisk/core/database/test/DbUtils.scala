@@ -34,6 +34,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database._
+import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
@@ -257,4 +258,7 @@ trait DbUtils extends TransactionCounter {
     }
     docsToDelete.clear()
   }
+
+  def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
+  def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
 }
