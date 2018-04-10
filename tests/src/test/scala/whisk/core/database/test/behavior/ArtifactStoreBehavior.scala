@@ -23,6 +23,7 @@ trait ArtifactStoreBehavior
     extends ArtifactStoreBehaviorBase
     with ArtifactStoreQueryBehaviors
     with ArtifactStoreCRUDBehaviors
-    with ArtifactStoreSubjectQueryBehaviors {
+    with ArtifactStoreSubjectQueryBehaviors
+    with ArtifactStoreWhisksQueryBehaviors {
   this: FlatSpec =>
 }

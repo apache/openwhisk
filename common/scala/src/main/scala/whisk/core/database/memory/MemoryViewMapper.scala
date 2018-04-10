@@ -41,10 +41,10 @@ trait MemoryViewMapper {
       case _                 => false
     }
 
-  def notEqual(js: JsObject, name: String, value: Boolean): Boolean =
+  def isTrue(js: JsObject, name: String): Boolean =
     JsHelpers.getFieldPath(js, name) match {
-      case Some(JsBoolean(v)) => v != value
-      case _                  => true
+      case Some(JsBoolean(v)) => v
+      case _                  => false
     }
 
   def gte(js: JsObject, name: String, value: Number): Boolean =
@@ -120,6 +120,8 @@ private object WhisksViewMapper extends MemoryViewMapper {
   private val ROOT_NS = WhisksHandler.ROOT_NS
   private val TYPE = "entityType"
   private val UPDATED = "updated"
+  private val PUBLISH = "publish"
+  private val BINDING = "binding"
 
   override def filter(ddoc: String,
                       view: String,
@@ -130,7 +132,7 @@ private object WhisksViewMapper extends MemoryViewMapper {
     checkKeys(startKey, endKey)
     val entityType = WhisksHandler.getEntityTypeForDesignDoc(ddoc, view)
 
-    val matchType = equal(d, TYPE, entityType)
+    val matchTypeAndView = equal(d, TYPE, entityType) && matchViewConditions(ddoc, view, d)
     val matchNS = equal(d, NS, startKey.head.asInstanceOf[String])
     val matchRootNS = equal(c, ROOT_NS, startKey.head.asInstanceOf[String])
 
@@ -139,18 +141,33 @@ private object WhisksViewMapper extends MemoryViewMapper {
 
     val filterResult = (startKey, endKey) match {
       case (ns :: Nil, _ :: `TOP` :: Nil) =>
-        (matchType && matchNS) || (matchType && matchRootNS)
+        (matchTypeAndView && matchNS) || (matchTypeAndView && matchRootNS)
 
       case (ns :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
-        (matchType && matchNS && gte(d, UPDATED, since)) || (matchType && matchRootNS && gte(d, UPDATED, since))
-
+        (matchTypeAndView && matchNS && gte(d, UPDATED, since)) ||
+          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since))
       case (ns :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
-        (matchType && matchNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto)) ||
-          (matchType && matchRootNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto))
+        (matchTypeAndView && matchNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto)) ||
+          (matchTypeAndView && matchRootNS && gte(d, UPDATED, since) && lte(d, UPDATED, upto))
 
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
     filterResult
+  }
+
+  private def matchViewConditions(ddoc: String, view: String, d: JsObject): Boolean = {
+    view match {
+      case "packages-public" if ddoc.startsWith("whisks") =>
+        isTrue(d, PUBLISH) && hasEmptyBinding(d)
+      case _ => true
+    }
+  }
+
+  private def hasEmptyBinding(js: JsObject) = {
+    js.fields.get(BINDING) match {
+      case Some(x: JsObject) if x.fields.nonEmpty => false
+      case _                                      => true
+    }
   }
 
   override def sort(ddoc: String, view: String, descending: Boolean, s: Seq[JsObject]): Seq[JsObject] = {
@@ -205,7 +222,7 @@ private object SubjectViewMapper extends MemoryViewMapper {
                                                   startKey: List[Any],
                                                   endKey: List[Any],
                                                   d: JsObject) = {
-    val notBlocked = notEqual(d, BLOCKED, value = true)
+    val notBlocked = !isTrue(d, BLOCKED)
     startKey match {
       case (ns: String) :: Nil => notBlocked && (equal(d, SUBJECT, ns) || matchingNamespace(d, equal(_, NS_NAME, ns)))
       case (uuid: String) :: (key: String) :: Nil =>
