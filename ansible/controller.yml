@@ -21,5 +21,7 @@
     host_group: "{{ groups['controllers'] }}"
     name_prefix: "controller"
     controller_index_base: 0
+    local_bookkeeping: controller.localBookkeeping
+    akka_enabled: "True"
   roles:
     - controller

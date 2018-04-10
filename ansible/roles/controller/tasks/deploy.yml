@@ -23,7 +23,7 @@
   set_fact:
     controller_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
     controller_index:
-      "{{ controller_index_base + host_group.index(inventory_hostname) }}"
+      "{{ (controller_index_base|int) + host_group.index(inventory_hostname) }}"
 
 - name: "pull the {{ docker.image.tag }} image of controller"
   shell:
@@ -96,13 +96,11 @@
     - "{{ db.whisk.auth }}"
     - "{{ db.whisk.activations }}"
 
-- name: prepare controller ports
+- name: prepare controller port
   set_fact:
     controller_port: "{{ controller.basePort + (controller_index | int) }}"
     ports_to_expose:
       - "{{ controller.basePort + (controller_index | int) }}:8080"
-      # yamllint disable-line rule:line-length
-      - "{{ (controller.akka.cluster.basePort + (controller_index | int)) }}:{{ controller.akka.cluster.bindPort }}"
 
 - name: expose additional ports if jmxremote is enabled
   when: jmx.enabled
@@ -121,6 +119,14 @@
       -Djava.rmi.server.hostname={{ inventory_hostname }}
       -Dcom.sun.management.jmxremote.rmi.port={{ jmx_remote_rmi_port }}
       -Dcom.sun.management.jmxremote.port={{ jmx_remote_port }}
+
+- name: add akka port to ports_to_expose
+  set_fact:
+    ports_to_expose: >-
+      {{ ports_to_expose }} +
+      [ "{{ (controller.akka.cluster.basePort + (controller_index | int)) }}:"
+      + "{{ controller.akka.cluster.bindPort }}" ]
+  when: akka_enabled | bool
 
 - name: populate environment variables for controller
   set_fact:
@@ -241,14 +247,6 @@
       "CONFIG_whisk_loadbalancer_blackboxFraction":
         "{{ controller.blackboxFraction }}"
 
-      "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
-      "CONFIG_akka_remote_netty_tcp_hostname":
-        "{{ controller.akka.cluster.host[(controller_index | int)] }}"
-      "CONFIG_akka_remote_netty_tcp_port":
-        "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
-      "CONFIG_akka_remote_netty_tcp_bindPort":
-        "{{ controller.akka.cluster.bindPort }}"
-
       "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
       "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
 
@@ -259,26 +257,35 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-- name: create seed nodes list
-  set_fact:
-    seed_nodes_list: >
-      {{ seed_nodes_list|default([]) }}
-      + [ '{{ item.1 }}:{{ controller.akka.cluster.basePort+item.0 }}' ]
-  with_indexed_items:
-    - "{{ controller.akka.cluster.seedNodes }}"
-
 - name: add seed nodes to controller environment
   set_fact:
     controller_env: >
-      {{ controller_env | default({}) | combine({
-        'CONFIG_akka_cluster_seedNodes_' ~ item.0: 'akka.tcp://controller-actor-system@' ~ item.1
+      {{ controller_env | combine({
+        'CONFIG_akka_cluster_seedNodes_' ~ item.0:
+          'akka.tcp://controller-actor-system@'~item.1~':'~(controller.akka.cluster.basePort+item.0)
       }) }}
-  with_indexed_items: "{{ seed_nodes_list }}"
+  with_indexed_items: "{{ controller.akka.cluster.seedNodes }}"
+  when: akka_enabled | bool
+
+- name: Add akka environment to controller environment
+  vars:
+    akka_env:
+      "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
+      "CONFIG_akka_remote_netty_tcp_hostname":
+        "{{ controller.akka.cluster.host[(controller_index | int)] }}"
+      "CONFIG_akka_remote_netty_tcp_port":
+        "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
+      "CONFIG_akka_remote_netty_tcp_bindPort":
+        "{{ controller.akka.cluster.bindPort }}"
+  set_fact:
+    controller_env: "{{ controller_env | combine(akka_env) }}"
+  when: akka_enabled | bool
 
 - name: (re)start controller
   docker_container:
     name: "{{ controller_name }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
+    image:
+      "{{docker_registry~docker.image.prefix}}/controller:{{docker.image.tag}}"
     state: started
     recreate: true
     restart_policy: "{{ docker.restart.policy }}"
