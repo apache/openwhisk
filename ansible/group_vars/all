@@ -19,7 +19,7 @@ exclude_logs_from: []
 #   whisk_api_localhost_name_default (last)
 whisk_api_localhost_name_default: "localhost"
 
-hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
+hosts_dir: "{{ inventory_dir if inventory_dir else (ansible_inventory_sources[0] | dirname) }}"
 
 whisk:
   version:
@@ -323,4 +323,3 @@ metrics:
     tags: "{{ metrics_kamon_tags | default(false) }}"
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
-
