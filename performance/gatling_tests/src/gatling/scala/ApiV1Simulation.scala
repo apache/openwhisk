@@ -19,18 +19,17 @@ import extension.whisk.Predef._
 import io.gatling.core.Predef._
 
 import scala.concurrent.duration._
-import scala.util.Properties
 
 class ApiV1Simulation extends Simulation {
 
   // Specify parameters for the run
   val host = sys.env("OPENWHISK_HOST")
   val connections = sys.env("CONNECTIONS").toInt
-  val seconds = Properties.envOrElse("SECONDS", "10").toInt.seconds
+  val seconds = sys.env.getOrElse("SECONDS", "10").toInt.seconds
 
   // Specify thresholds
   val requestsPerSec = sys.env("REQUESTS_PER_SEC").toInt
-  val minimalRequestsPerSec = Properties.envOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
+  val minimalRequestsPerSec = sys.env.getOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
 
   // Generate the OpenWhiskProtocol
   val openWhiskProtocol = openWhisk.apiHost(host)
