@@ -32,7 +32,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers with J
 
   it should "fetch logs using activation logs API" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "logFetch"
-    val logFormat = "\\d+-\\d+-\\d+T\\d+:\\d+:\\d+.\\d+Z %s: %s"
+    val logFormat = "\\d+-\\d+-\\d+T\\d+:\\d+:\\d+.\\d+Z\\s+%s: %s"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("log.js")))
