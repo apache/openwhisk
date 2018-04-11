@@ -69,7 +69,7 @@ This programming model is a perfect match for microservices, mobile, IoT and man
 - Integration with Serverless Framework
 -->
 
-Official OpenWhisk project website [http://OpenWhisk.org](http://openwhisk.org).
+Official OpenWhisk project website [http://openwhisk.incubator.apache.org](http://openwhisk.incubator.apache.org).
 
 <!-- ## Setting up the OpenWhisk CLI - moved to cli.md -->
 
