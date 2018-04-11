@@ -22,6 +22,6 @@
     name_prefix: "controller"
     controller_index_base: 0
     local_bookkeeping: controller.localBookkeeping
-    akka_enabled: "True"
+    join_akka_cluster: "True"
   roles:
     - controller

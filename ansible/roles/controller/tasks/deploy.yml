@@ -126,7 +126,7 @@
       {{ ports_to_expose }} +
       [ "{{ (controller.akka.cluster.basePort + (controller_index | int)) }}:"
       + "{{ controller.akka.cluster.bindPort }}" ]
-  when: akka_enabled | bool
+  when: join_akka_cluster | bool
 
 - name: populate environment variables for controller
   set_fact:
