@@ -20,11 +20,7 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.{ActivationResult, BaseWsk, JsHelpers, TestHelpers, TestUtils, WskProps, WskTestHelpers}
-
-import whisk.utils.retry
-
-import scala.concurrent.duration._
+import common.{BaseWsk, JsHelpers, TestHelpers, TestUtils, WskProps, WskTestHelpers}
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskActivationTests extends TestHelpers with WskTestHelpers with JsHelpers {
@@ -34,21 +30,22 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers with J
 
   behavior of "Whisk activations"
 
-  it should "get logs from activtion API" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
+  it should "fetch logs using activation logs API" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "logFetch"
+    val logFormat = "\\d+-\\d+-\\d+T\\d+:\\d+:\\d+.\\d+Z %s: %s"
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("log.js")))
     }
 
     val run = wsk.action.invoke(name, blocking = true)
-    val activation = wsk.parseJsonString(run.stdout).convertTo[ActivationResult]
 
-    retry({
+    // Use withActivation() to reduce intermittent failures that may result from eventually consistent DBs
+    withActivation(wsk.activation, run) { activation =>
       val logs = wsk.activation.logs(Some(activation.activationId)).stdout
 
-      logs should include regex ("\\d+-\\d+-\\d+T\\d+:\\d+:\\d+.\\d+Z stdout: this is stdout")
-      logs should include regex ("\\d+-\\d+-\\d+T\\d+:\\d+:\\d+.\\d+Z stderr: this is stderr")
-    }, 10, Some(1.second))
+      logs should include regex (logFormat.format("stdout", "this is stdout"))
+      logs should include regex (logFormat.format("stderr", "this is stderr"))
+    }
   }
 }
