@@ -18,10 +18,32 @@
 
 - hosts: controllers
   vars:
+    #
+    # host_group - usually "{{ groups['...'] }}" where '...' is what was used
+    #   for 'hosts' above.  The hostname of each host will be looked up in this
+    #   group to assign a zero-based index.  That index will be used in concert
+    #   with 'name_prefix' below to assign a host/container name.
     host_group: "{{ groups['controllers'] }}"
+    #
+    # name_prefix - a unique prefix for this set of controllers.  The prefix
+    #   will be used in combination with an index (determined using
+    #   'host_group' above) to name host/controllers.
     name_prefix: "controller"
+    #
+    # controller_index_base - the deployment process allocates host docker
+    #   ports to individual controllers based on their indices.  This is an
+    #   additional offset to prevent collisions between different controller
+    #   groups. Usually 0 if only one group is being deployed, otherwise
+    #   something like "{{ groups['firstcontrollergroup']|length }}"
+    #   (TODO: Is there a better way to manage port ranges?)
     controller_index_base: 0
+    #
+    # local_bookkeeping - does the controller track itself (true) or use a
+    #   kafka cluster to track state?  (TODO: check accuracy)
     local_bookkeeping: controller.localBookkeeping
+    #
+    # join_akka_cluster - boolean value; should controllers in this group join
+    #   the global akka cluster?  Generally true for simple installations.
     join_akka_cluster: "True"
   roles:
     - controller
