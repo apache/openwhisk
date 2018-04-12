@@ -116,7 +116,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
     }
     wsk.action
       .create(name, None, update = true, kind = Some("sequence"), expectedExitCode = BadRequest.intValue)
-      .stderr should include regex "The request content was malformed:\n'components' must be defined for sequence kind"
+      .stderr should include("The request content was malformed:\n'components' must be defined for sequence kind")
   }
 
   it should "create, and get an action to verify parameter and annotation parsing" in withAssetCleaner(wskprops) {
@@ -290,7 +290,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
           kind = Some("foobar"),
           expectedExitCode = BadRequest.intValue)
       }
-      rr.stderr should include regex "kind 'foobar' not in Set"
+      rr.stderr should include("kind 'foobar' not in Set")
   }
 
   it should "report error when creating an action with zip but without kind" in withAssetCleaner(wskprops) {
@@ -301,7 +301,7 @@ class WskBasicUsageTests extends TestHelpers with WskTestHelpers {
         action.create(name, zippedPythonAction, expectedExitCode = ANY_ERROR_EXIT)
       }
 
-      createResult.stderr should include regex "kind '' not in Set"
+      createResult.stderr should include("kind '' not in Set")
   }
 
   it should "create, and invoke an action that utilizes an invalid docker container with appropriate error" in withAssetCleaner(

@@ -40,8 +40,8 @@ class WskRestEntitlementTests extends WskEntitlementTests {
     stdout should include("name")
     stdout should include("parameters")
     stdout should include("limits")
-    stdout should include regex (""""key":"a"""")
-    stdout should include regex (""""value":"A"""")
+    stdout should include(""""key":"a"""")
+    stdout should include(""""value":"A"""")
   }
 
   override def verifyPackageList(packageList: RunResult,

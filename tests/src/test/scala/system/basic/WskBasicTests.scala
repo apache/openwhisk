@@ -193,20 +193,20 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       }
 
       val stderr = wsk.pkg.create(name, expectedExitCode = Conflict.intValue).stderr
-      stderr should include regex ("""resource already exists""")
+      stderr should include("resource already exists")
   }
 
   it should "reject delete of package that does not exist" in {
     val name = "nonexistentPackage"
     val stderr = wsk.pkg.delete(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject get of package that does not exist" in {
     val name = "nonexistentPackage"
     val ns = wsk.namespace.whois()
     val stderr = wsk.pkg.get(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex (s"""The requested resource '$ns/$name' does not exist""")
+    stderr should include(s"The requested resource '$ns/$name' does not exist")
   }
 
   behavior of "Wsk Action REST"
@@ -252,25 +252,25 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       }
 
       val stderr = wsk.action.create(name, file, expectedExitCode = Conflict.intValue).stderr
-      stderr should include regex ("""resource already exists""")
+      stderr should include("resource already exists")
   }
 
   it should "reject delete of action that does not exist" in {
     val name = "nonexistentAction"
     val stderr = wsk.action.delete(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject invocation of action that does not exist" in {
     val name = "nonexistentAction"
     val stderr = wsk.action.invoke(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject get of an action that does not exist" in {
     val name = "nonexistentAction"
     val stderr = wsk.action.get(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "create, and invoke an action that utilizes a docker container" in withAssetCleaner(wskprops) {
@@ -697,25 +697,25 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
       }
 
       val stderr = wsk.trigger.create(name, expectedExitCode = Conflict.intValue).stderr
-      stderr should include regex ("""resource already exists""")
+      stderr should include("resource already exists")
   }
 
   it should "reject delete of trigger that does not exist" in {
     val name = "nonexistentTrigger"
     val stderr = wsk.trigger.delete(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject get of trigger that does not exist" in {
     val name = "nonexistentTrigger"
     val stderr = wsk.trigger.get(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject firing of a trigger that does not exist" in {
     val name = "nonexistentTrigger"
     val stderr = wsk.trigger.fire(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "create and fire a trigger with a rule whose action has been deleted" in withAssetCleaner(wskprops) {
@@ -969,37 +969,37 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
         wsk.rule
           .create(ruleName, trigger = triggerName, action = actionName, expectedExitCode = Conflict.intValue)
           .stderr
-      stderr should include regex ("""resource already exists""")
+      stderr should include("resource already exists")
   }
 
   it should "reject delete of rule that does not exist" in {
     val name = "nonexistentRule"
     val stderr = wsk.rule.delete(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject enable of rule that does not exist" in {
     val name = "nonexistentRule"
     val stderr = wsk.rule.enable(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject disable of rule that does not exist" in {
     val name = "nonexistentRule"
     val stderr = wsk.rule.disable(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject status of rule that does not exist" in {
     val name = "nonexistentRule"
     val stderr = wsk.rule.state(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject get of rule that does not exist" in {
     val name = "nonexistentRule"
     val stderr = wsk.rule.get(name, expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   behavior of "Wsk Namespace REST"
@@ -1049,18 +1049,18 @@ class WskBasicTests extends TestHelpers with WskTestHelpers {
   it should "reject get of activation that does not exist" in {
     val name = "0" * 32
     val stderr = wsk.activation.get(Some(name), expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject logs of activation that does not exist" in {
     val name = "0" * 32
     val stderr = wsk.activation.logs(Some(name), expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 
   it should "reject result of activation that does not exist" in {
     val name = "0" * 32
     val stderr = wsk.activation.result(Some(name), expectedExitCode = NotFound.intValue).stderr
-    stderr should include regex ("""The requested resource does not exist.""")
+    stderr should include("The requested resource does not exist.")
   }
 }
