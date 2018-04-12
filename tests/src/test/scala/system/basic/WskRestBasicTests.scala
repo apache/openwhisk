@@ -41,16 +41,11 @@ import spray.json.DefaultJsonProtocol._
 import whisk.http.Messages
 
 @RunWith(classOf[JUnitRunner])
-class WskBasicTests extends TestHelpers with WskTestHelpers {
+class WskRestBasicTests extends TestHelpers with WskTestHelpers {
 
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: common.rest.WskRest = new WskRest
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.js"))
-
-  /**
-   * Append the current timestamp in ms
-   */
-  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
 
   /**
    * Retry operations that need to settle the controller cache

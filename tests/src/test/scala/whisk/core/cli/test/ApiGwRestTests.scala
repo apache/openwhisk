@@ -33,7 +33,7 @@ import java.io.File
  * Tests for testing the CLI "api" subcommand.  Most of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-class ApiGwRestTests extends ApiGwTests with RestUtil {
+class ApiGwRestTests extends ApiGwRestBasicTests with RestUtil {
   override lazy val wsk = new WskRest
   override lazy val createCode = OK.intValue
 
