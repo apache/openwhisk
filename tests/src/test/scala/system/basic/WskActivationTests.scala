@@ -22,6 +22,10 @@ import org.scalatest.junit.JUnitRunner
 
 import common.{BaseWsk, JsHelpers, TestHelpers, TestUtils, WskProps, WskTestHelpers}
 
+import whisk.utils.retry
+
+import scala.concurrent.duration._
+
 @RunWith(classOf[JUnitRunner])
 abstract class WskActivationTests extends TestHelpers with WskTestHelpers with JsHelpers {
   implicit val wskprops = WskProps()
@@ -42,10 +46,12 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers with J
 
     // Use withActivation() to reduce intermittent failures that may result from eventually consistent DBs
     withActivation(wsk.activation, run) { activation =>
-      val logs = wsk.activation.logs(Some(activation.activationId)).stdout
+      retry({
+        val logs = wsk.activation.logs(Some(activation.activationId)).stdout
 
-      logs should include regex (logFormat.format("stdout", "this is stdout"))
-      logs should include regex (logFormat.format("stderr", "this is stderr"))
+        logs should include regex (logFormat.format("stdout", "this is stdout"))
+        logs should include regex (logFormat.format("stderr", "this is stderr"))
+      }, 10, Some(1.second))
     }
   }
 }
