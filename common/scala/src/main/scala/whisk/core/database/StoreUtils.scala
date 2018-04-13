@@ -43,14 +43,14 @@ private[database] object StoreUtils {
     require(doc.rev.rev != null, "doc revision must be specified")
   }
 
-  def deserialize[A <: DocumentAbstraction, DocumentAbstraction](doc: DocInfo, response: JsObject)(
+  def deserialize[A <: DocumentAbstraction, DocumentAbstraction](doc: DocInfo, js: JsObject)(
     implicit docReader: DocumentReader,
     ma: Manifest[A],
     jsonFormat: RootJsonFormat[DocumentAbstraction]): A = {
     val asFormat = try {
-      docReader.read(ma, response)
+      docReader.read(ma, js)
     } catch {
-      case _: Exception => jsonFormat.read(response)
+      case _: Exception => jsonFormat.read(js)
     }
 
     if (asFormat.getClass != ma.runtimeClass) {
@@ -60,7 +60,7 @@ private[database] object StoreUtils {
 
     val deserialized = asFormat.asInstanceOf[A]
 
-    val responseRev = response.fields("_rev").convertTo[String]
+    val responseRev = js.fields("_rev").convertTo[String]
     assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
     // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
     deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
