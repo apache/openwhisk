@@ -305,9 +305,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = new ShardingContainerPoolBalancer(whiskConfig, instance)
 
-  def requiredProperties: Map[String, String] =
-    kafkaHosts ++
-      Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
+  def requiredProperties: Map[String, String] = kafkaHosts ++ Map(controllerSeedNodes -> null)
 
   /** Generates a hash based on the string representation of namespace and action */
   def generateHash(namespace: EntityName, action: FullyQualifiedEntityName): Int = {
