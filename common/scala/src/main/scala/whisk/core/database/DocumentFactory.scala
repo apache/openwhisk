@@ -222,8 +222,8 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       implicit val logger = db.logging
       implicit val ec = db.executionContext
 
-      val key = CacheKey(doc)
       val docInfo = doc.docinfo
+      val key = CacheKey(docInfo)
       val sink = StreamConverters.fromOutputStream(() => outputStream)
 
       db.readAttachment[IOResult](docInfo, attachmentName, sink).map {
