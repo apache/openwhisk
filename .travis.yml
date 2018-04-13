@@ -64,5 +64,6 @@ jobs:
         - ./performance/preparation/deploy.sh
         - TERM=dumb ./performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 2m
         - TERM=dumb ./performance/wrk_tests/throughput.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 4 2 2m
+        - OPENWHISK_HOST="172.17.0.1" CONNECTIONS="100" REQUESTS_PER_SEC="1" ./gradlew gatlingRun-ApiV1Simulation
       env:
         - DESCRIPTION="Execute wrk-performance test suite."

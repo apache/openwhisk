@@ -17,6 +17,7 @@ include 'sdk:docker'
 include 'tests'
 include 'tests:dat:blackbox:badaction'
 include 'tests:dat:blackbox:badproxy'
+include 'performance:gatling_tests'
 
 rootProject.name = 'openwhisk'
 

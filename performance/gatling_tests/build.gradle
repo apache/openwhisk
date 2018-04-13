@@ -1,0 +1,19 @@
+plugins {
+    id "com.github.lkishalmi.gatling" version "0.7.1"
+}
+
+apply plugin: 'eclipse'
+apply plugin: 'scala'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${gradle.scala.version}"
+    compile "io.gatling.highcharts:gatling-charts-highcharts:2.2.5"
+}
+
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = gradle.scala.compileFlags
+}
