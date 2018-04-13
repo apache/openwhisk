@@ -17,13 +17,11 @@
 
 package whisk.core.database.test.behavior
 
-import org.scalatest.FlatSpec
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskEntityQueries.TOP
 import whisk.core.entity.{EntityPath, WhiskActivation}
 
 trait ArtifactStoreActivationsQueryBehaviors extends ArtifactStoreBehaviorBase {
-  this: FlatSpec =>
 
   it should "list activations between given times" in {
     implicit val tid: TransactionId = transid()

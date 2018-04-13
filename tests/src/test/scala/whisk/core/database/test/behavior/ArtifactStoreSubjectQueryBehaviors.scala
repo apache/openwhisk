@@ -17,7 +17,6 @@
 
 package whisk.core.database.test.behavior
 
-import org.scalatest.FlatSpec
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsBoolean, JsObject}
 import whisk.common.TransactionId
@@ -29,7 +28,6 @@ import whisk.core.invoker.NamespaceBlacklist
 import scala.concurrent.duration.Duration
 
 trait ArtifactStoreSubjectQueryBehaviors extends ArtifactStoreBehaviorBase {
-  this: FlatSpec =>
 
   behavior of s"${storeType}ArtifactStore query subjects"
 

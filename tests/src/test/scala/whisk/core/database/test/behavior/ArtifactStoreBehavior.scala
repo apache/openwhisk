@@ -17,14 +17,10 @@
 
 package whisk.core.database.test.behavior
 
-import org.scalatest.FlatSpec
-
 trait ArtifactStoreBehavior
     extends ArtifactStoreBehaviorBase
     with ArtifactStoreQueryBehaviors
     with ArtifactStoreCRUDBehaviors
     with ArtifactStoreSubjectQueryBehaviors
     with ArtifactStoreWhisksQueryBehaviors
-    with ArtifactStoreActivationsQueryBehaviors {
-  this: FlatSpec =>
-}
+    with ArtifactStoreActivationsQueryBehaviors

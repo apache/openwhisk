@@ -17,14 +17,12 @@
 
 package whisk.core.database.test.behavior
 
-import org.scalatest.FlatSpec
 import spray.json.{JsArray, JsNumber, JsObject, JsString}
 import whisk.common.TransactionId
-import whisk.core.entity.{EntityPath, WhiskAction, WhiskActivation, WhiskEntity}
 import whisk.core.entity.WhiskEntityQueries.TOP
+import whisk.core.entity.{EntityPath, WhiskAction, WhiskActivation, WhiskEntity}
 
 trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
-  this: FlatSpec =>
 
   behavior of s"${storeType}ArtifactStore query"
 

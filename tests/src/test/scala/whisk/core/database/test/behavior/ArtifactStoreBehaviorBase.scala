@@ -33,7 +33,8 @@ import whisk.utils.JsHelpers
 import scala.util.Random
 
 trait ArtifactStoreBehaviorBase
-    extends ScalaFutures
+    extends FlatSpec
+    with ScalaFutures
     with TransactionCounter
     with Matchers
     with StreamLogging
@@ -42,7 +43,6 @@ trait ArtifactStoreBehaviorBase
     with IntegrationPatience
     with BeforeAndAfterEach
     with BeforeAndAfterAll {
-  this: FlatSpec =>
 
   override val instanceOrdinal = 0
 

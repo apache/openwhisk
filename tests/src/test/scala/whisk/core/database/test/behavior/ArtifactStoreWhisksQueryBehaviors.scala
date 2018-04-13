@@ -19,13 +19,11 @@ package whisk.core.database.test.behavior
 
 import java.time.Instant
 
-import org.scalatest.FlatSpec
 import whisk.common.TransactionId
 import whisk.core.entity.WhiskEntityQueries.TOP
 import whisk.core.entity._
 
 trait ArtifactStoreWhisksQueryBehaviors extends ArtifactStoreBehaviorBase {
-  this: FlatSpec =>
 
   behavior of s"${storeType}ArtifactStore query public packages"
 
