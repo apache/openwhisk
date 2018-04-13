@@ -22,6 +22,11 @@ import whisk.core.database.{ActivationHandler, UnsupportedQueryKeys, Unsupported
 import whisk.core.entity.{UserLimits, WhiskEntityQueries}
 import whisk.utils.JsHelpers
 
+/**
+ * Maps the CouchDB view logic to expressed in javascript to Scala logic so as to enable
+ * performing queries by {{{MemoryArtifactStore}}}. Also serves as an example of what all query usecases
+ * are to be supported by any {{{ArtifactStore}}} implementation
+ */
 trait MemoryViewMapper {
   protected val TOP: String = WhiskEntityQueries.TOP
 

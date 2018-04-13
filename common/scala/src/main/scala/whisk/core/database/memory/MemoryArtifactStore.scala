@@ -63,6 +63,11 @@ object MemoryArtifactStoreProvider extends ArtifactStoreProvider {
   }
 }
 
+/**
+ * In-memory ArtifactStore implementation to enable test setups without requiring a running CouchDB instance
+ * It also serves as a canonical example of how an ArtifactStore can implemented with all the support for CRUD
+ * operations and Queries etc
+ */
 class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: String,
                                                                      documentHandler: DocumentHandler,
                                                                      viewMapper: MemoryViewMapper)(
