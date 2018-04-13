@@ -192,9 +192,9 @@
         {% for item in (invoker_container_network_dns_servers | default()).split(' ')  %}
         -e CONFIG_whisk_containerFactory_containerArgs_dnsServers_{{loop.index0}}={{ item }}
         {% endfor %}
-        -e INVOKER_NUMCORE='{{ invoker.numcore }}'
-        -e INVOKER_CORESHARE='{{ invoker.coreshare }}'
-        -e INVOKER_USE_RUNC='{{ invoker.useRunc }}'
+        -e CONFIG_whisk_containerPool_numCore='{{ invoker.numcore }}'
+        -e CONFIG_whisk_containerPool_coreShare='{{ invoker.coreshare }}'
+        -e CONFIG_whisk_docker_containerFactory_useRunc='{{ invoker.useRunc }}'
         -e INVOKER_NAME='{{ groups['invokers'].index(inventory_hostname) }}'
         -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
         -e METRICS_KAMON='{{ metrics.kamon.enabled }}'

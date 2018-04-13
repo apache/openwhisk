@@ -100,7 +100,8 @@ class MesosContainerFactory(config: WhiskConfig,
                                name: String,
                                actionImage: ExecManifest.ImageName,
                                userProvidedImage: Boolean,
-                               memory: ByteSize)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+                               memory: ByteSize,
+                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     implicit val transid = tid
     val image = if (userProvidedImage) {
       actionImage.publicImageName
@@ -117,7 +118,7 @@ class MesosContainerFactory(config: WhiskConfig,
       image = image,
       userProvidedImage = userProvidedImage,
       memory = memory,
-      cpuShares = config.invokerCoreShare.toInt,
+      cpuShares = cpuShares,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
       network = containerArgs.network,
       dnsServers = containerArgs.dnsServers,

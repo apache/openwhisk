@@ -54,16 +54,14 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * (kind, memory) and there is space in the pool.
  *
  * @param childFactory method to create new container proxy actor
- * @param maxActiveContainers maximum amount of containers doing work
- * @param maxPoolSize maximum size of containers allowed in the pool
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
+ * @param poolConfig config for the ContainerPool
  */
 class ContainerPool(childFactory: ActorRefFactory => ActorRef,
-                    maxActiveContainers: Int,
-                    maxPoolSize: Int,
                     feed: ActorRef,
-                    prewarmConfig: Option[PrewarmingConfig] = None)
+                    prewarmConfig: Option[PrewarmingConfig] = None,
+                    poolConfig: ContainerPoolConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
 
@@ -98,7 +96,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val createdContainer = if (busyPool.size < maxActiveContainers) {
+      val createdContainer = if (busyPool.size < poolConfig.maxActiveContainers) {
 
         // Schedule a job to a warm container
         ContainerPool
@@ -107,7 +105,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             (container, "warm")
           })
           .orElse {
-            if (busyPool.size + freePool.size < maxPoolSize) {
+            if (busyPool.size + freePool.size < poolConfig.maxActiveContainers) {
               takePrewarmContainer(r.action)
                 .map(container => {
                   (container, "prewarmed")
@@ -147,7 +145,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             logging.error(
               this,
               s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
-                s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, " +
+                s"busyPoolSize: ${busyPool.size}, maxActiveContainers ${poolConfig.maxActiveContainers}, " +
                 s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
             Some(logMessageInterval.fromNow)
           } else {
@@ -282,11 +280,10 @@ object ContainerPool {
   }
 
   def props(factory: ActorRefFactory => ActorRef,
-            maxActive: Int,
-            size: Int,
+            poolConfig: ContainerPoolConfig,
             feed: ActorRef,
             prewarmConfig: Option[PrewarmingConfig] = None) =
-    Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig))
+    Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
 }
 
 /** Contains settings needed to perform container prewarming */

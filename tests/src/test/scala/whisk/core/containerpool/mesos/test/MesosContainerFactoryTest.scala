@@ -49,6 +49,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.containerpool.ContainerArgsConfig
+import whisk.core.containerpool.ContainerPoolConfig
 import whisk.core.containerpool.logging.DockerToActivationLogStore
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
@@ -66,7 +67,7 @@ class MesosContainerFactoryTest
   def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
 
   implicit val wskConfig =
-    new WhiskConfig(Map(invokerCoreShare -> "2", dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
+    new WhiskConfig(Map(dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
   var count = 0
   var lastTaskId: String = null
   def testTaskId() = {
@@ -75,8 +76,9 @@ class MesosContainerFactoryTest
     lastTaskId
   }
 
-  //TODO: adjust this once the invokerCoreShare issue is fixed see #3110
-  def cpus() = wskConfig.invokerCoreShare.toInt / 1024.0 //
+  val poolConfig = ContainerPoolConfig(8, 10)
+  val dockerCpuShares = poolConfig.cpuShare
+  val mesosCpus = poolConfig.cpuShare / 1024.0
 
   val containerArgsConfig =
     new ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
@@ -116,14 +118,20 @@ class MesosContainerFactoryTest
         testTaskId)
 
     expectMsg(Subscribe)
-    factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
 
     expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),
@@ -159,13 +167,19 @@ class MesosContainerFactoryTest
     probe.reply(new SubscribeComplete)
 
     //create the container
-    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),
@@ -228,14 +242,20 @@ class MesosContainerFactoryTest
     probe.reply(new SubscribeComplete)
 
     //create the container
-    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
 
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),

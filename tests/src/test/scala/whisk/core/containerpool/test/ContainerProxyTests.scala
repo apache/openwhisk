@@ -158,7 +158,7 @@ class ContainerProxyTests
 
   /** Creates an inspectable factory */
   def createFactory(response: Future[Container]) = LoggedFunction {
-    (_: TransactionId, _: String, _: ImageName, _: Boolean, _: ByteSize) =>
+    (_: TransactionId, _: String, _: ImageName, _: Boolean, _: ByteSize, _: Int) =>
       response
   }
 
@@ -176,6 +176,8 @@ class ContainerProxyTests
     Future.successful(())
   }
 
+  val poolConfig = ContainerPoolConfig(1, 2)
+
   behavior of "ContainerProxy"
 
   /*
@@ -188,12 +190,19 @@ class ContainerProxyTests
     val machine =
       childActorOf(
         ContainerProxy
-          .props(factory, createAcker, store, createCollector(), InstanceId(0, Some("myname")), pauseGrace = timeout))
+          .props(
+            factory,
+            createAcker,
+            store,
+            createCollector(),
+            InstanceId(0, Some("myname")),
+            poolConfig,
+            pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
     factory.calls should have size 1
-    val (tid, name, _, _, memory) = factory.calls(0)
+    val (tid, name, _, _, memory, cpuShares) = factory.calls(0)
     tid shouldBe TransactionId.invokerWarmup
     name should fullyMatch regex """wskmyname\d+_\d+_prewarm_actionKind"""
     memory shouldBe memoryLimit
@@ -208,7 +217,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
 
     preWarm(machine)
@@ -243,7 +253,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -289,7 +300,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     preWarm(machine)
 
@@ -326,7 +338,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
 
@@ -358,7 +371,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -392,7 +406,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -430,7 +445,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -459,7 +475,8 @@ class ContainerProxyTests
       createCollector(Future.failed(LogCollectingException(ActivationLogs(partialLogs))))
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -487,7 +504,8 @@ class ContainerProxyTests
     val collector = createCollector(Future.failed(new Exception))
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     machine ! Run(action, message)
     expectMsg(Transition(machine, Uninitialized, Running))
@@ -519,7 +537,8 @@ class ContainerProxyTests
     val store = createStore
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, createCollector(), InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, createCollector(), InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized) // first run an activation
     timeout(machine) // times out Ready state so container suspends
@@ -553,7 +572,8 @@ class ContainerProxyTests
     val store = createStore
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, createCollector(), InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, createCollector(), InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine) // times out Ready state so container suspends
@@ -588,7 +608,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
 
     // Start running the action
@@ -638,7 +659,8 @@ class ContainerProxyTests
     val collector = createCollector()
 
     val machine =
-      childActorOf(ContainerProxy.props(factory, acker, store, collector, InstanceId(0), pauseGrace = timeout))
+      childActorOf(
+        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
     registerCallback(machine)
     run(machine, Uninitialized)
     timeout(machine)

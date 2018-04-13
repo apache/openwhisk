@@ -56,11 +56,7 @@ object Invoker {
       ExecManifest.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++ Map(
-      dockerImageTag -> "latest",
-      invokerNumCore -> "4",
-      invokerCoreShare -> "2",
-      invokerUseRunc -> "true") ++
+      wskApiHost ++ Map(dockerImageTag -> "latest") ++
       Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
