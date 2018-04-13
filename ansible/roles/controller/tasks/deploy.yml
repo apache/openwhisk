@@ -93,21 +93,9 @@
   set_fact:
     controller_args: "{{ controller.arguments }} {{ jmx.jvmCommonArgs }} -Djava.rmi.server.hostname={{ inventory_hostname }} -Dcom.sun.management.jmxremote.rmi.port={{ jmx.rmiBasePortController + (controller_index | int) }} -Dcom.sun.management.jmxremote.port={{ jmx.basePortController + (controller_index | int) }}"
 
-- name: create seed nodes list
+- name: populate environment variables for controller
   set_fact:
-    seed_nodes_list: "{{ seed_nodes_list | default([]) }} + [ \"{{item.1}}:{{controller.akka.cluster.basePort+item.0}}\" ]"
-  with_indexed_items:
-  - "{{ controller.akka.cluster.seedNodes }}"
-
-- name: (re)start controller
-  docker_container:
-    name: "{{ controller_name }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
-    state: started
-    recreate: true
-    restart_policy: "{{ docker.restart.policy }}"
-    hostname: "{{ controller_name }}"
-    env:
+    controller_env:
       "JAVA_OPTS": "-Xmx{{ controller.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/logs"
       "CONTROLLER_OPTS": "{{ controller_args | default(controller.arguments) }}"
       "CONTROLLER_INSTANCES": "{{ controller.instances }}"
@@ -171,7 +159,6 @@
       "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
       "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
 
-      "AKKA_CLUSTER_SEED_NODES": "{{seed_nodes_list | join(' ') }}"
       "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
       "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
       "METRICS_LOG": "{{ metrics.log.enabled }}"
@@ -199,6 +186,28 @@
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
       "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
+
+- name: create seed nodes list
+  set_fact:
+    seed_nodes_list: "{{ seed_nodes_list | default([]) }} + [ '{{ item.1 }}:{{ controller.akka.cluster.basePort+item.0 }}' ]"
+  with_indexed_items:
+  - "{{ controller.akka.cluster.seedNodes }}"
+
+- name: add seed nodes to controller environment
+  set_fact:
+    controller_env: "{{ controller_env | default({}) | combine({'CONFIG_akka_cluster_seedNodes_' ~ item.0: 'akka.tcp://controller-actor-system@' ~ item.1}) }}"
+  with_indexed_items: "{{ seed_nodes_list }}"
+
+
+- name: (re)start controller
+  docker_container:
+    name: "{{ controller_name }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
+    state: started
+    recreate: true
+    restart_policy: "{{ docker.restart.policy }}"
+    hostname: "{{ controller_name }}"
+    env: "{{ controller_env }}"
     volumes:
       - "{{ whisk_logs_dir }}/{{ controller_name }}:/logs"
       - "{{ controller.confdir }}/{{ controller_name }}:/conf"
