@@ -38,10 +38,6 @@
     #   (TODO: Is there a better way to manage port ranges?)
     controller_index_base: 0
     #
-    # local_bookkeeping - does the controller track itself (true) or use a
-    #   kafka cluster to track state?  (TODO: check accuracy)
-    local_bookkeeping: controller.localBookkeeping
-    #
     # join_akka_cluster - boolean value; should controllers in this group join
     #   the global akka cluster?  Generally true for simple installations.
     join_akka_cluster: "True"
