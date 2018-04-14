@@ -758,7 +758,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val expectedPutLog = Seq(
       s"caching $cacheKey",
       s"uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
-      s"completed uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
       s"caching $cacheKey").mkString("(?s).*")
     val notExpectedGetLog = Seq(
       s"finding document: 'id: ${action.namespace}/${action.name}",
@@ -888,7 +887,6 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
     val expectedPutLog = Seq(
       s"caching $cacheKey",
       s"uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
-      s"completed uploading attachment 'jarfile' of document 'id: ${action.namespace}/${action.name}",
       s"caching $cacheKey").mkString("(?s).*")
 
     action.exec match {
