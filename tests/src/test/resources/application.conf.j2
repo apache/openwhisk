@@ -46,6 +46,12 @@ whisk {
         }
     }
 
+    cosmosdb {
+        host = ${?COSMOSDB_HOST}
+        key  = ${?COSMOSDB_KEY}
+        db   = "owtest"
+    }
+
     controller {
       protocol = {{ controller.protocol }}
       https {
