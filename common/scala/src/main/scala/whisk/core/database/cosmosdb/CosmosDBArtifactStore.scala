@@ -34,7 +34,6 @@ import whisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClient
 import whisk.core.entity._
 import whisk.http.Messages
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
 object CosmosDBArtifactStore {
@@ -128,19 +127,20 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     require(doc != null, "doc undefined")
     val f = client
-      .queryDocuments(collection.getSelfLink, querySpec(doc.id.id), null)
+      .readDocument(createSelfLink(doc.id.id), null)
       .head()
-      .map { fr =>
-        val cdoc = fr.getResults.asScala.headOption.getOrElse({
-          transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
-          // for compatibility
-          throw NoDocumentException("not found on 'get'")
+      .transform(
+        { rr =>
+          val js = toWhiskJsonDoc(rr.getResource)
+          transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
+          deserialize[A, DocumentAbstraction](doc, js)
+        }, {
+          case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue =>
+            transid.finished(this, start, s"[GET] '$collName', document: '${doc}'; not found.")
+            // for compatibility
+            throw NoDocumentException("not found on 'get'")
+          case e => e
         })
-
-        val js = toWhiskJsonDoc(cdoc)
-        transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
-        deserialize[A, DocumentAbstraction](doc, js)
-      }
       .recoverWith {
         case _: DeserializationException => throw DocumentUnreadable(Messages.corruptedEntity)
       }
