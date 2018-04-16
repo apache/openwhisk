@@ -27,7 +27,6 @@ import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.util.Random
@@ -53,19 +52,20 @@ trait ActionContainer {
 trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
   import ActionContainer.{filterSentinel, sentinel}
 
-  def initPayload(code: String, main: String = "main") = {
+  def initPayload(code: String, main: String = "main"): JsObject =
     JsObject(
       "value" -> JsObject(
         "code" -> { if (code != null) JsString(code) else JsNull },
         "main" -> JsString(main),
         "binary" -> JsBoolean(Exec.isBinaryCode(code))))
-  }
 
-  def runPayload(args: JsValue, other: Option[JsObject] = None) = {
+  def runPayload(args: JsValue, other: Option[JsObject] = None): JsObject =
     JsObject(Map("value" -> args) ++ (other map { _.fields } getOrElse Map()))
-  }
 
-  def checkStreams(out: String, err: String, additionalCheck: (String, String) => Unit, sentinelCount: Int = 1) = {
+  def checkStreams(out: String,
+                   err: String,
+                   additionalCheck: (String, String) => Unit,
+                   sentinelCount: Int = 1): Unit = {
     withClue("expected number of stdout sentinels") {
       sentinelCount shouldBe StringUtils.countMatches(out, sentinel)
     }
@@ -74,26 +74,24 @@ trait ActionProxyContainerTestUtils extends FlatSpec with Matchers {
     }
 
     val (o, e) = (filterSentinel(out), filterSentinel(err))
-    o should not include (sentinel)
-    e should not include (sentinel)
+    o should not include sentinel
+    e should not include sentinel
     additionalCheck(o, e)
   }
 }
 
 object ActionContainer {
   private lazy val dockerBin: String = {
-    List("/usr/bin/docker", "/usr/local/bin/docker")
-      .find { bin =>
-        new File(bin).isFile()
-      }
-      .getOrElse(???) // This fails if the docker binary couldn't be located.
+    List("/usr/bin/docker", "/usr/local/bin/docker").find { bin =>
+      new File(bin).isFile
+    }.get // This fails if the docker binary couldn't be located.
   }
 
   private lazy val dockerCmd: String = {
     val version = WhiskProperties.getProperty("whisk.version.name")
     // Check if we are running on docker-machine env.
     val hostStr = if (version.toLowerCase().contains("mac")) {
-      s" --host tcp://${WhiskProperties.getMainDockerEndpoint()} "
+      s" --host tcp://${WhiskProperties.getMainDockerEndpoint} "
     } else {
       " "
     }
@@ -109,7 +107,7 @@ object ActionContainer {
       val err = new ByteArrayOutputStream
       val outW = new PrintWriter(out)
       val errW = new PrintWriter(err)
-      val v = cmd ! (ProcessLogger(outW.println, errW.println))
+      val v = cmd ! ProcessLogger(o => outW.println(o), e => errW.println(e))
       outW.close()
       errW.close()
       (v, out.toString, err.toString)
@@ -125,21 +123,23 @@ object ActionContainer {
 
   // Filters out the sentinel markers inserted by the container (see relevant private code in Invoker.scala)
   val sentinel = "XXX_THE_END_OF_A_WHISK_ACTIVATION_XXX"
-  def filterSentinel(str: String) = str.replaceAll(sentinel, "").trim
+  def filterSentinel(str: String): String = str.replaceAll(sentinel, "").trim
 
   def withContainer(imageName: String, environment: Map[String, String] = Map.empty)(code: ActionContainer => Unit)(
     implicit actorSystem: ActorSystem): (String, String) = {
     val rand = { val r = Random.nextInt; if (r < 0) -r else r }
     val name = imageName.toLowerCase.replaceAll("""[^a-z]""", "") + rand
-    val envArgs = environment.toSeq.map {
-      case (k, v) => s"-e ${k}=${v}"
-    } mkString (" ")
+    val envArgs = environment.toSeq
+      .map {
+        case (k, v) => s"-e $k=$v"
+      }
+      .mkString(" ")
 
     // We create the container... and find out its IP address...
     def createContainer(portFwd: Option[Int] = None): Unit = {
       val runOut = awaitDocker(
         s"run ${portFwd.map(p => s"-p $p:8080").getOrElse("")} --name $name $envArgs -d $imageName",
-        10 seconds)
+        60.seconds)
       assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
     }
 
@@ -155,15 +155,15 @@ object ActionContainer {
       } else {
         // not "mac" i.e., docker-for-mac, use direct container IP directly (this is OK for Ubuntu, and docker-machine)
         createContainer()
-        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10 seconds)
+        val ipOut = awaitDocker(s"""inspect --format '{{.NetworkSettings.IPAddress}}' $name""", 10.seconds)
         assert(ipOut._1 == 0, "'docker inspect did not exit with 0")
         (ipOut._2.replaceAll("""[^0-9.]""", ""), 8080)
       }
 
     // ...we create an instance of the mock container interface...
     val mock = new ActionContainer {
-      def init(value: JsValue) = syncPost(ip, port, "/init", value)
-      def run(value: JsValue) = syncPost(ip, port, "/run", value)
+      def init(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/init", value)
+      def run(value: JsValue): (Int, Option[JsObject]) = syncPost(ip, port, "/run", value)
     }
 
     try {
@@ -171,20 +171,15 @@ object ActionContainer {
       code(mock)
       // I'm told this is good for the logs.
       Thread.sleep(100)
-      val (_, out, err) = awaitDocker(s"logs $name", 10 seconds)
+      val (_, out, err) = awaitDocker(s"logs $name", 10.seconds)
       (out, err)
     } finally {
-      awaitDocker(s"kill $name", 10 seconds)
-      awaitDocker(s"rm $name", 10 seconds)
+      awaitDocker(s"kill $name", 10.seconds)
+      awaitDocker(s"rm $name", 10.seconds)
     }
   }
 
   private def syncPost(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {
     whisk.core.containerpool.HttpUtils.post(host, port, endPoint, content)
-  }
-
-  private class ActionContainerImpl() extends ActionContainer {
-    override def init(value: JsValue) = ???
-    override def run(value: JsValue) = ???
   }
 }
