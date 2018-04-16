@@ -758,8 +758,7 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
         val cacheKey = s"${CacheKey(action)}".replace("(", "\\(").replace(")", "\\)")
         val expectedPutLog = Seq(
           s"caching $cacheKey",
-          s"uploading attachment 'codefile' of document 'id: ${action.namespace}/${action.name}",
-          s"completed uploading attachment 'codefile' of document 'id: ${action.namespace}/${action.name}")
+          s"uploading attachment 'codefile' of document 'id: ${action.namespace}/${action.name}")
           .mkString("(?s).*")
         val expectedGetLog =
           Seq(s"finding attachment 'codefile' of document 'id: ${action.namespace}/${action.name}").mkString("(?s).*")
@@ -830,10 +829,9 @@ class ActionsApiTests extends ControllerTestCommon with WhiskActionsApi {
           Some(actionOldSchema.limits.timeout),
           Some(actionOldSchema.limits.memory),
           Some(actionOldSchema.limits.logs))))
-    val expectedPutLog = Seq(
-      s"uploading attachment 'codefile' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}",
-      s"completed uploading attachment 'codefile' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}")
-      .mkString("(?s).*")
+    val expectedPutLog =
+      Seq(s"uploading attachment 'codefile' of document 'id: ${actionOldSchema.namespace}/${actionOldSchema.name}")
+        .mkString("(?s).*")
 
     put(entityStore, actionOldSchema)
 
