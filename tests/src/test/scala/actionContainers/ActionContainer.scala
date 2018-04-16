@@ -139,7 +139,7 @@ object ActionContainer {
     def createContainer(portFwd: Option[Int] = None): Unit = {
       val runOut = awaitDocker(
         s"run ${portFwd.map(p => s"-p $p:8080").getOrElse("")} --name $name $envArgs -d $imageName",
-        10 seconds)
+        60 seconds)
       assert(runOut._1 == 0, "'docker run' did not exit with 0: " + runOut)
     }
 
