@@ -17,8 +17,11 @@
 
 package whisk.core.database.cosmosdb
 
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FlatSpec, Matchers}
 
+@RunWith(classOf[JUnitRunner])
 class ReferenceCountedTests extends FlatSpec with Matchers {
 
   class CloseProbe extends AutoCloseable {
