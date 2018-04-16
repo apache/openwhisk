@@ -134,6 +134,10 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
       if (artifacts.remove(doc.id.id, Artifact(doc))) {
         transid.finished(this, start, s"[DEL] '$dbName' completed document: '$doc'")
         true
+      } else if (artifacts.contains(doc.id.id)) {
+        //Indicates that document exist but revision does not match
+        transid.finished(this, start, s"[DEL] '$dbName', document: '${doc}'; conflict.")
+        throw DocumentConflictException("conflict on 'delete'")
       } else {
         transid.finished(this, start, s"[DEL] '$dbName', document: '$doc'; not found.")
         // for compatibility

@@ -95,6 +95,19 @@ trait ArtifactStoreCRUDBehaviors extends ArtifactStoreBehaviorBase {
     }
   }
 
+  it should "throws DocumentConflictException when revision does not match" in {
+    implicit val tid: TransactionId = transid()
+    val auth = newAuth()
+    val doc = put(authStore, auth)
+
+    val auth2 = getWhiskAuth(doc).copy(namespaces = Set(wskNS("foo1"))).revision[WhiskAuth](doc.rev)
+    val doc2 = put(authStore, auth2)
+
+    intercept[DocumentConflictException] {
+      delete(authStore, doc)
+    }
+  }
+
   behavior of s"${storeType}ArtifactStore get"
 
   it should "get existing entity matching id and rev" in {
