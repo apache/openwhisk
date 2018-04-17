@@ -30,8 +30,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {

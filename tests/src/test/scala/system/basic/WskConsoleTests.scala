@@ -32,9 +32,8 @@ import common.TestUtils
 import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.DefaultJsonProtocol.IntJsonFormat
-import spray.json.DefaultJsonProtocol.StringJsonFormat
-import spray.json.pimpAny
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 /**
  * Tests of the text console

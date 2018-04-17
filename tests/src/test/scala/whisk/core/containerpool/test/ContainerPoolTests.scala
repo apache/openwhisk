@@ -131,7 +131,7 @@ class ContainerPoolTests
 
     pool ! runMessage
     containers(0).expectMsg(runMessage)
-    containers(1).expectNoMsg(100.milliseconds)
+    containers(1).expectNoMessage(100.milliseconds)
   }
 
   it should "reuse a warm container when action is the same even if revision changes" in within(timeout) {
@@ -145,7 +145,7 @@ class ContainerPoolTests
 
     pool ! runMessageDifferentVersion
     containers(0).expectMsg(runMessageDifferentVersion)
-    containers(1).expectNoMsg(100.milliseconds)
+    containers(1).expectNoMessage(100.milliseconds)
   }
 
   it should "create a container if it cannot find a matching container" in within(timeout) {
@@ -227,7 +227,7 @@ class ContainerPoolTests
     containers(0).expectMsg(runMessage)
     containers(0).send(pool, RescheduleJob) // emulate container failure ...
     containers(0).send(pool, runMessage) // ... causing job to be rescheduled
-    feed.expectNoMsg(100.millis)
+    feed.expectNoMessage(100.millis)
     containers(1).expectMsg(runMessage) // job resent to new actor
   }
 

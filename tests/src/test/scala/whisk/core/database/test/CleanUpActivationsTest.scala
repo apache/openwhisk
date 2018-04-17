@@ -37,8 +37,7 @@ import common.WaitFor
 import common.WhiskProperties
 import common.WskActorSystem
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
+import spray.json._
 
 @RunWith(classOf[JUnitRunner])
 class CleanUpActivationsTest
