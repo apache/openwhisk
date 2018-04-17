@@ -332,7 +332,7 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
           val newDoc = doc.copy(exec = exec.attach)
           newDoc.revision(doc.rev)
 
-          val stream = new ByteArrayInputStream(code.getBytes)
+          val stream = new ByteArrayInputStream(code.getBytes("UTF-8"))
           val manifest = exec.manifest.attached.get
 
           for (i1 <- super.put(db, newDoc);
