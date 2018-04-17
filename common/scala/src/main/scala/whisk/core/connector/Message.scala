@@ -123,16 +123,16 @@ object EventMessageBody extends DefaultJsonProtocol {
 
   implicit def format = new JsonFormat[EventMessageBody] {
     def write(eventMessageBody: EventMessageBody) = eventMessageBody match {
-      case m: Metric => m.toJson
+      case m: Metric     => m.toJson
       case a: Activation => a.toJson
     }
 
-    def read(value: JsValue) = if (value.asJsObject.fields.contains("metricName")) {
-      value.convertTo[Metric]
-    }
-    else {
-      value.convertTo[Activation]
-    }
+    def read(value: JsValue) =
+      if (value.asJsObject.fields.contains("metricName")) {
+        value.convertTo[Metric]
+      } else {
+        value.convertTo[Activation]
+      }
   }
 }
 
@@ -152,7 +152,8 @@ case class Activation(name: EntityName,
 
 object Activation extends DefaultJsonProtocol {
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
-  implicit val activationFormat = jsonFormat(Activation.apply _, "name", "statusCode", "end", "start", "waitTime", "initTime", "kind", "conductor")
+  implicit val activationFormat =
+    jsonFormat(Activation.apply _, "name", "statusCode", "end", "start", "waitTime", "initTime", "kind", "conductor")
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
@@ -177,5 +178,6 @@ case class EventMessage(source: String,
 }
 
 object EventMessage extends DefaultJsonProtocol {
-  implicit val format = jsonFormat(EventMessage.apply _, "source", "body", "subject", "namespace", "userId", "eventType", "timestamp")
+  implicit val format =
+    jsonFormat(EventMessage.apply _, "source", "body", "subject", "namespace", "userId", "eventType", "timestamp")
 }

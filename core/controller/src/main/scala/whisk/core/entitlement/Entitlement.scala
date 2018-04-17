@@ -377,7 +377,13 @@ protected[core] abstract class EntitlementProvider(
                 Metric("concurrent_activations", c.count + 1)
               eventProducer.send(
                 "events",
-                EventMessage(s"controller$controllerInstance", metric, user.subject, user.namespace.toString, userId, metric.getClass.getSimpleName))
+                EventMessage(
+                  s"controller$controllerInstance",
+                  metric,
+                  user.subject,
+                  user.namespace.toString,
+                  userId,
+                  metric.getClass.getSimpleName))
             }
             case _ => // ignore
           }
@@ -389,7 +395,13 @@ protected[core] abstract class EntitlementProvider(
           val metric = Metric(limit.limitName, 1)
           eventProducer.send(
             "events",
-            EventMessage(s"controller$controllerInstance", metric, user.subject, user.namespace.toString, userId,  metric.getClass.getSimpleName))
+            EventMessage(
+              s"controller$controllerInstance",
+              metric,
+              user.subject,
+              user.namespace.toString,
+              userId,
+              metric.getClass.getSimpleName))
         }
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }

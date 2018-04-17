@@ -116,7 +116,8 @@ class InvokerReactive(
   private val ack = (tid: TransactionId,
                      activationResult: WhiskActivation,
                      blockingInvoke: Boolean,
-                     controllerInstance: InstanceId, userId: UUID) => {
+                     controllerInstance: InstanceId,
+                     userId: UUID) => {
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
@@ -146,7 +147,9 @@ class InvokerReactive(
           s"invoker${instance.instance}",
           activation,
           activationResult.subject,
-          activationResult.namespace.toString, userId, activation.getClass.getSimpleName))
+          activationResult.namespace.toString,
+          userId,
+          activation.getClass.getSimpleName))
     }
 
     send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
@@ -169,7 +172,14 @@ class InvokerReactive(
   private val childFactory = (f: ActorRefFactory) =>
     f.actorOf(
       ContainerProxy
-        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig, config = config))
+        .props(
+          containerFactory.createContainer,
+          ack,
+          store,
+          logsProvider.collectLogs,
+          instance,
+          poolConfig,
+          config = config))
 
   private val prewarmKind = "nodejs:6"
   private val prewarmExec = ExecManifest.runtimesManifest
