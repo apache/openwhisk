@@ -25,6 +25,8 @@ import akka.actor.{Actor, ActorSystem, Cancellable, Props}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.event.Logging.InfoLevel
+import akka.management.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
@@ -57,13 +59,12 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** Build a cluster of all loadbalancers */
-  private val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-  private val seedNodes = seedNodesProvider.getSeedNodes()
-
-  private val cluster: Option[Cluster] = if (seedNodes.nonEmpty) {
-    val cluster = Cluster(actorSystem)
-    cluster.joinSeedNodes(seedNodes)
-    Some(cluster)
+  private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
+    AkkaManagement(actorSystem).start()
+    ClusterBootstrap(actorSystem).start()
+    Some(Cluster(actorSystem))
+  } else if (loadConfigOrThrow[Seq[String]]("akka.cluster.seed-nodes").nonEmpty) {
+    Some(Cluster(actorSystem))
   } else {
     None
   }
@@ -305,7 +306,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = new ShardingContainerPoolBalancer(whiskConfig, instance)
 
-  def requiredProperties: Map[String, String] = kafkaHosts ++ Map(controllerSeedNodes -> null)
+  def requiredProperties: Map[String, String] = kafkaHosts
 
   /** Generates a hash based on the string representation of namespace and action */
   def generateHash(namespace: EntityName, action: FullyQualifiedEntityName): Int = {
@@ -470,6 +471,13 @@ case class ShardingContainerPoolBalancerState(
     }
   }
 }
+
+/**
+ * Configuration for the cluster created between loadbalancers.
+ *
+ * @param useClusterBootstrap Whether or not to use a bootstrap mechanism
+ */
+case class ClusterConfig(useClusterBootstrap: Boolean)
 
 /**
  * Configuration for the sharding container pool balancer.
