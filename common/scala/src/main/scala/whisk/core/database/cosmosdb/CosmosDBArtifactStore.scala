@@ -17,28 +17,25 @@
 
 package whisk.core.database.cosmosdb
 
+import _root_.rx.RxReactiveStreams
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, StatusCodes}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
-import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{E_TAG, ID, SELF_LINK}
+import com.microsoft.azure.cosmosdb._
+
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
-import com.microsoft.azure.cosmosdb.{AccessCondition, Document, DocumentClientException, RequestOptions}
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
 import whisk.core.database._
-import whisk.core.database.cosmosdb.CosmosDBArtifactStore._computed
+import whisk.core.database.cosmosdb.CosmosDBConstants._
 import whisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
 import whisk.core.entity._
 import whisk.http.Messages
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object CosmosDBArtifactStore {
-  val _computed = "_c"
-}
 
 class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected val collName: String,
                                                                        protected val config: CosmosDBConfig,
@@ -131,12 +128,12 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .head()
       .transform(
         { rr =>
-          val js = toWhiskJsonDoc(rr.getResource)
+          val js = getResultToWhiskJsonDoc(rr.getResource)
           transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
           deserialize[A, DocumentAbstraction](doc, js)
         }, {
           case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue =>
-            transid.finished(this, start, s"[GET] '$collName', document: '${doc}'; not found.")
+            transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
             // for compatibility
             throw NoDocumentException("not found on 'get'")
           case e => e
@@ -160,8 +157,41 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                                      includeDocs: Boolean,
                                      descending: Boolean,
                                      reduce: Boolean,
-                                     stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] =
-    ???
+                                     stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
+    require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
+    require(!reduce, "Reduce scenario not supported") //TODO Investigate reduce
+    documentHandler.checkIfTableSupported(table)
+
+    val Array(ddoc, viewName) = table.split("/")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[QUERY] '$collName' searching '$table'")
+    val realIncludeDocs = includeDocs | documentHandler.shouldAlwaysIncludeDocs(ddoc, viewName)
+    val realLimit = if (limit > 0) skip + limit else limit
+
+    val querySpec = viewMapper.prepareQuery(ddoc, viewName, startKey, endKey, realLimit, realIncludeDocs, descending)
+
+    val options = new FeedOptions()
+    options.setEnableCrossPartitionQuery(true)
+
+    val publisher = RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, options))
+    val f = Source
+      .fromPublisher(publisher)
+      .mapConcat(asSeq)
+      .drop(skip)
+      .map(queryResultToWhiskJsonDoc)
+      .map(js =>
+        documentHandler
+          .transformViewResult(ddoc, viewName, startKey, endKey, realIncludeDocs, js, CosmosDBArtifactStore.this))
+      .mapAsync(1)(identity)
+      .mapConcat(identity)
+      .runWith(Sink.seq)
+      .map(_.toList)
+
+    f.onSuccess({
+      case out => transid.finished(this, start, s"[QUERY] '$collName' completed: matched ${out.size}")
+    })
+    reportFailure(f, start, failure => s"[QUERY] '$collName' internal error, failure: '${failure.getMessage}'")
+  }
 
   override protected[core] def count(table: String,
                                      startKey: List[Any],
@@ -190,25 +220,42 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val computedOpt = if (computed.fields.nonEmpty) Some(computed) else None
     val fieldsToAdd =
       Seq(
-        (ID, Some(JsString(escapeId(json.fields(_id).convertTo[String])))),
-        (E_TAG, json.fields.get(_rev)),
+        (cid, Some(JsString(escapeId(json.fields(_id).convertTo[String])))),
+        (etag, json.fields.get(_rev)),
         (_computed, computedOpt))
     val fieldsToRemove = Seq(_id, _rev)
     val mapped = transform(json, fieldsToAdd, fieldsToRemove)
     val doc = new Document(mapped.compactPrint)
-    doc.set(SELF_LINK, createSelfLink(doc.getId))
+    doc.set(selfLink, createSelfLink(doc.getId))
     doc
   }
 
-  private def toWhiskJsonDoc(doc: Document): JsObject = {
+  private def queryResultToWhiskJsonDoc(doc: Document): JsObject = {
+    val docJson = doc.toJson.parseJson.asJsObject
+    //If includeDocs is true then document json is to be used
+    val js = if (doc.has(queryResultAlias)) docJson.fields(queryResultAlias).asJsObject else docJson
+    val id = js.fields(cid).convertTo[String]
+    toWhiskJsonDoc(js, id, None)
+  }
+
+  private def getResultToWhiskJsonDoc(doc: Document): JsObject = {
     val js = doc.toJson.parseJson.asJsObject
-    val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(doc.getId)))), (_rev, Some(JsString(doc.getETag))))
-    transform(js, fieldsToAdd, Seq.empty)
+    toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
+  }
+
+  private def toWhiskJsonDoc(js: JsObject, id: String, etag: Option[JsString]): JsObject = {
+    val fieldsToAdd = Seq((_id, Some(JsString(unescapeId(id)))), (_rev, etag))
+    transform(stripInternalFields(js), fieldsToAdd, Seq.empty)
   }
 
   private def transform(json: JsObject, fieldsToAdd: Seq[(String, Option[JsValue])], fieldsToRemove: Seq[String]) = {
     val fields = json.fields ++ fieldsToAdd.flatMap(f => f._2.map((f._1, _))) -- fieldsToRemove
     JsObject(fields)
+  }
+
+  private def stripInternalFields(js: JsObject) = {
+    //Strip out all field name starting with '_' which are considered as db specific internal fields
+    JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
   private def toDocInfo(doc: Document) = DocInfo(DocId(doc.getId), DocRevision(doc.getETag))

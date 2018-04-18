@@ -23,6 +23,7 @@ import _root_.rx.lang.scala._
 import _root_.rx.lang.scala.JavaConverters._
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable
 
 trait CosmosDBSupport {
   protected def config: CosmosDBConfig
@@ -72,4 +73,6 @@ trait CosmosDBSupport {
   protected def escapeId(id: String): String = id.replace("/", "|")
 
   protected def unescapeId(id: String): String = id.replace("|", "/")
+
+  protected def asSeq[T <: Resource](r: FeedResponse[T]): immutable.Seq[T] = r.getResults.asScala.to[immutable.Seq]
 }
