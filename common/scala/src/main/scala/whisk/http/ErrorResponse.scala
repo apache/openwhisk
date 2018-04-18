@@ -254,11 +254,12 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
       // But on changing the tid from a number to String, it is not necessarely possible to always have a valid number.
       // Now the important information is placed in `transaction`.
       val tidAsNumber = Try {
-        // Use the radix 16 for tids (as they are hexadecimal) and 10 for sids (as they are decimal in our code).
+        // Use the radix 16 for tids (as they are hexadecimal). Sids are not returned, so we don't have to care about them.
         // Use BigInteger to create numbers with different radixes. But BigInt is needed for JSON-conversion.
-        BigInt(new BigInteger(tidMeta.id, if (tidMeta.isSid) 10 else 16))
+        BigInt(new BigInteger(tidMeta.id, 16))
       }.toOption.getOrElse {
-        BigInt(new BigInteger(TransactionId.unknown.meta.id, 10))
+        // Return 0 if conversion fails. The real tid will be written into the field `transaction`.
+        BigInt(0)
       }.toJson
       JsObject("error" -> er.error.toJson, "code" -> tidAsNumber, "transaction" -> tidMeta.id.toJson)
     }

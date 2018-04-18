@@ -35,11 +35,7 @@ import scala.util.Try
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
-  override def toString = {
-    if (!meta.isSid) s"#tid_${meta.id}"
-    else if (meta.isSid) s"#sid_${meta.id}"
-    else "??"
-  }
+  override def toString = s"#tid_${meta.id}"
 
   def toHeader = {
     RawHeader("OW-TID", meta.id)
@@ -192,10 +188,7 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param start the timestamp when the request processing commenced
  * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: String,
-                                         val start: Instant,
-                                         val extraLogging: Boolean = false,
-                                         val isSid: Boolean = false)
+protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
 
@@ -204,37 +197,39 @@ object TransactionId {
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
-  val unknown = TransactionId(0.toString, isSid = true)
-  val testing = TransactionId((1).toString, isSid = true) // Common id for for unit testing
-  val invoker = TransactionId((100).toString, isSid = true) // Invoker startup/shutdown or GC activity
-  val invokerWarmup = TransactionId((101).toString, isSid = true) // Invoker warmup thread that makes stem-cell containers
-  val invokerNanny = TransactionId((102).toString, isSid = true) // Invoker nanny thread
-  val dispatcher = TransactionId((110).toString, isSid = true) // Kafka message dispatcher
-  val loadbalancer = TransactionId((120).toString, isSid = true) // Loadbalancer thread
-  val invokerHealth = TransactionId((121).toString, isSid = true) // Invoker supervision
-  val controller = TransactionId((130).toString, isSid = true) // Controller startup
-  val dbBatcher = TransactionId((140).toString, isSid = true) // Database batcher
+  val unknown = TransactionId("sid_unknown")
+  val testing = TransactionId("sid_testing") // Common id for for unit testing
+  val invoker = TransactionId("sid_invoker") // Invoker startup/shutdown or GC activity
+  val invokerWarmup = TransactionId("sid_invokerWarmup") // Invoker warmup thread that makes stem-cell containers
+  val invokerNanny = TransactionId("sid_invokerNanny") // Invoker nanny thread
+  val dispatcher = TransactionId("sid_dispatcher") // Kafka message dispatcher
+  val loadbalancer = TransactionId("sid_loadbalancer") // Loadbalancer thread
+  val invokerHealth = TransactionId("sid_invokerHealth") // Invoker supervision
+  val controller = TransactionId("sid_controller") // Controller startup
+  val dbBatcher = TransactionId("sid_dbBatcher") // Database batcher
 
-  def apply(tid: String, extraLogging: Boolean = false, isSid: Boolean = false): TransactionId = {
+  def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     Try {
       val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid, now, extraLogging, isSid))
+      TransactionId(TransactionMetadata(tid, now, extraLogging))
     } getOrElse unknown
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
-    def write(t: TransactionId) =
-      JsArray(
-        JsString(t.meta.id),
-        JsNumber(t.meta.start.toEpochMilli),
-        JsBoolean(t.meta.extraLogging),
-        JsBoolean(t.meta.isSid))
+    def write(t: TransactionId) = {
+      if (t.meta.extraLogging)
+        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
+      else
+        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+    }
 
     def read(value: JsValue) =
       Try {
         value match {
-          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging), JsBoolean(isSid))) =>
-            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging, isSid))
+          case JsArray(Vector(JsString(id), JsNumber(start))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
   }
