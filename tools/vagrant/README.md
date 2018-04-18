@@ -99,7 +99,7 @@ address will conflict, use `vagrant suspend` before starting another VM with the
 same IP address.
 
 The CLI is available in `../../bin`.
-The CLI in `../../bin/wsk` would be for Linux amd64.
+The CLI `../../bin/wsk` is for Linux amd64.
 The CLI for other operating systems and architectures can be found under `../../bin/openwhisk-cli/build/`
 
 When using the CLI with a local deployment of OpenWhisk (which provides an
@@ -159,7 +159,7 @@ wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
 
 ## Other Runntimes
-The default vagrant deploy only deploys nodejs:6 runtime kind, as the image runs out of space if all runtimes are built.
+The default vagrant deploy only deploys nodejs:6 runtime kind, because the image runs out of space if all runtimes are built.
 To add a runtime, you need to build the runtime image for example
 ```
 wskdev python3action
@@ -188,14 +188,15 @@ cd ${OPENWHISK_HOME}
 
 ## Using docker-runc
 Only for experimental use:
-To use docker-runc the docker-runc CLI use in the invoker needs to match the version on the docker engine host.
-Get the version of the docker engine like the following:
+To use docker-runc in the invoker, the version of docker-runc needs to match the version of docker engine on the host.
+Get the version of the docker engine on the host like the following:
 ```
 $ docker version | grep Version
 Version:	18.03.0-ce
 ```
-Update the Invoker Dockerfile to download a newer version of the docker-cli
-https://download.docker.com/linux/static/stable/x86_64/docker-18.03.0-ce.tgz
+You need to use the same version for docker-runc in the Invoker, to use a newer version of docker-runc in the invoker, update the invoker Dockerfile.
+1. compare the docker-runc version obtained on the local system against the docker-runc configured for the invoker
+2. if the versions are different, only then do you need to update the invoker dockerfile to point to the matching docker download
 
 Edit the [core/invoker/Dockefile](../../core/invoker/Dockefile)
 Update the variable with the version
@@ -206,6 +207,8 @@ Then update line with the curl download command like
 ```
 RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz && \
 ```
+Notice that the hostname where to download the cli is different for newer versions.
+
 Then update the ansible configuration to enable the use of runc, edit [](../../ansible/environments/vagrant/group_vars/all)
 ```
 invoker_use_runc: true
@@ -221,7 +224,7 @@ The following commands are helpful to deploy a fresh OpenWhisk and data store
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
-# teardown all containers expect couchdb container
+# teardown all containers
 wskdev teardown
 # deploy openwhisk containers
 wskdev fresh
