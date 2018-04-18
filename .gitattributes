@@ -29,3 +29,7 @@ gradlew                         text eol=lf
 core/javaAction/proxy/gradlew   text eol=lf
 tools/vagrant/hello             text eol=lf
 sdk/docker/client/action        text eol=lf
+
+# auth files with default api keys
+ansible/files/auth.guest         text eol=lf
+ansible/files/auth.whisk.system  text eol=lf
