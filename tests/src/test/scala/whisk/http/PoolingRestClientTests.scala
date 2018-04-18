@@ -130,21 +130,18 @@ class PoolingRestClientTests
 
   it should "create an HttpRequest without a payload" in {
     val httpRequest = HttpRequest()
-    val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow()))
 
     await(mkRequest(GET, Uri./)) shouldBe httpRequest
   }
 
   it should "create an HttpRequest with a JSON payload" in {
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
-    val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpRequest = httpRequest)))
 
     await(mkJsonRequest(GET, Uri./, JsObject(), List.empty)) shouldBe httpRequest
   }
 
   it should "create an HttpRequest with a payload" in {
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
-    val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpRequest = httpRequest)))
     val request = mkRequest0(
       GET,
       Uri./,

@@ -17,10 +17,9 @@
 
 package whisk.http
 
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.util.{Failure, Success}
-import scala.util.Try
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -142,28 +141,21 @@ class PoolingRestClient(
 }
 
 object PoolingRestClient {
-  private implicit val system = ActorSystem()
-  private implicit val materializer = ActorMaterializer()
-  private implicit val executionContext2 = system.dispatcher
 
-  // Prepares a request with the proper headers.
-  def mkRequest0(method: HttpMethod,
-                 uri: Uri,
-                 body: Future[MessageEntity],
-                 headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+  def mkRequest0(method: HttpMethod, uri: Uri, body: Future[MessageEntity], headers: List[HttpHeader] = List.empty)(
+    implicit ec: ExecutionContext): Future[HttpRequest] = {
     body.map { b =>
       HttpRequest(method, uri, headers, b)
     }
   }
 
-  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty)(
+    implicit ec: ExecutionContext): Future[HttpRequest] = {
     mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
   }
 
-  def mkJsonRequest(method: HttpMethod,
-                    uri: Uri,
-                    body: JsValue,
-                    headers: List[HttpHeader] = List.empty): Future[HttpRequest] = {
+  def mkJsonRequest(method: HttpMethod, uri: Uri, body: JsValue, headers: List[HttpHeader] = List.empty)(
+    implicit ec: ExecutionContext): Future[HttpRequest] = {
     val b = Marshal(body).to[MessageEntity]
     mkRequest0(method, uri, b, headers)
   }
