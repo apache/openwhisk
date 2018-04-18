@@ -62,17 +62,20 @@ You can run the simulation with (in OPENWHISK_HOME)
 OPENWHISK_HOST="openwhisk.mydomain.com" CONNECTIONS="10" REQUESTS_PER_SEC="50" ./gradlew gatlingRun-ApiV1Simulation
 ```
 
-##### LatencySimulation
+##### Latency Simulation
 
-This simulation creates actions of the following four kinds: nodejs:default, swift:default, java:default and
-python:default.
+This simulation creates actions of the following four kinds: `nodejs:default`, `swift:default`, `java:default` and
+`python:default`.
 Afterwards the action is invoked once. This is the cold-start and will not be part of the thresholds.
-Next, the action will be invoked 100 times one after each other. The last step is, that the action will be deleted.
+Next, the action will be invoked 100 times blocking and one after each other. The last step is, that the action will be deleted.
 
 Once one language is finished, the next kind will be taken. They are not running in parallel. There are never more than
 1 activations in the system, as we only want to meassure latency of warm activations.
+As all actions are invoked blocking and only one action is in the system, it doesn't matter how many controllers
+and invokers are deployed. If several controllers or invokers are deployed, all controllers send the activation
+always to the same invoker.
 
-The comparisson of the thresholds is against the mean response times of the warm activations.
+The comparison of the thresholds is against the mean response times of the warm activations.
 
 Available environment variables:
 
@@ -81,10 +84,7 @@ OPENWHISK_HOST          (required)
 API_KEY                 (required, format: UUID:KEY)
 MEAN_RESPONSE_TIME      (required)
 MAX_MEAN_RESPONSE_TIME  (default: MEAN_RESPONSE_TIME)
-INCLUDE_NODE            (default: true)
-INCLUDE_PYTHON          (default: true)
-INCLUDE_SWIFT           (default: true)
-INCLUDE_JAVA            (default: true)
+EXCLUDED_KINDS          (default: "", format: "python:default,java:default,swift:default")
 ```
 
 You can run the simulation with (in OPENWHISK_HOME)

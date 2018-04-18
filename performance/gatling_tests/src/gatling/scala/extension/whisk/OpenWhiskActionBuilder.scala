@@ -31,7 +31,9 @@ case class OpenWhiskActionBuilderBase(requestName: Expression[String]) {
   implicit private val http = new Http(requestName)
 
   /** Call the `/api/v1`-endpoint of the specified system */
-  def info() = OpenWhiskActionBuilder(http.get("/api/v1"))
+  def info() = {
+    OpenWhiskActionBuilder(http.get("/api/v1"))
+  }
 
   /**
    * Specify authentication data. This is needed to perform operations on namespaces or working with entities.
@@ -39,7 +41,9 @@ case class OpenWhiskActionBuilderBase(requestName: Expression[String]) {
    * @param uuid The UUID of the namespace
    * @param key The key of the namespace
    */
-  def authenticate(uuid: Expression[String], key: Expression[String]) = OpenWhiskActionBuilderWithNamespace(uuid, key)
+  def authenticate(uuid: Expression[String], key: Expression[String]) = {
+    OpenWhiskActionBuilderWithNamespace(uuid, key)
+  }
 }
 
 case class OpenWhiskActionBuilderWithNamespace(private val uuid: Expression[String],
@@ -51,7 +55,9 @@ case class OpenWhiskActionBuilderWithNamespace(private val uuid: Expression[Stri
    *
    * @param namespace The namespace you want to use.
    */
-  def namespace(namespace: String) = OpenWhiskActionBuilderWithNamespace(uuid, key, namespace)
+  def namespace(namespace: String) = {
+    OpenWhiskActionBuilderWithNamespace(uuid, key, namespace)
+  }
 
   /** List all namespaces you have access to, with your current authentication. */
   def list() = {
