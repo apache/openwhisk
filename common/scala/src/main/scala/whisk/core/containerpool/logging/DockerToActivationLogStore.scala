@@ -27,7 +27,7 @@ import akka.util.ByteString
 
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ActivationResponse, ExecutableWhiskAction, Identity, WhiskActivation}
 import whisk.http.Messages
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -69,6 +69,12 @@ class DockerToActivationLogStore(system: ActorSystem) extends LogStore {
   /* As logs are already part of the activation record, just return that bit of it */
   override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
     Future.successful(activation.logs)
+
+  /* As result is already part of the activation record, just return that bit of it */
+  override def fetchResponse(user: Identity,
+                             activation: WhiskActivation,
+                             request: HttpRequest): Future[ActivationResponse] =
+    Future.successful(activation.response)
 
   override def collectLogs(transid: TransactionId,
                            user: Identity,

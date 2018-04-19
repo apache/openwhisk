@@ -23,7 +23,7 @@ import akka.http.scaladsl.model.HttpRequest
 import whisk.core.entity.Identity
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ActivationResponse, ExecutableWhiskAction, Identity, WhiskActivation}
 
 import scala.concurrent.Future
 
@@ -51,6 +51,11 @@ class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
    * e.g. the SplunkLogStore to expose logs from some external source */
   def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
     Future.successful(ActivationLogs(Vector("Logs are not available.")))
+
+  /** no result exposed to API/CLI using only the LogDriverLogStore; use an extended version,
+   * e.g. the ElasticSearchLogStore to expose logs from some external source */
+  def fetchResponse(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationResponse] =
+    Future.successful(ActivationResponse.applicationError("Result is not available."))
 }
 
 object LogDriverLogStoreProvider extends LogStoreProvider {

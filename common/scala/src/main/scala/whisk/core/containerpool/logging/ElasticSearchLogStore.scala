@@ -23,7 +23,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import akka.http.scaladsl.model._
 
-import whisk.core.entity.{ActivationLogs, Identity, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ActivationResponse, Identity, WhiskActivation}
 import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
 import whisk.core.ConfigKeys
 
@@ -35,6 +35,7 @@ import spray.json._
 import pureconfig._
 
 case class ElasticSearchLogFieldConfig(userLogs: String,
+                                       activationRecord: String,
                                        message: String,
                                        activationId: String,
                                        stream: String,
@@ -60,7 +61,7 @@ class ElasticSearchLogStore(
     loadConfigOrThrow[ElasticSearchLogStoreConfig](ConfigKeys.elasticSearch))
     extends DockerToActivationFileLogStore(system, destinationDirectory) {
 
-  // Schema of resultant logs from ES
+  // Schema of logs from ES
   case class UserLogEntry(message: String, stream: String, time: String) {
     def toFormattedString = s"${time} ${stream}: ${message.stripLineEnd}"
   }
@@ -74,6 +75,16 @@ class ElasticSearchLogStore(
         elasticSearchConfig.logSchema.time)
   }
 
+  // Scehma of results from ES
+  case class UserResponseEntry(message: String) {
+    def toFormattedString = message
+  }
+
+  object UserResponseEntry extends DefaultJsonProtocol {
+    implicit val serdes =
+      jsonFormat(UserResponseEntry.apply _, elasticSearchConfig.logSchema.message)
+  }
+
   implicit val actorSystem = system
 
   private val esClient = new ElasticSearchRestClient(
@@ -85,13 +96,31 @@ class ElasticSearchLogStore(
   private def transcribeLogs(queryResult: EsSearchResult): ActivationLogs =
     ActivationLogs(queryResult.hits.hits.map(_.source.convertTo[UserLogEntry].toFormattedString))
 
+  private def transcribeResponse(queryResult: EsSearchResult): ActivationResponse = {
+    val res = queryResult.hits.hits.map(_.source.convertTo[UserResponseEntry].toFormattedString)
+
+    ActivationResponse.success(Some(res(0).parseJson.asJsObject))
+  }
+
   private def extractRequiredHeaders(headers: Seq[HttpHeader]) =
     headers.filter(h => elasticSearchConfig.requiredHeaders.contains(h.lowercaseName)).toList
 
-  private def generatePayload(activation: WhiskActivation) = {
-    val logQuery =
+  private def generateLogPayload(activation: WhiskActivation) = {
+    val query =
       s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
-    val queryString = EsQueryString(logQuery)
+
+    generateEsQuery(query)
+  }
+
+  private def generateResponsePayload(activation: WhiskActivation) = {
+    val query =
+      s"_type: ${elasticSearchConfig.logSchema.activationRecord} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
+
+    generateEsQuery(query)
+  }
+
+  private def generateEsQuery(query: String) = {
+    val queryString = EsQueryString(query)
     val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrderAsc)
 
     EsQuery(queryString, Some(queryOrder))
@@ -104,7 +133,7 @@ class ElasticSearchLogStore(
 
     // Return logs from ElasticSearch, or return logs from activation if required headers are not present
     if (headers.length == elasticSearchConfig.requiredHeaders.length) {
-      esClient.search[EsSearchResult](generatePath(user), generatePayload(activation), headers).flatMap {
+      esClient.search[EsSearchResult](generatePath(user), generateLogPayload(activation), headers).flatMap {
         case Right(queryResult) =>
           Future.successful(transcribeLogs(queryResult))
         case Left(code) =>
@@ -112,6 +141,24 @@ class ElasticSearchLogStore(
       }
     } else {
       Future.successful(activation.logs)
+    }
+  }
+
+  override def fetchResponse(user: Identity,
+                             activation: WhiskActivation,
+                             request: HttpRequest): Future[ActivationResponse] = {
+    val headers = extractRequiredHeaders(request.headers)
+
+    // Return result from ElasticSearch, or return result from activation if required headers are not present
+    if (headers.length == elasticSearchConfig.requiredHeaders.length) {
+      esClient.search[EsSearchResult](generatePath(user), generateResponsePayload(activation), headers).flatMap {
+        case Right(queryResult) =>
+          Future.successful(transcribeResponse(queryResult))
+        case Left(code) =>
+          Future.failed(new RuntimeException(s"Status code '$code' was returned from log store"))
+      }
+    } else {
+      Future.successful(activation.response)
     }
   }
 }
