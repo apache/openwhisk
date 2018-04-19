@@ -17,6 +17,8 @@
 
 package whisk.http
 
+import java.util.concurrent.ThreadLocalRandom
+
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
@@ -25,17 +27,13 @@ import akka.http.scaladsl.server.RouteResult.Rejected
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
-import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.common._
-import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.WhiskConfig
 
 import scala.collection.immutable.Seq
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
-import scala.util.Random
-
-case class TransactionCounterConfig(header: String)
+import scala.concurrent.{Await, Future}
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
@@ -94,8 +92,7 @@ trait BasicHttpService extends Directives {
 
   // Scala random should be enough here, as the generation for the tid is only a fallback. In addition the tid only has
   // to be unique within a few minutes.
-  val random = new Random()
-  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
+  val dict = (('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9'))
 
   /** Assigns transaction id to every request. */
   protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
@@ -108,7 +105,13 @@ trait BasicHttpService extends Directives {
     }
     extract { req =>
       val tid =
-        req.request.headers.find(_.name == transCounterConfig.header).map(_.value).getOrElse(random.nextString(32))
+        req.request.headers
+          .find(_.name == TransactionId.generatorConfig.header)
+          .map(_.value)
+          .getOrElse {
+            (0 until 32).map(_ => dict(ThreadLocalRandom.current().nextInt(dict.size))).mkString("")
+          }
+
       TransactionId(tid, extraLogging)
     }
   }

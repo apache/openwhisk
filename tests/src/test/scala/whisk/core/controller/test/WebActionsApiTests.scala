@@ -328,7 +328,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
   }
 
   def confirmErrorWithTid(error: JsObject, message: Option[String] = None) = {
-    error.fields.size shouldBe 3
+    error.fields.size shouldBe 2
     error.fields.get("error") shouldBe defined
     message.foreach { m =>
       error.fields.get("error").get shouldBe JsString(m)

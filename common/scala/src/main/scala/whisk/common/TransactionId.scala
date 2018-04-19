@@ -21,7 +21,9 @@ import java.time.{Clock, Duration, Instant}
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
+import pureconfig.loadConfigOrThrow
 import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, _}
+import whisk.core.ConfigKeys
 
 import scala.util.Try
 
@@ -35,7 +37,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   override def toString = s"#tid_${meta.id}"
 
   def toHeader = {
-    RawHeader("OW-TID", meta.id)
+    RawHeader(TransactionId.generatorConfig.header, meta.id)
   }
 
   /**
@@ -194,6 +196,8 @@ object TransactionId {
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
+  val generatorConfig = loadConfigOrThrow[TransactionGeneratorConfig](ConfigKeys.transactions)
+
   val unknown = TransactionId("sid_unknown")
   val testing = TransactionId("sid_testing") // Common id for for unit testing
   val invoker = TransactionId("sid_invoker") // Invoker startup/shutdown or GC activity
@@ -229,3 +233,5 @@ object TransactionId {
       } getOrElse unknown
   }
 }
+
+case class TransactionGeneratorConfig(header: String)
