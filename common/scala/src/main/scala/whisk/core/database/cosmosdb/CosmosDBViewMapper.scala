@@ -129,7 +129,7 @@ object WhisksViewMapper extends CosmosDBViewMapper {
   private def viewConditions(ddoc: String, view: String): Option[(String, List[(String, Any)])] = {
     view match {
       case "packages-public" if ddoc.startsWith("whisks") =>
-        Some(s"$PUBLISH = true AND (!IS_OBJECT($BINDING) OR $BINDING = {})", Nil)
+        Some(s"$PUBLISH = true AND (NOT IS_OBJECT($BINDING) OR $BINDING = {})", Nil)
       case _ => None
     }
   }
