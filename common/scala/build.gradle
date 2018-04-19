@@ -45,7 +45,7 @@ dependencies {
     compile 'io.kamon:kamon-core_2.11:0.6.7'
     compile 'io.kamon:kamon-statsd_2.11:0.6.7'
     //for mesos
-    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.4'
+    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.7'
 }
 
 tasks.withType(ScalaCompile) {

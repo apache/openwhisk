@@ -14,6 +14,10 @@ To enable MesosContainerFactory, use the following TypeSafe Config properties
 | `whisk.mesos.role` | optional (default *) | Mesos framework role| any string e.g. `openwhisk` |
 | `whisk.mesos.failover-timeout-seconds` | optional (default 0) | how long to wait for the framework to reconnect with the same id before tasks are terminated  | see http://mesos.apache.org/documentation/latest/high-availability-framework-guide/ |
 | `whisk.mesos.mesos-link-log-message` | optional (default true) | display a log message with a link to Mesos when using the default LogStore (or no log message) | Since logs are not available for invoker to collect from Mesos in general, you can either use an alternate LogStore or direct users to the Mesos ui |   |
+| `whisk.mesos.constraints` | optional (default []) | placement constraint strings to use for managed containers | `["att1 LIKE v1", "att2 UNLIKE v2"]` |   |
+| `whisk.mesos.blackbox-constraints` | optional (default []) | placement constraint strings to use for blackbox containers  | `["att1 LIKE v1", "att2 UNLIKE v2"]` |   |
+| `whisk.mesos.constraint-delimiter` | optional (default " ") | delimiter used to parse constraints |  |   |
+| `whisk.mesos.teardown-on-exit` | optional (default true) | set to true to disable the mesos framework on system exit; set for false for HA deployments |  |   |
 
 To set these properties for your invoker, set the corresponding environment variables e.g.,
 ```properties

@@ -20,10 +20,14 @@ package whisk.core.mesos
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
+import com.adobe.api.platform.runtime.mesos.Constraint
+import com.adobe.api.platform.runtime.mesos.LIKE
+import com.adobe.api.platform.runtime.mesos.LocalTaskStore
 import com.adobe.api.platform.runtime.mesos.MesosClient
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
 import com.adobe.api.platform.runtime.mesos.Teardown
+import com.adobe.api.platform.runtime.mesos.UNLIKE
 import java.time.Instant
 import pureconfig.loadConfigOrThrow
 import scala.concurrent.Await
@@ -58,7 +62,11 @@ case class MesosConfig(masterUrl: String,
                        masterPublicUrl: Option[String],
                        role: String,
                        failoverTimeout: FiniteDuration,
-                       mesosLinkLogMessage: Boolean)
+                       mesosLinkLogMessage: Boolean,
+                       constraints: Seq[String],
+                       constraintDelimiter: String,
+                       blackboxConstraints: Seq[String],
+                       teardownOnExit: Boolean) {}
 
 class MesosContainerFactory(config: WhiskConfig,
                             actorSystem: ActorSystem,
@@ -108,6 +116,11 @@ class MesosContainerFactory(config: WhiskConfig,
     } else {
       actionImage.localImageName(config.dockerRegistry, config.dockerImagePrefix, Some(config.dockerImageTag))
     }
+    val constraintStrings = if (userProvidedImage) {
+      mesosConfig.blackboxConstraints
+    } else {
+      mesosConfig.constraints
+    }
 
     logging.info(this, s"using Mesos to create a container with image $image...")
     MesosTask.create(
@@ -126,8 +139,27 @@ class MesosContainerFactory(config: WhiskConfig,
       //strip any "--" prefixes on parameters (should make this consistent everywhere else)
       parameters
         .map({ case (k, v) => if (k.startsWith("--")) (k.replaceFirst("--", ""), v) else (k, v) })
-        ++ containerArgs.extraArgs)
+        ++ containerArgs.extraArgs,
+      parseConstraints(constraintStrings))
   }
+
+  /**
+   * Validate that constraint strings are well formed, and ignore constraints with unknown operators
+   * @param constraintStrings
+   * @param logging
+   * @return
+   */
+  def parseConstraints(constraintStrings: Seq[String])(implicit logging: Logging): Seq[Constraint] =
+    constraintStrings.flatMap(cs => {
+      val parts = cs.split(mesosConfig.constraintDelimiter)
+      require(parts.length == 3, "constraint must be in the form <attribute><delimiter><operator><delimiter><value>")
+      Seq(LIKE, UNLIKE).find(_.toString == parts(1)) match {
+        case Some(o) => Some(Constraint(parts(0), o, parts(2)))
+        case _ =>
+          logging.warn(this, s"ignoring unsupported constraint operator ${parts(1)}")
+          None
+      }
+    })
 
   override def init(): Unit = Unit
 
@@ -148,11 +180,12 @@ object MesosContainerFactory {
     actorSystem.actorOf(
       MesosClient
         .props(
-          "whisk-containerfactory-" + UUID(),
+          () => "whisk-containerfactory-" + UUID(),
           "whisk-containerfactory-framework",
           mesosConfig.masterUrl,
           mesosConfig.role,
-          mesosConfig.failoverTimeout))
+          mesosConfig.failoverTimeout,
+          taskStore = new LocalTaskStore))
 
   val counter = new Counter()
   val startTime = Instant.now.getEpochSecond
