@@ -55,7 +55,7 @@ trait CosmosDBViewMapper {
     require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
   }
 
-  protected def select(ddoc: String, viewName: String, limit: Int, includeDocs: Boolean): String = {
+  private def select(ddoc: String, viewName: String, limit: Int, includeDocs: Boolean): String = {
     val fieldClause = if (includeDocs) ALL_FIELDS else prepareFieldClause(ddoc, viewName)
     s"${top(limit)} $fieldClause"
   }
@@ -77,7 +77,56 @@ trait CosmosDBViewMapper {
 }
 
 object WhisksViewMapper extends CosmosDBViewMapper {
+  private val NS = "r.namespace"
+  private val ROOT_NS = s"r.${_computed}.${WhisksHandler.ROOT_NS}"
+  private val TYPE = "r.entityType"
+  private val UPDATED = "r.updated"
+  private val PUBLISH = "r.publish"
+  private val BINDING = "r.binding"
+
   val handler = WhisksHandler
+
+  override protected def where(ddoc: String,
+                               view: String,
+                               startKey: List[Any],
+                               endKey: List[Any]): (String, List[(String, Any)]) = {
+    val entityType = WhisksHandler.getEntityTypeForDesignDoc(ddoc, view)
+    val namespace = startKey.head
+
+    val (vc, vcParams) =
+      viewConditions(ddoc, view).map(q => (s"${q._1} AND", q._2)).getOrElse((NOTHING, Nil))
+
+    val params = ("@entityType", entityType) :: ("@namespace", namespace) :: vcParams
+    val baseCondition = s"$vc $TYPE = @entityType AND ($NS = @namespace OR $ROOT_NS = @namespace)"
+
+    (startKey, endKey) match {
+      case (_ :: Nil, _ :: `TOP` :: Nil) =>
+        (baseCondition, params)
+
+      case (_ :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
+        (s"$baseCondition AND $UPDATED >= @since", ("@since", since) :: params)
+
+      case (_ :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
+        (s"$baseCondition AND ($UPDATED BETWEEN @since AND @upto)", ("@upto", upto) :: ("@since", since) :: params)
+
+      case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
+    }
+  }
+
+  private def viewConditions(ddoc: String, view: String): Option[(String, List[(String, Any)])] = {
+    view match {
+      case "packages-public" if ddoc.startsWith("whisks") =>
+        Some(s"$PUBLISH = true AND (!IS_OBJECT($BINDING) OR $BINDING = {})", Nil)
+      case _ => None
+    }
+  }
+
+  override protected def orderByField(ddoc: String, view: String): String = view match {
+    case "actions" | "rules" | "triggers" | "packages" | "packages-public" if ddoc.startsWith("whisks") =>
+      UPDATED
+    case _ => throw UnsupportedView(s"$ddoc/$view")
+  }
+
 }
 object ActivationViewMapper extends CosmosDBViewMapper {
   private val NS = "r.namespace"
