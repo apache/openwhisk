@@ -248,16 +248,13 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
   }
 
   implicit val serializer = new RootJsonFormat[ErrorResponse] {
-    def write(er: ErrorResponse) = {
-      val tidMeta = er.code.meta
-      JsObject("error" -> er.error.toJson, "code" -> 0.toJson, "transaction" -> tidMeta.id.toJson)
-    }
+    def write(er: ErrorResponse) = JsObject("error" -> er.error.toJson, "code" -> er.code.meta.id.toJson)
 
     def read(v: JsValue) =
       Try {
-        v.asJsObject.getFields("error", "code", "transaction") match {
-          case Seq(JsString(error), JsNumber(_), JsString(transaction)) =>
-            ErrorResponse(error, TransactionId(transaction))
+        v.asJsObject.getFields("error", "code") match {
+          case Seq(JsString(error), JsString(code)) =>
+            ErrorResponse(error, TransactionId(code))
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)
         }
