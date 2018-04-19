@@ -20,13 +20,13 @@ package whisk.core.database.cosmosdb
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import whisk.core.database.test.behavior.ArtifactStoreCRUDBehaviors
+import whisk.core.database.test.behavior.{ArtifactStoreCRUDBehaviors, ArtifactStoreQueryBehaviors}
 import whisk.core.entity._
 
 import scala.reflect.classTag
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreCRUDBehaviors {
+class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreQueryBehaviors with ArtifactStoreCRUDBehaviors {
   override def storeType = "CosmosDB"
 
   override val authStore = {

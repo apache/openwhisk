@@ -19,7 +19,7 @@ package whisk.core.database.cosmosdb
 
 import scala.collection.immutable.Iterable
 import whisk.core.database.cosmosdb.CosmosDBConstants._
-import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{E_TAG, ID, SELF_LINK}
+import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
 
 object CosmosDBConstants {
   val _computed: String = "_c"
@@ -29,6 +29,8 @@ object CosmosDBConstants {
   val cid: String = ID
 
   val etag: String = E_TAG
+
+  val aggregate: String = AGGREGATE
 
   val selfLink: String = SELF_LINK
 }

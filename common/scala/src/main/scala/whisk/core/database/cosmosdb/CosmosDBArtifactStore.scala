@@ -35,6 +35,7 @@ import whisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClient
 import whisk.core.entity._
 import whisk.http.Messages
 
+import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 
 class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected val collName: String,
@@ -101,7 +102,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDocHasRevision(doc)
     val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collName' deleting document: '$doc'")
     val f = client
-      .deleteDocument(createSelfLink(doc.id.id), matchRevOption(doc.rev.rev))
+      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc.rev.rev))
       .head()
       .transform(
         _ => true, {
@@ -124,7 +125,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     require(doc != null, "doc undefined")
     val f = client
-      .readDocument(createSelfLink(doc.id.id), null)
+      .readDocument(selfLinkOf(doc.id), null)
       .head()
       .transform(
         { rr =>
@@ -197,7 +198,27 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                                      startKey: List[Any],
                                      endKey: List[Any],
                                      skip: Int,
-                                     stale: StaleParameter)(implicit transid: TransactionId): Future[Long] = ???
+                                     stale: StaleParameter)(implicit transid: TransactionId): Future[Long] = {
+    val Array(ddoc, viewName) = table.split("/")
+
+    val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$collName' searching '$table")
+    val querySpec = viewMapper.prepareCountQuery(ddoc, viewName, startKey, endKey)
+
+    val options = new FeedOptions()
+    options.setEnableCrossPartitionQuery(true)
+
+    //For aggregates the value is in _aggregates fields
+    val f = client
+      .queryDocuments(collection.getSelfLink, querySpec, options)
+      .head()
+      .map(_.getResults.asScala.head.getLong(aggregate).longValue())
+
+    f.onSuccess({
+      case out => transid.finished(this, start, s"[COUNT] '$collName' completed: count $out")
+    })
+
+    reportFailure(f, start, failure => s"[COUNT] '$collName' internal error, failure: '${failure.getMessage}'")
+  }
 
   override protected[core] def attach(
     doc: DocInfo,
@@ -264,6 +285,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     DocInfo(DocId(unescapeId(doc.getId)), DocRevision(doc.getETag))
   }
 
+  private def selfLinkOf(id: DocId) = createSelfLink(escapeId(id.id))
+
   private def createSelfLink(id: String) = s"dbs/${database.getId}/colls/${collection.getId}/docs/$id"
 
   private def matchRevOption(etag: String) = {
@@ -274,7 +297,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     options
   }
 
-  private def checkDoc(doc: Document) = {
+  private def checkDoc(doc: Document): Unit = {
     require(doc.getId != null, s"$doc does not have id field set")
     require(doc.getETag != null, s"$doc does not have etag field set")
   }

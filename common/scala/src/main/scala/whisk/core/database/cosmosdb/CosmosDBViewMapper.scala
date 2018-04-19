@@ -43,16 +43,29 @@ trait CosmosDBViewMapper {
 
     val query = s"SELECT $selectClause FROM root r WHERE ${whereClause._1} ORDER BY $orderField $order"
 
-    val params = new SqlParameterCollection
-    whereClause._2.foreach { case (k, v) => params.add(new SqlParameter(k, v)) }
+    prepareSpec(whereClause._2, query)
+  }
 
-    new SqlQuerySpec(query, params)
+  def prepareCountQuery(ddoc: String, viewName: String, startKey: List[Any], endKey: List[Any]): SqlQuerySpec = {
+    checkKeys(startKey, endKey)
+
+    val whereClause = where(ddoc, viewName, startKey, endKey)
+    val query = s"SELECT TOP 1 VALUE COUNT(r) FROM root r WHERE ${whereClause._1}"
+
+    prepareSpec(whereClause._2, query)
   }
 
   protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
     require(startKey.nonEmpty)
     require(endKey.nonEmpty)
     require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
+  }
+
+  private def prepareSpec(params: List[(String, Any)], query: String) = {
+    val paramColl = new SqlParameterCollection
+    params.foreach { case (k, v) => paramColl.add(new SqlParameter(k, v)) }
+
+    new SqlQuerySpec(query, paramColl)
   }
 
   private def select(ddoc: String, viewName: String, limit: Int, includeDocs: Boolean): String = {
