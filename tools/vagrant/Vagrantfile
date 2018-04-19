@@ -16,6 +16,7 @@ OW_DB = if ENV['OW_DB'] =~ (/^(cloudant|couchdb)$/i) then true else false end
 
 Vagrant.configure('2') do |config|
   config.vm.box = BOX
+  config.disksize.size = '50GB'
   config.vm.network :private_network, ip: MACHINE_IP
 
   # If true, then any SSH connections made will enable agent forwarding.
@@ -125,7 +126,7 @@ Vagrant.configure('2') do |config|
     # Build OpenWhisk using gradle
     echo "`date`: build-core-start" >> /tmp/vagrant-times.txt
     cd ${OPENWHISK_HOME}
-    su vagrant -c './gradlew :core:controller:distDocker :core:invoker:distDocker :actionRuntimes:nodejs6Action:distDocker'
+    su vagrant -c './gradlew distDocker'
     echo "`date`: build-core-end" >> /tmp/vagrant-times.txt
 
     # Clone and Build CLI

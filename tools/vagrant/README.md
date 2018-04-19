@@ -158,14 +158,6 @@ vagrant ssh
 wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
 
-## Other Runntimes
-The default vagrant deploy only deploys nodejs:6 runtime kind, because the image runs out of space if all runtimes are built.
-To add a runtime, you need to build the runtime image for example
-```
-wskdev python3action
-```
-To get a list of other available runtimes use `wskdev -c`
-
 ## Running OpenWhisk tests
 ```
 vagrant ssh
