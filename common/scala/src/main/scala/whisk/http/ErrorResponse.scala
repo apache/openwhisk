@@ -17,11 +17,10 @@
 
 package whisk.http
 
-import java.math.BigInteger
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
+
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.NotFound
@@ -29,7 +28,9 @@ import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
 import akka.http.scaladsl.server.StandardRoute
+
 import spray.json._
+
 import whisk.common.TransactionId
 import whisk.core.entity.SizeError
 import whisk.core.entity.ByteSize
@@ -249,19 +250,7 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
   implicit val serializer = new RootJsonFormat[ErrorResponse] {
     def write(er: ErrorResponse) = {
       val tidMeta = er.code.meta
-      // Convert the tid to a number. If this is not possible, use `unknown`-tid
-      // We have to keep this field to not change the API (JSON-response in case of error)
-      // But on changing the tid from a number to String, it is not necessarely possible to always have a valid number.
-      // Now the important information is placed in `transaction`.
-      val tidAsNumber = Try {
-        // Use the radix 16 for tids (as they are hexadecimal). Sids are not returned, so we don't have to care about them.
-        // Use BigInteger to create numbers with different radixes. But BigInt is needed for JSON-conversion.
-        BigInt(new BigInteger(tidMeta.id, 16))
-      }.toOption.getOrElse {
-        // Return 0 if conversion fails. The real tid will be written into the field `transaction`.
-        BigInt(0)
-      }.toJson
-      JsObject("error" -> er.error.toJson, "code" -> tidAsNumber, "transaction" -> tidMeta.id.toJson)
+      JsObject("error" -> er.error.toJson, "code" -> 0.toJson, "transaction" -> tidMeta.id.toJson)
     }
 
     def read(v: JsValue) =

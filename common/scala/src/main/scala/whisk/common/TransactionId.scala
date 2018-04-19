@@ -18,13 +18,10 @@
 package whisk.common
 
 import java.time.{Clock, Duration, Instant}
-import java.util.concurrent.atomic.AtomicInteger
 
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
-import pureconfig._
 import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, _}
-import whisk.core.ConfigKeys
 
 import scala.util.Try
 
@@ -209,10 +206,8 @@ object TransactionId {
   val dbBatcher = TransactionId("sid_dbBatcher") // Database batcher
 
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
-    Try {
-      val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid, now, extraLogging))
-    } getOrElse unknown
+    val now = Instant.now(Clock.systemUTC())
+    TransactionId(TransactionMetadata(tid, now, extraLogging))
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
@@ -232,28 +227,5 @@ object TransactionId {
             TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
-  }
-}
-
-/**
- * A thread-safe transaction counter.
- */
-trait TransactionCounter {
-  case class TransactionCounterConfig(stride: Int)
-
-  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
-  val stride = transCounterConfig.stride
-  val instanceOrdinal: Int
-
-  // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
-  private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
-
-  def transid(tidValue: Option[String] = None, extraLogging: Boolean = false): TransactionId = {
-    tidValue
-      .map { id =>
-        TransactionId(id, extraLogging)
-      }
-      // Fallback to old tids if it doesn't work.
-      .getOrElse(TransactionId(cnt.addAndGet(stride).toString, extraLogging))
   }
 }

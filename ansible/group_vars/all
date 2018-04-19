@@ -24,6 +24,10 @@ hosts_dir: "{{ inventory_dir| default(env_hosts_dir) }}"
 whisk:
   version:
     date: "{{ansible_date_time.iso8601}}"
+  tid:
+    header: "{{ whisk_tid_header | default('X-Request-ID') }}"
+    # The tid can be any String between 1 and 64 characters.
+    regex: "{{ whisk_tid_regex | default('[a-zA-Z0-9_-]{1,64}') }}"
 
 ##
 # list of supported runtimes (see whisk.core.entity.ExecManifest for schema).
@@ -95,9 +99,6 @@ jmx:
   pass: "{{ jmxuser | default('jmxpass') }}"
   jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
   enabled: "{{ jmxremote_enabled | default('true') }}"
-
-transactions:
-  stride: "{{ groups['controllers'] | length }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"

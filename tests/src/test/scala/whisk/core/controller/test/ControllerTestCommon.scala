@@ -30,7 +30,6 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
-import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -52,15 +51,12 @@ protected trait ControllerTestCommon
     with BeforeAndAfterAll
     with ScalatestRouteTest
     with Matchers
-    with TransactionCounter
     with DbUtils
     with ExecHelpers
     with WhiskServices
     with StreamLogging {
 
-  override val instanceOrdinal = 0
-  override val instance = InstanceId(instanceOrdinal)
-  val activeAckTopicIndex = InstanceId(instanceOrdinal)
+  val activeAckTopicIndex = InstanceId(0)
 
   implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 

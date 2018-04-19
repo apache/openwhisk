@@ -17,14 +17,14 @@
 
 package whisk.core.database.test
 
-import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
-import org.scalatest.junit.JUnitRunner
-import spray.json._
-import DefaultJsonProtocol._
 import common.WskActorSystem
+import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
-import whisk.common.{TransactionCounter, TransactionId}
+import org.scalatest.junit.JUnitRunner
+import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import whisk.common.TransactionId
 import whisk.core.database.SubjectHandler.SubjectView
 import whisk.core.database.WhisksHandler.ROOT_NS
 import whisk.core.database._
@@ -33,14 +33,9 @@ import whisk.core.entity._
 import scala.concurrent.Future
 
 @RunWith(classOf[JUnitRunner])
-class DocumentHandlerTests
-    extends FlatSpec
-    with Matchers
-    with ScalaFutures
-    with OptionValues
-    with TransactionCounter
-    with WskActorSystem {
-  override val instanceOrdinal = 0
+class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with OptionValues with WskActorSystem {
+
+  def transid() = TransactionId.testing
 
   behavior of "WhisksHandler computeFields"
 

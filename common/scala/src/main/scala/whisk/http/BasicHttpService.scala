@@ -25,19 +25,23 @@ import akka.http.scaladsl.server.RouteResult.Rejected
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives._
 import akka.stream.ActorMaterializer
+import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.common._
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 
 import scala.collection.immutable.Seq
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
+
+case class TransactionCounterConfig(header: String)
 
 /**
  * This trait extends the Akka Directives and Actor with logging and transaction counting
  * facilities common to all OpenWhisk REST services.
  */
-trait BasicHttpService extends Directives with TransactionCounter {
+trait BasicHttpService extends Directives {
 
   val OW_EXTRA_LOGGING_HEADER = "X-OW-EXTRA-LOGGING"
 
@@ -88,6 +92,11 @@ trait BasicHttpService extends Directives with TransactionCounter {
     }
   }
 
+  // Scala random should be enough here, as the generation for the tid is only a fallback. In addition the tid only has
+  // to be unique within a few minutes.
+  val random = new Random()
+  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
+
   /** Assigns transaction id to every request. */
   protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
     val extraLogging = headerValue match {
@@ -97,7 +106,11 @@ trait BasicHttpService extends Directives with TransactionCounter {
       case Some(value) => value.toLowerCase == "on"
       case None        => false
     }
-    extract(req => transid(req.request.headers.find(_.name == "OW-TID").map(_.value), extraLogging))
+    extract { req =>
+      val tid =
+        req.request.headers.find(_.name == transCounterConfig.header).map(_.value).getOrElse(random.nextString(32))
+      TransactionId(tid, extraLogging)
+    }
   }
 
   /** Generates log entry for every request. */
