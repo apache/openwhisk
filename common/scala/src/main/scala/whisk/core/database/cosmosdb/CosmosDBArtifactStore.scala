@@ -239,6 +239,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   }
 
   private def getResultToWhiskJsonDoc(doc: Document): JsObject = {
+    checkDoc(doc)
     val js = doc.toJson.parseJson.asJsObject
     toWhiskJsonDoc(js, doc.getId, Some(JsString(doc.getETag)))
   }
@@ -258,7 +259,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
-  private def toDocInfo(doc: Document) = DocInfo(DocId(doc.getId), DocRevision(doc.getETag))
+  private def toDocInfo(doc: Document) = {
+    checkDoc(doc)
+    DocInfo(DocId(unescapeId(doc.getId)), DocRevision(doc.getETag))
+  }
 
   private def createSelfLink(id: String) = s"dbs/${database.getId}/colls/${collection.getId}/docs/$id"
 
@@ -268,5 +272,10 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     condition.setCondition(etag)
     options.setAccessCondition(condition)
     options
+  }
+
+  private def checkDoc(doc: Document) = {
+    require(doc.getId != null, s"$doc does not have id field set")
+    require(doc.getETag != null, s"$doc does not have etag field set")
   }
 }
