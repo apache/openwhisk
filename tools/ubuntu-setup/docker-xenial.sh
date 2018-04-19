@@ -51,10 +51,6 @@ sudo apt-get install -y docker-ce  # Replace with lines above to lock in version
 sudo -E bash -c 'echo '\''DOCKER_OPTS="-H tcp://0.0.0.0:4243 -H unix:///var/run/docker.sock --storage-driver=aufs"'\'' >> /etc/default/docker'
 sudo gpasswd -a "$(whoami)" docker
 
-# Set DOCKER_HOST as an environment variable
-sudo -E bash -c 'echo '\''export DOCKER_HOST="tcp://0.0.0.0:4243"'\'' >> /etc/bash.bashrc'
-source /etc/bash.bashrc
-
 sudo service docker restart
 
 # do not run this command without a vagrant reload during provisioning

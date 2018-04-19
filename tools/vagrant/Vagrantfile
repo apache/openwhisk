@@ -56,6 +56,7 @@ Vagrant.configure('2') do |config|
 
       HOME=/home/vagrant
       OPENWHISK_HOME=${HOME}/openwhisk
+      OPENWHISK_CLI=${OPENWHISK_HOME}/bin/openwhisk-cli
       OPENWHISK_TMP_DIR=${HOME}/.openwhisk/ansible/tmp
       ANSIBLE_HOME=${OPENWHISK_HOME}/ansible
       ANSIBLE_REMOTE_TEMP=${ANSIBLE_HOME}/tmp
@@ -64,10 +65,10 @@ Vagrant.configure('2') do |config|
       echo ANSIBLE_HOME=${ANSIBLE_HOME} >> /etc/environment
       echo ANSIBLE_REMOTE_TEMP=${ANSIBLE_REMOTE_TEMP} >> /etc/environment
       echo OPENWHISK_HOME=${OPENWHISK_HOME} >> /etc/environment
+      echo OPENWHISK_CLI=${OPENWHISK_CLI} >> /etc/environment
       echo OPENWHISK_TMP_DIR=${OPENWHISK_TMP_DIR} >> /etc/environment
       echo PATH=${PATH}:${HOME}/bin:${OPENWHISK_HOME}/tools/build >> /etc/environment
-
-      cd /home/vagrant/openwhisk
+      cd ${OPENWHISK_HOME}
       cd tools/ubuntu-setup
       su vagrant -c 'source all.sh'
       echo "`date`: ubuntu-setup-end" >> /tmp/vagrant-times.txt
@@ -92,8 +93,8 @@ Vagrant.configure('2') do |config|
         fi
 
         cd /home/vagrant/openwhisk/ansible
-        su vagrant -c 'ansible-playbook -i environments/local setup.yml'
-        su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
+        su vagrant -c 'ansible-playbook -i environments/vagrant setup.yml'
+        su vagrant -c 'ansible-playbook -i environments/vagrant prereq.yml'
     SCRIPT
   end
 
@@ -101,9 +102,9 @@ Vagrant.configure('2') do |config|
         echo "`date`: couchdb-setup-start" >> /tmp/vagrant-times.txt
         export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
         cd /home/vagrant/openwhisk/ansible
-        su vagrant -c 'ansible-playbook -i environments/local setup.yml'
-        su vagrant -c 'ansible-playbook -i environments/local prereq.yml'
-        su vagrant -c 'ansible-playbook -i environments/local couchdb.yml'
+        su vagrant -c 'ansible-playbook -i environments/vagrant setup.yml'
+        su vagrant -c 'ansible-playbook -i environments/vagrant prereq.yml'
+        su vagrant -c 'ansible-playbook -i environments/vagrant couchdb.yml'
         echo "`date`: couchdb-setup-end" >> /tmp/vagrant-times.txt
     COUCHDB
   end
@@ -111,38 +112,49 @@ Vagrant.configure('2') do |config|
   config.vm.provision "initdb", type: "shell", keep_color: true, inline: <<-INITDB
       export ANSIBLE_REMOTE_TEMP=/home/vagrant/openwhisk/ansible/tmp
       cd /home/vagrant/openwhisk/ansible
-      su vagrant -c 'ansible-playbook -i environments/local initdb.yml'
+      su vagrant -c 'ansible-playbook -i environments/vagrant initdb.yml'
   INITDB
 
   # Build and Deploy
   config.vm.provision "script_end", type: "shell", keep_color: true, inline: <<-SCRIPT, env: {"WHISK_IP" => MACHINE_IP}
     set -e
     set -x
-    echo "`date`: build-start" >> /tmp/vagrant-times.txt
     HOME=/home/vagrant
     source /etc/environment
-    # Build OpenWhisk using gradle
-    cd ${OPENWHISK_HOME}
-    su vagrant -c './gradlew  distDocker'
 
-    echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
+    # Build OpenWhisk using gradle
+    echo "`date`: build-core-start" >> /tmp/vagrant-times.txt
+    cd ${OPENWHISK_HOME}
+    su vagrant -c './gradlew :core:controller:distDocker :core:invoker:distDocker :actionRuntimes:nodejs6Action:distDocker'
+    echo "`date`: build-core-end" >> /tmp/vagrant-times.txt
+
+    # Clone and Build CLI
+    echo "`date`: build-cli-start" >> /tmp/vagrant-times.txt
+    cd ${OPENWHISK_HOME}/bin
+    rm -rf openwhisk-cli
+    su vagrant -c 'git clone --depth=1 https://github.com/apache/incubator-openwhisk-cli.git openwhisk-cli'
+    cd openwhisk-cli
+    su vagrant -c './gradlew releaseBinaries'
+    echo "`date`: build-cli-end" >> /tmp/vagrant-times.txt
+
     # Deploy OpenWhisk using ansible
+    echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
     cd ${ANSIBLE_HOME}
-    su vagrant -c 'ansible-playbook -i environments/local wipe.yml'
-    su vagrant -c 'ansible-playbook -i environments/local apigateway.yml'
-    su vagrant -c 'ansible-playbook -i environments/local openwhisk.yml'
-    su vagrant -c 'ansible-playbook -i environments/local postdeploy.yml'
+    su vagrant -c 'ansible-playbook -i environments/vagrant wipe.yml'
+    su vagrant -c 'ansible-playbook -i environments/vagrant apigateway.yml'
+    su vagrant -c 'ansible-playbook -i environments/vagrant openwhisk.yml -e invoker_use_runc=False'
+    su vagrant -c 'ansible-playbook -i environments/vagrant postdeploy.yml'
 
     # Setup OpenWhisk CLI
     su vagrant -c 'mkdir ${HOME}/bin'
     su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/admin/wskadmin ${HOME}/bin/wskadmin'
-    su vagrant -c 'ln -s ${OPENWHISK_HOME}/tools/build/redo ${HOME}/bin/wskdev'
+    echo ${OPENWHISK_HOME}/tools/build/redo -t vagrant  '"$@"' > ${HOME}/bin/wskdev
+    chmod +x ${HOME}/bin/wskdev
     echo ${OPENWHISK_HOME}/bin/wsk -i '"$@"' > ${HOME}/bin/wsk
     chmod +x ${HOME}/bin/wsk
     chown vagrant:vagrant ${HOME}/bin/wsk
     PATH=${PATH}:${HOME}/bin
     echo 'eval "`wsk sdk install bashauto --stdout`"'>>${HOME}/.bashrc
-
     # Run OpenWhisk CLI
     touch $HOME/.wskprops
     chown -R vagrant:vagrant $HOME
@@ -156,9 +168,11 @@ Vagrant.configure('2') do |config|
   if ENV['gui'] == 'true'
     # Install ubuntu-desktop and virtualbox additions
     config.vm.provision "shell", keep_color: true, inline: "apt-get update"
+    config.vm.provision "shell", keep_color: true, inline: "apt-get install -y xfce4"
     config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-dkms"
     config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-utils"
     config.vm.provision "shell", keep_color: true, inline: "apt-get install -y virtualbox-guest-x11"
+    config.vm.provision "shell", keep_color: true, inline: "touch /etc/X11/Xwrapper.config"
     config.vm.provision "shell", keep_color: true, inline: "sed -i 's/allowed_users=.*$/allowed_users=anybody/' /etc/X11/Xwrapper.config"
     #the ; true is used to ignore errors from ubuntu-desktop, vagrant reload should be done after provisioning
     config.vm.provision "shell", keep_color: true, inline: "sudo sh -c 'apt-get install -y ubuntu-desktop ; true'"

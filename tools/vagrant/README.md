@@ -1,16 +1,16 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor 
-# license agreements.  See the NOTICE file distributed with this work for additional 
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this 
-# file except in compliance with the License.  You may obtain a copy of the License 
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
 # at:
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed 
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations under the License.
 #
@@ -21,8 +21,8 @@
 The following instructions were tested on Mac OS X El Capitan, Ubuntu 16.04 LTS.
 
 ## Requirements
--   Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.2.6)
--   Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 2.02)
+-   Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) (tested with version 5.2.8)
+-   Install [Vagrant](https://www.vagrantup.com/downloads.html) (tested with version 2.0.3)
 
 ## Setup
 
@@ -88,7 +88,7 @@ follow the manual process to build and deploy in
 **Tip:**
 By default, each `docker` command will timeout after 840 seconds (14 minutes).
 If you're on a really slow connection, this might be too short. You can modify
-the timeout value in [docker.gradle](../../../gradle/docker.gradle#L22) as
+the timeout value in [docker.gradle](../../gradle/docker.gradle#L22).
 
 
 ### Using CLI from outside the VM
@@ -98,8 +98,10 @@ machine. The IP address of the virtual machine accessible from outside is
 address will conflict, use `vagrant suspend` before starting another VM with the
 same IP address.
 
-The CLI is available in `../../bin`. There you will find binaries specific to
-various operating systems and architectures (e.g. `../../bin/mac/amd64/wsk`).
+The CLI is available in `../../bin`.
+The CLI `../../bin/wsk` is for Linux amd64.
+The CLI for other operating systems and architectures can be found under `../../bin/openwhisk-cli/build/`
+
 When using the CLI with a local deployment of OpenWhisk (which provides an
 insecure/self-signed SSL certificate), you must use the argument `-i` to permit
 an insecure HTTPS connection to OpenWhisk. This should be used for development
@@ -137,7 +139,7 @@ sdk` will not work, so you need to pass use `wsk -i --apihost 192.168.33.16  sdk
 
 
 **Note:**
-To connect to a different host API (i.e. bluemix.net) with the CLI, you will
+To connect to a different host API (i.e. openwhisk.example.com) with the CLI, you will
 need to configure the CLI with new values for _apihost_, and _auth_ key.
 
 ### Use the wsk CLI inside the VM
@@ -155,6 +157,14 @@ Calling the wsk CLI by login into the Vagrant VM
 vagrant ssh
 wsk action invoke /whisk.system/utils/echo -p message hello --result
 ```
+
+## Other Runntimes
+The default vagrant deploy only deploys nodejs:6 runtime kind, because the image runs out of space if all runtimes are built.
+To add a runtime, you need to build the runtime image for example
+```
+wskdev python3action
+```
+To get a list of other available runtimes use `wskdev -c`
 
 ## Running OpenWhisk tests
 ```
@@ -176,46 +186,49 @@ cd ${OPENWHISK_HOME}
 ./gradlew distDocker
 ```
 
-## Safe Re-deploy (after VM restart)
-
-If you restart the VM (e.g., `vagrant reload`), it may be necessary to refresh
-the OpenWhisk deployment. You can do this in a way that does not reload the data
-store container.
-
+## Using docker-runc
+Only for experimental use:
+To use docker-runc in the invoker, the version of docker-runc needs to match the version of docker engine on the host.
+Get the version of the docker engine on the host like the following:
 ```
-vagrant ssh
-cd ${ANSIBLE_HOME}
-# teardown all containers expect couchdb container
-ansible-playbook -i environments/local openwhisk.yml -e mode=clean
-# deploy openwhisk containers
-ansible-playbook -i environments/local openwhisk.yml
+$ docker version | grep Version
+Version:	18.03.0-ce
+```
+You need to use the same version for docker-runc in the Invoker, to use a newer version of docker-runc in the invoker, update the invoker Dockerfile.
+1. compare the docker-runc version obtained on the local system against the docker-runc configured for the invoker
+2. if the versions are different, only then do you need to update the invoker dockerfile to point to the matching docker download
+
+Edit the [core/invoker/Dockefile](../../core/invoker/Dockefile)
+Update the variable with the version
+```
+ENV DOCKER_VERSION 18.03.0-ce
+```
+Then update line with the curl download command like
+```
+RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz && \
+```
+Notice that the hostname where to download the cli is different for newer versions.
+
+Then update the ansible configuration to enable the use of runc, edit [](../../ansible/environments/vagrant/group_vars/all)
+```
+invoker_use_runc: true
 ```
 
+Then rebuild and redeploy the invoker component
+```
+wskdev invoker
+```
+
+### Teardown and Deploy
 The following commands are helpful to deploy a fresh OpenWhisk and data store
-after booting a new VM using `vagrant up`.
-
-### Teardown and Deploy (refresh the data store)
-Use ansible to re-deploy OpenWhisk from inside the VM
-To deploy a new code base you need to [re-build OpenWhisk](#build-openwhisk)
-first
-
 ```
 vagrant ssh
 cd ${ANSIBLE_HOME}
-# teardown all deployed containers
-ansible-playbook -i environments/local teardown.yml
-# deploy couchdb container
-ansible-playbook -i environments/local couchdb.yml
-# initialize db with guest/system keys
-ansible-playbook -i environments/local initdb.yml
-# recreate main db for entities
-ansible-playbook -i environments/local wipe.yml
+# teardown all containers
+wskdev teardown
 # deploy openwhisk containers
-ansible-playbook -i environments/local openwhisk.yml
-# install catalog
-ansible-playbook -i environments/local postdeploy.yml
+wskdev fresh
 ```
-
 **Tip**
 Do not restart the VM using Virtual Box tools, and always use `vagrant` from the
 command line: `vagrant up` to start the VM and `vagrant reload` to restart it.
@@ -245,29 +258,7 @@ create a new key.
 vagrant ssh
 wskadmin user create <subject>
 ```
-
-This command will create a new _subject_ with the authorization key shown on the
-console once you run `wskadmin`. This key is required when making API calls to
-OpenWhisk, or when using the command line interface (CLI). The namespace is the
-same as the `<subject>` name used to create the key.
-
-A namespace allows two or more subjects to share resources. Each subject will
-have their own authorization key to work with resources in a namespace, but will
-have equal rights to the namespace.
-
-```
-vagrant ssh
-wskadmin user create <subject> -ns <namespace>
-```
-
-The same tool may be used to remove a subject from a namespace or to delete a
-subject entirely.
-
-```
-vagrant ssh
-wskadmin user delete <subject> -ns <namespace>  # removes <subject> from <namespace>
-wskadmin user delete <subject>                   # deletes <subject>
-```
+For more information on `wskadmin` check the [documentation](../admin).
 
 ## SSL certificate configuration (Optional)
 
