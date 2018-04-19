@@ -22,20 +22,15 @@ import java.time.{Clock, Instant}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.core.controller.WhiskActivationsApi
-import whisk.core.database.ArtifactStoreProvider
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.size._
 import whisk.http.{ErrorResponse, Messages}
-import whisk.spi.SpiLoader
-
-import scala.reflect.classTag
 
 /**
  * Tests Activations API.
@@ -553,16 +548,6 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
   }
 
   it should "report proper error when record is corrupted on get" in {
-    implicit val materializer = ActorMaterializer()
-    val activationStore = SpiLoader
-      .get[ArtifactStoreProvider]
-      .makeStore[WhiskActivation]()(
-        classTag[WhiskActivation],
-        WhiskActivation.serdes,
-        WhiskDocumentReader,
-        system,
-        logging,
-        materializer)
     implicit val tid = transid()
 
     //A bad activation type which breaks the deserialization by removing the subject entry
