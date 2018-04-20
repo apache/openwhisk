@@ -96,10 +96,8 @@ jmx:
   jvmCommonArgs: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.authenticate=true -Dcom.sun.management.jmxremote.password.file=/root/jmxremote.password -Dcom.sun.management.jmxremote.access.file=/root/jmxremote.access"
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
-transaction:
-  header: "{{ transaction_header | default('X-Request-ID') }}"
-  # The tid can be any String between 1 and 64 characters.
-  regex: "{{ whisk_tid_regex | default('[a-zA-Z0-9_]{1,64}') }}"
+transactions:
+  header: "{{ transactions_header | default('X-Request-ID') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
