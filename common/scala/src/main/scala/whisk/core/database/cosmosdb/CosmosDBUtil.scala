@@ -24,7 +24,7 @@ import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_
 object CosmosDBConstants {
   val _computed: String = "_c"
 
-  val queryResultAlias: String = "view"
+  val alias: String = "view"
 
   val cid: String = ID
 
@@ -51,7 +51,7 @@ object CosmosDBUtil {
     }
     val withId = addToMap(cid, m)
     val json = asJsonLikeString(withId)
-    s"$json AS $queryResultAlias"
+    s"$json AS $alias"
   }
 
   private def addToMap(name: String, map: Map[String, _]): Map[String, Any] = name.split('.').toList match {

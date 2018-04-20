@@ -273,7 +273,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   private def queryResultToWhiskJsonDoc(doc: Document): JsObject = {
     val docJson = doc.toJson.parseJson.asJsObject
     //If includeDocs is true then document json is to be used
-    val js = if (doc.has(queryResultAlias)) docJson.fields(queryResultAlias).asJsObject else docJson
+    val js = if (doc.has(alias)) docJson.fields(alias).asJsObject else docJson
     val id = js.fields(cid).convertTo[String]
     toWhiskJsonDoc(js, id, None)
   }

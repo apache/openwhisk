@@ -20,7 +20,7 @@ package whisk.core.database.cosmosdb
 import com.microsoft.azure.cosmosdb.{SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import whisk.core.database._
 import whisk.core.database.cosmosdb.CosmosDBConstants._computed
-import whisk.core.database.cosmosdb.CosmosDBConstants.queryResultAlias
+import whisk.core.database.cosmosdb.CosmosDBConstants.alias
 import whisk.core.entity.WhiskEntityQueries.TOP
 
 trait CosmosDBViewMapper {
@@ -244,14 +244,12 @@ object SubjectViewMapper extends CosmosDBViewMapper {
           ("@uuid", uuid) :: ("@key", key) :: Nil)
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
-    prepareSpec(
-      s"SELECT ${selectClause(count)} AS $queryResultAlias FROM root r JOIN n in r.namespaces WHERE $where",
-      params)
+    prepareSpec(s"SELECT ${selectClause(count)} AS $alias FROM root r JOIN n in r.namespaces WHERE $where", params)
   }
 
   private def queryForBlacklistedNamespace(count: Boolean): SqlQuerySpec =
     prepareSpec(
-      s"""SELECT ${selectClause(count)} AS $queryResultAlias
+      s"""SELECT ${selectClause(count)} AS $alias
                   FROM   root r
                   WHERE  r.blocked = true
                           OR r.concurrentInvocations = 0
