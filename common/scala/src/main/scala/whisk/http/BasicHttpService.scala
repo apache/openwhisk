@@ -74,13 +74,15 @@ trait BasicHttpService extends Directives {
    */
   def route: Route = {
     assignId { implicit transid =>
-      DebuggingDirectives.logRequest(logRequestInfo _) {
-        DebuggingDirectives.logRequestResult(logResponseInfo _) {
-          BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
-            handleRejections(BasicHttpService.customRejectionHandler) {
-              prioritizeRejections {
-                toStrictEntity(30.seconds) {
-                  routes
+      respondWithHeader(transid.toHeader) {
+        DebuggingDirectives.logRequest(logRequestInfo _) {
+          DebuggingDirectives.logRequestResult(logResponseInfo _) {
+            BasicDirectives.mapRequest(_.removeHeader(OW_EXTRA_LOGGING_HEADER)) {
+              handleRejections(BasicHttpService.customRejectionHandler) {
+                prioritizeRejections {
+                  toStrictEntity(30.seconds) {
+                    routes
+                  }
                 }
               }
             }
@@ -92,7 +94,7 @@ trait BasicHttpService extends Directives {
 
   // Scala random should be enough here, as the generation for the tid is only a fallback. In addition the tid only has
   // to be unique within a few minutes.
-  val dict = (('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9'))
+  private val dict = ('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9')
 
   /** Assigns transaction id to every request. */
   protected def assignId = HeaderDirectives.optionalHeaderValueByName(OW_EXTRA_LOGGING_HEADER) flatMap { headerValue =>
@@ -108,6 +110,7 @@ trait BasicHttpService extends Directives {
         req.request.headers
           .find(_.name == TransactionId.generatorConfig.header)
           .map(_.value)
+          .filterNot(_.startsWith(TransactionId.systemPrefix))
           .getOrElse {
             (0 until 32).map(_ => dict(ThreadLocalRandom.current().nextInt(dict.size))).mkString("")
           }

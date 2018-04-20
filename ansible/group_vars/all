@@ -99,7 +99,7 @@ jmx:
 transaction:
   header: "{{ transaction_header | default('X-Request-ID') }}"
   # The tid can be any String between 1 and 64 characters.
-  regex: "{{ whisk_tid_regex | default('[a-zA-Z0-9_-]{1,64}') }}"
+  regex: "{{ whisk_tid_regex | default('[a-zA-Z0-9_]{1,64}') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"

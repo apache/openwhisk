@@ -18,6 +18,7 @@
 package whisk.core.database.test
 
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -50,7 +51,8 @@ trait DbUtils {
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
   case class RetryOp() extends Throwable
 
-  def transid() = TransactionId.testing
+  val cnt = new AtomicInteger(0)
+  def transid() = TransactionId(cnt.incrementAndGet().toString)
 
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.

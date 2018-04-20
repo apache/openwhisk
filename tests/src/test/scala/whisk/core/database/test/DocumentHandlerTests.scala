@@ -17,6 +17,8 @@
 
 package whisk.core.database.test
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import common.WskActorSystem
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
@@ -35,7 +37,8 @@ import scala.concurrent.Future
 @RunWith(classOf[JUnitRunner])
 class DocumentHandlerTests extends FlatSpec with Matchers with ScalaFutures with OptionValues with WskActorSystem {
 
-  def transid() = TransactionId.testing
+  val cnt = new AtomicInteger(0)
+  def transid() = TransactionId(cnt.incrementAndGet().toString)
 
   behavior of "WhisksHandler computeFields"
 

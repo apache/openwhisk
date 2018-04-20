@@ -15,6 +15,8 @@ http {
     map $http_{{ transaction.header | lower | replace('-', '_') }} $ow_tid {
         # request_id: unique request identifier generated from 16 random bytes, in hexadecimal
         default $request_id;
+        # Prevent that a user sets a sid as his tid.
+        "~^sid_.*$" $request_id;
         # If the caller has already set a tid into the header in the correct format, this one will be taken.
         "~^(?<tid>{{ transaction.regex }})$" $tid;
     }

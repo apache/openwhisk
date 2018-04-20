@@ -198,16 +198,18 @@ object TransactionId {
 
   val generatorConfig = loadConfigOrThrow[TransactionGeneratorConfig](ConfigKeys.transactions)
 
-  val unknown = TransactionId("sid_unknown")
-  val testing = TransactionId("sid_testing") // Common id for for unit testing
-  val invoker = TransactionId("sid_invoker") // Invoker startup/shutdown or GC activity
-  val invokerWarmup = TransactionId("sid_invokerWarmup") // Invoker warmup thread that makes stem-cell containers
-  val invokerNanny = TransactionId("sid_invokerNanny") // Invoker nanny thread
-  val dispatcher = TransactionId("sid_dispatcher") // Kafka message dispatcher
-  val loadbalancer = TransactionId("sid_loadbalancer") // Loadbalancer thread
-  val invokerHealth = TransactionId("sid_invokerHealth") // Invoker supervision
-  val controller = TransactionId("sid_controller") // Controller startup
-  val dbBatcher = TransactionId("sid_dbBatcher") // Database batcher
+  val systemPrefix = "sid_"
+
+  val unknown = TransactionId(systemPrefix + "unknown")
+  val testing = TransactionId(systemPrefix + "testing") // Common id for for unit testing
+  val invoker = TransactionId(systemPrefix + "invoker") // Invoker startup/shutdown or GC activity
+  val invokerWarmup = TransactionId(systemPrefix + "invokerWarmup") // Invoker warmup thread that makes stem-cell containers
+  val invokerNanny = TransactionId(systemPrefix + "invokerNanny") // Invoker nanny thread
+  val dispatcher = TransactionId(systemPrefix + "dispatcher") // Kafka message dispatcher
+  val loadbalancer = TransactionId(systemPrefix + "loadbalancer") // Loadbalancer thread
+  val invokerHealth = TransactionId(systemPrefix + "invokerHealth") // Invoker supervision
+  val controller = TransactionId(systemPrefix + "controller") // Controller startup
+  val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
 
   def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
     val now = Instant.now(Clock.systemUTC())
