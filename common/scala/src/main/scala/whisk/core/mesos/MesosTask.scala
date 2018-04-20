@@ -24,6 +24,8 @@ import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import akka.util.Timeout
 import com.adobe.api.platform.runtime.mesos.Bridge
+import com.adobe.api.platform.runtime.mesos.CommandDef
+import com.adobe.api.platform.runtime.mesos.Constraint
 import com.adobe.api.platform.runtime.mesos.DeleteTask
 import com.adobe.api.platform.runtime.mesos.Host
 import com.adobe.api.platform.runtime.mesos.Running
@@ -74,9 +76,10 @@ object MesosTask {
              network: String = "bridge",
              dnsServers: Seq[String] = Seq(),
              name: Option[String] = None,
-             parameters: Map[String, Set[String]] = Map())(implicit ec: ExecutionContext,
-                                                           log: Logging,
-                                                           as: ActorSystem): Future[Container] = {
+             parameters: Map[String, Set[String]] = Map(),
+             constraints: Seq[Constraint] = Seq.empty)(implicit ec: ExecutionContext,
+                                                       log: Logging,
+                                                       as: ActorSystem): Future[Container] = {
     implicit val tid = transid
 
     log.info(this, s"creating task for image $image...")
@@ -104,7 +107,8 @@ object MesosTask {
       false,
       taskNetwork,
       dnsOrEmpty ++ parameters,
-      environment)
+      Some(CommandDef(environment)),
+      constraints.toSet)
 
     val launched: Future[Running] =
       mesosClientActor.ask(SubmitTask(task))(taskLaunchTimeout).mapTo[Running]
