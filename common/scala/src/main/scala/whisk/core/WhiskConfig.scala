@@ -217,6 +217,7 @@ object ConfigKeys {
 
   val memory = "whisk.memory"
   val timeLimit = "whisk.time-limit"
+  val logLimit = "whisk.log-limit"
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
 
