@@ -23,12 +23,9 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import spray.json.JsNumber
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
+import spray.json._
 import whisk.core.ConfigKeys
-import whisk.core.entity.size.SizeInt
+import whisk.core.entity.size._
 
 case class LogLimitConfig(min: ByteSize, max: ByteSize, std: ByteSize)
 

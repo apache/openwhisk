@@ -94,13 +94,13 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     }
 
     val toLogsString = logs match {
-      case None                                  => "None"
-      case Some(LogLimit.MIN_LOGSIZE)            => s"${LogLimit.MIN_LOGSIZE} (= min)"
-      case Some(LogLimit.STD_LOGSIZE)            => s"${LogLimit.STD_LOGSIZE} (= std)"
-      case Some(LogLimit.MAX_LOGSIZE)            => s"${LogLimit.MAX_LOGSIZE} (= max)"
-      case Some(l) if (l < LogLimit.MIN_LOGSIZE) => s"${l} (< min)"
-      case Some(l) if (l > LogLimit.MAX_LOGSIZE) => s"${l} (> max)"
-      case Some(l)                               => s"${l} (allowed)"
+      case None                                 => "None"
+      case Some(LogLimit.minLogSize)            => s"${LogLimit.minLogSize} (= min)"
+      case Some(LogLimit.stdLogSize)            => s"${LogLimit.stdLogSize} (= std)"
+      case Some(LogLimit.maxLogSize)            => s"${LogLimit.maxLogSize} (= max)"
+      case Some(l) if (l < LogLimit.minLogSize) => s"${l} (< min)"
+      case Some(l) if (l > LogLimit.maxLogSize) => s"${l} (> max)"
+      case Some(l)                              => s"${l} (allowed)"
     }
 
     val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
@@ -110,7 +110,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
     for {
       time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
       mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
-      log <- Seq(None, Some(LogLimit.MIN_LOGSIZE), Some(LogLimit.MAX_LOGSIZE))
+      log <- Seq(None, Some(LogLimit.minLogSize), Some(LogLimit.maxLogSize))
     } yield PermutationTestParameter(time, mem, log)
   } ++
     // Add variations for negative tests
@@ -121,7 +121,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
       PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
       PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
-      PermutationTestParameter(None, None, Some((LogLimit.MAX_LOGSIZE.toMB * 5).MB), BAD_REQUEST)) // log size limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some((LogLimit.maxLogSize.toMB * 5).MB), BAD_REQUEST)) // log size limit that is much higher than allowed
 
   /**
    * Integration test to verify that valid timeout, memory and log size limits are accepted
@@ -141,7 +141,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
       val limits = JsObject(
         "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
         "memory" -> parm.memory.getOrElse(MemoryLimit.stdMemory).toMB.toInt.toJson,
-        "logs" -> parm.logs.getOrElse(LogLimit.STD_LOGSIZE).toMB.toInt.toJson)
+        "logs" -> parm.logs.getOrElse(LogLimit.stdLogSize).toMB.toInt.toJson)
 
       val name = "ActionLimitTests-" + Instant.now.toEpochMilli
       val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
