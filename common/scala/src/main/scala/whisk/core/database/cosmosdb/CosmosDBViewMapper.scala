@@ -20,6 +20,7 @@ package whisk.core.database.cosmosdb
 import com.microsoft.azure.cosmosdb.{SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import whisk.core.database._
 import whisk.core.database.cosmosdb.CosmosDBConstants._computed
+import whisk.core.database.cosmosdb.CosmosDBConstants.queryResultAlias
 import whisk.core.entity.WhiskEntityQueries.TOP
 
 trait CosmosDBViewMapper {
@@ -43,7 +44,7 @@ trait CosmosDBViewMapper {
 
     val query = s"SELECT $selectClause FROM root r WHERE ${whereClause._1} ORDER BY $orderField $order"
 
-    prepareSpec(whereClause._2, query)
+    prepareSpec(query, whereClause._2)
   }
 
   def prepareCountQuery(ddoc: String, viewName: String, startKey: List[Any], endKey: List[Any]): SqlQuerySpec = {
@@ -52,7 +53,7 @@ trait CosmosDBViewMapper {
     val whereClause = where(ddoc, viewName, startKey, endKey)
     val query = s"SELECT TOP 1 VALUE COUNT(r) FROM root r WHERE ${whereClause._1}"
 
-    prepareSpec(whereClause._2, query)
+    prepareSpec(query, whereClause._2)
   }
 
   protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
@@ -61,7 +62,7 @@ trait CosmosDBViewMapper {
     require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
   }
 
-  private def prepareSpec(params: List[(String, Any)], query: String) = {
+  protected def prepareSpec(query: String, params: List[(String, Any)]) = {
     val paramColl = new SqlParameterCollection
     params.foreach { case (k, v) => paramColl.add(new SqlParameter(k, v)) }
 
@@ -187,4 +188,49 @@ object ActivationViewMapper extends CosmosDBViewMapper {
 }
 object SubjectViewMapper extends CosmosDBViewMapper {
   val handler = SubjectHandler
+
+  override def prepareQuery(ddoc: String,
+                            view: String,
+                            startKey: List[Any],
+                            endKey: List[Any],
+                            limit: Int,
+                            includeDocs: Boolean,
+                            descending: Boolean): SqlQuerySpec = {
+    require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
+    (ddoc, view) match {
+      case ("subjects", "identities") =>
+        queryForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey)
+      case ("namespaceThrottlings", "blockedNamespaces") =>
+        queryForBlacklistedNamespace()
+      case _ =>
+        throw UnsupportedView(s"$ddoc/$view")
+    }
+  }
+
+  private def queryForMatchingSubjectOrNamespace(ddoc: String,
+                                                 view: String,
+                                                 startKey: List[Any],
+                                                 endKey: List[Any]): SqlQuerySpec = {
+    val notBlocked = "(NOT(IS_DEFINED(r.blocked)) OR r.blocked = false)"
+
+    val (where, params) = startKey match {
+      case (ns: String) :: Nil =>
+        (s"$notBlocked AND (r.subject = @name OR n.name = @name)", ("@name", ns) :: Nil)
+      case (uuid: String) :: (key: String) :: Nil =>
+        (
+          s"$notBlocked AND ((r.uuid = @uuid AND r.key = @key) OR (n.uuid = @uuid AND n.key = @key))",
+          ("@uuid", uuid) :: ("@key", key) :: Nil)
+      case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
+    }
+    prepareSpec(s"SELECT r AS $queryResultAlias FROM root r JOIN n in r.namespaces WHERE $where", params)
+  }
+
+  private def queryForBlacklistedNamespace(): SqlQuerySpec =
+    prepareSpec(
+      s"""SELECT r AS $queryResultAlias
+                  FROM   root r
+                  WHERE  r.blocked = true
+                          OR r.concurrentInvocations = 0
+                          OR r.invocationsPerMinute = 0 """,
+      Nil)
 }

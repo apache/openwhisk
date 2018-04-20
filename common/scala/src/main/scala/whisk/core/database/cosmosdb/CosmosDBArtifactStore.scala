@@ -146,8 +146,29 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     reportFailure(
       f,
       start,
-      failure => s"[DEL] '$collName' internal error, doc: '$doc', failure: '${failure.getMessage}'")
+      failure => s"[GET] '$collName' internal error, doc: '$doc', failure: '${failure.getMessage}'")
 
+  }
+
+  override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = {
+    val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET_BY_ID] '$collName' finding document: '$id'")
+
+    val f = client
+      .readDocument(selfLinkOf(id), null)
+      .head()
+      .map { rr =>
+        val js = getResultToWhiskJsonDoc(rr.getResource)
+        transid.finished(this, start, s"[GET_BY_ID] '$collName' completed: found document '$id'")
+        Some(js)
+      }
+      .recoverWith {
+        case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue => Future.successful(None)
+      }
+
+    reportFailure(
+      f,
+      start,
+      failure => s"[GET_BY_ID] '$collName' internal error, doc: '$id', failure: '${failure.getMessage}'")
   }
 
   override protected[core] def query(table: String,
@@ -233,8 +254,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     ???
 
   override def shutdown(): Unit = clientRef.close()
-
-  override protected[database] def get(id: DocId)(implicit transid: TransactionId): Future[Option[JsObject]] = ???
 
   private def toCosmosDoc(json: JsObject): Document = {
     val computed = documentHandler.computedFields(json)
