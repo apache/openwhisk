@@ -71,6 +71,14 @@ trait ArtifactStoreBehaviorBase
     assertAttachmentStoresAreClosed()
   }
 
+  override protected def withFixture(test: NoArgTest) = {
+    val outcome = super.withFixture(test)
+    if (outcome.isFailed) {
+      println(logLines.mkString("\n"))
+    }
+    outcome
+  }
+
   //~----------------------------------------< utility methods >
 
   protected def query[A <: WhiskEntity](
