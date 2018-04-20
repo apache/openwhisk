@@ -34,6 +34,32 @@ trait CosmosDBViewMapper {
                    endKey: List[Any],
                    limit: Int,
                    includeDocs: Boolean,
+                   descending: Boolean): SqlQuerySpec
+
+  def prepareCountQuery(ddoc: String, viewName: String, startKey: List[Any], endKey: List[Any]): SqlQuerySpec
+
+  protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
+    require(startKey.nonEmpty)
+    require(endKey.nonEmpty)
+    require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
+  }
+
+  protected def prepareSpec(query: String, params: List[(String, Any)]): SqlQuerySpec = {
+    val paramColl = new SqlParameterCollection
+    params.foreach { case (k, v) => paramColl.add(new SqlParameter(k, v)) }
+
+    new SqlQuerySpec(query, paramColl)
+  }
+}
+
+abstract class SimpleMapper extends CosmosDBViewMapper {
+
+  def prepareQuery(ddoc: String,
+                   viewName: String,
+                   startKey: List[Any],
+                   endKey: List[Any],
+                   limit: Int,
+                   includeDocs: Boolean,
                    descending: Boolean): SqlQuerySpec = {
     checkKeys(startKey, endKey)
 
@@ -56,19 +82,6 @@ trait CosmosDBViewMapper {
     prepareSpec(query, whereClause._2)
   }
 
-  protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
-    require(startKey.nonEmpty)
-    require(endKey.nonEmpty)
-    require(startKey.head == endKey.head, s"First key should be same => ($startKey) - ($endKey)")
-  }
-
-  protected def prepareSpec(query: String, params: List[(String, Any)]) = {
-    val paramColl = new SqlParameterCollection
-    params.foreach { case (k, v) => paramColl.add(new SqlParameter(k, v)) }
-
-    new SqlQuerySpec(query, paramColl)
-  }
-
   private def select(ddoc: String, viewName: String, limit: Int, includeDocs: Boolean): String = {
     val fieldClause = if (includeDocs) ALL_FIELDS else prepareFieldClause(ddoc, viewName)
     s"${top(limit)} $fieldClause"
@@ -84,13 +97,12 @@ trait CosmosDBViewMapper {
   protected def where(ddoc: String,
                       viewName: String,
                       startKey: List[Any],
-                      endKey: List[Any]): (String, List[(String, Any)]) = ???
+                      endKey: List[Any]): (String, List[(String, Any)])
 
-  protected def orderByField(ddoc: String, viewName: String): String = ???
-
+  protected def orderByField(ddoc: String, viewName: String): String
 }
 
-object WhisksViewMapper extends CosmosDBViewMapper {
+object WhisksViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
   private val ROOT_NS = s"r.${_computed}.${WhisksHandler.ROOT_NS}"
   private val TYPE = "r.entityType"
@@ -142,7 +154,7 @@ object WhisksViewMapper extends CosmosDBViewMapper {
   }
 
 }
-object ActivationViewMapper extends CosmosDBViewMapper {
+object ActivationViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
   private val NS_WITH_PATH = s"r.${_computed}.${ActivationHandler.NS_PATH}"
   private val START = "r.start"
@@ -195,13 +207,23 @@ object SubjectViewMapper extends CosmosDBViewMapper {
                             endKey: List[Any],
                             limit: Int,
                             includeDocs: Boolean,
-                            descending: Boolean): SqlQuerySpec = {
+                            descending: Boolean): SqlQuerySpec =
+    prepareQuery(ddoc, view, startKey, endKey, count = false)
+
+  override def prepareCountQuery(ddoc: String, view: String, startKey: List[Any], endKey: List[Any]): SqlQuerySpec =
+    prepareQuery(ddoc, view, startKey, endKey, count = true)
+
+  private def prepareQuery(ddoc: String,
+                           view: String,
+                           startKey: List[Any],
+                           endKey: List[Any],
+                           count: Boolean): SqlQuerySpec = {
     require(startKey == endKey, s"startKey: $startKey and endKey: $endKey must be same for $ddoc/$view")
     (ddoc, view) match {
       case ("subjects", "identities") =>
-        queryForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey)
+        queryForMatchingSubjectOrNamespace(ddoc, view, startKey, endKey, count)
       case ("namespaceThrottlings", "blockedNamespaces") =>
-        queryForBlacklistedNamespace()
+        queryForBlacklistedNamespace(count)
       case _ =>
         throw UnsupportedView(s"$ddoc/$view")
     }
@@ -210,9 +232,9 @@ object SubjectViewMapper extends CosmosDBViewMapper {
   private def queryForMatchingSubjectOrNamespace(ddoc: String,
                                                  view: String,
                                                  startKey: List[Any],
-                                                 endKey: List[Any]): SqlQuerySpec = {
+                                                 endKey: List[Any],
+                                                 count: Boolean): SqlQuerySpec = {
     val notBlocked = "(NOT(IS_DEFINED(r.blocked)) OR r.blocked = false)"
-
     val (where, params) = startKey match {
       case (ns: String) :: Nil =>
         (s"$notBlocked AND (r.subject = @name OR n.name = @name)", ("@name", ns) :: Nil)
@@ -222,15 +244,19 @@ object SubjectViewMapper extends CosmosDBViewMapper {
           ("@uuid", uuid) :: ("@key", key) :: Nil)
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
-    prepareSpec(s"SELECT r AS $queryResultAlias FROM root r JOIN n in r.namespaces WHERE $where", params)
+    prepareSpec(
+      s"SELECT ${selectClause(count)} AS $queryResultAlias FROM root r JOIN n in r.namespaces WHERE $where",
+      params)
   }
 
-  private def queryForBlacklistedNamespace(): SqlQuerySpec =
+  private def queryForBlacklistedNamespace(count: Boolean): SqlQuerySpec =
     prepareSpec(
-      s"""SELECT r AS $queryResultAlias
+      s"""SELECT ${selectClause(count)} AS $queryResultAlias
                   FROM   root r
                   WHERE  r.blocked = true
                           OR r.concurrentInvocations = 0
                           OR r.invocationsPerMinute = 0 """,
       Nil)
+
+  private def selectClause(count: Boolean) = if (count) "TOP 1 VALUE COUNT(r)" else "r"
 }
