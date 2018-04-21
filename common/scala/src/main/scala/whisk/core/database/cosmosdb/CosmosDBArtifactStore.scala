@@ -232,7 +232,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val f = client
       .queryDocuments(collection.getSelfLink, querySpec, options)
       .head()
-      .map(_.getResults.asScala.head.getLong(aggregate).longValue())
+      .map(_.getResults.asScala.head.getLong(aggregate).longValue() - skip)
 
     f.onSuccess({
       case out => transid.finished(this, start, s"[COUNT] '$collName' completed: count $out")
