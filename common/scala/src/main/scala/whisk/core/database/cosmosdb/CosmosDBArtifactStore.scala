@@ -17,21 +17,22 @@
 
 package whisk.core.database.cosmosdb
 
+import java.io.ByteArrayInputStream
+
 import _root_.rx.RxReactiveStreams
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, StatusCodes}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Sink, Source}
-import akka.util.ByteString
+import akka.stream.scaladsl.{Sink, Source, StreamConverters}
+import akka.util.{ByteString, ByteStringBuilder}
 import com.microsoft.azure.cosmosdb._
-
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat, _}
 import whisk.common.{Logging, LoggingMarkers, TransactionId}
 import whisk.core.database.StoreUtils.{checkDocHasRevision, deserialize, reportFailure}
 import whisk.core.database._
-import whisk.core.database.cosmosdb.CosmosDBConstants._
 import whisk.core.database.cosmosdb.CosmosDBArtifactStoreProvider.DocumentClientRef
+import whisk.core.database.cosmosdb.CosmosDBConstants._
 import whisk.core.entity._
 import whisk.http.Messages
 
@@ -79,21 +80,15 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val f = o
       .head()
       .transform(
-        r => toDocInfo(r.getResource), {
-          case e: DocumentClientException
-              if e.getStatusCode == StatusCodes.Conflict.intValue || e.getStatusCode == StatusCodes.PreconditionFailed.intValue =>
+        { r =>
+          transid.finished(this, start, s"[PUT] '$collName' completed document: '$docinfoStr'")
+          toDocInfo(r.getResource)
+        }, {
+          case e: DocumentClientException if isConflict(e) =>
+            transid.finished(this, start, s"[PUT] '$collName', document: '$docinfoStr'; conflict.")
             DocumentConflictException("conflict on 'put'")
           case e => e
         })
-
-    f.onFailure({
-      case _: DocumentConflictException =>
-        transid.finished(this, start, s"[PUT] '$collName', document: '$docinfoStr'; conflict.")
-    })
-
-    f.onSuccess({
-      case _ => transid.finished(this, start, s"[PUT] '$collName' completed document: '$docinfoStr'")
-    })
 
     reportFailure(f, start, failure => s"[PUT] '$collName' internal error, failure: '${failure.getMessage}'")
   }
@@ -105,10 +100,15 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc.rev.rev))
       .head()
       .transform(
-        _ => true, {
-          case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue =>
+        { _ =>
+          transid.finished(this, start, s"[DEL] '$collName' completed document: '$doc'")
+          true
+        }, {
+          case e: DocumentClientException if isNotFound(e) =>
+            transid.finished(this, start, s"[DEL] '$collName', document: '${doc}'; not found.")
             NoDocumentException("not found on 'delete'")
-          case e: DocumentClientException if e.getStatusCode == StatusCodes.PreconditionFailed.intValue =>
+          case e: DocumentClientException if isConflict(e) =>
+            transid.finished(this, start, s"[DEL] '$collName', document: '${doc}'; conflict.")
             DocumentConflictException("conflict on 'delete'")
           case e => e
         })
@@ -133,7 +133,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
           transid.finished(this, start, s"[GET] '$collName' completed: found document '$doc'")
           deserialize[A, DocumentAbstraction](doc, js)
         }, {
-          case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue =>
+          case e: DocumentClientException if isNotFound(e) =>
             transid.finished(this, start, s"[GET] '$collName', document: '$doc'; not found.")
             // for compatibility
             throw NoDocumentException("not found on 'get'")
@@ -162,7 +162,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
         Some(js)
       }
       .recoverWith {
-        case e: DocumentClientException if e.getStatusCode == StatusCodes.NotFound.intValue => Future.successful(None)
+        case e: DocumentClientException if isNotFound(e) => Future.successful(None)
       }
 
     reportFailure(
@@ -245,15 +245,101 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     doc: DocInfo,
     name: String,
     contentType: ContentType,
-    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = ???
+    docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
+    val start = transid.started(
+      this,
+      LoggingMarkers.DATABASE_ATT_SAVE,
+      s"[ATT_PUT] '$collName' uploading attachment '$name' of document '$doc'")
+
+    checkDocHasRevision(doc)
+    val options = new MediaOptions
+    options.setContentType(contentType.toString())
+    options.setSlug(name)
+
+    //TODO Temporary implementation till AttachmentStore PR is merged
+    val f = docStream
+      .runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
+      .map(_.result().toArray)
+      .map(new ByteArrayInputStream(_))
+      .flatMap(s => client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc.rev.rev)).head())
+      .transform(
+        { _ =>
+          transid
+            .finished(this, start, s"[ATT_PUT] '$collName' completed uploading attachment '$name' of document '$doc'")
+          doc //Adding attachment does not change the revision of document. So retain the doc info
+        }, {
+          case e: DocumentClientException if isConflict(e) =>
+            transid
+              .finished(this, start, s"[ATT_PUT] '$collName' uploading attachment '$name' of document '$doc'; conflict")
+            DocumentConflictException("conflict on 'attachment put'")
+          case e => e
+        })
+
+    reportFailure(
+      f,
+      start,
+      failure => s"[ATT_PUT] '$collName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'")
+  }
 
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
-    implicit transid: TransactionId): Future[(ContentType, T)] = ???
+    implicit transid: TransactionId): Future[(ContentType, T)] = {
+    val start = transid.started(
+      this,
+      LoggingMarkers.DATABASE_ATT_GET,
+      s"[ATT_GET] '$collName' finding attachment '$name' of document '$doc'")
+    checkDocHasRevision(doc)
+
+    val f = client
+      .readAttachment(s"${selfLinkOf(doc.id)}/attachments/$name", matchRevOption(doc.rev.rev))
+      .head()
+      .flatMap(a => client.readMedia(a.getResource.getMediaLink).head())
+      .transform(
+        { r =>
+          //Here stream can only be fetched once
+          StreamConverters
+            .fromInputStream(() => r.getMedia)
+            .runWith(sink)
+            .map((parseContentType(r), _))
+        }, {
+          case e: DocumentClientException if isNotFound(e) =>
+            transid.finished(
+              this,
+              start,
+              s"[ATT_GET] '$collName', retrieving attachment '$name' of document '$doc'; not found.")
+            NoDocumentException("not found on 'delete'")
+          case e => e
+        })
+      .flatMap(identity)
+
+    reportFailure(
+      f,
+      start,
+      failure => s"[ATT_GET] '$collName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'")
+  }
 
   override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
-    ???
+    // NOTE: this method is not intended for standalone use for CosmosDB.
+    // To delete attachments, it is expected that the entire document is deleted.
+    Future.successful(true)
 
   override def shutdown(): Unit = clientRef.close()
+
+  private def parseContentType(r: MediaResponse): ContentType = {
+    val typeString = r.getResponseHeaders.asScala.getOrElse(
+      "Content-Type",
+      throw new RuntimeException(s"Content-Type header not found in response ${r.getResponseHeaders}"))
+    ContentType.parse(typeString) match {
+      case Right(ct) => ct
+      case Left(_)   => throw new RuntimeException(s"Invalid Content-Type header $typeString") //Should not happen
+    }
+  }
+
+  private def isNotFound[A <: DocumentAbstraction](e: DocumentClientException) =
+    e.getStatusCode == StatusCodes.NotFound.intValue
+
+  private def isConflict(e: DocumentClientException) = {
+    e.getStatusCode == StatusCodes.Conflict.intValue || e.getStatusCode == StatusCodes.PreconditionFailed.intValue
+  }
 
   private def toCosmosDoc(json: JsObject): Document = {
     val computed = documentHandler.computedFields(json)
@@ -299,7 +385,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     JsObject(js.fields.filter { case (k, _) => !k.startsWith("_") && k != cid })
   }
 
-  private def toDocInfo(doc: Document) = {
+  private def toDocInfo[T <: Resource](doc: T) = {
     checkDoc(doc)
     DocInfo(DocId(unescapeId(doc.getId)), DocRevision(doc.getETag))
   }
@@ -316,7 +402,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     options
   }
 
-  private def checkDoc(doc: Document): Unit = {
+  private def checkDoc[T <: Resource](doc: T): Unit = {
     require(doc.getId != null, s"$doc does not have id field set")
     require(doc.getETag != null, s"$doc does not have etag field set")
   }
