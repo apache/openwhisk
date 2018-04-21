@@ -20,7 +20,7 @@ package whisk.core.database.test.behavior
 import java.time.Instant
 
 import akka.stream.ActorMaterializer
-import common.{StreamLogging, WskActorSystem}
+import common.{StreamLogging, TestUtils, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import spray.json.{JsObject, JsValue}
@@ -31,7 +31,7 @@ import whisk.core.database.{ArtifactStore, AttachmentStore, StaleParameter}
 import whisk.core.entity._
 import whisk.utils.JsHelpers
 
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 trait ArtifactStoreBehaviorBase
     extends FlatSpec
@@ -73,6 +73,7 @@ trait ArtifactStoreBehaviorBase
   }
 
   override protected def withFixture(test: NoArgTest) = {
+    assume(storeAvailable(), s"$storeType not configured or available")
     val outcome = super.withFixture(test)
     if (outcome.isFailed) {
       println(logLines.mkString("\n"))
@@ -80,6 +81,18 @@ trait ArtifactStoreBehaviorBase
     outcome
   }
 
+  private def storeAvailable(): Boolean = {
+    storeAvailableCheck match {
+      case Success(_) => true
+      case Failure(x) =>
+        //If running on master on main repo build tests MUST be run
+        //For non main repo runs like in fork or for PR its fine for test
+        //to be cancelled
+        if (TestUtils.isBuildingOnMainRepo) throw x else false
+    }
+  }
+
+  protected def storeAvailableCheck: Try[Any] = Try(true)
   //~----------------------------------------< utility methods >
 
   protected def query[A <: WhiskEntity](
