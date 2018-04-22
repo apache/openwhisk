@@ -17,6 +17,7 @@
 
 package actionContainers
 
+import java.io.File
 import java.net.URI
 import java.net.URLClassLoader
 import java.nio.file.Files
@@ -28,7 +29,6 @@ import java.nio.file.FileSystems
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.charset.StandardCharsets
 import java.util.Base64
-
 import javax.tools.ToolProvider
 
 import collection.JavaConverters._
@@ -105,6 +105,78 @@ object ResourceHelpers {
       }
 
       list.mkString(System.getProperty("path.separator"))
+    }
+  }
+
+
+  /**
+    * Builds executables using docker images as compilers.
+    * Images are assumed to be able to be run as
+    * docker <image> -v <sources>:/src -v <output>:/out compile <main>
+    * The compiler will read sources from /src and leave the final binary in /out/<main>
+    * <main> is also the name of the main function to be invoked
+    * Implementations available for swift and go
+    */
+  object ExeBuilder {
+
+    private lazy val dockerBin: String = {
+      List("/usr/bin/docker", "/usr/local/bin/docker").find { bin =>
+        new File(bin).isFile
+      }.get // This fails if the docker binary couldn't be located.
+    }
+
+    // prepare sources, then compile them
+    // return the exe File  and the output dir Path
+    private def compile(image: String, sources: Seq[(Seq[String], String)], main: String) = {
+      require(!sources.isEmpty)
+
+      // The absolute paths of the source file
+      val (srcDir, srcAbsPaths) = writeSourcesToTempDirectory(sources)
+      val src = srcDir.toFile.getAbsolutePath
+
+      // A temporary directory for the destination files.
+      val outDir = Files.createTempDirectory("out").toAbsolutePath()
+      val out = outDir.toFile.getAbsolutePath
+
+      // command to compile
+      val exe = new File(out, main)
+      val cmd = s"${dockerBin} run -v ${src}:/src -v ${out}:/out  ${image} compile ${main}"
+
+      // compiling
+      import sys.process._
+      cmd.!
+
+      // result
+      exe -> outDir
+
+    }
+
+
+    def mkBase64Exe(image: String, sources: Seq[(Seq[String], String)], main: String) = {
+      val (exe, dir) = compile(image, sources, main)
+      //println(s"exe=${exe.getAbsolutePath}")
+      readAsBase64(exe.toPath)
+    }
+
+    def mkBase64Zip(image: String, sources: Seq[(Seq[String], String)], main: String) = {
+      val (exe, dir) = compile(image, sources, main)
+      val archive = makeZipFromDir(dir)
+      //println(s"zip=${archive.toFile.getAbsolutePath}")
+      readAsBase64(archive)
+    }
+
+    def mkBase64Src(sources: Seq[(Seq[String], String)], main: String) = {
+      val (srcDir, srcAbsPaths) = writeSourcesToTempDirectory(sources)
+      val file = new File(srcDir.toFile, main)
+      println(file)
+      readAsBase64(file.toPath)
+    }
+
+    def mkBase64SrcZip(sources: Seq[(Seq[String], String)], main: String) = {
+      val (srcDir, srcAbsPaths) = writeSourcesToTempDirectory(sources)
+      println(srcDir)
+      val archive = makeZipFromDir(srcDir)
+      readAsBase64(archive)
     }
   }
 
