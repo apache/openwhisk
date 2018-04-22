@@ -743,7 +743,7 @@ class WskNamespace() extends RunWskCmd with FullyQualifiedNames with BaseNamespa
    * @return namespace as string
    */
   override def whois()(implicit wskprops: WskProps): String = {
-    // the invariant that list() returns a conforming result is enforced in a test in WskBasicTests
+    // the invariant that list() returns a conforming result is enforced in a test in WskRestBasicTests
     val ns = list().stdout.lines.toSeq.last.trim
     assert(ns != "_") // this is not permitted
     ns

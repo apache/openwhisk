@@ -94,11 +94,12 @@ case object RescheduleJob // job is sent back to parent and could not be process
  * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
-  factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+  factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
   sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InstanceId,
+  poolConfig: ContainerPoolConfig,
   unusedTimeout: FiniteDuration,
   pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
@@ -117,7 +118,8 @@ class ContainerProxy(
         ContainerProxy.containerName(instance, "prewarm", job.exec.kind),
         job.exec.image,
         job.exec.pull,
-        job.memoryLimit)
+        job.memoryLimit,
+        poolConfig.cpuShare)
         .map(container => PreWarmedData(container, job.exec.kind, job.memoryLimit))
         .pipeTo(self)
 
@@ -133,7 +135,8 @@ class ContainerProxy(
         ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name),
         job.action.exec.image,
         job.action.exec.pull,
-        job.action.limits.memory.megabytes.MB)
+        job.action.limits.memory.megabytes.MB,
+        poolConfig.cpuShare)
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting
@@ -413,14 +416,15 @@ final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, paus
 
 object ContainerProxy {
   def props(
-    factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+    factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
     store: (TransactionId, WhiskActivation) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
+    poolConfig: ContainerPoolConfig,
     unusedTimeout: FiniteDuration = timeouts.idleContainer,
     pauseGrace: FiniteDuration = timeouts.pauseGrace) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter

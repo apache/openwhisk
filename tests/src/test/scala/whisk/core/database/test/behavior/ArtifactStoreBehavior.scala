@@ -15,27 +15,12 @@
  * limitations under the License.
  */
 
-package whisk.core.loadBalancer
+package whisk.core.database.test.behavior
 
-import akka.actor.Address
-
-import scala.collection.immutable.Seq
-
-trait SeedNodesProvider {
-  def getSeedNodes(): Seq[Address]
-}
-
-class StaticSeedNodesProvider(seedNodes: String, actorSystemName: String) extends SeedNodesProvider {
-  def getSeedNodes(): Seq[Address] = {
-    seedNodes
-      .split(' ')
-      .flatMap { rawNodes =>
-        val ipWithPort = rawNodes.split(":")
-        ipWithPort match {
-          case Array(host, port) => Seq(Address("akka.tcp", actorSystemName, host, port.toInt))
-          case _                 => Seq.empty[Address]
-        }
-      }
-      .toIndexedSeq
-  }
-}
+trait ArtifactStoreBehavior
+    extends ArtifactStoreBehaviorBase
+    with ArtifactStoreQueryBehaviors
+    with ArtifactStoreCRUDBehaviors
+    with ArtifactStoreSubjectQueryBehaviors
+    with ArtifactStoreWhisksQueryBehaviors
+    with ArtifactStoreActivationsQueryBehaviors

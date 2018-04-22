@@ -26,10 +26,8 @@ import common.TestUtils
 import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.pimpString
-import spray.json.JsString
+import spray.json._
 import common.TestUtils.RunResult
-import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with JsHelpers {

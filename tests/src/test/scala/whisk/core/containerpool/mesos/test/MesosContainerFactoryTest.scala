@@ -23,17 +23,19 @@ import akka.stream.scaladsl.Sink
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import com.adobe.api.platform.runtime.mesos.Bridge
+import com.adobe.api.platform.runtime.mesos.CommandDef
+import com.adobe.api.platform.runtime.mesos.Constraint
 import com.adobe.api.platform.runtime.mesos.DeleteTask
+import com.adobe.api.platform.runtime.mesos.LIKE
 import com.adobe.api.platform.runtime.mesos.Running
 import com.adobe.api.platform.runtime.mesos.SubmitTask
 import com.adobe.api.platform.runtime.mesos.Subscribe
 import com.adobe.api.platform.runtime.mesos.SubscribeComplete
 import com.adobe.api.platform.runtime.mesos.TaskDef
+import com.adobe.api.platform.runtime.mesos.UNLIKE
 import com.adobe.api.platform.runtime.mesos.User
 import common.StreamLogging
-import org.apache.mesos.v1.Protos.AgentID
 import org.apache.mesos.v1.Protos.TaskID
-import org.apache.mesos.v1.Protos.TaskInfo
 import org.apache.mesos.v1.Protos.TaskState
 import org.apache.mesos.v1.Protos.TaskStatus
 import org.junit.runner.RunWith
@@ -49,6 +51,7 @@ import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.containerpool.ContainerArgsConfig
+import whisk.core.containerpool.ContainerPoolConfig
 import whisk.core.containerpool.logging.DockerToActivationLogStore
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.size._
@@ -66,7 +69,7 @@ class MesosContainerFactoryTest
   def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result[A](f, timeout)
 
   implicit val wskConfig =
-    new WhiskConfig(Map(invokerCoreShare -> "2", dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
+    new WhiskConfig(Map(dockerImageTag -> "latest", wskApiHostname -> "apihost") ++ wskApiHost)
   var count = 0
   var lastTaskId: String = null
   def testTaskId() = {
@@ -75,8 +78,9 @@ class MesosContainerFactoryTest
     lastTaskId
   }
 
-  //TODO: adjust this once the invokerCoreShare issue is fixed see #3110
-  def cpus() = wskConfig.invokerCoreShare.toInt / 1024.0 //
+  val poolConfig = ContainerPoolConfig(8, 10)
+  val dockerCpuShares = poolConfig.cpuShare
+  val mesosCpus = poolConfig.cpuShare / 1024.0
 
   val containerArgsConfig =
     new ContainerArgsConfig("net1", Seq("dns1", "dns2"), Map("extra1" -> Set("e1", "e2"), "extra2" -> Set("e3", "e4")))
@@ -88,7 +92,7 @@ class MesosContainerFactoryTest
 
   it should "send Subscribe on init" in {
     val wskConfig = new WhiskConfig(Map())
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
     new MesosContainerFactory(
       wskConfig,
       system,
@@ -101,8 +105,17 @@ class MesosContainerFactoryTest
     expectMsg(Subscribe)
   }
 
-  it should "send SubmitTask on create" in {
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
+  it should "send SubmitTask (with constraints) on create" in {
+    val mesosConfig = MesosConfig(
+      "http://master:5050",
+      None,
+      "*",
+      0.seconds,
+      true,
+      Seq("att1 LIKE v1", "att2 UNLIKE v2"),
+      " ",
+      Seq("bbatt1 LIKE v1", "bbatt2 UNLIKE v2"),
+      true)
 
     val factory =
       new MesosContainerFactory(
@@ -116,14 +129,20 @@ class MesosContainerFactoryTest
         testTaskId)
 
     expectMsg(Subscribe)
-    factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
 
     expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),
@@ -136,11 +155,12 @@ class MesosContainerFactoryTest
           "dns" -> Set("dns1", "dns2"),
           "extra1" -> Set("e1", "e2"),
           "extra2" -> Set("e3", "e4")),
-        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+        Some(CommandDef(Map("__OW_API_HOST" -> wskConfig.wskApiHost))),
+        Seq(Constraint("att1", LIKE, "v1"), Constraint("att2", UNLIKE, "v2")).toSet)))
   }
 
   it should "send DeleteTask on destroy" in {
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
 
     val probe = TestProbe()
     val factory =
@@ -156,16 +176,22 @@ class MesosContainerFactoryTest
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
-    probe.reply(new SubscribeComplete)
+    probe.reply(new SubscribeComplete("testid"))
 
     //create the container
-    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),
@@ -178,19 +204,15 @@ class MesosContainerFactoryTest
           "dns" -> Set("dns1", "dns2"),
           "extra1" -> Set("e1", "e2"),
           "extra2" -> Set("e3", "e4")),
-        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+        Some(CommandDef(Map("__OW_API_HOST" -> wskConfig.wskApiHost))))))
 
     //emulate successful task launch
     val taskId = TaskID.newBuilder().setValue(lastTaskId)
 
     probe.reply(
       Running(
-        TaskInfo
-          .newBuilder()
-          .setName("testTask")
-          .setTaskId(taskId)
-          .setAgentId(AgentID.newBuilder().setValue("testAgentID"))
-          .build(),
+        taskId.getValue,
+        "testAgentID",
         TaskStatus.newBuilder().setTaskId(taskId).setState(TaskState.TASK_RUNNING).build(),
         "agenthost",
         Seq(30000)))
@@ -209,7 +231,7 @@ class MesosContainerFactoryTest
   }
 
   it should "return static message for logs" in {
-    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true)
+    val mesosConfig = MesosConfig("http://master:5050", None, "*", 0.seconds, true, Seq.empty, " ", Seq.empty, true)
 
     val probe = TestProbe()
     val factory =
@@ -225,17 +247,23 @@ class MesosContainerFactoryTest
 
     probe.expectMsg(Subscribe)
     //emulate successful subscribe
-    probe.reply(new SubscribeComplete)
+    probe.reply(new SubscribeComplete("testid"))
 
     //create the container
-    val c = factory.createContainer(TransactionId.testing, "mesosContainer", ImageName("fakeImage"), false, 1.MB)
+    val c = factory.createContainer(
+      TransactionId.testing,
+      "mesosContainer",
+      ImageName("fakeImage"),
+      false,
+      1.MB,
+      poolConfig.cpuShare)
 
     probe.expectMsg(
       SubmitTask(TaskDef(
         lastTaskId,
         "mesosContainer",
         "fakeImage:" + wskConfig.dockerImageTag,
-        cpus,
+        mesosCpus,
         1,
         List(8080),
         Some(0),
@@ -247,19 +275,15 @@ class MesosContainerFactoryTest
           "other" -> Set("v5", "v6"),
           "extra1" -> Set("e1", "e2"),
           "extra2" -> Set("e3", "e4")),
-        Map("__OW_API_HOST" -> wskConfig.wskApiHost))))
+        Some(CommandDef(Map("__OW_API_HOST" -> wskConfig.wskApiHost))))))
 
     //emulate successful task launch
     val taskId = TaskID.newBuilder().setValue(lastTaskId)
 
     probe.reply(
       Running(
-        TaskInfo
-          .newBuilder()
-          .setName("testTask")
-          .setTaskId(taskId)
-          .setAgentId(AgentID.newBuilder().setValue("testAgentID"))
-          .build(),
+        taskId.getValue,
+        "testAgentID",
         TaskStatus.newBuilder().setTaskId(taskId).setState(TaskState.TASK_RUNNING).build(),
         "agenthost",
         Seq(30000)))

@@ -2,7 +2,14 @@ This page documents configuration options that should be considered when deployi
 
 # Controller Clustering
 
-The system can be configured to use Akka clustering to manage the distributed state of the Contoller's load balancing algorithm.  This imposes the following constriaints on a deployment
+The system can be configured to use Akka clustering to manage the distributed state of the Contoller's load balancing algorithm.  This imposes the following constraints on a deployment
+
+## Cluster setup
+
+To setup a cluster, the controllers need to be able to discover each other. There are 2 basic ways to achieve this:
+
+1. Provide the so called **seed-nodes** explicitly on deployment. Essentially you have a static list of possible seed nodes which are used to build a cluster. In an ansible based deployment, they are determined for you from the `hosts` file. On any other deployment model, the `CONFIG_akka_cluster_seedNodes.$i` variables will need to be provided according to the [akka cluster documentation](https://doc.akka.io/docs/akka/2.5/cluster-usage.html#joining-to-seed-nodes).
+2. Discover the nodes from an external service. This is built upon [akka-management](https://developer.lightbend.com/docs/akka-management/current/) and by default [Kubernetes](https://developer.lightbend.com/docs/akka-management/current/discovery.html#discovery-method-kubernetes-api) and [Mesos (Marathon)](https://developer.lightbend.com/docs/akka-management/current/discovery.html#discovery-method-marathon-api) are supported. You can refer to the respective documentation above to configure discovery accordingly.
 
 
 ## Controller nodes must have static IPs/Port combination.
@@ -19,7 +26,7 @@ https://doc.akka.io/docs/akka/2.5.4/scala/cluster-usage.html
 
 ## Shared state vs. Sharding
 
-OpenWhisk supports both a shared state and a sharding model. By default the shared-state loadbalancer is used. The sharding loadbalancer is the newer implementation and scheduled to eventually supersede the shared-state implementation and become the default. To configure your system to use the sharding implementation, set `controller_loadbalancer_spi` to `whisk.core.loadBalancer.ShardingContainerPoolBalancer`.
+OpenWhisk used to support both shared state and a sharding model. The former has since been deprecated and removed.
 
 The sharding loadbalancer has the caveat of being limited in its scalability in its current implementation. It uses "horizontal" sharding, which means that the slots on each invoker are evenly divided to the loadbalancers. For example: In a system with 2 loadbalancers and invokers which have 16 slots each, each loadbalancer would get 8 slots on each invoker. In this specific case, a cluster of loadbalancers > 16 instances does not make sense, since each loadbalancer would only have a fraction of a slot above that. The code guards against that but it is strongly recommended not to deploy more sharding loadbalancers than there are slots on each invoker.
 

@@ -173,7 +173,7 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
 
   def verifyPackageNotSharedList(packageList: RunResult, namespace: String, packageName: String): Unit = {
     val fullyQualifiedPackageName = s"/$namespace/$packageName"
-    packageList.stdout should not include regex(fullyQualifiedPackageName)
+    packageList.stdout should not include (fullyQualifiedPackageName)
   }
 
   it should "list shared package actions" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>
@@ -194,7 +194,7 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
 
   def verifyPackageList(packageList: RunResult, namespace: String, packageName: String, actionName: String): Unit = {
     val result = packageList.stdout
-    result should include regex (s"/$namespace/$packageName/$actionName")
+    result should include(s"/$namespace/$packageName/$actionName")
   }
 
   behavior of "Wsk Package Binding"
@@ -214,11 +214,11 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
 
       val stdout = wsk.pkg.get(name)(defaultWskProps).stdout
       val annotationString = wsk.parseJsonString(stdout).fields("annotations").toString
-      annotationString should include regex (""""key":"a"""")
-      annotationString should include regex (""""value":"A"""")
-      annotationString should include regex (s""""key":"${WhiskPackage.bindingFieldName}"""")
-      annotationString should not include regex(""""key":"xxx"""")
-      annotationString should include regex (s""""name":"${samplePackage}"""")
+      annotationString should include(""""key":"a"""")
+      annotationString should include(""""value":"A"""")
+      annotationString should include(s""""key":"${WhiskPackage.bindingFieldName}"""")
+      annotationString should not include (""""key":"xxx"""")
+      annotationString should include(s""""name":"${samplePackage}"""")
     }
   }
 
@@ -265,8 +265,8 @@ abstract class WskEntitlementTests extends TestHelpers with WskTestHelpers with 
     stdout should include("name")
     stdout should include("parameters")
     stdout should include("limits")
-    stdout should include regex (""""key": "a"""")
-    stdout should include regex (""""value": "A"""")
+    stdout should include(""""key": "a"""")
+    stdout should include(""""value": "A"""")
   }
 
   it should "invoke an action sequence from package" in withAssetCleaner(guestWskProps) { (wp, assetHelper) =>

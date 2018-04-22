@@ -52,6 +52,11 @@ class SequenceMigrationTests extends TestHelpers with BeforeAndAfter with DbUtil
   val namespace = wsk.namespace.whois()
   val allowedActionDuration = 120 seconds
 
+  override protected def withFixture(test: NoArgTest) = {
+    assume(!isMemoryStore(entityStore))
+    super.withFixture(test)
+  }
+
   behavior of "Sequence Migration"
 
   it should "check default namespace '_' is preserved in WhiskAction of old style sequence" in {

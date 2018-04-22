@@ -15,14 +15,6 @@
  * limitations under the License.
  */
 
-package system.basic
+package extension.whisk
 
-import common.Wsk
-
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-
-@RunWith(classOf[JUnitRunner])
-class WskCliBasicNode8Tests extends WskBasicNode8Tests {
-  override val wsk: Wsk = new Wsk
-}
+object Predef extends OpenWhiskDsl

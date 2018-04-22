@@ -15,14 +15,26 @@
  * limitations under the License.
  */
 
-package system.basic
+// Build the jar with the following commands:
+//
+// javac -cp gson-2.8.2.jar JavaAction.java
+// jar cvf javaAction.jar JavaAction.class
 
-import common.Wsk
+import com.google.gson.JsonObject;
 
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
+public class JavaAction {
+    public static JsonObject main(JsonObject args) {
+        String text;
 
-@RunWith(classOf[JUnitRunner])
-class WskCliBasicNode6Tests extends WskBasicNode6Tests {
-  override val wsk: Wsk = new Wsk
+        try {
+            text = args.getAsJsonPrimitive("text").getAsString();
+        } catch(Exception e) {
+            text = "stranger";
+        }
+
+        JsonObject response = new JsonObject();
+        System.out.println("Hello " + text + "!");
+        response.addProperty("payload", "Hello " + text + "!");
+        return response;
+    }
 }

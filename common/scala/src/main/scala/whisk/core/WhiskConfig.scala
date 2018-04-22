@@ -58,9 +58,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val dockerImagePrefix = this(WhiskConfig.dockerImagePrefix)
   val dockerImageTag = this(WhiskConfig.dockerImageTag)
 
-  val invokerNumCore = this(WhiskConfig.invokerNumCore)
-  val invokerCoreShare = this(WhiskConfig.invokerCoreShare)
-  val invokerUseRunc = this.getAsBoolean(WhiskConfig.invokerUseRunc, true)
   val invokerName = this(WhiskConfig.invokerName)
 
   val wskApiHost = this(WhiskConfig.wskApiProtocol) + "://" + this(WhiskConfig.wskApiHostname) + ":" + this(
@@ -87,7 +84,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
   val actionInvokeSystemOverloadLimit = this(WhiskConfig.actionInvokeSystemOverloadLimit)
   val actionSequenceLimit = this(WhiskConfig.actionSequenceMaxLimit)
   val controllerSeedNodes = this(WhiskConfig.controllerSeedNodes)
-  val controllerLocalBookkeeping = getAsBoolean(WhiskConfig.controllerLocalBookkeeping, false)
 }
 
 object WhiskConfig {
@@ -170,9 +166,6 @@ object WhiskConfig {
   val dockerImagePrefix = "docker.image.prefix"
   val dockerImageTag = "docker.image.tag"
 
-  val invokerNumCore = "invoker.numcore"
-  val invokerCoreShare = "invoker.coreshare"
-  val invokerUseRunc = "invoker.use.runc"
   val invokerName = "invoker.name"
 
   val wskApiProtocol = "whisk.api.host.proto"
@@ -209,10 +202,10 @@ object WhiskConfig {
   val actionInvokeSystemOverloadLimit = "limits.actions.invokes.concurrentInSystem"
   val triggerFirePerMinuteLimit = "limits.triggers.fires.perMinute"
   val controllerSeedNodes = "akka.cluster.seed.nodes"
-  val controllerLocalBookkeeping = "controller.localBookkeeping"
 }
 
 object ConfigKeys {
+  val cluster = "whisk.cluster"
   val loadbalancer = "whisk.loadbalancer"
 
   val couchdb = "whisk.couchdb"
@@ -233,10 +226,12 @@ object ConfigKeys {
 
   val docker = "whisk.docker"
   val dockerTimeouts = s"$docker.timeouts"
+  val dockerContainerFactory = s"${docker}.container-factory"
   val runc = "whisk.runc"
   val runcTimeouts = s"$runc.timeouts"
   val containerFactory = "whisk.container-factory"
   val containerArgs = s"$containerFactory.container-args"
+  val containerPool = "whisk.container-pool"
   val blacklist = "whisk.blacklist"
 
   val kubernetes = "whisk.kubernetes"

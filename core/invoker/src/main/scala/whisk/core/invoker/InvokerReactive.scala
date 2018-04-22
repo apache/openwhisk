@@ -41,7 +41,11 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: MessageProducer)(
+class InvokerReactive(
+  config: WhiskConfig,
+  instance: InstanceId,
+  producer: MessageProducer,
+  poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool))(
   implicit actorSystem: ActorSystem,
   logging: Logging) {
 
@@ -91,7 +95,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
   /** Initialize message consumers */
   private val topic = s"invoker${instance.toInt}"
-  private val maximumContainers = config.invokerNumCore.toInt * config.invokerCoreShare.toInt
+  private val maximumContainers = poolConfig.maxActiveContainers
   private val msgProvider = SpiLoader.get[MessagingProvider]
   private val consumer = msgProvider.getConsumer(
     config,
@@ -140,7 +144,9 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
 
   /** Creates a ContainerProxy Actor when being called. */
   private val childFactory = (f: ActorRefFactory) =>
-    f.actorOf(ContainerProxy.props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance))
+    f.actorOf(
+      ContainerProxy
+        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
   private val prewarmKind = "nodejs:6"
   private val prewarmExec = ExecManifest.runtimesManifest
@@ -149,12 +155,7 @@ class InvokerReactive(config: WhiskConfig, instance: InstanceId, producer: Messa
     .get
 
   private val pool = actorSystem.actorOf(
-    ContainerPool.props(
-      childFactory,
-      maximumContainers,
-      maximumContainers,
-      activationFeed,
-      Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
+    ContainerPool.props(childFactory, poolConfig, activationFeed, Some(PrewarmingConfig(2, prewarmExec, 256.MB))))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {

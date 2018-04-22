@@ -17,18 +17,14 @@
 
 package whisk.core.entity
 
-import spray.json.RootJsonFormat
-import spray.json.pimpString
-import spray.json.JsString
+import spray.json._
 import scala.util.Try
 
 protected[entity] trait ArgNormalizer[T] {
 
   protected[core] val serdes: RootJsonFormat[T]
 
-  protected[entity] def factory(s: String): T = {
-    serdes.read(Try { s.parseJson } getOrElse JsString(s))
-  }
+  protected[entity] def factory(s: String): T = serdes.read(Try(s.parseJson).getOrElse(JsString(s)))
 
   /**
    * Creates a new T from string. The method checks that a string

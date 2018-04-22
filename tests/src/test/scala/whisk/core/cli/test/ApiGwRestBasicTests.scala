@@ -34,7 +34,7 @@ import common.WskProps
  * Tests for testing the CLI "api" subcommand.  Most of these tests require a deployed backend.
  */
 @RunWith(classOf[JUnitRunner])
-abstract class ApiGwTests extends BaseApiGwTests {
+abstract class ApiGwRestBasicTests extends BaseApiGwTests {
 
   val clinamespace = wsk.namespace.whois()
   val createCode: Int

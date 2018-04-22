@@ -5,5 +5,6 @@ if [ -d ".vagrant" ]; then
   vagrant destroy
 fi
 
+vagrant plugin install vagrant-disksize
 vagrant up
 
