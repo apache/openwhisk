@@ -32,7 +32,7 @@ import whisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntit
 
 import scala.reflect.ClassTag
 
-case class CosmosDBConfig(host: String, key: String, db: String)
+case class CosmosDBConfig(endpoint: String, key: String, db: String)
 
 case class ClientHolder(client: AsyncDocumentClient) extends Closeable {
   override def close(): Unit = client.close()
@@ -103,7 +103,7 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
 
   private def createClient(config: CosmosDBConfig): AsyncDocumentClient =
     new AsyncDocumentClient.Builder()
-      .withServiceEndpoint(config.host)
+      .withServiceEndpoint(config.endpoint)
       .withMasterKey(config.key)
       .withConnectionPolicy(ConnectionPolicy.GetDefault)
       .withConsistencyLevel(ConsistencyLevel.Session)
