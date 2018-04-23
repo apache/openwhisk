@@ -26,8 +26,11 @@ import whisk.core.WhiskConfig
 
 import scala.concurrent.duration._
 import common._
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import whisk.core.connector.{Activation, EventMessage, Metric}
 
+@RunWith(classOf[JUnitRunner])
 class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with StreamLogging {
 
   implicit val wskprops = WskProps()
