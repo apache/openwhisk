@@ -179,4 +179,9 @@ case class EventMessage(source: String,
 object EventMessage extends DefaultJsonProtocol {
   implicit val format =
     jsonFormat(EventMessage.apply _, "source", "body", "subject", "namespace", "userId", "eventType", "timestamp")
+
+  def parse(msg: String) = format.read(msg.parseJson)
+  def send(producer: MessageProducer, em: EventMessage) = {
+    producer.send("events", em)
+  }
 }

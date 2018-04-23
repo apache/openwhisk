@@ -27,7 +27,7 @@ import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, Scheduler, TransactionId}
-import whisk.core.WhiskConfig.EventSourcing
+import whisk.core.WhiskConfig.UserEvents
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector._
 import whisk.core.containerpool._
@@ -55,7 +55,7 @@ class InvokerReactive(
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   implicit val cfg: WhiskConfig = config
 
-  private val eventSourcing = loadConfigOrThrow[EventSourcing](ConfigKeys.eventSourcing).enabled
+  private val userEvents = loadConfigOrThrow[UserEvents](ConfigKeys.userEvents).enabled
 
   private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
   logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
@@ -131,7 +131,7 @@ class InvokerReactive(
     }
 
     // send activation metadata to kafka
-    if (eventSourcing) {
+    if (userEvents) {
       val activation = Activation(
         activationResult.name,
         activationResult.response.statusCode,
@@ -140,8 +140,9 @@ class InvokerReactive(
         activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
         activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),
         activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false))
-      producer.send(
-        "events",
+
+      EventMessage.send(
+        producer,
         EventMessage(
           s"invoker${instance.instance}",
           activation,

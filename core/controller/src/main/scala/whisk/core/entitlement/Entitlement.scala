@@ -31,7 +31,7 @@ import whisk.core.entitlement.Privilege.REJECT
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.connector.kafka.KafkaMessagingProvider
-import whisk.core.WhiskConfig.EventSourcing
+import whisk.core.WhiskConfig.UserEvents
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector.{EventMessage, Metric}
 import whisk.core.controller.RejectRequest
@@ -85,7 +85,7 @@ protected[core] abstract class EntitlementProvider(
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  private val eventSourcing = loadConfigOrThrow[EventSourcing](ConfigKeys.eventSourcing).enabled
+  private val userEvents = loadConfigOrThrow[UserEvents](ConfigKeys.userEvents).enabled
 
   /**
    * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
@@ -370,13 +370,13 @@ protected[core] abstract class EntitlementProvider(
       val userId = user.authkey.uuid
       if (limit.ok) {
 
-        if (eventSourcing) {
+        if (userEvents) {
           limit match {
             case c: ConcurrentRateLimit => {
               val metric =
                 Metric("concurrent_activations", c.count + 1)
-              eventProducer.send(
-                "events",
+              EventMessage.send(
+                eventProducer,
                 EventMessage(
                   s"controller$controllerInstance",
                   metric,
@@ -391,10 +391,10 @@ protected[core] abstract class EntitlementProvider(
         Future.successful(())
       } else {
         logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
-        if (eventSourcing) {
+        if (userEvents) {
           val metric = Metric(limit.limitName, 1)
-          eventProducer.send(
-            "events",
+          EventMessage.send(
+            eventProducer,
             EventMessage(
               s"controller$controllerInstance",
               metric,

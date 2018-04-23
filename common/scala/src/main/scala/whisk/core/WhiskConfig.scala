@@ -88,7 +88,7 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
 object WhiskConfig {
 
-  case class EventSourcing(enabled: Boolean)
+  case class UserEvents(enabled: Boolean)
 
   /**
    * Reads a key from system environment as if it was part of WhiskConfig.
@@ -222,7 +222,7 @@ object ConfigKeys {
   val logLimit = "whisk.log-limit"
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
-  val eventSourcing = "whisk.event-sourcing"
+  val userEvents = "whisk.user-events"
 
   val runtimes = "whisk.runtimes"
 
