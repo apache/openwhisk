@@ -45,7 +45,9 @@ protected[entity] abstract class Limits {
  * @param memory the memory limit in megabytes, assured to be non-null because it is a value
  * @param logs the limit for logs written by the container and stored in the activation record, assured to be non-null because it is a value
  */
-protected[core] case class ActionLimits protected[core] (timeout: TimeLimit, memory: MemoryLimit, logs: LogLimit)
+protected[core] case class ActionLimits(timeout: TimeLimit = TimeLimit(),
+                                        memory: MemoryLimit = MemoryLimit(),
+                                        logs: LogLimit = LogLimit())
     extends Limits {
   override protected[entity] def toJson = ActionLimits.serdes.write(this)
 }
@@ -58,9 +60,6 @@ protected[core] case class TriggerLimits protected[core] () extends Limits {
 }
 
 protected[core] object ActionLimits extends ArgNormalizer[ActionLimits] with DefaultJsonProtocol {
-
-  /** Creates a ActionLimits instance with default duration, memory and log limits. */
-  protected[core] def apply(): ActionLimits = ActionLimits(TimeLimit(), MemoryLimit(), LogLimit())
 
   override protected[core] implicit val serdes = new RootJsonFormat[ActionLimits] {
     val helper = jsonFormat3(ActionLimits.apply)

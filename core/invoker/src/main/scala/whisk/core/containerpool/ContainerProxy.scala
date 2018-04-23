@@ -385,19 +385,24 @@ class ContainerProxy(
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
-        collectLogs(tid, job.msg.user, activation, container, job.action)
-          .andThen {
-            case Success(_) => tid.finished(this, start)
-            case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
-          }
-          .map(logs => Right(activation.withLogs(logs)))
-          .recover {
-            case LogCollectingException(logs) =>
-              Left(ActivationLogReadingError(activation.withLogs(logs)))
-            case _ =>
-              Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
-          }
+        // Skips log collection entirely, if the limit is set to 0
+        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+          Future.successful(Right(activation))
+        } else {
+          val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
+          collectLogs(tid, job.msg.user, activation, container, job.action)
+            .andThen {
+              case Success(_) => tid.finished(this, start)
+              case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
+            }
+            .map(logs => Right(activation.withLogs(logs)))
+            .recover {
+              case LogCollectingException(logs) =>
+                Left(ActivationLogReadingError(activation.withLogs(logs)))
+              case _ =>
+                Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
+            }
+        }
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
