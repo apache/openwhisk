@@ -135,8 +135,7 @@ class InvokerReactive(
       val activation = Activation(
         activationResult.name,
         activationResult.response.statusCode,
-        activationResult.end.toEpochMilli,
-        activationResult.start.toEpochMilli,
+        activationResult.duration.getOrElse(0),
         activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
         activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
         activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),

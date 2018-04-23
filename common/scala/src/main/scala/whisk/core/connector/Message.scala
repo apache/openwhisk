@@ -138,8 +138,7 @@ object EventMessageBody extends DefaultJsonProtocol {
 
 case class Activation(name: EntityName,
                       statusCode: Int,
-                      end: Long,
-                      start: Long,
+                      duration: Long,
                       waitTime: Long,
                       initTime: Long,
                       kind: String,
@@ -153,7 +152,7 @@ case class Activation(name: EntityName,
 object Activation extends DefaultJsonProtocol {
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
   implicit val activationFormat =
-    jsonFormat(Activation.apply _, "name", "statusCode", "end", "start", "waitTime", "initTime", "kind", "conductor")
+    jsonFormat(Activation.apply _, "name", "statusCode", "duration", "waitTime", "initTime", "kind", "conductor")
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
