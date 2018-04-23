@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 
 # Using the OpenWhisk mobile SDK
 
@@ -21,12 +38,12 @@ target 'MyApp' do
      pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.2.2'
 end
 
-target 'MyApp WatchKit Extension' do 
+target 'MyApp WatchKit Extension' do
      pod 'OpenWhisk', :git => 'https://github.com/apache/incubator-openwhisk-client-swift.git', :tag => '0.2.2'
 end
 ```
 
-From the command line, type `pod install`. This command installs the SDK for an iOS app with a watchOS extension.  Use the workspace file CocoaPods creates for your app to open the project in Xcode. 
+From the command line, type `pod install`. This command installs the SDK for an iOS app with a watchOS extension.  Use the workspace file CocoaPods creates for your app to open the project in Xcode.
 
 After installation, open your project workspace.  You may get the following warning when building:
 `Use Legacy Swift Language Version” (SWIFT_VERSION) is required to be configured correctly for targets which use Swift. Use the [Edit > Convert > To Current Swift Syntax…] menu to choose a Swift version or use the Build Settings editor to configure the build setting directly.`
@@ -69,7 +86,7 @@ To install the starter app example, enter the following command:
 wsk sdk install iOS
 ```
 
-This command downloads a compressed file that contains the starter app. Inside the project directory is a podfile. 
+This command downloads a compressed file that contains the starter app. Inside the project directory is a podfile.
 
 To install the SDK, enter the following command:
 ```

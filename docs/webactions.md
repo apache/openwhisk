@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Web Actions
 
 Web actions are OpenWhisk actions annotated to quickly enable you to build web based applications. This allows you to program backend logic which your web application can access anonymously without requiring an OpenWhisk authentication key. It is up to the action developer to implement their own desired authentication and authorization (i.e. OAuth flow).
@@ -50,7 +67,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.http?name=Jane
 Here is an example of a web action that performs an HTTP redirect:
 ```javascript
 function main() {
-  return { 
+  return {
     headers: { location: 'http://openwhisk.org' },
     statusCode: 302
   }
@@ -60,11 +77,11 @@ function main() {
 Or sets a cookie:
 ```javascript
 function main() {
-  return { 
-    headers: { 
+  return {
+    headers: {
       'Set-Cookie': 'UserID=Jane; Max-Age=3600; Version=',
       'Content-Type': 'text/html'
-    }, 
+    },
     statusCode: 200,
     body: '<html><body><h3>hello</h3></body></html>' }
 }
@@ -73,14 +90,14 @@ function main() {
 Or sets multiple cookies:
 ```javascript
 function main() {
-  return { 
-    headers: { 
+  return {
+    headers: {
       'Set-Cookie': [
         'UserID=Jane; Max-Age=3600; Version=',
         'SessionID=asdfgh123456; Path = /'
       ],
       'Content-Type': 'text/html'
-    }, 
+    },
     statusCode: 200,
     body: '<html><body><h3>hello</h3></body></html>' }
 }
@@ -98,7 +115,7 @@ function main() {
 
 Or returns `application/json`:
 ```javascript
-function main(params) { 
+function main(params) {
     return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -152,7 +169,7 @@ Web actions bring some additional features that include:
 
 The example below briefly sketches how you might use these features in a web action. Consider an action `/guest/demo/hello` with the following body:
 ```javascript
-function main(params) { 
+function main(params) {
     return { response: params };
 }
 ```
@@ -278,7 +295,7 @@ $ wsk action create /guest/demo/hello hello.js \
       --web true
 ```
 
-The result of these changes is that the `name` is bound to `Jane` and may not be overridden by query or body parameters because of the final annotation. This secures the action against query or body parameters that try to change this value whether by accident or intentionally. 
+The result of these changes is that the `name` is bound to `Jane` and may not be overridden by query or body parameters because of the final annotation. This secures the action against query or body parameters that try to change this value whether by accident or intentionally.
 
 ## Securing web actions
 
@@ -312,7 +329,7 @@ $ wsk action update /guest/demo/hello hello.js --web false
 
 A web action may elect to interpret and process an incoming HTTP body directly, without the promotion of a JSON object to first class properties available to the action input (e.g., `args.name` vs parsing `args.__ow_query`). This is done via a `raw-http` [annotation](annotations.md). Using the same example show earlier, but now as a "raw" HTTP web action receiving `name` both as a query parameters and as JSON value in the HTTP request body:
 ```bash
-$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H "Content-Type: application/json" -d '{"name":"Jane"}' 
+$ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H "Content-Type: application/json" -d '{"name":"Jane"}'
 {
   "response": {
     "__ow_method": "post",
