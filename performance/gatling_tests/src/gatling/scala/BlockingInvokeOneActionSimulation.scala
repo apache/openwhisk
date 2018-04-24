@@ -15,49 +15,57 @@
  * limitations under the License.
  */
 
+import java.nio.charset.StandardCharsets
+
+import extension.whisk.OpenWhiskProtocolBuilder
 import extension.whisk.Predef._
 import io.gatling.core.Predef._
+import io.gatling.core.structure.ScenarioBuilder
+import io.gatling.core.util.Resource
+import org.apache.commons.io.FileUtils
 
 import scala.concurrent.duration._
-import scala.util.Properties
 
 class BlockingInvokeOneActionSimulation extends Simulation {
   // Specify parameters for the run
   val host = sys.env("OPENWHISK_HOST")
-  val connections = sys.env("CONNECTIONS").toInt
-  val seconds = Properties.envOrElse("SECONDS", "10").toInt.seconds
+
+  // Specify authentication
+  val Array(uuid, key) = sys.env("API_KEY").split(":")
+
+  val connections: Int = sys.env("CONNECTIONS").toInt
+  val seconds: FiniteDuration = sys.env.getOrElse("SECONDS", "10").toInt.seconds
 
   // Specify thresholds
-  val requestsPerSec = sys.env("REQUESTS_PER_SEC").toInt
-  val minimalRequestsPerSec = Properties.envOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
+  val requestsPerSec: Int = sys.env("REQUESTS_PER_SEC").toInt
+  val minimalRequestsPerSec: Int = sys.env.getOrElse("MIN_REQUESTS_PER_SEC", requestsPerSec.toString).toInt
 
   // Generate the OpenWhiskProtocol
-  val openWhiskProtocol = openWhisk.apiHost(host)
+  val openWhiskProtocol: OpenWhiskProtocolBuilder = openWhisk.apiHost(host)
 
   val actionName = "testActionForBlockingInvokeOneAction"
 
-  // Load first user from CSV
-  // Fails directly if that does not work
-  val line = csv("users.csv").records.head
-  val uuid = line.get("uuid").get
-  val key = line.get("key").get
-
   // Define scenario
-  val test = scenario("Invoke one action blocking")
+  val test: ScenarioBuilder = scenario("Invoke one action blocking")
     .doIf(_.userId == 1) {
-      exec(openWhisk("Create action").authenticate(uuid, key).actionCreate(actionName, "nodeJSAction.js"))
+      exec(
+        openWhisk("Create action")
+          .authenticate(uuid, key)
+          .action(actionName)
+          .create(FileUtils
+            .readFileToString(Resource.body("nodeJSAction.js").get.file, StandardCharsets.UTF_8)))
     }
     .rendezVous(connections)
     .during(5.seconds) {
-      exec(openWhisk("Warm containers up").authenticate(uuid, key).actionInvoke(actionName, blocking = true))
+      exec(openWhisk("Warm containers up").authenticate(uuid, key).action(actionName).invoke())
     }
     .rendezVous(connections)
     .during(seconds) {
-      exec(openWhisk("Invoke action").authenticate(uuid, key).actionInvoke(actionName, blocking = true))
+      exec(openWhisk("Invoke action").authenticate(uuid, key).action(actionName).invoke())
     }
     .rendezVous(connections)
     .doIf(_.userId == 1) {
-      exec(openWhisk("Delete action").authenticate(uuid, key).actionDelete(actionName))
+      exec(openWhisk("Delete action").authenticate(uuid, key).action(actionName).delete())
     }
 
   setUp(test.inject(atOnceUsers(connections)))
