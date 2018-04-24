@@ -45,7 +45,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
       action.create(name, Some(TestUtils.getTestActionFilename("log.js")))
     }
 
-    val run = wsk.action.invoke(name, blocking = true)
+    val run = wsk.action.invoke(name)
 
     // Even though the activation was blocking, the activation itself might not have appeared in the database.
     withActivation(wsk.activation, run) { activation =>
@@ -72,7 +72,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
     }
 
-    val run = wsk.action.invoke(name, blocking = true)
+    val run = wsk.action.invoke(name)
 
     // Use withActivation() to reduce intermittent failures that may result from eventually consistent DBs
     withActivation(wsk.activation, run) { activation =>
