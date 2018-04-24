@@ -389,11 +389,9 @@ class ContainerProxy(
             ActivationResponse.whiskError(Messages.abnormalRun))
       }
 
-    // Sending active ack. Entirely asynchronous and not waited upon.
-    activation.foreach(
-      sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex, job.msg.user.namespace.uuid))
-
     val context = UserContext(job.msg.user)
+    
+    // Sending active ack. Entirely asynchronous and not waited upon.
 
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
@@ -418,14 +416,23 @@ class ContainerProxy(
         }
       }
 
+    // activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
+
+
     // Storing the record. Entirely asynchronous and not waited upon.
     activationWithLogs.map(_.fold(_.activation, identity)).foreach(storeActivation(tid, _, context))
 
     // Disambiguate activation errors and transform the Either into a failed/successful Future respectively.
     activationWithLogs.flatMap {
-      case Right(act) if !act.response.isSuccess => Future.failed(ActivationUnsuccessfulError(act))
-      case Left(error)                           => Future.failed(error)
-      case Right(act)                            => Future.successful(act)
+      case Right(act) if !act.response.isSuccess =>
+        sendActiveAck(tid, act, job.msg.blocking, job.msg.rootControllerIndex)
+        Future.failed(ActivationUnsuccessfulError(act))
+      case Left(error)                           =>
+        activation.foreach(sendActiveAck(tid, _, job.msg.blocking, job.msg.rootControllerIndex))
+        Future.failed(error)
+      case Right(act)                            =>
+        sendActiveAck(tid, act, job.msg.blocking, job.msg.rootControllerIndex)
+        Future.successful(act)
     }
   }
 }

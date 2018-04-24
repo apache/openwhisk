@@ -122,6 +122,14 @@ class InvokerReactive(
     implicit val transid: TransactionId = tid
 
     def send(res: Either[ActivationId, WhiskActivation], recovery: Boolean = false) = {
+      //val msg = CompletionMessage(transid, res, instance)
+
+      //val a = res.right.get
+      //val b = a.withLogs(ActivationLogs(Vector("asdf", "wqer")))
+      //println("rdtfgyhuijokphiugyfabejknrjghiugfjknldr")
+      //println(a.toJson)
+      //println(b.toJson)
+
       val msg = CompletionMessage(transid, res, instance)
       producer.send(topic = "completed" + controllerInstance.asString, msg).andThen {
         case Success(_) =>
