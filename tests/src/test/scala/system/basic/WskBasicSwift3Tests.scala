@@ -26,10 +26,8 @@ import common.TestUtils
 import common.BaseWsk
 import common.WskProps
 import common.WskTestHelpers
-import spray.json.pimpString
-import spray.json.JsString
+import spray.json._
 import common.TestUtils.RunResult
-import spray.json.JsObject
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with JsHelpers {
@@ -37,7 +35,7 @@ abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with 
   implicit val wskprops: common.WskProps = WskProps()
   val wsk: BaseWsk
   val defaultAction: Some[String] = Some(TestUtils.getTestActionFilename("hello.swift"))
-  lazy val currentSwiftDefaultKind = "swift:3.1.1"
+  lazy val actionKind = "swift:3.1.1"
 
   behavior of "Swift runtime"
 
@@ -47,7 +45,7 @@ abstract class WskBasicSwift3Tests extends TestHelpers with WskTestHelpers with 
       val file = Some(TestUtils.getTestActionFilename("niam.swift"))
 
       assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-        action.create(name, file, main = Some("niam"))
+        action.create(name, file, main = Some("niam"), kind = Some(actionKind))
       }
 
       withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>

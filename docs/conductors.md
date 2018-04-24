@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Conductor Actions
 
 Conductor actions make it possible to build and invoke a series of actions, similar to sequences. However, whereas the components of a sequence action must be specified before invoking the sequence, conductor actions can decide the series of actions to invoke at run time.
@@ -235,6 +252,7 @@ If the _action_ field is defined in the output of the conductor action, the runt
 - internal error (invocation failure or timeout).
 
 In any of the first three failure scenarios, the conductor action invocation ends with an _application error_ status code and an error message describing the reason for the failure. In the latter, the status code is _internal error_.
+The action name should be a fully qualified name, which is of the form `/namespace/package-name/action-name` or `/namespace/action-name`. Failure to specify a fully qualified name may result in ambiguity or even a parsing error that terminates the activation.
 
 If there is no error, _action_ is invoked on the _params_ dictionary if specified (auto boxed if necessary) or if not on the empty dictionary.
 
@@ -249,5 +267,3 @@ There are limits on the number of component action activations and secondary con
 The maximum number _n_ of permitted component activations is equal to the maximum number of components in a sequence action. It is configured via the same configuration parameter. The maximum number of secondary conductor activations is _2n+1_.
 
 If either of these limits is exceeded, the conductor action invocation ends with an _application error_ status code and an error message describing the reason for the failure.
-
-

@@ -27,7 +27,9 @@ import scala.util.Try
 import akka.event.Logging.{DebugLevel, InfoLevel, WarningLevel}
 import akka.event.Logging.LogLevel
 import spray.json._
+
 import whisk.core.ConfigKeys
+
 import pureconfig._
 import whisk.common.tracing.OpenTracingProvider
 
@@ -62,9 +64,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
-    }
+    MetricEmitter.emitCounterMetric(marker)
 
   }
 
@@ -89,13 +89,10 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitCounterMetric(marker)
-    }
+    MetricEmitter.emitCounterMetric(marker)
 
     //tracing support
     OpenTracingProvider.startTrace(marker, this)
-
     StartMarker(Instant.now, marker)
   }
 
@@ -114,8 +111,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
                logLevel: LogLevel = DebugLevel,
                endTime: Instant = Instant.now(Clock.systemUTC))(implicit logging: Logging) = {
 
-    val endMarker =
-      LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.finish)
+    val endMarker = startMarker.startMarker.asFinish
     val deltaToEnd = deltaToMarker(startMarker, endTime)
 
     if (TransactionId.metricsLog) {
@@ -123,14 +119,14 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
         InfoLevel,
         this,
         from,
-        createMessageWithMarker(message, LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
+        createMessageWithMarker(
+          if (logLevel <= InfoLevel) message else "",
+          LogMarker(endMarker, deltaToStart, Some(deltaToEnd))))
     } else {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
-    }
+    MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
 
     //tracing support
     OpenTracingProvider.finish(endMarker, this)
@@ -147,8 +143,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def failed(from: AnyRef, startMarker: StartMarker, message: => String = "", logLevel: LogLevel = WarningLevel)(
     implicit logging: Logging) = {
 
-    val endMarker =
-      LogMarkerToken(startMarker.startMarker.component, startMarker.startMarker.action, LoggingMarkers.error)
+    val endMarker = startMarker.startMarker.asError
     val deltaToEnd = deltaToMarker(startMarker)
 
     if (TransactionId.metricsLog) {
@@ -161,10 +156,8 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
       logging.emit(logLevel, this, from, message)
     }
 
-    if (TransactionId.metricsKamon) {
-      MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
-      MetricEmitter.emitCounterMetric(endMarker)
-    }
+    MetricEmitter.emitHistogramMetric(endMarker, deltaToEnd)
+    MetricEmitter.emitCounterMetric(endMarker)
 
     //tracing support
     OpenTracingProvider.error(this)
@@ -214,6 +207,7 @@ object TransactionId {
 
   // get the metric parameters directly from the environment since WhiskConfig can not be instantiated here
   val metricsKamon: Boolean = sys.env.get("METRICS_KAMON").getOrElse("False").toBoolean
+  val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
   val unknown = TransactionId(0)

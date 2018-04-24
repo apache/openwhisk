@@ -31,16 +31,6 @@ import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.ConfigKeys
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig.dbActivations
-import whisk.core.WhiskConfig.dbAuths
-import whisk.core.WhiskConfig.dbHost
-import whisk.core.WhiskConfig.dbPassword
-import whisk.core.WhiskConfig.dbPort
-import whisk.core.WhiskConfig.dbProtocol
-import whisk.core.WhiskConfig.dbProvider
-import whisk.core.WhiskConfig.dbUsername
-import whisk.core.WhiskConfig.dbWhisk
 import whisk.core.database.ArtifactStore
 import whisk.core.database.ArtifactStoreProvider
 import whisk.core.database.DocumentRevisionProvider
@@ -48,6 +38,8 @@ import whisk.core.database.DocumentSerializer
 import whisk.core.database.StaleParameter
 import whisk.spi.SpiLoader
 import pureconfig._
+
+import scala.reflect.classTag
 
 package object types {
   type AuthStore = ArtifactStore[WhiskAuth]
@@ -94,35 +86,17 @@ protected[core] trait WhiskDocument extends DocumentSerializer with DocumentRevi
 object WhiskAuthStore {
   implicit val docReader = WhiskDocumentReader
 
-  def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbAuths -> null)
-
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
-    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth](config, _.dbAuths)
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskAuth]()
 }
 
 object WhiskEntityStore {
-  def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbWhisk -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
     SpiLoader
       .get[ArtifactStoreProvider]
-      .makeStore[WhiskEntity](config, _.dbWhisk)(
+      .makeStore[WhiskEntity]()(
+        classTag[WhiskEntity],
         WhiskEntityJsonFormat,
         WhiskDocumentReader,
         system,
@@ -132,18 +106,9 @@ object WhiskEntityStore {
 
 object WhiskActivationStore {
   implicit val docReader = WhiskDocumentReader
-  def requiredProperties =
-    Map(
-      dbProvider -> null,
-      dbProtocol -> null,
-      dbUsername -> null,
-      dbPassword -> null,
-      dbHost -> null,
-      dbPort -> null,
-      dbActivations -> null)
 
-  def datastore(config: WhiskConfig)(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
-    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](config, _.dbActivations, true)
+  def datastore()(implicit system: ActorSystem, logging: Logging, materializer: ActorMaterializer) =
+    SpiLoader.get[ArtifactStoreProvider].makeStore[WhiskActivation](useBatching = true)
 }
 
 /**
@@ -152,7 +117,7 @@ object WhiskActivationStore {
  * @param ddoc the design document
  * @param view the view name within the design doc
  */
-protected[core] class View(ddoc: String, view: String) {
+protected[core] case class View(ddoc: String, view: String) {
 
   /** The name of the table to query. */
   val name = s"$ddoc/$view"
@@ -162,33 +127,19 @@ protected[core] class View(ddoc: String, view: String) {
  * This object provides some utilities that query the whisk datastore.
  * The datastore is assumed to have views (pre-computed joins or indexes)
  * for each of the whisk collection types. Entities may be queries by
- * [namespace, date, name] where
+ * [path, date] where
  *
- * - namespace is the either root namespace for an entity (the owning subject
+ * - path is the either root namespace for an entity (the owning subject
  *   or organization) or a packaged qualified namespace,
  * - date is the date the entity was created or last updated, or for activations
  *   this is the start of the activation. See EntityRecord for the last updated
  *   property.
- * - name is the actual name of the entity (its simple name, not qualified by
- *   a package name)
  *
  * This order is important because the datastore is assumed to sort lexicographically
  * and hence either the fields are ordered according to the set of queries that are
  * desired: all entities in a namespace (by type), further refined by date, further
  * refined by name.
  *
- * In addition, for entities that may be queried across namespaces (currently
- * packages only), there must be a view which omits the namespace from the key,
- * as in [date, name] only. This permits the same queries that work for a collection
- * in a namespace to also work across namespaces.
- *
- * It is also assumed that the "-all" views implement a meaningful reduction for the
- * collection. Namely, the packages-all view will reduce the results to packages that
- * are public.
- *
- * The names of the views are assumed to be either the collection name, or
- * the collection name suffixed with "-all" per the method viewname. All of
- * the required views are installed by wipeTransientDBs.sh.
  */
 object WhiskEntityQueries {
   val TOP = "\ufff0"
@@ -198,34 +149,6 @@ object WhiskEntityQueries {
 
   /** The view name for the collection, within the design document. */
   def view(ddoc: String = designDoc, collection: String) = new View(ddoc, collection)
-
-  /**
-   * Name of view in design-doc that lists all entities in that views regardless of types.
-   * This is uses in the namespace API, and also in tests to check preconditions.
-   */
-  lazy val viewAll: View = view(ddoc = s"all-$designDoc", collection = "all")
-
-  /**
-   * Queries the datastore for all entities in a namespace, and converts the list of entities
-   * to a map that collects the entities by their type. This method applies to only to the main
-   * asset database, not the activations records because it does not offer the required view.
-   */
-  def listAllInNamespace[A <: WhiskEntity](
-    db: ArtifactStore[A],
-    namespace: EntityName,
-    includeDocs: Boolean,
-    stale: StaleParameter = StaleParameter.No)(implicit transid: TransactionId): Future[Map[String, List[JsObject]]] = {
-    implicit val ec = db.executionContext
-    val startKey = List(namespace.asString)
-    val endKey = List(namespace.asString, TOP)
-    db.query(viewAll.name, startKey, endKey, 0, 0, includeDocs, descending = true, reduce = false, stale = stale) map {
-      _ map { row =>
-        val value = row.fields("value").asJsObject
-        val JsString(collection) = value.fields("collection")
-        (collection, JsObject(value.fields.filterNot { _._1 == "collection" }))
-      } groupBy { _._1 } mapValues { _.map(_._2) }
-    }
-  }
 }
 
 trait WhiskEntityQueries[T] {

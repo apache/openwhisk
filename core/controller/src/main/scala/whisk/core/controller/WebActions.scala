@@ -91,7 +91,7 @@ private case class Context(propertyMap: WebApiDirectives,
 
   // returns true iff the attached query and body parameters contain a property
   // that conflicts with the given reserved parameters
-  def overrides(reservedParams: Set[String]): Set[String] = {
+  def overrides(reservedParams: Set[String]): Boolean = {
     val queryParams = queryAsMap.keySet
     val bodyParams = body
       .map {
@@ -100,7 +100,7 @@ private case class Context(propertyMap: WebApiDirectives,
       }
       .getOrElse(Set.empty)
 
-    (queryParams ++ bodyParams) intersect reservedParams
+    (queryParams ++ bodyParams).forall(key => !reservedParams.contains(key))
   }
 
   // attach the body to the Context
@@ -129,11 +129,11 @@ private case class Context(propertyMap: WebApiDirectives,
     // if the body is a json object, merge with query parameters
     // otherwise, this is an opaque body that will be nested under
     // __ow_body in the parameters sent to the action as an argument
-    val bodyParams = body match {
+    val bodyParams: Map[String, JsValue] = body match {
       case Some(JsObject(fields)) if !boxQueryAndBody => fields
       case Some(v)                                    => Map(propertyMap.body -> v)
       case None if !boxQueryAndBody                   => Map.empty
-      case _                                          => Map(propertyMap.body -> JsObject())
+      case _                                          => Map(propertyMap.body -> JsString.empty)
     }
 
     // precedence order is: query params -> body (last wins)
@@ -227,17 +227,20 @@ protected[core] object WhiskWebActionsApi extends Directives {
           }.toList
 
         case _ => throw new Throwable("Invalid header")
-      } getOrElse List()
+      } getOrElse List.empty
 
       val body = fields.get("body")
 
       val code = fields.get(rp.statusCode).map {
         case JsNumber(c) =>
-          // the following throws an exception if the code is
-          // not a whole number or a valid code
+          // the following throws an exception if the code is not a whole number or a valid code
           StatusCode.int2StatusCode(c.toIntExact)
+        case JsString(c) =>
+          // parse the string to an Int (not a BigInt) matching JsNumber case match above
+          // c.toInt could throw an exception if the string isn't an integer
+          StatusCode.int2StatusCode(c.toInt)
 
-        case _ => throw new Throwable("Illegal code")
+        case _ => throw new Throwable("Illegal status code")
       }
 
       body.collect {
@@ -483,7 +486,14 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
               provide(fullyQualifiedActionName(actionName)) { fullActionName =>
                 onComplete(verifyWebAction(fullActionName, onBehalfOf.isDefined)) {
                   case Success((actionOwnerIdentity, action)) =>
-                    if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
+                    var requiredAuthOk =
+                      requiredWhiskAuthSuccessful(action.annotations, context.headers).getOrElse(true)
+                    if (!requiredAuthOk) {
+                      logging.debug(
+                        this,
+                        "web action with require-whisk-auth was invoked without a matching x-require-whisk-auth header value")
+                      terminate(Unauthorized)
+                    } else if (!action.annotations.getAs[Boolean]("web-custom-options").exists(identity)) {
                       respondWithHeaders(defaultCorsResponse(context.headers)) {
                         if (context.method == OPTIONS) {
                           complete(OK, HttpEntity.Empty)
@@ -612,8 +622,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
       // since these are system properties, the action should not define them, and if it does,
       // they will be overwritten
       if (isRawHttpAction || context
-            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)
-            .isEmpty) {
+            .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
         invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
       } else {
@@ -720,7 +729,8 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
   private def confirmExportedAction(actionLookup: Future[WhiskActionMetaData], authenticated: Boolean)(
     implicit transid: TransactionId): Future[WhiskActionMetaData] = {
     actionLookup flatMap { action =>
-      val requiresAuthenticatedUser = action.annotations.getAs[Boolean]("require-whisk-auth").exists(identity)
+      val requiresAuthenticatedUser =
+        action.annotations.getAs[Boolean](WhiskAction.requireWhiskAuthAnnotation).exists(identity)
       val isExported = action.annotations.getAs[Boolean]("web-export").exists(identity)
 
       if ((isExported && requiresAuthenticatedUser && authenticated) ||
@@ -750,6 +760,34 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         .orElse(responseType.defaultProjection)
     } else responseType.defaultProjection
 
-    projection.getOrElse(List())
+    projection.getOrElse(List.empty)
+  }
+
+  /**
+   * Check if "require-whisk-auth" authentication is needed, and if so, authenticate the request
+   * NOTE: Only number or string JSON "require-whisk-auth" annotation values are supported
+   *
+   * @param annotations - web action annotations
+   * @param reqHeaders - web action invocation request headers
+   * @return Option[Boolean]
+   *         None if annotations does not include require-whisk-auth (i.e. auth test not needed)
+   *         Some(true) if annotations includes require-whisk-auth and it's value matches the request header `X-Require-Whisk-Auth` value
+   *         Some(false) if annotations includes require-whisk-auth and the request does not include the header `X-Require-Whisk-Auth`
+   *         Some(false) if annotations includes require-whisk-auth and it's value deos not match the request header `X-Require-Whisk-Auth` value
+   */
+  private def requiredWhiskAuthSuccessful(annotations: Parameters, reqHeaders: Seq[HttpHeader]): Option[Boolean] = {
+    annotations
+      .get(WhiskAction.requireWhiskAuthAnnotation)
+      .flatMap {
+        case JsString(authStr) => Some(authStr)
+        case JsNumber(authNum) => Some(authNum.toString)
+        case _                 => None
+      }
+      .map { reqWhiskAuthAnnotationStr =>
+        reqHeaders
+          .find(_.is(WhiskAction.requireWhiskAuthHeader))
+          .map(_.value == reqWhiskAuthAnnotationStr)
+          .getOrElse(false) // false => when no x-require-whisk-auth header is present
+      }
   }
 }

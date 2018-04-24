@@ -1,11 +1,12 @@
 /*
- * Copyright 2015-2016 IBM Corporation
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -65,7 +66,7 @@ class MessageFeedTests
     val peekCount = new AtomicInteger()
 
     val consumer = new TestConnector("feedtest", 4, true) {
-      override def peek(duration: Duration) = {
+      override def peek(duration: FiniteDuration, retry: Int = 0) = {
         peekCount.incrementAndGet()
         super.peek(duration)
       }
@@ -145,7 +146,7 @@ class MessageFeedTests
     connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
 
     connector.peekCount.get shouldBe peeks
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
   }
 
   it should "transition from drain to fill mode" in {
@@ -162,7 +163,7 @@ class MessageFeedTests
 
     // stay in drain mode, no more peeking
     timeout(connector.fsm) // should be ignored
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
     connector.peekCount.get shouldBe peeks // no new reads
 
     // expecting overflow of 2 in the queue, which is true if all expected messages were sent
@@ -170,7 +171,7 @@ class MessageFeedTests
 
     // drain one, should stay in draining state
     connector.fsm ! Processed
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
     connector.peekCount.get shouldBe peeks // no new reads
 
     // back to fill mode
@@ -182,6 +183,6 @@ class MessageFeedTests
     connector.fill(1)
     connector.expectMsg(Transition(connector.fsm, FillingPipeline, DrainingPipeline))
 
-    connector.expectNoMsg(500.milliseconds)
+    connector.expectNoMessage(500.milliseconds)
   }
 }

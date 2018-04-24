@@ -17,12 +17,7 @@
 
 package whisk.utils
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import scala.language.postfixOps
+import scala.concurrent.duration._
 
 object retry {
 
@@ -34,21 +29,17 @@ object retry {
    * @param N the maximum number of times to apply fn, must be >= 1
    * @param waitBeforeRetry an option specifying duration to wait before retrying method, will not wait if none given
    * @return the result of fn iff it is successful
-   * @throws exception from fn (or an illegal argument exception if N is < 1)
+   * @throws Throwable exception from fn (or an illegal argument exception if N is < 1)
    */
-  def apply[T](fn: => T, N: Int = 3, waitBeforeRetry: Option[Duration] = Some(1 millisecond)): T = {
+  def apply[T](fn: => T, N: Int = 3, waitBeforeRetry: Option[Duration] = Some(50.milliseconds)): T = {
     require(N >= 1, "maximum number of fn applications must be greater than 1")
-    waitBeforeRetry map { t =>
-      Thread.sleep(t.toMillis)
-    } // initial wait if any
-    Try { fn } match {
-      case Success(r) => r
+    waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis)) // initial wait if any
+
+    try fn
+    catch {
       case _ if N > 1 =>
-        waitBeforeRetry map { t =>
-          Thread.sleep(t.toMillis)
-        }
+        waitBeforeRetry.foreach(t => Thread.sleep(t.toMillis))
         retry(fn, N - 1, waitBeforeRetry)
-      case Failure(t) => throw t
     }
   }
 }

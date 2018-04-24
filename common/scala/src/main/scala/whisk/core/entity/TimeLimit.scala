@@ -17,19 +17,17 @@
 
 package whisk.core.entity
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.MILLISECONDS
-import scala.language.postfixOps
+import pureconfig._
+
+import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import spray.json.JsNumber
 import spray.json.JsValue
 import spray.json.RootJsonFormat
 import spray.json.deserializationError
+import whisk.core.ConfigKeys
 
 /**
  * TimeLimit encapsulates a duration for an action. The duration must be within a
@@ -46,10 +44,14 @@ protected[entity] class TimeLimit private (val duration: FiniteDuration) extends
   override def toString = duration.toString
 }
 
+case class TimeLimitConfig(max: FiniteDuration, min: FiniteDuration, std: FiniteDuration)
+
 protected[core] object TimeLimit extends ArgNormalizer[TimeLimit] {
-  protected[core] val MIN_DURATION = 100 milliseconds
-  protected[core] val MAX_DURATION = 5 minutes
-  protected[core] val STD_DURATION = 1 minute
+  private val config = loadConfigOrThrow[TimeLimitConfig](ConfigKeys.timeLimit)
+
+  protected[core] val MIN_DURATION: FiniteDuration = config.min
+  protected[core] val MAX_DURATION: FiniteDuration = config.max
+  protected[core] val STD_DURATION: FiniteDuration = config.std
 
   /** Gets TimeLimit with default duration */
   protected[core] def apply(): TimeLimit = TimeLimit(STD_DURATION)

@@ -28,13 +28,11 @@ import org.scalatest.junit.JUnitRunner
 import akka.stream.ActorMaterializer
 import common.StreamLogging
 import common.WskActorSystem
-import whisk.core.WhiskConfig
 import whisk.core.controller.test.WhiskAuthHelpers
 import whisk.core.database.ArtifactStore
 import whisk.core.database.StaleParameter
 import whisk.core.database.test.DbUtils
 import whisk.core.entity._
-import whisk.core.entity.WhiskEntityQueries._
 
 @RunWith(classOf[JUnitRunner])
 class ViewTests
@@ -66,9 +64,8 @@ class ViewTests
 
   implicit val materializer = ActorMaterializer()
 
-  val config = new WhiskConfig(WhiskEntityStore.requiredProperties ++ WhiskActivationStore.requiredProperties)
-  val entityStore = WhiskEntityStore.datastore(config)
-  val activationStore = WhiskActivationStore.datastore(config)
+  val entityStore = WhiskEntityStore.datastore()
+  val activationStore = WhiskActivationStore.datastore()
 
   override def afterEach = {
     cleanup()
@@ -82,17 +79,6 @@ class ViewTests
   }
 
   behavior of "Datastore View"
-
-  def getEntitiesInNamespace[Au <: WhiskEntity](entityStore: ArtifactStore[Au], ns: EntityPath)(
-    implicit entities: Seq[WhiskEntity]) = {
-    implicit val tid = transid()
-    val map = Await.result(listAllInNamespace(entityStore, ns.root, false, StaleParameter.No), dbOpTimeout)
-    val result = map.values.toList.flatten
-    val expected = entities filter (_.namespace.root.toPath == ns)
-    map.get(WhiskActivation.collectionName) should be(None)
-    result should have length expected.length
-    result should contain theSameElementsAs expected.map(_.summaryAsJson)
-  }
 
   def getAllActivationsInNamespace[Au <: WhiskEntity](store: ArtifactStore[Au], ns: EntityPath)(
     implicit entities: Seq[WhiskEntity]) = {
@@ -228,15 +214,6 @@ class ViewTests
     val actionName = aname()
     def now = Instant.now(Clock.systemUTC())
 
-    // creates 17 entities in each namespace as follows:
-    // - 2 actions in each namespace in the default namespace
-    // - 2 actions in the same package within a namespace
-    // - 1 action in two different packages in the same namespace
-    // - 1 action in package with prescribed name
-    // - 2 triggers in each namespace
-    // - 2 rules in each namespace
-    // - 2 packages in each namespace
-    // - 2 package bindings in each namespace
     implicit val entities = Seq(
       WhiskAction(namespace1, aname(), exec),
       WhiskAction(namespace1, aname(), exec),
@@ -269,10 +246,15 @@ class ViewTests
       WhiskPackage(namespace2, aname(), Some(Binding(namespace1.root, aname()))))
 
     entities foreach { put(entityStore, _) }
-    waitOnView(entityStore, namespace1.root, 15, WhiskEntityQueries.viewAll)
-    waitOnView(entityStore, namespace2.root, 14, WhiskEntityQueries.viewAll)
+    waitOnView(entityStore, namespace1.root, 7, WhiskAction.view)
+    waitOnView(entityStore, namespace1.root, 2, WhiskTrigger.view)
+    waitOnView(entityStore, namespace1.root, 2, WhiskRule.view)
+    waitOnView(entityStore, namespace1.root, 4, WhiskPackage.view)
+    waitOnView(entityStore, namespace2.root, 6, WhiskAction.view)
+    waitOnView(entityStore, namespace2.root, 2, WhiskTrigger.view)
+    waitOnView(entityStore, namespace2.root, 2, WhiskRule.view)
+    waitOnView(entityStore, namespace2.root, 4, WhiskPackage.view)
 
-    getEntitiesInNamespace(entityStore, namespace1)
     getKindInNamespace(entityStore, namespace1, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false
@@ -298,7 +280,6 @@ class ViewTests
       case (_)              => false
     })
 
-    getEntitiesInNamespace(entityStore, namespace2)
     getKindInNamespace(entityStore, namespace2, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false
@@ -329,11 +310,11 @@ class ViewTests
     // creates 5 entities in each namespace as follows:
     // - some activations in each namespace (some may have prescribed action name to query by name)
     implicit val entities = Seq(
-      WhiskActivation(namespace1, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace1, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, aname(), Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now),
-      WhiskActivation(namespace2, actionName, Subject(), ActivationId(), start = now, end = now))
+      WhiskActivation(namespace1, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace1, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, aname(), Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, actionName, Subject(), ActivationId.generate(), start = now, end = now),
+      WhiskActivation(namespace2, actionName, Subject(), ActivationId.generate(), start = now, end = now))
 
     entities foreach { put(activationStore, _) }
     waitOnView(activationStore, namespace1.root, 2, WhiskActivation.view)
@@ -361,38 +342,38 @@ class ViewTests
     val actionName = aname()
     val now = Instant.now(Clock.systemUTC())
     implicit val entities = Seq(
-      WhiskActivation(namespace1, actionName, Subject(), ActivationId(), start = now, end = now),
+      WhiskActivation(namespace1, actionName, Subject(), ActivationId.generate(), start = now, end = now),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(20),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(10),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(40),
         end = now.plusSeconds(20)),
       WhiskActivation(
         namespace1,
         actionName,
         Subject(),
-        ActivationId(),
+        ActivationId.generate(),
         start = now.plusSeconds(30),
         end = now.plusSeconds(20)))
 
     entities foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace1.root, entities.length, WhiskActivation.view)
+    waitOnView(activationStore, namespace1.addPath(actionName), entities.length, WhiskActivation.filtersView)
 
     getActivationsInNamespaceByNameSortedByDate(
       activationStore,
@@ -425,7 +406,7 @@ class ViewTests
       })
   }
 
-  it should "query whisk and retrieve full documents" in {
+  it should "list actions and retrieve full documents" in {
     implicit val tid = transid()
     val actionName = aname()
     val now = Instant.now(Clock.systemUTC())
@@ -433,7 +414,8 @@ class ViewTests
       Seq(WhiskAction(namespace1, aname(), jsDefault("??")), WhiskAction(namespace1, aname(), jsDefault("??")))
 
     entities foreach { put(entityStore, _) }
-    waitOnView(entityStore, namespace1.root, entities.length, WhiskEntityQueries.viewAll)
+    waitOnView(entityStore, namespace1.root, 2, WhiskAction.view)
+
     getKindInNamespaceWithDoc[WhiskAction](namespace1, "actions", {
       case (e: WhiskAction) => true
       case (_)              => false

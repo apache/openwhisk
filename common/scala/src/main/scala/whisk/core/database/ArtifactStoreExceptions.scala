@@ -28,3 +28,9 @@ case class DocumentTypeMismatchException(message: String) extends ArtifactStoreE
 case class DocumentUnreadable(message: String) extends ArtifactStoreException(message)
 
 case class PutException(message: String) extends ArtifactStoreException(message)
+
+sealed abstract class ArtifactStoreRuntimeException(message: String) extends RuntimeException(message)
+
+case class UnsupportedQueryKeys(message: String) extends ArtifactStoreRuntimeException(message)
+
+case class UnsupportedView(message: String) extends ArtifactStoreRuntimeException(message)

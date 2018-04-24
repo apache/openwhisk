@@ -111,6 +111,11 @@ object Messages {
   val notAllowedOnBinding = "Operation not permitted on package binding."
   def packageNameIsReserved(name: String) = s"Package name '$name' is reserved."
 
+  /** Error messages for triggers */
+  def triggerWithInactiveRule(rule: String, action: String) = {
+    s"Rule '$rule' is inactive, action '$action' was not activated."
+  }
+
   /** Error messages for sequence activations. */
   def sequenceRetrieveActivationTimeout(id: ActivationId) =
     s"Timeout reached when retrieving activation $id for sequence component."
@@ -124,9 +129,9 @@ object Messages {
   def compositionComponentInvalid(value: JsValue) =
     s"Failed to parse action name from json value $value during composition."
   def compositionComponentNotFound(name: String) =
-    s"""Failed to resolve action with name "$name" during composition."""
+    s"Failed to resolve action with name '$name' during composition."
   def compositionComponentNotAccessible(name: String) =
-    s"""Failed entitlement check for action with name "$name" during composition."""
+    s"Failed entitlement check for action with name '$name' during composition."
 
   /** Error messages for bad requests where parameters do not conform. */
   val parametersNotAllowed = "Request defines parameters that are not allowed (e.g., reserved properties)."
@@ -199,6 +204,8 @@ object Messages {
       if (!init) "." else " during initialization."
     }
   }
+
+  val namespacesBlacklisted = "The action was not invoked due to a blacklisted namespace."
 
   val actionRemovedWhileInvoking = "Action could not be found or may have been deleted."
   val actionMismatchWhileInvoking = "Action version is not compatible and cannot be invoked."

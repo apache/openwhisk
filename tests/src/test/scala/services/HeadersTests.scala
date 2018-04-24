@@ -21,20 +21,17 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.collection.immutable.Seq
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.time.Span.convertDurationToSpan
-
 import common.TestUtils
 import common.WhiskProperties
-import common.rest.WskRest
+import common.rest.{HttpConnection, WskRest}
 import common.WskProps
 import common.WskTestHelpers
-
 import akka.http.scaladsl.model.Uri
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
@@ -52,8 +49,8 @@ import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpHeader
 import akka.stream.ActorMaterializer
-
 import common.WskActorSystem
+import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
 class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActorSystem with WskTestHelpers {
@@ -62,12 +59,14 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
 
   implicit val materializer = ActorMaterializer()
 
+  val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+  println(loadConfigOrThrow[String]("whisk"))
   val whiskAuth = WhiskProperties.getBasicAuth
   val creds = BasicHttpCredentials(whiskAuth.fst, whiskAuth.snd)
   val allMethods = Some(Set(DELETE.name, GET.name, POST.name, PUT.name))
   val allowOrigin = `Access-Control-Allow-Origin`.*
   val allowHeaders = `Access-Control-Allow-Headers`("Authorization", "Content-Type")
-  val url = Uri(s"http://${WhiskProperties.getBaseControllerAddress()}")
+  val url = Uri(s"$controllerProtocol://${WhiskProperties.getBaseControllerAddress()}")
 
   def request(method: HttpMethod, uri: Uri, headers: Option[Seq[HttpHeader]] = None): Future[HttpResponse] = {
     val httpRequest = headers match {
@@ -75,7 +74,8 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
       case None          => HttpRequest(method, uri)
     }
 
-    Http().singleRequest(httpRequest)
+    val connectionContext = HttpConnection.getContext(controllerProtocol)
+    Http().singleRequest(httpRequest, connectionContext = connectionContext)
   }
 
   implicit val config = PatienceConfig(10 seconds, 0 milliseconds)
@@ -194,22 +194,6 @@ class HeadersTests extends FlatSpec with Matchers with ScalaFutures with WskActo
 
     response.status shouldBe OK
     containsHeaders(response.headers, Some(Set("GET")))
-  }
-
-  it should "respond to OPTIONS for namespaces getEntities" in {
-    val path = basePath / "namespaces" / "barfoo"
-    val response = request(OPTIONS, url.withPath(path)).futureValue
-
-    response.status shouldBe OK
-    containsHeaders(response.headers, Some(Set("GET")))
-  }
-
-  it should "respond to GET for namespaces getEntities with Headers" in {
-    val path = basePath / "namespaces" / "_"
-    val response = request(GET, url.withPath(path), Some(List(Authorization(creds)))).futureValue
-
-    response.status shouldBe OK
-    containsHeaders(response.headers)
   }
 
   // Packages

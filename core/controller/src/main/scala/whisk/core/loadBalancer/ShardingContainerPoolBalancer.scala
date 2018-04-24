@@ -18,16 +18,19 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.LongAdder
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.atomic.LongAdder
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorSystem, Cancellable, Props}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.event.Logging.InfoLevel
+import akka.management.AkkaManagement
+import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.stream.ActorMaterializer
 import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
+import whisk.common.LoggingMarkers._
 import whisk.common._
 import whisk.core.WhiskConfig._
 import whisk.core.connector._
@@ -56,12 +59,15 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   /** Build a cluster of all loadbalancers */
-  val seedNodesProvider = new StaticSeedNodesProvider(config.controllerSeedNodes, actorSystem.name)
-  val cluster = Cluster(actorSystem)
-  cluster.joinSeedNodes(seedNodesProvider.getSeedNodes())
-
-  /** Used to manage an action for testing invoker health */
-  private val entityStore = WhiskEntityStore.datastore(config)
+  private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
+    AkkaManagement(actorSystem).start()
+    ClusterBootstrap(actorSystem).start()
+    Some(Cluster(actorSystem))
+  } else if (loadConfigOrThrow[Seq[String]]("akka.cluster.seed-nodes").nonEmpty) {
+    Some(Cluster(actorSystem))
+  } else {
+    None
+  }
 
   /** State related to invocations and throttling */
   private val activations = TrieMap[ActivationId, ActivationEntry]()
@@ -71,6 +77,10 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   /** State needed for scheduling. */
   private val schedulingState = ShardingContainerPoolBalancerState()()
 
+  actorSystem.scheduler.schedule(0.seconds, 10.seconds) {
+    MetricEmitter.emitHistogramMetric(LOADBALANCER_ACTIVATIONS_INFLIGHT(controllerInstance), totalActivations.longValue)
+  }
+
   /**
    * Monitors invoker supervision and the cluster to update the state sequentially
    *
@@ -79,7 +89,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    */
   private val monitor = actorSystem.actorOf(Props(new Actor {
     override def preStart(): Unit = {
-      cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
+      cluster.foreach(_.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent]))
     }
 
     // all members of the cluster that are available
@@ -123,11 +133,13 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
 
-    val invokersToUse = if (!action.exec.pull) schedulingState.managedInvokers else schedulingState.blackboxInvokers
+    val (invokersToUse, stepSizes) =
+      if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
+      else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
     val chosen = if (invokersToUse.nonEmpty) {
       val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
-      val stepSize = schedulingState.stepSizes(hash % schedulingState.stepSizes.size)
+      val stepSize = stepSizes(hash % stepSizes.size)
       ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
     } else {
       None
@@ -173,7 +185,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config, executionContext)
+  private val messageProducer = messagingProvider.getProducer(config)
 
   /** 3. Send the activation to the invoker */
   private def sendActivationToInvoker(producer: MessageProducer,
@@ -183,7 +195,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
     val topic = s"invoker${invoker.toInt}"
 
-    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START(msg.user.uuid.asString))
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(
       this,
       LoggingMarkers.CONTROLLER_KAFKA,
@@ -197,7 +209,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           start,
           s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]",
           logLevel = InfoLevel)
-      case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
+      case Failure(_) => transid.failed(this, start, s"error on posting to topic $topic")
     }
   }
 
@@ -205,14 +217,11 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
    * Subscribes to active acks (completion messages from the invokers), and
    * registers a handler for received active acks from invokers.
    */
+  private val activeAckTopic = s"completed${controllerInstance.toInt}"
   private val maxActiveAcksPerPoll = 128
   private val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(
-      config,
-      "completions",
-      s"completed${controllerInstance.toInt}",
-      maxPeek = maxActiveAcksPerPoll)
+    messagingProvider.getConsumer(config, activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll)
 
   private val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed(
@@ -246,20 +255,20 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     val aid = response.fold(l => l, r => r.activationId)
 
     // treat left as success (as it is the result of a message exceeding the bus limit)
-    val isSuccess = response.fold(l => true, r => !r.response.isWhiskError)
+    val isSuccess = response.fold(_ => true, r => !r.response.isWhiskError)
 
     activations.remove(aid) match {
       case Some(entry) =>
+        totalActivations.decrement()
+        activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
+        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
+
         if (!forced) {
           entry.timeoutHandler.cancel()
           entry.promise.trySuccess(response)
         } else {
           entry.promise.tryFailure(new Throwable("no active ack received"))
         }
-
-        totalActivations.decrement()
-        activationsPerNamespace.get(entry.namespaceId).foreach(_.decrement())
-        schedulingState.invokerSlots.lift(invoker.toInt).foreach(_.release())
 
         logging.info(this, s"${if (!forced) "received" else "forced"} active ack for '$aid'")(tid)
         // Active acks that are received here are strictly from user actions - health actions are not part of
@@ -279,7 +288,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   private val invokerPool = {
-    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore(config))
+    InvokerPool.prepare(controllerInstance, WhiskEntityStore.datastore())
 
     actorSystem.actorOf(
       InvokerPool.props(
@@ -297,13 +306,24 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
     logging: Logging,
     materializer: ActorMaterializer): LoadBalancer = new ShardingContainerPoolBalancer(whiskConfig, instance)
 
-  def requiredProperties: Map[String, String] =
-    kafkaHosts ++
-      Map(controllerLocalBookkeeping -> null, controllerSeedNodes -> null)
+  def requiredProperties: Map[String, String] = kafkaHosts
 
+  /** Generates a hash based on the string representation of namespace and action */
   def generateHash(namespace: EntityName, action: FullyQualifiedEntityName): Int = {
     (namespace.asString.hashCode() ^ action.asString.hashCode()).abs
   }
+
+  /** Euclidean algorithm to determine the greatest-common-divisor */
+  @tailrec
+  def gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
+
+  /** Returns pairwise coprime numbers until x. Result is memoized. */
+  def pairwiseCoprimeNumbersUntil(x: Int): IndexedSeq[Int] =
+    (1 to x).foldLeft(IndexedSeq.empty[Int])((primes, cur) => {
+      if (gcd(cur, x) == 1 && primes.forall(i => gcd(i, cur) == 1)) {
+        primes :+ cur
+      } else primes
+    })
 
   /**
    * Scans through all invokers and searches for an invoker tries to get a free slot on an invoker. If no slot can be
@@ -320,7 +340,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
                dispatched: IndexedSeq[ForcableSemaphore],
                index: Int,
                step: Int,
-               stepsDone: Int = 0): Option[InstanceId] = {
+               stepsDone: Int = 0)(implicit logging: Logging): Option[InstanceId] = {
     val numInvokers = invokers.size
 
     if (numInvokers > 0) {
@@ -334,9 +354,10 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
           val healthyInvokers = invokers.filter(_.status == Healthy)
           if (healthyInvokers.nonEmpty) {
             // Choose a healthy invoker randomly
-            val random = ThreadLocalRandom.current().nextInt(healthyInvokers.size)
-            dispatched(random).forceAcquire()
-            Some(healthyInvokers(random).id)
+            val random = healthyInvokers(ThreadLocalRandom.current().nextInt(healthyInvokers.size)).id
+            dispatched(random.toInt).forceAcquire()
+            logging.warn(this, s"system is overloaded. Chose invoker${random.toInt} by random assignment.")
+            Some(random)
           } else {
             None
           }
@@ -357,14 +378,16 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
  * @param _invokers all of the known invokers in the system
  * @param _managedInvokers all invokers for managed runtimes
  * @param _blackboxInvokers all invokers for blackbox runtimes
- * @param _stepSizes the step-sizes possible for the current invoker count
+ * @param _managedStepSizes the step-sizes possible for the current managed invoker count
+ * @param _blackboxStepSizes the step-sizes possible for the current blackbox invoker count
  * @param _invokerSlots state of accessible slots of each invoker
  */
 case class ShardingContainerPoolBalancerState(
   private var _invokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _managedInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
   private var _blackboxInvokers: IndexedSeq[InvokerHealth] = IndexedSeq.empty[InvokerHealth],
-  private var _stepSizes: Seq[Int] = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _managedStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
+  private var _blackboxStepSizes: Seq[Int] = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0),
   private var _invokerSlots: IndexedSeq[ForcableSemaphore] = IndexedSeq.empty[ForcableSemaphore],
   private var _clusterSize: Int = 1)(
   lbConfig: ShardingContainerPoolBalancerConfig =
@@ -380,7 +403,8 @@ case class ShardingContainerPoolBalancerState(
   def invokers: IndexedSeq[InvokerHealth] = _invokers
   def managedInvokers: IndexedSeq[InvokerHealth] = _managedInvokers
   def blackboxInvokers: IndexedSeq[InvokerHealth] = _blackboxInvokers
-  def stepSizes: Seq[Int] = _stepSizes
+  def managedStepSizes: Seq[Int] = _managedStepSizes
+  def blackboxStepSizes: Seq[Int] = _blackboxStepSizes
   def invokerSlots: IndexedSeq[ForcableSemaphore] = _invokerSlots
   def clusterSize: Int = _clusterSize
 
@@ -399,20 +423,24 @@ case class ShardingContainerPoolBalancerState(
     val oldSize = _invokers.size
     val newSize = newInvokers.size
 
-    if (oldSize != newSize) {
-      _stepSizes = ContainerPoolBalancer.pairwiseCoprimeNumbersUntil(newSize)
-      if (oldSize < newSize) {
-        // Keeps the existing state..
-        _invokerSlots = _invokerSlots.padTo(newSize, new ForcableSemaphore(currentInvokerThreshold))
-      }
-    }
-
     val blackboxes = Math.max(1, (newSize.toDouble * blackboxFraction).toInt)
     val managed = Math.max(1, newSize - blackboxes)
 
     _invokers = newInvokers
     _blackboxInvokers = _invokers.takeRight(blackboxes)
     _managedInvokers = _invokers.take(managed)
+
+    if (oldSize != newSize) {
+      _managedStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(managed)
+      _blackboxStepSizes = ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(blackboxes)
+
+      if (oldSize < newSize) {
+        // Keeps the existing state..
+        _invokerSlots = _invokerSlots ++ IndexedSeq.fill(newSize - oldSize) {
+          new ForcableSemaphore(currentInvokerThreshold)
+        }
+      }
+    }
 
     logging.info(
       this,
@@ -445,9 +473,31 @@ case class ShardingContainerPoolBalancerState(
 }
 
 /**
+ * Configuration for the cluster created between loadbalancers.
+ *
+ * @param useClusterBootstrap Whether or not to use a bootstrap mechanism
+ */
+case class ClusterConfig(useClusterBootstrap: Boolean)
+
+/**
  * Configuration for the sharding container pool balancer.
  *
  * @param blackboxFraction the fraction of all invokers to use exclusively for blackboxes
  * @param invokerBusyThreshold how many slots an invoker has available in total
  */
 case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invokerBusyThreshold: Int)
+
+/**
+ * State kept for each activation until completion.
+ *
+ * @param id id of the activation
+ * @param namespaceId namespace that invoked the action
+ * @param invokerName invoker the action is scheduled to
+ * @param timeoutHandler times out completion of this activation, should be canceled on good paths
+ * @param promise the promise to be completed by the activation
+ */
+case class ActivationEntry(id: ActivationId,
+                           namespaceId: UUID,
+                           invokerName: InstanceId,
+                           timeoutHandler: Cancellable,
+                           promise: Promise[Either[ActivationId, WhiskActivation]])

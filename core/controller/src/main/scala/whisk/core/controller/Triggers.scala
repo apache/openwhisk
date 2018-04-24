@@ -26,7 +26,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.HttpMethods.POST
-import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, OK, ServerError}
+import akka.http.scaladsl.model.StatusCodes.{Accepted, BadRequest, InternalServerError, NoContent, OK, ServerError}
 import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model._
@@ -34,14 +34,17 @@ import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import spray.json.DefaultJsonProtocol._
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import pureconfig.loadConfigOrThrow
 import spray.json._
-import whisk.common.TransactionId
+import whisk.common.{Https, TransactionId}
 import whisk.core.controller.RestApiCommons.ListLimit
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
 import whisk.core.entity.types.{ActivationStore, EntityStore}
 import whisk.http.ErrorResponse
+import whisk.http.Messages
 
 /** A trait implementing the triggers API. */
 trait WhiskTriggersApi extends WhiskCollectionAPI {
@@ -55,6 +58,29 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   /** Database service to CRUD triggers. */
   protected val entityStore: EntityStore
 
+  /** Connection context for HTTPS */
+  protected lazy val httpsConnectionContext = {
+    val sslConfig = AkkaSSLConfig().mapSettings { s =>
+      s.withLoose(s.loose.withDisableHostnameVerification(true))
+    }
+    Https.connectionContext(whiskConfig, Some(sslConfig))
+
+  }
+
+  protected val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+
+  /**
+   * Sends a request either over http or https depending on the configuration
+   * @param request http request to send
+   * @return http response packed in a future
+   */
+  private def singleRequest(request: HttpRequest): Future[HttpResponse] = {
+    if (controllerProtocol == "https")
+      Http().singleRequest(request, connectionContext = httpsConnectionContext)
+    else
+      Http().singleRequest(request)
+  }
+
   /** Notification service for cache invalidation. */
   protected implicit val cacheChangeNotification: Some[CacheChangeNotification]
 
@@ -64,7 +90,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   /** JSON response formatter. */
   /** Path to Triggers REST API. */
   protected val triggersPath = "triggers"
-  protected val url = Uri(s"http://localhost:${whiskConfig.servicePort}")
+  protected val url = Uri(s"${controllerProtocol}://localhost:${whiskConfig.servicePort}")
 
   protected implicit val materializer: ActorMaterializer
 
@@ -129,7 +155,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
           if (activeRules.nonEmpty) {
             val args: JsObject = trigger.parameters.merge(payload).getOrElse(JsObject())
 
-            activateRules(user, args, activeRules)
+            activateRules(user, args, trigger.rules.getOrElse(Map.empty))
               .map(results => triggerActivation.withLogs(ActivationLogs(results.map(_.toJson.compactPrint).toVector)))
               .recover {
                 case e =>
@@ -146,9 +172,14 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
                 case Failure(t) =>
                   logging.error(this, s"[POST] storing trigger activation $triggerActivationId failed: ${t.getMessage}")
               }
+            complete(Accepted, triggerActivationId.toJsObject)
+          } else {
+            logging
+              .debug(
+                this,
+                s"[POST] trigger without an active rule was activated; no trigger activation record created for $entityName")
+            complete(NoContent)
           }
-
-          complete(Accepted, triggerActivationId.toJsObject)
       })
     }
   }
@@ -239,15 +270,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       content.publish getOrElse trigger.publish,
       content.annotations getOrElse trigger.annotations,
       trigger.rules).revision[WhiskTrigger](trigger.docinfo.rev)
-
-    // feed must be specified in create, and cannot be added as a trigger update
-    content.annotations flatMap { _.get(Parameters.Feed) } map { _ =>
-      Future failed {
-        RejectRequest(BadRequest, "A trigger feed is only permitted when the trigger is created")
-      }
-    } getOrElse {
-      Future successful newTrigger
-    }
+    Future.successful(newTrigger)
   }
 
   /**
@@ -287,13 +310,21 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   }
 
   /**
-   * Iterates through each active rule and invoke each mapped action.
+   * Iterates through each rule and invoking each active rule's mapped action.
    */
   private def activateRules(user: Identity,
                             args: JsObject,
                             rulesToActivate: Map[FullyQualifiedEntityName, ReducedRule])(
     implicit transid: TransactionId): Future[Iterable[RuleActivationResult]] = {
     val ruleResults = rulesToActivate.map {
+      case (ruleName, rule) if (rule.status != Status.ACTIVE) =>
+        Future.successful {
+          RuleActivationResult(
+            ActivationResponse.ApplicationError,
+            ruleName,
+            rule.action,
+            Left(Messages.triggerWithInactiveRule(ruleName.asString, rule.action.asString)))
+        }
       case (ruleName, rule) =>
         // Invoke the action. Retain action results for inclusion in the trigger activation record
         postActivation(user, rule, args)
@@ -346,7 +377,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /**
    * Posts an action activation. Currently done by posting internally to the controller.
-   * TODO: use a poper path that does not route through HTTP.
+   * TODO: use a proper path that does not route through HTTP.
    *
    * @param rule the name of the rule that is activated
    * @param args the arguments to post to the action
@@ -366,7 +397,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
       headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
       entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
-    Http().singleRequest(request)
+    singleRequest(request)
   }
 
   /** Contains the result of invoking a rule */
@@ -389,4 +420,5 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
 }

@@ -303,7 +303,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(trigger.annotations))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
@@ -313,7 +314,8 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     val content = WhiskTriggerPut(annotations = Some(Parameters(Parameters.Feed, "xyz")))
     put(entityStore, trigger)
     Put(s"$collectionPath/${trigger.name}?overwrite=true", content) ~> Route.seal(routes(creds)) ~> check {
-      status should be(BadRequest)
+      deleteTrigger(trigger.docid)
+      status should be(OK)
     }
   }
 
@@ -331,7 +333,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
-      val activationId = ActivationId(id)
+      val activationId = ActivationId.parse(id).get
       response.fields("activationId") should not be None
 
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
@@ -356,13 +358,22 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
-      val activationId = ActivationId(id)
+      val activationId = ActivationId.parse(id).get
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
       whisk.utils.retry({
         println(s"trying to delete async activation doc: '${activationDoc}'")
         del(activationStore, activationDoc, WhiskActivation)
         response.fields("activationId") should not be None
       }, 30, Some(1.second))
+    }
+  }
+
+  it should "not fire a trigger without a rule" in {
+    implicit val tid = transid()
+    val trigger = WhiskTrigger(namespace, aname())
+    put(entityStore, trigger)
+    Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
+      status shouldBe NoContent
     }
   }
 

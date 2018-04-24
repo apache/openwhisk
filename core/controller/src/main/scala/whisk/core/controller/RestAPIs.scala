@@ -87,13 +87,8 @@ protected[controller] object RestApiCommons {
   def requiredProperties =
     Map(WhiskConfig.servicePort -> 8080.toString) ++
       WhiskConfig.whiskVersion ++
-      WhiskAuthStore.requiredProperties ++
-      WhiskEntityStore.requiredProperties ++
-      WhiskActivationStore.requiredProperties ++
       EntitlementProvider.requiredProperties ++
-      WhiskActionsApi.requiredProperties ++
-      Authenticate.requiredProperties ++
-      Collection.requiredProperties
+      WhiskActionsApi.requiredProperties
 
   import akka.http.scaladsl.model.HttpCharsets
   import akka.http.scaladsl.model.MediaTypes.`application/json`
@@ -171,7 +166,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     with AuthenticatedRoute
     with RespondWithHeaders {
   implicit val executionContext = actorSystem.dispatcher
-  implicit val authStore = WhiskAuthStore.datastore(config)
+  implicit val authStore = WhiskAuthStore.datastore()
 
   def prefix = pathPrefix(apiPath / apiVersion)
 
@@ -229,12 +224,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   private val rules = new RulesApi(apiPath, apiVersion)
   private val web = new WebActionsApi(Seq("web"), new WebApiDirectives())
 
-  class NamespacesApi(val apiPath: String, val apiVersion: String)(
-    implicit override val entityStore: EntityStore,
-    override val entitlementProvider: EntitlementProvider,
-    override val executionContext: ExecutionContext,
-    override val logging: Logging)
-      extends WhiskNamespacesApi
+  class NamespacesApi(val apiPath: String, val apiVersion: String) extends WhiskNamespacesApi
 
   class ActionsApi(val apiPath: String, val apiVersion: String)(
     implicit override val actorSystem: ActorSystem,

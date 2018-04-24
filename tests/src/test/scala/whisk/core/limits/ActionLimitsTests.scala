@@ -19,28 +19,25 @@ package whisk.core.limits
 
 import akka.http.scaladsl.model.StatusCodes.RequestEntityTooLarge
 import akka.http.scaladsl.model.StatusCodes.BadGateway
-
 import java.io.File
 import java.io.PrintWriter
+import java.time.Instant
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
-
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import common.ActivationResult
 import common.TestHelpers
 import common.TestUtils
+import common.TestUtils.{BAD_REQUEST, DONTCARE_EXIT, SUCCESS_EXIT}
 import common.WhiskProperties
 import common.rest.WskRest
 import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.entity.ActivationEntityLimit
-import whisk.core.entity.ActivationResponse
-import whisk.core.entity.Exec
+import whisk.core.entity.{ActivationEntityLimit, ActivationResponse, ByteSize, Exec, LogLimit, MemoryLimit, TimeLimit}
 import whisk.core.entity.size._
 import whisk.http.Messages
 
@@ -50,7 +47,7 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
   val wsk = new WskRest
 
-  val defaultDosAction = TestUtils.getTestActionFilename("timeout.js")
+  val defaultSleepAction = TestUtils.getTestActionFilename("sleep.js")
   val allowedActionDuration = 10 seconds
 
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
@@ -63,37 +60,155 @@ class ActionLimitsTests extends TestHelpers with WskTestHelpers {
   behavior of "Action limits"
 
   /**
-   * Test a long running action that exceeds the maximum execution time allowed for action
-   * by setting the action limit explicitly and attempting to run the action for an additional second.
+   * Helper class for the integration test following below.
+   * @param timeout the action timeout limit to be set in test
+   * @param memory the action memory size limit to be set in test
+   * @param logs the action log size limit to be set in test
+   * @param ec the expected exit code when creating the action
+   */
+  sealed case class PermutationTestParameter(timeout: Option[Duration] = None,
+                                             memory: Option[ByteSize] = None,
+                                             logs: Option[ByteSize] = None,
+                                             ec: Int = SUCCESS_EXIT) {
+    override def toString: String =
+      s"timeout: ${toTimeoutString}, memory: ${toMemoryString}, logsize: ${toLogsString}"
+
+    val toTimeoutString = timeout match {
+      case None                                    => "None"
+      case Some(TimeLimit.MIN_DURATION)            => s"${TimeLimit.MIN_DURATION} (= min)"
+      case Some(TimeLimit.STD_DURATION)            => s"${TimeLimit.STD_DURATION} (= std)"
+      case Some(TimeLimit.MAX_DURATION)            => s"${TimeLimit.MAX_DURATION} (= max)"
+      case Some(t) if (t < TimeLimit.MIN_DURATION) => s"${t} (< min)"
+      case Some(t) if (t > TimeLimit.MAX_DURATION) => s"${t} (> max)"
+      case Some(t)                                 => s"${t} (allowed)"
+    }
+
+    val toMemoryString = memory match {
+      case None                                   => "None"
+      case Some(MemoryLimit.minMemory)            => s"${MemoryLimit.minMemory.toMB.MB} (= min)"
+      case Some(MemoryLimit.stdMemory)            => s"${MemoryLimit.stdMemory.toMB.MB} (= std)"
+      case Some(MemoryLimit.maxMemory)            => s"${MemoryLimit.maxMemory.toMB.MB} (= max)"
+      case Some(m) if (m < MemoryLimit.minMemory) => s"${m.toMB.MB} (< min)"
+      case Some(m) if (m > MemoryLimit.maxMemory) => s"${m.toMB.MB} (> max)"
+      case Some(m)                                => s"${m.toMB.MB} (allowed)"
+    }
+
+    val toLogsString = logs match {
+      case None                                 => "None"
+      case Some(LogLimit.minLogSize)            => s"${LogLimit.minLogSize} (= min)"
+      case Some(LogLimit.stdLogSize)            => s"${LogLimit.stdLogSize} (= std)"
+      case Some(LogLimit.maxLogSize)            => s"${LogLimit.maxLogSize} (= max)"
+      case Some(l) if (l < LogLimit.minLogSize) => s"${l} (< min)"
+      case Some(l) if (l > LogLimit.maxLogSize) => s"${l} (> max)"
+      case Some(l)                              => s"${l} (allowed)"
+    }
+
+    val toExpectedResultString: String = if (ec == SUCCESS_EXIT) "allow" else "reject"
+  }
+
+  val perms = { // Assert for valid permutations that the values are set correctly
+    for {
+      time <- Seq(None, Some(TimeLimit.MIN_DURATION), Some(TimeLimit.MAX_DURATION))
+      mem <- Seq(None, Some(MemoryLimit.minMemory), Some(MemoryLimit.maxMemory))
+      log <- Seq(None, Some(LogLimit.minLogSize), Some(LogLimit.maxLogSize))
+    } yield PermutationTestParameter(time, mem, log)
+  } ++
+    // Add variations for negative tests
+    Seq(
+      PermutationTestParameter(Some(0.milliseconds), None, None, BAD_REQUEST), // timeout that is lower than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION.plus(1 second)), None, None, BAD_REQUEST), // timeout that is slightly higher than allowed
+      PermutationTestParameter(Some(TimeLimit.MAX_DURATION * 10), None, None, BAD_REQUEST), // timeout that is much higher than allowed
+      PermutationTestParameter(None, Some(0.MB), None, BAD_REQUEST), // memory limit that is lower than allowed
+      PermutationTestParameter(None, Some(MemoryLimit.maxMemory + 1.MB), None, BAD_REQUEST), // memory limit that is slightly higher than allowed
+      PermutationTestParameter(None, Some((MemoryLimit.maxMemory.toMB * 5).MB), None, BAD_REQUEST), // memory limit that is much higher than allowed
+      PermutationTestParameter(None, None, Some((LogLimit.maxLogSize.toMB * 5).MB), BAD_REQUEST)) // log size limit that is much higher than allowed
+
+  /**
+   * Integration test to verify that valid timeout, memory and log size limits are accepted
+   * when creating an action while any invalid limit is rejected.
+   *
+   * At the first sight, this test looks like a typical unit test that should not be performed
+   * as an integration test. It is performed as an integration test requiring an OpenWhisk
+   * deployment to verify that limit settings of the tested deployment fit with the values
+   * used in this test.
+   */
+  perms.foreach { parm =>
+    it should s"${parm.toExpectedResultString} creation of an action with these limits: ${parm}" in withAssetCleaner(
+      wskprops) { (wp, assetHelper) =>
+      val file = Some(TestUtils.getTestActionFilename("hello.js"))
+
+      // Limits to assert, standard values if CLI omits certain values
+      val limits = JsObject(
+        "timeout" -> parm.timeout.getOrElse(TimeLimit.STD_DURATION).toMillis.toJson,
+        "memory" -> parm.memory.getOrElse(MemoryLimit.stdMemory).toMB.toInt.toJson,
+        "logs" -> parm.logs.getOrElse(LogLimit.stdLogSize).toMB.toInt.toJson)
+
+      val name = "ActionLimitTests-" + Instant.now.toEpochMilli
+      val createResult = assetHelper.withCleaner(wsk.action, name, confirmDelete = (parm.ec == SUCCESS_EXIT)) {
+        (action, _) =>
+          val result = action.create(
+            name,
+            file,
+            logsize = parm.logs,
+            memory = parm.memory,
+            timeout = parm.timeout,
+            expectedExitCode = DONTCARE_EXIT)
+          withClue(s"Unexpected result when creating action '${name}':\n${result.toString}\nFailed assertion:") {
+            result.exitCode should be(parm.ec)
+          }
+          result
+      }
+
+      if (parm.ec == SUCCESS_EXIT) {
+        val JsObject(parsedAction) = wsk.action.get(name).respBody
+        parsedAction("limits") shouldBe limits
+      } else {
+        createResult.stderr should include("allowed threshold")
+      }
+    }
+  }
+
+  /**
+   * Test an action that exceeds its specified time limit. Explicitly specify a rather low time
+   * limit to keep the test's runtime short. Invoke an action that sleeps for the specified time
+   * limit plus one second.
    */
   it should "error with a proper warning if the action exceeds its time limits" in withAssetCleaner(wskprops) {
     (wp, assetHelper) =>
-      val name = "TestActionCausingTimeout"
+      val name = "TestActionCausingTimeout-" + System.currentTimeMillis()
       assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-        action.create(name, Some(defaultDosAction), timeout = Some(allowedActionDuration))
+        action.create(name, Some(defaultSleepAction), timeout = Some(allowedActionDuration))
       }
 
-      val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.plus(1 second).toMillis.toJson))
-      withActivation(wsk.activation, run) {
-        _.response.result.get.fields("error") shouldBe {
-          Messages.timedoutActivation(allowedActionDuration, false).toJson
+      val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.plus(1 second).toMillis.toJson))
+      withActivation(wsk.activation, run) { result =>
+        withClue("Activation result not as expected:") {
+          result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.ApplicationError)
+          result.response.result.get.fields("error") shouldBe {
+            Messages.timedoutActivation(allowedActionDuration, init = false).toJson
+          }
+          result.duration.toInt should be >= allowedActionDuration.toMillis.toInt
         }
       }
   }
 
   /**
-   * Test an action that does not exceed the allowed execution timeout of an action.
+   * Test an action that tightly stays within its specified time limit. Explicitly specify a rather low time
+   * limit to keep the test's runtime short. Invoke an action that sleeps for the specified time
+   * limit minus one second.
    */
   it should "succeed on an action staying within its time limits" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "TestActionCausingNoTimeout"
+    val name = "TestActionCausingNoTimeout-" + System.currentTimeMillis()
     assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-      action.create(name, Some(defaultDosAction), timeout = Some(allowedActionDuration))
+      action.create(name, Some(defaultSleepAction), timeout = Some(allowedActionDuration))
     }
 
-    val run = wsk.action.invoke(name, Map("payload" -> allowedActionDuration.minus(1 second).toMillis.toJson))
-    withActivation(wsk.activation, run) {
-      _.response.result.get.toString should include("""[OK] message terminated successfully""")
-
+    val run = wsk.action.invoke(name, Map("sleepTimeInMs" -> allowedActionDuration.minus(1 second).toMillis.toJson))
+    withActivation(wsk.activation, run) { result =>
+      withClue("Activation result not as expected:") {
+        result.response.status shouldBe ActivationResponse.messageForCode(ActivationResponse.Success)
+        result.response.result.get.toString should include("""Terminated successfully after around""")
+      }
     }
   }
 

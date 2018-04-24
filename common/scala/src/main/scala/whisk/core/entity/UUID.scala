@@ -21,57 +21,38 @@ import java.security.SecureRandom
 
 import com.fasterxml.uuid.Generators
 
-import scala.util.Try
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 /**
- * Wrapper for java.util.UUID.
+ * Represents a user's username and/or a namespace identifier (generally looks like UUIDs)
  *
  * It is a value type (hence == is .equals, immutable and cannot be assigned null).
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param uuid the uuid, required not null
+ * @param asString the uuid in string representation
  */
-protected[core] class UUID private (private val uuid: java.util.UUID) extends AnyVal {
-  protected[core] def asString = toString
-  protected[core] def snippet = toString.substring(0, 8)
-  protected[entity] def toJson = JsString(toString)
-  override def toString = uuid.toString
+protected[core] class UUID private (val asString: String) extends AnyVal {
+  protected[core] def snippet: String = asString.substring(0, 8)
+  protected[entity] def toJson: JsString = JsString(asString)
+  override def toString: String = asString
 }
 
-protected[core] object UUID extends ArgNormalizer[UUID] {
-
-  /**
-   * Creates a UUID from a string. The string must be a valid UUID.
-   *
-   * @param str the uuid as string
-   * @return UUID instance
-   * @throws IllegalArgumentException is argument is not a valid UUID
-   */
-  @throws[IllegalArgumentException]
-  override protected[entity] def factory(str: String): UUID = {
-    new UUID(java.util.UUID.fromString(str))
-  }
+protected[core] object UUID {
 
   /**
    * Generates a random UUID using java.util.UUID factory.
    *
    * @return new UUID
    */
-  protected[core] def apply(): UUID = new UUID(UUIDs.randomUUID())
+  protected[core] def apply(): UUID = new UUID(UUIDs.randomUUID().toString)
 
-  implicit val serdes = new RootJsonFormat[UUID] {
-    def write(u: UUID) = u.toJson
+  protected[core] def apply(str: String): UUID = new UUID(str)
 
-    def read(value: JsValue) =
-      Try {
-        val JsString(u) = value
-        UUID(u)
-      } getOrElse deserializationError("uuid malformed")
+  implicit val serdes: RootJsonFormat[UUID] = new RootJsonFormat[UUID] {
+    def write(u: UUID): JsValue = u.toJson
+    def read(value: JsValue): UUID = new UUID(value.convertTo[String])
   }
 }
 

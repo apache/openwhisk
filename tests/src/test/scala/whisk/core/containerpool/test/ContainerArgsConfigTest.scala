@@ -41,8 +41,8 @@ class ContainerArgsConfigTest extends FlatSpec with Matchers {
     System.setProperty("whisk.container-factory.container-args.extra-args.label.0", "l1")
     System.setProperty("whisk.container-factory.container-args.extra-args.label.1", "l2")
     System.setProperty("whisk.container-factory.container-args.extra-args.label.3", "l3")
-    System.setProperty("whisk.container-factory.container-args.extra-args.environment.0", "e1")
-    System.setProperty("whisk.container-factory.container-args.extra-args.environment.1", "e2")
+    System.setProperty("whisk.container-factory.container-args.extra-args.env.0", "e1")
+    System.setProperty("whisk.container-factory.container-args.extra-args.env.1", "e2")
 
     System.setProperty("whisk.container-factory.container-args.dns-servers.0", "google.com")
     System.setProperty("whisk.container-factory.container-args.dns-servers.1", "1.2.3.4")
@@ -52,7 +52,7 @@ class ContainerArgsConfigTest extends FlatSpec with Matchers {
     config.dnsServers shouldBe Seq[String]("google.com", "1.2.3.4")
     //check map parsing of extra-args config
     config.extraArgs.get("label") shouldBe Some(Set("l1", "l2", "l3"))
-    config.extraArgs.get("environment") shouldBe Some(Set("e1", "e2"))
+    config.extraArgs.get("env") shouldBe Some(Set("e1", "e2"))
 
   }
 }

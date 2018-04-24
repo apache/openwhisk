@@ -28,8 +28,10 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import TestUtils.RunResult
+import TestUtils.SUCCESS_EXIT
 import TestUtils.CONFLICT
 import akka.http.scaladsl.model.StatusCodes
 
@@ -56,7 +58,7 @@ object ActivationResponse extends DefaultJsonProtocol {
  * @param start an Instant to save the start time of activation
  * @param end an Instant to save the end time of activation
  * @param duration a Long to save the duration of the activation
- * @param cases String to save the cause of failure if the activation fails
+ * @param cause String to save the cause of failure if the activation fails
  * @param annotations a list of JSON objects to save the annotations of the activation
  */
 case class ActivationResult(activationId: String,
@@ -68,15 +70,10 @@ case class ActivationResult(activationId: String,
                             cause: Option[String],
                             annotations: Option[List[JsObject]]) {
 
-  def getAnnotationValue(key: String): Option[JsValue] = {
-    Try {
-      val annotation = annotations.get.filter(x => x.getFields("key")(0) == JsString(key))
-      assert(annotation.size == 1) // only one annotation with this value
-      val value = annotation(0).getFields("value")
-      assert(value.size == 1)
-      value(0)
-    }.toOption
-  }
+  def getAnnotationValue(key: String): Option[JsValue] =
+    annotations
+      .flatMap(_.find(_.fields("key").convertTo[String] == key))
+      .map(_.fields("value"))
 }
 
 object ActivationResult extends DefaultJsonProtocol {
@@ -123,6 +120,12 @@ object ActivationResult extends DefaultJsonProtocol {
   }
 }
 
+/** The result of a rule-activation written into the trigger activation */
+case class RuleActivationResult(statusCode: Int, success: Boolean, activationId: String, action: String)
+object RuleActivationResult extends DefaultJsonProtocol {
+  implicit val serdes = jsonFormat4(RuleActivationResult.apply)
+}
+
 /**
  * Test fixture to ease cleaning of whisk entities created during testing.
  *
@@ -154,7 +157,7 @@ trait WskTestHelpers extends Matchers {
    * list that is iterated at the end of the test so that these entities are deleted
    * (from most recently created to oldest).
    */
-  def withAssetCleaner(wskprops: WskProps)(test: (WskProps, AssetCleaner) => Any) = {
+  def withAssetCleaner[T](wskprops: WskProps)(test: (WskProps, AssetCleaner) => T): T = {
     // create new asset list to track what must be deleted after test completes
     val assetsToDeleteAfterTest = new Assets()
 
@@ -168,14 +171,18 @@ trait WskTestHelpers extends Matchers {
     } finally {
       // delete assets in reverse order so that was created last is deleted first
       val deletedAll = assetsToDeleteAfterTest.reverse map {
-        case ((cli, n, delete)) =>
+        case (cli, n, delete) =>
           n -> Try {
             cli match {
               case _: BasePackage if delete =>
-                val rr = cli.delete(n)(wskprops)
+                // sanitize ignores the exit code, so we can inspect the actual result and retry accordingly
+                val rr = cli.sanitize(n)(wskprops)
                 rr.exitCode match {
                   case CONFLICT | StatusCodes.Conflict.intValue =>
-                    whisk.utils.retry(cli.delete(n)(wskprops), 5, Some(1.second))
+                    whisk.utils.retry({
+                      println("package deletion conflict, view computation delay likely, retrying...")
+                      cli.delete(n)(wskprops)
+                    }, 5, Some(1.second))
                   case _ => rr
                 }
               case _ => if (delete) cli.delete(n)(wskprops) else cli.sanitize(n)(wskprops)
@@ -232,37 +239,9 @@ trait WskTestHelpers extends Matchers {
         }
     }
   }
-
-  /**
-   * Polls until it finds {@code N} activationIds from an entity. Asserts the count
-   * of the activationIds actually equal {@code N}. Takes a {@code since} parameter
-   * defining the oldest activationId to consider valid.
-   */
-  def withActivationsFromEntity(
-    wsk: BaseActivation,
-    entity: String,
-    N: Int = 1,
-    since: Option[Instant] = None,
-    pollPeriod: Duration = 1.second,
-    totalWait: Duration = 60.seconds)(check: Seq[ActivationResult] => Unit)(implicit wskprops: WskProps): Unit = {
-
-    val activationIds =
-      wsk.pollFor(N, Some(entity), since = since, retries = (totalWait / pollPeriod).toInt, pollPeriod = pollPeriod)
-    withClue(
-      s"expecting $N activations matching '$entity' name since $since but found ${activationIds.mkString(",")} instead") {
-      activationIds.length shouldBe N
-    }
-
-    val parsed = activationIds.map { id =>
-      wsk.parseJsonString(wsk.get(Some(id)).stdout).convertTo[ActivationResult]
-    }
-    try {
-      check(parsed)
-    } catch {
-      case error: Throwable =>
-        println(s"check failed for activations $activationIds: ${parsed}")
-        throw error
-    }
+  def withActivation(wsk: BaseActivation, activationId: String)(check: ActivationResult => Unit)(
+    implicit wskprops: WskProps): Unit = {
+    withActivation(wsk, activationId, 1.second, 1.second, 60.seconds)(check)
   }
 
   /**
@@ -309,10 +288,12 @@ trait WskTestHelpers extends Matchers {
     WskProps(namespace = newUser, authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)
   }
 
-  def disposeAdditionalTestSubject(subject: String): Unit = {
+  def disposeAdditionalTestSubject(subject: String, expectedExitCode: Int = SUCCESS_EXIT): Unit = {
     val wskadmin = new RunWskAdminCmd {}
     withClue(s"failed to delete temporary subject $subject") {
-      wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+      wskadmin.cli(Seq("user", "delete", subject), expectedExitCode).stdout should include("Subject deleted")
     }
   }
+  //Append the current timestamp in ms
+  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
 }

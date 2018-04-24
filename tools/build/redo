@@ -93,7 +93,8 @@ def getArgs():
     parser.add_argument('-g', '--gradle', help='use target using inferred gradle file if component is not one of known targets', action='store_const', const=True, default=False)
     parser.add_argument('-n', '--just-print', help='prints the component configuration but does not run any targets', action='store_const', const=True, default=False, dest='skiprun')
     parser.add_argument('-c', '--list-components', help='list known component names and exit', action='store_const', const=True, default=False, dest='list')
-    parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to underlying task command')
+    parser.add_argument('-a', '--additional-task-arguments', dest='extraArgs', action='append', help='pass additional arguments to gradle build')
+    parser.add_argument('-e', '--extra-ansible-vars', dest='extraAnsibleVars', action='append', help='pass extra vars to ansible-playbook')
     parser.add_argument('components', nargs = '*', help='component name(s) to run (in order specified if more than one)')
     parser.add_argument('--dir', help='whisk home directory')
 
@@ -144,7 +145,7 @@ class Playbook:
     def path(self, basedir):
         return basedir + '/' + self.dir
 
-    def execcmd(self, props, mode = False, extraArgs = ''):
+    def execcmd(self, props, mode = False, extraAnsibleVars = []):
         if self.dir and self.file and (mode is False or mode in self.modes):
             cmd = [ self.cmd ]
             if self.env:
@@ -152,8 +153,8 @@ class Playbook:
             cmd.append(self.file)
             if mode:
                 cmd.append('-e mode=%s' % mode)
-            if extraArgs is not '':
-                cmd.append(extraArgs)
+            if extraAnsibleVars:
+                cmd.append(' '.join(map(lambda x: "-e '" + str(x) + "'", extraAnsibleVars)))
             return ' '.join(cmd)
 
 class Gradle:
@@ -393,11 +394,11 @@ def doOne(component, args, props):
         run(cmd, basedir, args.skiprun)
 
     if args.teardown and playbook is not None:
-        cmd = playbook.execcmd(props, 'clean', extraArgs = extraArgs)
+        cmd = playbook.execcmd(props, 'clean', extraAnsibleVars = args.extraAnsibleVars)
         run(cmd, playbook.path(basedir), args.skiprun)
 
     if args.deploy and playbook is not None:
-        cmd = playbook.execcmd(props, extraArgs = extraArgs)
+        cmd = playbook.execcmd(props, extraAnsibleVars = args.extraAnsibleVars)
         run(cmd, playbook.path(basedir), args.skiprun)
 
 if __name__ == '__main__':

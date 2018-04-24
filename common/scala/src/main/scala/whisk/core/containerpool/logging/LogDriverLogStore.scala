@@ -18,10 +18,12 @@
 package whisk.core.containerpool.logging
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.HttpRequest
+
 import whisk.core.entity.Identity
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
 
 import scala.concurrent.Future
 
@@ -36,7 +38,7 @@ import scala.concurrent.Future
 class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
 
   /** Indicate --log-driver and --log-opt flags via ContainerArgsConfig.extraArgs */
-  override def containerParameters = Map()
+  override def containerParameters = Map.empty
 
   def collectLogs(transid: TransactionId,
                   user: Identity,
@@ -47,7 +49,7 @@ class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
 
   /** no logs exposed to API/CLI using only the LogDriverLogStore; use an extended version,
    * e.g. the SplunkLogStore to expose logs from some external source */
-  def fetchLogs(activation: WhiskActivation): Future[ActivationLogs] =
+  def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] =
     Future.successful(ActivationLogs(Vector("Logs are not available.")))
 }
 

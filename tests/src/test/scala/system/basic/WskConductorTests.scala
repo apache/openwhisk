@@ -34,8 +34,6 @@ import common.WskTestHelpers
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
 
 import whisk.core.entity.size.SizeInt
 import whisk.core.WhiskConfig
@@ -121,10 +119,12 @@ abstract class WskConductorTests extends TestHelpers with WskTestHelpers with Js
 
       // an undefined action
       val undefinedrun = wsk.action.invoke(echo, Map("payload" -> testString.toJson, "action" -> missing.toJson))
+      val namespace = wsk.namespace.whois()
+
       withActivation(wsk.activation, undefinedrun) { activation =>
         activation.response.status shouldBe "application error"
         activation.response.result.get.fields.get("error") shouldBe Some(
-          JsString(compositionComponentNotFound(missing)))
+          JsString(compositionComponentNotFound(s"$namespace/$missing")))
         checkConductorLogsAndAnnotations(activation, 1) // echo
       }
   }

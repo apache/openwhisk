@@ -41,10 +41,7 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
    */
   def size = {
     params
-      .map {
-        case (name, value) =>
-          name.size + value.size
-      }
+      .map { case (name, value) => name.size + value.size }
       .foldLeft(0 B)(_ + _)
   }
 
@@ -77,14 +74,14 @@ protected[core] class Parameters protected[entity] (private val params: Map[Para
     params.keySet filter (params(_).isDefined) map (_.name)
   }
 
-  protected[core] def toJsArray =
+  protected[core] def toJsArray = {
     JsArray(params map { p =>
       JsObject("key" -> p._1.name.toJson, "value" -> p._2.value.toJson)
     } toSeq: _*)
-  protected[core] def toJsObject =
-    JsObject(params map { p =>
-      (p._1.name -> p._2.value.toJson)
-    })
+  }
+
+  protected[core] def toJsObject = JsObject(params.map(p => (p._1.name -> p._2.value.toJson)))
+
   override def toString = toJsArray.compactPrint
 
   /**
@@ -164,7 +161,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] val Feed = "feed"
   protected[core] val sizeLimit = 1 MB
 
-  protected[core] def apply(): Parameters = new Parameters(Map())
+  protected[core] def apply(): Parameters = new Parameters(Map.empty)
 
   /**
    * Creates a parameter tuple from a pair of strings.

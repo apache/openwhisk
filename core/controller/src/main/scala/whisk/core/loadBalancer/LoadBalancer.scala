@@ -86,3 +86,6 @@ trait LoadBalancerProvider extends Spi {
                                                                    logging: Logging,
                                                                    materializer: ActorMaterializer): LoadBalancer
 }
+
+/** Exception thrown by the loadbalancer */
+case class LoadBalancerException(msg: String) extends Throwable(msg)

@@ -23,7 +23,6 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.DurationDouble
 import scala.concurrent.duration.DurationInt
 import scala.util._
-
 import org.junit.runner.RunWith
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpec
@@ -31,17 +30,17 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
 import akka.actor.Props
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import common.StreamLogging
 import common.WskActorSystem
+import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.core.WhiskConfig
-import whisk.core.WhiskConfig._
+import whisk.core.ConfigKeys
+import whisk.core.database.CouchDbConfig
 import whisk.test.http.RESTProxy
 
 @RunWith(classOf[JUnitRunner])
@@ -58,19 +57,13 @@ class CouchDbRestClientTests
 
   private def someId(prefix: String): String = s"${prefix}${Random.nextInt().abs}"
 
-  val config = new WhiskConfig(
-    Map(dbProvider -> null, dbProtocol -> null, dbUsername -> null, dbPassword -> null, dbHost -> null, dbPort -> null))
+  val config = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
 
   // We assume this DB does not exist.
   val dbName = someId("whisk_test_db_")
 
-  val client = new ExtendedCouchDbRestClient(
-    config.dbProtocol,
-    config.dbHost,
-    config.dbPort.toInt,
-    config.dbUsername,
-    config.dbPassword,
-    dbName)
+  val client =
+    new ExtendedCouchDbRestClient(config.protocol, config.host, config.port, config.username, config.password, dbName)
 
   override def beforeAll() = {
     super.beforeAll()
@@ -97,7 +90,7 @@ class CouchDbRestClientTests
   behavior of "CouchDbRestClient"
 
   it should "successfully access the DB instance info" in {
-    assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+    assume(config.provider == "Cloudant" || config.provider == "CouchDB")
     val f = client.instanceInfo()
     whenReady(f) { e =>
       checkInstanceInfoResponse(e)
@@ -164,16 +157,16 @@ class CouchDbRestClientTests
   }
 
   ignore /* it */ should "successfully access the DB despite transient connection failures" in {
-    assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+    assume(config.provider == "Cloudant" || config.provider == "CouchDB")
 
-    val dbAuthority = Uri.Authority(host = Uri.Host(config.dbHost), port = config.dbPort.toInt)
+    val dbAuthority = Uri.Authority(host = Uri.Host(config.host), port = config.port)
 
     val proxyPort = 15975
     val proxyActor =
-      actorSystem.actorOf(Props(new RESTProxy("0.0.0.0", proxyPort)(dbAuthority, config.dbProtocol == "https")))
+      actorSystem.actorOf(Props(new RESTProxy("0.0.0.0", proxyPort)(dbAuthority, config.protocol == "https")))
 
     val proxiedClient =
-      new ExtendedCouchDbRestClient("http", "localhost", proxyPort, config.dbUsername, config.dbPassword, dbName)
+      new ExtendedCouchDbRestClient("http", "localhost", proxyPort, config.username, config.password, dbName)
 
     // sprays the client with requests, makes sure they are all answered
     // despite temporary connection failure.
@@ -214,7 +207,7 @@ class CouchDbRestClientTests
   }
 
   it should "upload then download an attachment" in {
-    assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+    assume(config.provider == "Cloudant" || config.provider == "CouchDB")
 
     val docId = "some_doc"
     val doc = JsObject("greeting" -> JsString("hello"))
@@ -261,7 +254,7 @@ class CouchDbRestClientTests
   }
 
   it should "check group Parameter on view-execution" in {
-    assume(config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB")
+    assume(config.provider == "Cloudant" || config.provider == "CouchDB")
 
     val ids = List("some_doc_1", "some_doc_2", "some_doc_3", "some_doc_4", "some_doc_5")
     val docs = Map(

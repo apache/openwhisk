@@ -30,8 +30,6 @@ import common.WskProps
 import common.WskTestHelpers
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
 
 @RunWith(classOf[JUnitRunner])
 abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHelpers {
@@ -222,15 +220,6 @@ abstract class WskActionTests extends TestHelpers with WskTestHelpers with JsHel
       activation.response.status shouldBe "action developer error"
       activation.response.result shouldBe Some(JsObject("error" -> "Missing main/no code to execute.".toJson))
     }
-  }
-
-  it should "create an action with an empty file" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
-    val name = "empty"
-    assetHelper.withCleaner(wsk.action, name) { (action, _) =>
-      action.create(name, Some(TestUtils.getTestActionFilename("empty.js")))
-    }
-    val rr = wsk.action.get(name)
-    wsk.parseJsonString(rr.stdout).getFieldPath("exec", "code") shouldBe Some(JsString(""))
   }
 
   it should "blocking invoke of nested blocking actions" in withAssetCleaner(wskprops) { (wp, assetHelper) =>

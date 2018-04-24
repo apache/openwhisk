@@ -26,8 +26,8 @@ task testLean(type: Test) {
     exclude '**/*Java*'
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
-    exclude '**/*ApiGwTests*'
-    exclude '**/*Cli*'
+    exclude '**/*ApiGwRestBasicTests*'
+    exclude '**/*WskCli*'
 }
 
 task testLeanCli(type: Test) {
@@ -36,7 +36,7 @@ task testLeanCli(type: Test) {
     exclude '**/*Java*'
     exclude '**/*ThrottleTests*'
     exclude '**/MaxActionDurationTests*'
-    exclude '**/*ApiGwTests*'
+    exclude '**/*ApiGwRestBasicTests*'
     exclude '**/*Rest*'
 }
 
@@ -61,12 +61,12 @@ dependencies {
     compile 'junit:junit:4.11'
     compile 'com.jayway.restassured:rest-assured:2.6.0'
     compile 'org.scalatest:scalatest_2.11:3.0.1'
-    compile 'com.typesafe.akka:akka-testkit_2.11:2.5.4'
+    compile 'com.typesafe.akka:akka-testkit_2.11:2.5.12'
     compile 'com.google.code.gson:gson:2.3.1'
     compile 'org.scalamock:scalamock-scalatest-support_2.11:3.4.2'
-    compile 'com.typesafe.akka:akka-testkit_2.11:2.4.16'
-    compile 'com.typesafe.akka:akka-http-testkit_2.11:10.0.10'
-    compile 'com.github.java-json-tools:json-schema-validator:2.2.8';
+    compile 'com.typesafe.akka:akka-http-testkit_2.11:10.1.1'
+    compile 'com.github.java-json-tools:json-schema-validator:2.2.8'
+    compile "org.mockito:mockito-core:2.15.0"
 
     compile project(':common:scala')
     compile project(':core:controller')
@@ -85,8 +85,14 @@ task createKeystore(dependsOn: deleteKeystore) {
     doLast {
         Properties props = new Properties()
         props.load(new FileInputStream(file('../whisk.properties')))
+        keystorePath.parentFile.mkdirs()
         def cmd = ['keytool', '-import', '-alias', 'Whisk', '-noprompt', '-trustcacerts', '-file', file(props['whisk.ssl.cert']), '-keystore', keystorePath, '-storepass', 'openwhisk']
         cmd.execute().waitForProcessOutput(System.out, System.err)
     }
 }
-compileTestScala.finalizedBy createKeystore
+
+afterEvaluate {
+    tasks.withType(Test) {
+        dependsOn createKeystore
+    }
+}

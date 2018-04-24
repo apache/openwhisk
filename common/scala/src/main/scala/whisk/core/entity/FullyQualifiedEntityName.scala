@@ -96,4 +96,36 @@ protected[core] object FullyQualifiedEntityName extends DefaultJsonProtocol {
         case Failure(t)                           => deserializationError("fully qualified name malformed")
       }
   }
+
+  /**
+   * Converts the name to a fully qualified name.
+   * There are 3 cases:
+   * - name is not a valid EntityPath => error
+   * - name is a valid single segment with a leading slash => error
+   * - name is a valid single segment without a leading slash => map it to user namespace, default package
+   * - name is a valid multi segment with a leading slash => treat it as fully qualified name (max segments allowed: 3)
+   * - name is a valid multi segment without a leading slash => treat it as package name and resolve it to the user namespace (max segments allowed: 3)
+   *
+   * The last case is ambiguous as '/namespace/action' and 'package/action' will be the same EntityPath value.
+   * The action should use a fully qualified result to avoid the ambiguity.
+   *
+   * @param name name of the action to fully qualify
+   * @param namespace the user namespace for the simple resolution
+   * @return Some(FullyQualifiedName) if the name is valid otherwise None
+   */
+  protected[core] def resolveName(name: JsValue, namespace: EntityName): Option[FullyQualifiedEntityName] = {
+    name match {
+      case v @ JsString(s) =>
+        Try(v.convertTo[EntityPath]).toOption
+          .flatMap { path =>
+            val n = path.segments
+            val leadingSlash = s.startsWith(EntityPath.PATHSEP)
+            if (n < 1 || n > 3 || (leadingSlash && n == 1) || (!leadingSlash && n > 3)) None
+            else if (leadingSlash || n == 3) Some(path)
+            else Some(namespace.toPath.addPath(path))
+          }
+          .map(_.resolveNamespace(namespace).toFullyQualifiedEntityName)
+      case _ => None
+    }
+  }
 }

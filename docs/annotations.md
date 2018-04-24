@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Annotations on OpenWhisk assets
 
 OpenWhisk actions, triggers, rules and packages (collectively referred to as assets) may be decorated with `annotations`. Annotations are attached to assets just like parameters with a `key` that defines a name and `value` that defines the value. It is convenient to set them from the command line interface (CLI) via `--annotation` or `-a` for short.
@@ -21,7 +38,7 @@ The annotations we have used for describing packages are:
 * `description`: a pithy description of the package
 * `parameters`: an array describing parameters that are scoped to the package (described further below)
 
-Similarly, for actions: 
+Similarly, for actions:
 
 * `description`: a pithy description of the action
 * `parameters`: an array describing actions that are required to execute the action
@@ -48,7 +65,7 @@ and must be present and explicitly set to `true` to have an affect. The annotati
 * `final`: Makes all of the action parameters that are already defined immutable. A parameter of an action carrying the annotation may not be overridden by invoke-time parameters once the parameter has a value defined through its enclosing package or the action definition.
 * `raw-http`: When set, the HTTP request query and body parameters are passed to the action as reserved properties.
 * `web-custom-options`: When set, this annotation enables a web action to respond to OPTIONS requests with customized headers, otherwise a [default CORS response](webactions.md#options-requests) applies.
-* `require-whisk-auth`: This annotation protects the web action so that it is only accessible to an authenticated subject. It is important to note that the _owner_ of the web action will still incur the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
+* `require-whisk-auth`: This annotation protects the web action so that it is only invoked by requests that provide appropriate authentication credentials. When set to a boolean value, it controls whether or not the request's Basic Authentication value (i.e. Whisk auth key) will be authenticated - a value of `true` will authenticate the credentials, a value of `false` will invoke the action without any authentication. When set to a number or a string, this value must match the request's `X-Require-Whisk-Auth` header value. In both cases, it is important to note that the _owner_ of the web action will still incur the cost of running them in the system (i.e., the _owner_ of the action also owns the activations record).
 
 # Annotations specific to activations
 
