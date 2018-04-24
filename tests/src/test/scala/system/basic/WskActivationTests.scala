@@ -54,7 +54,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
 
         logs should include regex logFormat.format("stdout", "this is stdout")
         logs should include regex logFormat.format("stderr", "this is stderr")
-      }, 60, Some(1.second))
+      }, 60 * 5, Some(1.second)) // retry for 5 minutes
     }
   }
 }
