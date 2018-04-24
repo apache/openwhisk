@@ -63,7 +63,10 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
 
   it should "fetch result using activation result API" in withAssetCleaner(wskprops) { (wp, assetHelper) =>
     val name = "hello"
-    val expectedResult = JsObject("payload" -> "hello, undefined!".toJson)
+    val expectedResult = JsObject(
+      "result" -> JsObject("payload" -> "hello, undefined!".toJson),
+      "success" -> true.toJson,
+      "status" -> "success".toJson)
 
     assetHelper.withCleaner(wsk.action, name) { (action, _) =>
       action.create(name, Some(TestUtils.getTestActionFilename("hello.js")))
@@ -76,7 +79,7 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
       retry({
         val result = wsk.activation.result(Some(activation.activationId)).stdout
 
-        result should include(expectedResult.compactPrint)
+        result.parseJson.asJsObject shouldBe expectedResult
       }, 10, Some(1.second))
     }
   }
