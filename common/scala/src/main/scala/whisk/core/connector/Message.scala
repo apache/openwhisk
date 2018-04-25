@@ -136,13 +136,15 @@ object EventMessageBody extends DefaultJsonProtocol {
   }
 }
 
-case class Activation(name: EntityName,
+case class Activation(name: String,
                       statusCode: Int,
                       duration: Long,
                       waitTime: Long,
                       initTime: Long,
                       kind: String,
-                      conductor: Boolean)
+                      conductor: Boolean,
+                      memory: Int,
+                      cause: Option[ActivationId] = None)
     extends EventMessageBody {
   override def serialize = Activation.activationFormat.write(this).compactPrint
 
@@ -152,7 +154,17 @@ case class Activation(name: EntityName,
 object Activation extends DefaultJsonProtocol {
   def parse(msg: String) = Try(activationFormat.read(msg.parseJson))
   implicit val activationFormat =
-    jsonFormat(Activation.apply _, "name", "statusCode", "duration", "waitTime", "initTime", "kind", "conductor")
+    jsonFormat(
+      Activation.apply _,
+      "name",
+      "statusCode",
+      "duration",
+      "waitTime",
+      "initTime",
+      "kind",
+      "conductor",
+      "memory",
+      "cause")
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {

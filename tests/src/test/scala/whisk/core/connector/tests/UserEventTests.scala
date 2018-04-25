@@ -68,7 +68,9 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
       consumer.peek(maxPollInterval).map { case (_, _, _, msg) => EventMessage.parse(new String(msg, "utf-8")) }
     received.map(event => {
       event match {
-        case EventMessage(_, a: Activation, _, _, _, _, _) => Array(a.statusCode) should contain oneOf (0, 1, 2, 3)
+        case EventMessage(_, a: Activation, _, _, _, _, _) => {
+          Array(a.statusCode) should contain oneOf (0, 1, 2, 3)
+        }
         case EventMessage(_, m: Metric, _, _, _, _, _) =>
           Array(m.metricName) should contain oneOf ("concurrent_activations", "ConcurrentRateLimit", "TimedRateLimit")
       }
