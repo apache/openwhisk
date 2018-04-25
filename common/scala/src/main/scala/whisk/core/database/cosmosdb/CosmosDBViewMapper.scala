@@ -124,22 +124,22 @@ private[cosmosdb] abstract class SimpleMapper extends CosmosDBViewMapper {
 }
 
 private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
-  private val NS = "r.namespace"
-  private val ROOT_NS_C = s"r.$computed.$ROOT_NS"
-  private val TYPE = "r.entityType"
-  private val UPDATED = "r.updated"
-  private val PUBLISH = "r.publish"
-  private val BINDING = "r.binding"
+  private val NS = "namespace"
+  private val ROOT_NS_C = s"$computed.$ROOT_NS"
+  private val TYPE = "entityType"
+  private val UPDATED = "updated"
+  private val PUBLISH = "publish"
+  private val BINDING = "binding"
 
   val handler = WhisksHandler
 
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
       includedPaths = Set(
-        IncludedPath("/entityType/?", Index(Hash, String, -1)),
-        IncludedPath("/namespace/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$TYPE/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
         IncludedPath(s"/$computed/$ROOT_NS/?", Index(Hash, String, -1)),
-        IncludedPath("/updated/?", Index(Range, Number, -1))))
+        IncludedPath(s"/$UPDATED/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
                                view: String,
@@ -152,17 +152,17 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
       viewConditions(ddoc, view).map(q => (s"${q._1} AND", q._2)).getOrElse((NOTHING, Nil))
 
     val params = ("@entityType", entityType) :: ("@namespace", namespace) :: vcParams
-    val baseCondition = s"$vc $TYPE = @entityType AND ($NS = @namespace OR $ROOT_NS_C = @namespace)"
+    val baseCondition = s"$vc r.$TYPE = @entityType AND (r.$NS = @namespace OR r.$ROOT_NS_C = @namespace)"
 
     (startKey, endKey) match {
       case (_ :: Nil, _ :: `TOP` :: Nil) =>
         (baseCondition, params)
 
       case (_ :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
-        (s"$baseCondition AND $UPDATED >= @since", ("@since", since) :: params)
+        (s"$baseCondition AND r.$UPDATED >= @since", ("@since", since) :: params)
 
       case (_ :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
-        (s"$baseCondition AND ($UPDATED BETWEEN @since AND @upto)", ("@upto", upto) :: ("@since", since) :: params)
+        (s"$baseCondition AND (r.$UPDATED BETWEEN @since AND @upto)", ("@upto", upto) :: ("@since", since) :: params)
 
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
@@ -171,31 +171,31 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   private def viewConditions(ddoc: String, view: String): Option[(String, List[(String, Any)])] = {
     view match {
       case "packages-public" if ddoc.startsWith("whisks") =>
-        Some(s"$PUBLISH = true AND (NOT IS_OBJECT($BINDING) OR $BINDING = {})", Nil)
+        Some(s"r.$PUBLISH = true AND (NOT IS_OBJECT(r.$BINDING) OR r.$BINDING = {})", Nil)
       case _ => None
     }
   }
 
   override protected def orderByField(ddoc: String, view: String): String = view match {
     case "actions" | "rules" | "triggers" | "packages" | "packages-public" if ddoc.startsWith("whisks") =>
-      UPDATED
+      s"r.$UPDATED"
     case _ => throw UnsupportedView(s"$ddoc/$view")
   }
 
 }
 private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
-  private val NS = "r.namespace"
-  private val NS_WITH_PATH = s"r.$computed.$NS_PATH"
-  private val START = "r.start"
+  private val NS = "namespace"
+  private val NS_WITH_PATH = s"$computed.$NS_PATH"
+  private val START = "start"
 
   val handler = ActivationHandler
 
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
       includedPaths = Set(
-        IncludedPath("/namespace/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
         IncludedPath(s"/$computed/$NS_PATH/?", Index(Hash, String, -1)),
-        IncludedPath("/start/?", Index(Range, Number, -1))))
+        IncludedPath(s"/$START/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
                                view: String,
@@ -219,22 +219,31 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
     val params = ("@nsvalue", nsValue) :: Nil
     val filter = (startKey, endKey) match {
       case (_ :: Nil, _ :: `TOP` :: Nil) =>
-        (s"$nsKey = @nsvalue", params)
+        (s"r.$nsKey = @nsvalue", params)
       case (_ :: (since: Number) :: Nil, _ :: `TOP` :: `TOP` :: Nil) =>
-        (s"$nsKey = @nsvalue AND $START >= @start", ("@start", since) :: params)
+        (s"r.$nsKey = @nsvalue AND r.$START >= @start", ("@start", since) :: params)
       case (_ :: (since: Number) :: Nil, _ :: (upto: Number) :: `TOP` :: Nil) =>
-        (s"$nsKey = @nsvalue AND $START >= @start AND $START <= @upto", ("@upto", upto) :: ("@start", since) :: params)
+        (s"r.$nsKey = @nsvalue AND (r.$START BETWEEN @start AND @upto)", ("@upto", upto) :: ("@start", since) :: params)
       case _ => throw UnsupportedQueryKeys(s"$startKey, $endKey")
     }
     filter
   }
 
   override protected def orderByField(ddoc: String, view: String): String = view match {
-    case "activations" if ddoc.startsWith("whisks") => START
+    case "activations" if ddoc.startsWith("whisks") => s"r.$START"
     case _                                          => throw UnsupportedView(s"$ddoc/$view")
   }
 }
 private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
+  private val UUID = "uuid"
+  private val KEY = "key"
+  private val NSS = "namespaces"
+  private val CONCURRENT_INVOCATIONS = "concurrentInvocations"
+  private val INVOCATIONS_PER_MIN = "invocationsPerMinute"
+  private val BLOCKED = "blocked"
+  private val SUBJECT = "subject"
+  private val NAME = "name"
+
   val handler = SubjectHandler
 
   override def indexingPolicy: IndexingPolicy =
@@ -243,12 +252,12 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
     //and keys are bigger
     IndexingPolicy(
       includedPaths = Set(
-        IncludedPath("/uuid/?", Index(Hash, String, -1)),
-        IncludedPath("/key/?", Index(Hash, String, 3)),
-        IncludedPath("/namespaces/[]/uuid/?", Index(Hash, String, -1)),
-        IncludedPath("/namespaces/[]/key/?", Index(Hash, String, 3)),
-        IncludedPath("/concurrentInvocations/?", Index(Hash, Number, -1)),
-        IncludedPath("/invocationsPerMinute/?", Index(Hash, Number, -1))))
+        IncludedPath(s"/$UUID/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$NSS/[]/$NAME/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$SUBJECT/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$NSS/[]/$UUID/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$CONCURRENT_INVOCATIONS/?", Index(Hash, Number, -1)),
+        IncludedPath(s"/$INVOCATIONS_PER_MIN/?", Index(Hash, Number, -1))))
 
   override def prepareQuery(ddoc: String,
                             view: String,
@@ -283,13 +292,13 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
                                                  startKey: List[Any],
                                                  endKey: List[Any],
                                                  count: Boolean): SqlQuerySpec = {
-    val notBlocked = "(NOT(IS_DEFINED(r.blocked)) OR r.blocked = false)"
+    val notBlocked = s"(NOT(IS_DEFINED(r.$BLOCKED)) OR r.$BLOCKED = false)"
     val (where, params) = startKey match {
       case (ns: String) :: Nil =>
-        (s"$notBlocked AND (r.subject = @name OR n.name = @name)", ("@name", ns) :: Nil)
+        (s"$notBlocked AND (r.$SUBJECT = @name OR n.$NAME = @name)", ("@name", ns) :: Nil)
       case (uuid: String) :: (key: String) :: Nil =>
         (
-          s"$notBlocked AND ((r.uuid = @uuid AND r.key = @key) OR (n.uuid = @uuid AND n.key = @key))",
+          s"$notBlocked AND ((r.$UUID = @uuid AND r.$KEY = @key) OR (n.$UUID = @uuid AND n.$KEY = @key))",
           ("@uuid", uuid) :: ("@key", key) :: Nil)
       case _ => throw UnsupportedQueryKeys(s"$ddoc/$view -> ($startKey, $endKey)")
     }
@@ -300,9 +309,9 @@ private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
     prepareSpec(
       s"""SELECT ${selectClause(count)} AS $alias
                   FROM   root r
-                  WHERE  r.blocked = true
-                          OR r.concurrentInvocations = 0
-                          OR r.invocationsPerMinute = 0 """,
+                  WHERE  r.$BLOCKED = true
+                          OR r.$CONCURRENT_INVOCATIONS = 0
+                          OR r.$INVOCATIONS_PER_MIN = 0 """,
       Nil)
 
   private def selectClause(count: Boolean) = if (count) "TOP 1 VALUE COUNT(r)" else "r"
