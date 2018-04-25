@@ -22,7 +22,7 @@ import akka.http.scaladsl.model.HttpRequest
 
 import whisk.common.TransactionId
 import whisk.core.containerpool.Container
-import whisk.core.entity.{ActivationLogs, ExecutableWhiskAction, Identity, WhiskActivation}
+import whisk.core.entity.{ActivationLogs, ActivationResponse, ExecutableWhiskAction, Identity, WhiskActivation}
 import whisk.spi.Spi
 
 import scala.concurrent.Future
@@ -77,6 +77,16 @@ trait LogStore {
    * @return the relevant logs
    */
   def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs]
+
+  /**
+   * Fetch relevant result for the given activation from the store.
+   *
+   * This method is called when a user requests a result via the API.
+   *
+   * @param activation activation to fetch the result for
+   * @return the relevant result
+   */
+  def fetchResponse(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationResponse]
 }
 
 trait LogStoreProvider extends Spi {

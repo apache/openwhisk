@@ -19,7 +19,6 @@ package whisk.core.controller
 
 import java.time.Instant
 
-import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport.sprayJsonMarshaller
@@ -212,7 +211,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
         docid,
         postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson)))
 
-    } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(docid) } ~
+    } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(user, docid) } ~
       (pathPrefix(logsPath) & pathEnd) { fetchLogs(user, docid) }
   }
 
@@ -224,12 +223,14 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  private def fetchResponse(docid: DocId)(implicit transid: TransactionId) = {
-    getEntityAndProject(
-      WhiskActivation,
-      activationStore,
-      docid,
-      (activation: WhiskActivation) => Future.successful(activation.response.toExtendedJson))
+  private def fetchResponse(user: Identity, docid: DocId)(implicit transid: TransactionId) = {
+    extractRequest { request =>
+      getEntityAndProject(
+        WhiskActivation,
+        activationStore,
+        docid,
+        (activation: WhiskActivation) => logStore.fetchResponse(user, activation, request).map(_.toExtendedJson))
+    }
   }
 
   /**
