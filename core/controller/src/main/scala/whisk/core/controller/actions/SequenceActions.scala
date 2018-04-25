@@ -174,14 +174,7 @@ protected[actions] trait SequenceActions {
    * Stores sequence activation to database.
    */
   private def storeSequenceActivation(activation: WhiskActivation)(implicit transid: TransactionId): Unit = {
-    logging.debug(this, s"recording activation '${activation.activationId}'")
-    WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t) =>
-        logging.error(
-          this,
-          s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
-    }
+    activationStore.store(activation)(transid, notifier = None)
   }
 
   /**

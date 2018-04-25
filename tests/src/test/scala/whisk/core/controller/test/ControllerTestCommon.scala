@@ -87,9 +87,9 @@ protected trait ControllerTestCommon
   }
 
   val entityStore = WhiskEntityStore.datastore()
-  val activationStore = WhiskActivationStore.datastore()
   val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  val activationStore = SpiLoader.get[ActivationStoreProvider].activationStore(actorSystem, materializer, logging)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
     Await.result(WhiskAction.get(entityStore, doc) flatMap { doc =>
@@ -99,9 +99,9 @@ protected trait ControllerTestCommon
   }
 
   def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-    Await.result(WhiskActivation.get(activationStore, doc) flatMap { doc =>
+    Await.result(activationStore.get(doc) flatMap { doc =>
       logging.debug(this, s"deleting ${doc.docinfo}")
-      WhiskActivation.del(activationStore, doc.docinfo)
+      activationStore.delete(doc.docinfo)
     }, dbOpTimeout)
   }
 
@@ -152,7 +152,6 @@ protected trait ControllerTestCommon
   override def afterAll() = {
     println("Shutting down db connections");
     entityStore.shutdown()
-    activationStore.shutdown()
     authStore.shutdown()
   }
 

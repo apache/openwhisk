@@ -105,7 +105,6 @@ class Controller(val instance: InstanceId,
   // initialize datastores
   private implicit val authStore = WhiskAuthStore.datastore()
   private implicit val entityStore = WhiskEntityStore.datastore()
-  private implicit val activationStore = WhiskActivationStore.datastore()
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
     val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
     override def apply(k: CacheKey) = {
@@ -123,6 +122,8 @@ class Controller(val instance: InstanceId,
     new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
+  private implicit val activationStore =
+    SpiLoader.get[ActivationStoreProvider].activationStore(actorSystem, materializer, logging)
 
   // register collections
   Collection.initialize(entityStore)

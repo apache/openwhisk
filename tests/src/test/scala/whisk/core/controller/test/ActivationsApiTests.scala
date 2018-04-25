@@ -92,8 +92,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     }.toList
-    activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
+    activations foreach { put(activationStore.artifactStore, _) }
+    waitOnView(activationStore.artifactStore, namespace.root, 2, WhiskActivation.view)
     whisk.utils.retry {
       Get(s"$collectionPath") ~> Route.seal(routes(creds)) ~> check {
         status should be(OK)
@@ -168,8 +168,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now,
         response = ActivationResponse.success(Some(JsNumber(5))))
     }.toList
-    activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, 2, WhiskActivation.view)
+    activations foreach { put(activationStore.artifactStore, _) }
+    waitOnView(activationStore.artifactStore, namespace.root, 2, WhiskActivation.view)
 
     checkCount("", 2)
 
@@ -196,7 +196,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    } foreach { put(activationStore, _) }
+    } foreach { put(activationStore.artifactStore, _) }
 
     val actionName = aname()
     val now = Instant.now(Clock.systemUTC())
@@ -238,8 +238,8 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = now.plusSeconds(30),
         end = now.plusSeconds(30))) // should match
-    activations foreach { put(activationStore, _) }
-    waitOnView(activationStore, namespace.root, activations.length, WhiskActivation.view)
+    activations foreach { put(activationStore.artifactStore, _) }
+    waitOnView(activationStore.artifactStore, namespace.root, activations.length, WhiskActivation.view)
 
     { // get between two time stamps
       val filter = s"since=${since.toEpochMilli}&upto=${upto.toEpochMilli}"
@@ -320,7 +320,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    } foreach { put(activationStore, _) }
+    } foreach { put(activationStore.artifactStore, _) }
 
     val activations = (1 to 2).map { i =>
       WhiskActivation(
@@ -331,7 +331,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         start = Instant.now,
         end = Instant.now)
     }.toList
-    activations foreach { put(activationStore, _) }
+    activations foreach { put(activationStore.artifactStore, _) }
 
     val activationsInPackage = (1 to 2).map { i =>
       WhiskActivation(
@@ -343,11 +343,15 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         end = Instant.now,
         annotations = Parameters("path", s"${namespace.asString}/pkg/xyz"))
     }.toList
-    activationsInPackage foreach { put(activationStore, _) }
+    activationsInPackage foreach { put(activationStore.artifactStore, _) }
 
-    waitOnView(activationStore, namespace.addPath(EntityName("xyz")), activations.length, WhiskActivation.filtersView)
     waitOnView(
-      activationStore,
+      activationStore.artifactStore,
+      namespace.addPath(EntityName("xyz")),
+      activations.length,
+      WhiskActivation.filtersView)
+    waitOnView(
+      activationStore.artifactStore,
       namespace.addPath(EntityName("pkg")).addPath(EntityName("xyz")),
       activationsInPackage.length,
       WhiskActivation.filtersView)
@@ -457,7 +461,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    put(activationStore, activation)
+    put(activationStore.artifactStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -490,7 +494,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    put(activationStore, activation)
+    put(activationStore.artifactStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}/result") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -510,7 +514,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
         ActivationId.generate(),
         start = Instant.now,
         end = Instant.now)
-    put(activationStore, activation)
+    put(activationStore.artifactStore, activation)
 
     Get(s"$collectionPath/${activation.activationId.asString}/logs") ~> Route.seal(routes(creds)) ~> check {
       status should be(OK)
@@ -599,7 +603,7 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
 
     val activation =
       new BadActivation(namespace, aname(), creds.subject, ActivationId.generate(), Instant.now, Instant.now)
-    put(activationStore, activation)
+    put(activationStore.artifactStore, activation)
 
     Get(s"$collectionPath/${activation.activationId}") ~> Route.seal(routes(creds)) ~> check {
       status should be(InternalServerError)

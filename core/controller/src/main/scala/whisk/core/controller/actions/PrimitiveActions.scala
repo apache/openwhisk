@@ -29,7 +29,7 @@ import whisk.core.database.NoDocumentException
 import whisk.core.entitlement.{Resource, _}
 import whisk.core.entity._
 import whisk.core.entity.size.SizeInt
-import whisk.core.entity.types.{ActivationStore, EntityStore}
+import whisk.core.entity.types.EntityStore
 import whisk.http.Messages._
 import whisk.utils.ExecutionContextFactory.FutureExtensions
 
@@ -531,14 +531,7 @@ protected[actions] trait PrimitiveActions {
         sequenceLimits,
       duration = Some(session.duration))
 
-    logging.debug(this, s"recording activation '${activation.activationId}'")
-    WhiskActivation.put(activationStore, activation)(transid, notifier = None) onComplete {
-      case Success(id) => logging.debug(this, s"recorded activation")
-      case Failure(t) =>
-        logging.error(
-          this,
-          s"failed to record activation ${activation.activationId} with error ${t.getLocalizedMessage}")
-    }
+    activationStore.store(activation)(transid, notifier = None)
 
     activation
   }
@@ -596,7 +589,7 @@ protected[actions] trait PrimitiveActions {
                              maxRetries: Int = Int.MaxValue)(implicit transid: TransactionId): Unit = {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
-        WhiskActivation.get(activationStore, docid).onComplete {
+        activationStore.get(docid).onComplete {
           case Success(activation)             => result.trySuccess(Right(activation))
           case Failure(_: NoDocumentException) => pollActivation(docid, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)
