@@ -19,13 +19,11 @@ package whisk.core.database.cosmosdb
 
 import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
-import _root_.rx.lang.scala._
-import _root_.rx.lang.scala.JavaConverters._
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-private[cosmosdb] trait CosmosDBSupport {
+private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient
@@ -37,30 +35,30 @@ private[cosmosdb] trait CosmosDBSupport {
   }
 
   private def getOrCreateDatabase(): Database = {
-    blockingResult[Database](client.queryDatabases(querySpec(config.db), null).asScala).getOrElse {
-      val databaseDefinition = new Database
-      databaseDefinition.setId(config.db)
-      blockingResult(client.createDatabase(databaseDefinition, null).asScala)
-    }
+    client
+      .queryDatabases(querySpec(config.db), null)
+      .blockingOnlyResult()
+      .getOrElse {
+        client.createDatabase(newDatabase, null).blockingResult()
+      }
   }
 
   private def getOrCreateCollection(database: Database) = {
-    val collOpt = blockingResult[DocumentCollection](
-      client.queryCollections(database.getSelfLink, querySpec(collName), null).asScala)
+    client
+      .queryCollections(database.getSelfLink, querySpec(collName), null)
+      .blockingOnlyResult()
       .map { coll =>
         if (matchingIndexingPolicy(coll)) {
           coll
         } else {
-          //Modify the found collection as its selfLink is set
+          //Modify the found collection with latest policy as its selfLink is set
           coll.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
-          blockingResult(client.replaceCollection(coll, null).asScala)
+          client.replaceCollection(coll, null).blockingResult()
         }
       }
-
-    collOpt.getOrElse {
-      val defn: DocumentCollection = newDatabaseCollection
-      blockingResult(client.createCollection(database.getSelfLink, defn, null).asScala)
-    }
+      .getOrElse {
+        client.createCollection(database.getSelfLink, newDatabaseCollection, null).blockingResult()
+      }
   }
 
   private def matchingIndexingPolicy(coll: DocumentCollection): Boolean =
@@ -74,13 +72,10 @@ private[cosmosdb] trait CosmosDBSupport {
     defn
   }
 
-  private def blockingResult[T <: Resource](response: Observable[FeedResponse[T]]) = {
-    val value = response.toList.toBlocking.single
-    value.head.getResults.asScala.headOption
-  }
-
-  private def blockingResult[T <: Resource](response: Observable[ResourceResponse[T]]) = {
-    response.toBlocking.single.getResource
+  private def newDatabase = {
+    val databaseDefinition = new Database
+    databaseDefinition.setId(config.db)
+    databaseDefinition
   }
 
   protected def querySpec(id: String) =

@@ -20,7 +20,6 @@ package whisk.core.database.cosmosdb
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import _root_.rx.lang.scala.JavaConverters._
 import com.microsoft.azure.cosmosdb.Database
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import pureconfig.loadConfigOrThrow
@@ -36,7 +35,7 @@ object CosmosDBTestUtil {
 
 }
 
-trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll {
+trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObservableImplicits {
   private val dbsToDelete = ListBuffer[Database]()
 
   lazy val storeConfigTry = Try { loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb) }
@@ -57,14 +56,14 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll {
   protected def createTestDB() = {
     val databaseDefinition = new Database
     databaseDefinition.setId(generateDBName())
-    val db = client.createDatabase(databaseDefinition, null).asScala.toBlocking.single.getResource
+    val db = client.createDatabase(databaseDefinition, null).blockingResult()
     dbsToDelete += db
     db
   }
 
   override def afterAll(): Unit = {
     super.afterAll()
-    dbsToDelete.foreach(db => client.deleteDatabase(db.getSelfLink, null).asScala.toBlocking.single.getResource)
+    dbsToDelete.foreach(db => client.deleteDatabase(db.getSelfLink, null).blockingResult())
     client.close()
   }
 }

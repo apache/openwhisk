@@ -52,8 +52,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     extends ArtifactStore[DocumentAbstraction]
     with DefaultJsonProtocol
     with DocumentProvider
-    with CosmosDBSupport
-    with RxObservableImplicits {
+    with CosmosDBSupport {
 
   protected val client: AsyncDocumentClient = clientRef.get.client
   private val (database, collection) = initialize()

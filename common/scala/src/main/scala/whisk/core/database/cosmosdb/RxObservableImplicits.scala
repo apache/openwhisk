@@ -17,9 +17,11 @@
 
 package whisk.core.database.cosmosdb
 
+import com.microsoft.azure.cosmosdb.{FeedResponse, Resource, ResourceResponse}
 import rx.lang.scala.JavaConverters._
 import rx.Observable
 
+import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
 
 private[cosmosdb] trait RxObservableImplicits {
@@ -36,20 +38,18 @@ private[cosmosdb] trait RxObservableImplicits {
       observable.asScala.single.subscribe(x => promise.success(x), e => promise.failure(e))
       promise.future
     }
+  }
 
-    /**
-     * Collects the [[Observable]] results and converts to a [[scala.concurrent.Future]].
-     *
-     * Automatically subscribes to the `Observable` and uses the [[Observable#toList]] method to aggregate the results.
-     *
-     * @note If the Observable is large then this will consume lots of memory!
-     *       If the underlying Observable is infinite this Observable will never complete.
-     * @return a future representation of the whole Observable
-     */
-    def toFuture(): Future[Seq[T]] = {
-      val promise = Promise[Seq[T]]()
-      observable.asScala.toList.subscribe(x => promise.success(x), e => promise.failure(e))
-      promise.future
+  implicit class RxScalaResourceObservable[T <: Resource](observable: Observable[ResourceResponse[T]]) {
+    def blockingResult(): T = observable.toBlocking.single.getResource
+  }
+
+  implicit class RxScalaFeedObservable[T <: Resource](observable: Observable[FeedResponse[T]]) {
+    def blockingOnlyResult(): Option[T] = {
+      val value = observable.asScala.toList.toBlocking.single
+      val results = value.head.getResults.asScala
+      require(results.isEmpty || results.size == 1, s"More than one result found $results")
+      results.headOption
     }
   }
 }
