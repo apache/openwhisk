@@ -338,13 +338,13 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   }
 
   private def toCosmosDoc(json: JsObject): Document = {
-    val computed = documentHandler.computedFields(json)
-    val computedOpt = if (computed.fields.nonEmpty) Some(computed) else None
+    val computedJs = documentHandler.computedFields(json)
+    val computedOpt = if (computedJs.fields.nonEmpty) Some(computedJs) else None
     val fieldsToAdd =
       Seq(
         (cid, Some(JsString(escapeId(json.fields(_id).convertTo[String])))),
         (etag, json.fields.get(_rev)),
-        (_computed, computedOpt))
+        (computed, computedOpt))
     val fieldsToRemove = Seq(_id, _rev)
     val mapped = transform(json, fieldsToAdd, fieldsToRemove)
     val doc = new Document(mapped.compactPrint)

@@ -32,7 +32,7 @@ import whisk.core.database.{
   UnsupportedView,
   WhisksHandler
 }
-import whisk.core.database.cosmosdb.CosmosDBConstants._computed
+import whisk.core.database.cosmosdb.CosmosDBConstants.computed
 import whisk.core.database.cosmosdb.CosmosDBConstants.alias
 import whisk.core.entity.WhiskEntityQueries.TOP
 
@@ -125,7 +125,7 @@ private[cosmosdb] abstract class SimpleMapper extends CosmosDBViewMapper {
 
 private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
-  private val ROOT_NS_C = s"r.${_computed}.$ROOT_NS"
+  private val ROOT_NS_C = s"r.$computed.$ROOT_NS"
   private val TYPE = "r.entityType"
   private val UPDATED = "r.updated"
   private val PUBLISH = "r.publish"
@@ -138,7 +138,7 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
       includedPaths = Set(
         IncludedPath("/entityType/?", Index(Hash, String, -1)),
         IncludedPath("/namespace/?", Index(Hash, String, -1)),
-        IncludedPath(s"/${_computed}/$ROOT_NS/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$computed/$ROOT_NS/?", Index(Hash, String, -1)),
         IncludedPath("/updated/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
@@ -185,7 +185,7 @@ private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
 }
 private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
-  private val NS_WITH_PATH = s"r.${_computed}.$NS_PATH"
+  private val NS_WITH_PATH = s"r.$computed.$NS_PATH"
   private val START = "r.start"
 
   val handler = ActivationHandler
@@ -194,7 +194,7 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
     IndexingPolicy(
       includedPaths = Set(
         IncludedPath("/namespace/?", Index(Hash, String, -1)),
-        IncludedPath(s"/${_computed}/$NS_PATH/?", Index(Hash, String, -1)),
+        IncludedPath(s"/$computed/$NS_PATH/?", Index(Hash, String, -1)),
         IncludedPath("/start/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,

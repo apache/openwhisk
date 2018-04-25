@@ -25,7 +25,7 @@ import whisk.core.database.cosmosdb.CosmosDBConstants._
 import scala.collection.immutable.Iterable
 
 private[cosmosdb] object CosmosDBConstants {
-  val _computed: String = "_c"
+  val computed: String = "_c"
 
   val alias: String = "view"
 
