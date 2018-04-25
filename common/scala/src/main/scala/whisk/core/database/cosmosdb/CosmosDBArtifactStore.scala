@@ -98,7 +98,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDocHasRevision(doc)
     val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collName' deleting document: '$doc'")
     val f = client
-      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc.id.id, doc.rev.rev))
+      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc))
       .head()
       .transform(
         { _ =>
@@ -257,8 +257,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
       .map(_.result().toArray)
       .map(new ByteArrayInputStream(_))
-      .flatMap(s =>
-        client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc.id.id, doc.rev.rev)).head())
+      .flatMap(s => client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc)).head())
       .transform(
         { _ =>
           transid
@@ -287,7 +286,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDocHasRevision(doc)
 
     val f = client
-      .readAttachment(s"${selfLinkOf(doc.id)}/attachments/$name", matchRevOption(doc.id.id, doc.rev.rev))
+      .readAttachment(s"${selfLinkOf(doc.id)}/attachments/$name", matchRevOption(doc))
       .head()
       .flatMap(a => client.readMedia(a.getResource.getMediaLink).head())
       .transform(
@@ -391,7 +390,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private def createSelfLink(id: String) = s"dbs/${database.getId}/colls/${collection.getId}/docs/$id"
 
-  private def matchRevOption(id: String, etag: String) = {
+  private def matchRevOption(info: DocInfo): RequestOptions = matchRevOption(info.id.id, info.rev.rev)
+
+  private def matchRevOption(id: String, etag: String): RequestOptions = {
     val options = newRequestOption(id)
     val condition = new AccessCondition
     condition.setCondition(etag)
