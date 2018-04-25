@@ -17,8 +17,21 @@
 
 package whisk.core.database.cosmosdb
 
-import com.microsoft.azure.cosmosdb.{SqlParameter, SqlParameterCollection, SqlQuerySpec}
-import whisk.core.database._
+import java.util.Collections
+
+import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
+import com.microsoft.azure.cosmosdb.DataType.{Number, String}
+import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
+import whisk.core.database.ActivationHandler.NS_PATH
+import whisk.core.database.WhisksHandler.ROOT_NS
+import whisk.core.database.{
+  ActivationHandler,
+  DocumentHandler,
+  SubjectHandler,
+  UnsupportedQueryKeys,
+  UnsupportedView,
+  WhisksHandler
+}
 import whisk.core.database.cosmosdb.CosmosDBConstants._computed
 import whisk.core.database.cosmosdb.CosmosDBConstants.alias
 import whisk.core.entity.WhiskEntityQueries.TOP
@@ -37,6 +50,14 @@ trait CosmosDBViewMapper {
                    descending: Boolean): SqlQuerySpec
 
   def prepareCountQuery(ddoc: String, viewName: String, startKey: List[Any], endKey: List[Any]): SqlQuerySpec
+
+  def indexingPolicy: IndexingPolicy
+
+  val partitionKeyDefn: PartitionKeyDefinition = {
+    val defn = new PartitionKeyDefinition
+    defn.setPaths(Collections.singletonList("/id"))
+    defn
+  }
 
   protected def checkKeys(startKey: List[Any], endKey: List[Any]): Unit = {
     require(startKey.nonEmpty)
@@ -104,13 +125,21 @@ abstract class SimpleMapper extends CosmosDBViewMapper {
 
 object WhisksViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
-  private val ROOT_NS = s"r.${_computed}.${WhisksHandler.ROOT_NS}"
+  private val ROOT_NS_C = s"r.${_computed}.$ROOT_NS"
   private val TYPE = "r.entityType"
   private val UPDATED = "r.updated"
   private val PUBLISH = "r.publish"
   private val BINDING = "r.binding"
 
   val handler = WhisksHandler
+
+  override def indexingPolicy: IndexingPolicy =
+    IndexingPolicy(
+      includedPaths = Set(
+        IncludedPath("/entityType/?", Index(Hash, String, -1)),
+        IncludedPath("/namespace/?", Index(Hash, String, -1)),
+        IncludedPath(s"/${_computed}/$ROOT_NS/?", Index(Hash, String, -1)),
+        IncludedPath("/updated/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
                                view: String,
@@ -123,7 +152,7 @@ object WhisksViewMapper extends SimpleMapper {
       viewConditions(ddoc, view).map(q => (s"${q._1} AND", q._2)).getOrElse((NOTHING, Nil))
 
     val params = ("@entityType", entityType) :: ("@namespace", namespace) :: vcParams
-    val baseCondition = s"$vc $TYPE = @entityType AND ($NS = @namespace OR $ROOT_NS = @namespace)"
+    val baseCondition = s"$vc $TYPE = @entityType AND ($NS = @namespace OR $ROOT_NS_C = @namespace)"
 
     (startKey, endKey) match {
       case (_ :: Nil, _ :: `TOP` :: Nil) =>
@@ -156,10 +185,17 @@ object WhisksViewMapper extends SimpleMapper {
 }
 object ActivationViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
-  private val NS_WITH_PATH = s"r.${_computed}.${ActivationHandler.NS_PATH}"
+  private val NS_WITH_PATH = s"r.${_computed}.$NS_PATH"
   private val START = "r.start"
 
   val handler = ActivationHandler
+
+  override def indexingPolicy: IndexingPolicy =
+    IndexingPolicy(
+      includedPaths = Set(
+        IncludedPath("/namespace/?", Index(Hash, String, -1)),
+        IncludedPath(s"/${_computed}/$NS_PATH/?", Index(Hash, String, -1)),
+        IncludedPath("/start/?", Index(Range, Number, -1))))
 
   override protected def where(ddoc: String,
                                view: String,
@@ -200,6 +236,19 @@ object ActivationViewMapper extends SimpleMapper {
 }
 object SubjectViewMapper extends CosmosDBViewMapper {
   val handler = SubjectHandler
+
+  override def indexingPolicy: IndexingPolicy =
+    //Booleans are indexed by default
+    //Specifying less precision for key as match on uuid should be sufficient
+    //and keys are bigger
+    IndexingPolicy(
+      includedPaths = Set(
+        IncludedPath("/uuid/?", Index(Hash, String, -1)),
+        IncludedPath("/key/?", Index(Hash, String, 3)),
+        IncludedPath("/namespaces/[]/uuid/?", Index(Hash, String, -1)),
+        IncludedPath("/namespaces/[]/key/?", Index(Hash, String, 3)),
+        IncludedPath("/concurrentInvocations/?", Index(Hash, Number, -1)),
+        IncludedPath("/invocationsPerMinute/?", Index(Hash, Number, -1))))
 
   override def prepareQuery(ddoc: String,
                             view: String,

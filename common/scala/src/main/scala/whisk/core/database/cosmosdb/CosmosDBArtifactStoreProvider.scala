@@ -21,13 +21,13 @@ import java.io.Closeable
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.microsoft.azure.cosmosdb.{ConnectionPolicy, ConsistencyLevel}
 import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import spray.json.RootJsonFormat
 import whisk.common.Logging
 import whisk.core.database._
 import pureconfig._
 import whisk.core.ConfigKeys
+import whisk.core.database.cosmosdb.CosmosDBUtil.createClient
 import whisk.core.entity.{DocumentReader, WhiskActivation, WhiskAuth, WhiskEntity}
 
 import scala.reflect.ClassTag
@@ -101,11 +101,4 @@ object CosmosDBArtifactStoreProvider extends ArtifactStoreProvider {
   private def createReference(config: CosmosDBConfig) =
     new ReferenceCounted[ClientHolder](ClientHolder(createClient(config)))
 
-  private def createClient(config: CosmosDBConfig): AsyncDocumentClient =
-    new AsyncDocumentClient.Builder()
-      .withServiceEndpoint(config.endpoint)
-      .withMasterKey(config.key)
-      .withConnectionPolicy(ConnectionPolicy.GetDefault)
-      .withConsistencyLevel(ConsistencyLevel.Session)
-      .build
 }

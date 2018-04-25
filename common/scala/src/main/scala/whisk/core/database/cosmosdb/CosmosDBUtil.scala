@@ -17,9 +17,12 @@
 
 package whisk.core.database.cosmosdb
 
-import scala.collection.immutable.Iterable
-import whisk.core.database.cosmosdb.CosmosDBConstants._
+import com.microsoft.azure.cosmosdb._
 import com.microsoft.azure.cosmosdb.internal.Constants.Properties.{AGGREGATE, E_TAG, ID, SELF_LINK}
+import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
+import whisk.core.database.cosmosdb.CosmosDBConstants._
+
+import scala.collection.immutable.Iterable
 
 object CosmosDBConstants {
   val _computed: String = "_c"
@@ -77,5 +80,13 @@ object CosmosDBUtil {
     case m: Map[_, _] => asJsonLikeString(m)
     case x            => x.toString
   }
+
+  def createClient(config: CosmosDBConfig): AsyncDocumentClient =
+    new AsyncDocumentClient.Builder()
+      .withServiceEndpoint(config.endpoint)
+      .withMasterKey(config.key)
+      .withConnectionPolicy(ConnectionPolicy.GetDefault)
+      .withConsistencyLevel(ConsistencyLevel.Session)
+      .build
 
 }

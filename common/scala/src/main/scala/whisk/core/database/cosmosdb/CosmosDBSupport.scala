@@ -29,6 +29,7 @@ trait CosmosDBSupport {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient
+  protected def viewMapper: CosmosDBViewMapper
 
   def initialize(): (Database, DocumentCollection) = {
     val db = getOrCreateDatabase()
@@ -44,14 +45,33 @@ trait CosmosDBSupport {
   }
 
   private def getOrCreateCollection(database: Database) = {
-    blockingResult[DocumentCollection](
-      client
-        .queryCollections(database.getSelfLink, querySpec(collName), null)
-        .asScala).getOrElse {
-      val collectionDefinition = new DocumentCollection
-      collectionDefinition.setId(collName)
-      blockingResult(client.createCollection(database.getSelfLink, collectionDefinition, null).asScala)
+    val collOpt = blockingResult[DocumentCollection](
+      client.queryCollections(database.getSelfLink, querySpec(collName), null).asScala)
+      .map { coll =>
+        if (matchingIndexingPolicy(coll)) {
+          coll
+        } else {
+          //Modify the found collection as its selfLink is set
+          coll.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
+          blockingResult(client.replaceCollection(coll, null).asScala)
+        }
+      }
+
+    collOpt.getOrElse {
+      val defn: DocumentCollection = newDatabaseCollection
+      blockingResult(client.createCollection(database.getSelfLink, defn, null).asScala)
     }
+  }
+
+  private def matchingIndexingPolicy(coll: DocumentCollection): Boolean =
+    IndexingPolicy.isSame(viewMapper.indexingPolicy, IndexingPolicy(coll.getIndexingPolicy))
+
+  private def newDatabaseCollection = {
+    val defn = new DocumentCollection
+    defn.setId(collName)
+    defn.setIndexingPolicy(viewMapper.indexingPolicy.asJava())
+    defn.setPartitionKey(viewMapper.partitionKeyDefn)
+    defn
   }
 
   private def blockingResult[T <: Resource](response: Observable[FeedResponse[T]]) = {

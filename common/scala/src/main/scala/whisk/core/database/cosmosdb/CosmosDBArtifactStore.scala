@@ -43,7 +43,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                                                                        protected val config: CosmosDBConfig,
                                                                        clientRef: DocumentClientRef,
                                                                        documentHandler: DocumentHandler,
-                                                                       viewMapper: CosmosDBViewMapper)(
+                                                                       protected val viewMapper: CosmosDBViewMapper)(
   implicit system: ActorSystem,
   val logging: Logging,
   jsonFormat: RootJsonFormat[DocumentAbstraction],
@@ -68,13 +68,14 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     //TODO Batching support
     val doc = toCosmosDoc(asJson)
-    val docinfoStr = s"id: ${doc.getId}, rev: ${doc.getETag}"
+    val id = doc.getId
+    val docinfoStr = s"id: $id, rev: ${doc.getETag}"
     val start = transid.started(this, LoggingMarkers.DATABASE_SAVE, s"[PUT] '$collName' saving document: '$docinfoStr'")
 
     val o = if (doc.getETag == null) {
-      client.createDocument(collection.getSelfLink, doc, null, true)
+      client.createDocument(collection.getSelfLink, doc, newRequestOption(id), true)
     } else {
-      client.replaceDocument(doc, matchRevOption(doc.getETag))
+      client.replaceDocument(doc, matchRevOption(id, doc.getETag))
     }
 
     val f = o
@@ -97,7 +98,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDocHasRevision(doc)
     val start = transid.started(this, LoggingMarkers.DATABASE_DELETE, s"[DEL] '$collName' deleting document: '$doc'")
     val f = client
-      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc.rev.rev))
+      .deleteDocument(selfLinkOf(doc.id), matchRevOption(doc.id.id, doc.rev.rev))
       .head()
       .transform(
         { _ =>
@@ -125,7 +126,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     require(doc != null, "doc undefined")
     val f = client
-      .readDocument(selfLinkOf(doc.id), null)
+      .readDocument(selfLinkOf(doc.id), newRequestOption(doc.id.id))
       .head()
       .transform(
         { rr =>
@@ -154,7 +155,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET_BY_ID] '$collName' finding document: '$id'")
 
     val f = client
-      .readDocument(selfLinkOf(id), null)
+      .readDocument(selfLinkOf(id), newRequestOption(id.id))
       .head()
       .map { rr =>
         val js = getResultToWhiskJsonDoc(rr.getResource)
@@ -192,10 +193,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     val querySpec = viewMapper.prepareQuery(ddoc, viewName, startKey, endKey, realLimit, realIncludeDocs, descending)
 
-    val options = new FeedOptions()
-    options.setEnableCrossPartitionQuery(true)
-
-    val publisher = RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, options))
+    val publisher =
+      RxReactiveStreams.toPublisher(client.queryDocuments(collection.getSelfLink, querySpec, newFeedOptions()))
     val f = Source
       .fromPublisher(publisher)
       .mapConcat(asSeq)
@@ -225,12 +224,9 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$collName' searching '$table")
     val querySpec = viewMapper.prepareCountQuery(ddoc, viewName, startKey, endKey)
 
-    val options = new FeedOptions()
-    options.setEnableCrossPartitionQuery(true)
-
     //For aggregates the value is in _aggregates fields
     val f = client
-      .queryDocuments(collection.getSelfLink, querySpec, options)
+      .queryDocuments(collection.getSelfLink, querySpec, newFeedOptions())
       .head()
       .map(_.getResults.asScala.head.getLong(aggregate).longValue() - skip)
 
@@ -261,7 +257,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
       .runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
       .map(_.result().toArray)
       .map(new ByteArrayInputStream(_))
-      .flatMap(s => client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc.rev.rev)).head())
+      .flatMap(s =>
+        client.upsertAttachment(selfLinkOf(doc.id), s, options, matchRevOption(doc.id.id, doc.rev.rev)).head())
       .transform(
         { _ =>
           transid
@@ -290,7 +287,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     checkDocHasRevision(doc)
 
     val f = client
-      .readAttachment(s"${selfLinkOf(doc.id)}/attachments/$name", matchRevOption(doc.rev.rev))
+      .readAttachment(s"${selfLinkOf(doc.id)}/attachments/$name", matchRevOption(doc.id.id, doc.rev.rev))
       .head()
       .flatMap(a => client.readMedia(a.getResource.getMediaLink).head())
       .transform(
@@ -394,11 +391,23 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private def createSelfLink(id: String) = s"dbs/${database.getId}/colls/${collection.getId}/docs/$id"
 
-  private def matchRevOption(etag: String) = {
-    val options = new RequestOptions
+  private def matchRevOption(id: String, etag: String) = {
+    val options = newRequestOption(id)
     val condition = new AccessCondition
     condition.setCondition(etag)
     options.setAccessCondition(condition)
+    options
+  }
+
+  private def newRequestOption(id: String) = {
+    val options = new RequestOptions
+    options.setPartitionKey(new PartitionKey(escapeId(id)))
+    options
+  }
+
+  private def newFeedOptions() = {
+    val options = new FeedOptions()
+    options.setEnableCrossPartitionQuery(true)
     options
   }
 

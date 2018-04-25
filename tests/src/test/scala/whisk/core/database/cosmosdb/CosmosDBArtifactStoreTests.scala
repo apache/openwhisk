@@ -20,8 +20,6 @@ package whisk.core.database.cosmosdb
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.junit.JUnitRunner
-import pureconfig.loadConfigOrThrow
-import whisk.core.ConfigKeys
 import whisk.core.database.test.behavior.ArtifactStoreBehavior
 import whisk.core.entity._
 
@@ -32,7 +30,7 @@ import scala.util.Try
 class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
   override def storeType = "CosmosDB"
 
-  override lazy val storeAvailableCheck = Try { loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb) }
+  override lazy val storeAvailableCheck: Try[Any] = CosmosDBTestUtil.storeConfig
 
   override lazy val authStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
