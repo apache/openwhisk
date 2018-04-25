@@ -206,7 +206,7 @@ the `-PnativeBuild` if you want to cross-compile for all supported platforms):
 
 ```
 cd "$OPENWHISK_HOME/../incubator-openwhisk-cli"
-./gradlew release -PnativeBuild
+./gradlew releaseBinaries -PnativeBuild
 ```
 
 The binaries are generated and put into a tarball in the folder
