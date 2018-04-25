@@ -21,24 +21,19 @@ import java.time.ZonedDateTime
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Accept, RawHeader}
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
-import akka.stream.{ActorMaterializer, StreamTcpException}
 import akka.testkit.TestKit
-
 import common.StreamLogging
-
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
+import org.scalatest.{FlatSpecLike, Matchers}
 import pureconfig.error.ConfigReaderException
-
 import spray.json._
-
 import whisk.core.entity._
 import whisk.core.entity.size._
 
@@ -185,7 +180,7 @@ class ElasticSearchLogStoreTests
   it should "fail to connect to invalid host" in {
     val esLogStore = new ElasticSearchLogStore(system, elasticSearchConfig = defaultConfig)
 
-    a[StreamTcpException] should be thrownBy await(esLogStore.fetchLogs(user, activation, defaultLogStoreHttpRequest))
+    a[Throwable] should be thrownBy await(esLogStore.fetchLogs(user, activation, defaultLogStoreHttpRequest))
   }
 
   it should "forward errors from ElasticSearch" in {
