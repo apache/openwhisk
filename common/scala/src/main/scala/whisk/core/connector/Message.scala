@@ -58,6 +58,15 @@ case class ActivationMessage(override val transid: TransactionId,
                              cause: Option[ActivationId] = None)
     extends Message {
 
+  def meta =
+    JsObject("meta" -> {
+      cause map { c =>
+        JsObject(c.toJsObject.fields ++ activationId.toJsObject.fields)
+      } getOrElse {
+        activationId.toJsObject
+      }
+    })
+
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
   override def toString = {
@@ -121,4 +130,22 @@ case class PingMessage(instance: InstanceId) extends Message {
 object PingMessage extends DefaultJsonProtocol {
   def parse(msg: String) = Try(serdes.read(msg.parseJson))
   implicit val serdes = jsonFormat(PingMessage.apply _, "name")
+}
+
+case class OverflowMessage(override val transid: TransactionId,
+                           msg: ActivationMessage,
+                           action: ExecutableWhiskActionMetaData,
+                           hash: Int,
+                           pull: Boolean,
+                           originalController: InstanceId)
+    extends Message {
+
+  override def serialize: String = {
+    OverflowMessage.serdes.write(this).compactPrint
+  }
+}
+
+object OverflowMessage extends DefaultJsonProtocol {
+  def parse(msg: String): Try[OverflowMessage] = Try(serdes.read(msg.parseJson))
+  implicit val serdes = jsonFormat6(OverflowMessage.apply)
 }
