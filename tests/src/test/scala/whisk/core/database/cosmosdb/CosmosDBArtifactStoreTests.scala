@@ -27,18 +27,20 @@ import scala.reflect.classTag
 import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
+class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior with CosmosDBTestSupport {
   override def storeType = "CosmosDB"
 
-  override lazy val storeAvailableCheck: Try[Any] = CosmosDBTestUtil.storeConfig
+  override lazy val storeAvailableCheck: Try[Any] = storeConfigTry
+
+  private lazy val config: CosmosDBConfig = storeConfig.copy(db = createTestDB().getId)
 
   override lazy val authStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
-    CosmosDBArtifactStoreProvider.makeStore[WhiskAuth]()
+    CosmosDBArtifactStoreProvider.makeStore[WhiskAuth](config, false)
   }
 
   override lazy val entityStore =
-    CosmosDBArtifactStoreProvider.makeStore[WhiskEntity]()(
+    CosmosDBArtifactStoreProvider.makeStore[WhiskEntity](config, false)(
       classTag[WhiskEntity],
       WhiskEntityJsonFormat,
       WhiskDocumentReader,
@@ -48,6 +50,6 @@ class CosmosDBArtifactStoreTests extends FlatSpec with ArtifactStoreBehavior {
 
   override lazy val activationStore = {
     implicit val docReader: DocumentReader = WhiskDocumentReader
-    CosmosDBArtifactStoreProvider.makeStore[WhiskActivation]()
+    CosmosDBArtifactStoreProvider.makeStore[WhiskActivation](config, false)
   }
 }

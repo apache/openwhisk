@@ -29,12 +29,6 @@ import whisk.core.database.test.behavior.ArtifactStoreTestUtil.storeAvailable
 import scala.collection.mutable.ListBuffer
 import scala.util.{Random, Try}
 
-object CosmosDBTestUtil {
-
-  lazy val storeConfig = Try { loadConfigOrThrow[CosmosDBConfig](ConfigKeys.cosmosdb) }
-
-}
-
 trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObservableImplicits {
   private val dbsToDelete = ListBuffer[Database]()
 
@@ -49,8 +43,8 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
   }
 
   protected def generateDBName() = {
-    val format = new SimpleDateFormat("yyyy-MM-dd")
-    s"${format.format(new Date())}-${Random.alphanumeric.take(5).mkString}"
+    val format = new SimpleDateFormat(s"yyyy-MM-dd")
+    s"${format.format(new Date())}-${getClass.getSimpleName}-${Random.alphanumeric.take(5).mkString}"
   }
 
   protected def createTestDB() = {
@@ -58,6 +52,7 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
     databaseDefinition.setId(generateDBName())
     val db = client.createDatabase(databaseDefinition, null).blockingResult()
     dbsToDelete += db
+    println(s"Credted database ${db.getId}")
     db
   }
 
