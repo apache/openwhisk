@@ -374,7 +374,7 @@ protected[core] abstract class EntitlementProvider(
           limit match {
             case c: ConcurrentRateLimit => {
               val metric =
-                Metric("concurrent_activations", c.count + 1)
+                Metric("ConcurrentInvocations", c.count + 1)
               EventMessage.send(
                 eventProducer,
                 EventMessage(

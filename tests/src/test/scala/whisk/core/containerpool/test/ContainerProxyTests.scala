@@ -380,7 +380,8 @@ class ContainerProxyTests
 
     val machine =
       childActorOf(
-        ContainerProxy.props(factory, acker, store, collector, InstanceId(0), poolConfig, pauseGrace = timeout))
+        ContainerProxy
+          .props(factory, acker, store, collector, InstanceId(0), poolConfig, whiskConfig, pauseGrace = timeout))
     registerCallback(machine)
 
     machine ! Run(noLogsAction, message)
