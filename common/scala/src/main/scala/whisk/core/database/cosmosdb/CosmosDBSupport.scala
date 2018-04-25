@@ -25,7 +25,7 @@ import _root_.rx.lang.scala.JavaConverters._
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-trait CosmosDBSupport {
+private[cosmosdb] trait CosmosDBSupport {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient

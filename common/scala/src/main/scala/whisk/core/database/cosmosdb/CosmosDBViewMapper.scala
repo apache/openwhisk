@@ -36,7 +36,7 @@ import whisk.core.database.cosmosdb.CosmosDBConstants._computed
 import whisk.core.database.cosmosdb.CosmosDBConstants.alias
 import whisk.core.entity.WhiskEntityQueries.TOP
 
-trait CosmosDBViewMapper {
+private[cosmosdb] trait CosmosDBViewMapper {
   protected val NOTHING = ""
   protected val ALL_FIELDS = "*"
   protected def handler: DocumentHandler
@@ -73,7 +73,7 @@ trait CosmosDBViewMapper {
   }
 }
 
-abstract class SimpleMapper extends CosmosDBViewMapper {
+private[cosmosdb] abstract class SimpleMapper extends CosmosDBViewMapper {
 
   def prepareQuery(ddoc: String,
                    viewName: String,
@@ -123,7 +123,7 @@ abstract class SimpleMapper extends CosmosDBViewMapper {
   protected def orderByField(ddoc: String, viewName: String): String
 }
 
-object WhisksViewMapper extends SimpleMapper {
+private[cosmosdb] object WhisksViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
   private val ROOT_NS_C = s"r.${_computed}.$ROOT_NS"
   private val TYPE = "r.entityType"
@@ -183,7 +183,7 @@ object WhisksViewMapper extends SimpleMapper {
   }
 
 }
-object ActivationViewMapper extends SimpleMapper {
+private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
   private val NS = "r.namespace"
   private val NS_WITH_PATH = s"r.${_computed}.$NS_PATH"
   private val START = "r.start"
@@ -234,7 +234,7 @@ object ActivationViewMapper extends SimpleMapper {
     case _                                          => throw UnsupportedView(s"$ddoc/$view")
   }
 }
-object SubjectViewMapper extends CosmosDBViewMapper {
+private[cosmosdb] object SubjectViewMapper extends CosmosDBViewMapper {
   val handler = SubjectHandler
 
   override def indexingPolicy: IndexingPolicy =

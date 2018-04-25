@@ -22,7 +22,7 @@ import rx.Observable
 
 import scala.concurrent.{Future, Promise}
 
-trait RxObservableImplicits {
+private[cosmosdb] trait RxObservableImplicits {
 
   implicit class RxScalaObservable[T](observable: Observable[T]) {
 

@@ -24,7 +24,7 @@ import whisk.core.database.cosmosdb.CosmosDBConstants._
 
 import scala.collection.immutable.Iterable
 
-object CosmosDBConstants {
+private[cosmosdb] object CosmosDBConstants {
   val _computed: String = "_c"
 
   val alias: String = "view"
@@ -38,7 +38,7 @@ object CosmosDBConstants {
   val selfLink: String = SELF_LINK
 }
 
-object CosmosDBUtil {
+private[cosmosdb] object CosmosDBUtil {
 
   /**
    * Prepares the json like select clause
