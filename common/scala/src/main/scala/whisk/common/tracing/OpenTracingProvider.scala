@@ -56,20 +56,26 @@ object OpenTracingProvider {
    */
   def startTrace(logMarker: LogMarkerToken, transactionId: TransactionId): Unit = {
     if (enabled) {
-      transactionId.copy(transactionId.meta)
       var activeSpan: Option[ActiveSpan] = None
       spanMap.get(transactionId.meta.id) match {
         case Some(spanList) => {
           //create a child trace
-          activeSpan = Some(GlobalTracer.get().buildSpan(logMarker.action).asChildOf(spanList.last).startActive())
+          activeSpan = Some(
+            GlobalTracer
+              .get()
+              .buildSpan(logMarker.action)
+              .withTag("transactionId", transactionId.meta.id)
+              .asChildOf(spanList.last)
+              .startActive())
         }
         case None => {
           contextMap.get(transactionId.meta.id) match {
             case Some(context) => {
+              //create child trace if we have a tracing context
               activeSpan = Some(GlobalTracer.get().buildSpan(logMarker.action).asChildOf(context).startActive())
             }
             case None => {
-              activeSpan = Some(GlobalTracer.get().buildSpan(logMarker.action).startActive())
+              activeSpan = Some(GlobalTracer.get().buildSpan(logMarker.action).ignoreActiveSpan().startActive())
             }
           }
           //initialize list for this transactionId
