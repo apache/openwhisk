@@ -3,6 +3,9 @@
 
 FROM scala
 
+ENV UID=1001 \
+    NOT_ROOT_USER=runtimeuser
+
 # Install swagger-ui
 RUN curl -sSL -o swagger-ui-v3.6.0.tar.gz --no-verbose https://github.com/swagger-api/swagger-ui/archive/v3.6.0.tar.gz && \
     mkdir swagger-ui && \
@@ -16,6 +19,9 @@ ADD build/distributions/controller.tar /
 
 COPY init.sh /
 RUN chmod +x init.sh
+
+RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
+USER ${NOT_ROOT_USER}
 
 EXPOSE 8080
 CMD ["./init.sh", "0"]
