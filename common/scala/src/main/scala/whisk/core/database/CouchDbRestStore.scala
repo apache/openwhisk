@@ -315,19 +315,14 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$dbName' searching '$table")
 
     val f = client
-      .executeView(firstPart, secondPart)(
-        startKey = startKey,
-        endKey = endKey,
-        skip = Some(skip),
-        stale = stale,
-        reduce = true)
+      .executeView(firstPart, secondPart)(startKey = startKey, endKey = endKey, stale = stale, reduce = true)
       .map {
         case Right(response) =>
           val rows = response.fields("rows").convertTo[List[JsObject]]
 
           val out = if (!rows.isEmpty) {
             assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-            rows.head.fields("value").convertTo[Long]
+            rows.head.fields("value").convertTo[Long] - skip
           } else 0L
 
           transid.finished(this, start, s"[COUNT] '$dbName' completed: count $out")

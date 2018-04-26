@@ -203,8 +203,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     result shouldBe 10
   }
 
-  it should "count with skip" ignore {
-    //TODO Skip is not working for CouchDB
+  it should "count with skip" in {
     implicit val tid: TransactionId = transid()
 
     val ns = newNS()
