@@ -1,6 +1,23 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Getting started with OpenWhisk
 
-OpenWhisk is an [Apache Incubator Project](https://incubator.apache.org/projects/openwhisk.html). It is an open source implementation of a distributed, event-driven compute service. You can run it on your own hardware on-prem, or in the cloud. When running in the cloud you could use a Platform as as Service (PaaS) version of the OpenWhisk provided by IBM Bluemix, or you can provision it yourself into Infrastructure as a Service (IaaS) clouds, such as Bluemix, Amazon EC2, Microsoft Azure, Google GCP, etc. 
+OpenWhisk is an [Apache Incubator Project](https://incubator.apache.org/projects/openwhisk.html). It is an open source implementation of a distributed, event-driven compute service. You can run it on your own hardware on-prem, or in the cloud. When running in the cloud you could use a Platform as as Service (PaaS) version of the OpenWhisk provided by IBM Bluemix, or you can provision it yourself into Infrastructure as a Service (IaaS) clouds, such as Bluemix, Amazon EC2, Microsoft Azure, Google GCP, etc.
 
 OpenWhisk runs application logic in response to events or direct invocations from web or mobile apps over HTTP. Events can be provided from Bluemix services like Cloudant and from external sources. Developers can focus on writing application logic, and creating actions that are executed on demand. The benefits of this new paradigm are that you do not explicitly provision servers and worry about auto-scaling, or worry about high availability, updates, maintenance and pay for hours of processor time when your server is running but not serving requests. Your code executes whenever there is an HTTP call, database state change, or other type of event that triggers the execution of your code. You get billed by millisecond of execution time (rounded up to the nearest 100ms in case of OpenWhisk) or on some platforms per request (not supported on OpenWhisk yet), not per hour of JVM regardless whether that VM was doing useful work or not.
 

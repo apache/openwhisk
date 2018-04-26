@@ -20,14 +20,14 @@ package system.basic
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 
-import common.{BaseWsk, JsHelpers, TestHelpers, TestUtils, WskProps, WskTestHelpers}
+import common.{BaseWsk, TestHelpers, TestUtils, WskProps, WskTestHelpers}
 
 import whisk.utils.retry
 
 import scala.concurrent.duration._
 
 @RunWith(classOf[JUnitRunner])
-abstract class WskActivationTests extends TestHelpers with WskTestHelpers with JsHelpers {
+abstract class WskActivationTests extends TestHelpers with WskTestHelpers {
   implicit val wskprops = WskProps()
 
   val wsk: BaseWsk
@@ -44,14 +44,17 @@ abstract class WskActivationTests extends TestHelpers with WskTestHelpers with J
 
     val run = wsk.action.invoke(name, blocking = true)
 
-    // Use withActivation() to reduce intermittent failures that may result from eventually consistent DBs
+    // Even though the activation was blocking, the activation itself might not have appeared in the database.
     withActivation(wsk.activation, run) { activation =>
+      // Needs to be retried because there might be an SPI being plugged in which is handling logs not consistent with
+      // the database where the activation itself comes from (activation in CouchDB, logs in Elasticsearch for
+      // example).
       retry({
         val logs = wsk.activation.logs(Some(activation.activationId)).stdout
 
-        logs should include regex (logFormat.format("stdout", "this is stdout"))
-        logs should include regex (logFormat.format("stderr", "this is stderr"))
-      }, 10, Some(1.second))
+        logs should include regex logFormat.format("stdout", "this is stdout")
+        logs should include regex logFormat.format("stderr", "this is stderr")
+      }, 60 * 5, Some(1.second)) // retry for 5 minutes
     }
   }
 }

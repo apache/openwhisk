@@ -672,11 +672,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson),
+        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
+        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
@@ -697,7 +697,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsNull,
       JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson),
       JsObject("memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
-      JsObject("logs" -> (LogLimit.STD_LOGSIZE.toMB.toInt + 1).toJson),
+      JsObject("logs" -> (LogLimit.stdLogSize.toMB.toInt + 1).toJson),
       JsObject(
         "TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "MEMORY" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
@@ -749,7 +749,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
+      LogLimit(LogLimit.minLogSize - 1.B))
 
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
@@ -762,7 +762,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
+      LogLimit(LogLimit.maxLogSize + 1.B))
   }
 
   it should "parse activation id as uuid" in {

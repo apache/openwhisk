@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Openwhisk Metric Support
 
 Openwhick contains the capability to send metric information to a statsd server. This capability is disabled per default. Instead metric information is normally written to the log files in logmarker format.
@@ -8,10 +25,10 @@ Both capabilties can be enabled or disabled separately during deployment via Ans
 
 There are four configurations options available:
 
-- **metrics_log** [true / false  (default: true)] 
+- **metrics_log** [true / false  (default: true)]
 
-  Enable/disable whether the metric information is written out to the log files in logmarker format. 
-  
+  Enable/disable whether the metric information is written out to the log files in logmarker format.
+
   *Beware: Even if set to false all messages adjourning the log markers are still written out to the log*
 
 - **metrics_kamon** [true / false (default: false)]
@@ -21,7 +38,7 @@ There are four configurations options available:
 - **metrics_kamon_tags: false** [true / false  (default: false)]
 
   Enable/disable whether to use the Kamon tags when sending metrics.
-  
+
   *Notice: Tag is supported in some kamon-backend. (OpenTSDB, Datadog, InfluxDB)*
 
 - **metrics_kamon_statsd_host** [hostname or ip address]
