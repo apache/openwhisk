@@ -63,10 +63,12 @@ $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-TERM=dumb ./gradlew :tests:testLean $GRADLE_PROJS_SKIP
+TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
 
 cd $ROOTDIR
 tools/build/checkLogs.py logs
+
+bash <(curl -s https://codecov.io/bash)
