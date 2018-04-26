@@ -64,7 +64,7 @@ class ElasticSearchLogStoreTests
       "https",
       "host",
       443,
-      "/whisk_user_logs/_search",
+      "whisk_user_logs",
       defaultLogSchema,
       Seq("x-auth-token", "x-auth-project-id"))
 
