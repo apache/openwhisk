@@ -19,11 +19,13 @@ package whisk.core.database.cosmosdb
 
 import java.util.Collections
 
-import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
 import com.microsoft.azure.cosmosdb.DataType.{Number, String}
+import com.microsoft.azure.cosmosdb.IndexKind.{Hash, Range}
+import com.microsoft.azure.cosmosdb.IndexingMode.Lazy
 import com.microsoft.azure.cosmosdb.{PartitionKeyDefinition, SqlParameter, SqlParameterCollection, SqlQuerySpec}
 import whisk.core.database.ActivationHandler.NS_PATH
 import whisk.core.database.WhisksHandler.ROOT_NS
+import whisk.core.database.cosmosdb.CosmosDBConstants.{alias, computed}
 import whisk.core.database.{
   ActivationHandler,
   DocumentHandler,
@@ -32,8 +34,6 @@ import whisk.core.database.{
   UnsupportedView,
   WhisksHandler
 }
-import whisk.core.database.cosmosdb.CosmosDBConstants.computed
-import whisk.core.database.cosmosdb.CosmosDBConstants.alias
 import whisk.core.entity.WhiskEntityQueries.TOP
 
 private[cosmosdb] trait CosmosDBViewMapper {
@@ -192,6 +192,7 @@ private[cosmosdb] object ActivationViewMapper extends SimpleMapper {
 
   override def indexingPolicy: IndexingPolicy =
     IndexingPolicy(
+      mode = Lazy,
       includedPaths = Set(
         IncludedPath(s"/$NS/?", Index(Hash, String, -1)),
         IncludedPath(s"/$computed/$NS_PATH/?", Index(Hash, String, -1)),
