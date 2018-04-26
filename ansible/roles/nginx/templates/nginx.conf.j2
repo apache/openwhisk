@@ -60,6 +60,9 @@ http {
 
     proxy_set_header X-OW-EXTRA-LOGGING $extra_logging;
 
+{# Turn off sending information about the server to the client #}
+    server_tokens off;
+
     server {
         listen 443 default ssl;
 
