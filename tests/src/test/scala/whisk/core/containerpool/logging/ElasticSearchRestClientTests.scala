@@ -18,12 +18,10 @@
 package whisk.core.containerpool.logging
 
 import spray.json._
-
 import org.junit.runner.RunWith
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
@@ -32,10 +30,10 @@ import akka.stream.scaladsl.Flow
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import akka.http.scaladsl.model.HttpMethods.POST
-
+import akka.http.scaladsl.model.Uri.Path
 import common.StreamLogging
-
-import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
+import whisk.core.containerpool.logging.ElasticSearchRestClient._
+import whisk.core.containerpool.logging.ElasticSearchRestClient.ElasticSearchJsonProtocol._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -52,13 +50,15 @@ class ElasticSearchRestClientTests
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
+  private val defaultIndex = "testIndex"
   private val defaultResponseSource =
     """{"stream":"stdout","activationId":"197d60b33137424ebd60b33137d24ea3","action":"guest/someAction","@version":"1","@timestamp":"2018-03-27T15:48:09.112Z","type":"user_logs","tenant":"19bc46b1-71f6-4ed5-8c54-816aa4f8c502","message":"namespace     : user@email.com\n","time_date":"2018-03-27T15:48:08.716152793Z"}"""
   private val defaultResponse =
-    s"""{"took":2,"timed_out":false,"_shards":{"total":5,"successful":5,"failed":0},"hits":{"total":1375,"max_score":1.0,"hits":[{"_index":"whisk_user_logs","_type":"user_logs","_id":"AWJoJSwAMGbzgxiD1jr9","_score":1.0,"_source":$defaultResponseSource}]}}"""
+    s"""{"took":2,"timed_out":false,"_shards":{"total":5,"successful":5,"failed":0},"hits":{"total":1375,"max_score":1.0,"hits":[{"_index":"$defaultIndex","_type":"user_logs","_id":"AWJoJSwAMGbzgxiD1jr9","_score":1.0,"_source":$defaultResponseSource}]}}"""
   private val defaultHttpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, defaultResponse))
   private val defaultHttpRequest = HttpRequest(
     POST,
+    Uri().withPath(Path / defaultIndex / "_search"),
     headers = List(Accept(MediaTypes.`application/json`)),
     entity = HttpEntity(ContentTypes.`application/json`, EsQuery(EsQueryAll()).toJson.toString))
 
@@ -90,7 +90,7 @@ class ElasticSearchRestClientTests
                   JsObject("match" -> JsObject("someKey2" -> JsString("someValue2")))))))
 
     // Test must with ranges
-    Seq((EsRangeGte, "gte"), (EsRangeGt, "gt"), (EsRangeLte, "lte"), (EsRangeLt, "lt")).foreach {
+    Seq((EsRange.Gte, "gte"), (EsRange.Gt, "gt"), (EsRange.Lte, "lte"), (EsRange.Lt, "lt")).foreach {
       case (rangeArg, rangeValue) =>
         val queryRange = EsQueryRange("someKey", rangeArg, "someValue")
         val queryTerms = Vector(EsQueryBoolMatch("someKey1", "someValue1"), EsQueryBoolMatch("someKey2", "someValue2"))
@@ -113,7 +113,7 @@ class ElasticSearchRestClientTests
   }
 
   it should "construct a query with aggregations" in {
-    Seq((EsAggMax, "max"), (EsAggMin, "min")).foreach {
+    Seq((EsAggregation.Max, "max"), (EsAggregation.Min, "min")).foreach {
       case (aggArg, aggValue) =>
         val queryAgg = EsQueryAggs("someAgg", aggArg, "someField")
 
@@ -130,7 +130,7 @@ class ElasticSearchRestClientTests
       "query" -> JsObject("match" -> JsObject("someField" -> JsObject("query" -> "someValue".toJson))))
 
     // Test match with types
-    Seq((EsMatchPhrase, "phrase"), (EsMatchPhrasePrefix, "phrase_prefix")).foreach {
+    Seq((EsMatch.Phrase, "phrase"), (EsMatch.PhrasePrefix, "phrase_prefix")).foreach {
       case (typeArg, typeValue) =>
         val queryMatch = EsQueryMatch("someField", "someValue", Some(typeArg))
 
@@ -154,7 +154,7 @@ class ElasticSearchRestClientTests
   }
 
   it should "construct a query with order" in {
-    Seq((EsOrderAsc, "asc"), (EsOrderDesc, "desc")).foreach {
+    Seq((EsOrder.Asc, "asc"), (EsOrder.Desc, "desc")).foreach {
       case (orderArg, orderValue) =>
         val queryOrder = EsQueryOrder("someField", orderArg)
 
@@ -165,7 +165,7 @@ class ElasticSearchRestClientTests
   }
 
   it should "construct query with size" in {
-    val querySize = EsQuerySize(1)
+    val querySize = 1
 
     EsQuery(EsQueryAll(), size = Some(querySize)).toJson shouldBe JsObject(
       "query" -> JsObject("match_all" -> JsObject()),
@@ -175,13 +175,13 @@ class ElasticSearchRestClientTests
   it should "error when search response does not match expected type" in {
     val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpRequest = defaultHttpRequest)))
 
-    a[RuntimeException] should be thrownBy await(esClient.search[JsObject]("/"))
+    a[RuntimeException] should be thrownBy await(esClient.search[JsObject](defaultIndex))
   }
 
   it should "parse search response into EsSearchResult" in {
     val esClient =
       new ElasticSearchRestClient("https", "host", 443, Some(testFlow(defaultHttpResponse, defaultHttpRequest)))
-    val response = await(esClient.search[EsSearchResult]("/"))
+    val response = await(esClient.search[EsSearchResult](defaultIndex))
 
     response shouldBe 'right
     response.right.get.hits.hits should have size 1
@@ -191,7 +191,7 @@ class ElasticSearchRestClientTests
   it should "return status code when HTTP error occurs" in {
     val httpResponse = HttpResponse(StatusCodes.InternalServerError)
     val esClient = new ElasticSearchRestClient("https", "host", 443, Some(testFlow(httpResponse, defaultHttpRequest)))
-    val response = await(esClient.search[JsObject]("/"))
+    val response = await(esClient.search[JsObject](defaultIndex))
 
     response shouldBe 'left
     response.left.get shouldBe StatusCodes.InternalServerError

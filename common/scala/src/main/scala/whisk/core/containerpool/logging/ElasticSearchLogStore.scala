@@ -24,7 +24,8 @@ import akka.stream.scaladsl.Flow
 import akka.http.scaladsl.model._
 
 import whisk.core.entity.{ActivationLogs, Identity, WhiskActivation}
-import whisk.core.containerpool.logging.ElasticSearchJsonProtocol._
+import whisk.core.containerpool.logging.ElasticSearchRestClient._
+import whisk.core.containerpool.logging.ElasticSearchRestClient.ElasticSearchJsonProtocol._
 import whisk.core.ConfigKeys
 
 import scala.concurrent.{Future, Promise}
@@ -43,7 +44,7 @@ case class ElasticSearchLogFieldConfig(userLogs: String,
 case class ElasticSearchLogStoreConfig(protocol: String,
                                        host: String,
                                        port: Int,
-                                       path: String,
+                                       index: String,
                                        logSchema: ElasticSearchLogFieldConfig,
                                        requiredHeaders: Seq[String] = Seq.empty)
 
@@ -92,12 +93,12 @@ class ElasticSearchLogStore(
     val logQuery =
       s"_type: ${elasticSearchConfig.logSchema.userLogs} AND ${elasticSearchConfig.logSchema.activationId}: ${activation.activationId}"
     val queryString = EsQueryString(logQuery)
-    val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrderAsc)
+    val queryOrder = EsQueryOrder(elasticSearchConfig.logSchema.time, EsOrder.Asc)
 
     EsQuery(queryString, Some(queryOrder))
   }
 
-  private def generatePath(user: Identity) = elasticSearchConfig.path.format(user.uuid.asString)
+  private def generatePath(user: Identity) = elasticSearchConfig.index.format(user.uuid.asString)
 
   override def fetchLogs(user: Identity, activation: WhiskActivation, request: HttpRequest): Future[ActivationLogs] = {
     val headers = extractRequiredHeaders(request.headers)

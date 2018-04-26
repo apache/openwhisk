@@ -22,6 +22,7 @@ import scala.util.{Either, Try}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.Uri.Path
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model.headers.Accept
 import akka.stream.scaladsl.Flow
@@ -33,122 +34,139 @@ import spray.json._
 
 import whisk.http.PoolingRestClient
 
-trait EsQueryMethod
-trait EsOrder
-trait EsRange
-trait EsAgg
-trait EsMatch
+object ElasticSearchRestClient {
 
-// Schema of ES query operators
-case object EsOrderAsc extends EsOrder { override def toString = "asc" }
-case object EsOrderDesc extends EsOrder { override def toString = "desc" }
-case object EsRangeGte extends EsRange { override def toString = "gte" }
-case object EsRangeGt extends EsRange { override def toString = "gt" }
-case object EsRangeLte extends EsRange { override def toString = "lte" }
-case object EsRangeLt extends EsRange { override def toString = "lt" }
-case object EsAggMax extends EsAgg { override def toString = "max" }
-case object EsAggMin extends EsAgg { override def toString = "min" }
-case object EsMatchPhrase extends EsMatch { override def toString = "phrase" }
-case object EsMatchPhrasePrefix extends EsMatch { override def toString = "phrase_prefix" }
+  trait EsQueryMethod
 
-// Schema of ES queries
-case class EsQueryAggs(aggField: String, agg: EsAgg, field: String)
-case class EsQueryRange(key: String, range: EsRange, value: String)
-case class EsQueryBoolMatch(key: String, value: String)
-case class EsQueryOrder(field: String, kind: EsOrder)
-case class EsQuerySize(size: Integer)
-case class EsQueryAll() extends EsQueryMethod
-case class EsQueryMust(matches: Vector[EsQueryBoolMatch], range: Option[EsQueryRange] = None) extends EsQueryMethod
-case class EsQueryMatch(field: String, value: String, matchType: Option[EsMatch] = None) extends EsQueryMethod
-case class EsQueryTerm(key: String, value: String) extends EsQueryMethod
-case class EsQueryString(queryString: String) extends EsQueryMethod
-case class EsQuery(query: EsQueryMethod,
-                   sort: Option[EsQueryOrder] = None,
-                   size: Option[EsQuerySize] = None,
-                   aggs: Option[EsQueryAggs] = None)
+  trait EsOrder
+  object EsOrder {
+    case object Asc extends EsOrder { override def toString = "asc" }
+    case object Desc extends EsOrder { override def toString = "desc" }
+  }
 
-// Schema of ES query results
-case class EsSearchHit(source: JsObject)
-case class EsSearchHits(hits: Vector[EsSearchHit])
-case class EsSearchResult(hits: EsSearchHits)
+  trait EsRange
+  object EsRange {
+    case object Gte extends EsRange { override def toString = "gte" }
+    case object Gt extends EsRange { override def toString = "gt" }
+    case object Lte extends EsRange { override def toString = "lte" }
+    case object Lt extends EsRange { override def toString = "lt" }
+  }
 
-object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
+  trait EsAggregation
+  object EsAggregation {
+    case object Max extends EsAggregation { override def toString = "max" }
+    case object Min extends EsAggregation { override def toString = "min" }
+  }
 
-  implicit object EsQueryMatchJsonFormat extends RootJsonFormat[EsQueryMatch] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryMatch) = {
-      val matchQuery = Map("query" -> query.value.toJson) ++ query.matchType.map(m => "type" -> m.toString.toJson)
-      JsObject("match" -> JsObject(query.field -> matchQuery.toJson))
+  trait EsMatch
+  object EsMatch {
+    case object Phrase extends EsMatch { override def toString = "phrase" }
+    case object PhrasePrefix extends EsMatch { override def toString = "phrase_prefix" }
+  }
+
+  // Schema of ES queries
+  case class EsQueryAggs(aggField: String, agg: EsAggregation, field: String)
+  case class EsQueryRange(key: String, range: EsRange, value: String)
+  case class EsQueryBoolMatch(key: String, value: String)
+  case class EsQueryOrder(field: String, kind: EsOrder)
+  case class EsQueryAll() extends EsQueryMethod
+  case class EsQueryMust(matches: Vector[EsQueryBoolMatch], range: Option[EsQueryRange] = None) extends EsQueryMethod
+  case class EsQueryMatch(field: String, value: String, matchType: Option[EsMatch] = None) extends EsQueryMethod
+  case class EsQueryTerm(key: String, value: String) extends EsQueryMethod
+  case class EsQueryString(queryString: String) extends EsQueryMethod
+  case class EsQuery(query: EsQueryMethod,
+                     sort: Option[EsQueryOrder] = None,
+                     size: Option[Int] = None,
+                     aggs: Option[EsQueryAggs] = None)
+
+  // Schema of ES query results
+  case class EsSearchHit(source: JsObject)
+  case class EsSearchHits(hits: Vector[EsSearchHit])
+  case class EsSearchResult(hits: EsSearchHits)
+
+  object ElasticSearchJsonProtocol extends DefaultJsonProtocol {
+
+    implicit object EsQueryMatchJsonFormat extends RootJsonFormat[EsQueryMatch] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryMatch) = {
+        val matchQuery = Map("query" -> query.value.toJson) ++ query.matchType.map(m => "type" -> m.toString.toJson)
+        JsObject("match" -> JsObject(query.field -> matchQuery.toJson))
+      }
     }
-  }
 
-  implicit object EsQueryTermJsonFormat extends RootJsonFormat[EsQueryTerm] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryTerm) = JsObject("term" -> JsObject(query.key -> query.value.toJson))
-  }
+    implicit object EsQueryTermJsonFormat extends RootJsonFormat[EsQueryTerm] {
+      def read(query: JsValue) = ???
 
-  implicit object EsQueryStringJsonFormat extends RootJsonFormat[EsQueryString] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryString) =
-      JsObject("query_string" -> JsObject("query" -> query.queryString.toJson))
-  }
-
-  implicit object EsQueryRangeJsonFormat extends RootJsonFormat[EsQueryRange] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryRange) =
-      JsObject("range" -> JsObject(query.key -> JsObject(query.range.toString -> query.value.toJson)))
-  }
-
-  implicit object EsQueryBoolMatchJsonFormat extends RootJsonFormat[EsQueryBoolMatch] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryBoolMatch) = JsObject("match" -> JsObject(query.key -> query.value.toJson))
-  }
-
-  implicit object EsQueryMustJsonFormat extends RootJsonFormat[EsQueryMust] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryMust) = {
-      val boolQuery = Map("must" -> query.matches.toJson) ++ query.range.map(r => "filter" -> r.toJson)
-      JsObject("bool" -> boolQuery.toJson)
+      def write(query: EsQueryTerm) = JsObject("term" -> JsObject(query.key -> query.value.toJson))
     }
-  }
 
-  implicit object EsQueryOrderJsonFormat extends RootJsonFormat[EsQueryOrder] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryOrder) =
-      JsArray(JsObject(query.field -> JsObject("order" -> query.kind.toString.toJson)))
-  }
+    implicit object EsQueryStringJsonFormat extends RootJsonFormat[EsQueryString] {
+      def read(query: JsValue) = ???
 
-  implicit object EsQuerySizeJsonFormat extends RootJsonFormat[EsQuerySize] {
-    def read(query: JsValue) = ???
-    def write(query: EsQuerySize) = JsNumber(query.size)
-  }
-
-  implicit object EsQueryAggsJsonFormat extends RootJsonFormat[EsQueryAggs] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryAggs) =
-      JsObject(query.aggField -> JsObject(query.agg.toString -> JsObject("field" -> query.field.toJson)))
-  }
-
-  implicit object EsQueryAllJsonFormat extends RootJsonFormat[EsQueryAll] {
-    def read(query: JsValue) = ???
-    def write(query: EsQueryAll) = JsObject("match_all" -> JsObject())
-  }
-
-  implicit object EsQueryMethod extends RootJsonFormat[EsQueryMethod] {
-    def read(query: JsValue) = ???
-    def write(method: EsQueryMethod) = method match {
-      case queryTerm: EsQueryTerm     => queryTerm.toJson
-      case queryString: EsQueryString => queryString.toJson
-      case queryMatch: EsQueryMatch   => queryMatch.toJson
-      case queryMust: EsQueryMust     => queryMust.toJson
-      case queryAll: EsQueryAll       => queryAll.toJson
+      def write(query: EsQueryString) =
+        JsObject("query_string" -> JsObject("query" -> query.queryString.toJson))
     }
-  }
 
-  implicit val esQueryFormat = jsonFormat4(EsQuery.apply)
-  implicit val esSearchHitFormat = jsonFormat(EsSearchHit.apply _, "_source")
-  implicit val esSearchHitsFormat = jsonFormat1(EsSearchHits.apply)
-  implicit val esSearchResultFormat = jsonFormat1(EsSearchResult.apply)
+    implicit object EsQueryRangeJsonFormat extends RootJsonFormat[EsQueryRange] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryRange) =
+        JsObject("range" -> JsObject(query.key -> JsObject(query.range.toString -> query.value.toJson)))
+    }
+
+    implicit object EsQueryBoolMatchJsonFormat extends RootJsonFormat[EsQueryBoolMatch] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryBoolMatch) = JsObject("match" -> JsObject(query.key -> query.value.toJson))
+    }
+
+    implicit object EsQueryMustJsonFormat extends RootJsonFormat[EsQueryMust] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryMust) = {
+        val boolQuery = Map("must" -> query.matches.toJson) ++ query.range.map(r => "filter" -> r.toJson)
+        JsObject("bool" -> boolQuery.toJson)
+      }
+    }
+
+    implicit object EsQueryOrderJsonFormat extends RootJsonFormat[EsQueryOrder] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryOrder) =
+        JsArray(JsObject(query.field -> JsObject("order" -> query.kind.toString.toJson)))
+    }
+
+    implicit object EsQueryAggsJsonFormat extends RootJsonFormat[EsQueryAggs] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryAggs) =
+        JsObject(query.aggField -> JsObject(query.agg.toString -> JsObject("field" -> query.field.toJson)))
+    }
+
+    implicit object EsQueryAllJsonFormat extends RootJsonFormat[EsQueryAll] {
+      def read(query: JsValue) = ???
+
+      def write(query: EsQueryAll) = JsObject("match_all" -> JsObject())
+    }
+
+    implicit object EsQueryMethod extends RootJsonFormat[EsQueryMethod] {
+      def read(query: JsValue) = ???
+
+      def write(method: EsQueryMethod) = method match {
+        case queryTerm: EsQueryTerm     => queryTerm.toJson
+        case queryString: EsQueryString => queryString.toJson
+        case queryMatch: EsQueryMatch   => queryMatch.toJson
+        case queryMust: EsQueryMust     => queryMust.toJson
+        case queryAll: EsQueryAll       => queryAll.toJson
+      }
+    }
+
+    implicit val esQueryFormat = jsonFormat4(EsQuery.apply)
+    implicit val esSearchHitFormat = jsonFormat(EsSearchHit.apply _, "_source")
+    implicit val esSearchHitsFormat = jsonFormat1(EsSearchHits.apply)
+    implicit val esSearchResultFormat = jsonFormat1(EsSearchResult.apply)
+  }
 }
 
 class ElasticSearchRestClient(
@@ -159,7 +177,8 @@ class ElasticSearchRestClient(
   implicit system: ActorSystem)
     extends PoolingRestClient(protocol, host, port, 16 * 1024, httpFlow) {
 
-  import ElasticSearchJsonProtocol._
+  import ElasticSearchRestClient._
+  import ElasticSearchRestClient.ElasticSearchJsonProtocol._
 
   private val baseHeaders: List[HttpHeader] = List(Accept(MediaTypes.`application/json`))
 
@@ -174,5 +193,6 @@ class ElasticSearchRestClient(
   def search[T: RootJsonReader](index: String,
                                 payload: EsQuery = EsQuery(EsQueryAll()),
                                 headers: List[HttpHeader] = List.empty): Future[Either[StatusCode, T]] =
-    requestJson[T](mkJsonRequest(POST, Uri(index), payload.toJson.asJsObject, baseHeaders ++ headers))
+    requestJson[T](
+      mkJsonRequest(POST, Uri().withPath(Path / index / "_search"), payload.toJson.asJsObject, baseHeaders ++ headers))
 }
