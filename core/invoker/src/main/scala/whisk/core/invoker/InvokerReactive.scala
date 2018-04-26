@@ -26,8 +26,7 @@ import akka.stream.ActorMaterializer
 import org.apache.kafka.common.errors.RecordTooLargeException
 import pureconfig._
 import spray.json._
-import whisk.common.{Logging, LoggingMarkers, Scheduler, TransactionId}
-import whisk.core.WhiskConfig.UserEvents
+import whisk.common._
 import whisk.core.{ConfigKeys, WhiskConfig}
 import whisk.core.connector._
 import whisk.core.containerpool._
@@ -54,8 +53,6 @@ class InvokerReactive(
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = actorSystem.dispatcher
   implicit val cfg: WhiskConfig = config
-
-  private val userEvents = loadConfigOrThrow[UserEvents](ConfigKeys.userEvents).enabled
 
   private val logsProvider = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
   logging.info(this, s"LogStoreProvider: ${logsProvider.getClass}")
@@ -131,31 +128,29 @@ class InvokerReactive(
     }
 
     // send activation metadata to kafka
-    if (userEvents) {
-      val activation = Activation(
-        activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
-        activationResult.response.statusCode,
-        activationResult.duration.getOrElse(0),
-        activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
-        activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
-        activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),
-        activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
-        activationResult.annotations
-          .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
-          .map(al => al.memory.megabytes)
-          .getOrElse(0),
-        activationResult.cause)
+    val activation = Activation(
+      activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
+      activationResult.response.statusCode,
+      activationResult.duration.getOrElse(0),
+      activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
+      activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
+      activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),
+      activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
+      activationResult.annotations
+        .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
+        .map(al => al.memory.megabytes)
+        .getOrElse(0),
+      activationResult.cause)
 
-      EventMessage.send(
-        producer,
-        EventMessage(
-          s"invoker${instance.instance}",
-          activation,
-          activationResult.subject,
-          activationResult.namespace.toString,
-          userId,
-          activation.getClass.getSimpleName))
-    }
+    UserEvents.send(
+      producer,
+      EventMessage(
+        s"invoker${instance.instance}",
+        activation,
+        activationResult.subject,
+        activationResult.namespace.toString,
+        userId,
+        UserEvents.activationName))
 
     send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>
@@ -177,14 +172,7 @@ class InvokerReactive(
   private val childFactory = (f: ActorRefFactory) =>
     f.actorOf(
       ContainerProxy
-        .props(
-          containerFactory.createContainer,
-          ack,
-          store,
-          logsProvider.collectLogs,
-          instance,
-          poolConfig,
-          config = config))
+        .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
   private val prewarmKind = "nodejs:6"
   private val prewarmExec = ExecManifest.runtimesManifest

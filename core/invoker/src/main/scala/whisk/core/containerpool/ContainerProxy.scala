@@ -39,8 +39,7 @@ import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
 import pureconfig.loadConfigOrThrow
-import whisk.core.{ConfigKeys, WhiskConfig}
-import whisk.connector.kafka.KafkaMessagingProvider
+import whisk.core.ConfigKeys
 
 // States
 sealed trait ContainerState
@@ -101,17 +100,13 @@ class ContainerProxy(
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InstanceId,
   poolConfig: ContainerPoolConfig,
-  config: WhiskConfig,
   unusedTimeout: FiniteDuration,
   pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
     with Stash {
   implicit val ec = context.system.dispatcher
   implicit val logging = new AkkaLogging(context.system.log)
-  implicit val system = context.system
   var rescheduleJob = false // true iff actor receives a job but cannot process it because actor will destroy itself
-
-  private val eventProducer = KafkaMessagingProvider.getProducer(config)
 
   startWith(Uninitialized, NoData())
 
@@ -432,10 +427,9 @@ object ContainerProxy {
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
     poolConfig: ContainerPoolConfig,
-    config: WhiskConfig,
     unusedTimeout: FiniteDuration = timeouts.idleContainer,
     pauseGrace: FiniteDuration = timeouts.pauseGrace) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, config, unusedTimeout, pauseGrace))
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter

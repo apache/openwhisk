@@ -72,7 +72,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
           Array(a.statusCode) should contain oneOf (0, 1, 2, 3)
         }
         case EventMessage(_, m: Metric, _, _, _, _, _) =>
-          Array(m.metricName) should contain oneOf ("concurrent_activations", "ConcurrentRateLimit", "TimedRateLimit")
+          Array(m.metricName) should contain oneOf ("ConcurrentActivations", "ConcurrentRateLimit", "TimedRateLimit")
       }
     })
     // produce at least 2 events - an Activation and a 'concurrent_invocation' Metric

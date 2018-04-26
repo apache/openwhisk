@@ -25,14 +25,11 @@ import scala.util.Success
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.StatusCodes.TooManyRequests
-import pureconfig.loadConfigOrThrow
 import whisk.core.entitlement.Privilege.ACTIVATE
 import whisk.core.entitlement.Privilege.REJECT
-import whisk.common.Logging
-import whisk.common.TransactionId
+import whisk.common.{Logging, TransactionId, UserEvents}
 import whisk.connector.kafka.KafkaMessagingProvider
-import whisk.core.WhiskConfig.UserEvents
-import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.WhiskConfig
 import whisk.core.connector.{EventMessage, Metric}
 import whisk.core.controller.RejectRequest
 import whisk.core.entity._
@@ -81,11 +78,9 @@ protected[core] object EntitlementProvider {
 protected[core] abstract class EntitlementProvider(
   config: WhiskConfig,
   loadBalancer: LoadBalancer,
-  controllerInstance: String)(implicit actorSystem: ActorSystem, logging: Logging) {
+  controllerInstance: InstanceId)(implicit actorSystem: ActorSystem, logging: Logging) {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-
-  private val userEvents = loadConfigOrThrow[UserEvents](ConfigKeys.userEvents).enabled
 
   /**
    * Allows 20% of additional requests on top of the limit to mitigate possible unfair round-robin loadbalancing between
@@ -369,40 +364,35 @@ protected[core] abstract class EntitlementProvider(
     throttle.flatMap { limit =>
       val userId = user.authkey.uuid
       if (limit.ok) {
-
-        if (userEvents) {
-          limit match {
-            case c: ConcurrentRateLimit => {
-              val metric =
-                Metric("ConcurrentInvocations", c.count + 1)
-              EventMessage.send(
-                eventProducer,
-                EventMessage(
-                  s"controller$controllerInstance",
-                  metric,
-                  user.subject,
-                  user.namespace.toString,
-                  userId,
-                  metric.getClass.getSimpleName))
-            }
-            case _ => // ignore
+        limit match {
+          case c: ConcurrentRateLimit => {
+            val metric =
+              Metric("ConcurrentInvocations", c.count + 1)
+            UserEvents.send(
+              eventProducer,
+              EventMessage(
+                s"controller$controllerInstance",
+                metric,
+                user.subject,
+                user.namespace.toString,
+                userId,
+                UserEvents.metricName))
           }
+          case _ => // ignore
         }
         Future.successful(())
       } else {
         logging.info(this, s"'${user.namespace}' has exceeded its throttle limit, ${limit.errorMsg}")
-        if (userEvents) {
-          val metric = Metric(limit.limitName, 1)
-          EventMessage.send(
-            eventProducer,
-            EventMessage(
-              s"controller$controllerInstance",
-              metric,
-              user.subject,
-              user.namespace.toString,
-              userId,
-              metric.getClass.getSimpleName))
-        }
+        val metric = Metric(limit.limitName, 1)
+        UserEvents.send(
+          eventProducer,
+          EventMessage(
+            s"controller$controllerInstance",
+            metric,
+            user.subject,
+            user.namespace.toString,
+            userId,
+            UserEvents.metricName))
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

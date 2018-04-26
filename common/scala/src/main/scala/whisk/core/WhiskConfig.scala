@@ -88,8 +88,6 @@ class WhiskConfig(requiredProperties: Map[String, String],
 
 object WhiskConfig {
 
-  case class UserEvents(enabled: Boolean)
-
   /**
    * Reads a key from system environment as if it was part of WhiskConfig.
    */

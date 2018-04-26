@@ -76,7 +76,7 @@ protected trait ControllerTestCommon
   override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
   override lazy val entitlementProvider: EntitlementProvider =
-    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance.instance.toString)
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api

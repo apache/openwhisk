@@ -122,7 +122,7 @@ class Controller(val instance: InstanceId,
   logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
 
   private implicit val entitlementProvider =
-    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance.instance.toString)
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 

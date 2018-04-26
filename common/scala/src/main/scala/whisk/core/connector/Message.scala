@@ -146,7 +146,7 @@ case class Activation(name: String,
                       memory: Int,
                       cause: Option[ActivationId] = None)
     extends EventMessageBody {
-  override def serialize = Activation.activationFormat.write(this).compactPrint
+  override def serialize = toJson.compactPrint
 
   def toJson = Activation.activationFormat.write(this)
 }
@@ -168,7 +168,7 @@ object Activation extends DefaultJsonProtocol {
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
-  override def serialize = Metric.metricFormat.write(this).compactPrint
+  override def serialize = toJson.compactPrint
   def toJson = Metric.metricFormat.write(this).asJsObject
 }
 
@@ -193,7 +193,4 @@ object EventMessage extends DefaultJsonProtocol {
     jsonFormat(EventMessage.apply _, "source", "body", "subject", "namespace", "userId", "eventType", "timestamp")
 
   def parse(msg: String) = format.read(msg.parseJson)
-  def send(producer: MessageProducer, em: EventMessage) = {
-    producer.send("events", em)
-  }
 }

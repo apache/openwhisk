@@ -69,7 +69,7 @@ class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity
 sealed trait RateLimit {
   def ok: Boolean
   def errorMsg: String
-  def limitName: String = this.getClass.getSimpleName
+  val limitName: String = this.getClass.getSimpleName
 }
 
 case class ConcurrentRateLimit(count: Int, allowed: Int) extends RateLimit {
