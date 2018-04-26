@@ -72,44 +72,13 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
           Array(a.statusCode) should contain oneOf (0, 1, 2, 3)
         }
         case EventMessage(_, m: Metric, _, _, _, _, _) =>
-          Array(m.metricName) should contain oneOf ("ConcurrentActivations", "ConcurrentRateLimit", "TimedRateLimit")
+          Array(m.metricName) should contain oneOf ("ConcurrentInvocations", "ConcurrentRateLimit", "TimedRateLimit")
       }
     })
-    // produce at least 2 events - an Activation and a 'concurrent_invocation' Metric
+    // produce at least 2 events - an Activation and a 'ConcurrentInvocations' Metric
     // >= 2 is due to events that might have potentially occurred in between
     received.size should be >= 2
     consumer.commit()
-  }
-
-  it should "produce a metric when user exceeds system defined throttle limit" in withAssetCleaner(wskprops) {
-    (wp, assetHelper) =>
-      val concurrentLimit = WhiskProperties.getProperty("limits.actions.invokes.perMinute").toInt
-      val numberOfControllers = WhiskProperties.getProperty("controller.instances").toInt
-
-      val overhead = if (WhiskProperties.getControllerHosts.split(",").length > 1) 1.2 else 1.0
-      val activationsToFire = (concurrentLimit * numberOfControllers * overhead).toInt + 2
-
-      for (i <- 1 to activationsToFire) {
-        val file = Some(TestUtils.getTestActionFilename("hello.js"))
-        val name = s"testUserEvents$i"
-
-        assetHelper.withCleaner(wsk.action, name, confirmDelete = true) { (action, _) =>
-          action.create(name, file)
-        }
-        wsk.action.invoke(name, expectedExitCode = TestUtils.DONTCARE_EXIT)
-      }
-
-      val events =
-        consumer.peek(maxPollInterval).map { case (_, _, _, msg) => EventMessage.parse(new String(msg, "utf-8")) }
-      val throttled = events.map(event => {
-        event match {
-          case EventMessage(_, m: Metric, _, _, _, _, _) =>
-            Array(m.metricName).filter(_.equalsIgnoreCase("TimedRateLimit"))
-          case _ => //
-        }
-      })
-      throttled.size should be > 0
-      consumer.commit()
   }
 
 }
