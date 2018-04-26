@@ -75,13 +75,13 @@ case class WhiskActivation(namespace: EntityPath,
   require(end != null, "end undefined")
   require(response != null, "response undefined")
 
-  def toJson = WhiskActivation.serdes.write(this).asJsObject
+  def toJson: JsObject = WhiskActivation.serdes.write(this).asJsObject
 
   /**
    * This the activation summary as computed by the database view.
    * Strictly used in view testing to enforce alignment.
    */
-  override def summaryAsJson = {
+  override def summaryAsJson: JsObject = {
     import WhiskActivation.instantSerdes
 
     def actionOrNot() = {
@@ -97,13 +97,13 @@ case class WhiskActivation(namespace: EntityPath,
       super.summaryAsJson.fields - "updated" +
         ("activationId" -> activationId.toJson) +
         ("start" -> start.toJson) ++
-        cause.map(("cause" -> _.toJson)) ++
+        cause.map("cause" -> _.toJson) ++
         actionOrNot())
   }
 
-  def resultAsJson = response.result.toJson.asJsObject
+  def resultAsJson: JsObject = response.result.map(_.toJson.asJsObject).getOrElse(JsObject.empty)
 
-  def toExtendedJson = {
+  def toExtendedJson: JsObject = {
     val JsObject(baseFields) = WhiskActivation.serdes.write(this).asJsObject
     val newFields = (baseFields - "response") + ("response" -> response.toExtendedJson)
     if (end != Instant.EPOCH) {
@@ -114,12 +114,12 @@ case class WhiskActivation(namespace: EntityPath,
     }
   }
 
-  def withoutLogsOrResult = {
+  def withoutLogsOrResult: WhiskActivation = {
     copy(response = response.withoutResult, logs = ActivationLogs()).revision[WhiskActivation](rev)
   }
 
-  def withoutLogs = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
-  def withLogs(logs: ActivationLogs) = copy(logs = logs).revision[WhiskActivation](rev)
+  def withoutLogs: WhiskActivation = copy(logs = ActivationLogs()).revision[WhiskActivation](rev)
+  def withLogs(logs: ActivationLogs): WhiskActivation = copy(logs = logs).revision[WhiskActivation](rev)
 }
 
 object WhiskActivation
@@ -163,13 +163,13 @@ object WhiskActivation
   private val filtersDdoc = dbConfig.activationsFilterDdoc
 
   /** The main view for activations, keyed by namespace, sorted by date. */
-  override lazy val view = WhiskEntityQueries.view(mainDdoc, collectionName)
+  override lazy val view: View = WhiskEntityQueries.view(mainDdoc, collectionName)
 
   /**
    * A view for activations in a namespace additionally keyed by action name
    * (and package name if present) sorted by date.
    */
-  lazy val filtersView = WhiskEntityQueries.view(filtersDdoc, collectionName)
+  lazy val filtersView: View = WhiskEntityQueries.view(filtersDdoc, collectionName)
 
   override implicit val serdes = jsonFormat13(WhiskActivation.apply)
 
