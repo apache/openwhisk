@@ -324,3 +324,4 @@ metrics:
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
+user_events: "{{ user_events_enabled | default(false) }}"

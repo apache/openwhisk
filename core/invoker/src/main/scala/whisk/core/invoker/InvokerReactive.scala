@@ -126,27 +126,24 @@ class InvokerReactive(
             s"posted ${if (recovery) "recovery" else "completion"} of activation ${activationResult.activationId}")
       }
     }
-
-    // send activation metadata to kafka
-    val activation = Activation(
-      activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
-      activationResult.response.statusCode,
-      activationResult.duration.getOrElse(0),
-      activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
-      activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
-      activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),
-      activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
-      activationResult.annotations
-        .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
-        .map(al => al.memory.megabytes)
-        .getOrElse(0),
-      activationResult.cause)
-
+    // Potentially sends activation metadata to kafka if user events are enabled
     UserEvents.send(
       producer,
       EventMessage(
         s"invoker${instance.instance}",
-        activation,
+        Activation(
+          activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
+          activationResult.response.statusCode,
+          activationResult.duration.getOrElse(0),
+          activationResult.annotations.getAs[Long](WhiskActivation.waitTimeAnnotation).getOrElse(0),
+          activationResult.annotations.getAs[Long](WhiskActivation.initTimeAnnotation).getOrElse(0),
+          activationResult.annotations.getAs[String](WhiskActivation.kindAnnotation).getOrElse("unknown_kind"),
+          activationResult.annotations.getAs[Boolean](WhiskActivation.conductorAnnotation).getOrElse(false),
+          activationResult.annotations
+            .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
+            .map(al => al.memory.megabytes)
+            .getOrElse(0),
+          activationResult.cause),
         activationResult.subject,
         activationResult.namespace.toString,
         userId,

@@ -45,7 +45,6 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
 import whisk.common.TransactionId
-import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool._
 import whisk.core.containerpool.logging.LogCollectingException
@@ -179,8 +178,6 @@ class ContainerProxyTests
   }
 
   val poolConfig = ContainerPoolConfig(1, 2)
-
-  val whiskConfig = new WhiskConfig(WhiskConfig.kafkaHosts)
 
   behavior of "ContainerProxy"
 
