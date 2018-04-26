@@ -128,10 +128,8 @@ class InvokerReactive(
     }
     // Potentially sends activation metadata to kafka if user events are enabled
     UserEvents.send(
-      producer,
-      EventMessage(
-        s"invoker${instance.instance}",
-        Activation(
+      producer, {
+        val activation = Activation(
           activationResult.namespace + EntityPath.PATHSEP + activationResult.name,
           activationResult.response.statusCode,
           activationResult.duration.getOrElse(0),
@@ -143,11 +141,15 @@ class InvokerReactive(
             .getAs[ActionLimits](WhiskActivation.limitsAnnotation)
             .map(al => al.memory.megabytes)
             .getOrElse(0),
-          activationResult.cause),
-        activationResult.subject,
-        activationResult.namespace.toString,
-        userId,
-        UserEvents.activationName))
+          activationResult.annotations.getAs[Boolean](WhiskActivation.causedByAnnotation).getOrElse(false))
+        EventMessage(
+          s"invoker${instance.instance}",
+          activation,
+          activationResult.subject,
+          activationResult.namespace.toString,
+          userId,
+          activation.typeName)
+      })
 
     send(Right(if (blockingInvoke) activationResult else activationResult.withoutLogsOrResult)).recoverWith {
       case t if t.getCause.isInstanceOf[RecordTooLargeException] =>

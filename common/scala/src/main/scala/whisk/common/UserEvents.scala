@@ -22,15 +22,13 @@ import whisk.core.ConfigKeys
 import whisk.core.connector.{EventMessage, MessageProducer}
 
 object UserEvents {
-  val metricName = "Metric"
-  val activationName = "Activation"
 
   case class UserEventsConfig(enabled: Boolean)
 
-  private val userEventsEnabled = loadConfigOrThrow[UserEventsConfig](ConfigKeys.userEvents).enabled
+  val enabled = loadConfigOrThrow[UserEventsConfig](ConfigKeys.userEvents).enabled
 
   def send(producer: MessageProducer, em: => EventMessage) = {
-    if (userEventsEnabled) {
+    if (enabled) {
       producer.send("events", em)
     }
   }

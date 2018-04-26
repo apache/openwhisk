@@ -376,7 +376,7 @@ protected[core] abstract class EntitlementProvider(
                 user.subject,
                 user.namespace.toString,
                 userId,
-                UserEvents.metricName))
+                metric.typeName))
           }
           case _ => // ignore
         }
@@ -392,7 +392,7 @@ protected[core] abstract class EntitlementProvider(
             user.subject,
             user.namespace.toString,
             userId,
-            UserEvents.metricName))
+            metric.typeName))
         Future.failed(RejectRequest(TooManyRequests, limit.errorMsg))
       }
     }

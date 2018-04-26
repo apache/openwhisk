@@ -117,7 +117,9 @@ object PingMessage extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat(PingMessage.apply _, "name")
 }
 
-trait EventMessageBody extends Message {}
+trait EventMessageBody extends Message {
+  def typeName: String
+}
 
 object EventMessageBody extends DefaultJsonProtocol {
 
@@ -144,8 +146,9 @@ case class Activation(name: String,
                       kind: String,
                       conductor: Boolean,
                       memory: Int,
-                      cause: Option[ActivationId] = None)
+                      causedBy: Boolean)
     extends EventMessageBody {
+  val typeName = "Activation"
   override def serialize = toJson.compactPrint
 
   def toJson = Activation.activationFormat.write(this)
@@ -164,10 +167,11 @@ object Activation extends DefaultJsonProtocol {
       "kind",
       "conductor",
       "memory",
-      "cause")
+      "causedBy")
 }
 
 case class Metric(metricName: String, metricValue: Long) extends EventMessageBody {
+  val typeName = "Metric"
   override def serialize = toJson.compactPrint
   def toJson = Metric.metricFormat.write(this).asJsObject
 }
