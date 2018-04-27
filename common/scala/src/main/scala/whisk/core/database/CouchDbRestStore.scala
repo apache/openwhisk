@@ -28,10 +28,9 @@ import akka.stream.scaladsl._
 import akka.util.ByteString
 import spray.json._
 import whisk.common.{Logging, LoggingMarkers, MetricEmitter, TransactionId}
+import whisk.core.database.StoreUtils._
 import whisk.core.entity.BulkEntityResult
 import whisk.core.entity.DocInfo
-import whisk.core.entity.DocRevision
-import whisk.core.entity.WhiskDocument
 import whisk.http.Messages
 import whisk.core.entity.DocumentReader
 
@@ -224,27 +223,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       e match {
         case Right(response) =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
-
-          val asFormat = try {
-            docReader.read(ma, response)
-          } catch {
-            case e: Exception => jsonFormat.read(response)
-          }
-
-          if (asFormat.getClass != ma.runtimeClass) {
-            throw DocumentTypeMismatchException(
-              s"document type ${asFormat.getClass} did not match expected type ${ma.runtimeClass}.")
-          }
-
-          val deserialized = asFormat.asInstanceOf[A]
-
-          val responseRev = response.fields("_rev").convertTo[String]
-          assert(doc.rev.rev == null || doc.rev.rev == responseRev, "Returned revision should match original argument")
-          // FIXME remove mutability from appropriate classes now that it is no longer required by GSON.
-          deserialized.asInstanceOf[WhiskDocument].revision(DocRevision(responseRev))
-
-          deserialized
-
+          deserialize[A, DocumentAbstraction](doc, response)
         case Left(StatusCodes.NotFound) =>
           transid.finished(this, start, s"[GET] '$dbName', document: '${doc}'; not found.")
           // for compatibility
@@ -455,6 +434,11 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
           s"[ATT_GET] '$dbName' internal error, name: '$name', doc: '$doc', failure: '${failure.getMessage}'",
           ErrorLevel))
   }
+
+  override protected[core] def deleteAttachments[T](doc: DocInfo)(implicit transid: TransactionId): Future[Boolean] =
+    // NOTE: this method is not intended for standalone use for CouchDB.
+    // To delete attachments, it is expected that the entire document is deleted.
+    Future.successful(true)
 
   override def shutdown(): Unit = {
     Await.ready(client.shutdown(), 1.minute)

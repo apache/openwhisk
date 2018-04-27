@@ -167,24 +167,24 @@ protected[actions] trait PrimitiveActions {
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${message.activationId}")
     val postedFuture = loadBalancer.publish(action, message)
 
-    
-    // successfully posted activation request to the message bus
-    transid.finished(this, startLoadbalancer)
+    postedFuture.flatMap { activeAckResponse =>
+      // successfully posted activation request to the message bus
+      transid.finished(this, startLoadbalancer)
 
-    // is caller waiting for the result of the activation?
-    waitForResponse
-      .map { timeout =>
-        // yes, then wait for the activation response from the message bus
-        // (known as the active response or active ack)
-        waitForActivationResponse(user, message.activationId, timeout, postedFuture)
-          .andThen { case _ => transid.finished(this, startActivation) }
-      }
-      .getOrElse {
-        // no, return the activation id
-        transid.finished(this, startActivation)
-        Future.successful(Left(message.activationId))
-      }
-    
+      // is caller waiting for the result of the activation?
+      waitForResponse
+        .map { timeout =>
+          // yes, then wait for the activation response from the message bus
+          // (known as the active response or active ack)
+          waitForActivationResponse(user, message.activationId, timeout, activeAckResponse)
+            .andThen { case _ => transid.finished(this, startActivation) }
+        }
+        .getOrElse {
+          // no, return the activation id
+          transid.finished(this, startActivation)
+          Future.successful(Left(message.activationId))
+        }
+    }
   }
 
   /**

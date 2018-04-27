@@ -44,8 +44,7 @@ object SpiLoader {
 
 /** Lookup the classname for the SPI impl based on a key in the provided Config */
 object TypesafeConfigClassResolver extends SpiClassResolver {
-  //allow tests to inject a config
-  val config = ConfigFactory.load()
+  private val config = ConfigFactory.load()
 
   override def getClassNameForType[T: Manifest]: String =
     config.getString("whisk.spi." + manifest[T].runtimeClass.getSimpleName)

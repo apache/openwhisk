@@ -19,12 +19,10 @@ package ha
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-
 import org.junit.runner.RunWith
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
-
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -36,9 +34,11 @@ import akka.stream.ActorMaterializer
 import common.WhiskProperties
 import common.WskActorSystem
 import common.WskTestHelpers
+import common.rest.HttpConnection
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.WhiskConfig
+import pureconfig.loadConfigOrThrow
 
 @RunWith(classOf[JUnitRunner])
 class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers with WskActorSystem {
@@ -47,11 +47,17 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
 
   val hosts = WhiskProperties.getProperty("controller.hosts").split(",")
 
+  val controllerProtocol = loadConfigOrThrow[String]("whisk.controller.protocol")
+  val connectionContext = HttpConnection.getContext(controllerProtocol)
+
   def ports(instance: Int) = WhiskProperties.getControllerBasePort + instance
 
   def controllerUri(instance: Int) = {
     require(instance >= 0 && instance < hosts.length, "Controller instance not known.")
-    Uri().withScheme("http").withHost(hosts(instance)).withPort(ports(instance))
+    Uri()
+      .withScheme(controllerProtocol)
+      .withHost(hosts(instance))
+      .withPort(ports(instance))
   }
 
   def actionPath(name: String) = Uri.Path(s"/api/v1/namespaces/_/actions/$name")
@@ -71,13 +77,15 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
 
     val request = Marshal(body).to[RequestEntity].flatMap { entity =>
       Http()
-        .singleRequest(HttpRequest(
-          method = HttpMethods.PUT,
-          uri = controllerUri(controllerInstance)
-            .withPath(actionPath(name))
-            .withQuery(Uri.Query("overwrite" -> true.toString)),
-          headers = List(authHeader),
-          entity = entity))
+        .singleRequest(
+          HttpRequest(
+            method = HttpMethods.PUT,
+            uri = controllerUri(controllerInstance)
+              .withPath(actionPath(name))
+              .withQuery(Uri.Query("overwrite" -> true.toString)),
+            headers = List(authHeader),
+            entity = entity),
+          connectionContext = connectionContext)
         .flatMap { response =>
           Unmarshal(response).to[JsObject].map { resBody =>
             withClue(s"Error in Body: $resBody")(response.status shouldBe StatusCodes.OK)
@@ -95,7 +103,8 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
         HttpRequest(
           method = HttpMethods.GET,
           uri = controllerUri(controllerInstance).withPath(actionPath(name)),
-          headers = List(authHeader)))
+          headers = List(authHeader)),
+        connectionContext = connectionContext)
       .flatMap { response =>
         Unmarshal(response).to[JsObject].map { resBody =>
           withClue(s"Wrong statuscode from controller. Body is: $resBody")(response.status shouldBe expectedCode)
@@ -114,7 +123,8 @@ class CacheInvalidationTests extends FlatSpec with Matchers with WskTestHelpers 
         HttpRequest(
           method = HttpMethods.DELETE,
           uri = controllerUri(controllerInstance).withPath(actionPath(name)),
-          headers = List(authHeader)))
+          headers = List(authHeader)),
+        connectionContext = connectionContext)
       .flatMap { response =>
         Unmarshal(response).to[JsObject].map { resBody =>
           expectedCode.map { code =>

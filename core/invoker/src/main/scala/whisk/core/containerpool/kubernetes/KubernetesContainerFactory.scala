@@ -18,6 +18,7 @@
 package whisk.core.containerpool.kubernetes
 
 import akka.actor.ActorSystem
+import pureconfig.loadConfigOrThrow
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -32,21 +33,30 @@ import whisk.core.containerpool.ContainerFactoryProvider
 import whisk.core.entity.ByteSize
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.core.entity.InstanceId
-import whisk.core.WhiskConfig
+import whisk.core.{ConfigKeys, WhiskConfig}
 
 class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit actorSystem: ActorSystem,
                                                                      ec: ExecutionContext,
                                                                      logging: Logging)
     extends ContainerFactory {
 
-  implicit val kubernetes = new KubernetesClient()(ec)
+  implicit val kubernetes = initializeKubeClient()
+
+  private def initializeKubeClient(): KubernetesClient = {
+    val config = loadConfigOrThrow[KubernetesClientConfig](ConfigKeys.kubernetes)
+    if (config.invokerAgent.enabled) {
+      new KubernetesClientWithInvokerAgent(config)(ec)
+    } else {
+      new KubernetesClient(config)(ec)
+    }
+  }
 
   /** Perform cleanup on init */
   override def init(): Unit = cleanup()
 
   override def cleanup() = {
     logging.info(this, "Cleaning up function runtimes")
-    val cleaning = kubernetes.rm("invoker", label)(TransactionId.invokerNanny)
+    val cleaning = kubernetes.rm("invoker", label, true)(TransactionId.invokerNanny)
     Await.ready(cleaning, 30.seconds)
   }
 
@@ -54,7 +64,8 @@ class KubernetesContainerFactory(label: String, config: WhiskConfig)(implicit ac
                                name: String,
                                actionImage: ImageName,
                                userProvidedImage: Boolean,
-                               memory: ByteSize)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+                               memory: ByteSize,
+                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {

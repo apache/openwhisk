@@ -28,8 +28,25 @@ import whisk.core.entity.InstanceId
 import whisk.spi.Spi
 
 case class ContainerArgsConfig(network: String,
-                               dnsServers: Seq[String] = Seq(),
-                               extraArgs: Map[String, Set[String]] = Map())
+                               dnsServers: Seq[String] = Seq.empty,
+                               extraArgs: Map[String, Set[String]] = Map.empty)
+
+case class ContainerPoolConfig(numCore: Int, coreShare: Int) {
+
+  /**
+   * The total number of containers is simply the number of cores dilated by the cpu sharing.
+   */
+  def maxActiveContainers = numCore * coreShare
+
+  /**
+   * The shareFactor indicates the number of containers that would share a single core, on average.
+   * cpuShare is a docker option (-c) whereby a container's CPU access is limited.
+   * A value of 1024 is the full share so a strict resource division with a shareFactor of 2 would yield 512.
+   * On an idle/underloaded system, a container will still get to use underutilized CPU shares.
+   */
+  private val totalShare = 1024.0 // This is a pre-defined value coming from docker and not our hard-coded value.
+  def cpuShare = (totalShare / maxActiveContainers).toInt
+}
 
 /**
  * An abstraction for Container creation
@@ -41,13 +58,24 @@ trait ContainerFactory {
                       name: String,
                       actionImage: ExecManifest.ImageName,
                       userProvidedImage: Boolean,
-                      memory: ByteSize)(implicit config: WhiskConfig, logging: Logging): Future[Container]
+                      memory: ByteSize,
+                      cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container]
 
   /** perform any initialization */
   def init(): Unit
 
   /** cleanup any remaining Containers; should block until complete; should ONLY be run at startup/shutdown */
   def cleanup(): Unit
+}
+
+object ContainerFactory {
+
+  /** based on https://github.com/moby/moby/issues/3138 and https://github.com/moby/moby/blob/master/daemon/names/names.go */
+  private def isAllowed(c: Char) = c.isLetterOrDigit || c == '_' || c == '.' || c == '-'
+
+  /** include the instance name, if specified and strip invalid chars before attempting to use them in the container name */
+  def containerNamePrefix(instanceId: InstanceId): String =
+    s"wsk${instanceId.name.getOrElse("")}${instanceId.toInt}".filter(isAllowed)
 }
 
 /**

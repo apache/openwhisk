@@ -19,29 +19,30 @@ package whisk.core.database.test
 
 import scala.concurrent.duration.DurationInt
 import scala.io.Source
-
 import org.scalatest.Matchers
 import org.scalatest.concurrent.IntegrationPatience
 import org.scalatest.concurrent.ScalaFutures
-
 import akka.actor.ActorSystem
 import common.WaitFor
 import common.WhiskProperties
+import pureconfig._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.Logging
+import whisk.core.ConfigKeys
 import whisk.core.WhiskConfig
 import whisk.core.database.CouchDbRestClient
+import whisk.core.database.CouchDbConfig
 
 trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor with IntegrationPatience {
 
   val python = WhiskProperties.python
-
-  val dbProtocol = WhiskProperties.getProperty(WhiskConfig.dbProtocol)
-  val dbHost = WhiskProperties.getProperty(WhiskConfig.dbHost)
-  val dbPort = WhiskProperties.getProperty(WhiskConfig.dbPort)
-  val dbUsername = WhiskProperties.getProperty(WhiskConfig.dbUsername)
-  val dbPassword = WhiskProperties.getProperty(WhiskConfig.dbPassword)
+  val config = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
+  val dbProtocol = config.protocol
+  val dbHost = config.host
+  val dbPort = config.port
+  val dbUsername = config.username
+  val dbPassword = config.password
   val dbPrefix = WhiskProperties.getProperty(WhiskConfig.dbPrefix)
   val dbUrl = s"${dbProtocol}://${dbUsername}:${dbPassword}@${dbHost}:${dbPort}"
 
@@ -53,7 +54,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
     removeDatabase(name, true)
 
     println(s"Creating database: $name")
-    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
+    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword, name)
     retry(db.createDb().futureValue shouldBe 'right)
 
     retry {
@@ -71,7 +72,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
 
   /** Wait for database to appear */
   def waitForDatabase(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
-    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
+    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword, dbName)
     waitfor(() => {
       client.getAllDocs(includeDocs = Some(true)).futureValue.isRight
     })
@@ -81,7 +82,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
   /** Removes the database with the given name */
   def removeDatabase(name: String, ignoreFailure: Boolean = false)(implicit as: ActorSystem, logging: Logging) = {
     println(s"Removing database: $name")
-    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, name)
+    val db = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword, name)
     retry {
       val delete = db.deleteDb().futureValue
       if (!ignoreFailure) delete shouldBe 'right
@@ -95,7 +96,7 @@ trait DatabaseScriptTestUtils extends ScalaFutures with Matchers with WaitFor wi
 
   /** Get all docs within one database */
   def getAllDocs(dbName: String)(implicit as: ActorSystem, logging: Logging) = {
-    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort.toInt, dbUsername, dbPassword, dbName)
+    val client = new ExtendedCouchDbRestClient(dbProtocol, dbHost, dbPort, dbUsername, dbPassword, dbName)
     val documents = client.getAllDocs(includeDocs = Some(true)).futureValue
     documents shouldBe 'right
     documents.right.get

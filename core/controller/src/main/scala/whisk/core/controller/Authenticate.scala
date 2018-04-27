@@ -27,21 +27,12 @@ import scala.util.Try
 import whisk.common.Logging
 import whisk.common.TransactionId
 import whisk.core.database.NoDocumentException
-import whisk.core.entity.UUID
 import whisk.core.entity.types.AuthStore
-import whisk.core.entity.WhiskAuthStore
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Identity
 import whisk.core.entity.Secret
 import whisk.core.entity.UUID
 
-object Authenticate {
-
-  /** Required properties for this component */
-  def requiredProperties = WhiskAuthStore.requiredProperties
-}
-
-/** A trait to validate basic auth credentials */
 trait Authenticate {
   protected implicit val executionContext: ExecutionContext
   protected implicit val logging: Logging

@@ -50,7 +50,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.blackboxInvokers shouldBe 'empty
     state.managedInvokers shouldBe 'empty
     state.invokerSlots shouldBe 'empty
-    state.stepSizes shouldBe Seq()
+    state.managedStepSizes shouldBe Seq()
+    state.blackboxStepSizes shouldBe Seq()
 
     // apply one update, verify everything is updated accordingly
     val update1 = IndexedSeq(healthy(0))
@@ -59,8 +60,10 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.invokers shouldBe update1
     state.blackboxInvokers shouldBe update1 // fallback to at least one
     state.managedInvokers shouldBe update1 // fallback to at least one
+    state.invokerSlots should have size update1.size
     state.invokerSlots.head.availablePermits shouldBe slots
-    state.stepSizes shouldBe Seq(1)
+    state.managedStepSizes shouldBe Seq(1)
+    state.blackboxStepSizes shouldBe Seq(1)
 
     // aquire a slot to alter invoker state
     state.invokerSlots.head.tryAcquire()
@@ -73,9 +76,11 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.invokers shouldBe update2
     state.managedInvokers shouldBe IndexedSeq(update2.head)
     state.blackboxInvokers shouldBe IndexedSeq(update2.last)
+    state.invokerSlots should have size update2.size
     state.invokerSlots.head.availablePermits shouldBe slots - 1
     state.invokerSlots(1).availablePermits shouldBe slots
-    state.stepSizes shouldBe Seq(1)
+    state.managedStepSizes shouldBe Seq(1)
+    state.blackboxStepSizes shouldBe Seq(1)
   }
 
   it should "update the cluster size, adjusting the invoker slots accordingly" in {
@@ -170,5 +175,22 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
 
     bruteResult should contain allOf (0, 3)
     bruteResult should contain noneOf (1, 2)
+  }
+
+  behavior of "pairwiseCoprimeNumbersUntil"
+
+  it should "return an empty set for malformed inputs" in {
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(0) shouldBe Seq()
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(-1) shouldBe Seq()
+  }
+
+  it should "return all coprime numbers until the number given" in {
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(1) shouldBe Seq(1)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(2) shouldBe Seq(1)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(3) shouldBe Seq(1, 2)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(4) shouldBe Seq(1, 3)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(5) shouldBe Seq(1, 2, 3)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(9) shouldBe Seq(1, 2, 5, 7)
+    ShardingContainerPoolBalancer.pairwiseCoprimeNumbersUntil(10) shouldBe Seq(1, 3, 7)
   }
 }

@@ -102,7 +102,7 @@ class MessageFeed(description: String,
                   handler: Array[Byte] => Future[Unit],
                   autoStart: Boolean = true,
                   logHandoff: Boolean = true,
-                  offsetMonitor: Option[ActorRef] = None)
+                  offsetMonitor: Option[ActorRef] = None))
     extends FSM[MessageFeed.FeedState, MessageFeed.FeedData] {
   import MessageFeed._
 

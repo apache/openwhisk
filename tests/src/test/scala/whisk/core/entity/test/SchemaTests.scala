@@ -56,7 +56,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "reject malformed ids" in {
-    Seq(null, "", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
+    Seq("", " ", ":", " : ", " :", ": ", "a:b").foreach { i =>
       an[IllegalArgumentException] should be thrownBy AuthKey(i)
     }
   }
@@ -672,11 +672,11 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson),
+        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson,
-        "logs" -> LogLimit.STD_LOGSIZE.toMB.toInt.toJson,
+        "logs" -> LogLimit.stdLogSize.toMB.toInt.toJson,
         "foo" -> "bar".toJson),
       JsObject(
         "timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
@@ -697,7 +697,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
       JsNull,
       JsObject("timeout" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson),
       JsObject("memory" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
-      JsObject("logs" -> (LogLimit.STD_LOGSIZE.toMB.toInt + 1).toJson),
+      JsObject("logs" -> (LogLimit.stdLogSize.toMB.toInt + 1).toJson),
       JsObject(
         "TIMEOUT" -> TimeLimit.STD_DURATION.toMillis.toInt.toJson,
         "MEMORY" -> MemoryLimit.stdMemory.toMB.toInt.toJson),
@@ -749,7 +749,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.MIN_LOGSIZE - 1.B))
+      LogLimit(LogLimit.minLogSize - 1.B))
 
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(TimeLimit.MAX_DURATION + 1.millisecond),
@@ -762,27 +762,27 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
     an[IllegalArgumentException] should be thrownBy ActionLimits(
       TimeLimit(),
       MemoryLimit(),
-      LogLimit(LogLimit.MAX_LOGSIZE + 1.B))
+      LogLimit(LogLimit.maxLogSize + 1.B))
   }
 
   it should "parse activation id as uuid" in {
     val id = "213174381920559471141441e1111111"
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
   it should "parse activation id as uuid when made up of no numbers" in {
     val id = "a" * 32
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
   it should "parse activation id as uuid when made up of no letters" in {
     val id = "1" * 32
-    val aid = ActivationId.unapply(id)
-    assert(aid.isDefined)
+    val aid = ActivationId.parse(id)
+    assert(aid.isSuccess)
     assert(aid.get.toString == id)
   }
 
@@ -795,7 +795,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse invalid activation id" in {
     val id = "213174381920559471141441e111111z"
-    assert(ActivationId.unapply(id).isEmpty)
+    assert(ActivationId.parse(id).isFailure)
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdIllegal)
     }
@@ -803,7 +803,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse activation id if longer than uuid" in {
     val id = "213174381920559471141441e1111111abc"
-    assert(ActivationId.unapply(id).isEmpty)
+    assert(ActivationId.parse(id).isFailure)
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
     }
@@ -811,7 +811,7 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
 
   it should "not parse activation id if shorter than uuid" in {
     val id = "213174381920559471141441e1"
-    ActivationId.unapply(id) shouldBe empty
+    ActivationId.parse(id) shouldBe 'failure
     Try(ActivationId.serdes.read(JsString(id))) shouldBe Failure {
       DeserializationException(Messages.activationIdLengthError(SizeError("Activation id", id.length.B, 32.B)))
     }

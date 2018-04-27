@@ -22,13 +22,10 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Try
-
 import kamon.Kamon
-
 import org.apache.curator.retry.RetryUntilElapsed
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.framework.recipes.shared.SharedCount
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown
@@ -39,10 +36,9 @@ import whisk.core.WhiskConfig
 import whisk.core.WhiskConfig._
 import whisk.core.connector.MessagingProvider
 import whisk.core.connector.PingMessage
+import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskActivationStore
-import whisk.core.entity.WhiskEntityStore
 import whisk.http.BasicHttpService
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
@@ -58,15 +54,9 @@ object Invoker {
   def requiredProperties =
     Map(servicePort -> 8080.toString(), dockerRegistry -> null, dockerImagePrefix -> null) ++
       ExecManifest.requiredProperties ++
-      WhiskEntityStore.requiredProperties ++
-      WhiskActivationStore.requiredProperties ++
       kafkaHosts ++
       zookeeperHosts ++
-      wskApiHost ++ Map(
-      dockerImageTag -> "latest",
-      invokerNumCore -> "4",
-      invokerCoreShare -> "2",
-      invokerUseRunc -> "true") ++
+      wskApiHost ++ Map(dockerImageTag -> "latest") ++
       Map(invokerName -> "")
 
   def main(args: Array[String]): Unit = {
@@ -120,7 +110,7 @@ object Invoker {
     }
     val cmdLineArgs = parse(args.toList, CmdLineArgs())
     logger.info(this, "Command line arguments parsed to yield " + cmdLineArgs)
-
+    val invokerName = cmdLineArgs.name.orElse(if (config.invokerName.trim.isEmpty) None else Some(config.invokerName))
     val assignedInvokerId = cmdLineArgs.id
       .map { id =>
         logger.info(this, s"invokerReg: using proposedInvokerId ${id}")
@@ -130,8 +120,7 @@ object Invoker {
         if (config.zookeeperHosts.startsWith(":") || config.zookeeperHosts.endsWith(":")) {
           abort(s"Must provide valid zookeeper host and port to use dynamicId assignment (${config.zookeeperHosts})")
         }
-        val invokerName = cmdLineArgs.name.getOrElse(config.invokerName)
-        if (invokerName.trim.isEmpty) {
+        if (invokerName.isEmpty || invokerName.get.trim.isEmpty) {
           abort("Invoker name can't be empty to use dynamicId assignment.")
         }
 
@@ -177,7 +166,7 @@ object Invoker {
         assignedId
       }
 
-    val invokerInstance = InstanceId(assignedInvokerId)
+    val invokerInstance = InstanceId(assignedInvokerId, invokerName)
     val msgProvider = SpiLoader.get[MessagingProvider]
     if (!msgProvider.ensureTopic(config, topic = "invoker" + assignedInvokerId, topicConfig = "invoker")) {
       abort(s"failure during msgProvider.ensureTopic for topic invoker$assignedInvokerId")
@@ -196,6 +185,8 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startService(new InvokerServer().route, port)(actorSystem, ActorMaterializer.create(actorSystem))
+    BasicHttpService.startHttpService(new InvokerServer().route, port)(
+      actorSystem,
+      ActorMaterializer.create(actorSystem))
   }
 }

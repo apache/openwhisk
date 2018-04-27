@@ -18,6 +18,7 @@
 package whisk.core.connector
 
 import scala.util.Try
+
 import spray.json._
 import whisk.common.TransactionId
 import whisk.core.entity.ActivationId
@@ -64,7 +65,7 @@ case class ActivationMessage(override val transid: TransactionId,
       } getOrElse {
         activationId.toJsObject
       }
-  })
+    })
 
   override def serialize = ActivationMessage.serdes.write(this).compactPrint
 
@@ -133,19 +134,12 @@ object PingMessage extends DefaultJsonProtocol {
 
 case class OverflowMessage(override val transid: TransactionId,
                            msg: ActivationMessage,
-                           actionTimeoutSeconds: Int,
+                           action: ExecutableWhiskActionMetaData,
                            hash: Int,
                            pull: Boolean,
                            originalController: InstanceId)
     extends Message {
-//  def meta =
-//    JsObject("meta" -> {
-//      cause map { c =>
-//        JsObject(c.toJsObject.fields ++ msg.toJsObject.fields)
-//      } getOrElse {
-//        activationId.toJsObject
-//      }
-//    })
+
   override def serialize: String = {
     OverflowMessage.serdes.write(this).compactPrint
   }

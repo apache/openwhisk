@@ -29,9 +29,7 @@ import scala.language.postfixOps
 import org.scalatest.Matchers
 
 import TestUtils._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
+import spray.json._
 import whisk.core.entity.ByteSize
 
 case class WskProps(
@@ -204,6 +202,7 @@ trait BaseAction extends BaseRunWsk with BaseDeleteFromCollection with BaseListO
              shared: Option[Boolean] = None,
              update: Boolean = false,
              web: Option[String] = None,
+             websecure: Option[String] = None,
              expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult
 
   def invoke(name: String,

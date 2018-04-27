@@ -31,6 +31,7 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 
 import TestUtils.RunResult
+import TestUtils.SUCCESS_EXIT
 import TestUtils.CONFLICT
 import akka.http.scaladsl.model.StatusCodes
 
@@ -287,10 +288,12 @@ trait WskTestHelpers extends Matchers {
     WskProps(namespace = newUser, authKey = wskadmin.cli(Seq("user", "create", newUser)).stdout.trim)
   }
 
-  def disposeAdditionalTestSubject(subject: String): Unit = {
+  def disposeAdditionalTestSubject(subject: String, expectedExitCode: Int = SUCCESS_EXIT): Unit = {
     val wskadmin = new RunWskAdminCmd {}
     withClue(s"failed to delete temporary subject $subject") {
-      wskadmin.cli(Seq("user", "delete", subject)).stdout should include("Subject deleted")
+      wskadmin.cli(Seq("user", "delete", subject), expectedExitCode).stdout should include("Subject deleted")
     }
   }
+  //Append the current timestamp in ms
+  def withTimestamp(text: String) = s"${text}-${System.currentTimeMillis}"
 }

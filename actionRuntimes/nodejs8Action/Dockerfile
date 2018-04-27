@@ -1,2 +1,1 @@
-FROM openwhisk/action-nodejs-v8:1.2.0
-
+FROM openwhisk/action-nodejs-v8:1.5.1

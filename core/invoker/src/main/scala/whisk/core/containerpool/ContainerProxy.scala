@@ -38,6 +38,8 @@ import whisk.core.entity.size._
 import whisk.core.entity.ExecManifest.ImageName
 import whisk.http.Messages
 import akka.event.Logging.InfoLevel
+import pureconfig.loadConfigOrThrow
+import whisk.core.ConfigKeys
 
 // States
 sealed trait ContainerState
@@ -92,11 +94,12 @@ case object RescheduleJob // job is sent back to parent and could not be process
  * @param pauseGrace time to wait for new work before pausing the container
  */
 class ContainerProxy(
-  factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+  factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
   sendActiveAck: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
   storeActivation: (TransactionId, WhiskActivation) => Future[Any],
   collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
   instance: InstanceId,
+  poolConfig: ContainerPoolConfig,
   unusedTimeout: FiniteDuration,
   pauseGrace: FiniteDuration)
     extends FSM[ContainerState, ContainerData]
@@ -115,7 +118,8 @@ class ContainerProxy(
         ContainerProxy.containerName(instance, "prewarm", job.exec.kind),
         job.exec.image,
         job.exec.pull,
-        job.memoryLimit)
+        job.memoryLimit,
+        poolConfig.cpuShare)
         .map(container => PreWarmedData(container, job.exec.kind, job.memoryLimit))
         .pipeTo(self)
 
@@ -131,7 +135,8 @@ class ContainerProxy(
         ContainerProxy.containerName(instance, job.msg.user.namespace.name, job.action.name.name),
         job.action.exec.image,
         job.action.exec.pull,
-        job.action.limits.memory.megabytes.MB)
+        job.action.limits.memory.megabytes.MB,
+        poolConfig.cpuShare)
 
       // container factory will either yield a new container ready to execute the action, or
       // starting up the container failed; for the latter, it's either an internal error starting
@@ -380,19 +385,24 @@ class ContainerProxy(
     // Adds logs to the raw activation.
     val activationWithLogs: Future[Either[ActivationLogReadingError, WhiskActivation]] = activation
       .flatMap { activation =>
-        val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
-        collectLogs(tid, job.msg.user, activation, container, job.action)
-          .andThen {
-            case Success(_) => tid.finished(this, start)
-            case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
-          }
-          .map(logs => Right(activation.withLogs(logs)))
-          .recover {
-            case LogCollectingException(logs) =>
-              Left(ActivationLogReadingError(activation.withLogs(logs)))
-            case _ =>
-              Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
-          }
+        // Skips log collection entirely, if the limit is set to 0
+        if (job.action.limits.logs.asMegaBytes == 0.MB) {
+          Future.successful(Right(activation))
+        } else {
+          val start = tid.started(this, LoggingMarkers.INVOKER_COLLECT_LOGS, logLevel = InfoLevel)
+          collectLogs(tid, job.msg.user, activation, container, job.action)
+            .andThen {
+              case Success(_) => tid.finished(this, start)
+              case Failure(t) => tid.failed(this, start, s"reading logs failed: $t")
+            }
+            .map(logs => Right(activation.withLogs(logs)))
+            .recover {
+              case LogCollectingException(logs) =>
+                Left(ActivationLogReadingError(activation.withLogs(logs)))
+              case _ =>
+                Left(ActivationLogReadingError(activation.withLogs(ActivationLogs(Vector(Messages.logFailure)))))
+            }
+        }
       }
 
     // Storing the record. Entirely asynchronous and not waited upon.
@@ -407,19 +417,24 @@ class ContainerProxy(
   }
 }
 
+final case class ContainerProxyTimeoutConfig(idleContainer: FiniteDuration, pauseGrace: FiniteDuration)
+
 object ContainerProxy {
   def props(
-    factory: (TransactionId, String, ImageName, Boolean, ByteSize) => Future[Container],
+    factory: (TransactionId, String, ImageName, Boolean, ByteSize, Int) => Future[Container],
     ack: (TransactionId, WhiskActivation, Boolean, InstanceId) => Future[Any],
     store: (TransactionId, WhiskActivation) => Future[Any],
     collectLogs: (TransactionId, Identity, WhiskActivation, Container, ExecutableWhiskAction) => Future[ActivationLogs],
     instance: InstanceId,
-    unusedTimeout: FiniteDuration = 10.minutes,
-    pauseGrace: FiniteDuration = 50.milliseconds) =
-    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, unusedTimeout, pauseGrace))
+    poolConfig: ContainerPoolConfig,
+    unusedTimeout: FiniteDuration = timeouts.idleContainer,
+    pauseGrace: FiniteDuration = timeouts.pauseGrace) =
+    Props(new ContainerProxy(factory, ack, store, collectLogs, instance, poolConfig, unusedTimeout, pauseGrace))
 
   // Needs to be thread-safe as it's used by multiple proxies concurrently.
   private val containerCount = new Counter
+
+  val timeouts = loadConfigOrThrow[ContainerProxyTimeoutConfig](ConfigKeys.containerProxyTimeouts)
 
   /**
    * Generates a unique container name.
@@ -428,8 +443,14 @@ object ContainerProxy {
    * @param suffix the container name's suffix
    * @return a unique container name
    */
-  def containerName(instance: InstanceId, prefix: String, suffix: String) =
-    s"wsk${instance.toInt}_${containerCount.next()}_${prefix}_${suffix}".replaceAll("[^a-zA-Z0-9_]", "")
+  def containerName(instance: InstanceId, prefix: String, suffix: String): String = {
+    def isAllowed(c: Char): Boolean = c.isLetterOrDigit || c == '_'
+
+    val sanitizedPrefix = prefix.filter(isAllowed)
+    val sanitizedSuffix = suffix.filter(isAllowed)
+
+    s"${ContainerFactory.containerNamePrefix(instance)}_${containerCount.next()}_${sanitizedPrefix}_${sanitizedSuffix}"
+  }
 
   /**
    * Creates a WhiskActivation ready to be sent via active ack.

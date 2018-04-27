@@ -56,8 +56,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   val allowedActionDuration = 120 seconds
   val shortDuration = 10 seconds
 
-  val whiskConfig = new WhiskConfig(Map(WhiskConfig.actionSequenceMaxLimit -> null))
-  assert(whiskConfig.isValid)
+  val whiskConfig: WhiskConfig
 
   behavior of "Wsk Sequence"
 
@@ -388,7 +387,7 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
   it should "execute a sequence in blocking fashion and finish execution even if longer than blocking response timeout" in withAssetCleaner(
     wskprops) { (wp, assetHelper) =>
     val sName = "sSequence"
-    val sleep = "timeout"
+    val sleep = "sleep"
     val echo = "echo"
 
     // create actions
@@ -403,22 +402,18 @@ abstract class WskSequenceTests extends TestHelpers with ScalatestRouteTest with
     assetHelper.withCleaner(wsk.action, sName) { (action, seqName) =>
       action.create(seqName, artifact = Some(actions.mkString(",")), kind = Some("sequence"))
     }
-    // run sequence s with sleep equal to payload
-    val payload = 65000
+    // run sequence s with sleep time
+    val sleepTime = 90 seconds
     val run = wsk.action.invoke(
       sName,
-      parameters = Map("payload" -> JsNumber(payload)),
+      parameters = Map("sleepTimeInMs" -> sleepTime.toMillis.toJson),
       blocking = true,
       expectedExitCode = ACCEPTED)
     withActivation(wsk.activation, run, initialWait = 5 seconds, totalWait = 3 * allowedActionDuration) { activation =>
       checkSequenceLogsAndAnnotations(activation, 2) // 2 actions
       activation.response.success shouldBe (true)
-      // the status should be error
-      //activation.response.status shouldBe("application error")
       val result = activation.response.result.get
-      // the result of the activation should be timeout
-      result shouldBe (JsObject(
-        "msg" -> JsString(s"[OK] message terminated successfully after $payload milliseconds.")))
+      result.toString should include("""Terminated successfully after around""")
     }
   }
 

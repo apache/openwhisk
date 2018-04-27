@@ -34,8 +34,6 @@ import common.WskTestHelpers
 
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.pimpAny
 
 import whisk.core.entity.size.SizeInt
 import whisk.core.WhiskConfig

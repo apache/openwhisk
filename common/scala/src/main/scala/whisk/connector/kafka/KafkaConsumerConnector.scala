@@ -21,18 +21,20 @@ import java.util.Properties
 
 import akka.actor.ActorSystem
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.{RetriableException, WakeupException}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import pureconfig.loadConfigOrThrow
-import whisk.common.Logging
+import whisk.common.{Logging, LoggingMarkers, MetricEmitter, Scheduler}
 import whisk.core.ConfigKeys
 import whisk.core.connector.MessageConsumer
 
 import scala.collection.JavaConversions.{iterableAsScalaIterable, seqAsJavaList}
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{blocking, ExecutionContext, Future}
 
-case class KafkaConsumerConfig(sessionTimeoutMs: Long)
+case class KafkaConsumerConfig(sessionTimeoutMs: Long, metricFlushIntervalS: Int)
 
 class KafkaConsumerConnector(
   kafkahost: String,
@@ -48,6 +50,10 @@ class KafkaConsumerConnector(
   // logic, like the wakeup timer.
   private val cfg = loadConfigOrThrow[KafkaConsumerConfig](ConfigKeys.kafkaConsumer)
 
+  // Currently consumed offset, is used to calculate the topic lag.
+  // It is updated from one thread in "peek", no concurrent data structure is necessary
+  private var offset: Long = 0
+
   /**
    * Long poll for messages. Method returns once message are available but no later than given
    * duration.
@@ -61,7 +67,11 @@ class KafkaConsumerConnector(
     val wakeUpTask = actorSystem.scheduler.scheduleOnce(cfg.sessionTimeoutMs.milliseconds + 1.second)(consumer.wakeup())
 
     try {
-      consumer.poll(duration.toMillis).map(r => (r.topic, r.partition, r.offset, r.value))
+      val response = consumer.poll(duration.toMillis).map(r => (r.topic, r.partition, r.offset, r.value))
+      response.lastOption.foreach {
+        case (_, _, newOffset, _) => offset = newOffset + 1
+      }
+      response
     } catch {
       // Happens if the peek hangs.
       case _: WakeupException if retry > 0 =>
@@ -136,4 +146,19 @@ class KafkaConsumerConnector(
   }
 
   @volatile private var consumer = getConsumer(getProps, Some(List(topic)))
+
+  // Read current lag of the consumed topic, e.g. invoker queue
+  // Since we use only one partition in kafka, it is defined 0
+  Scheduler.scheduleWaitAtMost(cfg.metricFlushIntervalS.seconds, 10.seconds, "kafka-lag-monitor") { () =>
+    Future {
+      blocking {
+        val topicAndPartition = new TopicPartition(topic, 0)
+        consumer.endOffsets(Set(topicAndPartition).asJava).asScala.get(topicAndPartition).foreach { endOffset =>
+          // endOffset could lag behind the offset reported by the consumer internally resulting in negative numbers
+          val queueSize = (endOffset - offset).max(0)
+          MetricEmitter.emitHistogramMetric(LoggingMarkers.KAFKA_QUEUE(topic), queueSize)
+        }
+      }
+    }
+  }
 }

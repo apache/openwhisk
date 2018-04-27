@@ -17,12 +17,8 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-
-import spray.json.JsString
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.deserializationError
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 /**
  * Authentication key, consisting of a UUID and Secret.
@@ -31,14 +27,14 @@ import spray.json.deserializationError
  * The constructor is private so that argument requirements are checked and normalized
  * before creating a new instance.
  *
- * @param (uuid, key) the uuid and key, assured to be non-null because both types are values
+ * @param k (uuid, key) the uuid and key, assured to be non-null because both types are values
  */
 protected[core] class AuthKey private (private val k: (UUID, Secret)) extends AnyVal {
-  def uuid = k._1
-  def key = k._2
+  def uuid: UUID = k._1
+  def key: Secret = k._2
   def revoke = new AuthKey(uuid, Secret())
-  def compact = s"$uuid:$key"
-  override def toString = uuid.toString
+  def compact: String = s"$uuid:$key"
+  override def toString: String = uuid.toString
 }
 
 protected[core] object AuthKey {
@@ -64,37 +60,22 @@ protected[core] object AuthKey {
    * the first two hence "k:v*" produces ("k","v").
    *
    * @param str the string containing uuid and key separated by colon
-   * @return AuthKey if argument is properly formated
+   * @return AuthKey if argument is properly formatted
    * @throws IllegalArgumentException if argument is not well formed
    */
   @throws[IllegalArgumentException]
   protected[core] def apply(str: String): AuthKey = {
-    val (k, v) = split(str)
-    new AuthKey(UUID(k), Secret(v))
+    val (uuid, secret) = str.split(':').toList match {
+      case k :: v :: _ => (k, v)
+      case k :: Nil    => (k, "")
+      case Nil         => ("", "")
+    }
+
+    new AuthKey(UUID(uuid.trim), Secret(secret.trim))
   }
 
-  /**
-   * Makes a tuple from a string where the values are separated by a colon.
-   * If the string contains more than one colon, all values are ignored except for
-   * the first two hence "k:v*" produces the tuple ("k","v") and "::*" produces ("","").
-   *
-   * @param string to create pair from
-   * @return (key, value) where both are null, value is null, or neither is null
-   */
-  private def split(str: String): (String, String) = {
-    val parts = if (str != null && str.nonEmpty) str.split(":") else Array[String]()
-    val k = if (parts.size >= 1) parts(0).trim else null
-    val v = if (parts.size == 2) parts(1).trim else null
-    (k, v)
-  }
-
-  protected[core] implicit val serdes = new RootJsonFormat[AuthKey] {
+  protected[core] implicit val serdes: RootJsonFormat[AuthKey] = new RootJsonFormat[AuthKey] {
     def write(k: AuthKey) = JsString(k.compact)
-
-    def read(value: JsValue) =
-      Try {
-        val JsString(s) = value
-        AuthKey(s)
-      } getOrElse deserializationError("authorization key malformed")
+    def read(value: JsValue) = AuthKey(value.convertTo[String])
   }
 }

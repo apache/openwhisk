@@ -17,11 +17,8 @@
 
 package whisk.core.entity
 
-import scala.util.Try
-import spray.json.JsValue
-import spray.json.RootJsonFormat
-import spray.json.JsString
-import spray.json.deserializationError
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 /**
  * Secret, a cryptographic string such as a key used for authentication.
@@ -33,12 +30,12 @@ import spray.json.deserializationError
  * @param key the secret key, required not null or empty
  */
 protected[core] class Secret private (val key: String) extends AnyVal {
-  protected[core] def asString = toString
-  protected[entity] def toJson = JsString(toString)
-  override def toString = key
+  protected[core] def asString: String = toString
+  protected[entity] def toJson: JsString = JsString(toString)
+  override def toString: String = key
 }
 
-protected[core] object Secret extends ArgNormalizer[Secret] {
+protected[core] object Secret {
 
   /** Minimum secret length */
   private val MIN_LENGTH = 64
@@ -54,7 +51,7 @@ protected[core] object Secret extends ArgNormalizer[Secret] {
    * @throws IllegalArgumentException is argument is not a valid Secret
    */
   @throws[IllegalArgumentException]
-  override protected[entity] def factory(str: String): Secret = {
+  protected[core] def apply(str: String): Secret = {
     require(str.length >= MIN_LENGTH, s"secret must be at least $MIN_LENGTH characters")
     require(str.length <= MAX_LENGTH, s"secret must be at most $MAX_LENGTH characters")
     new Secret(str)
@@ -69,14 +66,9 @@ protected[core] object Secret extends ArgNormalizer[Secret] {
     Secret(rand.alphanumeric.take(MIN_LENGTH).mkString)
   }
 
-  implicit val serdes = new RootJsonFormat[Secret] {
-    def write(s: Secret) = s.toJson
-
-    def read(value: JsValue) =
-      Try {
-        val JsString(s) = value
-        Secret(s)
-      } getOrElse deserializationError("secret malformed")
+  implicit val serdes: RootJsonFormat[Secret] = new RootJsonFormat[Secret] {
+    def write(s: Secret): JsValue = s.toJson
+    def read(value: JsValue): Secret = Secret(value.convertTo[String])
   }
 
   private val rand = new scala.util.Random(new java.security.SecureRandom())

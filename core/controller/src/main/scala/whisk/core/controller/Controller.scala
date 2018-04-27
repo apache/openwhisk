@@ -23,7 +23,6 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import akka.Done
 import akka.actor.ActorSystem
-
 import akka.actor.CoordinatedShutdown
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.Uri
@@ -44,12 +43,13 @@ import whisk.core.entitlement._
 import whisk.core.entity._
 import whisk.core.entity.ActivationId.ActivationIdGenerator
 import whisk.core.entity.ExecManifest.Runtimes
-import whisk.core.loadBalancer._
+import whisk.core.loadBalancer.LoadBalancerProvider
 import whisk.http.BasicHttpService
 import whisk.http.BasicRasService
 import whisk.spi.SpiLoader
 import whisk.core.containerpool.logging.LogStoreProvider
 import akka.event.Logging.InfoLevel
+import pureconfig.loadConfigOrThrow
 
 /**
  * The Controller is the service that provides the REST API for OpenWhisk.
@@ -105,9 +105,9 @@ class Controller(val instance: InstanceId,
   }
 
   // initialize datastores
-  private implicit val authStore = WhiskAuthStore.datastore(whiskConfig)
-  private implicit val entityStore = WhiskEntityStore.datastore(whiskConfig)
-  private implicit val activationStore = WhiskActivationStore.datastore(whiskConfig)
+  private implicit val authStore = WhiskAuthStore.datastore()
+  private implicit val entityStore = WhiskEntityStore.datastore()
+  private implicit val activationStore = WhiskActivationStore.datastore()
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
     val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
     override def apply(k: CacheKey) = {
@@ -117,17 +117,9 @@ class Controller(val instance: InstanceId,
   })
 
   // initialize backend services
-  private val messagingProvider = SpiLoader.get[MessagingProvider]
-  val maxPingsPerPoll = 128
-  val pingConsumer =
-    messagingProvider.getConsumer(whiskConfig, s"health${instance.toInt}", "health", maxPeek = maxPingsPerPoll)
-  private val messageProducer = messagingProvider.getProducer(whiskConfig)
-  
   private implicit val loadBalancer =
     SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
   logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
-
-  
 
   private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
@@ -167,6 +159,8 @@ class Controller(val instance: InstanceId,
  * Singleton object provides a factory to create and start an instance of the Controller service.
  */
 object Controller {
+
+  protected val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
 
   // requiredProperties is a Map whose keys define properties that must be bound to
   // a value, and whose values are default values.   A null value in the Map means there is
@@ -242,7 +236,10 @@ object Controller {
           actorSystem,
           ActorMaterializer.create(actorSystem),
           logger)
-        BasicHttpService.startService(controller.route, port)(actorSystem, controller.materializer)
+        if (Controller.protocol == "https")
+          BasicHttpService.startHttpsService(controller.route, port, config)(actorSystem, controller.materializer)
+        else
+          BasicHttpService.startHttpService(controller.route, port)(actorSystem, controller.materializer)
 
       case Failure(t) =>
         abort(s"Invalid runtimes manifest: $t")
