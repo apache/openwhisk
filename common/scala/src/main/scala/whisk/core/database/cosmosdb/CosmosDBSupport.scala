@@ -23,7 +23,7 @@ import com.microsoft.azure.cosmosdb.rx.AsyncDocumentClient
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits {
+private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits with CosmosDBUtil {
   protected def config: CosmosDBConfig
   protected def collName: String
   protected def client: AsyncDocumentClient
@@ -80,14 +80,6 @@ private[cosmosdb] trait CosmosDBSupport extends RxObservableImplicits {
 
   protected def querySpec(id: String) =
     new SqlQuerySpec("SELECT * FROM root r WHERE r.id=@id", new SqlParameterCollection(new SqlParameter("@id", id)))
-
-  /**
-   * CosmosDB id considers '/', '\' , '?' and '#' as invalid. EntityNames can include '/' so
-   * that need to be escaped. For that we use '|' as the replacement char
-   */
-  protected def escapeId(id: String): String = id.replace("/", "|")
-
-  protected def unescapeId(id: String): String = id.replace("|", "/")
 
   protected def asSeq[T <: Resource](r: FeedResponse[T]): immutable.Seq[T] = r.getResults.asScala.to[immutable.Seq]
 }

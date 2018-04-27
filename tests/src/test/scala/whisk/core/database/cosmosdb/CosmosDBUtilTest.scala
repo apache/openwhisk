@@ -65,4 +65,19 @@ class CosmosDBUtilTest extends FlatSpec with Matchers with OptionValues {
       .asJsObject
   }
 
+  behavior of "escaping"
+
+  it should "escape /" in {
+    CosmosDBUtil.escapeId("foo/bar") shouldBe "foo|bar"
+  }
+
+  it should "throw exception when input contains replacement char |" in {
+    an[IllegalArgumentException] should be thrownBy CosmosDBUtil.escapeId("foo/bar|baz")
+  }
+
+  it should "support unescaping" in {
+    val s = "foo/bar"
+    CosmosDBUtil.unescapeId(CosmosDBUtil.escapeId(s)) shouldBe s
+  }
+
 }

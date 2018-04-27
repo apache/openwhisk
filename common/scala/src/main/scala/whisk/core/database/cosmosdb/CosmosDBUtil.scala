@@ -38,7 +38,7 @@ private[cosmosdb] object CosmosDBConstants {
   val selfLink: String = SELF_LINK
 }
 
-private[cosmosdb] object CosmosDBUtil {
+private[cosmosdb] trait CosmosDBUtil {
 
   /**
    * Prepares the json like select clause
@@ -89,4 +89,20 @@ private[cosmosdb] object CosmosDBUtil {
       .withConsistencyLevel(ConsistencyLevel.Session)
       .build
 
+  /**
+   * CosmosDB id considers '/', '\' , '?' and '#' as invalid. EntityNames can include '/' so
+   * that need to be escaped. For that we use '|' as the replacement char
+   */
+  def escapeId(id: String): String = {
+    require(!id.contains("|"), s"Id [$id] should not contain '|'")
+    id.replace("/", "|")
+  }
+
+  def unescapeId(id: String): String = {
+    require(!id.contains("/"), s"Escaped Id [$id] should not contain '/'")
+    id.replace("|", "/")
+  }
+
 }
+
+private[cosmosdb] object CosmosDBUtil extends CosmosDBUtil
