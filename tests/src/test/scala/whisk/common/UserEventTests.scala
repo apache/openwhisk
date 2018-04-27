@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-package common
+package whisk.common
 
 import java.nio.charset.StandardCharsets
 
 import akka.actor.ActorSystem
+import common._
 import common.rest.WskRest
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import whisk.common.UserEvents
 import whisk.connector.kafka.KafkaConsumerConnector
 import whisk.core.WhiskConfig
 import whisk.core.connector.{Activation, EventMessage, Metric}
@@ -46,7 +46,7 @@ class UserEventTests extends FlatSpec with Matchers with WskTestHelpers with Str
 
   val consumer = new KafkaConsumerConnector(config.kafkaHosts, groupid, topic)
   val testActionsDir = WhiskProperties.getFileRelativeToWhiskHome("tests/dat/actions")
-  behavior of "user events"
+  behavior of "UserEvents"
 
   override def afterAll() {
     consumer.close()
