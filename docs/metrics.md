@@ -83,28 +83,30 @@ user_events: false
 ```
 
 ### Supported events
-Activation is an event that occurs after after each activation. It includes the following information:
+Activation is an event that occurs after after each activation. It includes the following execution metadata:
 ```
-waitTime
-initTime
-statusCode
-duration
-kind
-conductor
+waitTime - internal system hold time
+initTime - time it took to initialise the action, e.g. docker init
+statusCode - status code of the invocation: 0 - success, 1 - application error, 2 - action developer error, 3 - internal OpenWhisk error
+duration - actual time the action code was running
+kind - action flavor, e.g. nodejs
+conductor - true for conductor backed actions
+memory - maximum memory allowed for action container
+causedBy - true for sequence actions
 ```
-Metric - is any user specific event produced by the system and it includes the following information:
+Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```
-ConcurrentRateLimit
-TimedRateLimit
-concurrentExecutions
+ConcurrentRateLimit - a user has exceeded its limit for concurrent invocations.
+TimedRateLimit - a user has reached its limit for invocations allowed per minute.
+ConcurrentInvocations - the number of in flight invocations per user.
 ```
 
 Example events that could be consumed from Kafka.
 Activation:
 ```
-{"body":{"statusCode":0,"duration":3,"name":"invokerHealthTestAction0","waitTime":583915671,"conductor":false,"kind":"nodejs:6","initTime":0},"eventType":"Activation","source":"invoker0","subject":"whisk.system","timestamp":1524476122676,"userId":"d0888ad5-5a92-435e-888a-d55a92935e54","namespace":"whisk.system"}
+{"body":{"statusCode":0,"duration":3,"name":"whisk.system/invokerHealthTestAction0","waitTime":583915671,"conductor":false,"kind":"nodejs:6","initTime":0,"memory": 256, "causedBy": false},"eventType":"Activation","source":"invoker0","subject":"whisk.system","timestamp":1524476122676,"userId":"d0888ad5-5a92-435e-888a-d55a92935e54","namespace":"whisk.system"}
 ```
 Metric:
 ```
-{"body":{"metricName":"concurrent_activations","metricValue":1},"eventType":"Metric","source":"controller0","subject":"guest","timestamp":1524476104419,"userId":"23bc46b1-71f6-4ed5-8c54-816aa4f8c502","namespace":"guest"}
+{"body":{"metricName":"ConcurrentInvocations","metricValue":1},"eventType":"Metric","source":"controller0","subject":"guest","timestamp":1524476104419,"userId":"23bc46b1-71f6-4ed5-8c54-816aa4f8c502","namespace":"guest"}
 ```
