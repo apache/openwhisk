@@ -33,8 +33,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
-class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
-                                                                                           actorSystem: ActorSystem)
+class KafkaProducerConnector(id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
+                                                                       actorSystem: ActorSystem)
     extends MessageProducer {
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -92,8 +92,7 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
   private val sentCounter = new Counter()
 
   private def createProducer(): KafkaProducer[String, String] = {
-    val config = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahosts) ++
-      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
+    val config = configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
       configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
 
     new KafkaProducer(config, new StringSerializer, new StringSerializer)

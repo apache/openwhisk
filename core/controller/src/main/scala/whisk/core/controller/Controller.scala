@@ -107,7 +107,7 @@ class Controller(val instance: InstanceId,
   private implicit val entityStore = WhiskEntityStore.datastore()
   private implicit val activationStore = WhiskActivationStore.datastore()
   private implicit val cacheChangeNotification = Some(new CacheChangeNotification {
-    val remoteCacheInvalidaton = new RemoteCacheInvalidation(whiskConfig, "controller", instance)
+    val remoteCacheInvalidaton = new RemoteCacheInvalidation("controller", instance)
     override def apply(k: CacheKey) = {
       remoteCacheInvalidaton.invalidateWhiskActionMetaData(k)
       remoteCacheInvalidaton.notifyOtherInstancesAboutInvalidation(k)
@@ -116,7 +116,7 @@ class Controller(val instance: InstanceId,
 
   // initialize backend services
   private implicit val loadBalancer =
-    SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
+    SpiLoader.get[LoadBalancerProvider].loadBalancer(instance)
   logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
 
   private implicit val entitlementProvider =
@@ -168,7 +168,6 @@ object Controller {
     Map(WhiskConfig.controllerInstances -> null) ++
       ExecManifest.requiredProperties ++
       RestApiCommons.requiredProperties ++
-      SpiLoader.get[LoadBalancerProvider].requiredProperties ++
       EntitlementProvider.requiredProperties
 
   private def info(config: WhiskConfig, runtimes: Runtimes, apis: List[String]) =
@@ -216,13 +215,13 @@ object Controller {
     }
 
     val msgProvider = SpiLoader.get[MessagingProvider]
-    if (!msgProvider.ensureTopic(config, topic = "completed" + instance, topicConfig = "completed")) {
+    if (!msgProvider.ensureTopic(topic = "completed" + instance, topicConfig = "completed")) {
       abort(s"failure during msgProvider.ensureTopic for topic completed$instance")
     }
-    if (!msgProvider.ensureTopic(config, topic = "health", topicConfig = "health")) {
+    if (!msgProvider.ensureTopic(topic = "health", topicConfig = "health")) {
       abort(s"failure during msgProvider.ensureTopic for topic health")
     }
-    if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
+    if (!msgProvider.ensureTopic(topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
       abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
 

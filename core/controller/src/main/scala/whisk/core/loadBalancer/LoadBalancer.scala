@@ -21,7 +21,6 @@ import scala.concurrent.Future
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import whisk.common.{Logging, TransactionId}
-import whisk.core.WhiskConfig
 import whisk.core.connector._
 import whisk.core.entity._
 import whisk.spi.Spi
@@ -80,11 +79,10 @@ trait LoadBalancer {
  * An Spi for providing load balancer implementations.
  */
 trait LoadBalancerProvider extends Spi {
-  def requiredProperties: Map[String, String]
 
-  def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(implicit actorSystem: ActorSystem,
-                                                                   logging: Logging,
-                                                                   materializer: ActorMaterializer): LoadBalancer
+  def loadBalancer(instance: InstanceId)(implicit actorSystem: ActorSystem,
+                                         logging: Logging,
+                                         materializer: ActorMaterializer): LoadBalancer
 }
 
 /** Exception thrown by the loadbalancer */

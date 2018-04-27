@@ -97,12 +97,8 @@ class InvokerReactive(
   private val topic = s"invoker${instance.toInt}"
   private val maximumContainers = poolConfig.maxActiveContainers
   private val msgProvider = SpiLoader.get[MessagingProvider]
-  private val consumer = msgProvider.getConsumer(
-    config,
-    topic,
-    topic,
-    maximumContainers,
-    maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
+  private val consumer =
+    msgProvider.getConsumer(topic, topic, maximumContainers, maxPollInterval = TimeLimit.MAX_DURATION + 1.minute)
 
   private val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed("activation", logging, consumer, maximumContainers, 500.milliseconds, processActivationMessage)

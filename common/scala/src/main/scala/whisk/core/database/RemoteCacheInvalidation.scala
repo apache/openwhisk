@@ -29,7 +29,6 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import spray.json._
 import whisk.common.Logging
-import whisk.core.WhiskConfig
 import whisk.core.connector.Message
 import whisk.core.connector.MessageFeed
 import whisk.core.connector.MessagingProvider
@@ -51,8 +50,7 @@ object CacheInvalidationMessage extends DefaultJsonProtocol {
   implicit val serdes = jsonFormat(CacheInvalidationMessage.apply _, "key", "instanceId")
 }
 
-class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: InstanceId)(implicit logging: Logging,
-                                                                                            as: ActorSystem) {
+class RemoteCacheInvalidation(component: String, instance: InstanceId)(implicit logging: Logging, as: ActorSystem) {
 
   implicit private val ec = as.dispatcher
 
@@ -61,8 +59,8 @@ class RemoteCacheInvalidation(config: WhiskConfig, component: String, instance: 
 
   private val msgProvider = SpiLoader.get[MessagingProvider]
   private val cacheInvalidationConsumer =
-    msgProvider.getConsumer(config, s"$topic$instanceId", topic, maxPeek = 128)
-  private val cacheInvalidationProducer = msgProvider.getProducer(config)
+    msgProvider.getConsumer(s"$topic$instanceId", topic, maxPeek = 128)
+  private val cacheInvalidationProducer = msgProvider.getProducer()
 
   def notifyOtherInstancesAboutInvalidation(key: CacheKey): Future[Unit] = {
     cacheInvalidationProducer.send(topic, CacheInvalidationMessage(key, instanceId)).map(_ => Unit)

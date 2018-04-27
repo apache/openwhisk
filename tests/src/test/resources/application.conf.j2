@@ -21,6 +21,7 @@ whisk {
             }
         }
         common {
+          bootstrap-hosts: "{{ kafka_connect_string }}"
           security-protocol: {{ kafka.protocol }}
           ssl-truststore-location: {{ openwhisk_home }}/ansible/roles/kafka/files/{{ kafka.ssl.keystore.name }}
           ssl-truststore-password: {{ kafka.ssl.keystore.password }}

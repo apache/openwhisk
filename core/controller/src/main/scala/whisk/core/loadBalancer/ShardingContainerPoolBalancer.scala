@@ -32,10 +32,9 @@ import org.apache.kafka.clients.producer.RecordMetadata
 import pureconfig._
 import whisk.common.LoggingMarkers._
 import whisk.common._
-import whisk.core.WhiskConfig._
 import whisk.core.connector._
 import whisk.core.entity._
-import whisk.core.{ConfigKeys, WhiskConfig}
+import whisk.core.ConfigKeys
 import whisk.spi.SpiLoader
 
 import scala.annotation.tailrec
@@ -50,10 +49,9 @@ import scala.util.{Failure, Success}
  * Horizontal sharding means, that each invoker's capacity is evenly divided between the loadbalancers. If an invoker
  * has at most 16 slots available, those will be divided to 8 slots for each loadbalancer (if there are 2).
  */
-class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: InstanceId)(
-  implicit val actorSystem: ActorSystem,
-  logging: Logging,
-  materializer: ActorMaterializer)
+class ShardingContainerPoolBalancer(controllerInstance: InstanceId)(implicit val actorSystem: ActorSystem,
+                                                                    logging: Logging,
+                                                                    materializer: ActorMaterializer)
     extends LoadBalancer {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -186,7 +184,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   }
 
   private val messagingProvider = SpiLoader.get[MessagingProvider]
-  private val messageProducer = messagingProvider.getProducer(config)
+  private val messageProducer = messagingProvider.getProducer()
 
   /** 3. Send the activation to the invoker */
   private def sendActivationToInvoker(producer: MessageProducer,
@@ -222,7 +220,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private val maxActiveAcksPerPoll = 128
   private val activeAckPollDuration = 1.second
   private val activeAckConsumer =
-    messagingProvider.getConsumer(config, activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll)
+    messagingProvider.getConsumer(activeAckTopic, activeAckTopic, maxPeek = maxActiveAcksPerPoll)
 
   private val activationFeed = actorSystem.actorOf(Props {
     new MessageFeed(
@@ -295,19 +293,17 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       InvokerPool.props(
         (f, i) => f.actorOf(InvokerActor.props(i, controllerInstance)),
         (m, i) => sendActivationToInvoker(messageProducer, m, i),
-        messagingProvider.getConsumer(config, s"health${controllerInstance.toInt}", "health", maxPeek = 128),
+        messagingProvider.getConsumer(s"health${controllerInstance.toInt}", "health", maxPeek = 128),
         Some(monitor)))
   }
 }
 
 object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
-  override def loadBalancer(whiskConfig: WhiskConfig, instance: InstanceId)(
-    implicit actorSystem: ActorSystem,
-    logging: Logging,
-    materializer: ActorMaterializer): LoadBalancer = new ShardingContainerPoolBalancer(whiskConfig, instance)
-
-  def requiredProperties: Map[String, String] = kafkaHosts
+  override def loadBalancer(instance: InstanceId)(implicit actorSystem: ActorSystem,
+                                                  logging: Logging,
+                                                  materializer: ActorMaterializer): LoadBalancer =
+    new ShardingContainerPoolBalancer(instance)
 
   /** Generates a hash based on the string representation of namespace and action */
   def generateHash(namespace: EntityName, action: FullyQualifiedEntityName): Int = {
