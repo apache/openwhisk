@@ -47,6 +47,7 @@ class ReferenceCountedTests extends FlatSpec with Matchers {
 
     probe.closed shouldBe true
     probe.closedCount shouldBe 1
+    refCounted.isClosed shouldBe true
   }
 
   it should "not close with one reference active" in {
