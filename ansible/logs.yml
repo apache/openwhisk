@@ -38,6 +38,14 @@
         - activations
         - subjects
       when: "'db' not in exclude_logs_from"
+    - name: create "test reports" folder
+      file: path="{{ openwhisk_home }}/logs/test-reports" state=directory
+    - name: collect test reports
+      local_action: shell cp -r "{{ openwhisk_home }}/tests/build/{{ item }}" "{{ openwhisk_home }}/logs/test-reports/"
+      with_items:
+        - reports
+        - test-results
+      ignore_errors: true
 
 - hosts: all:!ansible
   serial: 1
