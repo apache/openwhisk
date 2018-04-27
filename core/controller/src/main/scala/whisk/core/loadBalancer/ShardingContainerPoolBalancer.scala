@@ -674,4 +674,4 @@ case class ActivationEntry(id: ActivationId,
                            invokerName: InstanceId,
                            timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]],
-isOverflow: Boolean = false)
+                           isOverflow: Boolean = false)
