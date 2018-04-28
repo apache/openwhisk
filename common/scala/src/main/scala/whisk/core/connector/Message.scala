@@ -134,7 +134,7 @@ object PingMessage extends DefaultJsonProtocol {
 
 case class OverflowMessage(override val transid: TransactionId,
                            msg: ActivationMessage,
-                           action: ExecutableWhiskActionMetaData,
+                           actionTimeoutSeconds: Int,
                            hash: Int,
                            pull: Boolean,
                            originalController: InstanceId)

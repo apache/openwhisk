@@ -18,9 +18,9 @@
 package whisk.core.loadBalancer
 
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.ThreadLocalRandom
+//import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.LongAdder
-
+import java.util.concurrent.atomic.AtomicBoolean
 import akka.actor.{Actor, ActorSystem, Cancellable, Props}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
@@ -57,6 +57,8 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     extends LoadBalancer {
 
   private implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+
+  logging.info(this, "hello from New Sharding :)")
 
   /** Build a cluster of all loadbalancers */
   private val cluster: Option[Cluster] = if (loadConfigOrThrow[ClusterConfig](ConfigKeys.cluster).useClusterBootstrap) {
@@ -145,9 +147,9 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       Future{
         sendActivationToOverflow(
           messageProducer,
-          OverflowMessage(transid, msg, action, hash, action.exec.pull, controllerInstance))
+          OverflowMessage(transid, msg, action.limits.timeout.duration.toSeconds.toInt, hash, action.exec.pull, controllerInstance))
           .flatMap { _ =>
-            val entry = setupActivation(msg, action, None, true)
+            val entry = setupActivation(msg, action.limits.timeout.duration, None, true)
             entry.promise.future
           }
       }
@@ -179,10 +181,10 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private def chooseInvoker(hash: Int, pull: Boolean, ov: Boolean): Option[InstanceId] = {
     
     val (invokersToUse, stepSizes) =
-      if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
+      if (!pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
       else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
 
-    val chosen = if (invokersToUse.nonEmpty) {
+    if (invokersToUse.nonEmpty) {
       //val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
       val homeInvoker = hash % invokersToUse.size
       val stepSize = stepSizes(hash % stepSizes.size)
@@ -195,7 +197,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private def sendToInvokerOrOverflow(msg: ActivationMessage, action: ExecutableWhiskActionMetaData, hash: Int, pull: Boolean)(
     implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
     val invMatched = chooseInvoker(hash, pull, false)
-    val entry = setupActivation(msg, action, invMatched)
+    val entry = setupActivation(msg, action.limits.timeout.duration, invMatched)
 
     invMatched match {
       case Some(invoker) =>
@@ -209,7 +211,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
         sendActivationToOverflow(
           messageProducer,
-          OverflowMessage(transid, msg, action, hash, pull, controllerInstance)).flatMap {
+          OverflowMessage(transid, msg, action.limits.timeout.duration.toSeconds.toInt, hash, pull, controllerInstance)).flatMap {
           _ =>
             entry.promise.future
         }
@@ -235,8 +237,8 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
   /** 2. Update local state with the to be executed activation */
   private def setupActivation(msg: ActivationMessage,
-                              action: ExecutableWhiskActionMetaData,
-                              instance: InstanceId,
+                              actionTimeout: FiniteDuration,
+                              instance: Option[InstanceId],
                               isOverflow: Boolean = false): ActivationEntry = {
 //////////////////////////////////////
     totalActivations.increment()
@@ -244,7 +246,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
       activationsPerNamespace.getOrElseUpdate(msg.user.uuid, new LongAdder()).increment()
     }
 ////////////////////////////////////////
-    val timeout = action.limits.timeout.duration.max(TimeLimit.STD_DURATION) + 1.minute
+    val timeout = actionTimeout.max(TimeLimit.STD_DURATION) + 1.minute
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
     // the active ack is significantly delayed (possibly dues to long queues but the subject should not be penalized);
@@ -252,7 +254,9 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     activations.getOrElseUpdate(
       msg.activationId, {
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
-          processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = instance)
+          instance.foreach{ i =>
+            processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = i)
+          }
         }
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
@@ -261,8 +265,8 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           msg.user.uuid,
           instance,
           timeoutHandler,
-          Promise[Either[ActivationId, WhiskActivation]]()),
-          isOverflow
+          Promise[Either[ActivationId, WhiskActivation]](),
+          isOverflow)
       })
   }
 
@@ -377,16 +381,15 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
             //The timeout for the activationId will still be effective.
             entryOption match {
               case Some(entry) =>
-                entry.invokerName = instanceId
-                entry.isOverflow = true
-                activations.getOrElseUpdate(m.msg.activationId, entry)
+                val updatedEntry = entry.copy(invokerName = Some(instanceId), isOverflow = true)
+                activations.getOrElseUpdate(m.msg.activationId, updatedEntry)
                 sendActivationToInvoker(messageProducer, m.msg, instanceId)
               case None =>
                 //TODO: adjust the timeout for time spent in overflow topic!
                 val entry = setupActivation(
                   m.msg,
-                  m.action,
-                  instanceId,
+                  m.actionTimeoutSeconds.seconds,
+                  Some(instanceId),
                   true)
                 activations.getOrElseUpdate(m.msg.activationId, entry)
                 val updatedMsg = m.msg.copy(rootControllerIndex = this.controllerInstance)
@@ -536,7 +539,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
 
         } else {
           val newIndex = (index + step) % numInvokers
-          schedule(invokers, dispatched, newIndex, step, stepsDone + 1)
+          schedule(invokers, dispatched, newIndex, step, stepsDone + 1, overflow)
         }
       }
     } else {
@@ -671,7 +674,7 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invoker
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
-                           invokerName: InstanceId,
+                           invokerName: Option[InstanceId],
                            timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]],
                            isOverflow: Boolean = false)
