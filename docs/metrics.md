@@ -86,7 +86,7 @@ user_events: false
 Activation is an event that occurs after after each activation. It includes the following execution metadata:
 ```
 waitTime - internal system hold time
-initTime - time it took to initialise the action, e.g. docker init
+initTime - time it took to initialise an action, e.g. docker init
 statusCode - status code of the invocation: 0 - success, 1 - application error, 2 - action developer error, 3 - internal OpenWhisk error
 duration - actual time the action code was running
 kind - action flavor, e.g. nodejs
@@ -97,7 +97,7 @@ causedBy - true for sequence actions
 Metric is any user specific event produced by the system and it at this moment includes the following information:
 ```
 ConcurrentRateLimit - a user has exceeded its limit for concurrent invocations.
-TimedRateLimit - a user has reached its limit for invocations allowed per minute.
+TimedRateLimit - the user has reached its per minute limit for the number of invocations.
 ConcurrentInvocations - the number of in flight invocations per user.
 ```
 

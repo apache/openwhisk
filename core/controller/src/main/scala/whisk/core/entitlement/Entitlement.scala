@@ -371,7 +371,7 @@ protected[core] abstract class EntitlementProvider(
             UserEvents.send(
               eventProducer,
               EventMessage(
-                s"controller$controllerInstance",
+                s"controller${controllerInstance.instance}",
                 metric,
                 user.subject,
                 user.namespace.toString,
@@ -387,7 +387,7 @@ protected[core] abstract class EntitlementProvider(
         UserEvents.send(
           eventProducer,
           EventMessage(
-            s"controller$controllerInstance",
+            s"controller${controllerInstance.instance}",
             metric,
             user.subject,
             user.namespace.toString,

@@ -31,7 +31,7 @@ import akka.pattern.pipe
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.{AkkaLogging, Counter, LoggingMarkers, TransactionId}
-import whisk.core.connector.{ActivationMessage}
+import whisk.core.connector.ActivationMessage
 import whisk.core.containerpool.logging.LogCollectingException
 import whisk.core.entity._
 import whisk.core.entity.size._
