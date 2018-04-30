@@ -84,9 +84,9 @@ object ActivationResult extends DefaultJsonProtocol {
       Try {
         value match {
           case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-          case _           => deserializationError("timetsamp malformed")
+          case _           => deserializationError("timestamp malformed")
         }
-      } getOrElse deserializationError("timetsamp malformed 2")
+      } getOrElse deserializationError("timestamp malformed 2")
   }
 
   implicit val serdes = new RootJsonFormat[ActivationResult] {
