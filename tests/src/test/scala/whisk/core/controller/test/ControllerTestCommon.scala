@@ -67,7 +67,7 @@ protected trait ControllerTestCommon
   override implicit val actorSystem = system // defined in ScalatestRouteTest
   override val executionContext = actorSystem.dispatcher
 
-  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
+  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties ++ WhiskConfig.kafkaHosts)
   assert(whiskConfig.isValid)
 
   // initialize runtimes manifest
@@ -75,7 +75,8 @@ protected trait ControllerTestCommon
 
   override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
-  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  override lazy val entitlementProvider: EntitlementProvider =
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api

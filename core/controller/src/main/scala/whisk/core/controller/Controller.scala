@@ -121,7 +121,8 @@ class Controller(val instance: InstanceId,
     SpiLoader.get[LoadBalancerProvider].loadBalancer(whiskConfig, instance)
   logging.info(this, s"loadbalancer initialized: ${loadBalancer.getClass.getSimpleName}")(TransactionId.controller)
 
-  private implicit val entitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  private implicit val entitlementProvider =
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
   private implicit val activationIdFactory = new ActivationIdGenerator {}
   private implicit val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
@@ -225,6 +226,10 @@ object Controller {
     }
     if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
       abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
+    }
+
+    if (!msgProvider.ensureTopic(config, topic = "events", topicConfig = "events")) {
+      abort(s"failure during msgProvider.ensureTopic for topic events")
     }
 
     ExecManifest.initialize(config) match {

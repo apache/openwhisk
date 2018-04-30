@@ -175,6 +175,7 @@
         -e CONFIG_whisk_kafka_common_sslTruststorePassword='{{ kafka.ssl.keystore.password }}'
         -e CONFIG_whisk_kafka_common_sslKeystoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
         -e CONFIG_whisk_kafka_common_sslKeystorePassword='{{ kafka.ssl.keystore.password }}'
+        -e CONFIG_whisk_userEvents_enabled='{{ user_events }}'
         -e ZOOKEEPER_HOSTS='{{ zookeeper_connect_string }}'
         -e CONFIG_whisk_couchdb_protocol='{{ db_protocol }}'
         -e CONFIG_whisk_couchdb_host='{{ db_host }}'

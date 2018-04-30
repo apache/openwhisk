@@ -69,14 +69,17 @@ class ActivationThrottler(loadBalancer: LoadBalancer, concurrencyLimit: Identity
 sealed trait RateLimit {
   def ok: Boolean
   def errorMsg: String
+  def limitName: String
 }
 
 case class ConcurrentRateLimit(count: Int, allowed: Int) extends RateLimit {
   val ok: Boolean = count < allowed // must have slack for the current activation request
   override def errorMsg: String = Messages.tooManyConcurrentRequests(count, allowed)
+  val limitName: String = "ConcurrentRateLimit"
 }
 
 case class TimedRateLimit(count: Int, allowed: Int) extends RateLimit {
   val ok: Boolean = count <= allowed // the count is already updated to account for the current request
   override def errorMsg: String = Messages.tooManyRequests(count, allowed)
+  val limitName: String = "TimedRateLimit"
 }
