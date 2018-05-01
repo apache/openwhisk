@@ -18,11 +18,11 @@
 
 #
 # Transforms environment variables starting with `prefix` to kebab-cased JVM system properties
-# 
+#
 # "_"           becomes "."
 # "camelCased"  becomes "camel-cased"
 # "PascalCased" stays   "PascalCased" -> classnames stay untouched
-# 
+#
 # Examples:
 # CONFIG_whisk_loadbalancer_invokerBusyThreshold -> -Dwhisk.loadbalancer.invoker-busy-threshold
 # CONFIG_akka_remote_netty_tcp_bindPort          -> -Dakka.remote.netty.tcp.bind-port

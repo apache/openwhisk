@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations under the License.
 #
 -->
+
 # Web Actions
 
 Web actions are OpenWhisk actions annotated to quickly enable you to build web based applications. This allows you to program backend logic which your web application can access anonymously without requiring an OpenWhisk authentication key. It is up to the action developer to implement their own desired authentication and authorization (i.e. OAuth flow).
@@ -72,7 +73,7 @@ function main() {
     statusCode: 302
   }
 }
-```  
+```
 
 Or sets a cookie:
 ```javascript
@@ -221,8 +222,8 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -d "name":"Jane"
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "10",      
-      "content-type": "application/x-www-form-urlencoded",      
+      "content-length": "10",
+      "content-type": "application/x-www-form-urlencoded",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
     },
@@ -241,7 +242,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: app
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "15",      
+      "content-length": "15",
       "content-type": "application/json",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
@@ -268,7 +269,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json -H 'Content-Type: tex
     "__ow_headers": {
       "accept": "*/*",
       "connection": "close",
-      "content-length": "4",      
+      "content-length": "4",
       "content-type": "text/plain",
       "host": "172.17.0.1",
       "user-agent": "curl/7.43.0"
@@ -341,7 +342,7 @@ $ curl https://${APIHOST}/api/v1/web/guest/demo/hello.json?name=Jane -X POST -H 
       "content-length": "15",
       "content-type": "application/json",
       "host": "172.17.0.1",
-      "user-agent": "curl/7.43.0"      
+      "user-agent": "curl/7.43.0"
     },
     "__ow_path": ""
   }

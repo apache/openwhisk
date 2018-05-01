@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations under the License.
 #
 -->
+
 # Using REST APIs with OpenWhisk
 
 After your OpenWhisk environment is enabled, you can use OpenWhisk with your web apps or mobile apps with REST API calls.
@@ -134,7 +135,7 @@ To perform a blocking invocation on an action, send a HTTP request with a method
 ```bash
 curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/actions/hello?blocking=true \
 -X POST -H "Content-Type: application/json" \
--d '{"name":"John"}'  
+-d '{"name":"John"}'
 ```
 You get the following response:
 ```json
@@ -258,7 +259,7 @@ To do the same with the REST API, lets create the trigger first
 ```bash
 curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/triggers/periodic?overwrite=true \
 -X PUT -H "Content-Type: application/json" \
--d '{"name":"periodic","annotations":[{"key":"feed","value":"/whisk.system/alarms/alarm"}]}'  
+-d '{"name":"periodic","annotations":[{"key":"feed","value":"/whisk.system/alarms/alarm"}]}'
 ```
 
 As you can see the annotation `feed` is stored in the trigger. Later we will use this annotation to know which feed action to use when deleting the trigger.
@@ -276,7 +277,7 @@ Invoke the feed action to delete the trigger handler from the feed provider
 ```bash
 curl -u $AUTH "https://openwhisk.ng.bluemix.net/api/v1/namespaces/whisk.system/actions/alarms/alarm?blocking=true&result=false" \
 -X POST -H "Content-Type: application/json" \
--d "{\"authKey\":\"$AUTH\",\"lifecycleEvent\":\"DELETE\",\"triggerName\":\"/_/periodic\"}"  
+-d "{\"authKey\":\"$AUTH\",\"lifecycleEvent\":\"DELETE\",\"triggerName\":\"/_/periodic\"}"
 ```
 
 Now delete the trigger with a HTTP request using `DELETE` method
@@ -298,7 +299,7 @@ Rules can be enabled or disabled, and you can change the status of the rule by u
 ```bash
 curl -u $AUTH https://openwhisk.ng.bluemix.net/api/v1/namespaces/_/rules/t2a?overwrite=true \
 -X POST -H "Content-Type: application/json" \
--d '{"status":"inactive","trigger":null,"action":null}'  
+-d '{"status":"inactive","trigger":null,"action":null}'
 ```
 
 ## Packages
