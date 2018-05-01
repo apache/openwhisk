@@ -1,16 +1,16 @@
 <!--
 #
-# Licensed to the Apache Software Foundation (ASF) under one or more contributor 
-# license agreements.  See the NOTICE file distributed with this work for additional 
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
 # information regarding copyright ownership.  The ASF licenses this file to you
-# under the Apache License, Version 2.0 (the # "License"); you may not use this 
-# file except in compliance with the License.  You may obtain a copy of the License 
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
 # at:
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software distributed 
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations under the License.
 #
@@ -39,9 +39,9 @@ Detailed instructions are found in the [ansible readme](../../ansible/README.md)
 
 ## Using Cloudant
 
-As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service. 
-There are two ways to get a Cloudant account and configure OpenWhisk to use it. 
-You only need to establish an account once, either through IBM Bluemix or with Cloudant directly. 
+As an alternative to a self-managed CouchDB, you may want to try [Cloudant](https://cloudant.com) which is a cloud-based database service.
+There are two ways to get a Cloudant account and configure OpenWhisk to use it.
+You only need to establish an account once, either through IBM Bluemix or with Cloudant directly.
 
 ### Create a Cloudant account via IBM Bluemix
 Sign up for an account via [IBM Bluemix](https://bluemix.net). Bluemix offers trial accounts and its signup process is straightforward so it is not described here in detail. Using Bluemix, the most convenient way to create a Cloudant instance is via the `cf` command-line tool. See [here](https://www.ng.bluemix.net/docs/starters/install_cli.html) for instructions on how to download and configure `cf` to work with your Bluemix account.
@@ -89,7 +89,7 @@ If you are [using an ephemeral CouchDB container](#using-an-ephemeral-couchdb-co
   ```
   # Work out of your openwhisk directory
   cd /your/path/to/openwhisk/ansible
-  
+
   # Initialize data store containing authorization keys
   ansible-playbook initdb.yml
   ```
