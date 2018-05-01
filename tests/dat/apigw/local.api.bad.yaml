@@ -1,3 +1,6 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements; and to You under the Apache License, Version 2.0.
+
 some bad yaml in
 these []]]
 lines:
@@ -32,4 +35,3 @@ x-ibm-configuration:
           - get_/rp
   cors:
     enabled: true
-

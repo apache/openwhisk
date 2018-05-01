@@ -1,3 +1,6 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more contributor
+// license agreements; and to You under the Apache License, Version 2.0.
+
 /**
  * Equivalent to unix cat command.
  * Return all the lines in an array. All other fields in the input message are stripped.
@@ -9,5 +12,3 @@ function main(msg) {
     console.log('cat: returning ' + JSON.stringify(retn));
     return retn;
 }
-
-
