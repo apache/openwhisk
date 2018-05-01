@@ -265,7 +265,7 @@
           'akka.tcp://controller-actor-system@'~item.1~':'~(controller.akka.cluster.basePort+item.0)
       }) }}
   with_indexed_items: "{{ controller.akka.cluster.seedNodes }}"
-  when: akka_enabled | bool
+  when: join_akka_cluster | bool
 
 - name: Add akka environment to controller environment
   vars:
@@ -279,7 +279,7 @@
         "{{ controller.akka.cluster.bindPort }}"
   set_fact:
     controller_env: "{{ controller_env | combine(akka_env) }}"
-  when: akka_enabled | bool
+  when: join_akka_cluster | bool
 
 - name: (re)start controller
   docker_container:
