@@ -120,14 +120,6 @@
       -Dcom.sun.management.jmxremote.rmi.port={{ jmx_remote_rmi_port }}
       -Dcom.sun.management.jmxremote.port={{ jmx_remote_port }}
 
-- name: add akka port to ports_to_expose
-  set_fact:
-    ports_to_expose: >-
-      {{ ports_to_expose }} +
-      [ "{{ (controller.akka.cluster.basePort + (controller_index | int)) }}:"
-      + "{{ controller.akka.cluster.bindPort }}" ]
-  when: join_akka_cluster | bool
-
 - name: populate environment variables for controller
   set_fact:
     controller_env:
@@ -257,29 +249,9 @@
 
       "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
-- name: add seed nodes to controller environment
-  set_fact:
-    controller_env: >
-      {{ controller_env | combine({
-        'CONFIG_akka_cluster_seedNodes_' ~ item.0:
-          'akka.tcp://controller-actor-system@'~item.1~':'~(controller.akka.cluster.basePort+item.0)
-      }) }}
-  with_indexed_items: "{{ controller.akka.cluster.seedNodes }}"
-  when: join_akka_cluster | bool
-
-- name: Add akka environment to controller environment
-  vars:
-    akka_env:
-      "CONFIG_akka_actor_provider": "{{ controller.akka.provider }}"
-      "CONFIG_akka_remote_netty_tcp_hostname":
-        "{{ controller.akka.cluster.host[(controller_index | int)] }}"
-      "CONFIG_akka_remote_netty_tcp_port":
-        "{{ controller.akka.cluster.basePort + (controller_index | int) }}"
-      "CONFIG_akka_remote_netty_tcp_bindPort":
-        "{{ controller.akka.cluster.bindPort }}"
-  set_fact:
-    controller_env: "{{ controller_env | combine(akka_env) }}"
-  when: join_akka_cluster | bool
+- name: include plugins
+  include_tasks: "{{ item }}.yml"
+  with_items: "{{ controller_plugins | default([]) }}"
 
 - name: (re)start controller
   docker_container:
@@ -314,4 +286,4 @@
   retries: 12
   delay: 5
 
-# VIM: let b:syntastic_yaml_yamllint_args = "-d '{extends: default, rules: {line-length: {max: 105}}}'"
+# VIM: let b:syntastic_yaml_yamllint_args="-c '".expand('%:p:h')."../../../yamllint.yml'"

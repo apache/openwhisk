@@ -35,11 +35,15 @@
     #   additional offset to prevent collisions between different controller
     #   groups. Usually 0 if only one group is being deployed, otherwise
     #   something like "{{ groups['firstcontrollergroup']|length }}"
-    #   (TODO: Is there a better way to manage port ranges?)
     controller_index_base: 0
     #
-    # join_akka_cluster - boolean value; should controllers in this group join
-    #   the global akka cluster?  Generally true for simple installations.
-    join_akka_cluster: "True"
+    # select which additional capabilities (from the controller role) need
+    #   to be added to the controller.  Plugin will override default
+    #   configuration settings.  (Plugins are found in the
+    #   'roles/controller/tasks' directory for now.)
+    controller_plugins:
+      # Join an akka cluster rather than running standalone akka
+      - "join_akka_cluster"
+
   roles:
     - controller
