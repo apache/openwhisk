@@ -122,9 +122,9 @@ trait ReadOps extends Directives {
   }
 
   /**
-   * Gets an entity of type A from datastore. Terminates HTTP request.
+   * Waits on specified Future that returns an entity of type A from datastore. Terminates HTTP request.
    *
-   * @param entity the entity of type A fetched from datastore
+   * @param entity future that returns an entity of type A fetched from datastore
    * @param postProcess an optional continuation to post process the result of the
    * get and terminate the HTTP request directly
    *
@@ -158,9 +158,9 @@ trait ReadOps extends Directives {
   }
 
   /**
-   * Gets an entity of type A from datastore and project fields for response. Terminates HTTP request.
+   * Waits on specified Future that returns an entity of type A from datastore. Terminates HTTP request.
    *
-   * @param entity the entity of type A fetched from datastore
+   * @param entity future that returns an entity of type A fetched from datastore
    * @param project a function A => JSON which projects fields form A
    *
    * Responses are one of (Code, Message)
