@@ -20,13 +20,9 @@ package whisk.core.connector
 import scala.util.Try
 
 import spray.json._
+import spray.json.DefaultJsonProtocol
 import whisk.common.TransactionId
-import whisk.core.entity.ActivationId
-import whisk.core.entity.DocRevision
-import whisk.core.entity.FullyQualifiedEntityName
-import whisk.core.entity.Identity
-import whisk.core.entity.InstanceId
-import whisk.core.entity.WhiskActivation
+import whisk.core.entity._
 
 /** Basic trait for messages that are sent on a message bus connector. */
 trait Message {
@@ -135,9 +131,8 @@ object PingMessage extends DefaultJsonProtocol {
 case class OverflowMessage(override val transid: TransactionId,
                            msg: ActivationMessage,
                            actionTimeoutSeconds: Int,
-                           hash: Int,
                            pull: Boolean,
-                           originalController: InstanceId)
+                           hash: Int)
     extends Message {
 
   override def serialize: String = {
@@ -147,5 +142,5 @@ case class OverflowMessage(override val transid: TransactionId,
 
 object OverflowMessage extends DefaultJsonProtocol {
   def parse(msg: String): Try[OverflowMessage] = Try(serdes.read(msg.parseJson))
-  implicit val serdes = jsonFormat6(OverflowMessage.apply)
+  implicit val serdes = jsonFormat5(OverflowMessage.apply)
 }

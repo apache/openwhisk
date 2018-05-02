@@ -136,116 +136,83 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
   /** 1. Publish a message to the loadbalancer */
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
-    implicit transid: TransactionId): Future[Future[Either[ActivationId, WhiskActivation]]] = {
-
+    implicit transid: TransactionId ): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
-    if (!overflowState.get()) {
-      Future{
-        sendToInvokerOrOverflow(msg, action, hash, action.exec.pull)
-      }
-    } else {
-      Future{
-        sendActivationToOverflow(
-          messageProducer,
-          OverflowMessage(transid, msg, action.limits.timeout.duration.toSeconds.toInt, hash, action.exec.pull, controllerInstance))
-          .flatMap { _ =>
-            val entry = setupActivation(msg, action.limits.timeout.duration, None, true)
-            entry.promise.future
-          }
-      }
-    }
-/*///////////////////////////////////////////
+    publish(transid, action.limits.timeout.duration.toSeconds.toInt, action.exec.pull, hash, msg, false)
+  }
+
+  def publish(transid: TransactionId, actionTimeoutSeconds: Int, pull:Boolean, hash:Int, msg: ActivationMessage, isRescheduled: Boolean)
+    : Future[Future[Either[ActivationId, WhiskActivation]]] = {
+    
     val (invokersToUse, stepSizes) =
-      if (!action.exec.pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
-      else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
+        if (!pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
+        else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
+
+
     val chosen = if (invokersToUse.nonEmpty) {
-      val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
-      val homeInvoker = hash % invokersToUse.size
-      val stepSize = stepSizes(hash % stepSizes.size)
-      ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize)
+      // In case of the system isn't in overflow state or it's in the overflow state but the message is rescheduled 
+      // we want to call the schedule algorithm to choose an invoker
+      if (!overflowState.get() || (overflowState.get() && isRescheduled)) {
+        val homeInvoker = hash % invokersToUse.size
+        val stepSize = stepSizes(hash % stepSizes.size)
+        ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize, overflow = overflowState.get())
+      } else {
+        Some(new InstanceId(-1))       // -1 indicates that the system is in overflow state and the ActivationMessage isn't rescheduled
+      }
     } else {
       None
     }
+
     chosen
       .map { invoker =>
-        val entry = setupActivation(msg, action, invoker)
-        sendActivationToInvoker(messageProducer, msg, invoker).map { _ =>
-          entry.promise.future
+        // this means that the rescheduled message didn't succeed to find an invoker that has capacity
+        if (invoker.toInt == -1 && isRescheduled) {
+          // don't remove the message from the overflow topic
+          // TODO: requeue the ActivationMessage into the overflow topic
+          logging.error(this, "the rescheduled ActivationMessage hasn't find any invoker that has capacity")
+          Future.failed(LoadBalancerException("the rescheduled ActivationMessage hasn't find any invoker that has capacity"))
+        } 
+
+        // this means that there is no invoker that has capacity for this non scheduled ActivationMessage (enter the overflow state)
+        else if (invoker.toInt == -1 || !isRescheduled) {
+          if (overflowState.compareAndSet(false, true)) {
+            logging.info(this, "entering overflow state; no invokers have capacity")
+          }
+
+          Future {
+          sendActivationToOverflow(
+            messageProducer,
+            OverflowMessage(transid, msg, actionTimeoutSeconds, pull, hash))
+            .flatMap { _ =>
+              val entry = setupActivation(msg, actionTimeoutSeconds.seconds, invoker, true, false)
+              entry.promise.future
+            }
+          }
+        } 
+
+        // there exist an invoker that has capacity to handle the action
+        else {
+          val entry = setupActivation(msg, actionTimeoutSeconds.seconds, invoker, false, isRescheduled)
+          sendActivationToInvoker(messageProducer, msg, invoker).map { _ =>
+            entry.promise.future
+          }
         }
       }
       .getOrElse(Future.failed(LoadBalancerException("No invokers available")))
-/////////////////////////////////////////////// */
   }
 
-     /** Determine which invoker this activation should go to. Due to dynamic conditions, it may return no invoker. */
-  private def chooseInvoker(hash: Int, pull: Boolean, ov: Boolean): Option[InstanceId] = {
-    
-    val (invokersToUse, stepSizes) =
-      if (!pull) (schedulingState.managedInvokers, schedulingState.managedStepSizes)
-      else (schedulingState.blackboxInvokers, schedulingState.blackboxStepSizes)
-
-    if (invokersToUse.nonEmpty) {
-      //val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
-      val homeInvoker = hash % invokersToUse.size
-      val stepSize = stepSizes(hash % stepSizes.size)
-      ShardingContainerPoolBalancer.schedule(invokersToUse, schedulingState.invokerSlots, homeInvoker, stepSize, overflow = ov)
-    } else {
-      None
-    }
-  }
-
-  private def sendToInvokerOrOverflow(msg: ActivationMessage, action: ExecutableWhiskActionMetaData, hash: Int, pull: Boolean)(
-    implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
-    val invMatched = chooseInvoker(hash, pull, false)
-    val entry = setupActivation(msg, action.limits.timeout.duration, invMatched)
-
-    invMatched match {
-      case Some(invoker) =>
-        sendActivationToInvoker(messageProducer, msg, invoker).flatMap { _ =>
-          entry.promise.future
-        }
-      case None =>
-        if (overflowState.compareAndSet(false, true)) {
-          logging.info(this, "entering overflow state; no invokers have capacity")
-        }
-
-        sendActivationToOverflow(
-          messageProducer,
-          OverflowMessage(transid, msg, action.limits.timeout.duration.toSeconds.toInt, hash, pull, controllerInstance)).flatMap {
-          _ =>
-            entry.promise.future
-        }
-    }
-  }
-
-  private def sendActivationToOverflow(producer: MessageProducer, msg: OverflowMessage): Future[RecordMetadata] = {
-    implicit val transid = msg.transid
-
-    val topic = "overflow"
-    val start = transid.started(
-      this,
-      LoggingMarkers.CONTROLLER_KAFKA,
-      s"posting overflow topic '$topic' with activation id '${msg.msg.activationId}'")
-
-    producer.send(topic, msg).andThen {
-      case Success(status) =>
-        localOverflowActivationCount += 1
-        transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
-      case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
-    }
-  }
 
   /** 2. Update local state with the to be executed activation */
   private def setupActivation(msg: ActivationMessage,
                               actionTimeout: FiniteDuration,
-                              instance: Option[InstanceId],
-                              isOverflow: Boolean = false): ActivationEntry = {
-//////////////////////////////////////
-    totalActivations.increment()
-    if (!isOverflow) {
+                              instance: InstanceId,
+                              isOverflow: Boolean,
+                              isRescheduled: Boolean = false): ActivationEntry = {
+    if (!isRescheduled) {
+      totalActivations.increment()
       activationsPerNamespace.getOrElseUpdate(msg.user.uuid, new LongAdder()).increment()
     }
-////////////////////////////////////////
+
     val timeout = actionTimeout.max(TimeLimit.STD_DURATION) + 1.minute
     // Install a timeout handler for the catastrophic case where an active ack is not received at all
     // (because say an invoker is down completely, or the connection to the message bus is disrupted) or when
@@ -254,9 +221,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     activations.getOrElseUpdate(
       msg.activationId, {
         val timeoutHandler = actorSystem.scheduler.scheduleOnce(timeout) {
-          instance.foreach{ i =>
-            processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = i)
-          }
+          processCompletion(Left(msg.activationId), msg.transid, forced = true, invoker = instance)
         }
 
         // please note: timeoutHandler.cancel must be called on all non-timeout paths, e.g. Success
@@ -299,6 +264,25 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     }
   }
 
+  private def sendActivationToOverflow(producer: MessageProducer, msg: OverflowMessage): Future[RecordMetadata] = {
+    implicit val transid = msg.transid
+
+    val topic = s"overflow${controllerInstance.toInt}"
+    MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
+    val start = transid.started(
+      this,
+      LoggingMarkers.CONTROLLER_KAFKA,
+      s"posting overflow topic '$topic' with activation id '${msg.msg.activationId}'")
+
+    producer.send(topic, msg).andThen {
+      case Success(status) =>
+        localOverflowActivationCount += 1
+        transid.finished(this, start, s"posted to ${status.topic()}[${status.partition()}][${status.offset()}]")
+      case Failure(e) => transid.failed(this, start, s"error on posting to topic $topic")
+    }
+  }
+
+
   /**
    * Subscribes to active acks (completion messages from the invokers), and
    * registers a handler for received active acks from invokers.
@@ -333,82 +317,6 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
     }
   }
 
-  //only pull enough messages that can be processed immediately
-  val overflowPollDuration = 200.milliseconds
-  val maxOverflowMsgPerPoll = config.loadbalancerInvokerBusyThreshold //TODO: only pull enough messages that can be processed immediately
-  val overflowConsumer =
-    messagingProvider.getConsumer(config, "overflow", s"overflow", maxPeek = maxOverflowMsgPerPoll)
-
-  val offsetMonitor = actorSystem.actorOf(Props {
-    new Actor {
-      override def receive = {
-        case MessageFeed.MaxOffset =>
-          if (overflowState.compareAndSet(true, false)) {
-            logging.info(this, "resetting overflow state via offsetMonitor for overflow topic")
-          }
-      }
-    }
-  })
-
-  //ideally the overflow capacity should be dynamic, based on free invokers, to provide some backpressure. For now, capacity of 1
-  //(or some small number less than number of invokers) may be ok.
-  val overflowHandlerCapacity = overflowConsumer.maxPeek
-  val overflowFeed = actorSystem.actorOf(Props {
-    new MessageFeed(
-      "overflow",
-      logging,
-      overflowConsumer,
-      overflowHandlerCapacity,
-      overflowPollDuration,
-      processOverflow,
-      offsetMonitor = Some(offsetMonitor))
-  })
-
-  //TODO: Mayar && Safaa
-  private def processOverflow(bytes: Array[Byte]): Future[Unit] = Future {
-    val raw = new String(bytes, StandardCharsets.UTF_8)
-    OverflowMessage.parse(raw) match {
-      case Success(m: OverflowMessage) =>
-        implicit val tid = m.msg.transid
-        logging.info(this, s"processing overflow msg for activation ${m.msg.activationId}")
-        //remove from entries (will replace with an overflow entry if it exists locally)
-        val entryOption = activations.remove(m.msg.activationId)
-
-        //process the activation request: update the invoker ref, and send to invoker
-        chooseInvoker(m.hash, m.pull, true) match {
-          case Some(instanceId) =>
-            //Update the invoker name for the overflow ActivationEntry
-            //The timeout for the activationId will still be effective.
-            entryOption match {
-              case Some(entry) =>
-                val updatedEntry = entry.copy(invokerName = Some(instanceId), isOverflow = true)
-                activations.getOrElseUpdate(m.msg.activationId, updatedEntry)
-                sendActivationToInvoker(messageProducer, m.msg, instanceId)
-              case None =>
-                //TODO: adjust the timeout for time spent in overflow topic!
-                val entry = setupActivation(
-                  m.msg,
-                  m.actionTimeoutSeconds.seconds,
-                  Some(instanceId),
-                  true)
-                activations.getOrElseUpdate(m.msg.activationId, entry)
-                val updatedMsg = m.msg.copy(rootControllerIndex = this.controllerInstance)
-                sendActivationToInvoker(messageProducer, updatedMsg, instanceId)
-            }
-
-          case None =>
-            //if no invokers available, all activations will go to overflow queue till capacity is available again
-            logging.error(this, "invalid overflow processing; no invokers have capacity")
-          //TODO: should requeue to overflow?
-        }
-        overflowFeed ! MessageFeed.Processed
-
-      case Failure(t) =>
-        logging.error(this, s"failed processing overflow message: $raw with $t")
-    }
-  }
-
-
   /** 5. Process the active-ack and update the state accordingly */
   private def processCompletion(response: Either[ActivationId, WhiskActivation],
                                 tid: TransactionId,
@@ -433,6 +341,11 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
           }
         }
 
+        // is still in overflow state then consume an overflow message using consumer
+        if (overflowState.get()) {
+
+        }
+
         if (!forced) {
           entry.timeoutHandler.cancel()
           entry.promise.trySuccess(response)
@@ -455,6 +368,59 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         // As the active ack is already processed we don't have to do anything here.
         logging.debug(this, s"forced active ack for '$aid' which has no entry")(tid)
     }
+  }
+
+
+  /**
+   * Subscribes to overflow messages (In the case all invokers are overloaded but a 
+   * successful completion message has received indicating that their is capacity on 
+   * one of the invokers)
+   */
+
+  private val overflowTopic = "overflow"
+  private val maxOverflowPerPoll = 1      
+  private val overflowPollDuration = 1.second
+  private val overflowConsumer =
+    messagingProvider.getConsumer(config, overflowTopic, overflowTopic, maxPeek = maxOverflowPerPoll)
+
+  val offsetMonitor = actorSystem.actorOf(Props {
+    new Actor {
+      override def receive = {
+        case MessageFeed.MaxOffset =>
+          if (overflowState.compareAndSet(true, false)) {
+            logging.info(this, "resetting overflow state via offsetMonitor for overflow topic")
+          }
+      }
+    }
+  })
+
+  private val overflowFeed = actorSystem.actorOf(Props {
+    new MessageFeed(
+      "overflow",
+      logging,
+      overflowConsumer,
+      maxOverflowPerPoll,
+      overflowPollDuration,
+      processOverflowMsg,
+      offsetMonitor = Some(offsetMonitor))
+  })
+
+  private def processOverflowMsg(bytes: Array[Byte]): Future[Unit] = Future {
+    val raw = new String(bytes, StandardCharsets.UTF_8)
+    OverflowMessage.parse(raw) match {
+      case Success(m: OverflowMessage) =>
+        processOverflow(m)
+        overflowFeed ! MessageFeed.Processed
+
+      case Failure(t) =>
+        overflowFeed ! MessageFeed.Processed
+        logging.error(this, s"failed processing overflow message: $raw with $t")
+    }
+  }
+
+
+  private def processOverflow(msg: OverflowMessage): Unit = {
+    publish(msg.transid, msg.actionTimeoutSeconds, msg.pull, msg.hash, msg.msg, true)
   }
 
   private val invokerPool = {
@@ -523,7 +489,7 @@ object ShardingContainerPoolBalancer extends LoadBalancerProvider {
         // If we've gone through all invokers ==> overflowwwwwww
         if (stepsDone == numInvokers + 1) {
           
-          None
+          Some(new InstanceId(-1))
           /*
           val healthyInvokers = invokers.filter(_.status == Healthy)
           if (healthyInvokers.nonEmpty) {
@@ -674,7 +640,7 @@ case class ShardingContainerPoolBalancerConfig(blackboxFraction: Double, invoker
  */
 case class ActivationEntry(id: ActivationId,
                            namespaceId: UUID,
-                           invokerName: Option[InstanceId],
+                           invokerName: InstanceId,
                            timeoutHandler: Cancellable,
                            promise: Promise[Either[ActivationId, WhiskActivation]],
                            isOverflow: Boolean = false)
