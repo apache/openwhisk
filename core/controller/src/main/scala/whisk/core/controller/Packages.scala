@@ -157,7 +157,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskPackage, entityStore, entityName.toDocId, Some { mergePackageWithBinding() _ })
+    getEntity(WhiskPackage.get(entityStore, entityName.toDocId), Some { mergePackageWithBinding() _ })
   }
 
   /**
@@ -297,7 +297,7 @@ trait WhiskPackagesApi extends WhiskCollectionAPI with ReferencedEntities {
       case b: Binding =>
         val docid = b.fullyQualifiedName.toDocId
         logging.debug(this, s"fetching package '$docid' for reference")
-        getEntity(WhiskPackage, entityStore, docid, Some {
+        getEntity(WhiskPackage.get(entityStore, docid), Some {
           mergePackageWithBinding(Some { wp }) _
         })
     } getOrElse {

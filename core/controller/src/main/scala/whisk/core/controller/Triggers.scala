@@ -133,7 +133,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     entity(as[Option[JsObject]]) { payload =>
-      getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some {
+      getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
         trigger: WhiskTrigger =>
           val triggerActivationId = activationIdFactory.make()
           logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
@@ -214,7 +214,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some { trigger =>
+    getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some { trigger =>
       completeAsTriggerResponse(trigger)
     })
   }
