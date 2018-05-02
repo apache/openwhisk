@@ -75,7 +75,7 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest()
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse)))
 
-    await(poolingRestClient.request0(Future.successful(httpRequest))) shouldBe httpResponse
+    await(poolingRestClient.request(Future.successful(httpRequest))) shouldBe httpResponse
   }
 
   it should "return payload from a request" in {
@@ -83,7 +83,7 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest()
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse)))
 
-    await(poolingRestClient.request0(Future.successful(httpRequest))) shouldBe httpResponse
+    await(poolingRestClient.request(Future.successful(httpRequest))) shouldBe httpResponse
   }
 
   it should "send headers when making a request" in {
@@ -91,7 +91,7 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest(headers = List(RawHeader("key", "value")))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
-    await(poolingRestClient.request0(Future.successful(httpRequest))) shouldBe httpResponse
+    await(poolingRestClient.request(Future.successful(httpRequest))) shouldBe httpResponse
   }
 
   it should "send uri when making a request" in {
@@ -99,7 +99,7 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest(uri = Uri("/some/where"))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
-    await(poolingRestClient.request0(Future.successful(httpRequest))) shouldBe httpResponse
+    await(poolingRestClient.request(Future.successful(httpRequest))) shouldBe httpResponse
   }
 
   it should "send a payload when making a request" in {
@@ -107,7 +107,7 @@ class PoolingRestClientTests
     val httpRequest = HttpRequest(POST, entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "payload"))
     val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
 
-    await(poolingRestClient.request0(Future.successful(httpRequest))) shouldBe httpResponse
+    await(poolingRestClient.request(Future.successful(httpRequest))) shouldBe httpResponse
   }
 
   it should "return JSON when making a request" in {
@@ -142,7 +142,7 @@ class PoolingRestClientTests
 
   it should "create an HttpRequest with a payload" in {
     val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
-    val request = mkRequest0(
+    val request = mkRequest(
       GET,
       Uri./,
       Future.successful(HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint)),

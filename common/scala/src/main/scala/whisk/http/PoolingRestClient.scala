@@ -83,7 +83,7 @@ class PoolingRestClient(
   // Enqueue a request, and return a future capturing the corresponding response.
   // WARNING: make sure that if the future response is not failed, its entity
   // be drained entirely or the connection will be kept open until timeouts kick in.
-  def request0(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
+  def request(futureRequest: Future[HttpRequest]): Future[HttpResponse] = {
     futureRequest flatMap { request =>
       val promise = Promise[HttpResponse]
 
@@ -109,7 +109,7 @@ class PoolingRestClient(
 
   // Runs a request and returns either a JsObject, or a StatusCode if not 2xx.
   def requestJson[T: RootJsonReader](futureRequest: Future[HttpRequest]): Future[Either[StatusCode, T]] = {
-    request0(futureRequest) flatMap { response =>
+    request(futureRequest) flatMap { response =>
       if (response.status.isSuccess()) {
         Unmarshal(response.entity.withoutSizeLimit()).to[T].map { o =>
           Right(o)
@@ -142,21 +142,18 @@ class PoolingRestClient(
 
 object PoolingRestClient {
 
-  def mkRequest0(method: HttpMethod, uri: Uri, body: Future[MessageEntity], headers: List[HttpHeader] = List.empty)(
-    implicit ec: ExecutionContext): Future[HttpRequest] = {
+  def mkRequest(method: HttpMethod,
+                uri: Uri,
+                body: Future[MessageEntity] = Future.successful(HttpEntity.Empty),
+                headers: List[HttpHeader] = List.empty)(implicit ec: ExecutionContext): Future[HttpRequest] = {
     body.map { b =>
       HttpRequest(method, uri, headers, b)
     }
   }
 
-  def mkRequest(method: HttpMethod, uri: Uri, headers: List[HttpHeader] = List.empty)(
-    implicit ec: ExecutionContext): Future[HttpRequest] = {
-    mkRequest0(method, uri, Future.successful(HttpEntity.Empty), headers)
-  }
-
   def mkJsonRequest(method: HttpMethod, uri: Uri, body: JsValue, headers: List[HttpHeader] = List.empty)(
     implicit ec: ExecutionContext): Future[HttpRequest] = {
     val b = Marshal(body).to[MessageEntity]
-    mkRequest0(method, uri, b, headers)
+    mkRequest(method, uri, b, headers)
   }
 }
