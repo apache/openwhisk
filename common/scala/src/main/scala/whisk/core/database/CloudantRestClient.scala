@@ -37,6 +37,6 @@ class CloudantRestClient(host: String, port: Int, username: String, password: St
 
   // https://cloudant.com/blog/cloudant-query-grows-up-to-handle-ad-hoc-queries/#.VvllCD-0z2C
   def simpleQuery(doc: JsObject): Future[Either[StatusCode, JsObject]] = {
-    requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc))
+    requestJson[JsObject](mkJsonRequest(HttpMethods.POST, uri(db, "_find"), doc, baseHeaders))
   }
 }

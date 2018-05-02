@@ -313,6 +313,9 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
 
   override val cacheEnabled = true
 
+  val requireWhiskAuthAnnotation = "require-whisk-auth"
+  val requireWhiskAuthHeader = "x-require-whisk-auth"
+
   // overriden to store attached code
   override def put[A >: WhiskAction](db: ArtifactStore[A], doc: WhiskAction)(
     implicit transid: TransactionId,
@@ -373,6 +376,24 @@ object WhiskAction extends DocumentFactory[WhiskAction] with WhiskEntityQueries[
         case _ =>
           Future.successful(action)
       }
+    }
+  }
+
+  override def del[Wsuper >: WhiskAction](db: ArtifactStore[Wsuper], doc: DocInfo)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean] = {
+    Try {
+      require(db != null, "db undefined")
+      require(doc != null, "doc undefined")
+    }.map { _ =>
+      val fa = super.del(db, doc)
+      implicit val ec = db.executionContext
+      fa.flatMap { _ =>
+        super.deleteAttachments(db, doc)
+      }
+    } match {
+      case Success(f) => f
+      case Failure(f) => Future.failed(f)
     }
   }
 

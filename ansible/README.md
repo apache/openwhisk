@@ -1,3 +1,20 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 Deploying OpenWhisk using Ansible
 =========
 
@@ -9,19 +26,19 @@ If you want to deploy OpenWhisk locally using Ansible, you first need to install
 #### Ubuntu users
 ```
 sudo apt-get install python-pip
-sudo pip install ansible==2.3.0.0
+sudo pip install ansible==2.4.2.0
 sudo pip install jinja2==2.9.6
 ```
 
 #### Vagrant users
 Nothing to be done, Ansible is already installed during vagrant provisioning.
-You can skip setup and prereq steps as those have been done by vagrant for you.  
+You can skip setup and prereq steps as those have been done by vagrant for you.
 You may jump directly to [Deploying Using CouchDB](#deploying-using-couchdb)
 
 #### Docker for Mac users
 ```
 sudo easy_install pip
-sudo pip install ansible==2.3.0.0
+sudo pip install ansible==2.4.2.0
 pip install jinja2==2.9.6
 ```
 Docker for Mac does not provide any official ways to meet some requirements for OpenWhisk.
@@ -40,23 +57,6 @@ An expedient workaround is to add alias for `docker0` network to loopback interf
 
 ```
 sudo ifconfig lo0 alias 172.17.0.1/24
-```
-
-##### Setup proxy container to run unit tests (optional)
-
-This step is only required to run tests with Docker for Mac.
-If you do not run tests locally, you can just skip this step.
-
-```
-docker run -d -p 3128:3128 style95/squid:3.5.26-p1
-```
-
-You need to configure gradle proxy settings.
-
-**~/.gradle/gradle.properties**
-```
-systemProp.http.proxyHost=localhost
-systemProp.http.proxyPort=3128
 ```
 
 ### Using Ansible
@@ -136,7 +136,7 @@ ansible-playbook -i environments/<environment> prereq.yml
 **Hint:** During playbook execution the `TASK [prereq : check for pip]` can show as failed. This is normal if no pip is installed. The playbook will then move on and install pip on the target machines.
 
 ### Deploying Using CouchDB
-- Make sure your `db_local.ini` file is [setup for](#setup) CouchDB then execute:
+-   Make sure your `db_local.ini` file is [setup for](#setup) CouchDB then execute:
 
 ```
 cd <openwhisk_home>
@@ -164,8 +164,8 @@ So if you want to deploy multiple CouchDB nodes, all nodes should be placed on d
 
 
 ### Deploying Using Cloudant
-- Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
-- Then execute
+-   Make sure your `db_local.ini` file is set up for Cloudant. See [Setup](#setup)
+-   Then execute
 
 ```
 cd <openwhisk_home>
@@ -189,24 +189,44 @@ Use `ansible-playbook -i environments/<environment> openwhisk.yml` to avoid wipi
 ### Configuring the installation of `wsk` CLI
 There are two installation modes to install `wsk` CLI: remote and local.
 
-The mode "remote" means to download the `wsk` binaries from available web links. By default, OpenWhisk sets
-the installation mode to remote and downloads the binaries from the CLI [release page](https://github.com/apache/incubator-openwhisk-cli/releases), where OpenWhisk publishes the official `wsk` binaries.
+The mode "remote" means to download the `wsk` binaries from available web links.
+By default, OpenWhisk sets the installation mode to remote and downloads the
+binaries from the CLI
+[release page](https://github.com/apache/incubator-openwhisk-cli/releases),
+where OpenWhisk publishes the official `wsk` binaries.
 
-The mode "local" means to build and install the `wsk` binaries from local CLI project. You can download the source code
-of OpenWhisk CLI via [this link](https://github.com/apache/incubator-openwhisk-cli). Let's assume your OpenWhisk CLI home directory is <openwhisk_cli_home>. After you download the source code, use the gradle command to build the binaries:
+The mode "local" means to build and install the `wsk` binaries from local CLI
+project. You can download the source code of OpenWhisk CLI
+[here](https://github.com/apache/incubator-openwhisk-cli).
+Let's assume your OpenWhisk CLI home directory is
+`$OPENWHISK_HOME/../incubator-openwhisk-cli` and you've already `export`ed
+`OPENWHISK_HOME` to be the root directory of this project. After you download
+the CLI repository, use the gradle command to build the binaries (you can omit
+the `-PnativeBuild` if you want to cross-compile for all supported platforms):
 
 ```
-cd <openwhisk_cli_home>
-./gradlew buildBinaries
+cd "$OPENWHISK_HOME/../incubator-openwhisk-cli"
+./gradlew releaseBinaries -PnativeBuild
 ```
 
-All the binaries are generated and put under the folder of <openwhisk_cli_home>/bin. Then, use the following ansible command to configure the CLI installation mode:
+The binaries are generated and put into a tarball in the folder
+`../incubator-openwhisk-cli/release`.  Then, use the following ansible command
+to (re-)configure the CLI installation:
 
 ```
-ansible-playbook -i environments/<environment> openwhisk.yml -e cli_installation_mode=local -e openwhisk_cli_home=<openwhisk_cli_home>
+export OPENWHISK_ENVIRONMENT=local  # ... or whatever
+ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml -e mode=clean
+ansible-playbook -i environments/$OPENWHISK_ENVIRONMENT edge.yml \
+    -e cli_installation_mode=local \
+    -e openwhisk_cli_home="$OPENWHISK_HOME/../incubator-openwhisk-cli"
 ```
 
-The parameter cli_installation_mode specifies the CLI installation mode and the parameter openwhisk_cli_home specifies the home directory of your local OpenWhisk CLI.
+The parameter `cli_installation_mode` specifies the CLI installation mode and
+the parameter `openwhisk_cli_home` specifies the home directory of your local
+OpenWhisk CLI.  (_n.b._ `openwhisk_cli_home` defaults to
+`$OPENWHISK_HOME/../incubator-openwhisk-cli`.)
+
+Once the CLI is installed, you can [use it to work with Whisk](../docs/cli.md).
 
 ### Hot-swapping a Single Component
 The playbook structure allows you to clean, deploy or re-deploy a single component as well as the entire OpenWhisk stack. Let's assume you have deployed the entire stack using the `openwhisk.yml` playbook. You then make a change to a single component, for example the invoker. You will probably want a new tag on the invoker image so you first build it using:
@@ -306,7 +326,7 @@ If you need Python to find the installed site-packages:
   mkdir -p ~/Library/Python/2.7/lib/python/site-packages
   echo '/usr/local/lib/python2.7/site-packages' > ~/Library/Python/2.7/lib/python/site-packages/homebrew.pth
 ```
-  
+
 Just run the two commands to fix this issue.
 
 #### Spaces in Paths
@@ -322,24 +342,17 @@ the path to your OpenWhisk `ansible` directory contains spaces. To fix this, ple
 without spaces as there is no current fix available to this problem.
 
 #### Changing limits
-The default system throttling limits are configured in this file [./group_vars/all](./group_vars/all).
+The default system throttling limits are configured in this file [./group_vars/all](./group_vars/all) and may be changed by modifying the group_vars for your specific environment.
 ```
 limits:
-  invocationsPerMinute: "{{ limit_invocations_per_minute | default(120) }}"
-  concurrentInvocations: "{{ limit_invocations_concurrent | default(100) }}"
+  invocationsPerMinute: "{{ limit_invocations_per_minute | default(60) }}"
+  concurrentInvocations: "{{ limit_invocations_concurrent | default(30) }}"
   concurrentInvocationsSystem:  "{{ limit_invocations_concurrent_system | default(5000) }}"
   firesPerMinute: "{{ limit_fires_per_minute | default(60) }}"
   sequenceMaxLength: "{{ limit_sequence_max_length | default(50) }}"
 ```
-These values may be changed by modifying the `group_vars` for your environment. For example,
-mac users will find the limits in this file [./environments/mac/group_vars/all](./environments/mac/group_vars/all):
-```
-limit_invocations_per_minute: 60
-limit_invocations_concurrent: 30
-limit_invocations_concurrent_system: 5000
-limit_fires_per_minute: 60
-```
-- The `limit_invocations_per_minute` represents the allowed namespace action invocations per minute.
-- The `limit_invocations_concurrent` represents the maximum concurrent invocations allowed per namespace.
-- The `limit_invocations_concurrent_system` represents the maximum concurrent invocations the system will allow across all namespaces.
-- The `limit_fires_per_minute` represents the allowed namespace trigger firings per minute.
+- The `limits.invocationsPerMinute` represents the allowed namespace action invocations per minute.
+- The `limits.concurrentInvocations` represents the maximum concurrent invocations allowed per namespace.
+- The `limits.concurrentInvocationsSystem` represents the maximum concurrent invocations the system will allow across all namespaces.
+- The `limits.firesPerMinute` represents the allowed namespace trigger firings per minute.
+- The `limits.sequenceMaxLength` represents the maximum length of a sequence action.

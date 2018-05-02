@@ -1,14 +1,25 @@
 apply plugin: 'groovy'
 
+repositories {
+    mavenCentral()
+}
+
 def owHome = project.projectDir.parentFile.parentFile
 
 dependencies {
-    compile localGroovy()
+    compile "org.codehaus.groovy:groovy-all:2.4.14"
 }
 
 task couchdbViews(type: JavaExec) {
     description 'Dumps CouchDB views as js files'
     main = 'couchdbViews'
+    args owHome.absolutePath
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task intellij(type: JavaExec) {
+    description 'Generates Intellij run config for Controller and Invoker'
+    main = 'intellijRunConfig'
     args owHome.absolutePath
     classpath = sourceSets.main.runtimeClasspath
 }

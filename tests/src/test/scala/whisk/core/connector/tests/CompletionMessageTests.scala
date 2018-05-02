@@ -45,7 +45,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
     namespace = EntityPath("ns"),
     name = EntityName("a"),
     Subject(),
-    activationId = ActivationId(),
+    activationId = ActivationId.generate(),
     start = Instant.now(),
     end = Instant.now(),
     response = ActivationResponse.success(Some(JsObject("res" -> JsNumber(1)))),
@@ -53,7 +53,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
     duration = Some(123))
 
   it should "serialize a left completion message" in {
-    val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
+    val m = CompletionMessage(TransactionId.testing, Left(ActivationId.generate()), InstanceId(0))
     m.serialize shouldBe JsObject(
       "transid" -> m.transid.toJson,
       "response" -> m.response.left.get.toJson,
@@ -69,7 +69,7 @@ class CompletionMessageTests extends FlatSpec with Matchers {
   }
 
   it should "deserialize a left completion message" in {
-    val m = CompletionMessage(TransactionId.testing, Left(ActivationId()), InstanceId(0))
+    val m = CompletionMessage(TransactionId.testing, Left(ActivationId.generate()), InstanceId(0))
     CompletionMessage.parse(m.serialize) shouldBe Success(m)
   }
 

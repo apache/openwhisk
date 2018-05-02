@@ -17,7 +17,7 @@
 
 package common.rest
 
-import java.io.File
+import java.io.{File, FileInputStream}
 import java.time.Instant
 import java.util.Base64
 import java.security.cert.X509Certificate
@@ -28,8 +28,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.Span.convertDurationToSpan
 
-import scala.collection.JavaConversions.mapAsJavaMap
-import scala.collection.mutable.Buffer
 import scala.collection.immutable.Seq
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -59,15 +57,11 @@ import akka.http.scaladsl.HttpsConnectionContext
 import akka.stream.ActorMaterializer
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import spray.json.JsObject
-import spray.json.JsValue
-import spray.json.pimpString
 import common._
 import common.BaseDeleteFromCollection
 import common.BaseListOrGetFromCollection
 import common.HasActivation
 import common.RunWskCmd
-import common.TestUtils
 import common.TestUtils.SUCCESS_EXIT
 import common.TestUtils.ANY_ERROR_EXIT
 import common.TestUtils.DONTCARE_EXIT
@@ -78,17 +72,42 @@ import common.WskActorSystem
 import common.WskProps
 import whisk.core.entity.ByteSize
 import whisk.utils.retry
-import javax.net.ssl.{HostnameVerifier, KeyManager, SSLContext, SSLSession, X509TrustManager}
+import javax.net.ssl._
 
 import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import java.nio.charset.StandardCharsets
+import java.security.KeyStore
+
+import akka.actor.ActorSystem
+import pureconfig.loadConfigOrThrow
+import whisk.common.Https.HttpsConfig
 
 class AcceptAllHostNameVerifier extends HostnameVerifier {
   override def verify(s: String, sslSession: SSLSession): Boolean = true
 }
 
 object SSL {
-  lazy val nonValidatingContext: SSLContext = {
+
+  lazy val httpsConfig = loadConfigOrThrow[HttpsConfig]("whisk.controller.https")
+
+  def keyManagers(clientAuth: Boolean) = {
+    if (clientAuth)
+      keyManagersForClientAuth
+    else
+      Array[KeyManager]()
+  }
+
+  def keyManagersForClientAuth: Array[KeyManager] = {
+    val keyFactoryType = "SunX509"
+    val keystorePassword = httpsConfig.keystorePassword.toCharArray
+    val ks: KeyStore = KeyStore.getInstance(httpsConfig.keystoreFlavor)
+    ks.load(new FileInputStream(httpsConfig.keystorePath), httpsConfig.keystorePassword.toCharArray)
+    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance(keyFactoryType)
+    keyManagerFactory.init(ks, keystorePassword)
+    keyManagerFactory.getKeyManagers
+  }
+
+  def nonValidatingContext(clientAuth: Boolean = false): SSLContext = {
     class IgnoreX509TrustManager extends X509TrustManager {
       def checkClientTrusted(chain: Array[X509Certificate], authType: String) = ()
       def checkServerTrusted(chain: Array[X509Certificate], authType: String) = ()
@@ -96,8 +115,35 @@ object SSL {
     }
 
     val context = SSLContext.getInstance("TLS")
-    context.init(Array[KeyManager](), Array(new IgnoreX509TrustManager), null)
+
+    context.init(keyManagers(clientAuth), Array(new IgnoreX509TrustManager), null)
     context
+  }
+
+  def httpsConnectionContext(implicit system: ActorSystem) = {
+    val sslConfig = AkkaSSLConfig().mapSettings { s =>
+      s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
+    }
+    new HttpsConnectionContext(SSL.nonValidatingContext(httpsConfig.clientAuth.toBoolean), Some(sslConfig))
+  }
+}
+
+object HttpConnection {
+
+  /**
+   * Returns either the https context that is tailored for self-signed certificates on the controller, or
+   * a default connection context used in Http.SingleRequest
+   * @param protocol protocol used to communicate with controller API
+   * @param system actor system
+   * @return https connection context
+   */
+  def getContext(protocol: String)(implicit system: ActorSystem) = {
+    if (protocol == "https") {
+      SSL.httpsConnectionContext
+    } else {
+      // supports http
+      Http().defaultClientHttpsContext
+    }
   }
 }
 
@@ -248,6 +294,7 @@ class WskRestAction
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
+    websecure: Option[String] = None,
     expectedExitCode: Int = OK.intValue)(implicit wp: WskProps): RestResult = {
 
     val (namespace, actName) = getNamespaceEntityName(name)
@@ -1170,6 +1217,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
   implicit val config = PatienceConfig(100 seconds, 15 milliseconds)
   implicit val materializer = ActorMaterializer()
+  val protocol = loadConfigOrThrow[String]("whisk.controller.protocol")
   val idleTimeout = 90 seconds
   val queueSize = 10
   val maxOpenRequest = 1024
@@ -1180,7 +1228,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     s.withHostnameVerifierClass(classOf[AcceptAllHostNameVerifier].asInstanceOf[Class[HostnameVerifier]])
   }
 
-  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext, Some(sslConfig))
+  val connectionContext = new HttpsConnectionContext(SSL.nonValidatingContext(), Some(sslConfig))
 
   def isStatusCodeExpected(expectedExitCode: Int, statusCode: Int): Boolean = {
     if ((expectedExitCode != DONTCARE_EXIT) && (expectedExitCode != ANY_ERROR_EXIT))
@@ -1220,7 +1268,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
 
     val entity = body map { b =>
       HttpEntity(ContentTypes.`application/json`, b)
-    } getOrElse HttpEntity(ContentTypes.`application/json`, "")
+    } getOrElse HttpEntity.Empty
 
     val request =
       HttpRequest(
@@ -1306,22 +1354,10 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     else name
   }
 
-  def fullEntityName(name: String)(implicit wp: WskProps) = {
-    name.split("/") match {
-      // Example: /namespace/package_name/entity_name
-      case Array(empty, namespace, packageName, entityName) if empty.isEmpty => s"/$namespace/$packageName/$entityName"
-      // Example: /namespace/entity_name
-      case Array(empty, namespace, entityName) if empty.isEmpty => s"/$namespace/$entityName"
-      // Example: namespace/package_name/entity_name
-      case Array(namespace, packageName, entityName) => s"/$namespace/$packageName/$entityName"
-      // Example: /namespace
-      case Array(empty, namespace) if empty.isEmpty => namespace
-      // Example: package_name/entity_name
-      case Array(packageName, entityName) if !packageName.isEmpty => s"/${wp.namespace}/$packageName/$entityName"
-      // Example: entity_name
-      case Array(entityName) => s"/${wp.namespace}/$name"
-      case _                 => s"/${wp.namespace}/$name"
-    }
+  def fullEntityName(name: String)(implicit wp: WskProps): String = {
+    val (ns, rest) = getNamespaceEntityName(name)
+    if (rest.nonEmpty) s"/$ns/$rest"
+    else s"/$ns"
   }
 
   def convertIntoComponents(comps: String)(implicit wp: WskProps): Array[JsValue] = {
@@ -1366,7 +1402,7 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
     val path =
       if (web) Path(s"$basePath/web/$systemNamespace/$actName.http")
       else Path(s"$basePath/namespaces/$ns/actions/$actName")
-    var paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
+    val paramMap = Map("blocking" -> blocking.toString, "result" -> result.toString)
     val input = parameterFile map { pf =>
       Some(FileUtils.readFileToString(new File(pf), StandardCharsets.UTF_8))
     } getOrElse Some(parameters.toJson.toString())
@@ -1382,67 +1418,6 @@ class RunWskRestCmd() extends FlatSpec with RunWskCmd with Matchers with ScalaFu
       }
     }
     r
-  }
-}
-
-object WskRestAdmin {
-  private val binDir = WhiskProperties.getFileRelativeToWhiskHome("bin")
-  private val binaryName = "wskadmin"
-
-  def exists = {
-    val dir = binDir
-    val exec = new File(dir, binaryName)
-    assert(dir.exists, s"did not find $dir")
-    assert(exec.exists, s"did not find $exec")
-  }
-
-  def baseCommand = {
-    Buffer(WhiskProperties.python, new File(binDir, binaryName).toString)
-  }
-
-  def listKeys(namespace: String, pick: Integer = 1): List[(String, String)] = {
-    val wskadmin = new RunWskRestAdminCmd {}
-    wskadmin
-      .cli(Seq("user", "list", namespace, "--pick", pick.toString))
-      .stdout
-      .split("\n")
-      .map("""\s+""".r.split(_))
-      .map(parts => (parts(0), parts(1)))
-      .toList
-  }
-
-}
-
-trait RunWskRestAdminCmd extends RunWskCmd {
-  override def baseCommand = WskRestAdmin.baseCommand
-
-  def adminCommand(params: Seq[String],
-                   expectedExitCode: Int = SUCCESS_EXIT,
-                   verbose: Boolean = false,
-                   env: Map[String, String] = Map("WSK_CONFIG_FILE" -> ""),
-                   workingDir: File = new File("."),
-                   stdinFile: Option[File] = None,
-                   showCmd: Boolean = false): RunResult = {
-    val args = baseCommand
-    if (verbose) args += "--verbose"
-    if (showCmd) println(args.mkString(" ") + " " + params.mkString(" "))
-    val rr = TestUtils.runCmd(
-      DONTCARE_EXIT,
-      workingDir,
-      TestUtils.logger,
-      sys.env ++ env,
-      stdinFile.getOrElse(null),
-      args ++ params: _*)
-
-    withClue(reportFailure(args ++ params, expectedExitCode, rr)) {
-      if (expectedExitCode != TestUtils.DONTCARE_EXIT) {
-        val ok = (rr.exitCode == expectedExitCode) || (expectedExitCode == TestUtils.ANY_ERROR_EXIT && rr.exitCode != 0)
-        if (!ok) {
-          rr.exitCode shouldBe expectedExitCode
-        }
-      }
-    }
-    rr
   }
 }
 

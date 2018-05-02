@@ -21,37 +21,50 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.RootJsonFormat
 import whisk.common.Logging
-import whisk.core.WhiskConfig
+import whisk.core.ConfigKeys
 import whisk.core.entity.DocumentReader
+import pureconfig._
 
 import scala.reflect.ClassTag
 
+case class CouchDbConfig(provider: String,
+                         protocol: String,
+                         host: String,
+                         port: Int,
+                         username: String,
+                         password: String,
+                         databases: Map[String, String]) {
+  assume(Set(protocol, host, username, password).forall(_.nonEmpty), "At least one expected property is missing")
+
+  def databaseFor[D](implicit tag: ClassTag[D]): String = {
+    val entityType = tag.runtimeClass.getSimpleName
+    databases.get(entityType) match {
+      case Some(name) => name
+      case None       => throw new IllegalArgumentException(s"Database name mapping not found for $entityType")
+    }
+  }
+}
+
 object CouchDbStoreProvider extends ArtifactStoreProvider {
 
-  def makeStore[D <: DocumentSerializer: ClassTag](config: WhiskConfig,
-                                                   name: WhiskConfig => String,
-                                                   useBatching: Boolean)(
+  def makeStore[D <: DocumentSerializer: ClassTag](useBatching: Boolean)(
     implicit jsonFormat: RootJsonFormat[D],
     docReader: DocumentReader,
     actorSystem: ActorSystem,
     logging: Logging,
     materializer: ActorMaterializer): ArtifactStore[D] = {
-    require(config != null && config.isValid, "config is undefined or not valid")
+    val dbConfig = loadConfigOrThrow[CouchDbConfig](ConfigKeys.couchdb)
     require(
-      config.dbProvider == "Cloudant" || config.dbProvider == "CouchDB",
-      "Unsupported db.provider: " + config.dbProvider)
-    assume(
-      Set(config.dbProtocol, config.dbHost, config.dbPort, config.dbUsername, config.dbPassword, name(config))
-        .forall(_.nonEmpty),
-      "At least one expected property is missing")
+      dbConfig.provider == "Cloudant" || dbConfig.provider == "CouchDB",
+      s"Unsupported db.provider: ${dbConfig.provider}")
 
     new CouchDbRestStore[D](
-      config.dbProtocol,
-      config.dbHost,
-      config.dbPort.toInt,
-      config.dbUsername,
-      config.dbPassword,
-      name(config),
+      dbConfig.protocol,
+      dbConfig.host,
+      dbConfig.port,
+      dbConfig.username,
+      dbConfig.password,
+      dbConfig.databaseFor[D],
       useBatching)
   }
 }

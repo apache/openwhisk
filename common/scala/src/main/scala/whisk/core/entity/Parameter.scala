@@ -161,7 +161,7 @@ protected[core] object Parameters extends ArgNormalizer[Parameters] {
   protected[core] val Feed = "feed"
   protected[core] val sizeLimit = 1 MB
 
-  protected[core] def apply(): Parameters = new Parameters(Map())
+  protected[core] def apply(): Parameters = new Parameters(Map.empty)
 
   /**
    * Creates a parameter tuple from a pair of strings.

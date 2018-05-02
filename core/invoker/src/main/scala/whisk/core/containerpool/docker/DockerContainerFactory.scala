@@ -36,26 +36,28 @@ import pureconfig._
 import whisk.core.ConfigKeys
 import whisk.core.containerpool.ContainerArgsConfig
 
-class DockerContainerFactory(config: WhiskConfig,
-                             instance: InstanceId,
+case class DockerContainerFactoryConfig(useRunc: Boolean)
+
+class DockerContainerFactory(instance: InstanceId,
                              parameters: Map[String, Set[String]],
-                             containerArgs: ContainerArgsConfig =
-                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs))(
+                             containerArgsConfig: ContainerArgsConfig =
+                               loadConfigOrThrow[ContainerArgsConfig](ConfigKeys.containerArgs),
+                             dockerContainerFactoryConfig: DockerContainerFactoryConfig =
+                               loadConfigOrThrow[DockerContainerFactoryConfig](ConfigKeys.dockerContainerFactory))(
   implicit actorSystem: ActorSystem,
   ec: ExecutionContext,
-  logging: Logging)
+  logging: Logging,
+  docker: DockerApiWithFileAccess,
+  runc: RuncApi)
     extends ContainerFactory {
-
-  /** Initialize container clients */
-  implicit val docker = new DockerClientWithFileAccess()(ec)
-  implicit val runc = new RuncClient()(ec)
 
   /** Create a container using docker cli */
   override def createContainer(tid: TransactionId,
                                name: String,
                                actionImage: ExecManifest.ImageName,
                                userProvidedImage: Boolean,
-                               memory: ByteSize)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
+                               memory: ByteSize,
+                               cpuShares: Int)(implicit config: WhiskConfig, logging: Logging): Future[Container] = {
     val image = if (userProvidedImage) {
       actionImage.publicImageName
     } else {
@@ -67,13 +69,13 @@ class DockerContainerFactory(config: WhiskConfig,
       image = image,
       userProvidedImage = userProvidedImage,
       memory = memory,
-      cpuShares = config.invokerCoreShare.toInt,
+      cpuShares = cpuShares,
       environment = Map("__OW_API_HOST" -> config.wskApiHost),
-      network = containerArgs.network,
-      dnsServers = containerArgs.dnsServers,
+      network = containerArgsConfig.network,
+      dnsServers = containerArgsConfig.dnsServers,
       name = Some(name),
-      useRunc = config.invokerUseRunc,
-      parameters ++ containerArgs.extraArgs)
+      useRunc = dockerContainerFactoryConfig.useRunc,
+      parameters ++ containerArgsConfig.extraArgs.map { case (k, v) => ("--" + k, v) })
   }
 
   /** Perform cleanup on init */
@@ -106,24 +108,26 @@ class DockerContainerFactory(config: WhiskConfig,
   @throws(classOf[InterruptedException])
   private def removeAllActionContainers(): Unit = {
     implicit val transid = TransactionId.invoker
-    val cleaning = docker.ps(filters = Seq("name" -> s"wsk${instance.toInt}_"), all = true).flatMap { containers =>
-      logging.info(this, s"removing ${containers.size} action containers.")
-      val removals = containers.map { id =>
-        (if (config.invokerUseRunc) {
-           runc.resume(id)
-         } else {
-           docker.unpause(id)
-         })
-          .recoverWith {
-            // Ignore resume failures and try to remove anyway
-            case _ => Future.successful(())
+    val cleaning =
+      docker.ps(filters = Seq("name" -> s"${ContainerFactory.containerNamePrefix(instance)}_"), all = true).flatMap {
+        containers =>
+          logging.info(this, s"removing ${containers.size} action containers.")
+          val removals = containers.map { id =>
+            (if (dockerContainerFactoryConfig.useRunc) {
+               runc.resume(id)
+             } else {
+               docker.unpause(id)
+             })
+              .recoverWith {
+                // Ignore resume failures and try to remove anyway
+                case _ => Future.successful(())
+              }
+              .flatMap { _ =>
+                docker.rm(id)
+              }
           }
-          .flatMap { _ =>
-            docker.rm(id)
-          }
+          Future.sequence(removals)
       }
-      Future.sequence(removals)
-    }
     Await.ready(cleaning, 30.seconds)
   }
 }
@@ -133,6 +137,14 @@ object DockerContainerFactoryProvider extends ContainerFactoryProvider {
                                    logging: Logging,
                                    config: WhiskConfig,
                                    instanceId: InstanceId,
-                                   parameters: Map[String, Set[String]]): ContainerFactory =
-    new DockerContainerFactory(config, instanceId, parameters)(actorSystem, actorSystem.dispatcher, logging)
+                                   parameters: Map[String, Set[String]]): ContainerFactory = {
+
+    new DockerContainerFactory(instanceId, parameters)(
+      actorSystem,
+      actorSystem.dispatcher,
+      logging,
+      new DockerClientWithFileAccess()(actorSystem.dispatcher)(logging, actorSystem),
+      new RuncClient()(actorSystem.dispatcher)(logging, actorSystem))
+  }
+
 }

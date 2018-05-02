@@ -18,12 +18,13 @@
 package whisk.core.containerpool.kubernetes
 
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import akka.stream.StreamLimitReachedException
 import akka.stream.scaladsl.Framing.FramingException
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+import spray.json._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -50,46 +51,26 @@ object KubernetesContainer {
    *     or is an OpenWhisk provided image
    * @param labels labels to set on the container
    * @param name optional name for the container
-   * @return a Future which either completes with a KubernetesContainer or one of two specific failures
+   * @return a Future which either completes with a KubernetesContainer or a failure to create a container
    */
   def create(transid: TransactionId,
              name: String,
              image: String,
              userProvidedImage: Boolean = false,
              memory: ByteSize = 256.MB,
-             environment: Map[String, String] = Map(),
-             labels: Map[String, String] = Map())(implicit kubernetes: KubernetesApi,
-                                                  ec: ExecutionContext,
-                                                  log: Logging): Future[KubernetesContainer] = {
+             environment: Map[String, String] = Map.empty,
+             labels: Map[String, String] = Map.empty)(implicit kubernetes: KubernetesApi,
+                                                      ec: ExecutionContext,
+                                                      log: Logging): Future[KubernetesContainer] = {
     implicit val tid = transid
 
     val podName = name.replace("_", "-").replaceAll("[()]", "").toLowerCase()
 
-    val environmentArgs = environment.flatMap {
-      case (key, value) => Seq("--env", s"$key=$value")
-    }.toSeq
-
-    val labelArgs = labels.map {
-      case (key, value) => s"$key=$value"
-    } match {
-      case Seq() => Seq()
-      case pairs => Seq("-l") ++ pairs
-    }
-
-    val args = Seq("--generator", "run-pod/v1", "--restart", "Always", "--limits", s"memory=${memory.toMB}Mi") ++ environmentArgs ++ labelArgs
-
     for {
-      id <- kubernetes.run(podName, image, args).recoverWith {
-        case _ => Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
+      container <- kubernetes.run(podName, image, memory, environment, labels).recoverWith {
+        case _ => Future.failed(WhiskContainerStartupError(s"Failed to run container with image '${image}'."))
       }
-      ip <- kubernetes.inspectIPAddress(id).recoverWith {
-        // remove the container immediately if inspect failed as
-        // we cannot recover that case automatically
-        case _ =>
-          kubernetes.rm(id)
-          Future.failed(WhiskContainerStartupError(Messages.resourceProvisionError))
-      }
-    } yield new KubernetesContainer(id, ip)
+    } yield container
   }
 
 }
@@ -103,38 +84,72 @@ object KubernetesContainer {
  * @constructor
  * @param id the id of the container
  * @param addr the ip & port of the container
+ * @param workerIP the ip of the workernode on which the container is executing
+ * @param nativeContainerId the docker/containerd lowlevel id for the container
  */
-class KubernetesContainer(protected val id: ContainerId, protected val addr: ContainerAddress)(
-  implicit kubernetes: KubernetesApi,
-  protected val ec: ExecutionContext,
-  protected val logging: Logging)
+class KubernetesContainer(protected[core] val id: ContainerId,
+                          protected[core] val addr: ContainerAddress,
+                          protected[core] val workerIP: String,
+                          protected[core] val nativeContainerId: String)(implicit kubernetes: KubernetesApi,
+                                                                         protected val ec: ExecutionContext,
+                                                                         protected val logging: Logging)
     extends Container {
 
   /** The last read timestamp in the log file */
   private val lastTimestamp = new AtomicReference[Option[Instant]](None)
 
+  /** The last offset read in the remote log file */
+  private val lastOffset = new AtomicLong(0)
+
   protected val waitForLogs: FiniteDuration = 2.seconds
 
-  // no-op under Kubernetes
-  def suspend()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def suspend()(implicit transid: TransactionId): Future[Unit] = kubernetes.suspend(this)
 
-  // no-op under Kubernetes
-  def resume()(implicit transid: TransactionId): Future[Unit] = Future.successful({})
+  def resume()(implicit transid: TransactionId): Future[Unit] = kubernetes.resume(this)
 
   override def destroy()(implicit transid: TransactionId): Future[Unit] = {
     super.destroy()
-    kubernetes.rm(id)
+    kubernetes.rm(this)
   }
 
   private val stringSentinel = DockerContainer.ActivationSentinel.utf8String
 
+  /**
+   * Request that the activation's log output be forwarded to an external log service (implicit in LogProvider choice).
+   * Additional per log line metadata and the activation record is provided to be optionally included
+   * in the forwarded log entry.
+   *
+   * @param sizeLimit The maximum number of bytes of log that should be forwardewd
+   * @param sentinelledLogs Should the log forwarder expect a sentinel line at the end of stdout/stderr streams?
+   * @param additionalMetadata Additional metadata that should be injected into every log line
+   * @param augmentedActivation Activation record to be appended to the forwarded log.
+   */
+  def forwardLogs(sizeLimit: ByteSize,
+                  sentinelledLogs: Boolean,
+                  additionalMetadata: Map[String, JsValue],
+                  augmentedActivation: JsObject)(implicit transid: TransactionId): Future[Unit] = {
+    kubernetes match {
+      case client: KubernetesApiWithInvokerAgent => {
+        client
+          .forwardLogs(this, lastOffset.get, sizeLimit, sentinelledLogs, additionalMetadata, augmentedActivation)
+          .map(newOffset => lastOffset.set(newOffset))
+      }
+      case _ =>
+        Future.failed(new UnsupportedOperationException("forwardLogs requires whisk.kubernetes.invokerAgent.enabled"))
+    }
+  }
+
   def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit transid: TransactionId): Source[ByteString, Any] = {
 
     kubernetes
-      .logs(id, lastTimestamp.get, waitForSentinel)
+      .logs(this, lastTimestamp.get, waitForSentinel)
       .limitWeighted(limit.toBytes) { obj =>
         // Adding + 1 since we know there's a newline byte being read
         obj.jsonSize.toLong + 1
+      }
+      .map { line =>
+        lastTimestamp.set(Option(line.time))
+        line
       }
       .via(new CompleteAfterOccurrences(_.log == stringSentinel, 2, waitForSentinel))
       .recover {
@@ -149,10 +164,6 @@ class KubernetesContainer(protected val id: ContainerId, protected val addr: Con
           TypedLogLine(Instant.now, "stderr", Messages.logFailure)
       }
       .takeWithin(waitForLogs)
-      .map { line =>
-        lastTimestamp.set(Some(line.time))
-        line.toByteString
-      }
+      .map { _.toByteString }
   }
-
 }

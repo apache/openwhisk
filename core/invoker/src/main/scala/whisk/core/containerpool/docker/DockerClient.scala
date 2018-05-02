@@ -153,7 +153,7 @@ class DockerClient(dockerHost: Option[String] = None,
   def rm(id: ContainerId)(implicit transid: TransactionId): Future[Unit] =
     runCmd(Seq("rm", "-f", id.asString), timeouts.rm).map(_ => ())
 
-  def ps(filters: Seq[(String, String)] = Seq(), all: Boolean = false)(
+  def ps(filters: Seq[(String, String)] = Seq.empty, all: Boolean = false)(
     implicit transid: TransactionId): Future[Seq[ContainerId]] = {
     val filterArgs = filters.flatMap { case (attr, value) => Seq("--filter", s"$attr=$value") }
     val allArg = if (all) Seq("--all") else Seq.empty[String]
@@ -244,7 +244,7 @@ trait DockerApi {
    * @param all Whether or not to return stopped containers as well
    * @return A list of ContainerIds
    */
-  def ps(filters: Seq[(String, String)] = Seq(), all: Boolean = false)(
+  def ps(filters: Seq[(String, String)] = Seq.empty, all: Boolean = false)(
     implicit transid: TransactionId): Future[Seq[ContainerId]]
 
   /**

@@ -22,6 +22,7 @@ import scala.concurrent.duration.DurationInt
 import org.junit.runner.RunWith
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.BeforeAndAfterAll
 
 import common.RunWskAdminCmd
 import common.TestHelpers
@@ -31,9 +32,26 @@ import common.WskProps
 import whisk.core.entity.AuthKey
 import whisk.core.entity.Subject
 import common.TestUtils
+import scala.util.Try
 
 @RunWith(classOf[JUnitRunner])
-class WskAdminTests extends TestHelpers with Matchers {
+class WskAdminTests extends TestHelpers with Matchers with BeforeAndAfterAll {
+
+  override def beforeAll() = {
+    val wskadmin = new RunWskAdminCmd {}
+    val testSpaces = Seq("testspace", "testspace1", "testspace2")
+    testSpaces.foreach(testspace => {
+      Try {
+        val identities = wskadmin.cli(Seq("user", "list", "-a", testspace))
+        identities.stdout
+          .split("\n")
+          .foreach(ident => {
+            val sub = ident.split("\\s+").last
+            wskadmin.cli(Seq("user", "delete", sub, "-ns", testspace))
+          })
+      }
+    })
+  }
 
   behavior of "Wsk Admin CLI"
 
@@ -145,6 +163,32 @@ class WskAdminTests extends TestHelpers with Matchers {
         out should include(auth.compact)
         out.lines should have size 2
       }, 10, Some(1.second))
+    } finally {
+      wskadmin.cli(Seq("user", "delete", subject1)).stdout should include("Subject deleted")
+      wskadmin.cli(Seq("user", "delete", subject2)).stdout should include("Subject deleted")
+    }
+  }
+
+  it should "block and unblock should accept more than a single subject" in {
+    val wskadmin = new RunWskAdminCmd {}
+    val subject1 = Subject().asString
+    val subject2 = Subject().asString
+    try {
+      wskadmin.cli(Seq("user", "create", subject1))
+      wskadmin.cli(Seq("user", "create", subject2))
+
+      // empty subjects are expected to be ignored
+      wskadmin.cli(Seq("user", "block", subject1, subject2, "", " ")).stdout shouldBe {
+        s"""|"$subject1" blocked successfully
+            |"$subject2" blocked successfully
+            |""".stripMargin
+      }
+
+      wskadmin.cli(Seq("user", "unblock", subject1, subject2, "", " ")).stdout shouldBe {
+        s"""|"$subject1" unblocked successfully
+            |"$subject2" unblocked successfully
+            |""".stripMargin
+      }
     } finally {
       wskadmin.cli(Seq("user", "delete", subject1)).stdout should include("Subject deleted")
       wskadmin.cli(Seq("user", "delete", subject2)).stdout should include("Subject deleted")

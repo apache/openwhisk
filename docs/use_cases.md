@@ -1,16 +1,33 @@
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
+-->
 # Common use cases
 
 The execution model that is offered by OpenWhisk supports a variety of use cases. The following sections include typical examples. For a more detailed discussion of Serverless architecture, example uses cases, pros and cons discussion and implementation best practices, please read excellent [Mike Roberts article on Martin Fowler's blog](https://martinfowler.com/articles/serverless.html).
 
 ## Microservices
 
-Despite their benefit, microservice-based solutions remain difficult to build using mainstream cloud technologies, often requiring control of a complex toolchain, and separate build and operations pipelines. Small and agile teams, spending too much time dealing with infrastructural and operational complexities (fault-tolerance, load balancing, auto-scaling, and logging), especially want a way to develop streamlined, value-adding code with programming languages they already know and love and that are best suited to solve particular problems. 
+Despite their benefit, microservice-based solutions remain difficult to build using mainstream cloud technologies, often requiring control of a complex toolchain, and separate build and operations pipelines. Small and agile teams, spending too much time dealing with infrastructural and operational complexities (fault-tolerance, load balancing, auto-scaling, and logging), especially want a way to develop streamlined, value-adding code with programming languages they already know and love and that are best suited to solve particular problems.
 
 The modular and inherently scalable nature of OpenWhisk makes it ideal for implementing granular pieces of logic in actions. OpenWhisk actions are independent of each other and can be implemented using variety of different languages supported by OpenWhisk and access various backend systems. Each action can be independently deployed and managed, is scaled independently of other actions. Interconnectivity between actions is provided by OpenWhisk in the form of rules, sequences and naming conventions. This bodes well for microservices based applications.
 
 ## Web apps
 
-Even though OpenWhisk was originally designed for event based programming, it offers several benefits for user-facing applications. For example, when you combine it with a small Node.js stub, you can use it to serve applications that are relatively easy to debug. And because OpenWhisk applications are a lot less computationally intensive than running a server process on a PaaS platform, they are considerably cheaper, as well. 
+Even though OpenWhisk was originally designed for event based programming, it offers several benefits for user-facing applications. For example, when you combine it with a small Node.js stub, you can use it to serve applications that are relatively easy to debug. And because OpenWhisk applications are a lot less computationally intensive than running a server process on a PaaS platform, they are considerably cheaper, as well.
 
 Full web applications can be built and run with OpenWhisk. Combining serverless APIs with static file hosting for site resources, e.g. HTML, JavaScript and CSS, means we can build entire serverless web applications. The simplicity of operating a hosted OpenWhisk environment (or rather not having to operate anything at all since it is hosted on Bluemix) is a great benefit compared to standing up and operating a Node.js Express or other traditional server runtime.
 
@@ -33,7 +50,7 @@ Here is a sample IoT application that uses OpenWhisk, NodeRed, Cognitive and oth
 
 ## API backend
 
-Serverless computing platforms give developers a rapid way to build APIs without servers. OpenWhisk supports automatic generation of REST API for actions and it is very easy to connect your API Management tool of choice (such as [IBM API Connect](https://www-03.ibm.com/software/products/en/api-connect) or other) to these REST APIs provided by OpenWhisk. Similar to other use cases, all considerations for scalability, and other Qualities of Services (QoS) apply. 
+Serverless computing platforms give developers a rapid way to build APIs without servers. OpenWhisk supports automatic generation of REST API for actions and it is very easy to connect your API Management tool of choice (such as [IBM API Connect](https://www-03.ibm.com/software/products/en/api-connect) or other) to these REST APIs provided by OpenWhisk. Similar to other use cases, all considerations for scalability, and other Qualities of Services (QoS) apply.
 
 Here is an example and a discussion of [using Serverless as an API backend](https://martinfowler.com/articles/serverless.html#ACoupleOfExamples).
 
@@ -47,6 +64,6 @@ With the amount of data now available, application development requires the abil
 
 ## Cognitive
 
-Cognitive technologies can be effectively combined with OpenWhisk to create powerful applications. For example, IBM Alchemy API and Watson Visual Recognition can be used with OpenWhisk to automatically extract useful information from videos without having to actually watch them. 
+Cognitive technologies can be effectively combined with OpenWhisk to create powerful applications. For example, IBM Alchemy API and Watson Visual Recognition can be used with OpenWhisk to automatically extract useful information from videos without having to actually watch them.
 
 Here is a sample application [Dark vision](https://github.com/IBM-Bluemix/openwhisk-darkvisionapp) that does just that. In this application the user uploads a video or image using the Dark Vision web application, which stores it in a Cloudant DB. Once the video is uploaded, OpenWhisk detects the new video by listening to Cloudant changes (trigger). OpenWhisk then triggers the video extractor action. During its execution, the extractor produces frames (images) and stores them in Cloudant. The frames are then processed using Watson Visual Recognition and the results are stored in the same Cloudant DB. The results can be viewed using Dark Vision web application OR an iOS application. Object Storage can be used in addition to Cloudant. When doing so, video and image medadata are stored in Cloudant and the media files are stored in Object Storage.

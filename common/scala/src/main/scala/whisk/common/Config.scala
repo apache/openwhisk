@@ -42,7 +42,7 @@ import scala.util.Try
  * @param optionalProperties a Set of optional properties which may or not be defined.
  * @param env an optional environment to read from (defaults to sys.env).
  */
-class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set())(
+class Config(requiredProperties: Map[String, String], optionalProperties: Set[String] = Set.empty)(
   env: Map[String, String] = sys.env)(implicit logging: Logging) {
 
   private val settings = getProperties().toMap.filter {

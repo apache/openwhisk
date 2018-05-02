@@ -17,26 +17,20 @@
 
 package whisk.connector.kafka
 
-import java.util.Properties
-
 import akka.actor.ActorSystem
 import akka.pattern.after
 import org.apache.kafka.clients.producer._
-import org.apache.kafka.common.errors.{
-  NotEnoughReplicasAfterAppendException,
-  RecordTooLargeException,
-  RetriableException,
-  TimeoutException
-}
+import org.apache.kafka.common.errors._
 import org.apache.kafka.common.serialization.StringSerializer
 import pureconfig._
 import whisk.common.{Counter, Logging, TransactionId}
+import whisk.connector.kafka.KafkaConfiguration._
 import whisk.core.ConfigKeys
 import whisk.core.connector.{Message, MessageProducer}
 import whisk.core.entity.UUIDs
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
 
 class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID().toString)(implicit logging: Logging,
@@ -54,12 +48,16 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
     val record = new ProducerRecord[String, String](topic, "messages", msg.serialize)
     val produced = Promise[RecordMetadata]()
 
-    producer.send(record, new Callback {
-      override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
-        if (exception == null) produced.success(metadata)
-        else produced.failure(exception)
+    Future {
+      blocking {
+        producer.send(record, new Callback {
+          override def onCompletion(metadata: RecordMetadata, exception: Exception): Unit = {
+            if (exception == null) produced.success(metadata)
+            else produced.failure(exception)
+          }
+        })
       }
-    })
+    }
 
     produced.future.andThen {
       case Success(status) =>
@@ -93,35 +91,20 @@ class KafkaProducerConnector(kafkahosts: String, id: String = UUIDs.randomUUID()
 
   private val sentCounter = new Counter()
 
-  private def getProps: Properties = {
-    val props = new Properties
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkahosts)
+  private def createProducer(): KafkaProducer[String, String] = {
+    val config = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkahosts) ++
+      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
+      configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
 
-    // Load additional config from the config files and add them here.
-    val config =
-      KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaCommon)) ++
-        KafkaConfiguration.configMapToKafkaConfig(loadConfigOrThrow[Map[String, String]](ConfigKeys.kafkaProducer))
-
-    config.foreach {
-      case (key, value) => props.put(key, value)
-    }
-    props
-  }
-
-  private def getProducer(props: Properties): KafkaProducer[String, String] = {
-    val keySerializer = new StringSerializer
-    val valueSerializer = new StringSerializer
-    new KafkaProducer(props, keySerializer, valueSerializer)
+    new KafkaProducer(config, new StringSerializer, new StringSerializer)
   }
 
   private def recreateProducer(): Unit = {
     val oldProducer = producer
-    Future {
-      oldProducer.close()
-      logging.info(this, s"old consumer closed")
-    }
-    producer = getProducer(getProps)
+    oldProducer.close()
+    logging.info(this, s"old producer closed")
+    producer = createProducer()
   }
 
-  @volatile private var producer = getProducer(getProps)
+  @volatile private var producer = createProducer()
 }

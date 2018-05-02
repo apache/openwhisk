@@ -54,16 +54,14 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  * (kind, memory) and there is space in the pool.
  *
  * @param childFactory method to create new container proxy actor
- * @param maxActiveContainers maximum amount of containers doing work
- * @param maxPoolSize maximum size of containers allowed in the pool
  * @param feed actor to request more work from
  * @param prewarmConfig optional settings for container prewarming
+ * @param poolConfig config for the ContainerPool
  */
 class ContainerPool(childFactory: ActorRefFactory => ActorRef,
-                    maxActiveContainers: Int,
-                    maxPoolSize: Int,
                     feed: ActorRef,
-                    prewarmConfig: Option[PrewarmingConfig] = None)
+                    prewarmConfigs: Option[List[PrewarmingConfig]] = None,
+                    poolConfig: ContainerPoolConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
 
@@ -72,7 +70,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
   val logMessageInterval = 10.seconds
 
-  prewarmConfig.foreach { config =>
+  prewarmConfigs.getOrElse(List()).foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
     (1 to config.count).foreach { _ =>
       prewarmContainer(config.exec, config.memoryLimit)
@@ -98,7 +96,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // their requests and send them back to the pool for rescheduling (this may happen if "docker" operations
     // fail for example, or a container has aged and was destroying itself when a new request was assigned)
     case r: Run =>
-      val createdContainer = if (busyPool.size < maxActiveContainers) {
+      val createdContainer = if (busyPool.size < poolConfig.maxActiveContainers) {
 
         // Schedule a job to a warm container
         ContainerPool
@@ -107,7 +105,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             (container, "warm")
           })
           .orElse {
-            if (busyPool.size + freePool.size < maxPoolSize) {
+            if (busyPool.size + freePool.size < poolConfig.maxActiveContainers) {
               takePrewarmContainer(r.action)
                 .map(container => {
                   (container, "prewarmed")
@@ -147,7 +145,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             logging.error(
               this,
               s"Rescheduling Run message, too many message in the pool, freePoolSize: ${freePool.size}, " +
-                s"busyPoolSize: ${busyPool.size}, maxActiveContainers $maxActiveContainers, " +
+                s"busyPoolSize: ${busyPool.size}, maxActiveContainers ${poolConfig.maxActiveContainers}, " +
                 s"userNamespace: ${r.msg.user.namespace}, action: ${r.action}")(r.msg.transid)
             Some(logMessageInterval.fromNow)
           } else {
@@ -206,8 +204,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
    * @param kind the kind you want to invoke
    * @return the container iff found
    */
-  def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] =
-    prewarmConfig.flatMap { config =>
+  def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
       val kind = action.exec.kind
       val memory = action.limits.memory.megabytes.MB
       prewarmedPool
@@ -221,11 +218,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
             freePool = freePool + (ref -> data)
             prewarmedPool = prewarmedPool - ref
             // Create a new prewarm container
-            prewarmContainer(config.exec, config.memoryLimit)
+            prewarmContainer(action.exec, memory)
 
             (ref, data)
         }
-    }
+  }
 
   /** Removes a container and updates state accordingly. */
   def removeContainer(toDelete: ActorRef) = {
@@ -282,15 +279,11 @@ object ContainerPool {
   }
 
   def props(factory: ActorRefFactory => ActorRef,
-            maxActive: Int,
-            size: Int,
+            poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: Option[PrewarmingConfig] = None) =
-    Props(new ContainerPool(factory, maxActive, size, feed, prewarmConfig))
+            prewarmConfigs: Option[List[PrewarmingConfig]] = None) =
+    Props(new ContainerPool(factory, feed, prewarmConfigs, poolConfig))
 }
 
 /** Contains settings needed to perform container prewarming */
 case class PrewarmingConfig(count: Int, exec: CodeExec[_], memoryLimit: ByteSize)
-
-/** Contains configurable prewarm settings loaded using PureConfig way */
-case class PrewarmConfig(kind: String, count: Int)

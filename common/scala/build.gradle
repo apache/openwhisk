@@ -1,6 +1,7 @@
 apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
+apply plugin: 'org.scoverage'
 
 ext.dockerImageName = 'scala'
 apply from: '../../gradle/docker.gradle'
@@ -15,14 +16,14 @@ dependencies {
     compile "org.scala-lang:scala-library:${gradle.scala.version}"
 
     compile 'com.github.pureconfig:pureconfig_2.11:0.9.0'
-    compile 'io.spray:spray-json_2.11:1.3.3'
+    compile 'io.spray:spray-json_2.11:1.3.4'
 
-    compile 'com.typesafe.akka:akka-actor_2.11:2.5.6'
-    compile 'com.typesafe.akka:akka-stream_2.11:2.5.6'
-    compile 'com.typesafe.akka:akka-slf4j_2.11:2.5.6'
+    compile 'com.typesafe.akka:akka-actor_2.11:2.5.12'
+    compile 'com.typesafe.akka:akka-stream_2.11:2.5.12'
+    compile 'com.typesafe.akka:akka-slf4j_2.11:2.5.12'
 
-    compile 'com.typesafe.akka:akka-http-core_2.11:10.0.10'
-    compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.0.10'
+    compile 'com.typesafe.akka:akka-http-core_2.11:10.1.1'
+    compile 'com.typesafe.akka:akka-http-spray-json_2.11:10.1.1'
 
     compile 'com.lightbend.akka:akka-stream-alpakka-file_2.11:0.15'
 
@@ -44,6 +45,9 @@ dependencies {
     compile 'io.fabric8:kubernetes-client:2.5.7'
     compile 'io.kamon:kamon-core_2.11:0.6.7'
     compile 'io.kamon:kamon-statsd_2.11:0.6.7'
+    //for mesos
+    compile 'com.adobe.api.platform.runtime:mesos-actor:0.0.7'
+    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {

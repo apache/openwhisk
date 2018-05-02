@@ -90,4 +90,36 @@ abstract class WskBasicNodeDefaultTests extends TestHelpers with WskTestHelpers 
     val firstNewline = stdout.indexOf("\n")
     stdout.substring(firstNewline + 1).parseJson.asJsObject
   }
+
+  it should "Ensure that NodeJS actions can have a non-default entrypoint" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "niamNpmAction"
+      val file = Some(TestUtils.getTestActionFilename("niam.js"))
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, main = Some("niam"))
+      }
+
+      withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+        val response = activation.response
+        response.result.get.fields.get("error") shouldBe empty
+        response.result.get.fields.get("greetings") should be(Some(JsString("Hello from a non-standard entrypoint.")))
+      }
+  }
+
+  it should "Ensure that zipped actions are encoded and uploaded as NodeJS actions" in withAssetCleaner(wskprops) {
+    (wp, assetHelper) =>
+      val name = "zippedNpmAction"
+      val file = Some(TestUtils.getTestActionFilename("zippedaction.zip"))
+
+      assetHelper.withCleaner(wsk.action, name) { (action, _) =>
+        action.create(name, file, kind = Some("nodejs:default"))
+      }
+
+      withActivation(wsk.activation, wsk.action.invoke(name)) { activation =>
+        val response = activation.response
+        response.result.get.fields.get("error") shouldBe empty
+        response.result.get.fields.get("author") shouldBe defined
+      }
+  }
 }

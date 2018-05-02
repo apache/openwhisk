@@ -38,7 +38,7 @@ import scala.concurrent.Future
 class LogDriverLogStore(actorSystem: ActorSystem) extends LogStore {
 
   /** Indicate --log-driver and --log-opt flags via ContainerArgsConfig.extraArgs */
-  override def containerParameters = Map()
+  override def containerParameters = Map.empty
 
   def collectLogs(transid: TransactionId,
                   user: Identity,

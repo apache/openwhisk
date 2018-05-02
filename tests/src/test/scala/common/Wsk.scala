@@ -249,6 +249,7 @@ class WskAction()
     shared: Option[Boolean] = None,
     update: Boolean = false,
     web: Option[String] = None,
+    websecure: Option[String] = None,
     expectedExitCode: Int = SUCCESS_EXIT)(implicit wp: WskProps): RunResult = {
     val params = Seq(noun, if (!update) "create" else "update", "--auth", wp.authKey, fqn(name)) ++ {
       artifact map { Seq(_) } getOrElse Seq()
@@ -300,6 +301,10 @@ class WskAction()
     } ++ {
       web map { w =>
         Seq("--web", w)
+      } getOrElse Seq()
+    } ++ {
+      websecure map { ws =>
+        Seq("--web-secure", ws)
       } getOrElse Seq()
     }
     cli(wp.overrides ++ params, expectedExitCode)
@@ -738,7 +743,7 @@ class WskNamespace() extends RunWskCmd with FullyQualifiedNames with BaseNamespa
    * @return namespace as string
    */
   override def whois()(implicit wskprops: WskProps): String = {
-    // the invariant that list() returns a conforming result is enforced in a test in WskBasicTests
+    // the invariant that list() returns a conforming result is enforced in a test in WskRestBasicTests
     val ns = list().stdout.lines.toSeq.last.trim
     assert(ns != "_") // this is not permitted
     ns

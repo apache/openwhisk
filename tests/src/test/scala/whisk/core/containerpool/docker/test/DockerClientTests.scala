@@ -288,10 +288,10 @@ class DockerClientTests
       logLines.head should include((Seq(dockerCommand, cmd) ++ args).mkString(" "))
 
       val start = LogMarker.parse(logLines.head)
-      start.token shouldBe INVOKER_DOCKER_CMD(cmd)
+      start.token.toStringWithSubAction shouldBe INVOKER_DOCKER_CMD(cmd).toStringWithSubAction
 
       val end = LogMarker.parse(logLines.last)
-      end.token shouldBe INVOKER_DOCKER_CMD(cmd).asFinish
+      end.token.toStringWithSubAction shouldBe INVOKER_DOCKER_CMD(cmd).asFinish.toStringWithSubAction
 
       stream.reset()
       result
@@ -320,10 +320,10 @@ class DockerClientTests
       a[RuntimeException] should be thrownBy await(f)
 
       val start = LogMarker.parse(logLines.head)
-      start.token shouldBe INVOKER_DOCKER_CMD(cmd)
+      start.token.toStringWithSubAction shouldBe INVOKER_DOCKER_CMD(cmd).toStringWithSubAction
 
       val end = LogMarker.parse(logLines.last)
-      end.token shouldBe INVOKER_DOCKER_CMD(cmd).asError
+      end.token.toStringWithSubAction shouldBe INVOKER_DOCKER_CMD(cmd).asError.toStringWithSubAction
 
       stream.reset()
     }

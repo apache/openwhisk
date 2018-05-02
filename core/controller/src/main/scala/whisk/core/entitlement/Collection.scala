@@ -33,7 +33,6 @@ import whisk.common.TransactionId
 import whisk.core.entity.Identity
 import whisk.core.entity.WhiskAction
 import whisk.core.entity.WhiskActivation
-import whisk.core.entity.WhiskEntityStore
 import whisk.core.entity.WhiskPackage
 import whisk.core.entity.WhiskRule
 import whisk.core.entity.WhiskTrigger
@@ -107,8 +106,6 @@ protected[core] case class Collection protected (val path: String,
 
 /** An enumeration of known collections. */
 protected[core] object Collection {
-
-  protected[core] def requiredProperties = WhiskEntityStore.requiredProperties
 
   /** Number of records allowed per query. */
   protected[core] val DEFAULT_LIST_LIMIT = 30

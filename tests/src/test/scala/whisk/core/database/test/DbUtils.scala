@@ -34,6 +34,7 @@ import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database._
+import whisk.core.database.memory.MemoryArtifactStore
 import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
@@ -56,7 +57,8 @@ trait DbUtils extends TransactionCounter {
    * Attempt the operation up to 'count' times. The future from the
    * step is not aborted --- TODO fix this.
    */
-  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 5): Try[T] = {
+  def retry[T](step: () => Future[T], timeout: Duration, count: Int = 100): Try[T] = {
+    val graceBeforeRetry = 50.milliseconds
     val future = step()
     if (count > 0) try {
       val result = Await.result(future, timeout)
@@ -64,12 +66,15 @@ trait DbUtils extends TransactionCounter {
     } catch {
       case n: NoDocumentException =>
         println("no document exception, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case RetryOp() =>
         println("condition not met, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: TimeoutException =>
         println("timed out, retrying")
+        Thread.sleep(graceBeforeRetry.toMillis)
         retry(step, timeout, count - 1)
       case t: Throwable =>
         println(s"unexpected failure $t")
@@ -257,4 +262,7 @@ trait DbUtils extends TransactionCounter {
     }
     docsToDelete.clear()
   }
+
+  def isMemoryStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[MemoryArtifactStore[_]]
+  def isCouchStore(store: ArtifactStore[_]): Boolean = store.isInstanceOf[CouchDbRestStore[_]]
 }

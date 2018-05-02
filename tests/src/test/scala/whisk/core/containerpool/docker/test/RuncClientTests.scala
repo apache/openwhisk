@@ -27,25 +27,30 @@ import org.scalatest.junit.JUnitRunner
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.Await
 import org.scalatest.Matchers
 import whisk.core.containerpool.docker.RuncClient
 import common.{StreamLogging, WskActorSystem}
 import whisk.core.containerpool.ContainerId
 import whisk.common.TransactionId
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import whisk.common.LogMarker
 import whisk.common.LoggingMarkers.INVOKER_RUNC_CMD
 
 @RunWith(classOf[JUnitRunner])
-class RuncClientTests extends FlatSpec with Matchers with StreamLogging with BeforeAndAfterEach with WskActorSystem {
+class RuncClientTests
+    extends FlatSpec
+    with Matchers
+    with StreamLogging
+    with BeforeAndAfterEach
+    with WskActorSystem
+    with ScalaFutures
+    with IntegrationPatience {
 
   override def beforeEach = stream.reset()
 
   implicit val transid = TransactionId.testing
   val id = ContainerId("Id")
-
-  def await[A](f: Future[A], timeout: FiniteDuration = 500.milliseconds) = Await.result(f, timeout)
 
   val runcCommand = "docker-runc"
 
@@ -70,12 +75,12 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
 
     // start log maker must be found
     val start = LogMarker.parse(logLines.head)
-    start.token should be(INVOKER_RUNC_CMD(cmd))
+    start.token.toStringWithSubAction should be(INVOKER_RUNC_CMD(cmd).toStringWithSubAction)
 
     // end log marker must be found
     val expectedEnd = if (failed) INVOKER_RUNC_CMD(cmd).asError else INVOKER_RUNC_CMD(cmd).asFinish
     val end = LogMarker.parse(logLines.last)
-    end.token shouldBe expectedEnd
+    end.token.toStringWithSubAction shouldBe expectedEnd.toStringWithSubAction
   }
 
   behavior of "RuncClient"
@@ -83,13 +88,13 @@ class RuncClientTests extends FlatSpec with Matchers with StreamLogging with Bef
   Seq("pause", "resume").foreach { cmd =>
     it should s"$cmd a container successfully and create log entries" in {
       val rc = runcClient { Future.successful("") }
-      await(runcProxy(rc, cmd))
+      runcProxy(rc, cmd).futureValue
       verifyLogs(cmd)
     }
 
     it should s"write error markers when $cmd fails" in {
       val rc = runcClient { Future.failed(new RuntimeException()) }
-      a[RuntimeException] should be thrownBy await(runcProxy(rc, cmd))
+      a[RuntimeException] should be thrownBy runcProxy(rc, cmd).futureValue
       verifyLogs(cmd, failed = true)
     }
 

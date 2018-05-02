@@ -103,7 +103,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
   behavior of "WhiskActivation"
 
   it should "add and remove logs and preserve revision in the process" in {
-    val activation = WhiskActivation(namespace, name, Subject(), ActivationId(), Instant.now(), Instant.now())
+    val activation = WhiskActivation(namespace, name, Subject(), ActivationId.generate(), Instant.now(), Instant.now())
       .revision[WhiskActivation](revision)
     val logs = ActivationLogs(Vector("testlog"))
 
@@ -149,7 +149,7 @@ class WhiskEntityTests extends FlatSpec with ExecHelpers with Matchers {
     val action = WhiskAction(namespace, name, jsDefault("code"), Parameters())
     assertType(action, "action")
 
-    val activation = WhiskActivation(namespace, name, Subject(), ActivationId(), Instant.now(), Instant.now())
+    val activation = WhiskActivation(namespace, name, Subject(), ActivationId.generate(), Instant.now(), Instant.now())
     assertType(activation, "activation")
 
     val whiskPackage = WhiskPackage(namespace, name)

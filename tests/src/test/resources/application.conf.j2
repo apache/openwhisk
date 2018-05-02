@@ -31,4 +31,34 @@ whisk {
           max-poll-interval-ms: 10000
         }
     }
+
+    couchdb {
+        protocol = "{{ db_protocol }}"
+        host     = "{{ db_host }}"
+        port     = "{{ db_port }}"
+        username = "{{ db_username }}"
+        password = "{{ db_password }}"
+        provider = "{{ db_provider }}"
+        databases {
+          WhiskAuth       = "{{ db.whisk.auth }}"
+          WhiskEntity     = "{{ db.whisk.actions }}"
+          WhiskActivation = "{{ db.whisk.activations }}"
+        }
+    }
+
+    controller {
+      protocol = {{ controller.protocol }}
+      https {
+        keystore-flavor = "{{ controller.ssl.storeFlavor }}"
+        keystore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        keystore-password = "{{ controller.ssl.keystore.password }}"
+        truststore-flavor = "{{ controller.ssl.storeFlavor }}"
+        truststore-path = "{{ openwhisk_home }}/ansible/roles/controller/files/{{ controllerKeystoreName }}"
+        truststore-password = "{{ controller.ssl.keystore.password }}"
+        client-auth = "{{ controller.ssl.clientAuth }}"
+      }
+    }
+    user-events {
+        enabled = {{ user_events }}
+    }
 }

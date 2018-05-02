@@ -1,30 +1,88 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more contributor
+# license agreements.  See the NOTICE file distributed with this work for additional
+# information regarding copyright ownership.  The ASF licenses this file to you
+# under the Apache License, Version 2.0 (the # "License"); you may not use this
+# file except in compliance with the License.  You may obtain a copy of the License
+# at:
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations under the License.
+#
 ---
 # Tasks for handling CLI customization and publishing
+#
+# Note:  The configuration directory is actually located on the local machine;
+#        this script is run under the local host, usually 172.17.0.1 (docker local)
 
-- name: "ensure nginx directory for cli exists"
+- name: "Ensure nginx directory for cli exists"
   file:
-    path: "{{ cli.nginxdir  }}"
+    path: "{{ openwhisk_cli.nginxdir.name }}"
     state: directory
-  become: "{{ cli.dir.become }}"
+  become: "{{ openwhisk_cli.nginxdir.become }}"
 
-- set_fact:
-    cli_installation_mode="{{ openwhisk_cli.installation_mode }}"
+- name: "Ensure temporary directory exists"
+  file:
+    path: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}"
+    state: directory
 
-- include: docker_login.yml
+- name: "Download release archive to build directory ..."
+  get_url:
+    url: "{{ openwhisk_cli.remote.location }}/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
+    headers: "{{ openwhisk_cli.remote.headers | default('') }}"
+  when: openwhisk_cli.installation_mode == "remote"
 
-- name: "download the binaries from the release page of OpenWhisk CLI"
-  include: cli_remote_mode.yml
-  when: cli_installation_mode == "remote"
+- name: "... or Copy release archive to build directory"
+  copy:
+    src: "{{ openwhisk_cli_home }}/release/{{ openwhisk_cli.archive_name}}-{{ openwhisk_cli_tag }}-all.tgz"
+    dest: "{{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz"
+  when: openwhisk_cli.installation_mode == "local"
 
-- name: "copy the binaries from a local directory to Nginx directory"
-  include: copy_local_openwhisk_cli.yml
-  when: cli_installation_mode == "local"
-  with_items:
-    - "{{ cli_os_arch }}"
+#
+#   I really wanted to use 'unarchive' here, but it was quite buggy and didn't
+#   want to cooperate, so we do a good old-fashioned tar x instead
+#
+- name: "Expand the archive into the build directory"
+  shell: >
+    tar zxf {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}.tgz
+    -C {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/
 
-- name: "copy the local content.json from a local directory to Nginx directory"
-  copy: src={{ openwhisk_cli.local.location }}/content.json dest={{ cli.nginxdir }}/
-  when: cli_installation_mode == "local"
+# Remote copy does not support recursive copy of directories. That's why I'm using the shell.
+- name: "Copy expanded archive to final configuration directory"
+  #  WARNING:  The trailing slash is significant, signalling to copy contents
+  shell: "cp -r {{ nginx.confdir }}/cli_temp/{{ openwhisk_cli.archive_name }}/* {{ openwhisk_cli.nginxdir.name }}"
 
-- include: download_cli.yml
-  when: cli_installation_mode == "remote"
+- name: "Delete temp directory"
+  file:
+    path: "{{ nginx.confdir }}/cli_temp"
+    state: absent
+    force: yes
+
+- name: "Generate a list of individual tarballs to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
+      patterns: '*.tgz'
+      recurse: true
+  register: individual_tarballs
+
+- name: "Unarchive the individual tarballs"
+  shell: tar zxf {{ item.path }} -C {{ item.path | dirname }}
+  with_items: "{{ individual_tarballs.files }}"
+
+- name: "Generate a list of individual zipfiles to expand"
+  find:
+      paths: "{{ openwhisk_cli.nginxdir.name }}"
+      patterns: '*.zip'
+      recurse: true
+  register: individual_zipfiles
+
+# Use old good unzip instead of unarchive due to a known issue on MacOS
+# https://github.com/ansible/ansible-modules-core/issues/3952
+- name: "Unarchive the individual zipfiles into binaries"
+  shell: unzip -o {{ item.path }} -d {{ item.path | dirname }}
+  with_items: "{{ individual_zipfiles.files }}"

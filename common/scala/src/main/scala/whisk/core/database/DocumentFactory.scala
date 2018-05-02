@@ -227,4 +227,18 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       case Failure(t) => Future.failed(t)
     }
   }
+
+  def deleteAttachments[Wsuper >: W](db: ArtifactStore[Wsuper], doc: DocInfo)(
+    implicit transid: TransactionId): Future[Boolean] = {
+    Try {
+      require(db != null, "db defined")
+      require(doc != null, "doc undefined")
+    } map { _ =>
+      implicit val ec = db.executionContext
+      db.deleteAttachments(doc)
+    } match {
+      case Success(f) => f
+      case Failure(t) => Future.failed(t)
+    }
+  }
 }

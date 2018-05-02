@@ -72,6 +72,15 @@ class LoggedFunction5[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) ex
     body(v1, v2, v3, v4, v5)
   }
 }
+class LoggedFunction6[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B)
+    extends Function6[A1, A2, A3, A4, A5, A6, B] {
+  val calls = mutable.Buffer[(A1, A2, A3, A4, A5, A6)]()
+
+  override def apply(v1: A1, v2: A2, v3: A3, v4: A4, v5: A5, v6: A6): B = {
+    calls += ((v1, v2, v3, v4, v5, v6))
+    body(v1, v2, v3, v4, v5, v6)
+  }
+}
 
 object LoggedFunction {
   def apply[A1, B](body: (A1) => B) = new LoggedFunction1(body)
@@ -79,4 +88,5 @@ object LoggedFunction {
   def apply[A1, A2, A3, B](body: (A1, A2, A3) => B) = new LoggedFunction3(body)
   def apply[A1, A2, A3, A4, B](body: (A1, A2, A3, A4) => B) = new LoggedFunction4(body)
   def apply[A1, A2, A3, A4, A5, B](body: (A1, A2, A3, A4, A5) => B) = new LoggedFunction5(body)
+  def apply[A1, A2, A3, A4, A5, A6, B](body: (A1, A2, A3, A4, A5, A6) => B) = new LoggedFunction6(body)
 }

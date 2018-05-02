@@ -8,6 +8,7 @@ include 'actionRuntimes:actionProxy'
 include 'actionRuntimes:pythonAction'
 include 'actionRuntimes:python2Action'
 include 'actionRuntimes:swift3.1.1Action'
+include 'actionRuntimes:swift4.1Action'
 include 'actionRuntimes:javaAction'
 include 'actionRuntimes:php7.1Action'
 
@@ -16,6 +17,7 @@ include 'sdk:docker'
 include 'tests'
 include 'tests:dat:blackbox:badaction'
 include 'tests:dat:blackbox:badproxy'
+include 'performance:gatling_tests'
 
 rootProject.name = 'openwhisk'
 
@@ -27,4 +29,11 @@ gradle.ext.scala = [
 gradle.ext.scalafmt = [
     version: '1.5.0',
     config: new File(rootProject.projectDir, '.scalafmt.conf')
+]
+
+gradle.ext.scoverage = [
+    deps: [
+        'org.scoverage:scalac-scoverage-plugin_2.11:1.3.1',
+        'org.scoverage:scalac-scoverage-runtime_2.11:1.3.1'
+    ]
 ]

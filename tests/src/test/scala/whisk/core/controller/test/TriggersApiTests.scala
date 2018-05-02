@@ -333,7 +333,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
       status should be(Accepted)
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
-      val activationId = ActivationId(id)
+      val activationId = ActivationId.parse(id).get
       response.fields("activationId") should not be None
 
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
@@ -358,7 +358,7 @@ class TriggersApiTests extends ControllerTestCommon with WhiskTriggersApi {
     Post(s"$collectionPath/${trigger.name}") ~> Route.seal(routes(creds)) ~> check {
       val response = responseAs[JsObject]
       val JsString(id) = response.fields("activationId")
-      val activationId = ActivationId(id)
+      val activationId = ActivationId.parse(id).get
       val activationDoc = DocId(WhiskEntity.qualifiedName(namespace, activationId))
       whisk.utils.retry({
         println(s"trying to delete async activation doc: '${activationDoc}'")

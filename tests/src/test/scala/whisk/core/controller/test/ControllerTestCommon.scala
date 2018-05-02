@@ -67,7 +67,7 @@ protected trait ControllerTestCommon
   override implicit val actorSystem = system // defined in ScalatestRouteTest
   override val executionContext = actorSystem.dispatcher
 
-  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
+  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties ++ WhiskConfig.kafkaHosts)
   assert(whiskConfig.isValid)
 
   // initialize runtimes manifest
@@ -75,11 +75,12 @@ protected trait ControllerTestCommon
 
   override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
-  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  override lazy val entitlementProvider: EntitlementProvider =
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api
-    private val fixedId = ActivationId()
+    private val fixedId = ActivationId.generate()
     override def make = fixedId
   }
 
@@ -89,9 +90,9 @@ protected trait ControllerTestCommon
     }
   }
 
-  val entityStore = WhiskEntityStore.datastore(whiskConfig)
-  val activationStore = WhiskActivationStore.datastore(whiskConfig)
-  val authStore = WhiskAuthStore.datastore(whiskConfig)
+  val entityStore = WhiskEntityStore.datastore()
+  val activationStore = WhiskActivationStore.datastore()
+  val authStore = WhiskAuthStore.datastore()
   val logStore = SpiLoader.get[LogStoreProvider].logStore(actorSystem)
 
   def deleteAction(doc: DocId)(implicit transid: TransactionId) = {
