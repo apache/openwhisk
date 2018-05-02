@@ -39,7 +39,7 @@ import spray.json.JsObject
 import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Success, Try}
 
 import whisk.http.PoolingRestClient._
@@ -61,6 +61,14 @@ class PoolingRestClientTests
         case (request, userContext) =>
           request shouldBe httpRequest
           Future.successful((Success(httpResponse), userContext))
+      }
+
+  def failFlow(httpResponse: HttpResponse = HttpResponse(), httpRequest: HttpRequest = HttpRequest())
+    : Flow[(HttpRequest, Promise[HttpResponse]), (Try[HttpResponse], Promise[HttpResponse]), NotUsed] =
+    Flow[(HttpRequest, Promise[HttpResponse])]
+      .mapAsyncUnordered(1) {
+        case (request, userContext) =>
+          Future.failed(new Exception)
       }
 
   def await[T](awaitable: Future[T], timeout: FiniteDuration = 10.seconds) = Await.result(awaitable, timeout)
@@ -118,6 +126,15 @@ class PoolingRestClientTests
     val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
 
     await(poolingRestClient.requestJson[JsObject](request)) shouldBe Right(JsObject())
+  }
+
+  it should "throw timeout exception when Future fails in httpFlow" in {
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(failFlow(httpResponse, httpRequest)))
+    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+
+    a[TimeoutException] should be thrownBy await(poolingRestClient.requestJson[JsObject](request))
   }
 
   it should "return a status code on request failure" in {
