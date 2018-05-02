@@ -31,6 +31,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpMethods.{GET, POST}
 import akka.http.scaladsl.model.StatusCodes.{InternalServerError, NotFound}
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 
 import common.StreamLogging
 
@@ -126,6 +127,15 @@ class PoolingRestClientTests
     val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
 
     await(poolingRestClient.requestJson[JsObject](request)) shouldBe Left(NotFound)
+  }
+
+  it should "throw an unsupported content-type exception when unexpected content-type is returned" in {
+    val httpResponse = HttpResponse(entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, "plain text"))
+    val httpRequest = HttpRequest(entity = HttpEntity(ContentTypes.`application/json`, JsObject().compactPrint))
+    val poolingRestClient = new PoolingRestClient("https", "host", 443, 1, Some(testFlow(httpResponse, httpRequest)))
+    val request = mkJsonRequest(GET, Uri./, JsObject(), List.empty)
+
+    a[UnsupportedContentTypeException] should be thrownBy await(poolingRestClient.requestJson[JsObject](request))
   }
 
   it should "create an HttpRequest without a payload" in {
