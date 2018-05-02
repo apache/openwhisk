@@ -125,7 +125,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
     require(doc != null, "doc undefined")
     val f = client
-      .readDocument(selfLinkOf(doc.id), newRequestOption(doc.id.id))
+      .readDocument(selfLinkOf(doc.id), newRequestOption(doc.id))
       .head()
       .transform(
         { rr =>
@@ -154,7 +154,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val start = transid.started(this, LoggingMarkers.DATABASE_GET, s"[GET_BY_ID] '$collName' finding document: '$id'")
 
     val f = client
-      .readDocument(selfLinkOf(id), newRequestOption(id.id))
+      .readDocument(selfLinkOf(id), newRequestOption(id))
       .head()
       .map { rr =>
         val js = getResultToWhiskJsonDoc(rr.getResource)
@@ -389,7 +389,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
 
   private def createSelfLink(id: String) = s"dbs/${database.getId}/colls/${collection.getId}/docs/$id"
 
-  private def matchRevOption(info: DocInfo): RequestOptions = matchRevOption(info.id.id, info.rev.rev)
+  private def matchRevOption(info: DocInfo): RequestOptions = matchRevOption(escapeId(info.id.id), info.rev.rev)
 
   private def matchRevOption(id: String, etag: String): RequestOptions = {
     val options = newRequestOption(id)
@@ -399,9 +399,12 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     options
   }
 
+  //Using DummyImplicit to allow overloading work with type erasure of DocId AnyVal
+  private def newRequestOption(id: DocId)(implicit i: DummyImplicit): RequestOptions = newRequestOption(escapeId(id.id))
+
   private def newRequestOption(id: String) = {
     val options = new RequestOptions
-    options.setPartitionKey(new PartitionKey(escapeId(id)))
+    options.setPartitionKey(new PartitionKey(id))
     options
   }
 
