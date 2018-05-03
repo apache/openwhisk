@@ -71,6 +71,7 @@ http {
         # if namespace does not match, no vanity URL rewriting takes place.
         server_name ~^(?<namespace>[0-9a-zA-Z-]+)\.{{ whisk_api_localhost_name | default(whisk_api_host_name) | default(whisk_api_localhost_name_default) }}$;
 
+        # Recommended TLS settings from: https://wiki.mozilla.org/Security/Server_Side_TLS
         ssl_session_cache    shared:SSL:1m;
         ssl_session_timeout  10m;
         ssl_certificate      /etc/nginx/{{ nginx.ssl.cert }};
