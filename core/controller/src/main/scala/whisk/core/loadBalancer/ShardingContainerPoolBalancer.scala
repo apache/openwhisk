@@ -138,7 +138,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   override def publish(action: ExecutableWhiskActionMetaData, msg: ActivationMessage)(
     implicit transid: TransactionId ): Future[Future[Either[ActivationId, WhiskActivation]]] = {
     val hash = ShardingContainerPoolBalancer.generateHash(msg.user.namespace, action.fullyQualifiedName(false))
-    publish(transid, action.limits.timeout.duration.toSeconds.toInt, action.exec.pull, hash, msg, false)
+    publish(msg.transid, action.limits.timeout.duration.toSeconds.toInt, action.exec.pull, hash, msg, false)
   }
 
   def publish(transid: TransactionId, actionTimeoutSeconds: Int, pull:Boolean, hash:Int, msg: ActivationMessage, isRescheduled: Boolean)
@@ -174,20 +174,18 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
         } 
 
         // this means that there is no invoker that has capacity for this non scheduled ActivationMessage (enter the overflow state)
-        else if (invoker.toInt == -1 || !isRescheduled) {
+        else if (invoker.toInt == -1 && !isRescheduled) {
           if (overflowState.compareAndSet(false, true)) {
             logging.info(this, "entering overflow state; no invokers have capacity")
           }
-
-          Future {
+          val entry = setupActivation(msg, actionTimeoutSeconds.seconds, invoker, true, false)
           sendActivationToOverflow(
             messageProducer,
             OverflowMessage(transid, msg, actionTimeoutSeconds, pull, hash))
-            .flatMap { _ =>
-              val entry = setupActivation(msg, actionTimeoutSeconds.seconds, invoker, true, false)
+            .map{ _ =>
               entry.promise.future
             }
-          }
+          
         } 
 
         // there exist an invoker that has capacity to handle the action
@@ -267,7 +265,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
   private def sendActivationToOverflow(producer: MessageProducer, msg: OverflowMessage): Future[RecordMetadata] = {
     implicit val transid = msg.transid
 
-    val topic = s"overflow${controllerInstance.toInt}"
+    val topic = s"overflow"
     MetricEmitter.emitCounterMetric(LoggingMarkers.LOADBALANCER_ACTIVATION_START)
     val start = transid.started(
       this,
@@ -420,6 +418,7 @@ class ShardingContainerPoolBalancer(config: WhiskConfig, controllerInstance: Ins
 
 
   private def processOverflow(msg: OverflowMessage): Unit = {
+    logging.info(this, s"process overflow with activation id '${msg.msg.activationId}'")
     publish(msg.transid, msg.actionTimeoutSeconds, msg.pull, msg.hash, msg.msg, true)
   }
 

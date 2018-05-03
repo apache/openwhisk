@@ -226,6 +226,9 @@ object Controller {
     if (!msgProvider.ensureTopic(config, topic = "cacheInvalidation", topicConfig = "cache-invalidation")) {
       abort(s"failure during msgProvider.ensureTopic for topic cacheInvalidation")
     }
+    if (!msgProvider.ensureTopic(config, topic = "overflow", topicConfig = "overflow")) {
+      abort(s"failure during msgProvider.ensureTopic for topic overflow")
+    }
 
     ExecManifest.initialize(config) match {
       case Success(_) =>
