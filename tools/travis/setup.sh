@@ -33,3 +33,6 @@ pip install --user couchdb
 
 # Ansible
 pip install --user ansible==2.5.2
+
+# Azure CosmosDB
+pip install --user pydocumentdb
