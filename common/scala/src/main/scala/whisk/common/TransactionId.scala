@@ -22,7 +22,7 @@ import java.time.{Clock, Duration, Instant}
 import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.http.scaladsl.model.headers.RawHeader
 import pureconfig.loadConfigOrThrow
-import spray.json.{JsArray, JsNumber, JsValue, RootJsonFormat, _}
+import spray.json._
 import whisk.core.ConfigKeys
 
 import scala.util.Try
@@ -36,9 +36,7 @@ case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
   override def toString = s"#tid_${meta.id}"
 
-  def toHeader = {
-    RawHeader(TransactionId.generatorConfig.header, meta.id)
-  }
+  def toHeader = RawHeader(TransactionId.generatorConfig.header, meta.id)
 
   /**
    * Method to count events.
