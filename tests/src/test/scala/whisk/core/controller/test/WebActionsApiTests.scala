@@ -334,7 +334,7 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       error.fields.get("error").get shouldBe JsString(m)
     }
     error.fields.get("code") shouldBe defined
-    error.fields.get("code").get shouldBe an[JsNumber]
+    error.fields.get("code").get shouldBe an[JsString]
   }
 
   Seq(None, Some(WhiskAuthHelpers.newIdentity())).foreach { creds =>

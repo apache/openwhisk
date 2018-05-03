@@ -17,20 +17,15 @@
 
 package whisk.common
 
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
-import java.util.concurrent.atomic.AtomicInteger
+import java.time.{Clock, Duration, Instant}
 
-import scala.math.BigDecimal.int2bigDecimal
-import scala.util.Try
-import akka.event.Logging.{DebugLevel, InfoLevel, WarningLevel}
-import akka.event.Logging.LogLevel
+import akka.event.Logging.{DebugLevel, InfoLevel, LogLevel, WarningLevel}
+import akka.http.scaladsl.model.headers.RawHeader
+import pureconfig.loadConfigOrThrow
 import spray.json._
-
 import whisk.core.ConfigKeys
 
-import pureconfig._
+import scala.util.Try
 
 /**
  * A transaction id for tracking operations in the system that are specific to a request.
@@ -39,11 +34,9 @@ import pureconfig._
  */
 case class TransactionId private (meta: TransactionMetadata) extends AnyVal {
   def id = meta.id
-  override def toString = {
-    if (meta.id > 0) s"#tid_${meta.id}"
-    else if (meta.id < 0) s"#sid_${-meta.id}"
-    else "??"
-  }
+  override def toString = s"#tid_${meta.id}"
+
+  def toHeader = RawHeader(TransactionId.generatorConfig.header, meta.id)
 
   /**
    * Method to count events.
@@ -190,8 +183,9 @@ case class StartMarker(val start: Instant, startMarker: LogMarkerToken)
  * @param id the transaction identifier; it is positive for client requests,
  *           negative for system operation and zero when originator is not known
  * @param start the timestamp when the request processing commenced
+ * @param extraLogging enables logging, if set to true
  */
-protected case class TransactionMetadata(val id: Long, val start: Instant, val extraLogging: Boolean = false)
+protected case class TransactionMetadata(val id: String, val start: Instant, val extraLogging: Boolean = false)
 
 object TransactionId {
 
@@ -200,58 +194,44 @@ object TransactionId {
   val metricsKamonTags: Boolean = sys.env.get("METRICS_KAMON_TAGS").getOrElse("False").toBoolean
   val metricsLog: Boolean = sys.env.get("METRICS_LOG").getOrElse("True").toBoolean
 
-  val unknown = TransactionId(0)
-  val testing = TransactionId(-1) // Common id for for unit testing
-  val invoker = TransactionId(-100) // Invoker startup/shutdown or GC activity
-  val invokerWarmup = TransactionId(-101) // Invoker warmup thread that makes stem-cell containers
-  val invokerNanny = TransactionId(-102) // Invoker nanny thread
-  val dispatcher = TransactionId(-110) // Kafka message dispatcher
-  val loadbalancer = TransactionId(-120) // Loadbalancer thread
-  val invokerHealth = TransactionId(-121) // Invoker supervision
-  val controller = TransactionId(-130) // Controller startup
-  val dbBatcher = TransactionId(-140) // Database batcher
+  val generatorConfig = loadConfigOrThrow[TransactionGeneratorConfig](ConfigKeys.transactions)
 
-  def apply(tid: BigDecimal, extraLogging: Boolean = false): TransactionId = {
-    Try {
-      val now = Instant.now(Clock.systemUTC())
-      TransactionId(TransactionMetadata(tid.toLong, now, extraLogging))
-    } getOrElse unknown
+  val systemPrefix = "sid_"
+
+  val unknown = TransactionId(systemPrefix + "unknown")
+  val testing = TransactionId(systemPrefix + "testing") // Common id for for unit testing
+  val invoker = TransactionId(systemPrefix + "invoker") // Invoker startup/shutdown or GC activity
+  val invokerWarmup = TransactionId(systemPrefix + "invokerWarmup") // Invoker warmup thread that makes stem-cell containers
+  val invokerNanny = TransactionId(systemPrefix + "invokerNanny") // Invoker nanny thread
+  val dispatcher = TransactionId(systemPrefix + "dispatcher") // Kafka message dispatcher
+  val loadbalancer = TransactionId(systemPrefix + "loadbalancer") // Loadbalancer thread
+  val invokerHealth = TransactionId(systemPrefix + "invokerHealth") // Invoker supervision
+  val controller = TransactionId(systemPrefix + "controller") // Controller startup
+  val dbBatcher = TransactionId(systemPrefix + "dbBatcher") // Database batcher
+
+  def apply(tid: String, extraLogging: Boolean = false): TransactionId = {
+    val now = Instant.now(Clock.systemUTC())
+    TransactionId(TransactionMetadata(tid, now, extraLogging))
   }
 
   implicit val serdes = new RootJsonFormat[TransactionId] {
     def write(t: TransactionId) = {
       if (t.meta.extraLogging)
-        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
+        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli), JsBoolean(t.meta.extraLogging))
       else
-        JsArray(JsNumber(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
+        JsArray(JsString(t.meta.id), JsNumber(t.meta.start.toEpochMilli))
     }
 
     def read(value: JsValue) =
       Try {
         value match {
-          case JsArray(Vector(JsNumber(id), JsNumber(start))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), false))
-          case JsArray(Vector(JsNumber(id), JsNumber(start), JsBoolean(extraLogging))) =>
-            TransactionId(TransactionMetadata(id.longValue, Instant.ofEpochMilli(start.longValue), extraLogging))
+          case JsArray(Vector(JsString(id), JsNumber(start))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), false))
+          case JsArray(Vector(JsString(id), JsNumber(start), JsBoolean(extraLogging))) =>
+            TransactionId(TransactionMetadata(id, Instant.ofEpochMilli(start.longValue), extraLogging))
         }
       } getOrElse unknown
   }
 }
 
-/**
- * A thread-safe transaction counter.
- */
-trait TransactionCounter {
-  case class TransactionCounterConfig(stride: Int)
-
-  val transCounterConfig = loadConfigOrThrow[TransactionCounterConfig](ConfigKeys.transactions)
-  val stride = transCounterConfig.stride
-  val instanceOrdinal: Int
-
-  // seed the counter so transids do not overlap: instanceOrdinal + n * stride, start at n = 1
-  private lazy val cnt = new AtomicInteger(instanceOrdinal + stride)
-
-  def transid(extraLogging: Boolean = false): TransactionId = {
-    TransactionId(cnt.addAndGet(stride), extraLogging)
-  }
-}
+case class TransactionGeneratorConfig(header: String)

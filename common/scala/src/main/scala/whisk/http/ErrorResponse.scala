@@ -253,7 +253,7 @@ object ErrorResponse extends Directives with DefaultJsonProtocol {
     def read(v: JsValue) =
       Try {
         v.asJsObject.getFields("error", "code") match {
-          case Seq(JsString(error), JsNumber(code)) =>
+          case Seq(JsString(error), JsString(code)) =>
             ErrorResponse(error, TransactionId(code))
           case Seq(JsString(error)) =>
             ErrorResponse(error, TransactionId.unknown)

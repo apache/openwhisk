@@ -201,7 +201,7 @@
       "CONFIG_whisk_spi_LoadBalancerProvider": "{{ controller.loadbalancer.spi }}"
       "CONFIG_logback_log_level": "{{ controller.loglevel }}"
 
-      "CONFIG_whisk_transactions_stride": "{{ transactions.stride | default() }}"
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
 - name: create seed nodes list
   set_fact:

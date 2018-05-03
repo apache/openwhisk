@@ -227,6 +227,7 @@
         -e CONFIG_whisk_timeLimit_max='{{ limit_action_time_max | default() }}'
         -e CONFIG_whisk_timeLimit_std='{{ limit_action_time_std | default() }}'
         -e CONFIG_whisk_activation_payload_max='{{ limit_activation_payload | default() }}'
+        -e CONFIG_whisk_transactions_header='{{ transactions.header }}'
         -v /sys/fs/cgroup:/sys/fs/cgroup
         -v /run/runc:/run/runc
         -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs

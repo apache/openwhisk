@@ -97,7 +97,7 @@ jmx:
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:
-  stride: "{{ groups['controllers'] | length }}"
+  header: "{{ transactions_header | default('X-Request-ID') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
