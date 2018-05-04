@@ -46,6 +46,7 @@
         - reports
         - test-results
       ignore_errors: true
+      when: "'tests' not in exclude_logs_from"
 
 - hosts: all:!ansible
   serial: 1
