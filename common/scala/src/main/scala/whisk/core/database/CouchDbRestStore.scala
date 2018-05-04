@@ -258,6 +258,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                      stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
 
     require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
+    require(skip >= 0, "skip should be non negative")
+    require(limit >= 0, "limit should be non negative")
 
     // Apparently you have to do that in addition to setting "descending"
     val (realStartKey, realEndKey) = if (descending) {
@@ -309,6 +311,7 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
     implicit transid: TransactionId): Future[Long] = {
+    require(skip >= 0, "skip should be non negative")
 
     val Array(firstPart, secondPart) = table.split("/")
 
