@@ -320,9 +320,10 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
         case Right(response) =>
           val rows = response.fields("rows").convertTo[List[JsObject]]
 
-          val out = if (!rows.isEmpty) {
+          val out = if (rows.nonEmpty) {
             assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-            rows.head.fields("value").convertTo[Long] - skip
+            val count = rows.head.fields("value").convertTo[Long]
+            if (count > skip) count - skip else 0L
           } else 0L
 
           transid.finished(this, start, s"[COUNT] '$dbName' completed: count $out")

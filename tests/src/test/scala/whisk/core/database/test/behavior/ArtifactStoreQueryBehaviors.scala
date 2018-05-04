@@ -220,6 +220,15 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
       skip = 4)
 
     result shouldBe 10 - 4
+
+    val result2 = count[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List(entityPath, 0),
+      List(entityPath, TOP, TOP),
+      skip = 1000)
+
+    result2 shouldBe 0
   }
 
   private def dropRev(js: JsObject): JsObject = {
