@@ -89,11 +89,6 @@
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
 
-- name: define options when deploying invoker on Ubuntu
-  set_fact:
-    linuxOptions: "/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
-  when: ansible_distribution == "Ubuntu"
-
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
@@ -177,6 +172,7 @@
       "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
       "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db_host }}"
@@ -225,11 +221,25 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
 - name: extend invoker env
   set_fact:
     env: "{{ env|default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
   with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
+
+- name: set invoker volumes
+  set_fact:
+    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
+      {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs,\
+      {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf,\
+      {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
+      {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
+
+- name: define options when deploying invoker on Ubuntu
+  set_fact:
+    volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
+  when: ansible_distribution == "Ubuntu"
 
 - name: start invoker using docker cli
   docker_container:
@@ -243,14 +253,7 @@
     state: started
     recreate: true
     env: "{{ env }}"
-    volumes:
-      - "/sys/fs/cgroup:/sys/fs/cgroup"
-      - "/run/runc:/run/runc"
-      - "{{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs"
-      - "{{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf"
-      - "{{ dockerInfo['DockerRootDir'] }}/containers/:/containers"
-      - "{{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
-      - "{{ linuxOptions | default('') }}"
+    volumes: "{{ volumes }}"
     ports: "{{ ports_to_expose }}"
     command: /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
 

@@ -151,9 +151,9 @@ object WhiskActivation
         value match {
           case JsString(t) => Instant.parse(t)
           case JsNumber(i) => Instant.ofEpochMilli(i.bigDecimal.longValue)
-          case _           => deserializationError("timetsamp malformed")
+          case _           => deserializationError("timestamp malformed")
         }
-      } getOrElse deserializationError("timetsamp malformed")
+      } getOrElse deserializationError("timestamp malformed")
   }
 
   override val collectionName = "activations"

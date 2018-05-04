@@ -15,14 +15,21 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.common
 
-import whisk.http.BasicRasService
+import pureconfig.loadConfigOrThrow
+import whisk.core.ConfigKeys
+import whisk.core.connector.{EventMessage, MessageProducer}
 
-/**
- * Implements web server to handle certain REST API calls.
- * Currently provides a health ping route, only.
- */
-class InvokerServer() extends BasicRasService {
-  override val instanceOrdinal = 1
+object UserEvents {
+
+  case class UserEventsConfig(enabled: Boolean)
+
+  val enabled = loadConfigOrThrow[UserEventsConfig](ConfigKeys.userEvents).enabled
+
+  def send(producer: MessageProducer, em: => EventMessage) = {
+    if (enabled) {
+      producer.send("events", em)
+    }
+  }
 }

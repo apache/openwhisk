@@ -79,7 +79,7 @@ Build the project for the targets that you need and add the resulting frameworks
 
 ## Installing the starter app example
 
-You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk SDK framework.  
+You can use the OpenWhisk CLI to download example code that embeds the OpenWhisk SDK framework.
 
 To install the starter app example, enter the following command:
 ```

@@ -134,7 +134,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
     extractStatusRequest { requestedState =>
       val docid = entityName.toDocId
 
-      getEntity(WhiskRule, entityStore, docid, Some {
+      getEntity(WhiskRule.get(entityStore, docid), Some {
         rule: WhiskRule =>
           val ruleName = rule.fullyQualifiedName(false)
 
@@ -230,9 +230,7 @@ trait WhiskRulesApi extends WhiskCollectionAPI with ReferencedEntities {
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     getEntity(
-      WhiskRule,
-      entityStore,
-      entityName.toDocId,
+      WhiskRule.get(entityStore, entityName.toDocId),
       Some { rule: WhiskRule =>
         val getRuleWithStatus = getTrigger(rule.trigger) map { trigger =>
           getStatus(trigger, entityName)

@@ -220,6 +220,7 @@ object ConfigKeys {
   val logLimit = "whisk.log-limit"
   val activation = "whisk.activation"
   val activationPayload = s"$activation.payload"
+  val userEvents = "whisk.user-events"
 
   val runtimes = "whisk.runtimes"
 
@@ -239,7 +240,6 @@ object ConfigKeys {
   val kubernetesTimeouts = s"$kubernetes.timeouts"
 
   val transactions = "whisk.transactions"
-  val stride = s"$transactions.stride"
 
   val logStore = "whisk.logstore"
   val splunk = s"$logStore.splunk"

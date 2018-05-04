@@ -18,6 +18,7 @@
 package whisk.core.database.test
 
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -31,7 +32,6 @@ import scala.util.Success
 import scala.util.Try
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.database._
 import whisk.core.database.memory.MemoryArtifactStore
@@ -45,12 +45,14 @@ import whisk.core.entity.types.EntityStore
  * operations with those that flow through the cache. To mitigate this, use unique asset
  * names in tests, and defer all cleanup to the end of a test suite.
  */
-trait DbUtils extends TransactionCounter {
+trait DbUtils {
   implicit val dbOpTimeout = 15 seconds
-  override val instanceOrdinal = 0
-  val instance = InstanceId(instanceOrdinal)
+  val instance = InstanceId(0)
   val docsToDelete = ListBuffer[(ArtifactStore[_], DocInfo)]()
   case class RetryOp() extends Throwable
+
+  val cnt = new AtomicInteger(0)
+  def transid() = TransactionId(cnt.incrementAndGet().toString)
 
   /**
    * Retry an operation 'step()' awaiting its result up to 'timeout'.

@@ -24,7 +24,7 @@ import common.{StreamLogging, WskActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
 import spray.json.{JsObject, JsValue}
-import whisk.common.{TransactionCounter, TransactionId}
+import whisk.common.TransactionId
 import whisk.core.database.test.DbUtils
 import whisk.core.database.{ArtifactStore, StaleParameter}
 import whisk.core.entity._
@@ -35,7 +35,6 @@ import scala.util.Random
 trait ArtifactStoreBehaviorBase
     extends FlatSpec
     with ScalaFutures
-    with TransactionCounter
     with Matchers
     with StreamLogging
     with DbUtils
@@ -43,8 +42,6 @@ trait ArtifactStoreBehaviorBase
     with IntegrationPatience
     with BeforeAndAfterEach
     with BeforeAndAfterAll {
-
-  override val instanceOrdinal = 0
 
   //Bring in sync the timeout used by ScalaFutures and DBUtils
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = dbOpTimeout)

@@ -2,6 +2,7 @@ apply plugin: 'scala'
 apply plugin: 'application'
 apply plugin: 'eclipse'
 apply plugin: 'maven'
+apply plugin: 'org.scoverage'
 
 ext.dockerImageName = 'invoker'
 apply from: '../../gradle/docker.gradle'
@@ -23,6 +24,7 @@ dependencies {
         exclude group: 'log4j'
         exclude group: 'jline'
     }
+    scoverage gradle.scoverage.deps
 }
 
 tasks.withType(ScalaCompile) {

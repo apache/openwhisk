@@ -72,12 +72,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   behavior of "TransactionId"
 
   it should "serdes a transaction id without extraLogging parameter" in {
-    val txIdWithoutParameter = TransactionId(4711)
+    val txIdWithoutParameter = TransactionId("4711")
 
     // test serialization
     val serializedTxIdWithoutParameter = TransactionId.serdes.write(txIdWithoutParameter)
     serializedTxIdWithoutParameter match {
-      case JsArray(Vector(JsNumber(id), JsNumber(_))) =>
+      case JsArray(Vector(JsString(id), JsNumber(_))) =>
         assert(id == txIdWithoutParameter.meta.id)
       case _ => withClue(serializedTxIdWithoutParameter) { assert(false) }
     }
@@ -89,12 +89,12 @@ class SchemaTests extends FlatSpec with BeforeAndAfter with ExecHelpers with Mat
   }
 
   it should "serdes a transaction id with extraLogging parameter" in {
-    val txIdWithParameter = TransactionId(4711, true)
+    val txIdWithParameter = TransactionId("4711", true)
 
     // test serialization
     val serializedTxIdWithParameter = TransactionId.serdes.write(txIdWithParameter)
     serializedTxIdWithParameter match {
-      case JsArray(Vector(JsNumber(id), JsNumber(_), JsBoolean(extraLogging))) =>
+      case JsArray(Vector(JsString(id), JsNumber(_), JsBoolean(extraLogging))) =>
         assert(id == txIdWithParameter.meta.id)
         assert(extraLogging)
       case _ => withClue(serializedTxIdWithParameter) { assert(false) }

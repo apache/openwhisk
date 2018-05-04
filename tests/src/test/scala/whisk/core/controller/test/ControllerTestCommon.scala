@@ -30,7 +30,6 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import spray.json.DefaultJsonProtocol
 import spray.json.JsString
-import whisk.common.TransactionCounter
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -52,22 +51,19 @@ protected trait ControllerTestCommon
     with BeforeAndAfterAll
     with ScalatestRouteTest
     with Matchers
-    with TransactionCounter
     with DbUtils
     with ExecHelpers
     with WhiskServices
     with StreamLogging {
 
-  override val instanceOrdinal = 0
-  override val instance = InstanceId(instanceOrdinal)
-  val activeAckTopicIndex = InstanceId(instanceOrdinal)
+  val activeAckTopicIndex = InstanceId(0)
 
   implicit val routeTestTimeout = RouteTestTimeout(90 seconds)
 
   override implicit val actorSystem = system // defined in ScalatestRouteTest
   override val executionContext = actorSystem.dispatcher
 
-  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties)
+  override val whiskConfig = new WhiskConfig(RestApiCommons.requiredProperties ++ WhiskConfig.kafkaHosts)
   assert(whiskConfig.isValid)
 
   // initialize runtimes manifest
@@ -75,7 +71,8 @@ protected trait ControllerTestCommon
 
   override val loadBalancer = new DegenerateLoadBalancerService(whiskConfig)
 
-  override lazy val entitlementProvider: EntitlementProvider = new LocalEntitlementProvider(whiskConfig, loadBalancer)
+  override lazy val entitlementProvider: EntitlementProvider =
+    new LocalEntitlementProvider(whiskConfig, loadBalancer, instance)
 
   override val activationIdFactory = new ActivationId.ActivationIdGenerator() {
     // need a static activation id to test activations api

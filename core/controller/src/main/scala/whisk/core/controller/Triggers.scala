@@ -133,7 +133,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
   override def activate(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
     entity(as[Option[JsObject]]) { payload =>
-      getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some {
+      getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some {
         trigger: WhiskTrigger =>
           val triggerActivationId = activationIdFactory.make()
           logging.info(this, s"[POST] trigger activation id: ${triggerActivationId}")
@@ -214,7 +214,7 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    */
   override def fetch(user: Identity, entityName: FullyQualifiedEntityName, env: Option[Parameters])(
     implicit transid: TransactionId) = {
-    getEntity(WhiskTrigger, entityStore, entityName.toDocId, Some { trigger =>
+    getEntity(WhiskTrigger.get(entityStore, entityName.toDocId), Some { trigger =>
       completeAsTriggerResponse(trigger)
     })
   }
@@ -383,7 +383,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * @param args the arguments to post to the action
    * @return a future with the HTTP response from the action activation
    */
-  private def postActivation(user: Identity, rule: ReducedRule, args: JsObject): Future[HttpResponse] = {
+  private def postActivation(user: Identity, rule: ReducedRule, args: JsObject)(
+    implicit transid: TransactionId): Future[HttpResponse] = {
     // Build the url to invoke an action mapped to the rule
     val actionUrl = baseControllerPath / rule.action.path.root.asString / "actions"
 
@@ -394,7 +395,9 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
     val request = HttpRequest(
       method = POST,
       uri = url.withPath(actionUrl ++ actionPath),
-      headers = List(Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString))),
+      headers = List(
+        Authorization(BasicHttpCredentials(user.authkey.uuid.asString, user.authkey.key.asString)),
+        transid.toHeader),
       entity = HttpEntity(MediaTypes.`application/json`, args.compactPrint))
 
     singleRequest(request)

@@ -97,7 +97,7 @@ jmx:
   enabled: "{{ jmxremote_enabled | default('true') }}"
 
 transactions:
-  stride: "{{ groups['controllers'] | length }}"
+  header: "{{ transactions_header | default('X-Request-ID') }}"
 
 registry:
   confdir: "{{ config_root_dir }}/registry"
@@ -170,7 +170,7 @@ nginx:
   confdir: "{{ config_root_dir }}/nginx"
   dir:
     become: "{{ nginx_dir_become | default(false) }}"
-  version: "{{ nginx_version | default('1.12') }}"
+  version: "{{ nginx_version | default('1.13') }}"
   port:
     http: 80
     api: 443
@@ -324,3 +324,4 @@ metrics:
     host: "{{ metrics_kamon_statsd_host | default('') }}"
     port: "{{ metrics_kamon_statsd_port | default('8125') }}"
 
+user_events: "{{ user_events_enabled | default(false) }}"

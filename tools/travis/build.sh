@@ -23,13 +23,15 @@ set -e
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 HOMEDIR="$SCRIPTDIR/../../../"
+UTILDIR="$HOMEDIR/incubator-openwhisk-utilities/"
 
 # clone the openwhisk utilities repo.
 cd $HOMEDIR
 git clone https://github.com/apache/incubator-openwhisk-utilities.git
 
 # run the scancode util. against project source code starting at its root
-incubator-openwhisk-utilities/scancode/scanCode.py $ROOTDIR --config $ROOTDIR/tools/build/scanCode.cfg
+cd $UTILDIR
+scancode/scanCode.py --config scancode/ASF-Release-v2.cfg $ROOTDIR
 
 # run scalafmt checks
 cd $ROOTDIR
@@ -63,10 +65,12 @@ $ANSIBLE_CMD openwhisk.yml
 
 cd $ROOTDIR
 cat whisk.properties
-TERM=dumb ./gradlew :tests:testLean $GRADLE_PROJS_SKIP
+TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage
 
 cd $ROOTDIR/ansible
 $ANSIBLE_CMD logs.yml
 
 cd $ROOTDIR
 tools/build/checkLogs.py logs
+
+bash <(curl -s https://codecov.io/bash)
