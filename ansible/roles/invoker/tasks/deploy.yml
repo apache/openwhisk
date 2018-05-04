@@ -177,6 +177,7 @@
       "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
       "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
       "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
       "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
       "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
       "CONFIG_whisk_couchdb_host": "{{ db_host }}"
@@ -225,6 +226,7 @@
       "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
       "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
       "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
 
 - name: extend invoker env
   set_fact:
