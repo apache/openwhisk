@@ -62,7 +62,7 @@ jobs:
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "unit_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
       env: DESCRIPTION="Unit Tests"
     - script:
-        - - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
+        - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
         - ./tools/travis/build.sh
         - ansible-playbook -i ansible/environments/local ansible/logs.yml
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "system_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
