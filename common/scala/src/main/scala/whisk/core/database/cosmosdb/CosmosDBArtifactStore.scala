@@ -65,7 +65,6 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
   override protected[database] def put(d: DocumentAbstraction)(implicit transid: TransactionId): Future[DocInfo] = {
     val asJson = d.toDocumentRecord
 
-    //TODO Batching support
     val doc = toCosmosDoc(asJson)
     val id = doc.getId
     val docinfoStr = s"id: $id, rev: ${doc.getETag}"
@@ -182,6 +181,8 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                                      stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
     require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
     require(!reduce, "Reduce scenario not supported") //TODO Investigate reduce
+    require(skip >= 0, "skip should be non negative")
+    require(limit >= 0, "limit should be non negative")
     documentHandler.checkIfTableSupported(table)
 
     val Array(ddoc, viewName) = table.split("/")
@@ -218,6 +219,7 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
                                      endKey: List[Any],
                                      skip: Int,
                                      stale: StaleParameter)(implicit transid: TransactionId): Future[Long] = {
+    require(skip >= 0, "skip should be non negative")
     val Array(ddoc, viewName) = table.split("/")
 
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$collName' searching '$table")
@@ -227,11 +229,11 @@ class CosmosDBArtifactStore[DocumentAbstraction <: DocumentSerializer](protected
     val f = client
       .queryDocuments(collection.getSelfLink, querySpec, newFeedOptions())
       .head()
-      .map(_.getResults.asScala.head.getLong(aggregate).longValue() - skip)
-
-    f.onSuccess({
-      case out => transid.finished(this, start, s"[COUNT] '$collName' completed: count $out")
-    })
+      .map { r =>
+        val count = r.getResults.asScala.head.getLong(aggregate).longValue()
+        transid.finished(this, start, s"[COUNT] '$collName' completed: count $count")
+        if (count > skip) count - skip else 0L
+      }
 
     reportFailure(f, start, failure => s"[COUNT] '$collName' internal error, failure: '${failure.getMessage}'")
   }
