@@ -41,22 +41,22 @@
 - name: "determine docker root dir on docker-machine"
   uri:  url="http://{{ ansible_host }}:{{ docker.port }}/info" return_content=yes
   register: dockerInfo_output
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == 'docker-machine'
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output['json'] }}"
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - name: "determine docker root dir"
   shell: echo -e "GET http:/v1.24/info HTTP/1.0\r\n" | nc -U /var/run/docker.sock | grep "{"
   args:
     executable: /bin/bash
   register: dockerInfo_output
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - set_fact:
     dockerInfo: "{{ dockerInfo_output.stdout|from_json }}"
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - name: ensure invoker log directory is created with permissions
   file:
@@ -89,11 +89,11 @@
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output['json'] }}"
-  when: whisk_version_name == "mac"
+  when: environmentInformation.type == "docker-machine"
 
 - name: "get invoker info"
   shell: |
@@ -106,11 +106,11 @@
   args:
     executable: /bin/bash
   register: invokerInfo_output
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - set_fact:
     invokerInfo: "{{ invokerInfo_output.stdout|from_json }}"
-  when: whisk_version_name != "mac"
+  when: environmentInformation.type != "docker-machine"
 
 - name: determine if more than one invoker is running
   fail:

@@ -2,6 +2,9 @@
 # license agreements; and to You under the Apache License, Version 2.0.
 
 ---
+
+environment_type: "distributed"
+
 db_provider: CouchDB
 db_port: 5984
 db_protocol: http
@@ -10,7 +13,6 @@ db_password: couch_password
 db_host: "{{ groups['db'] | first }}"
 db_prefix: whisk_distributed_
 
-whisk_version_name: distributed
 config_root_dir: /tmp/wskconf
 whisk_logs_dir: /tmp/wsklogs
 registry_storage_dir: "/"

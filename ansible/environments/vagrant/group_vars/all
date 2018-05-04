@@ -1,7 +1,6 @@
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements; and to You under the Apache License, Version 2.0.
 
-whisk_version_name: local
 openwhisk_tmp_dir: "{{ lookup('env', 'OPENWHISK_TMP_DIR')|default('/tmp', true) }}"
 config_root_dir: "{{ openwhisk_tmp_dir }}/wskconf"
 whisk_logs_dir: "{{ openwhisk_tmp_dir }}/wsklogs"
@@ -9,6 +8,8 @@ docker_registry: ""
 docker_dns: ""
 runtimes_bypass_pull_for_local_images: true
 invoker_use_runc: "{{ ansible_distribution != 'MacOSX' }}"
+
+environment_type: "distributed"
 
 db_prefix: whisk_local_
 
