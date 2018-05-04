@@ -89,11 +89,6 @@
   - "{{ db.whisk.actions }}"
   - "{{ db.whisk.activations }}"
 
-- name: define options when deploying invoker on Ubuntu
-  set_fact:
-    linuxOptions: "-v /usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
-  when: ansible_distribution == "Ubuntu"
-
 - name: get running invoker information
   uri: url="http://{{ ansible_host }}:{{ docker.port }}/containers/json?filters={{ '{"name":[ "invoker" ],"ancestor":[ "invoker" ]}' | urlencode }}" return_content=yes
   register: invokerInfo_output
@@ -150,97 +145,117 @@
   set_fact:
     invoker_args: "{{ invoker.arguments }} {{ invoker.jmxremote.jvmArgs }}"
 
-- name: start invoker using docker cli
-  shell: >
-        docker run -d
-        --userns=host
-        --pid=host
-        --privileged
-        {{ linuxOptions | default('') }}
-        --name invoker{{ groups['invokers'].index(inventory_hostname) }}
-        --hostname invoker{{ groups['invokers'].index(inventory_hostname) }}
-        --restart {{ docker.restart.policy }}
-        -e JAVA_OPTS='-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log'
-        -e INVOKER_OPTS='{{ invoker_args | default(invoker.arguments) }}'
-        -e JMX_REMOTE='{{ jmx.enabled }}'
-        -e COMPONENT_NAME='invoker{{ groups['invokers'].index(inventory_hostname) }}'
-        -e PORT='8080'
-        -e KAFKA_HOSTS='{{ kafka_connect_string }}'
-        -e CONFIG_whisk_kafka_replicationFactor='{{ kafka.replicationFactor | default() }}'
-        -e CONFIG_whisk_kafka_topics_invoker_retentionBytes='{{ kafka_topics_invoker_retentionBytes | default() }}'
-        -e CONFIG_whisk_kafka_topics_invoker_retentionMs='{{ kafka_topics_invoker_retentionMS | default() }}'
-        -e CONFIG_whisk_kakfa_topics_invoker_segmentBytes='{{ kafka_topics_invoker_segmentBytes | default() }}'
-        -e CONFIG_whisk_kafka_common_securityProtocol='{{ kafka.protocol }}'
-        -e CONFIG_whisk_kafka_common_sslTruststoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
-        -e CONFIG_whisk_kafka_common_sslTruststorePassword='{{ kafka.ssl.keystore.password }}'
-        -e CONFIG_whisk_kafka_common_sslKeystoreLocation='/conf/{{ kafka.ssl.keystore.name }}'
-        -e CONFIG_whisk_kafka_common_sslKeystorePassword='{{ kafka.ssl.keystore.password }}'
-        -e CONFIG_whisk_userEvents_enabled='{{ user_events }}'
-        -e ZOOKEEPER_HOSTS='{{ zookeeper_connect_string }}'
-        -e CONFIG_whisk_couchdb_protocol='{{ db_protocol }}'
-        -e CONFIG_whisk_couchdb_host='{{ db_host }}'
-        -e CONFIG_whisk_couchdb_port='{{ db_port }}'
-        -e CONFIG_whisk_couchdb_username='{{ db_username }}'
-        -e CONFIG_whisk_couchdb_password='{{ db_password }}'
-        -e CONFIG_whisk_couchdb_provider='{{ db_provider }}'
-        -e CONFIG_whisk_couchdb_databases_WhiskAuth='{{ db.whisk.auth }}'
-        -e CONFIG_whisk_couchdb_databases_WhiskEntity='{{ db.whisk.actions }}'
-        -e CONFIG_whisk_couchdb_databases_WhiskActivation='{{ db.whisk.activations }}'
-        -e DB_WHISK_ACTIONS='{{ db.whisk.actions }}'
-        -e DB_WHISK_ACTIVATIONS='{{ db.whisk.activations }}'
-        -e DB_WHISK_AUTHS='{{ db.whisk.auth }}'
-        -e CONFIG_whisk_db_actionsDdoc='{{ db_whisk_actions_ddoc | default() }}'
-        -e CONFIG_whisk_db_activationsDdoc='{{ db_whisk_activations_ddoc | default() }}'
-        -e CONFIG_whisk_db_activationsFilterDdoc='{{ db_whisk_activations_filter_ddoc | default() }}'
-        -e WHISK_API_HOST_PROTO='{{ whisk_api_host_proto | default('https') }}'
-        -e WHISK_API_HOST_PORT='{{ whisk_api_host_port | default('443') }}'
-        -e WHISK_API_HOST_NAME='{{ whisk_api_host_name | default(groups['edge'] | first) }}'
-        -e RUNTIMES_MANIFEST='{{ runtimesManifest | to_json }}'
-        -e CONFIG_whisk_runtimes_defaultImagePrefix='{{ runtimes_default_image_prefix | default() }}'
-        -e CONFIG_whisk_runtimes_defaultImageTag='{{ runtimes_default_image_tag | default() }}'
-        -e CONFIG_whisk_runtimes_bypassPullForLocalImages='{{ runtimes_bypass_pull_for_local_images | default() }}'
-        -e CONFIG_whisk_runtimes_localImagePrefix='{{ runtimes_local_image_prefix | default() }}'
-        -e DOCKER_REGISTRY='{{ docker_registry }}'
-        -e DOCKER_IMAGE_PREFIX='{{ docker.image.prefix }}'
-        -e DOCKER_IMAGE_TAG='{{ docker.image.tag }}'
-        -e CONFIG_whisk_containerFactory_containerArgs_network='{{ invoker_container_network_name | default("bridge") }}'
-        -e INVOKER_CONTAINER_POLICY='{{ invoker_container_policy_name | default()}}'
-        {% for item in (invoker_container_network_dns_servers | default()).split(' ')  %}
-        -e CONFIG_whisk_containerFactory_containerArgs_dnsServers_{{loop.index0}}={{ item }}
-        {% endfor %}
-        -e CONFIG_whisk_containerPool_numCore='{{ invoker.numcore }}'
-        -e CONFIG_whisk_containerPool_coreShare='{{ invoker.coreshare }}'
-        -e CONFIG_whisk_docker_containerFactory_useRunc='{{ invoker.useRunc }}'
-        -e INVOKER_NAME='{{ groups['invokers'].index(inventory_hostname) }}'
-        -e WHISK_LOGS_DIR='{{ whisk_logs_dir }}'
-        -e METRICS_KAMON='{{ metrics.kamon.enabled }}'
-        -e METRICS_KAMON_TAGS='{{ metrics.kamon.tags }}'
-        -e METRICS_LOG='{{ metrics.log.enabled }}'
-        -e CONFIG_kamon_statsd_hostname='{{ metrics.kamon.host }}'
-        -e CONFIG_kamon_statsd_port='{{ metrics.kamon.port }}'
-        -e CONFIG_whisk_spi_LogStoreProvider='{{ userLogs.spi }}'
-        -e CONFIG_logback_log_level='{{ invoker.loglevel }}'
-        -e CONFIG_whisk_memory_min='{{ limit_action_memory_min | default() }}'
-        -e CONFIG_whisk_memory_max='{{ limit_action_memory_max | default() }}'
-        -e CONFIG_whisk_memory_std='{{ limit_action_memory_std | default() }}'
-        -e CONFIG_whisk_timeLimit_min='{{ limit_action_time_min | default() }}'
-        -e CONFIG_whisk_timeLimit_max='{{ limit_action_time_max | default() }}'
-        -e CONFIG_whisk_timeLimit_std='{{ limit_action_time_std | default() }}'
-        -e CONFIG_whisk_activation_payload_max='{{ limit_activation_payload | default() }}'
-        -e CONFIG_whisk_transactions_header='{{ transactions.header }}'
-        -v /sys/fs/cgroup:/sys/fs/cgroup
-        -v /run/runc:/run/runc
-        -v {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs
-        -v {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf
-        -v {{ dockerInfo["DockerRootDir"] }}/containers/:/containers
-        -v {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock
-        -p {{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080
-        {% if jmx.enabled %} -p {{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }} {% endif %}
-        {% if jmx.enabled %} -p {{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }} {% endif %}
-        {{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}
-        /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
+- name: prepare invoker ports
+  set_fact:
+    ports_to_expose: ["{{ invoker.port + groups['invokers'].index(inventory_hostname) }}:8080"]
 
-# todo: re-enable docker_container module once https://github.com/ansible/ansible-modules-core/issues/5054 is resolved
+- name: expose additional ports if jmxremote is enabled
+  when: jmx.enabled
+  set_fact:
+    ports_to_expose: "{{ ports_to_expose }} + [ \"{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.basePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ] + [ \"{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}:{{ jmx.rmiBasePortInvoker + groups['invokers'].index(inventory_hostname) }}\" ]"
+
+- name: prepare invoker env
+  set_fact:
+    env:
+      "JAVA_OPTS": "-Xmx{{ invoker.heap }} -XX:+CrashOnOutOfMemoryError -XX:+UseGCOverheadLimit -XX:ErrorFile=/logs/java_error.log"
+      "INVOKER_OPTS": "{{ invoker_args | default(invoker.arguments) }}"
+      "JMX_REMOTE": "{{ jmx.enabled }}"
+      "COMPONENT_NAME": "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+      "PORT": 8080
+      "KAFKA_HOSTS": "{{ kafka_connect_string }}"
+      "CONFIG_whisk_kafka_replicationFactor": "{{ kafka.replicationFactor | default() }}"
+      "CONFIG_whisk_kafka_topics_invoker_retentionBytes": "{{ kafka_topics_invoker_retentionBytes | default() }}"
+      "CONFIG_whisk_kafka_topics_invoker_retentionMs": "{{ kafka_topics_invoker_retentionMS | default() }}"
+      "CONFIG_whisk_kakfa_topics_invoker_segmentBytes": "{{ kafka_topics_invoker_segmentBytes | default() }}"
+      "CONFIG_whisk_kafka_common_securityProtocol": "{{ kafka.protocol }}"
+      "CONFIG_whisk_kafka_common_sslTruststoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslTruststorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_kafka_common_sslKeystoreLocation": "/conf/{{ kafka.ssl.keystore.name }}"
+      "CONFIG_whisk_kafka_common_sslKeystorePassword": "{{ kafka.ssl.keystore.password }}"
+      "CONFIG_whisk_userEvents_enabled": "{{ user_events }}"
+      "ZOOKEEPER_HOSTS": "{{ zookeeper_connect_string }}"
+      "CONFIG_whisk_couchdb_protocol": "{{ db_protocol }}"
+      "CONFIG_whisk_couchdb_host": "{{ db_host }}"
+      "CONFIG_whisk_couchdb_port": "{{ db_port }}"
+      "CONFIG_whisk_couchdb_username": "{{ db_username }}"
+      "CONFIG_whisk_couchdb_password": "{{ db_password }}"
+      "CONFIG_whisk_couchdb_provider": "{{ db_provider }}"
+      "CONFIG_whisk_couchdb_databases_WhiskAuth": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_couchdb_databases_WhiskEntity": "{{ db.whisk.actions }}"
+      "CONFIG_whisk_couchdb_databases_WhiskActivation": "{{ db.whisk.activations }}"
+      "DB_WHISK_ACTIONS": "{{ db.whisk.actions }}"
+      "DB_WHISK_ACTIVATIONS": "{{ db.whisk.activations }}"
+      "DB_WHISK_AUTHS": "{{ db.whisk.auth }}"
+      "CONFIG_whisk_db_actionsDdoc": "{{ db_whisk_actions_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsDdoc": "{{ db_whisk_activations_ddoc | default() }}"
+      "CONFIG_whisk_db_activationsFilterDdoc": "{{ db_whisk_activations_filter_ddoc | default() }}"
+      "WHISK_API_HOST_PROTO": "{{ whisk_api_host_proto | default('https') }}"
+      "WHISK_API_HOST_PORT": "{{ whisk_api_host_port | default('443') }}"
+      "WHISK_API_HOST_NAME": "{{ whisk_api_host_name | default(groups['edge'] | first) }}"
+      "RUNTIMES_MANIFEST": "{{ runtimesManifest | to_json }}"
+      "CONFIG_whisk_runtimes_defaultImagePrefix": "{{ runtimes_default_image_prefix | default() }}"
+      "CONFIG_whisk_runtimes_defaultImageTag": "{{ runtimes_default_image_tag | default() }}"
+      "CONFIG_whisk_runtimes_bypassPullForLocalImages": "{{ runtimes_bypass_pull_for_local_images | default() }}"
+      "CONFIG_whisk_runtimes_localImagePrefix": "{{ runtimes_local_image_prefix | default() }}"
+      "DOCKER_REGISTRY": "{{ docker_registry }}"
+      "DOCKER_IMAGE_PREFIX": "{{ docker.image.prefix }}"
+      "DOCKER_IMAGE_TAG": "{{ docker.image.tag }}"
+      "CONFIG_whisk_containerFactory_containerArgs_network": "{{ invoker_container_network_name | default('bridge') }}"
+      "INVOKER_CONTAINER_POLICY": "{{ invoker_container_policy_name | default()}}"
+      "CONFIG_whisk_containerPool_numCore": "{{ invoker.numcore }}"
+      "CONFIG_whisk_containerPool_coreShare": "{{ invoker.coreshare }}"
+      "CONFIG_whisk_docker_containerFactory_useRunc": "{{ invoker.useRunc }}"
+      "INVOKER_NAME": "{{ groups['invokers'].index(inventory_hostname) }}"
+      "WHISK_LOGS_DIR": "{{ whisk_logs_dir }}"
+      "METRICS_KAMON": "{{ metrics.kamon.enabled }}"
+      "METRICS_KAMON_TAGS": "{{ metrics.kamon.tags }}"
+      "METRICS_LOG": "{{ metrics.log.enabled }}"
+      "CONFIG_kamon_statsd_hostname": "{{ metrics.kamon.host }}"
+      "CONFIG_kamon_statsd_port": "{{ metrics.kamon.port }}"
+      "CONFIG_whisk_spi_LogStoreProvider": "{{ userLogs.spi }}"
+      "CONFIG_logback_log_level": "{{ invoker.loglevel }}"
+      "CONFIG_whisk_memory_min": "{{ limit_action_memory_min | default() }}"
+      "CONFIG_whisk_memory_max": "{{ limit_action_memory_max | default() }}"
+      "CONFIG_whisk_memory_std": "{{ limit_action_memory_std | default() }}"
+      "CONFIG_whisk_timeLimit_min": "{{ limit_action_time_min | default() }}"
+      "CONFIG_whisk_timeLimit_max": "{{ limit_action_time_max | default() }}"
+      "CONFIG_whisk_timeLimit_std": "{{ limit_action_time_std | default() }}"
+      "CONFIG_whisk_activation_payload_max": "{{ limit_activation_payload | default() }}"
+      "CONFIG_whisk_transactions_header": "{{ transactions.header }}"
+
+- name: extend invoker env
+  set_fact:
+    env: "{{ env|default({}) | combine( {'CONFIG_whisk_containerFactory_containerArgs_dnsServers_' ~ item.0: item.1} ) }}"
+  with_indexed_items: "{{ (invoker_container_network_dns_servers | default()).split(' ')}}"
+
+- name: set invoker volumes
+  set_fact:
+    volumes: "/sys/fs/cgroup:/sys/fs/cgroup,/run/runc:/run/runc,\
+      {{ whisk_logs_dir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/logs,\
+      {{ invoker.confdir }}/invoker{{ groups['invokers'].index(inventory_hostname) }}:/conf,\
+      {{ dockerInfo['DockerRootDir'] }}/containers/:/containers,\
+      {{ docker_sock | default('/var/run/docker.sock') }}:/var/run/docker.sock"
+
+- name: define options when deploying invoker on Ubuntu
+  set_fact:
+    volumes: "{{ volumes|default('') }},/usr/lib/x86_64-linux-gnu/libapparmor.so.1:/usr/lib/x86_64-linux-gnu/libapparmor.so.1"
+  when: ansible_distribution == "Ubuntu"
+
+- name: start invoker using docker cli
+  docker_container:
+    userns_mode: "host"
+    pid_mode: "host"
+    privileged: "yes"
+    name: invoker{{ groups['invokers'].index(inventory_hostname) }}
+    hostname: "invoker{{ groups['invokers'].index(inventory_hostname) }}"
+    restart_policy: "{{ docker.restart.policy }}"
+    image: "{{ docker_registry }}{{ docker.image.prefix }}/invoker:{{ docker.image.tag }}"
+    state: started
+    recreate: true
+    env: "{{ env }}"
+    volumes: "{{ volumes }}"
+    ports: "{{ ports_to_expose }}"
+    command: /bin/sh -c "exec /init.sh {{ groups['invokers'].index(inventory_hostname) }} >> /logs/invoker{{ groups['invokers'].index(inventory_hostname) }}_logs.log 2>&1"
 
 - name: wait until Invoker is up and running
   uri:
