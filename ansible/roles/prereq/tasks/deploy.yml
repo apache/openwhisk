@@ -33,7 +33,7 @@
     extra_args: --user
 
 - name: install docker for python
-  pip: 
+  pip:
     name: docker
     version: 2.2.1
     extra_args: --user
