@@ -33,8 +33,73 @@ def leanExcludes = [
     '**/*WskCli*'
 ]
 
+enum PatternType {INCLUDES, EXCLUDES}
+
+ext.testSets = [
+    "REQUIRE_ONLY_DB" : [
+        (PatternType.INCLUDES) : [
+            "actionContainers/**",
+            "ha/**",
+            "whisk/common/**",
+            "whisk/core/**"
+        ],
+        (PatternType.EXCLUDES) : [
+            "whisk/core/admin/**",
+            "whisk/core/apigw/actions/test/**",
+            "whisk/core/cli/test/**",
+            "whisk/core/limits/**",
+            "whisk/core/database/test/CacheConcurrencyTests",
+            "whisk/core/controller/test/ControllerApiTests",
+        ]
+    ],
+    "REQUIRE_SYSTEM" : [
+         (PatternType.INCLUDES) : [
+            "apigw/healthtests/**",
+            "services/**",
+            "system/basic/**",
+            "system/rest/**",
+            "whisk/core/admin/**",
+            "whisk/core/cli/test/**",
+            "whisk/core/apigw/actions/test/**",
+            "whisk/core/limits/**",
+            "whisk/core/database/test/CacheConcurrencyTests",
+            "whisk/core/controller/test/ControllerApiTests",
+        ]
+    ],
+    "LEAN" : [
+         (PatternType.EXCLUDES) : leanExcludes
+    ]
+]
+
+testSets.each {setName, patterns ->
+    def excludes = patterns[PatternType.EXCLUDES] ?: new HashSet<>()
+    excludes.addAll(leanExcludes)
+    patterns[PatternType.EXCLUDES] = excludes
+}
+
+//The value can be specified either via env variable
+// ORG_GRADLE_PROJECT_testSetName
+//Or via property -PtestSetName
+if (!project.hasProperty("testSetName")) {
+    ext.testSetName = "LEAN"
+}
+
+def getPattern(String name, PatternType type) {
+    def patterns = testSets[name]
+    assert patterns : "No pattern found for $name"
+    return patterns[type] ?: []
+}
+
 task testLean(type: Test) {
-    exclude leanExcludes
+    println "Using testSet $testSetName - ${testSets[testSetName]}"
+    def excludes = getPattern(testSetName, PatternType.EXCLUDES)
+    if (excludes) {
+        exclude excludes
+    }
+    def includes = getPattern(testSetName, PatternType.INCLUDES)
+    if (includes) {
+        include includes
+    }
 }
 
 task testLeanCli(type: Test) {
@@ -103,7 +168,14 @@ task createKeystore(dependsOn: deleteKeystore) {
 afterEvaluate {
     task testCoverageLean(type:Test) {
         classpath = getScoverageClasspath(project)
-        exclude leanExcludes
+        def excludes = getPattern(testSetName, PatternType.EXCLUDES)
+        if (excludes) {
+            exclude excludes
+        }
+        def includes = getPattern(testSetName, PatternType.INCLUDES)
+        if (includes) {
+            include includes
+        }
     }
 
     task testCoverage(type:Test) {
