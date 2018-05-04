@@ -183,6 +183,23 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     result.map(js => JsObject(getJsObject(js, "doc").fields - "_rev")) shouldBe activations.map(_.toDocumentRecord)
   }
 
+  it should "throw exception for negative limits and skip" in {
+    implicit val tid: TransactionId = transid()
+    a[IllegalArgumentException] should be thrownBy query[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List("foo", 0),
+      List("foo", TOP, TOP),
+      limit = -1)
+
+    a[IllegalArgumentException] should be thrownBy query[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List("foo", 0),
+      List("foo", TOP, TOP),
+      skip = -1)
+  }
+
   behavior of s"${storeType}ArtifactStore count"
 
   it should "should match all created activations" in {
@@ -203,8 +220,7 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
     result shouldBe 10
   }
 
-  it should "count with skip" ignore {
-    //TODO Skip is not working for CouchDB
+  it should "count with skip" in {
     implicit val tid: TransactionId = transid()
 
     val ns = newNS()
@@ -221,6 +237,25 @@ trait ArtifactStoreQueryBehaviors extends ArtifactStoreBehaviorBase {
       skip = 4)
 
     result shouldBe 10 - 4
+
+    val result2 = count[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List(entityPath, 0),
+      List(entityPath, TOP, TOP),
+      skip = 1000)
+
+    result2 shouldBe 0
+  }
+
+  it should "throw exception for negative skip" in {
+    implicit val tid: TransactionId = transid()
+    a[IllegalArgumentException] should be thrownBy count[WhiskActivation](
+      activationStore,
+      WhiskActivation.filtersView.name,
+      List("foo", 0),
+      List("foo", TOP, TOP),
+      skip = -1)
   }
 
   private def dropRev(js: JsObject): JsObject = {

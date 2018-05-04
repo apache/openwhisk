@@ -258,6 +258,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
                                      stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
 
     require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
+    require(skip >= 0, "skip should be non negative")
+    require(limit >= 0, "limit should be non negative")
 
     // Apparently you have to do that in addition to setting "descending"
     val (realStartKey, realEndKey) = if (descending) {
@@ -309,25 +311,22 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
 
   protected[core] def count(table: String, startKey: List[Any], endKey: List[Any], skip: Int, stale: StaleParameter)(
     implicit transid: TransactionId): Future[Long] = {
+    require(skip >= 0, "skip should be non negative")
 
     val Array(firstPart, secondPart) = table.split("/")
 
     val start = transid.started(this, LoggingMarkers.DATABASE_QUERY, s"[COUNT] '$dbName' searching '$table")
 
     val f = client
-      .executeView(firstPart, secondPart)(
-        startKey = startKey,
-        endKey = endKey,
-        skip = Some(skip),
-        stale = stale,
-        reduce = true)
+      .executeView(firstPart, secondPart)(startKey = startKey, endKey = endKey, stale = stale, reduce = true)
       .map {
         case Right(response) =>
           val rows = response.fields("rows").convertTo[List[JsObject]]
 
-          val out = if (!rows.isEmpty) {
+          val out = if (rows.nonEmpty) {
             assert(rows.length == 1, s"result of reduced view contains more than one value: '$rows'")
-            rows.head.fields("value").convertTo[Long]
+            val count = rows.head.fields("value").convertTo[Long]
+            if (count > skip) count - skip else 0L
           } else 0L
 
           transid.finished(this, start, s"[COUNT] '$dbName' completed: count $out")
