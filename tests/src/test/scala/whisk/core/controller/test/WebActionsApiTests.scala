@@ -41,6 +41,7 @@ import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.headers.{`Access-Control-Request-Headers`, `Content-Type`, RawHeader}
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaType
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.common.TransactionId
@@ -1724,6 +1725,23 @@ trait WebActionsApiBaseTests extends ControllerTestCommon with BeforeAndAfterEac
       actionResult = Some(JsObject(webApiDirectives.statusCode -> JsString("xyz")))
       Head(s"$testRoutePath/$systemId/proxy/export_c.http") ~> Route.seal(routes(creds)) ~> check {
         status should be(BadRequest)
+      }
+    }
+
+    it should s"support json (including +json subtypes) (auth? ${creds.isDefined})" in {
+      implicit val tid = transid()
+
+      val path = s"$systemId/proxy/export_c.text/content/field1"
+      val entity = JsObject("field1" -> "value1".toJson)
+
+      Seq(
+        ContentType(MediaType.applicationWithFixedCharset("cloudevents+json", HttpCharsets.`UTF-8`)),
+        ContentTypes.`application/json`).foreach { ct =>
+        invocationsAllowed += 1
+        Post(s"$testRoutePath/$path", HttpEntity(ct, entity.compactPrint)) ~> Route.seal(routes(creds)) ~> check {
+          status should be(OK)
+          responseAs[String] shouldBe "value1"
+        }
       }
     }
   }

@@ -21,7 +21,6 @@ import java.util.Base64
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-
 import akka.http.scaladsl.model.HttpEntity.Empty
 import akka.http.scaladsl.server.Directives
 import akka.http.scaladsl.model.HttpMethod
@@ -36,7 +35,6 @@ import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.Uri.Query
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.model.headers.`Timeout-Access`
 import akka.http.scaladsl.model.ContentType
@@ -45,13 +43,10 @@ import akka.http.scaladsl.model.FormData
 import akka.http.scaladsl.model.HttpMethods.{DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT}
 import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.HttpResponse
-
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-
 import WhiskWebActionsApi.MediaExtension
 import RestApiCommons.{jsonPrettyResponsePrinter => jsonPrettyPrinter}
-
 import whisk.common.TransactionId
 import whisk.core.controller.actions.PostActionActivation
 import whisk.core.database._
@@ -59,6 +54,7 @@ import whisk.core.entity._
 import whisk.core.entity.types._
 import whisk.http.ErrorResponse.terminate
 import whisk.http.Messages
+import whisk.http.LenientSprayJsonSupport._
 import whisk.utils.JsHelpers._
 
 protected[controller] sealed class WebApiDirectives(prefix: String = "__ow_") {
@@ -290,7 +286,7 @@ protected[core] object WhiskWebActionsApi extends Directives {
     }
   }
 
-  private def isJsonFamily(mt: MediaType) = {
+  def isJsonFamily(mt: MediaType): Boolean = {
     mt == `application/json` || mt.value.endsWith("+json")
   }
 
@@ -574,7 +570,7 @@ trait WhiskWebActionsApi extends Directives with ValidateRequestSize with PostAc
         case Empty =>
           process(None, isRawHttpAction)
 
-        case HttpEntity.Strict(ContentTypes.`application/json`, json) if !isRawHttpAction =>
+        case HttpEntity.Strict(ct, json) if WhiskWebActionsApi.isJsonFamily(ct.mediaType) && !isRawHttpAction =>
           if (json.nonEmpty) {
             entity(as[JsValue]) { body =>
               process(Some(body), isRawHttpAction)
