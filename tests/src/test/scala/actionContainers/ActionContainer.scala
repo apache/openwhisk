@@ -88,12 +88,37 @@ object ActionContainer {
   }
 
   private lazy val dockerCmd: String = {
-    val version = WhiskProperties.getProperty("whisk.version.name")
-    // Check if we are running on docker-machine env.
-    val hostStr = if (version.toLowerCase().contains("mac")) {
-      s" --host tcp://${WhiskProperties.getMainDockerEndpoint} "
+    /*
+     * The docker host is set to a provided property 'docker.host' if it's
+     * available; otherwise we check with WhiskProperties to see whether we are
+     * running on a docker-machine.
+     *
+     * IMPLICATION:  The test must EITHER have the 'docker.host' system
+     * property set OR the 'OPENWHISK_HOME' environment variable set and a
+     * valid 'whisk.properties' file generated.  The 'docker.host' system
+     * property takes precedence.
+     *
+     * WARNING:  Adding a non-docker-machine environment that contains 'mac'
+     * (i.e. 'environments/local-mac') will likely break things.
+     *
+     * The plan is to move builds to using 'gradle-docker-plugin', which know
+     * its docker socket and to have it pass the docker socket implicitly using
+     * 'systemProperty "docker.host", docker.url'.  Eventually, we will also
+     * need to handle TLS certificates here.  Again, 'gradle-docker-plugin'
+     * knows where they are; we will just add system properties to get the
+     * information onto the docker command line.
+     */
+    val dockerUrl = Option(System.getProperty("docker.host"))
+    val hostStr = if (dockerUrl.isDefined) {
+      s" --host ${dockerUrl.get} "
     } else {
-      " "
+      val version = WhiskProperties.getProperty("whisk.version.name")
+      // Check if we are running on docker-machine env.
+      if (version.toLowerCase().contains("mac")) {
+        s" --host tcp://${WhiskProperties.getMainDockerEndpoint()} "
+      } else {
+        " "
+      }
     }
     s"$dockerBin $hostStr"
   }
