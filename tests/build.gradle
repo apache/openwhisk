@@ -48,8 +48,8 @@ ext.testSets = [
             "whisk/core/apigw/actions/test/**",
             "whisk/core/cli/test/**",
             "whisk/core/limits/**",
-            "whisk/core/database/test/CacheConcurrencyTests",
-            "whisk/core/controller/test/ControllerApiTests",
+            "**/*CacheConcurrencyTests*",
+            "**/*ControllerApiTests*",
         ]
     ],
     "REQUIRE_SYSTEM" : [
@@ -62,8 +62,8 @@ ext.testSets = [
             "whisk/core/cli/test/**",
             "whisk/core/apigw/actions/test/**",
             "whisk/core/limits/**",
-            "whisk/core/database/test/CacheConcurrencyTests",
-            "whisk/core/controller/test/ControllerApiTests",
+            "whisk/core/database/test/*CacheConcurrencyTests*",
+            "whisk/core/controller/test/*ControllerApiTests*",
         ]
     ],
     "LEAN" : [
