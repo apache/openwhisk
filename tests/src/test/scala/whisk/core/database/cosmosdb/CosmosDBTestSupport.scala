@@ -17,9 +17,6 @@
 
 package whisk.core.database.cosmosdb
 
-import java.text.SimpleDateFormat
-import java.util.Date
-
 import com.microsoft.azure.cosmosdb.Database
 import org.scalatest.{BeforeAndAfterAll, FlatSpec}
 import pureconfig.loadConfigOrThrow
@@ -43,8 +40,7 @@ trait CosmosDBTestSupport extends FlatSpec with BeforeAndAfterAll with RxObserva
   }
 
   protected def generateDBName() = {
-    val format = new SimpleDateFormat(s"yyyy-MM-dd")
-    s"${format.format(new Date())}-${getClass.getSimpleName}-${Random.alphanumeric.take(5).mkString}"
+    s"travis-${getClass.getSimpleName}-${Random.alphanumeric.take(5).mkString}"
   }
 
   protected def createTestDB() = {
