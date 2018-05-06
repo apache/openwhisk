@@ -21,7 +21,7 @@ set -x
 
 if [ "$(lsb_release -cs)" == "trusty" ]; then
     sudo apt-get install -y software-properties-common python-software-properties
-    sudo add-apt-repository ppa:jonathonf/openjdk
+    sudo add-apt-repository ppa:jonathonf/openjdk -y
     sudo apt-get update
 fi
 
