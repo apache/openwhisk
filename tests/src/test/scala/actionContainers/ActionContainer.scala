@@ -30,6 +30,7 @@ import scala.concurrent.duration.DurationInt
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.util.Random
+import scala.util.{Failure, Success}
 
 import org.apache.commons.lang3.StringUtils
 import org.scalatest.FlatSpec
@@ -90,16 +91,8 @@ object ActionContainer {
   private lazy val dockerCmd: String = {
     /*
      * The docker host is set to a provided property 'docker.host' if it's
-     * available; otherwise we check with WhiskProperties to see whether we are
-     * running on a docker-machine.
-     *
-     * IMPLICATION:  The test must EITHER have the 'docker.host' system
-     * property set OR the 'OPENWHISK_HOME' environment variable set and a
-     * valid 'whisk.properties' file generated.  The 'docker.host' system
-     * property takes precedence.
-     *
-     * WARNING:  Adding a non-docker-machine environment that contains 'mac'
-     * (i.e. 'environments/local-mac') will likely break things.
+     * available; otherwise by the environment variable DOCKER_HOST
+     * (which is usually set, especially for DOCKER_MACHINE).
      *
      * The plan is to move builds to using 'gradle-docker-plugin', which know
      * its docker socket and to have it pass the docker socket implicitly using
@@ -108,19 +101,24 @@ object ActionContainer {
      * knows where they are; we will just add system properties to get the
      * information onto the docker command line.
      */
-    val dockerUrl = Option(System.getProperty("docker.host"))
-    val hostStr = if (dockerUrl.isDefined) {
-      s" --host ${dockerUrl.get} "
-    } else {
-      val version = WhiskProperties.getProperty("whisk.version.name")
-      // Check if we are running on docker-machine env.
-      if (version.toLowerCase().contains("mac")) {
-        s" --host tcp://${WhiskProperties.getMainDockerEndpoint()} "
-      } else {
-        " "
-      }
+    val dockerCmdString = dockerBin +
+      sys.props.get("docker.host").orElse(sys.env.get("DOCKER_HOST"))
+        .map(" --host " + _).getOrElse("")
+    // Test here that this actually works, otherwise throw a somewhat understandable error message
+    proc( s"$dockerCmdString info" ).onComplete {
+      case Success((v, _, _)) if (v != 0) =>
+        throw new RuntimeException(
+          """Unable to connect to docker host using '$d' as command string.
+          |The docker host is determined using the Java property 'docker.host' or
+          |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
+          |other is set for your build/test process.""".stripMargin)
+      case Success((v, _, _)) if (v == 0) =>
+        // Do nothing
+      case Failure(t) =>
+        throw t
     }
-    s"$dockerBin $hostStr"
+
+    dockerCmdString
   }
 
   private def docker(command: String): String = s"$dockerCmd $command"
