@@ -102,18 +102,20 @@ object ActionContainer {
      * information onto the docker command line.
      */
     val dockerCmdString = dockerBin +
-      sys.props.get("docker.host").orElse(sys.env.get("DOCKER_HOST"))
-        .map(" --host " + _).getOrElse("")
+      sys.props
+        .get("docker.host")
+        .orElse(sys.env.get("DOCKER_HOST"))
+        .map(" --host " + _)
+        .getOrElse("")
     // Test here that this actually works, otherwise throw a somewhat understandable error message
-    proc( s"$dockerCmdString info" ).onComplete {
+    proc(s"$dockerCmdString info").onComplete {
       case Success((v, _, _)) if (v != 0) =>
-        throw new RuntimeException(
-          """Unable to connect to docker host using '$d' as command string.
+        throw new RuntimeException("""Unable to connect to docker host using '$d' as command string.
           |The docker host is determined using the Java property 'docker.host' or
           |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
           |other is set for your build/test process.""".stripMargin)
       case Success((v, _, _)) if (v == 0) =>
-        // Do nothing
+      // Do nothing
       case Failure(t) =>
         throw t
     }
