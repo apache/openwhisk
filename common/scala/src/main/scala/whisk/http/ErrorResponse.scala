@@ -154,7 +154,7 @@ object Messages {
     s"The value '$value' is not in the range of 0 to $max for $collection."
   }
   def listSkipOutOfRange(collection: String, value: Int) = {
-    s"The value '$value' is not a non-negative integer for $collection."
+    s"The value '$value' is not greater than or equal to 0 for $collection."
   }
   def argumentNotInteger(collection: String, value: String) = s"The value '$value' is not an integer for $collection."
 
