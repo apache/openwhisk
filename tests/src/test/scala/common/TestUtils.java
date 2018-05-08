@@ -218,8 +218,8 @@ public class TestUtils {
             this.stderr = stderr;
         }
 
-        public Pair<String, String> logs() {
-            return Pair.make(stdout, stderr);
+        public Pair logs() {
+            return new Pair(stdout, stderr);
         }
 
         public void validateExitCode(int expectedExitCode) {
