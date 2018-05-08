@@ -55,24 +55,12 @@ install:
 jobs:
   include:
     - script:
-        - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-        - ./tools/travis/scan.sh
-        - ./tools/travis/setupPrereq.sh
-        - ./tools/travis/distDocker.sh
-        - ./tools/travis/runTests.sh
-        - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
-        - tools/build/checkLogs.py logs db
-        - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "unit_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+        - ./tools/travis/runUnitTests.sh
+        - ./tools/travis/checkAndUploadLogs.sh unit db
       env: DESCRIPTION="Unit Tests"
     - script:
-        - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
-        - ./tools/travis/setupPrereq.sh
-        - ./tools/travis/distDocker.sh
-        - ./tools/travis/setupSystem.sh
-        - ./tools/travis/runTests.sh
-        - ansible-playbook -i ansible/environments/local ansible/logs.yml
-        - tools/build/checkLogs.py logs
-        - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "system_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+       - ./tools/travis/runSystemTests.sh
+       - ./tools/travis/checkAndUploadLogs.sh system
       env: DESCRIPTION="System Tests"
     - script:
         - ./performance/preparation/deploy.sh

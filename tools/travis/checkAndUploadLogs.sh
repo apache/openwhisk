@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -16,15 +17,25 @@
 # limitations under the License.
 #
 
-set -e
-
-# Build script for Travis-CI.
+# Disable abort script at first error as we require the logs to be uploaded
+# even if check and log collection fails
+# set -e
 
 SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
 cd $ROOTDIR
-TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
 
+LOG_NAME=$1
+TAGS=${2-""}
+LOG_TAR_NAME="$LOG_NAME\_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
+
+$ANSIBLE_CMD ansible/logs.yml
+
+./tools/build/checkLogs.py logs "$TAGS"
+
+./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "$LOG_TAR_NAME"
+
+echo "Uploaded Logs with name $LOG_TAR_NAME"
 echo "Time taken for ${0##*/} is $SECONDS secs"

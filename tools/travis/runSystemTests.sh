@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,13 +19,17 @@
 
 set -e
 
-# Build script for Travis-CI.
-
-SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 
-cd $ROOTDIR
-TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
+cd $ROOTDIR/tools/travis
 
-echo "Time taken for ${0##*/} is $SECONDS secs"
+export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
+
+./setupPrereq.sh
+
+./distDocker.sh
+
+./setupSystem.sh
+
+./runTests.sh

@@ -19,12 +19,13 @@
 set -e
 
 # Build script for Travis-CI.
-
+SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
-HOMEDIR="$SCRIPTDIR/../../../"
 
 cd $ROOTDIR/ansible
 
 $ANSIBLE_CMD apigateway.yml
 $ANSIBLE_CMD openwhisk.yml
+
+echo "Time taken for ${0##*/} is $SECONDS secs"
