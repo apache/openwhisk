@@ -10,10 +10,6 @@ akka.http.host-connection-pool.idle-timeout = 90 s
 akka.http.host-connection-pool.client.idle-timeout = 90 s
 
 whisk {
-    version {
-        date = "{{ whisk.version.date }}"
-        version-no = "{{ docker.image.tag }}"
-    }
     # kafka related configuration
     kafka {
         replication-factor = 1

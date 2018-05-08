@@ -152,7 +152,7 @@ protected[controller] trait RespondWithHeaders extends Directives {
   val sendCorsHeaders = respondWithHeaders(allowOrigin, allowHeaders)
 }
 
-case class WhiskBuildInformation(buildNo: String, date: String)
+case class WhiskInformation(buildNo: String, date: String)
 
 class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
   implicit val activeAckTopicIndex: InstanceId,
@@ -173,7 +173,7 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
     with RespondWithHeaders {
   implicit val executionContext = actorSystem.dispatcher
   implicit val authStore = WhiskAuthStore.datastore()
-  val buildInformation = loadConfigOrThrow[WhiskBuildInformation](ConfigKeys.buildInformation)
+  val whiskInfo = loadConfigOrThrow[WhiskInformation](ConfigKeys.buildInformation)
 
   def prefix = pathPrefix(apiPath / apiVersion)
 
@@ -186,8 +186,8 @@ class RestAPIVersion(config: WhiskConfig, apiPath: String, apiVersion: String)(
         "description" -> "OpenWhisk API".toJson,
         "api_version" -> SemVer(1, 0, 0).toJson,
         "api_version_path" -> apiVersion.toJson,
-        "build" -> buildInformation.date.toJson,
-        "buildno" -> buildInformation.buildNo.toJson,
+        "build" -> whiskInfo.date.toJson,
+        "buildno" -> whiskInfo.buildNo.toJson,
         "swagger_paths" -> JsObject("ui" -> s"/$swaggeruipath".toJson, "api-docs" -> s"/$swaggerdocpath".toJson)))
   }
 
