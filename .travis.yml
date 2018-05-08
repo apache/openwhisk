@@ -60,8 +60,8 @@ jobs:
         - ./tools/travis/setupPrereq.sh
         - ./tools/travis/distDocker.sh
         - ./tools/travis/runTests.sh
-        - tools/build/checkLogs.py logs db
         - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
+        - tools/build/checkLogs.py logs db
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "unit_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
       env: DESCRIPTION="Unit Tests"
     - script:
@@ -70,8 +70,8 @@ jobs:
         - ./tools/travis/distDocker.sh
         - ./tools/travis/setupSystem.sh
         - ./tools/travis/runTests.sh
-        - tools/build/checkLogs.py logs
         - ansible-playbook -i ansible/environments/local ansible/logs.yml
+        - tools/build/checkLogs.py logs
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "system_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
       env: DESCRIPTION="System Tests"
     - script:
