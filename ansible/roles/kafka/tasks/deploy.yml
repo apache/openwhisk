@@ -38,7 +38,6 @@
       "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "{{ kafka.replicationFactor }}"
       "KAFKA_AUTO_CREATE_TOPICS_ENABLE": "false"
       "KAFKA_NUM_NETWORK_THREADS": "{{ kafka.networkThreads }}"
-      "KAFKA_SSL_CIPHER_SUITES": "{{ kafka.ssl.cipher_suites | join(',') }}"
 
 - name: add kafka non-ssl vars
   when: kafka.protocol != 'SSL'
@@ -64,6 +63,7 @@
       "KAFKA_SSL_TRUSTSTORE_LOCATION": "/config/{{ kafka.ssl.keystore.name }}"
       "KAFKA_SSL_TRUSTSTORE_PASSWORD": "{{ kafka.ssl.keystore.password }}"
       "KAFKA_SSL_CLIENT_AUTH": "{{ kafka.ssl.client_authentication }}"
+      "KAFKA_SSL_CIPHER_SUITES": "{{ kafka.ssl.cipher_suites | join(',') }}"
     # The sed script passed in CUSTOM_INIT_SCRIPT fixes a bug in the wurstmeister dcoker image
     # by patching the server.configuration file right before kafka is started.
     # The script adds the missing advertized hostname to the advertised.listener property
