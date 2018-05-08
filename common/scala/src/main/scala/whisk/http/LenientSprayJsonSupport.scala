@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package whisk.core.invoker
+package whisk.http
 
-import whisk.http.BasicRasService
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+import spray.json.JsValue
 
-/**
- * Implements web server to handle certain REST API calls.
- * Currently provides a health ping route, only.
- */
-class InvokerServer() extends BasicRasService {
-  override val instanceOrdinal = 1
+object LenientSprayJsonSupport extends SprayJsonSupport {
+  // Removes the mandatory application/json content-type for unmarshalling
+  override implicit def sprayJsValueUnmarshaller: FromEntityUnmarshaller[JsValue] =
+    Unmarshaller.byteStringUnmarshaller
+      .andThen(sprayJsValueByteStringUnmarshaller)
 }

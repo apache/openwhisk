@@ -82,8 +82,6 @@ class Controller(val instance: InstanceId,
                  implicit val logging: Logging)
     extends BasicRasService {
 
-  override val instanceOrdinal = instance.toInt
-
   TransactionId.controller.mark(
     this,
     LoggingMarkers.CONTROLLER_STARTUP(instance.toInt),

@@ -16,20 +16,15 @@
 ---
 # Remove controller containers.
 
-- name: get controller index
-  set_fact:
-    controller_index: "{{ groups['controllers'].index(inventory_hostname) }}"
-
 - name: get controller name
   set_fact:
-    controller_name: "controller{{ controller_index }}"
+    controller_name: "{{ name_prefix ~ host_group.index(inventory_hostname) }}"
 
 - name: remove controller
   docker_container:
     name: "{{ controller_name }}"
-    image: "{{ docker_registry }}{{ docker.image.prefix }}/controller:{{ docker.image.tag }}"
     state: absent
-  ignore_errors: True
+  ignore_errors: "True"
 
 - name: remove controller log directory
   file:

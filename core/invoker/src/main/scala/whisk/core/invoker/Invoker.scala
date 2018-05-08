@@ -39,7 +39,7 @@ import whisk.core.connector.PingMessage
 import whisk.core.entity._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.InstanceId
-import whisk.http.BasicHttpService
+import whisk.http.{BasicHttpService, BasicRasService}
 import whisk.spi.SpiLoader
 import whisk.utils.ExecutionContextFactory
 import whisk.common.TransactionId
@@ -185,7 +185,7 @@ object Invoker {
     })
 
     val port = config.servicePort.toInt
-    BasicHttpService.startHttpService(new InvokerServer().route, port)(
+    BasicHttpService.startHttpService(new BasicRasService {}.route, port)(
       actorSystem,
       ActorMaterializer.create(actorSystem))
   }

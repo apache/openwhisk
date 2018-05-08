@@ -207,9 +207,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
     val docid = DocId(WhiskEntity.qualifiedName(namespace, activationId))
     pathEndOrSingleSlash {
       getEntity(
-        WhiskActivation,
-        activationStore,
-        docid,
+        WhiskActivation.get(activationStore, docid),
         postProcess = Some((activation: WhiskActivation) => complete(activation.toExtendedJson)))
 
     } ~ (pathPrefix(resultPath) & pathEnd) { fetchResponse(docid) } ~
@@ -226,9 +224,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
    */
   private def fetchResponse(docid: DocId)(implicit transid: TransactionId) = {
     getEntityAndProject(
-      WhiskActivation,
-      activationStore,
-      docid,
+      WhiskActivation.get(activationStore, docid),
       (activation: WhiskActivation) => Future.successful(activation.response.toExtendedJson))
   }
 
@@ -243,9 +239,7 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
   private def fetchLogs(user: Identity, docid: DocId)(implicit transid: TransactionId) = {
     extractRequest { request =>
       getEntityAndProject(
-        WhiskActivation,
-        activationStore,
-        docid,
+        WhiskActivation.get(activationStore, docid),
         (activation: WhiskActivation) => logStore.fetchLogs(user, activation, request).map(_.toJsonObject))
     }
   }

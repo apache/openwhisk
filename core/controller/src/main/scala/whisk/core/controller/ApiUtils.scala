@@ -27,9 +27,7 @@ import akka.http.scaladsl.model.StatusCodes.Conflict
 import akka.http.scaladsl.model.StatusCodes.InternalServerError
 import akka.http.scaladsl.model.StatusCodes.NotFound
 import akka.http.scaladsl.model.StatusCodes.OK
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.server.RequestContext
-import akka.http.scaladsl.server.RouteResult
+import akka.http.scaladsl.server.{Directives, RequestContext, RouteResult}
 import spray.json.DefaultJsonProtocol._
 import spray.json.JsObject
 import spray.json.JsValue
@@ -124,11 +122,9 @@ trait ReadOps extends Directives {
   }
 
   /**
-   * Gets an entity of type A from datastore. Terminates HTTP request.
+   * Waits on specified Future that returns an entity of type A from datastore. Terminates HTTP request.
    *
-   * @param factory the factory that can fetch entity of type A from datastore
-   * @param datastore the client to the database
-   * @param docid the document id to get
+   * @param entity future that returns an entity of type A fetched from datastore
    * @param postProcess an optional continuation to post process the result of the
    * get and terminate the HTTP request directly
    *
@@ -137,14 +133,12 @@ trait ReadOps extends Directives {
    * - 404 Not Found
    * - 500 Internal Server Error
    */
-  protected def getEntity[A <: DocumentRevisionProvider, Au >: A](factory: DocumentFactory[A],
-                                                                  datastore: ArtifactStore[Au],
-                                                                  docid: DocId,
+  protected def getEntity[A <: DocumentRevisionProvider, Au >: A](entity: Future[A],
                                                                   postProcess: Option[PostProcessEntity[A]] = None)(
     implicit transid: TransactionId,
     format: RootJsonFormat[A],
     ma: Manifest[A]) = {
-    onComplete(factory.get(datastore, docid)) {
+    onComplete(entity) {
       case Success(entity) =>
         logging.debug(this, s"[GET] entity success")
         postProcess map { _(entity) } getOrElse complete(OK, entity)
@@ -164,11 +158,9 @@ trait ReadOps extends Directives {
   }
 
   /**
-   * Gets an entity of type A from datastore and project fields for response. Terminates HTTP request.
+   * Waits on specified Future that returns an entity of type A from datastore. Terminates HTTP request.
    *
-   * @param factory the factory that can fetch entity of type A from datastore
-   * @param datastore the client to the database
-   * @param docid the document id to get
+   * @param entity future that returns an entity of type A fetched from datastore
    * @param project a function A => JSON which projects fields form A
    *
    * Responses are one of (Code, Message)
@@ -177,11 +169,9 @@ trait ReadOps extends Directives {
    * - 500 Internal Server Error
    */
   protected def getEntityAndProject[A <: DocumentRevisionProvider, Au >: A](
-    factory: DocumentFactory[A],
-    datastore: ArtifactStore[Au],
-    docid: DocId,
+    entity: Future[A],
     project: A => Future[JsObject])(implicit transid: TransactionId, format: RootJsonFormat[A], ma: Manifest[A]) = {
-    onComplete(factory.get(datastore, docid)) {
+    onComplete(entity) {
       case Success(entity) =>
         logging.debug(this, s"[PROJECT] entity success")
 

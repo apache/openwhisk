@@ -187,6 +187,9 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
                                      stale: StaleParameter)(implicit transid: TransactionId): Future[List[JsObject]] = {
     require(!(reduce && includeDocs), "reduce and includeDocs cannot both be true")
     require(!reduce, "Reduce scenario not supported") //TODO Investigate reduce
+    require(skip >= 0, "skip should be non negative")
+    require(limit >= 0, "limit should be non negative")
+
     documentHandler.checkIfTableSupported(table)
 
     val Array(ddoc, viewName) = table.split("/")

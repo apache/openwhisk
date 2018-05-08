@@ -254,12 +254,12 @@ public class WhiskProperties {
      * read the contents of auth key file and return as a Pair
      * <username,password>
      */
-    public static Pair<String, String> getBasicAuth() {
+    public static Pair getBasicAuth() {
         File f = getAuthFileForTesting();
         String contents = readAuthKey(f);
         String[] parts = contents.split(":");
         assert parts.length == 2;
-        return Pair.make(parts[0], parts[1]);
+        return new Pair(parts[0], parts[1]);
     }
 
     /**
