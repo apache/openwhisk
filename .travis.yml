@@ -48,7 +48,6 @@ notifications:
 before_install:
   - pip install --upgrade pip setuptools six
   - pip3 install --upgrade pip setuptools six
-  - ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
 
 install:
   - ./tools/travis/setup.sh
@@ -57,13 +56,21 @@ jobs:
   include:
     - script:
         - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_ONLY_DB"
-        - ./tools/travis/build.sh
+        - ./tools/travis/scan.sh
+        - ./tools/travis/setupPrereq.sh
+        - ./tools/travis/distDocker.sh
+        - ./tools/travis/runTests.sh
+        - tools/build/checkLogs.py logs db
         - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "unit_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
       env: DESCRIPTION="Unit Tests"
     - script:
         - export ORG_GRADLE_PROJECT_testSetName="REQUIRE_SYSTEM"
-        - ./tools/travis/build.sh
+        - ./tools/travis/setupPrereq.sh
+        - ./tools/travis/distDocker.sh
+        - ./tools/travis/setupSystem.sh
+        - ./tools/travis/runTests.sh
+        - tools/build/checkLogs.py logs
         - ansible-playbook -i ansible/environments/local ansible/logs.yml
         - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "system_$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
       env: DESCRIPTION="System Tests"
