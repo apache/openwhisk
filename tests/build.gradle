@@ -40,8 +40,7 @@ ext.testSets = [
         (PatternType.INCLUDES) : [
             "actionContainers/**",
             "ha/**",
-            "whisk/common/**",
-            "whisk/core/**"
+            "whisk/**"
         ],
         (PatternType.EXCLUDES) : [
             "whisk/core/admin/**",
