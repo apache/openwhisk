@@ -35,7 +35,7 @@ import scala.util.{Failure, Success, Try}
  *
  * @param asString the activation id
  */
-protected[whisk] class ActivationId private (val asString: String) extends AnyVal {
+protected[whisk] case class ActivationId private (val asString: String) extends AnyVal {
   override def toString: String = asString
   def toJsObject: JsObject = JsObject("activationId" -> asString.toJson)
 }

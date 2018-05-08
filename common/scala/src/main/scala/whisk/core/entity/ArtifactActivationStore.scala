@@ -56,17 +56,23 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
     res
   }
 
-  def get(docId: DocId)(implicit transid: TransactionId): Future[WhiskActivation] = {
-    WhiskActivation.get(artifactStore, docId)
+  def get(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation] = {
+    WhiskActivation.get(artifactStore, DocId(activationId.asString))
   }
 
-  def delete(docInfo: DocInfo)(implicit transid: TransactionId,
-                               notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-    WhiskActivation.del(artifactStore, docInfo)
+  def delete(activationId: ActivationId)(implicit transid: TransactionId,
+                                         notifier: Option[CacheChangeNotification]): Future[Boolean] = {
+    WhiskActivation.del(artifactStore, DocInfo(DocId(activationId.asString)))
   }
 
-  def response(docId: DocId)(implicit transid: TransactionId): Future[WhiskActivation] = {
-    WhiskActivation.get(artifactStore, docId)
+  def delete(activationId: ActivationId, rev: DocRevision)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[Boolean] = {
+    WhiskActivation.del(artifactStore, DocInfo(DocId(activationId.asString), rev))
+  }
+
+  def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation] = {
+    WhiskActivation.get(artifactStore, DocId(activationId.asString))
   }
 
   def countCollectionInNamespace(path: EntityPath,

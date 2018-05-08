@@ -589,7 +589,7 @@ protected[actions] trait PrimitiveActions {
                              maxRetries: Int = Int.MaxValue)(implicit transid: TransactionId): Unit = {
     if (!result.isCompleted && retries < maxRetries) {
       val schedule = actorSystem.scheduler.scheduleOnce(wait(retries)) {
-        activationStore.get(docid).onComplete {
+        activationStore.get(ActivationId(docid.asString)).onComplete {
           case Success(activation)             => result.trySuccess(Right(activation))
           case Failure(_: NoDocumentException) => pollActivation(docid, result, wait, retries + 1, maxRetries)
           case Failure(t: Throwable)           => result.tryFailure(t)

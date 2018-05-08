@@ -35,12 +35,12 @@ trait ActivationStore {
   def store(activation: WhiskActivation)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[DocInfo]
 
-  def get(docId: DocId)(implicit transid: TransactionId): Future[WhiskActivation]
+  def get(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
 
-  def delete(docInfo: DocInfo)(implicit transid: TransactionId,
-                               notifier: Option[CacheChangeNotification]): Future[Boolean]
+  def delete(activationId: ActivationId)(implicit transid: TransactionId,
+                                         notifier: Option[CacheChangeNotification]): Future[Boolean]
 
-  def response(docId: DocId)(implicit transid: TransactionId): Future[WhiskActivation]
+  def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
 
   def countCollectionInNamespace(path: EntityPath,
                                  skip: Int,
