@@ -1,4 +1,5 @@
 import org.scoverage.ScoverageReport
+import static groovy.json.JsonOutput.*
 
 apply plugin: 'scala'
 apply plugin: 'eclipse'
@@ -33,16 +34,14 @@ def leanExcludes = [
     '**/*WskCli*'
 ]
 
-enum PatternType {INCLUDES, EXCLUDES}
-
 ext.testSets = [
     "REQUIRE_ONLY_DB" : [
-        (PatternType.INCLUDES) : [
+        "includes" : [
             "actionContainers/**",
             "ha/**",
             "whisk/**"
         ],
-        (PatternType.EXCLUDES) : [
+        "excludes" : [
             "whisk/core/admin/**",
             "whisk/core/apigw/actions/test/**",
             "whisk/core/cli/test/**",
@@ -52,7 +51,7 @@ ext.testSets = [
         ]
     ],
     "REQUIRE_SYSTEM" : [
-         (PatternType.INCLUDES) : [
+        "includes" : [
             "apigw/healthtests/**",
             "services/**",
             "system/basic/**",
@@ -66,14 +65,14 @@ ext.testSets = [
         ]
     ],
     "LEAN" : [
-         (PatternType.EXCLUDES) : leanExcludes
+        "excludes" : leanExcludes
     ]
 ]
 
 testSets.each {setName, patterns ->
-    def excludes = patterns[PatternType.EXCLUDES] ?: new HashSet<>()
+    def excludes = patterns["excludes"] ?: new HashSet<>()
     excludes.addAll(leanExcludes)
-    patterns[PatternType.EXCLUDES] = excludes
+    patterns["excludes"] = excludes
 }
 
 //The value can be specified either via env variable
@@ -83,19 +82,19 @@ if (!project.hasProperty("testSetName")) {
     ext.testSetName = "LEAN"
 }
 
-def getPattern(String name, PatternType type) {
+def getPattern(String name, String type) {
     def patterns = testSets[name]
     assert patterns : "No pattern found for $name"
     return patterns[type] ?: []
 }
 
 task testLean(type: Test) {
-    println "Using testSet $testSetName - ${testSets[testSetName]}"
-    def excludes = getPattern(testSetName, PatternType.EXCLUDES)
+    println "Using testSet $testSetName - ${prettyPrint(toJson(testSets[testSetName]))}"
+    def excludes = getPattern(testSetName, "excludes")
     if (excludes) {
         exclude excludes
     }
-    def includes = getPattern(testSetName, PatternType.INCLUDES)
+    def includes = getPattern(testSetName, "includes")
     if (includes) {
         include includes
     }
@@ -167,11 +166,11 @@ task createKeystore(dependsOn: deleteKeystore) {
 afterEvaluate {
     task testCoverageLean(type:Test) {
         classpath = getScoverageClasspath(project)
-        def excludes = getPattern(testSetName, PatternType.EXCLUDES)
+        def excludes = getPattern(testSetName, "excludes")
         if (excludes) {
             exclude excludes
         }
-        def includes = getPattern(testSetName, PatternType.INCLUDES)
+        def includes = getPattern(testSetName, "includes")
         if (includes) {
             include includes
         }
