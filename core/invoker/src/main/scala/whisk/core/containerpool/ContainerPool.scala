@@ -205,23 +205,23 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
    * @return the container iff found
    */
   def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
-      val kind = action.exec.kind
-      val memory = action.limits.memory.megabytes.MB
-      prewarmedPool
-        .find {
-          case (_, PreWarmedData(_, `kind`, `memory`)) => true
-          case _                                       => false
-        }
-        .map {
-          case (ref, data) =>
-            // Move the container to the usual pool
-            freePool = freePool + (ref -> data)
-            prewarmedPool = prewarmedPool - ref
-            // Create a new prewarm container
-            prewarmContainer(action.exec, memory)
+    val kind = action.exec.kind
+    val memory = action.limits.memory.megabytes.MB
+    prewarmedPool
+      .find {
+        case (_, PreWarmedData(_, `kind`, `memory`)) => true
+        case _                                       => false
+      }
+      .map {
+        case (ref, data) =>
+          // Move the container to the usual pool
+          freePool = freePool + (ref -> data)
+          prewarmedPool = prewarmedPool - ref
+          // Create a new prewarm container
+          prewarmContainer(action.exec, memory)
 
-            (ref, data)
-        }
+          (ref, data)
+      }
   }
 
   /** Removes a container and updates state accordingly. */

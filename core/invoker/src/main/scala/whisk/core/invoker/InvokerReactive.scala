@@ -173,25 +173,19 @@ class InvokerReactive(
         .props(containerFactory.createContainer, ack, store, logsProvider.collectLogs, instance, poolConfig))
 
   val runtimes = ExecManifest.runtimesManifest
-  val prewarmingConfigs  =
-  for( (k,rm) <- runtimes.manifests ; stemCell <- rm.stemCells.getOrElse(List()) if stemCell.count>0 ) yield {
-    //val stemCells = rm.stemCells.getOrElse(List())
+  val prewarmingConfigs =
+    for ((kind, rm) <- runtimes.manifests; stemCell <- rm.stemCells.getOrElse(List()) if stemCell.count > 0) yield {
+      val prewarmExec = ExecManifest.runtimesManifest
+        .resolveDefaultRuntime(kind)
+        .map { manifest =>
+          new CodeExecAsString(manifest, "", None)
+        }
+        .get
+      (PrewarmingConfig(stemCell.count, prewarmExec, ByteSize.fromString(stemCell.memory)))
+    }
 
-    val prewarmCount : Int = stemCell.count
-    val prewarmKind = k
-    val memory = stemCell.memory
-
-    val prewarmExec = ExecManifest.runtimesManifest
-      .resolveDefaultRuntime(prewarmKind)
-      .map { manifest =>
-        new CodeExecAsString(manifest, "", None)
-      }
-      .get
-    (PrewarmingConfig(prewarmCount, prewarmExec, ByteSize.fromString("256M")))
-  }
-
-  private val pool = actorSystem.actorOf(
-    ContainerPool.props(childFactory, poolConfig, activationFeed, Some(prewarmingConfigs.toList)))
+  private val pool =
+    actorSystem.actorOf(ContainerPool.props(childFactory, poolConfig, activationFeed, Some(prewarmingConfigs.toList)))
 
   /** Is called when an ActivationMessage is read from Kafka */
   def processActivationMessage(bytes: Array[Byte]): Future[Unit] = {
