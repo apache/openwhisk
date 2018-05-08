@@ -223,7 +223,6 @@ object ConfigKeys {
   val userEvents = "whisk.user-events"
 
   val runtimes = "whisk.runtimes"
-  val prewarm = "whisk.prewarm"
 
   val db = "whisk.db"
 
