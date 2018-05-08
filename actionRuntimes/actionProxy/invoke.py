@@ -36,7 +36,6 @@ import json
 import base64
 import requests
 import codecs
-import traceback
 import argparse
 try:
     import argcomplete

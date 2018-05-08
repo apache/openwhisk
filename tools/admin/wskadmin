@@ -531,7 +531,6 @@ def setLimitsCmd(args, props):
         return 1
 
 def getLimitsCmd(args, props):
-    argsDict = vars(args)
     docId = args.namespace + "/limits"
     (dbDoc, res) = getDocumentFromDb(props, quote_plus(docId), args.verbose)
 
@@ -550,7 +549,6 @@ def getLimitsCmd(args, props):
         return 1
 
 def deleteLimitsCmd(args, props):
-    argsDict = vars(args)
     docId = quote_plus(args.namespace + "/limits")
     (dbDoc, res) = getDocumentFromDb(props, docId, args.verbose)
 
