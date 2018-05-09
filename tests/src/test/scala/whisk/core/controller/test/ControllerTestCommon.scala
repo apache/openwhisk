@@ -19,7 +19,7 @@ package whisk.core.controller.test
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.language.postfixOps
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.BeforeAndAfterAll
@@ -28,8 +28,7 @@ import org.scalatest.Matchers
 import common.StreamLogging
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.http.scaladsl.testkit.RouteTestTimeout
-import spray.json.DefaultJsonProtocol
-import spray.json.JsString
+import spray.json.{DefaultJsonProtocol, JsObject, JsString}
 import whisk.common.TransactionId
 import whisk.core.WhiskConfig
 import whisk.core.connector.ActivationMessage
@@ -98,11 +97,69 @@ protected trait ControllerTestCommon
     }, dbOpTimeout)
   }
 
-  def deleteActivation(doc: DocId)(implicit transid: TransactionId) = {
-    Await.result(activationStore.get(doc) flatMap { doc =>
-      logging.debug(this, s"deleting ${doc.docinfo}")
-      activationStore.delete(doc.docinfo)
-    }, dbOpTimeout)
+  def getActivation(activationId: ActivationId)(implicit transid: TransactionId,
+                                                timeout: Duration = 10 seconds): WhiskActivation = {
+    val activationFuture = activationStore.get(activationId)
+    val activation = Await.result(activationFuture, timeout)
+    assert(activation != null)
+    activation
+  }
+
+  def storeActivation(activation: WhiskActivation)(implicit transid: TransactionId,
+                                                   timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = activationStore.store(activation)
+    val doc = Await.result(docFuture, timeout)
+    assert(doc != null)
+    doc
+  }
+
+  def deleteActivation(activationId: ActivationId)(implicit transid: TransactionId) = {
+    val res = Await.result(activationStore.delete(activationId), dbOpTimeout)
+    assert(res, true)
+    res
+  }
+
+  def waitOnListActivationsInNamespace(namespace: EntityPath, count: Int)(implicit context: ExecutionContext,
+                                                                          transid: TransactionId,
+                                                                          timeout: Duration) = {
+    val success = retry(
+      () => {
+        val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
+          activationStore.listActivationsInNamespace(namespace, 0, 0)
+        val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
+
+        listFuture map { l =>
+          if (l.length != count) {
+            throw RetryOp()
+          } else true
+        }
+
+      },
+      timeout)
+
+    assert(success.isSuccess, "wait aborted")
+  }
+
+  def waitOnListActivationsMatchingName(namespace: EntityPath, path: EntityPath, count: Int)(
+    implicit context: ExecutionContext,
+    transid: TransactionId,
+    timeout: Duration) = {
+    val success = retry(
+      () => {
+        val activations: Future[Either[List[JsObject], List[WhiskActivation]]] =
+          activationStore.listActivationsMatchingName(namespace, path, 0, 0)
+        val listFuture: Future[List[JsObject]] = activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson)))
+
+        listFuture map { l =>
+          if (l.length != count) {
+            throw RetryOp()
+          } else true
+        }
+
+      },
+      timeout)
+
+    assert(success.isSuccess, "wait aborted")
   }
 
   def deleteTrigger(doc: DocId)(implicit transid: TransactionId) = {

@@ -23,14 +23,12 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
-import whisk.core.database.{ArtifactStore, CacheChangeNotification}
+import whisk.core.database.CacheChangeNotification
 import whisk.spi.Spi
 
 import scala.concurrent.Future
 
 trait ActivationStore {
-
-  val artifactStore: ArtifactStore[WhiskActivation]
 
   def store(activation: WhiskActivation)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[DocInfo]

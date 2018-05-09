@@ -35,7 +35,7 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
 
   implicit val executionContext = actorSystem.dispatcher
 
-  val artifactStore: ArtifactStore[WhiskActivation] =
+  private val artifactStore: ArtifactStore[WhiskActivation] =
     WhiskActivationStore.datastore()(actorSystem, logging, actorMaterializer)
 
   def store(activation: WhiskActivation)(implicit transid: TransactionId,
@@ -62,13 +62,9 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
 
   def delete(activationId: ActivationId)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-    WhiskActivation.del(artifactStore, DocInfo(DocId(activationId.asString)))
-  }
-
-  def delete(activationId: ActivationId, rev: DocRevision)(
-    implicit transid: TransactionId,
-    notifier: Option[CacheChangeNotification]): Future[Boolean] = {
-    WhiskActivation.del(artifactStore, DocInfo(DocId(activationId.asString), rev))
+    WhiskActivation.get(artifactStore, DocId(activationId.asString)) flatMap { doc =>
+      WhiskActivation.del(artifactStore, doc.docinfo)
+    }
   }
 
   def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation] = {
