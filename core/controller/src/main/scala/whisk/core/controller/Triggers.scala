@@ -38,7 +38,7 @@ import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import pureconfig.loadConfigOrThrow
 import spray.json._
 import whisk.common.{Https, TransactionId}
-import whisk.core.controller.RestApiCommons.ListLimit
+import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
 import whisk.core.database.CacheChangeNotification
 import whisk.core.entitlement.Collection
 import whisk.core.entity._
@@ -227,20 +227,22 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
    * - 500 Internal Server Error
    */
   override def list(user: Identity, namespace: EntityPath)(implicit transid: TransactionId) = {
-    parameter('skip ? 0, 'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit), 'count ? false) {
-      (skip, limit, count) =>
-        if (!count) {
-          listEntities {
-            WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip, limit.n, includeDocs = false) map {
-              list =>
-                list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
-            }
-          }
-        } else {
-          countEntities {
-            WhiskTrigger.countCollectionInNamespace(entityStore, namespace, skip)
+    parameter(
+      'skip.as[ListSkip] ? ListSkip(collection.defaultListSkip),
+      'limit.as[ListLimit] ? ListLimit(collection.defaultListLimit),
+      'count ? false) { (skip, limit, count) =>
+      if (!count) {
+        listEntities {
+          WhiskTrigger.listCollectionInNamespace(entityStore, namespace, skip.n, limit.n, includeDocs = false) map {
+            list =>
+              list.fold((js) => js, (ts) => ts.map(WhiskTrigger.serdes.write(_)))
           }
         }
+      } else {
+        countEntities {
+          WhiskTrigger.countCollectionInNamespace(entityStore, namespace, skip.n)
+        }
+      }
     }
   }
 
@@ -423,5 +425,8 @@ trait WhiskTriggersApi extends WhiskCollectionAPI {
 
   /** Custom unmarshaller for query parameters "limit" for "list" operations. */
   private implicit val stringToListLimit: Unmarshaller[String, ListLimit] = RestApiCommons.stringToListLimit(collection)
+
+  /** Custom unmarshaller for query parameters "skip" for "list" operations. */
+  private implicit val stringToListSkip: Unmarshaller[String, ListSkip] = RestApiCommons.stringToListSkip(collection)
 
 }
