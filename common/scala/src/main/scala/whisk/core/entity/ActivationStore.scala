@@ -23,7 +23,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import spray.json.JsObject
 import whisk.common.{Logging, TransactionId}
-import whisk.core.database.{ArtifactStore, CacheChangeNotification, StaleParameter}
+import whisk.core.database.{ArtifactStore, CacheChangeNotification}
 import whisk.spi.Spi
 
 import scala.concurrent.Future
@@ -42,12 +42,11 @@ trait ActivationStore {
 
   def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
 
-  def countCollectionInNamespace(path: EntityPath,
-                                 skip: Int,
-                                 since: Option[Instant] = None,
-                                 upto: Option[Instant] = None,
-                                 stale: StaleParameter = StaleParameter.No,
-                                 viewName: View)(implicit transid: TransactionId): Future[JsObject]
+  def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
+                                  namespace: EntityPath,
+                                  skip: Int,
+                                  since: Option[Instant] = None,
+                                  upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject]
 
   def listActivationsMatchingName(namespace: EntityPath,
                                   path: EntityPath,
@@ -55,17 +54,15 @@ trait ActivationStore {
                                   limit: Int,
                                   includeDocs: Boolean = false,
                                   since: Option[Instant] = None,
-                                  upto: Option[Instant] = None,
-                                  stale: StaleParameter = StaleParameter.No)(
+                                  upto: Option[Instant] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 
-  def listCollectionInNamespace(path: EntityPath,
-                                skip: Int,
-                                limit: Int,
-                                includeDocs: Boolean = false,
-                                since: Option[Instant] = None,
-                                upto: Option[Instant] = None,
-                                stale: StaleParameter = StaleParameter.No)(
+  def listActivationsInNamespace(path: EntityPath,
+                                 skip: Int,
+                                 limit: Int,
+                                 includeDocs: Boolean = false,
+                                 since: Option[Instant] = None,
+                                 upto: Option[Instant] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]]
 }
 

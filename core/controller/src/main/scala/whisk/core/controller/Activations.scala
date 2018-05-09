@@ -31,7 +31,6 @@ import spray.json.DefaultJsonProtocol.RootJsObjectFormat
 import whisk.common.TransactionId
 import whisk.core.containerpool.logging.LogStore
 import whisk.core.controller.RestApiCommons.{ListLimit, ListSkip}
-import whisk.core.database.StaleParameter
 import whisk.core.entitlement.Privilege.READ
 import whisk.core.entitlement.{Collection, Privilege, Resource}
 import whisk.core.entity._
@@ -158,37 +157,16 @@ trait WhiskActivationsApi extends Directives with AuthenticatedRouteProvider wit
       'upto.as[Instant] ?) { (skip, limit, count, docs, name, since, upto) =>
       if (count && !docs) {
         countEntities {
-          activationStore.countCollectionInNamespace(
-            name.flatten.map(p => namespace.addPath(p)).getOrElse(namespace),
-            skip.n,
-            since,
-            upto,
-            StaleParameter.UpdateAfter,
-            viewName = name.flatten.map(_ => WhiskActivation.filtersView).getOrElse(WhiskActivation.view))
+          activationStore.countActivationsInNamespace(name, namespace, skip.n, since, upto)
         }
       } else if (count && docs) {
         terminate(BadRequest, Messages.docsNotAllowedWithCount)
       } else {
         val activations = name.flatten match {
           case Some(action) =>
-            activationStore.listActivationsMatchingName(
-              namespace,
-              action,
-              skip.n,
-              limit.n,
-              docs,
-              since,
-              upto,
-              StaleParameter.UpdateAfter)
+            activationStore.listActivationsMatchingName(namespace, action, skip.n, limit.n, docs, since, upto)
           case None =>
-            activationStore.listCollectionInNamespace(
-              namespace,
-              skip.n,
-              limit.n,
-              docs,
-              since,
-              upto,
-              StaleParameter.UpdateAfter)
+            activationStore.listActivationsInNamespace(namespace, skip.n, limit.n, docs, since, upto)
         }
         listEntities(activations map (_.fold((js) => js, (wa) => wa.map(_.toExtendedJson))))
       }

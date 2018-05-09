@@ -75,20 +75,19 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
     WhiskActivation.get(artifactStore, DocId(activationId.asString))
   }
 
-  def countCollectionInNamespace(path: EntityPath,
-                                 skip: Int,
-                                 since: Option[Instant] = None,
-                                 upto: Option[Instant] = None,
-                                 stale: StaleParameter = StaleParameter.No,
-                                 viewName: View)(implicit transid: TransactionId): Future[JsObject] = {
+  def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
+                                  namespace: EntityPath,
+                                  skip: Int,
+                                  since: Option[Instant] = None,
+                                  upto: Option[Instant] = None)(implicit transid: TransactionId): Future[JsObject] = {
     WhiskActivation.countCollectionInNamespace(
       artifactStore,
-      path,
+      name.flatten.map(p => namespace.addPath(p)).getOrElse(namespace),
       skip,
       since,
       upto,
       StaleParameter.UpdateAfter,
-      viewName)
+      name.flatten.map(_ => WhiskActivation.filtersView).getOrElse(WhiskActivation.view))
   }
 
   def listActivationsMatchingName(namespace: EntityPath,
@@ -97,8 +96,7 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
                                   limit: Int,
                                   includeDocs: Boolean = false,
                                   since: Option[Instant] = None,
-                                  upto: Option[Instant] = None,
-                                  stale: StaleParameter = StaleParameter.No)(
+                                  upto: Option[Instant] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] = {
     WhiskActivation.listActivationsMatchingName(
       artifactStore,
@@ -112,13 +110,12 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
       StaleParameter.UpdateAfter)
   }
 
-  def listCollectionInNamespace(path: EntityPath,
-                                skip: Int,
-                                limit: Int,
-                                includeDocs: Boolean = false,
-                                since: Option[Instant] = None,
-                                upto: Option[Instant] = None,
-                                stale: StaleParameter = StaleParameter.No)(
+  def listActivationsInNamespace(path: EntityPath,
+                                 skip: Int,
+                                 limit: Int,
+                                 includeDocs: Boolean = false,
+                                 since: Option[Instant] = None,
+                                 upto: Option[Instant] = None)(
     implicit transid: TransactionId): Future[Either[List[JsObject], List[WhiskActivation]]] = {
     WhiskActivation.listCollectionInNamespace(
       artifactStore,
@@ -130,6 +127,7 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
       upto,
       StaleParameter.UpdateAfter)
   }
+
 }
 
 object ArtifactActivationStoreProvider extends ActivationStoreProvider {
