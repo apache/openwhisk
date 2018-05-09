@@ -29,7 +29,7 @@ The following are required to build and deploy OpenWhisk from a Mac host:
 - [Docker 1.12.0](https://docs.docker.com/engine/installation/mac/) (including `docker-machine`)
 - [Java 8](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
 - [Scala 2.11](http://scala-lang.org/download/)
-- [Ansible 2.5.0](http://docs.ansible.com/ansible/intro_installation.html)
+- [Ansible 2.5.2](http://docs.ansible.com/ansible/intro_installation.html)
 
 **Tip** Versions of Docker and Ansible are lower than the latest released versions, the versions used in OpenWhisk are pinned to have stability during continues integration and deployment.
 
@@ -55,7 +55,7 @@ brew install scala
 # install pip
 sudo easy_install pip
 # install script prerequisites
-sudo -H pip install docker==2.2.1 ansible==2.5.0 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
+sudo -H pip install docker==2.2.1 ansible==2.5.2 jinja2==2.9.6 couchdb==1.1 httplib2==0.9.2 requests==2.10.0' | bash
 ```
 
 # Create and configure Docker machine
