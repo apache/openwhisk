@@ -27,15 +27,27 @@
 OpenWhisk is a cloud-first distributed event-based programming service. It provides a programming model to upload event handlers to a cloud service, and register the handlers to respond to various events. Learn more at [http://openwhisk.incubator.apache.org](http://openwhisk.incubator.apache.org).
 
 
-* [Quick Start](#quick-start) (Vagrant)
+* [Quick Start](#quick-start) (Docker-Compose)
 * [Native development](#native-development) (Mac and Ubuntu)
+* [Vagrant](#vagrant-setup)
 * [Learn concepts and commands](#learn-concepts-and-commands)
 * [Issues](#issues)
 * [Slack](#slack)
 
 ### Quick Start
+The easiest way to start using OpenWhisk is to get Docker installed on on Mac, Windows or Linux. The [Docker website](https://docs.docker.com/install/) has details instructions on getting the tools installed. This does not give you a prodcution deployment but gives you enough of the pieces to start writing functions and seeing them run.
 
-A [Vagrant](http://vagrantup.com) machine is the easiest way to run OpenWhisk on Mac, Windows PC or GNU/Linux.
+```
+git clone https://github.com/apache/incubator-openwhisk-devtools.git
+cd docker-compose 
+make quick-start
+```
+
+For more detailed instructions or if you encounter problems see the [OpenWhisk-dev tools](https://github.com/apache/incubator-openwhisk-devtools/blob/master/docker-compose/README.md) project.
+
+
+### Vagrant Setup
+A [Vagrant](http://vagrantup.com) machine is also avaiable to run OpenWhisk on Mac, Windows PC or GNU/Linux but isn't used by as much of the dev team so sometimes lags behind.
 Download and install [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html) for your operating system and architecture.
 
 **Note:** For Windows, you may need to install an ssh client in order to use the command `vagrant ssh`. Cygwin works well for this, and Git Bash comes with an ssh client you can point to. If you run the command and no ssh is installed, Vagrant will give you some options to try.
