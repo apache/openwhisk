@@ -385,13 +385,46 @@ class ActivationsApiTests extends ControllerTestCommon with WhiskActivationsApi 
     }
   }
 
-  it should "reject activation list when limit is greater than maximum allowed value" in {
+  it should "reject list when limit is greater than maximum allowed value" in {
     implicit val tid = transid()
     val exceededMaxLimit = Collection.MAX_LIST_LIMIT + 1
     val response = Get(s"$collectionPath?limit=$exceededMaxLimit") ~> Route.seal(routes(creds)) ~> check {
       status should be(BadRequest)
       responseAs[String] should include {
         Messages.listLimitOutOfRange(Collection.ACTIVATIONS, exceededMaxLimit, Collection.MAX_LIST_LIMIT)
+      }
+    }
+  }
+
+  it should "reject list when limit is not an integer" in {
+    implicit val tid = transid()
+    val notAnInteger = "string"
+    val response = Get(s"$collectionPath?limit=$notAnInteger") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.argumentNotInteger(Collection.ACTIVATIONS, notAnInteger)
+      }
+    }
+  }
+
+  it should "reject list when skip is negative" in {
+    implicit val tid = transid()
+    val negativeSkip = -1
+    val response = Get(s"$collectionPath?skip=$negativeSkip") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.listSkipOutOfRange(Collection.ACTIVATIONS, negativeSkip)
+      }
+    }
+  }
+
+  it should "reject list when skip is not an integer" in {
+    implicit val tid = transid()
+    val notAnInteger = "string"
+    val response = Get(s"$collectionPath?skip=$notAnInteger") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.argumentNotInteger(Collection.ACTIVATIONS, notAnInteger)
       }
     }
   }

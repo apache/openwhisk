@@ -120,12 +120,14 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     }
   }
 
-  def attach[Wsuper >: W](
-    db: ArtifactStore[Wsuper],
-    doc: W,
-    attachmentName: String,
-    contentType: ContentType,
-    bytes: InputStream)(implicit transid: TransactionId, notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
+  def attach[Wsuper >: W](db: ArtifactStore[Wsuper],
+                          doc: W,
+                          attachmentName: String,
+                          contentType: ContentType,
+                          bytes: InputStream,
+                          postProcess: Option[W => W] = None)(
+    implicit transid: TransactionId,
+    notifier: Option[CacheChangeNotification]): Future[DocInfo] = {
 
     Try {
       require(db != null, "db undefined")
@@ -137,10 +139,11 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       val key = CacheKey(doc)
       val docInfo = doc.docinfo
       val src = StreamConverters.fromInputStream(() => bytes)
+      val cacheDoc = postProcess map { _(doc) } getOrElse doc
 
-      cacheUpdate(doc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
-        doc.revision[W](newDocInfo.rev)
-        doc.docinfo
+      cacheUpdate(cacheDoc, key, db.attach(docInfo, attachmentName, contentType, src) map { newDocInfo =>
+        cacheDoc.revision[W](newDocInfo.rev)
+        cacheDoc.docinfo
       })
     } match {
       case Success(f) => f
@@ -202,26 +205,37 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
     }
   }
 
-  def getAttachment[Wsuper >: W](db: ArtifactStore[Wsuper],
-                                 doc: DocInfo,
-                                 attachmentName: String,
-                                 outputStream: OutputStream)(implicit transid: TransactionId): Future[Unit] = {
+  def getAttachment[Wsuper >: W](
+    db: ArtifactStore[Wsuper],
+    doc: W,
+    attachmentName: String,
+    outputStream: OutputStream,
+    postProcess: Option[W => W] = None)(implicit transid: TransactionId, mw: Manifest[W]): Future[W] = {
 
     implicit val ec = db.executionContext
+    implicit val notifier: Option[CacheChangeNotification] = None
 
     Try {
       require(db != null, "db defined")
       require(doc != null, "doc undefined")
     } map { _ =>
+      implicit val logger = db.logging
+      implicit val ec = db.executionContext
+
+      val docInfo = doc.docinfo
+      val key = CacheKey(docInfo)
       val sink = StreamConverters.fromOutputStream(() => outputStream)
-      db.readAttachment[IOResult](doc, attachmentName, sink).map {
-        case (_, r) =>
-          if (!r.wasSuccessful) {
-            // FIXME...
-            // Figure out whether OutputStreams are even a decent model.
+
+      db.readAttachment[IOResult](docInfo, attachmentName, sink).map {
+        case _ =>
+          val cacheDoc = postProcess map { _(doc) } getOrElse doc
+
+          cacheUpdate(cacheDoc, key, Future.successful(docInfo)) map { newDocInfo =>
+            cacheDoc.revision[W](newDocInfo.rev)
           }
-          ()
+          cacheDoc
       }
+
     } match {
       case Success(f) => f
       case Failure(t) => Future.failed(t)

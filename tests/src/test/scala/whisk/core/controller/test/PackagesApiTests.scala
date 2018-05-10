@@ -162,6 +162,39 @@ class PackagesApiTests extends ControllerTestCommon with WhiskPackagesApi {
     }
   }
 
+  it should "reject list when limit is not an integer" in {
+    implicit val tid = transid()
+    val notAnInteger = "string"
+    val response = Get(s"$collectionPath?limit=$notAnInteger") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.argumentNotInteger(Collection.PACKAGES, notAnInteger)
+      }
+    }
+  }
+
+  it should "reject list when skip is negative" in {
+    implicit val tid = transid()
+    val negativeSkip = -1
+    val response = Get(s"$collectionPath?skip=$negativeSkip") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.listSkipOutOfRange(Collection.PACKAGES, negativeSkip)
+      }
+    }
+  }
+
+  it should "reject list when skip is not an integer" in {
+    implicit val tid = transid()
+    val notAnInteger = "string"
+    val response = Get(s"$collectionPath?skip=$notAnInteger") ~> Route.seal(routes(creds)) ~> check {
+      status should be(BadRequest)
+      responseAs[String] should include {
+        Messages.argumentNotInteger(Collection.PACKAGES, notAnInteger)
+      }
+    }
+  }
+
   ignore should "list all public packages excluding bindings" in {
     implicit val tid = transid()
     // create packages and package bindings, set some public and confirm API lists only public packages

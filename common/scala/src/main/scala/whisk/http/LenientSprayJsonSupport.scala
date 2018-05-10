@@ -15,14 +15,15 @@
  * limitations under the License.
  */
 
-package common;
+package whisk.http
 
-public class Pair {
-    public final String fst;
-    public final String snd;
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.unmarshalling.{FromEntityUnmarshaller, Unmarshaller}
+import spray.json.JsValue
 
-    public Pair(String a, String b) {
-        this.fst = a;
-        this.snd = b;
-    }
+object LenientSprayJsonSupport extends SprayJsonSupport {
+  // Removes the mandatory application/json content-type for unmarshalling
+  override implicit def sprayJsValueUnmarshaller: FromEntityUnmarshaller[JsValue] =
+    Unmarshaller.byteStringUnmarshaller
+      .andThen(sprayJsValueByteStringUnmarshaller)
 }
