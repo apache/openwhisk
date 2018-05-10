@@ -39,6 +39,10 @@ import whisk.core.entity._
 import whisk.core.entity.types.AuthStore
 import whisk.core.entity.types.EntityStore
 
+import akka.http.scaladsl.model.ContentType
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+
 /**
  * WARNING: the put/get/del operations in this trait operate directly on the datastore,
  * and in the presence of a cache, there will be inconsistencies if one mixes these
@@ -198,6 +202,20 @@ trait DbUtils {
     assert(doc != null)
     if (garbageCollect) docsToDelete += ((db, doc))
     doc
+  }
+
+  def attach[A, Au >: A](
+    db: ArtifactStore[Au],
+    doc: DocInfo,
+    name: String,
+    contentType: ContentType,
+    docStream: Source[ByteString, _],
+    garbageCollect: Boolean = true)(implicit transid: TransactionId, timeout: Duration = 10 seconds): DocInfo = {
+    val docFuture = db.attach(doc, name, contentType, docStream)
+    val newDoc = Await.result(docFuture, timeout)
+    assert(newDoc != null)
+    if (garbageCollect) docsToDelete += ((db, newDoc))
+    newDoc
   }
 
   /**

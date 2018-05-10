@@ -9,7 +9,6 @@
 # @param parm Object with Number property sleepTimeInMs
 # @returns Object with String property msg describing how long the function slept
 #
-import sys
 import time
 
 def main(parm):
