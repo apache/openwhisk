@@ -37,7 +37,6 @@ import org.scalatest.FlatSpec
 import org.scalatest.Matchers
 
 import akka.actor.ActorSystem
-import common.WhiskProperties
 import spray.json._
 import whisk.core.entity.Exec
 
@@ -170,8 +169,7 @@ object ActionContainer {
 
     // ...find out its IP address...
     val (ip, port) =
-      if (WhiskProperties.getProperty("whisk.version.name") == "local" &&
-          WhiskProperties.onMacOSX()) {
+      if (System.getProperty("os.name").toLowerCase().contains("mac")) {
         // on MacOSX, where docker for mac does not permit communicating with container directly
         val p = 8988 // port must be available or docker run will fail
         createContainer(Some(p))
