@@ -1,1 +1,1 @@
-FROM openwhisk/action-swift-v4.1:1.0.4
+FROM openwhisk/action-swift-v4.1:1.0.5
