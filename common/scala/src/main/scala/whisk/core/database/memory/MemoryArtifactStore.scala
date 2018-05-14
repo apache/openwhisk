@@ -240,10 +240,16 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
   override protected[core] def readAttachment[T](doc: DocInfo, name: String, sink: Sink[ByteString, Future[T]])(
     implicit transid: TransactionId): Future[(ContentType, T)] = {
     //TODO Temporary implementation till MemoryAttachmentStore PR is merged
+    val start = transid.started(
+      this,
+      LoggingMarkers.DATABASE_ATT_GET,
+      s"[ATT_GET] '$dbName' finding attachment '$name' of document '$doc'")
+
     artifacts.get(doc.id.id) match {
       case Some(a: Artifact) if a.attachments.contains(name) =>
         val attachment = a.attachments(name)
         val r = Source.single(attachment.bytes).toMat(sink)(Keep.right).run
+        transid.finished(this, start, s"[ATT_GET] '$dbName' completed: found attachment '$name' of document '$doc'")
         r.map(t => (attachment.contentType, t))
       case None =>
         Future.failed(NoDocumentException("Not found on 'readAttachment'."))
@@ -260,6 +266,11 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
     contentType: ContentType,
     docStream: Source[ByteString, _])(implicit transid: TransactionId): Future[DocInfo] = {
 
+    val start = transid.started(
+      this,
+      LoggingMarkers.DATABASE_ATT_SAVE,
+      s"[ATT_PUT] '$dbName' uploading attachment '$name' of document '$doc'")
+
     //TODO Temporary implementation till MemoryAttachmentStore PR is merged
     val f = docStream.runFold(new ByteStringBuilder)((builder, b) => builder ++= b)
     val g = f
@@ -269,6 +280,8 @@ class MemoryArtifactStore[DocumentAbstraction <: DocumentSerializer](dbName: Str
             val existing = Artifact(doc, a.doc, a.computed)
             val updated = existing.attach(name, Attachment(b.result().compact, contentType))
             if (artifacts.replace(doc.id.id, existing, updated)) {
+              transid
+                .finished(this, start, s"[ATT_PUT] '$dbName' completed uploading attachment '$name' of document '$doc'")
               updated.docInfo
             } else {
               throw DocumentConflictException("conflict on 'put'")
