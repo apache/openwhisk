@@ -96,15 +96,8 @@ task testLean(type: Test) {
     doFirst {
         logTestSetInfo()
     }
-
-    def excludes = getPattern(testSetName, "excludes")
-    if (excludes) {
-        exclude excludes
-    }
-    def includes = getPattern(testSetName, "includes")
-    if (includes) {
-        include includes
-    }
+    exclude getPattern(testSetName, "excludes")
+    include getPattern(testSetName, "includes")
 }
 
 task testLeanCli(type: Test) {
@@ -176,14 +169,8 @@ afterEvaluate {
             logTestSetInfo()
         }
         classpath = getScoverageClasspath(project)
-        def excludes = getPattern(testSetName, "excludes")
-        if (excludes) {
-            exclude excludes
-        }
-        def includes = getPattern(testSetName, "includes")
-        if (includes) {
-            include includes
-        }
+        exclude getPattern(testSetName, "excludes")
+        include getPattern(testSetName, "includes")
     }
 
     task testCoverage(type:Test) {
