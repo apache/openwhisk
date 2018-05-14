@@ -100,6 +100,25 @@ task testLean(type: Test) {
     include getPattern(testSetName, "includes")
 }
 
+task testUnit(type: Test) {
+    systemProperty("whisk.spi.ArtifactStoreProvider", "whisk.core.database.memory.MemoryArtifactStoreProvider")
+    exclude getPattern("REQUIRE_ONLY_DB", "excludes")
+    include getPattern("REQUIRE_ONLY_DB", "includes")
+
+    //Test below have direct dependency on CouchDB running
+    def couchDbExcludes = [
+        "**/*NamespaceBlacklistTests*",
+        "**/*CleanUpActivationsTest*",
+        "**/*CouchDbRestClientTests*",
+        "**/*RemoveLogsTests*",
+        "**/*ReplicatorTest*",
+        "**/*CouchDBArtifactStoreTests*",
+    ]
+
+    exclude couchDbExcludes
+    exclude "actionContainers/**"
+}
+
 task testLeanCli(type: Test) {
     exclude '**/*Swift*'
     exclude '**/*Python*'
