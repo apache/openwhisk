@@ -88,8 +88,15 @@ def getPattern(String name, String type) {
     return patterns[type] ?: []
 }
 
-task testLean(type: Test) {
+def logTestSetInfo(){
     println "Using testSet $testSetName - ${prettyPrint(toJson(testSets[testSetName]))}"
+}
+
+task testLean(type: Test) {
+    doFirst {
+        logTestSetInfo()
+    }
+
     def excludes = getPattern(testSetName, "excludes")
     if (excludes) {
         exclude excludes
@@ -165,6 +172,9 @@ task createKeystore(dependsOn: deleteKeystore) {
 
 afterEvaluate {
     task testCoverageLean(type:Test) {
+        doFirst {
+            logTestSetInfo()
+        }
         classpath = getScoverageClasspath(project)
         def excludes = getPattern(testSetName, "excludes")
         if (excludes) {
