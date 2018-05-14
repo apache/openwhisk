@@ -324,7 +324,13 @@ Components = [
                   'run all tests',
                   yaml = False,
                   gradle = True,
-                  tasks = 'test')
+                  tasks = 'test'),
+
+    makeComponent('unit-tests',
+                  'run units tests',
+                  yaml = False,
+                  tasks = 'testUnit',
+                  gradle = 'tests')
 ]
 
 def getComponent(component):
