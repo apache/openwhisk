@@ -25,7 +25,7 @@ from project root.
 To run all tests
 
     $ ./gradlew tests:test
-    
+
 This requires the OpenWhisk system to be setup and running locally.
 
 ## Running Unit Tests
@@ -34,4 +34,3 @@ To just run the unit tests
 
     $ ansible-playbook -i ansible/environments/local ansible/properties.yml
     $ ./gradlew tests:testUnit
-
