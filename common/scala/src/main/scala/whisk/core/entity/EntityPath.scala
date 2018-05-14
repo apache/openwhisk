@@ -192,10 +192,10 @@ protected[core] object EntityName {
 
   /**
    * Allowed path part or entity name format (excludes path separator): first character
-   * is a letter|digit|underscore, followed by one or more allowed characters in [\w@ .-].
+   * is a letter|digit|underscore, followed by one or more allowed characters in [\w@ .&-].
    * The name may not have trailing white space.
    */
-  protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .-]{0,${ENTITY_NAME_MAX_LENGTH - 2}}[\w@.-])\z"
+  protected[core] val REGEX = raw"\A([\w]|[\w][\w@ .&-]{0,${ENTITY_NAME_MAX_LENGTH - 2}}[\w@.&-])\z"
   private val entityNamePattern = REGEX.r.pattern // compile once
   protected[core] def entityNameMatcher(s: String): Matcher = entityNamePattern.matcher(s)
 
