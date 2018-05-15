@@ -1,4 +1,5 @@
 import org.scoverage.ScoverageReport
+import static groovy.json.JsonOutput.*
 
 apply plugin: 'scala'
 apply plugin: 'eclipse'
@@ -29,12 +30,91 @@ def leanExcludes = [
     '**/*Java*',
     '**/*ThrottleTests*',
     '**/MaxActionDurationTests*',
-    '**/*ApiGwRestBasicTests*',
-    '**/*WskCli*'
 ]
 
+ext.testSets = [
+    "REQUIRE_ONLY_DB" : [
+        "includes" : [
+            "actionContainers/**",
+            "ha/**",
+            "whisk/**"
+        ],
+        "excludes" : [
+            "whisk/core/admin/**",
+            "whisk/core/apigw/actions/test/**",
+            "whisk/core/cli/test/**",
+            "whisk/core/limits/**",
+            "**/*CacheConcurrencyTests*",
+            "**/*ControllerApiTests*",
+        ]
+    ],
+    "REQUIRE_SYSTEM" : [
+        "includes" : [
+            "apigw/healthtests/**",
+            "services/**",
+            "system/basic/**",
+            "system/rest/**",
+            "whisk/core/admin/**",
+            "whisk/core/cli/test/**",
+            "whisk/core/apigw/actions/test/**",
+            "whisk/core/limits/**",
+            "whisk/core/database/test/*CacheConcurrencyTests*",
+            "whisk/core/controller/test/*ControllerApiTests*",
+        ]
+    ],
+    "LEAN" : [
+        "excludes" : leanExcludes
+    ]
+]
+
+testSets.each {setName, patterns ->
+    def excludes = patterns["excludes"] ?: new HashSet<>()
+    excludes.addAll(leanExcludes)
+    patterns["excludes"] = excludes
+}
+
+//The value can be specified either via env variable
+// ORG_GRADLE_PROJECT_testSetName
+//Or via property -PtestSetName
+if (!project.hasProperty("testSetName")) {
+    ext.testSetName = "LEAN"
+}
+
+def getPattern(String name, String type) {
+    def patterns = testSets[name]
+    assert patterns : "No pattern found for $name"
+    return patterns[type] ?: []
+}
+
+def logTestSetInfo(){
+    println "Using testSet $testSetName - ${prettyPrint(toJson(testSets[testSetName]))}"
+}
+
 task testLean(type: Test) {
-    exclude leanExcludes
+    doFirst {
+        logTestSetInfo()
+    }
+    exclude getPattern(testSetName, "excludes")
+    include getPattern(testSetName, "includes")
+}
+
+task testUnit(type: Test) {
+    systemProperty("whisk.spi.ArtifactStoreProvider", "whisk.core.database.memory.MemoryArtifactStoreProvider")
+    exclude getPattern("REQUIRE_ONLY_DB", "excludes")
+    include getPattern("REQUIRE_ONLY_DB", "includes")
+
+    //Test below have direct dependency on CouchDB running
+    def couchDbExcludes = [
+        "**/*NamespaceBlacklistTests*",
+        "**/*CleanUpActivationsTest*",
+        "**/*CouchDbRestClientTests*",
+        "**/*RemoveLogsTests*",
+        "**/*ReplicatorTest*",
+        "**/*CouchDBArtifactStoreTests*",
+    ]
+
+    exclude couchDbExcludes
+    exclude "actionContainers/**"
 }
 
 task testLeanCli(type: Test) {
@@ -102,8 +182,12 @@ task createKeystore(dependsOn: deleteKeystore) {
 
 afterEvaluate {
     task testCoverageLean(type:Test) {
+        doFirst {
+            logTestSetInfo()
+        }
         classpath = getScoverageClasspath(project)
-        exclude leanExcludes
+        exclude getPattern(testSetName, "excludes")
+        include getPattern(testSetName, "includes")
     }
 
     task testCoverage(type:Test) {

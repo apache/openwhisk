@@ -144,15 +144,6 @@ Vagrant.configure('2') do |config|
     su vagrant -c './gradlew distDocker'
     echo "`date`: build-core-end" >> /tmp/vagrant-times.txt
 
-    # Clone and Build CLI
-    echo "`date`: build-cli-start" >> /tmp/vagrant-times.txt
-    cd ${OPENWHISK_HOME}/bin
-    rm -rf openwhisk-cli
-    su vagrant -c 'git clone --depth=1 https://github.com/apache/incubator-openwhisk-cli.git openwhisk-cli'
-    cd openwhisk-cli
-    su vagrant -c './gradlew releaseBinaries'
-    echo "`date`: build-cli-end" >> /tmp/vagrant-times.txt
-
     # Deploy OpenWhisk using ansible
     echo "`date`: deploy-start" >> /tmp/vagrant-times.txt
     cd ${ANSIBLE_HOME}

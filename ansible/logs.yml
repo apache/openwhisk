@@ -72,3 +72,4 @@
   - name: fetch logs from all machines
     synchronize: src="{{ whisk_logs_dir }}/" dest="{{ openwhisk_home }}/logs" mode=pull
     when: "'machine' not in exclude_logs_from"
+    ignore_errors: true

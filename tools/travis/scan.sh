@@ -19,11 +19,14 @@
 set -e
 
 # Build script for Travis-CI.
-
+SECONDS=0
 SCRIPTDIR=$(cd $(dirname "$0") && pwd)
 ROOTDIR="$SCRIPTDIR/../.."
 HOMEDIR="$SCRIPTDIR/../../../"
 UTILDIR="$HOMEDIR/incubator-openwhisk-utilities/"
+
+cd $ROOTDIR
+./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
 
 # clone the openwhisk utilities repo.
 cd $HOMEDIR
@@ -31,7 +34,7 @@ git clone https://github.com/apache/incubator-openwhisk-utilities.git
 
 # run the scancode util. against project source code starting at its root
 cd $UTILDIR
-scancode/scanCode.py --config scancode/ASF-Release.cfg $ROOTDIR
+scancode/scanCode.py --config scancode/ASF-Release-v2.cfg $ROOTDIR
 
 # run scalafmt checks
 cd $ROOTDIR
@@ -46,31 +49,4 @@ then
   exit 1
 fi
 
-cd $ROOTDIR/ansible
-
-$ANSIBLE_CMD setup.yml -e mode=HA
-$ANSIBLE_CMD prereq.yml
-$ANSIBLE_CMD couchdb.yml
-$ANSIBLE_CMD initdb.yml
-$ANSIBLE_CMD apigateway.yml
-
-cd $ROOTDIR
-
-TERM=dumb ./gradlew distDocker -PdockerImagePrefix=testing $GRADLE_PROJS_SKIP
-
-cd $ROOTDIR/ansible
-
-$ANSIBLE_CMD wipe.yml
-$ANSIBLE_CMD openwhisk.yml
-
-cd $ROOTDIR
-cat whisk.properties
-TERM=dumb ./gradlew :tests:testCoverageLean :tests:reportCoverage
-
-cd $ROOTDIR/ansible
-$ANSIBLE_CMD logs.yml
-
-cd $ROOTDIR
-tools/build/checkLogs.py logs
-
-bash <(curl -s https://codecov.io/bash)
+echo "Time taken for ${0##*/} is $SECONDS secs"

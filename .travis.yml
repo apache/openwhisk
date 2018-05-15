@@ -48,7 +48,6 @@ notifications:
 before_install:
   - pip install --upgrade pip setuptools six
   - pip3 install --upgrade pip setuptools six
-  - ./tools/travis/flake8.sh  # Check Python files for style and stop the build on syntax errors
 
 install:
   - ./tools/travis/setup.sh
@@ -56,10 +55,13 @@ install:
 jobs:
   include:
     - script:
-        - ./tools/travis/build.sh
-        - ansible-playbook -i ansible/environments/local ansible/logs.yml # collect logs regardless of build exit
-        - ./tools/travis/box-upload.py "$TRAVIS_BUILD_DIR/logs" "$TRAVIS_BUILD_ID-$TRAVIS_BRANCH.tar.gz"
-      env: DESCRIPTION="Execute test suite."
+        - ./tools/travis/runUnitTests.sh
+        - ./tools/travis/checkAndUploadLogs.sh unit db
+      env: DESCRIPTION="Unit Tests"
+    - script:
+       - ./tools/travis/runSystemTests.sh
+       - ./tools/travis/checkAndUploadLogs.sh system
+      env: DESCRIPTION="System Tests"
     - script:
         - ./performance/preparation/deploy.sh
         - TERM=dumb ./performance/wrk_tests/latency.sh "https://172.17.0.1:10001" "$(cat ansible/files/auth.guest)" 2m
