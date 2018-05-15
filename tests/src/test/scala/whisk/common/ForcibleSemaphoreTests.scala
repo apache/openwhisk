@@ -85,4 +85,18 @@ class ForcibleSemaphoreTests extends FlatSpec with Matchers {
       acquires should contain theSameElementsAs result
     }
   }
+
+  it should "set the max allowed permits dynamically" in {
+    val s = new ForcibleSemaphore(10)
+    s.tryAcquire(2) shouldBe true // 8 permits left
+
+    s.setMaxPermits(5) // reduce max permits
+    s.availablePermits shouldBe 3
+
+    s.setMaxPermits(10) // increase max permits
+    s.availablePermits shouldBe 8
+
+    s.setMaxPermits(10) // nothing changed
+    s.availablePermits shouldBe 8
+  }
 }

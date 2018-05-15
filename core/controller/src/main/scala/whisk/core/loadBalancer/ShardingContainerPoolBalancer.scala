@@ -604,7 +604,7 @@ case class ShardingContainerPoolBalancerState(
         totalInvokerThreshold / actualSize
       }
       currentInvokerThreshold = newTreshold
-      _invokerSlots = _invokerSlots.map(_ => new ForcibleSemaphore(currentInvokerThreshold.toMB.toInt))
+      _invokerSlots.foreach(_.setMaxPermits(currentInvokerThreshold.toMB.toInt))
 
       logging.info(
         this,

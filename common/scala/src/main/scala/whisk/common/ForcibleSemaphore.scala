@@ -85,6 +85,7 @@ class ForcibleSemaphore(maxAllowed: Int) {
   }
 
   val sync = new Sync
+  private var maxPermits = maxAllowed
 
   /**
    * Acquires the given numbers of permits.
@@ -121,4 +122,18 @@ class ForcibleSemaphore(maxAllowed: Int) {
 
   /** Returns the number of currently available permits. Possibly negative. */
   def availablePermits: Int = sync.permits
+
+  /** Set the max permits for sync. */
+  def setMaxPermits(newMaxPermits: Int): Unit = synchronized {
+    require(newMaxPermits > 0, "maxPermits cannot be negative")
+    newMaxPermits - maxPermits match {
+      case 0 =>
+      case delta if delta > 0 =>
+        sync.releaseShared(delta) // increase the max permits
+      case delta if delta < 0 =>
+        sync.forceAquireShared(-delta) // reduce the max permits
+    }
+
+    maxPermits = newMaxPermits
+  }
 }

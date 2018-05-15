@@ -127,7 +127,8 @@ class ShardingContainerPoolBalancerTests extends FlatSpec with Matchers with Str
     state.invokerSlots.head.availablePermits shouldBe (memory - memoryPerSlot).toMB
 
     state.updateCluster(2)
-    state.invokerSlots.head.availablePermits shouldBe memory.toMB / 2 // state reset + divided by 2
+    // state reset + divided by 2 and minus the already acquired shared
+    state.invokerSlots.head.availablePermits shouldBe memory.toMB / 2 - memoryPerSlot.toMB.toInt
   }
 
   it should "fallback to a size of 1 (alone) if cluster size is < 1" in {
