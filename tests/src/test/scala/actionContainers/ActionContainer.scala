@@ -169,7 +169,9 @@ object ActionContainer {
 
     // ...find out its IP address...
     val (ip, port) =
-      if (System.getProperty("os.name").toLowerCase().contains("mac") && !sys.env.get("DOCKER_HOST").exists(_.trim.nonEmpty)) {
+      if (System.getProperty("os.name").toLowerCase().contains("mac") && !sys.env
+            .get("DOCKER_HOST")
+            .exists(_.trim.nonEmpty)) {
         // on MacOSX, where docker for mac does not permit communicating with container directly
         val p = 8988 // port must be available or docker run will fail
         createContainer(Some(p))
