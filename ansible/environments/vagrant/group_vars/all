@@ -37,6 +37,6 @@ env_hosts_dir: "{{ playbook_dir }}/environments/local"
 
 controller_protocol: "http"
 
-cli_installation_mode: "local"
+cli_installation_mode: "remote"
 
 invoker_use_runc: false
