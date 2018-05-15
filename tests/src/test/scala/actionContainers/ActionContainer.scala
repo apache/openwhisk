@@ -109,7 +109,7 @@ object ActionContainer {
     // Test here that this actually works, otherwise throw a somewhat understandable error message
     proc(s"$dockerCmdString info").onComplete {
       case Success((v, _, _)) if (v != 0) =>
-        throw new RuntimeException("""Unable to connect to docker host using '$d' as command string.
+        throw new RuntimeException(s"""Unable to connect to docker host using $dockerCmdString as command string.
           |The docker host is determined using the Java property 'docker.host' or
           |the envirnoment variable 'DOCKER_HOST'. Please verify that one or the
           |other is set for your build/test process.""".stripMargin)
