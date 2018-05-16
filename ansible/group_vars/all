@@ -159,6 +159,7 @@ invoker:
   arguments: "{{ invoker_arguments | default('') }}"
   numcore: 2
   coreshare: 2
+  maxConcurrent: "{{ invoker_max_concurrent | default(1) }}"
   busyThreshold: "{{ invoker_busy_threshold | default(16) }}"
   instances: "{{ groups['invokers'] | length }}"
   # Specify if it is allowed to deploy more than 1 invoker on a single machine.

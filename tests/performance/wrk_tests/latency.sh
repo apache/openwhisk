@@ -22,7 +22,9 @@ currentDir="$(cd "$(dirname "$0")"; pwd)"
 host=$1
 # Credentials to use for the test. USER:PASS format.
 credentials=$2
+# Path to action src
+action_src=$3
 # How long to run the test
-duration=${3:-30s}
+duration=${4:-30s}
 
-$currentDir/throughput.sh $host $credentials 1 1 $duration
+$currentDir/throughput.sh $host $credentials  $action_src 1 1 $duration

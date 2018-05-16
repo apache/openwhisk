@@ -336,8 +336,9 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
   /** Helper to create WarmedData with sensible defaults */
   def warmedData(action: ExecutableWhiskAction = createAction(),
                  namespace: String = standardNamespace.asString,
-                 lastUsed: Instant = Instant.now) =
-    WarmedData(stub[Container], EntityName(namespace), action, lastUsed)
+                 lastUsed: Instant = Instant.now,
+                 active: Int = 0) =
+    WarmedData(stub[Container], EntityName(namespace), action, lastUsed, active)
 
   /** Helper to create PreWarmedData with sensible defaults */
   def preWarmedData(kind: String = "anyKind") = PreWarmedData(stub[Container], kind, 256.MB)
@@ -437,5 +438,17 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     val pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
 
     ContainerPool.remove(pool) shouldBe Some('oldest)
+  }
+
+  it should "provide oldest container (excluding concurrently busy) from busy pool with multiple containers" in {
+    val commonNamespace = differentNamespace.asString
+    val first = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(1), active = 0)
+    val second = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(2), active = 0)
+    val oldest = warmedData(namespace = commonNamespace, lastUsed = Instant.ofEpochMilli(0), active = 3)
+
+    var pool = Map('first -> first, 'second -> second, 'oldest -> oldest)
+    ContainerPool.remove(pool) shouldBe Some('first)
+    pool = pool - 'first
+    ContainerPool.remove(pool) shouldBe Some('second)
   }
 }

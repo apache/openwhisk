@@ -34,8 +34,10 @@ import org.apache.http.client.utils.URIBuilder
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+import pureconfig._
 import spray.json._
+import whisk.core.ConfigKeys
 import whisk.core.entity.ActivationResponse._
 import whisk.core.entity.ByteSize
 import whisk.core.entity.size.SizeLong
@@ -131,14 +133,24 @@ protected[core] class HttpUtils(hostname: String, timeout: FiniteDuration, maxRe
     .setSocketTimeout(timeout.toMillis.toInt)
     .build
 
+  // Use PoolingHttpClientConnectionManager so that concurrent activation processing (if enabled) will reuse connections
+  val cm = new PoolingHttpClientConnectionManager
+  // Increase default max connections per route (default is 2)
+  cm.setDefaultMaxPerRoute(HttpUtils.maxConcurrent)
+  // Increase max total connections (default is 20)
+  cm.setMaxTotal(HttpUtils.maxConcurrent)
   private val connection = HttpClientBuilder.create
     .setDefaultRequestConfig(httpconfig)
+    .setConnectionManager(if (HttpUtils.maxConcurrent > 1) cm else null) //set the Pooling connection manager IFF maxConcurrent > 1
     .useSystemProperties()
     .disableAutomaticRetries()
     .build
 }
 
 object HttpUtils {
+  //load ContainerPoolConfig here so that we can tune the connection manager based on concurrency requirements
+  private val poolConfig: ContainerPoolConfig = loadConfigOrThrow[ContainerPoolConfig](ConfigKeys.containerPool)
+  private val maxConcurrent = poolConfig.maxConcurrent
 
   /** A helper method to post one single request to a connection. Used for container tests. */
   def post(host: String, port: Int, endPoint: String, content: JsValue): (Int, Option[JsObject]) = {

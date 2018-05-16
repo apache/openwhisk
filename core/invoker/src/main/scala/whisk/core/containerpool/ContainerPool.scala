@@ -18,18 +18,14 @@
 package whisk.core.containerpool
 
 import scala.collection.immutable
-
 import whisk.common.{AkkaLogging, LoggingMarkers, TransactionId}
-
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
-
 import whisk.core.entity.ByteSize
 import whisk.core.entity.CodeExec
 import whisk.core.entity.EntityName
 import whisk.core.entity.ExecutableWhiskAction
 import whisk.core.entity.size._
 import whisk.core.connector.MessageFeed
-
 import scala.concurrent.duration._
 
 sealed trait WorkerState
@@ -100,7 +96,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
         // Schedule a job to a warm container
         ContainerPool
-          .schedule(r.action, r.msg.user.namespace, freePool)
+          .schedule(r.action, r.msg.user.namespace, freePool, poolConfig.maxConcurrent)
           .map(container => {
             (container, "warm")
           })
@@ -132,8 +128,11 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
       createdContainer match {
         case Some(((actor, data), containerState)) =>
-          busyPool = busyPool + (actor -> data)
-          freePool = freePool - actor
+          //only move to busyPool if max reached
+          if (data.activeActivationCount >= poolConfig.maxConcurrent) {
+            busyPool = busyPool + (actor -> data)
+            freePool = freePool - actor
+          }
           actor ! r // forwards the run request to the container
           logContainerStart(r, containerState)
         case None =>
@@ -156,10 +155,17 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
 
     // Container is free to take more work
     case NeedWork(data: WarmedData) =>
-      freePool = freePool + (sender() -> data)
-      busyPool.get(sender()).foreach { _ =>
+      feed ! MessageFeed.Processed
+      if (data.activeActivationCount < poolConfig.maxConcurrent) {
+        freePool = freePool + (sender() -> data)
         busyPool = busyPool - sender()
-        feed ! MessageFeed.Processed
+      } else {
+        //update freePool IFF it was previously PreWarmedData (it is still free, but now has WarmedData)
+        freePool.get(sender()).foreach {
+          case p: PreWarmedData =>
+            freePool = freePool + (sender() -> data)
+          case _ =>
+        }
       }
 
     // Container is prewarmed and ready to take work
@@ -210,8 +216,8 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       val memory = action.limits.memory.megabytes.MB
       prewarmedPool
         .find {
-          case (_, PreWarmedData(_, `kind`, `memory`)) => true
-          case _                                       => false
+          case (_, PreWarmedData(_, `kind`, `memory`, _)) => true
+          case _                                          => false
         }
         .map {
           case (ref, data) =>
@@ -252,10 +258,13 @@ object ContainerPool {
    */
   protected[containerpool] def schedule[A](action: ExecutableWhiskAction,
                                            invocationNamespace: EntityName,
-                                           idles: Map[A, ContainerData]): Option[(A, ContainerData)] = {
+                                           idles: Map[A, ContainerData],
+                                           maxConcurrent: Int = 1): Option[(A, ContainerData)] = {
     idles.find {
-      case (_, WarmedData(_, `invocationNamespace`, `action`, _)) => true
-      case _                                                      => false
+      case c @ (_, WarmedData(_, `invocationNamespace`, `action`, _, _))
+          if c._2.activeActivationCount < maxConcurrent =>
+        true
+      case _ => false
     }
   }
 
@@ -269,8 +278,10 @@ object ContainerPool {
    * @return a container to be removed iff found
    */
   protected[containerpool] def remove[A](pool: Map[A, ContainerData]): Option[A] = {
+    // Try to find a Free container that does NOT have any active activations AND is initialized with any OTHER action
     val freeContainers = pool.collect {
-      case (ref, w: WarmedData) => ref -> w
+      case (ref, w: WarmedData) if w.activeActivationCount == 0 =>
+        ref -> w
     }
 
     if (freeContainers.nonEmpty) {
@@ -282,7 +293,8 @@ object ContainerPool {
   def props(factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: Option[PrewarmingConfig] = None) =
+            prewarmConfig: Option[PrewarmingConfig] = None,
+            maxConcurrent: Int = 1) =
     Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
 }
 

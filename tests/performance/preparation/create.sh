@@ -23,10 +23,21 @@ host=$1
 credentials=$2
 # Name of the action to create and test.
 action=$3
+# Path to action src
+action_src=$4
+
+# jq will json encode the src (need to strip leading/trailing quotes that jq adds)
+#action_code=$(jq -cs . "$action_src" | sed 's/^.\(.*\).$/\1/')
+action_code=$(cat "$action_src")
+
+# setup the action json to create the action
+action_json='{"namespace":"_","name":"'"$action"'","exec":{"kind":"nodejs:default","code":""}}'
+action_json=$(echo  "$action_json" | jq -c --arg code "$action_code" '.exec.code=($code)')
+
 
 # create a noop action
 echo "Creating action $action"
-curl -k -u "$credentials" "$host/api/v1/namespaces/_/actions/$action" -XPUT -d '{"namespace":"_","name":"test","exec":{"kind":"nodejs:default","code":"function main(){return {};}"}}' -H "Content-Type: application/json"
+curl -k -u "$credentials" "$host/api/v1/namespaces/_/actions/$action" -XPUT -d "$action_json" -H "Content-Type: application/json"
 
 # run the noop action
 echo "Running $action once to assert an intact system"
