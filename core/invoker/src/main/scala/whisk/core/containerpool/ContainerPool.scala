@@ -129,7 +129,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
       createdContainer match {
         case Some(((actor, data), containerState)) =>
           //only move to busyPool if max reached
-          if (data.activeActivationCount >= poolConfig.maxConcurrent) {
+          if (data.activeActivationCount + 1 >= poolConfig.maxConcurrent) {
             busyPool = busyPool + (actor -> data)
             freePool = freePool - actor
           }
@@ -157,14 +157,18 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     case NeedWork(data: WarmedData) =>
       feed ! MessageFeed.Processed
       if (data.activeActivationCount < poolConfig.maxConcurrent) {
+        //remove from busy pool (may already not be there), put back into free pool (to update activation counts)
         freePool = freePool + (sender() -> data)
         busyPool = busyPool - sender()
       } else {
         //update freePool IFF it was previously PreWarmedData (it is still free, but now has WarmedData)
-        freePool.get(sender()).foreach {
-          case p: PreWarmedData =>
+        //otherwise update busyPool to reflect the updated activation counts
+        freePool.get(sender()) match {
+          case Some(_: PreWarmedData) =>
             freePool = freePool + (sender() -> data)
-          case _ =>
+          case None =>
+            busyPool = busyPool + (sender() -> data)
+          case _ => //was free+WarmedData - do nothing
         }
       }
 
@@ -175,11 +179,9 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
     // Container got removed
     case ContainerRemoved =>
       freePool = freePool - sender()
-      busyPool.get(sender()).foreach { _ =>
-        busyPool = busyPool - sender()
-        // container was busy, so there is capacity to accept another job request
-        feed ! MessageFeed.Processed
-      }
+      busyPool = busyPool - sender()
+      // container was busy, so there is capacity to accept another job request
+      feed ! MessageFeed.Processed
 
     // This message is received for one of these reasons:
     // 1. Container errored while resuming a warm container, could not process the job, and sent the job back

@@ -220,7 +220,7 @@ class ContainerProxy(
       stay using data
 
     // Run was successful
-    case Event(data: WarmedData, s: WarmedData) =>
+    case Event(_: WarmedData, s: WarmedData) =>
       val newData = s.decrementActive
 
       context.parent ! NeedWork(newData)
