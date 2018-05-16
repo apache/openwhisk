@@ -1,16 +1,5 @@
 #!/usr/bin/env python
 """Executable Python script for testing the action proxy.
-
-  This script is useful for testing the action proxy (or its derivatives)
-  by simulating invoker interactions. Use it in combination with
-  docker run <image> which starts up the action proxy.
-  Example:
-     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
-     ./invoke.py init <action source file>
-     ./invoke.py run '{"some":"json object as a string"}'
-
-  For additional help, try ./invoke.py -h
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -27,6 +16,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+  This script is useful for testing the action proxy (or its derivatives)
+  by simulating invoker interactions. Use it in combination with
+  docker run <image> which starts up the action proxy.
+  Example:
+     docker run -i -t -p 8080:8080 dockerskeleton # locally built images may be referenced without a tag
+     ./invoke.py init <action source file>
+     ./invoke.py run '{"some":"json object as a string"}'
+
+  For additional help, try ./invoke.py -h
 """
 
 import os
