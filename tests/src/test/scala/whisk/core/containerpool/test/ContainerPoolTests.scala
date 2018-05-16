@@ -412,6 +412,16 @@ class ContainerPoolObjectTests extends FlatSpec with Matchers with MockFactory {
     ContainerPool.schedule(differentAction, data.invocationNamespace, pool) shouldBe None
   }
 
+  it should "not use a container when active activation count >= maxconcurrent" in {
+    val maxConcurrent = 25
+    val data = warmedData(active = maxConcurrent)
+    val pool = Map('warm -> data)
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool, maxConcurrent) shouldBe None
+
+    ContainerPool.schedule(data.action, data.invocationNamespace, pool, maxConcurrent + 1) shouldBe Some('warm, data)
+
+  }
+
   behavior of "ContainerPool remove()"
 
   it should "not provide a container if pool is empty" in {
