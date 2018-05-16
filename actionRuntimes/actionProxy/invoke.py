@@ -75,6 +75,7 @@ def parseArgs():
     subparsers = parser.add_subparsers(title='available commands', dest='cmd')
 
     initmenu = subparsers.add_parser('init', help='initialize container with src or zip/tgz file')
+    initmenu.add_argument('-b', '--binary', help='treat artifact as binary', action='store_true')
     initmenu.add_argument('main', nargs='?', default='main', help='name of the "main" entry method for the action')
     initmenu.add_argument('artifact', help='a source file or zip/tgz archive')
 
@@ -89,7 +90,7 @@ def init(args):
     main = args.main
     artifact = args.artifact
 
-    if artifact and (artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
+    if artifact and (args.binary or artifact.endswith('.zip') or artifact.endswith('tgz') or artifact.endswith('jar')):
         with open(artifact, 'rb') as fp:
             contents = fp.read()
         contents = base64.b64encode(contents)
