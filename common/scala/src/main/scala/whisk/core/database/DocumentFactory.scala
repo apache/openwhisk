@@ -141,12 +141,12 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
 
       val key = CacheKey(doc)
       val src = StreamConverters.fromInputStream(() => bytes)
-      val cacheDoc = postProcess map { _(doc) } getOrElse doc
 
       db.putAndAttach[W](doc, update, contentType, src, oldAttachment) flatMap {
         case (newDocInfo, attached) =>
           val newDoc = update(doc, attached).revision[W](newDocInfo.rev)
           val cacheDoc = postProcess map { _(newDoc) } getOrElse doc
+          cacheDoc.revision[W](newDocInfo.rev)
           cacheUpdate(cacheDoc, key, Future.successful(newDocInfo))
       }
 
