@@ -20,7 +20,7 @@ package whisk.core.database
 import java.io.InputStream
 import java.io.OutputStream
 
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -142,13 +142,15 @@ trait DocumentFactory[W <: DocumentRevisionProvider] extends MultipleReadersSing
       val key = CacheKey(doc)
       val src = StreamConverters.fromInputStream(() => bytes)
 
-      db.putAndAttach[W](doc, update, contentType, src, oldAttachment) flatMap {
+      val p = Promise[W]
+      cacheUpdate(p.future, key, db.putAndAttach[W](doc, update, contentType, src, oldAttachment) map {
         case (newDocInfo, attached) =>
-          val newDoc = update(doc, attached).revision[W](newDocInfo.rev)
-          val cacheDoc = postProcess map { _(newDoc) } getOrElse doc
+          val newDoc = update(doc, attached)
+          val cacheDoc = postProcess map { _(newDoc) } getOrElse newDoc
           cacheDoc.revision[W](newDocInfo.rev)
-          cacheUpdate(cacheDoc, key, Future.successful(newDocInfo))
-      }
+          p.success(cacheDoc)
+          newDocInfo
+      })
 
     } match {
       case Success(f) => f

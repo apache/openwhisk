@@ -261,10 +261,18 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     } else generator // not caching
   }
 
+  protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
+    implicit ec: ExecutionContext,
+    transid: TransactionId,
+    logger: Logging,
+    notifier: Option[CacheChangeNotification]): Future[Winfo] = {
+    cacheUpdate(Future.successful(doc), key, generator)
+  }
+
   /**
    * This method posts an update to the backing store, and potentially stores the result in the cache.
    */
-  protected def cacheUpdate(doc: W, key: CacheKey, generator: => Future[Winfo])(
+  protected def cacheUpdate(f: Future[W], key: CacheKey, generator: => Future[Winfo])(
     implicit ec: ExecutionContext,
     transid: TransactionId,
     logger: Logging,
@@ -272,7 +280,7 @@ trait MultipleReadersSingleWriterCache[W, Winfo] {
     if (cacheEnabled) {
 
       // try inserting our desired entry...
-      val desiredEntry = Entry(transid, WriteInProgress, Some(Future.successful(doc)))
+      val desiredEntry = Entry(transid, WriteInProgress, Some(f))
       cache(key)(desiredEntry) flatMap { actualEntry =>
         // ... and see what we get back
 
