@@ -25,6 +25,7 @@ import spray.json.DefaultJsonProtocol._
 import spray.json._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
+import whisk.core.entity.size._
 
 import scala.util.Success
 
@@ -63,7 +64,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val k1 = RuntimeManifest("k1", ImageName("???"))
     val k2 = RuntimeManifest("k2", ImageName("???"), default = Some(true))
     val p1 = RuntimeManifest("p1", ImageName("???"))
-    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, "256M"))))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, 256.MB))))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson, "p1" -> Set(p1).toJson, "s1" -> Set(s1).toJson))
     val runtimes = ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
 
@@ -88,7 +89,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     val i2 = RuntimeManifest("i2", ImageName("???", Some("ppp")), default = Some(true))
     val j1 = RuntimeManifest("j1", ImageName("???", Some("ppp"), Some("ttt")))
     val k1 = RuntimeManifest("k1", ImageName("???", None, Some("ttt")))
-    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, "256M"))))
+    val s1 = RuntimeManifest("s1", ImageName("???"), stemCells = Some(List(StemCell(2, 256.MB))))
 
     val mf =
       JsObject(
@@ -106,7 +107,7 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     runtimes.resolveDefaultRuntime("k1").get.image.publicImageName shouldBe "pre/???:ttt"
     runtimes.resolveDefaultRuntime("s1").get.image.publicImageName shouldBe "pre/???:test"
     runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).count shouldBe 2
-    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe "256M"
+    runtimes.resolveDefaultRuntime("s1").get.stemCells.get(0).memory shouldBe 256.MB
   }
 
   it should "read a valid configuration with blackbox images but without default prefix or tag" in {
@@ -192,4 +193,10 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     manifest.get.skipDockerPull(ImageName(prefix = Some("localpre"), name = "y")) shouldBe true
   }
 
+  it should "de/serialize stem cell configuration" in {
+    val cell = StemCell(3, 128.MB)
+    val cellAsJson = JsObject("count" -> JsNumber(3), "memory" -> JsString("128 MB"))
+    stemCellSerdes.write(cell) shouldBe cellAsJson
+    stemCellSerdes.read(cellAsJson) shouldBe cell
+  }
 }

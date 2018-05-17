@@ -19,7 +19,7 @@ package whisk.core.entity
 
 import pureconfig.loadConfigOrThrow
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import whisk.core.{ConfigKeys, WhiskConfig}
@@ -148,7 +148,7 @@ protected[core] object ExecManifest {
   /**
    * A stemcell for a container image to be initialized by the container pool.
    */
-  protected[core] case class StemCell(count: Int, memory: String)
+  protected[core] case class StemCell(count: Int, memory: ByteSize)
 
   /**
    * An image name for an action refers to the container image canonically as
@@ -293,7 +293,23 @@ protected[core] object ExecManifest {
     private val defaultSplitter = "([a-z0-9]+):default".r
   }
 
-  protected[entity] implicit val stemCellSerdes = jsonFormat2(StemCell.apply)
+  protected[entity] implicit val stemCellSerdes = new RootJsonFormat[StemCell] {
+    def write(cell: StemCell) = JsObject("count" -> JsNumber(cell.count), "memory" -> JsString(cell.memory.toString))
+
+    def read(value: JsValue): StemCell = {
+      Try {
+        value.asJsObject.getFields("count", "memory") match {
+          case Seq(JsNumber(count), JsString(memory)) =>
+            require(count.isWhole(), "stem cell count must be whole number")
+            StemCell(count.intValue, ByteSize.fromString(memory))
+        }
+      } match {
+        case Success(c) => c
+        case Failure(t) => throw t
+      }
+    }
+  }
+
   protected[entity] implicit val imageNameSerdes = jsonFormat3(ImageName.apply)
   protected[entity] implicit val runtimeManifestSerdes = jsonFormat8(RuntimeManifest)
 }
