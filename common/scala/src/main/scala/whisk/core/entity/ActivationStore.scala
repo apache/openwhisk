@@ -38,8 +38,6 @@ trait ActivationStore {
   def delete(activationId: ActivationId)(implicit transid: TransactionId,
                                          notifier: Option[CacheChangeNotification]): Future[Boolean]
 
-  def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation]
-
   def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
                                   namespace: EntityPath,
                                   skip: Int,

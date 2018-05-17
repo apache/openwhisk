@@ -67,10 +67,6 @@ class ArtifactActivationStore(actorSystem: ActorSystem, actorMaterializer: Actor
     }
   }
 
-  def response(activationId: ActivationId)(implicit transid: TransactionId): Future[WhiskActivation] = {
-    WhiskActivation.get(artifactStore, DocId(activationId.asString))
-  }
-
   def countActivationsInNamespace(name: Option[Option[EntityPath]] = None,
                                   namespace: EntityPath,
                                   skip: Int,
