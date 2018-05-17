@@ -60,7 +60,7 @@ case class WorkerData(data: ContainerData, state: WorkerState)
  */
 class ContainerPool(childFactory: ActorRefFactory => ActorRef,
                     feed: ActorRef,
-                    prewarmConfig: Option[PrewarmingConfig] = None,
+                    prewarmConfigs: Option[List[PrewarmingConfig]] = None,
                     poolConfig: ContainerPoolConfig)
     extends Actor {
   implicit val logging = new AkkaLogging(context.system.log)
@@ -70,7 +70,7 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
   var prewarmedPool = immutable.Map.empty[ActorRef, ContainerData]
   val logMessageInterval = 10.seconds
 
-  prewarmConfig.foreach { config =>
+  prewarmConfigs.getOrElse(List()).foreach { config =>
     logging.info(this, s"pre-warming ${config.count} ${config.exec.kind} containers")(TransactionId.invokerWarmup)
     (1 to config.count).foreach { _ =>
       prewarmContainer(config.exec, config.memoryLimit)
@@ -204,26 +204,25 @@ class ContainerPool(childFactory: ActorRefFactory => ActorRef,
    * @param kind the kind you want to invoke
    * @return the container iff found
    */
-  def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] =
-    prewarmConfig.flatMap { config =>
-      val kind = action.exec.kind
-      val memory = action.limits.memory.megabytes.MB
-      prewarmedPool
-        .find {
-          case (_, PreWarmedData(_, `kind`, `memory`)) => true
-          case _                                       => false
-        }
-        .map {
-          case (ref, data) =>
-            // Move the container to the usual pool
-            freePool = freePool + (ref -> data)
-            prewarmedPool = prewarmedPool - ref
-            // Create a new prewarm container
-            prewarmContainer(config.exec, config.memoryLimit)
+  def takePrewarmContainer(action: ExecutableWhiskAction): Option[(ActorRef, ContainerData)] = {
+    val kind = action.exec.kind
+    val memory = action.limits.memory.megabytes.MB
+    prewarmedPool
+      .find {
+        case (_, PreWarmedData(_, `kind`, `memory`)) => true
+        case _                                       => false
+      }
+      .map {
+        case (ref, data) =>
+          // Move the container to the usual pool
+          freePool = freePool + (ref -> data)
+          prewarmedPool = prewarmedPool - ref
+          // Create a new prewarm container
+          prewarmContainer(action.exec, memory)
 
-            (ref, data)
-        }
-    }
+          (ref, data)
+      }
+  }
 
   /** Removes a container and updates state accordingly. */
   def removeContainer(toDelete: ActorRef) = {
@@ -282,8 +281,8 @@ object ContainerPool {
   def props(factory: ActorRefFactory => ActorRef,
             poolConfig: ContainerPoolConfig,
             feed: ActorRef,
-            prewarmConfig: Option[PrewarmingConfig] = None) =
-    Props(new ContainerPool(factory, feed, prewarmConfig, poolConfig))
+            prewarmConfigs: Option[List[PrewarmingConfig]] = None) =
+    Props(new ContainerPool(factory, feed, prewarmConfigs, poolConfig))
 }
 
 /** Contains settings needed to perform container prewarming */
