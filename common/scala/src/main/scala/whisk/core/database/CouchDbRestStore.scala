@@ -228,7 +228,8 @@ class CouchDbRestStore[DocumentAbstraction <: DocumentSerializer](dbProtocol: St
       e match {
         case Right(response) =>
           transid.finished(this, start, s"[GET] '$dbName' completed: found document '$doc'")
-          deserialize[A, DocumentAbstraction](doc, response)
+          val deserializedDoc = deserialize[A, DocumentAbstraction](doc, response)
+          attachmentHandler.map(processAttachments(deserializedDoc, response, _)).getOrElse(deserializedDoc)
         case Left(StatusCodes.NotFound) =>
           transid.finished(this, start, s"[GET] '$dbName', document: '${doc}'; not found.")
           // for compatibility
