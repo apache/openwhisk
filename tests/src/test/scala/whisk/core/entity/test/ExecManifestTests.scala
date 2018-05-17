@@ -19,13 +19,14 @@ package whisk.core.entity.test
 
 import common.{StreamLogging, WskActorSystem}
 import org.junit.runner.RunWith
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.junit.JUnitRunner
-import spray.json.DefaultJsonProtocol._
+import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 import whisk.core.entity.ExecManifest
 import whisk.core.entity.ExecManifest._
 import whisk.core.entity.size._
+import whisk.core.entity.ByteSize
 
 import scala.util.Success
 
@@ -156,12 +157,64 @@ class ExecManifestTests extends FlatSpec with WskActorSystem with StreamLogging 
     an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
   }
 
-  it should "reject finding a default when none is specified for multiple versions" in {
+  it should "reject finding a default when none specified for multiple versions in the same family" in {
     val k1 = RuntimeManifest("k1", ImageName("???"))
     val k2 = RuntimeManifest("k2", ImageName("???"))
     val mf = manifestFactory(JsObject("ks" -> Set(k1, k2).toJson))
 
     an[IllegalArgumentException] should be thrownBy ExecManifest.runtimes(mf, RuntimeManifestConfig()).get
+  }
+
+  it should "parse manifest from JSON string" in {
+    val json = """
+                 |{ "runtimes": {
+                 |    "node": [{
+                 |      "kind": "nodejs",
+                 |      "image": {
+                 |        "name": "nodejsaction"
+                 |      },
+                 |      "stemCells": [{
+                 |        "count": 1,
+                 |        "memory": "128 MB"
+                 |      }]
+                 |    }]
+                 |  }
+                 |}
+                 |""".stripMargin.parseJson.asJsObject
+
+    ExecManifest.runtimes(json, RuntimeManifestConfig()).get shouldBe {
+      Runtimes(
+        Set(
+          RuntimeFamily(
+            "node",
+            Set(RuntimeManifest("nodejs", ImageName("nodejsaction"), stemCells = Some(List(StemCell(1, 128.MB))))))),
+        Set.empty,
+        None)
+    }
+  }
+
+  it should "reject manifest with invalid stem cells" in {
+    val json = """
+                 |{ "runtimes": {
+                 |    "node": [{
+                 |      "kind": "nodejs",
+                 |      "image": {
+                 |        "name": "nodejsaction"
+                 |      },
+                 |      "stemCells": [{
+                 |        "count": 1,
+                 |        "memory": "128"
+                 |      }]
+                 |    }]
+                 |  }
+                 |}
+                 |""".stripMargin.parseJson.asJsObject
+
+    the[IllegalArgumentException] thrownBy ExecManifest
+      .runtimes(json, RuntimeManifestConfig())
+      .get should have message {
+      ByteSize.formatError
+    }
   }
 
   it should "prefix image name with overrides" in {
